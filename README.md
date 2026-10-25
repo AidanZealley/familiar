@@ -7,6 +7,8 @@ A personal assistant built on [Pi Durable](https://github.com/earendil-works/pi/
 ```
 packages/core     openFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
+packages/memory   Long-term memory: facts the model keeps and sees on every
+                  request, and search over the whole transcript.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API

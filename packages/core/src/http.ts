@@ -1,5 +1,6 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView } from '@earendil-works/pi-durable'
+import type { MemoryState } from '@familiar/memory'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
@@ -22,16 +23,24 @@ export type {
   UserMessage,
 } from '@earendil-works/pi-ai'
 export type { MESSAGE_KIND, MessageData } from './familiar.ts'
+export type { Fact, MemoryState } from '@familiar/memory'
 
-/** `GET /events` is a server-sent event stream of these. */
+/**
+ * `GET /events` is a server-sent event stream of these. Each kind of state
+ * arrives whole first (again after any reconnect), then as each commit's
+ * changes, to apply in order to the last value.
+ */
 export type StreamEvent =
-  /** The whole view: sent first, and again after any reconnect. */
   | { event: 'view'; data: ConversationView }
-  /** One commit's changes; apply in order to the last view. */
   | { event: 'ops'; data: readonly Op[] }
+  | { event: 'memory'; data: Readonly<MemoryState> | null }
+  | { event: 'memory.ops'; data: readonly Op[] }
 
 /** `POST /messages` */
 export type SendBody = { text: string; requestId: string }
+
+/** `PUT /memory/:id` replaces a fact's text; `DELETE /memory/:id` forgets it. */
+export type ReviseBody = { text: string }
 
 export type HttpOptions = {
   /**
@@ -54,23 +63,30 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
     })
     .get('/events', (c) =>
       streamSSE(c, async (stream) => {
-        const watch = await familiar.watch()
         const send = (message: StreamEvent) =>
           stream.writeSSE({
             event: message.event,
             data: JSON.stringify(message.data),
           })
+        const conversation = await familiar.watch()
+        await send({ event: 'view', data: conversation.value })
+        conversation.start((_view, ops) => send({ event: 'ops', data: ops }))
 
-        await send({ event: 'view', data: watch.value })
-        watch.start((_view, ops) => send({ event: 'ops', data: ops }))
+        const memory = await familiar.memory.watch()
+        await send({ event: 'memory', data: memory.value })
+        memory.start((_memory, ops) => send({ event: 'memory.ops', data: ops }))
+
+        const watches = [conversation, memory]
 
         // Proxies close streams that look idle.
         const heartbeat = setInterval(
           () => void stream.write(': ping\n\n'),
           15_000,
         )
-        stream.onAbort(() => void watch.stop())
-        await watch.closed
+        const stop = () => watches.forEach((watch) => void watch.stop())
+        stream.onAbort(stop)
+        await Promise.race(watches.map((watch) => watch.closed))
+        stop()
         clearInterval(heartbeat)
       }),
     )
@@ -90,5 +106,16 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
     .post('/abort', async (c) => {
       await familiar.abort()
       return c.body(null, 202)
+    })
+    .put('/memory/:id', async (c) => {
+      const body = await c.req.json<ReviseBody>()
+      if (typeof body.text !== 'string' || !body.text.trim())
+        return c.json({ error: 'text is required' }, 400)
+      await familiar.memory.revise(c.req.param('id'), body.text.trim())
+      return c.body(null, 204)
+    })
+    .delete('/memory/:id', async (c) => {
+      await familiar.memory.forget(c.req.param('id'))
+      return c.body(null, 204)
     })
 }
