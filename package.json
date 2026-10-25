@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "dev:web": "pnpm --filter @familiar/web dev",
+    "dev:demo": "pnpm --parallel --filter @familiar/daemon --filter @familiar/web dev:demo",
     "service:install": "pnpm build && node apps/daemon/src/install-service.ts",
     "service:logs": "journalctl --user -u familiar -f",
     "test": "vitest run"
