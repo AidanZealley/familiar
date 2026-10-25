@@ -7,11 +7,13 @@ import {
   type ConversationWatch,
   type DocumentWatch,
   type Extension,
+  type HarnessOptions,
   type ModelRef,
   type Storage,
 } from '@earendil-works/pi-durable'
 import {
   createHistoryExtension,
+  createUpkeep,
   Memory,
   MemoryExtension,
   type MemoryState,
@@ -36,6 +38,10 @@ export type FamiliarOptions = {
    * Default 64,000.
    */
   contextBudget?: number
+  /** The clock, for tests and hosts with their own; default `Date.now`. */
+  now?: HarnessOptions['now']
+  /** Arms timers on that clock; default `setTimeout`. */
+  setTimer?: HarnessOptions['setTimer']
 }
 
 /** One message from a person. Hosts authenticate; Familiar only records who spoke. */
@@ -100,9 +106,18 @@ export function compactionFor(
 export async function openFamiliar(
   options: FamiliarOptions,
 ): Promise<Familiar> {
+  const name = options.name ?? 'Familiar'
+  const budget = options.contextBudget ?? DEFAULT_CONTEXT_BUDGET
+  // Half the budget leaves room for the prompt, memory and the pass's tool calls.
+  const upkeep = createUpkeep({
+    model: options.model,
+    name,
+    transcriptTokens: Math.floor(budget / 2),
+  })
   const registry = createRegistry()
-  registry.install(createPersona(options.name ?? 'Familiar'))
+  registry.install(createPersona(name))
   registry.install(MemoryExtension)
+  registry.install(upkeep.extension)
   for (const extension of options.extensions ?? []) registry.install(extension)
 
   // Looked up at each open, so a change of model gets its own thresholds.
@@ -110,13 +125,17 @@ export async function openFamiliar(
     options.model.provider,
     options.model.modelId,
   )?.contextWindow
-  const compaction = window
-    ? compactionFor(window, options.contextBudget ?? DEFAULT_CONTEXT_BUDGET)
-    : undefined
+  const compaction = window ? compactionFor(window, budget) : undefined
 
   const harness = await Harness.open(
     options.storage,
-    { models: options.models, registry, settings: { compaction } },
+    {
+      models: options.models,
+      registry,
+      settings: { compaction },
+      ...(options.now && { now: options.now }),
+      ...(options.setTimer && { setTimer: options.setTimer }),
+    },
     context,
   )
   const conversation = await harness.root(context, {
@@ -128,6 +147,7 @@ export async function openFamiliar(
   registry.install(createHistoryExtension(conversation))
   // Watches only attach to documents that exist.
   await harness.commit((tx) => tx.doc(Memory), context)
+  await upkeep.start(harness, context)
   harness.resume() // finish whatever the last process left unfinished
 
   const editMemory = (edit: (memory: MemoryState) => void) =>

@@ -59,7 +59,7 @@ export const createHistoryExtension = (conversation: Conversation) =>
   })
 
 /** Who said what, for the entries people and the assistant wrote. */
-function saidBy(entry: EntryRecord) {
+export function saidBy(entry: EntryRecord) {
   const message = entry.model?.[0] as UserMessage | AssistantMessage | undefined
   if (!message) return undefined
   if (entry.kind === 'familiar.message' || entry.kind === 'pi.user') {
