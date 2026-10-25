@@ -6,7 +6,10 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { config, dataPath } from './config.ts'
+import { lockDataDir } from './lock.ts'
 import { openModels } from './models.ts'
+
+lockDataDir(dataPath('daemon.lock'))
 
 const familiar = await openFamiliar({
   storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),

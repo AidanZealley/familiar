@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "icons": "for size in 180 192 512; do pnpm dlx sharp-cli -i public/icon.svg -o public/icon-$size.png resize $size $size; done"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

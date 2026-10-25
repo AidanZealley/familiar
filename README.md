@@ -32,13 +32,30 @@ The daemon sends the conversation's committed view once, then each commit's [Cho
 
 ```sh
 pnpm install
-pnpm sign-in # Sign in with ChatGPT, once
-pnpm dev     # daemon on 127.0.0.1:4317, web UI on :5173 (LAN and tailnet)
+pnpm sign-in          # Sign in with ChatGPT, once
+pnpm service:install  # build, then run as a systemd user service
 ```
 
 If you sign in on a different device from this machine, the browser's redirect to `127.0.0.1:1455` won't arrive. Paste the URL it ended on into the terminal instead.
 
-Production: `pnpm build && pnpm start` serves the API and the UI from the daemon alone.
+The service starts at boot (with `loginctl enable-linger`), restarts if it crashes, and serves the API and web UI on `127.0.0.1:4317`. Rerun `pnpm service:install` to deploy changes; `pnpm service:logs` follows its output.
+
+To reach it from your devices over HTTPS, which the home-screen app and notifications need, publish it on your tailnet only:
+
+```sh
+sudo tailscale serve --bg --https=10000 http://127.0.0.1:4317
+```
+
+Then open `https://<machine>.<tailnet>.ts.net:10000` and add it to your home screen.
+
+### Developing
+
+Only one daemon may own the data directory; a second one refuses to start.
+
+- **UI work:** `pnpm dev:web` runs Vite on `:5173` (LAN and tailnet) against the running service.
+- **Daemon or core work:** `systemctl --user stop familiar`, then `pnpm dev` runs both with reloading. Start the service again when done.
+
+Both use your real conversation and memory.
 
 ### Settings
 
