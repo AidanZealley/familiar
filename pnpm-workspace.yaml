@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Install scripts are off unless listed. None of these need theirs for Familiar.
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+  esbuild: true

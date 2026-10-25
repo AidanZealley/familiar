@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local
+*.log
+.DS_Store
+
+# Familiar stores its data outside the repo; this catches FAMILIAR_DATA_DIR=data.
+data/

@@ -1,0 +1,16 @@
+{
+  "name": "@familiar/client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@earendil-works/chord": "1.4.0",
+    "@familiar/core": "workspace:*",
+    "zustand": "5.0.16"
+  }
+}
