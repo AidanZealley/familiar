@@ -3,6 +3,7 @@ import type { Models } from '@earendil-works/pi-ai'
 import {
   createRegistry,
   Harness,
+  type CompactionSettings,
   type ConversationWatch,
   type DocumentWatch,
   type Extension,
@@ -27,6 +28,14 @@ export type FamiliarOptions = {
   name?: string
   /** Host-specific tools and behaviour, installed after Familiar's own. */
   extensions?: Extension[]
+  /**
+   * Roughly how many tokens each request may send, whatever the model's context
+   * window; older conversation is compacted into a summary to stay under it.
+   * Higher keeps more conversation verbatim, but every request pays for all of
+   * it, in money or subscription limits, latency and the model's attention.
+   * Default 64,000.
+   */
+  contextBudget?: number
 }
 
 /** One message from a person. Hosts authenticate; Familiar only records who spoke. */
@@ -65,6 +74,29 @@ export type Familiar = {
 
 const context = BACKGROUND_CONTEXT
 
+const DEFAULT_CONTEXT_BUDGET = 64_000
+
+/**
+ * Compaction thresholds that keep requests under `budget`. Pi measures from
+ * the top of the window, so the budget becomes the room reserved below it.
+ * A window smaller than the budget keeps a quarter of itself free instead.
+ */
+export function compactionFor(
+  contextWindow: number,
+  budget: number,
+): CompactionSettings {
+  const limit = Math.min(budget, Math.floor(contextWindow * 0.75))
+  return {
+    // Above `contextWindow - reserveTokens`, the next request waits to compact.
+    reserveTokens: contextWindow - limit,
+    // What stays verbatim after compacting, leaving room to grow before the next.
+    keepRecentTokens: Math.floor(limit / 3),
+    // Starts compacting in the background at three quarters of the limit, so a
+    // request rarely has to wait for it.
+    backgroundTokens: Math.floor(limit / 4),
+  }
+}
+
 export async function openFamiliar(
   options: FamiliarOptions,
 ): Promise<Familiar> {
@@ -73,9 +105,18 @@ export async function openFamiliar(
   registry.install(MemoryExtension)
   for (const extension of options.extensions ?? []) registry.install(extension)
 
+  // Looked up at each open, so a change of model gets its own thresholds.
+  const window = options.models.getModel(
+    options.model.provider,
+    options.model.modelId,
+  )?.contextWindow
+  const compaction = window
+    ? compactionFor(window, options.contextBudget ?? DEFAULT_CONTEXT_BUDGET)
+    : undefined
+
   const harness = await Harness.open(
     options.storage,
-    { models: options.models, registry },
+    { models: options.models, registry, settings: { compaction } },
     context,
   )
   const conversation = await harness.root(context, {

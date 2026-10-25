@@ -5,20 +5,31 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
+import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
-import { openFamiliar, type Familiar } from './familiar.ts'
+import {
+  compactionFor,
+  openFamiliar,
+  type Familiar,
+  type FamiliarOptions,
+} from './familiar.ts'
+
+type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
+  contextWindow?: number
+}
 
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
-async function setup() {
-  const faux = fauxProvider()
+async function setup({ contextWindow, ...options }: SetupOptions = {}) {
+  const faux = fauxProvider({ models: [{ id: 'faux-1', contextWindow }] })
   const models = createModels()
   models.setProvider(faux.provider)
   const familiar = await openFamiliar({
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    ...options,
   })
   opened.push(familiar)
 
@@ -131,4 +142,52 @@ test('search_history finds what was said earlier', async () => {
   await say('We are going to Lisbon in May.')
   await say('Where did I say we were going?')
   expect(result).toContain('aidan: We are going to Lisbon in May.')
+})
+
+/** Pi's own estimate of a request's size, the one its thresholds use. */
+const tokensOf = (context: TranscriptContext) =>
+  context.messages.reduce(
+    (total, message) => total + estimateMessageTokens(message),
+    0,
+  )
+
+const isSummaryRequest = (context: TranscriptContext) =>
+  JSON.stringify(context.messages[0]).includes('context summarization')
+
+test('compaction keeps requests under the context budget', async () => {
+  const budget = 2_000
+  const { faux, familiar, say } = await setup({
+    contextWindow: 16_000,
+    contextBudget: budget,
+  })
+  const requests: number[] = []
+  faux.setResponses(
+    Array.from({ length: 60 }, () => (context: TranscriptContext) => {
+      if (isSummaryRequest(context))
+        return fauxAssistantMessage('## Goal\nChatting about the weather.')
+      requests.push(tokensOf(context))
+      return fauxAssistantMessage('Lovely. '.repeat(20))
+    }),
+  )
+
+  for (let day = 1; day <= 20; day++)
+    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+
+  const watch = await familiar.watch()
+  await watch.stop()
+  expect(
+    watch.value.entries.some((entry) => entry.kind === 'pi.compaction'),
+  ).toBe(true)
+  expect(requests.length).toBe(20)
+  // Unbounded, the last request would hold all twenty days, about 2,800 tokens.
+  expect(Math.max(...requests)).toBeLessThan(budget)
+})
+
+test('the default budget compacts gpt-6.1-sol well before its window', () => {
+  const settings = compactionFor(272_000, 64_000)
+  expect(settings).toEqual({
+    reserveTokens: 208_000,
+    keepRecentTokens: 21_333,
+    backgroundTokens: 16_000,
+  })
 })
