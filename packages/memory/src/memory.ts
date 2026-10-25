@@ -36,7 +36,17 @@ export const Memory = defineDoc<MemoryState>({
 })
 
 /** Past this, the model is asked to merge facts rather than add more. */
-const SOFT_LIMIT = 4_000
+export const SOFT_LIMIT = 4_000
+/**
+ * `remember` never takes memory past this, so the prompt stays small however
+ * long Familiar runs. Revising and forgetting always work, so the model can
+ * always get back under.
+ */
+export const HARD_LIMIT = 6_000
+
+/** The facts as the model sees them; the limits measure this. */
+const list = (facts: Fact[]) =>
+  facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
 
 const text = (value: string) => ({
   output: [{ type: 'text' as const, text: value }],
@@ -55,7 +65,13 @@ const remember = defineTool({
   parameters: Type.Object({ text: Type.String() }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const fact = { id: `m${memory.next++}`, text: args.text, at: api.now() }
+      const fact = { id: `m${memory.next}`, text: args.text, at: api.now() }
+      const size = list([...memory.facts, fact]).length
+      if (size > HARD_LIMIT)
+        throw new Error(
+          `Memory is full (${size} of ${HARD_LIMIT} characters with this fact), so nothing was saved. Merge related facts with revise_memory or forget stale ones, then save this again.`,
+        )
+      memory.next++
       memory.facts.push(fact)
       return `Saved as ${fact.id}.`
     }),
@@ -91,8 +107,7 @@ const forget = defineTool({
 })
 
 const render = (memory: MemoryState | undefined) => {
-  const facts = memory?.facts ?? []
-  const listed = facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
+  const listed = list(memory?.facts ?? [])
   const guidance =
     listed.length > SOFT_LIMIT
       ? '\nMemory is getting long: merge or forget facts before adding new ones.'

@@ -7,6 +7,7 @@ import {
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage } from '@earendil-works/pi-durable'
+import { HARD_LIMIT, SOFT_LIMIT } from '@familiar/memory'
 import { afterEach, expect, test } from 'vitest'
 import {
   compactionFor,
@@ -190,4 +191,83 @@ test('the default budget compacts gpt-6.1-sol well before its window', () => {
     keepRecentTokens: 21_333,
     backgroundTokens: 16_000,
   })
+})
+
+/** The text of every tool result sent back in one request. */
+const toolResultsOf = (context: TranscriptContext) =>
+  context.messages.flatMap((message) =>
+    message.role === 'toolResult'
+      ? [
+          message.content
+            .map((part) => ('text' in part ? part.text : ''))
+            .join(''),
+        ]
+      : [],
+  )
+
+/** One reply that saves `count` facts of about 100 characters each. */
+const rememberMany = (count: number) =>
+  fauxAssistantMessage(
+    Array.from({ length: count }, (_, index) =>
+      fauxToolCall('remember', {
+        text: `Fact ${index}: ${'something worth keeping '.repeat(4)}`,
+      }),
+    ),
+    { stopReason: 'toolUse' },
+  )
+
+const listedLength = (facts: { id: string; text: string }[]) =>
+  facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n').length
+
+test('past the soft limit, the prompt asks the model to merge', async () => {
+  const { faux, say, memory } = await setup()
+  let prompt: Record<string, string | null>[] = []
+  faux.setResponses([
+    rememberMany(45),
+    fauxAssistantMessage('Noted.'),
+    (context) => {
+      prompt = sectionsOf(context)
+      return fauxAssistantMessage('Hello.')
+    },
+  ])
+  await say('Here is a lot about me.')
+  const facts = (await memory())?.facts ?? []
+  expect(facts).toHaveLength(45)
+  expect(listedLength(facts)).toBeGreaterThan(SOFT_LIMIT)
+  expect(listedLength(facts)).toBeLessThan(HARD_LIMIT)
+
+  await say('Hi.')
+  const latest = prompt.findLast((sections) => sections.memory)
+  expect(latest?.memory).toContain('merge or forget facts')
+})
+
+test('past the hard limit, remember refuses until the model makes room', async () => {
+  const { faux, say, memory } = await setup()
+  let results: string[] = []
+  faux.setResponses([
+    rememberMany(70),
+    (context) => {
+      results = toolResultsOf(context)
+      return fauxAssistantMessage(
+        [
+          fauxToolCall('forget', { id: 'm1' }),
+          fauxToolCall('revise_memory', { id: 'm2', text: 'Merged.' }),
+        ],
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage(fauxToolCall('remember', { text: 'Fits now' }), {
+      stopReason: 'toolUse',
+    }),
+    fauxAssistantMessage('Done.'),
+  ])
+  await say('Here is far too much about me.')
+
+  const refused = results.filter((result) => result.includes('Memory is full'))
+  expect(refused.length).toBeGreaterThan(0)
+  expect(results.length - refused.length).toBeLessThan(70)
+  const facts = (await memory())?.facts ?? []
+  expect(listedLength(facts)).toBeLessThanOrEqual(HARD_LIMIT)
+  expect(facts.at(-1)?.text).toBe('Fits now')
+  expect(facts.find((fact) => fact.id === 'm2')?.text).toBe('Merged.')
 })
