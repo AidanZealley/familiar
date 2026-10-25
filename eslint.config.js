@@ -28,7 +28,12 @@ const typesOnlyFromCore = ['@familiar/core', '@familiar/core/http'].map(
 )
 
 export default defineConfig([
-  globalIgnores(['**/dist', 'data', 'apps/web/src/routeTree.gen.ts']),
+  globalIgnores([
+    '**/dist',
+    'data',
+    '.claude',
+    'apps/web/src/routeTree.gen.ts',
+  ]),
   {
     files: ['**/*.{ts,tsx,js}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
