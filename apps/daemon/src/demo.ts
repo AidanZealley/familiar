@@ -61,7 +61,7 @@ export function greet(name: string) {
 > Say **tool**, **memory**, **slow**, **compact** or **error** to see the other scenarios.`
 
 const slowReply = Array.from(
-  { length: 12 },
+  { length: 30 },
   (_, i) =>
     `**Part ${i + 1}.** This is a long reply for testing Stop and queued messages. Send another message while it streams and it waits its turn; press Stop to end this one early. The text keeps going so there is plenty of time to try both.`,
 ).join('\n\n')
