@@ -19,7 +19,8 @@ export default defineConfig({
     // Reachable over the LAN and tailnet for reviewing on other devices.
     host: true,
     allowedHosts: ['.ts.net'],
-    // The daemon owns the API; same origin in dev as in production.
-    proxy: { '/api': 'http://127.0.0.1:4317' },
+    // The daemon owns the API; same origin in dev as in production. The demo
+    // points this at its own daemon.
+    proxy: { '/api': process.env.FAMILIAR_API ?? 'http://127.0.0.1:4317' },
   },
 })

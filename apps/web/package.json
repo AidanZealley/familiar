@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:demo": "FAMILIAR_API=http://127.0.0.1:4318 vite --port 5174 --strictPort",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",

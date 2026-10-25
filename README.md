@@ -57,7 +57,22 @@ Only one daemon may own the data directory; a second one refuses to start.
 - **UI work:** `pnpm dev:web` runs Vite on `:5173` (LAN and tailnet) against the running service.
 - **Daemon or core work:** `systemctl --user stop familiar`, then `pnpm dev` runs both with reloading. Start the service again when done.
 
-Both use your real conversation and memory.
+Both use your real conversation and memory. For UI work that shouldn't, use the demo:
+
+```sh
+pnpm dev:demo
+```
+
+It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. A word in your message picks what it does:
+
+| Word      | Familiar                                                                |
+| --------- | ----------------------------------------------------------------------- |
+| (none)    | Replies with headings, lists, a table and code                          |
+| `tool`    | Calls `current_time`, then replies                                      |
+| `memory`  | Calls `remember`, then replies                                          |
+| `slow`    | Writes a long reply, to try Stop and queued messages                    |
+| `compact` | Fills the context until Pi compacts it (the overflow error is expected) |
+| `error`   | Fails partway with an error message                                     |
 
 ### Settings
 
