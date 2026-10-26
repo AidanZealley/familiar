@@ -13,7 +13,8 @@ import { createModels } from '@earendil-works/pi-ai/models'
 import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { fileCredentialStore } from '../credentials.ts'
-import { runMemoryEval, summarize } from './run.ts'
+import { summarize } from './questions.ts'
+import { runMemoryEval } from './run.ts'
 import { memoryScenario } from './scenario.ts'
 
 // This command deliberately never imports config.ts: that module creates the
