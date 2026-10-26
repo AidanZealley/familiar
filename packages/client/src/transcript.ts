@@ -40,6 +40,8 @@ export type TranscriptItem =
       toolCalls: ToolCall[]
       /** Still being generated. */
       streaming: boolean
+      /** Someone stopped it before it finished. */
+      stopped: boolean
       error?: string
     }
   /** Older messages were summarised; they stay in storage but the model sees the summary. */
@@ -177,6 +179,7 @@ function toReply(
     thinking,
     toolCalls,
     streaming: false,
+    stopped: message.stopReason === 'aborted',
     error: message.stopReason === 'error' ? message.errorMessage : undefined,
   }
 }

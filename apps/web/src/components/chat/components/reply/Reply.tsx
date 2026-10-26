@@ -1,4 +1,4 @@
-import { CircleAlertIcon } from 'lucide-react'
+import { CircleAlertIcon, SquareIcon } from 'lucide-react'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Message, MessageContent } from '@/components/ui/message'
@@ -28,6 +28,14 @@ export const Reply = ({ reply }: ReplyProps) => {
               <ReplyText text={reply.text} streaming={reply.streaming} />
             </BubbleContent>
           </Bubble>
+        )}
+        {reply.stopped && (
+          <Marker className="text-muted-foreground">
+            <MarkerIcon>
+              <SquareIcon />
+            </MarkerIcon>
+            <MarkerContent>Stopped</MarkerContent>
+          </Marker>
         )}
         {reply.error && (
           <Marker role="alert" className="text-destructive">

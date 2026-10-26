@@ -91,6 +91,13 @@ test('item IDs are unique across history and view', () => {
   expect(new Set(ids).size).toBe(ids.length)
 })
 
+test('a stopped reply is marked', () => {
+  const [reply] = toTranscript(
+    viewOf(replied(1, [text('Part one')], 'aborted')),
+  ).items
+  expect(reply).toMatchObject({ type: 'reply', stopped: true })
+})
+
 test('a view starts at the entry its head marker heads', () => {
   expect(startOf(view)).toBe(8)
   expect(startOf(viewOf(said(4, 'hi'), said(5, 'there')))).toBe(4)
