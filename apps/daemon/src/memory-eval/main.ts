@@ -13,7 +13,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import { judge, model, models } from './models.ts'
 import { summarize } from './questions.ts'
 import { runMemoryEval } from './run.ts'
-import { memoryScenario } from './scenario.ts'
+import { rowanV3 as memoryScenario } from './scenario.ts'
 
 const commit = execFileSync('git', ['describe', '--always', '--dirty'], {
   encoding: 'utf8',
