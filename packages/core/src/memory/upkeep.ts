@@ -63,7 +63,7 @@ type UpkeepStep =
 const instructions = (name: string) =>
   `You keep the long-term memory of ${name}, a personal assistant, tidy. Nobody reads this conversation. Each message gives you the assistant's recent conversation with the people it helps, and when each saved fact was last written. Review the saved facts against it, using only remember, revise_memory and retire:
 
-- Merge duplicates and near-duplicates into one fact: revise one, retire the rest.
+- Merge duplicates and near-duplicates into one fact: revise_memory one and list the rest in merge, keeping every detail.
 - Revise facts the conversation has changed; retire facts that stopped being true. A fact's date helps judge whether it still holds. Old versions are kept as history, so never drop a detail to save space.
 - Save lasting facts from the conversation that were never saved, rating their importance: preferences, decisions, things about their lives and plans. Not passing details.
 - If nothing needs changing, change nothing.

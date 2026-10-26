@@ -143,7 +143,11 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
       input = inputOf(context)
       return fauxAssistantMessage(
         [
-          fauxToolCall('retire', { id: 'm1' }),
+          fauxToolCall('revise_memory', {
+            id: 'm2',
+            text: 'Owns a cat called Miso',
+            merge: ['m1'],
+          }),
           fauxToolCall('remember', { text: 'Is vegetarian', importance: 4 }),
         ],
         { stopReason: 'toolUse' },
@@ -157,13 +161,16 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
   expect(faux.getPendingResponseCount()).toBe(0)
   expect(input).toContain('aidan: I have a cat called Miso')
   expect(input).toContain('Familiar: Noted.')
-  // The merged duplicate stays as history; only current facts are believed.
+  // Merged duplicates stay as history; only current facts are believed.
   expect(
     (await memory())
       .filter((fact) => fact.until === undefined)
-      .map((fact) => fact.text),
-  ).toEqual(['Owns a cat called Miso', 'Is vegetarian'])
-  expect(await memory()).toHaveLength(3)
+      .map((fact) => [fact.text, fact.replaces]),
+  ).toEqual([
+    ['Owns a cat called Miso', ['m2', 'm1']],
+    ['Is vegetarian', undefined],
+  ])
+  expect(await memory()).toHaveLength(4)
 })
 
 test('a pass sees only messages since the previous one', async () => {

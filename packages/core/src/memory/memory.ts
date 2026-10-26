@@ -72,19 +72,27 @@ const remember = defineTool({
 const revise = defineTool({
   name: 'revise_memory',
   description:
-    'Save a new version of a fact that has changed or was wrong. The old version is kept as history. To merge related facts, revise one and retire the rest.',
-  parameters: Type.Object({ id: Type.String(), text: Type.String() }),
+    'Save a new version of a fact that has changed or was wrong. The old version is kept as history. To merge facts that say the same thing, revise one and list the others in merge.',
+  parameters: Type.Object({
+    id: Type.String(),
+    text: Type.String(),
+    merge: Type.Optional(
+      Type.Array(Type.String(), {
+        description: 'Other facts the new text also covers.',
+      }),
+    ),
+  }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const fact = reviseFact(memory, args.id, args.text, api.now())
-      return `Saved as ${fact.id}; ${args.id} is now history.`
+      const fact = reviseFact(memory, args.id, args.text, api.now(), args.merge)
+      return `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now history.`
     }),
 })
 
 const retire = defineTool({
   name: 'retire',
   description:
-    'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history.',
+    'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history. Not for duplicates: merge those with revise_memory.',
   parameters: Type.Object({ id: Type.String() }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {

@@ -73,7 +73,7 @@ test('revising saves a new version and keeps the old one as past', () => {
     expect.objectContaining({
       id: 'm3',
       text: 'Lives in York',
-      replaces: 'm1',
+      replaces: ['m1'],
       until: 30,
       core: false,
     }),
@@ -84,18 +84,44 @@ test('revising saves a new version and keeps the old one as past', () => {
       created: 30,
       importance: 4,
       core: true,
-      replaces: 'm3',
+      replaces: ['m3'],
     },
   ])
   expect(sheffield.id).toBe('m4')
   expect(coreFacts(memory).map((fact) => fact.id)).toEqual(['m4'])
 })
 
-test('revising keeps a core fact in core even past the budget', () => {
-  const memory = full(80)
+test('a revision too long for core stays current outside it', () => {
+  const memory = full(55)
   const first = memory.facts[0]
   const revised = reviseFact(memory, first.id, 'x'.repeat(CORE_BUDGET), 2)
-  expect(revised.core).toBe(true)
+  expect(revised.core).toBe(false)
+  expect(revised.until).toBeUndefined()
+  expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
+})
+
+test('merging supersedes every merged fact with one new version', () => {
+  const memory = empty()
+  rememberFact(memory, 'Has a cat', 2, 10)
+  rememberFact(memory, 'Owns a cat called Miso', 4, 10)
+  const merged = reviseFact(memory, 'm2', 'Owns a cat called Miso', 20, [
+    'm1',
+    'm2',
+  ])
+  expect(merged).toMatchObject({
+    id: 'm3',
+    importance: 4,
+    core: true,
+    replaces: ['m2', 'm1'],
+  })
+  expect(memory.facts.slice(0, 2)).toMatchObject([
+    { id: 'm1', until: 20 },
+    { id: 'm2', until: 20 },
+  ])
+  expect(() => reviseFact(memory, 'm3', 'Two cats', 30, ['m9'])).toThrow(
+    'No fact m9',
+  )
+  expect(memory.facts).toHaveLength(3)
 })
 
 test('retiring keeps the fact as past history', () => {
@@ -121,13 +147,16 @@ test('past and missing facts cannot change, and nothing is touched trying', () =
   expect(memory).toEqual(before)
 })
 
-test('the owner can pin a fact into core beyond the budget, and unpin it', () => {
+test('pinning refuses when core is full, and unpinning makes room', () => {
   const memory = full(80)
   const outside = memory.facts.find((fact) => !fact.core)!
+  const before = structuredClone(memory)
+  expect(() => setCore(memory, outside.id, true)).toThrow('Core memory is full')
+  expect(memory).toEqual(before)
+  setCore(memory, coreFacts(memory)[0].id, false)
   setCore(memory, outside.id, true)
-  expect(listFacts(coreFacts(memory)).length).toBeGreaterThan(CORE_BUDGET)
-  setCore(memory, outside.id, false)
-  expect(outside.core).toBe(false)
+  expect(outside.core).toBe(true)
+  expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
 })
 
 test('forget removes a fact, past or current, without reusing its number', () => {

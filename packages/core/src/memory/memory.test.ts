@@ -12,7 +12,15 @@ import {
   Harness,
   MemoryStorage,
 } from '@earendil-works/pi-durable'
-import { CORE_BUDGET, coreFacts, listFacts } from './facts.ts'
+import {
+  CORE_BUDGET,
+  coreFacts,
+  FactError,
+  listFacts,
+  rememberFact,
+  reviseFact,
+} from './facts.ts'
+import { Memory } from './memory.ts'
 import { afterEach, expect, test } from 'vitest'
 import {
   summonFamiliar,
@@ -110,7 +118,7 @@ test('people can revise, retire, pin and forget facts', async () => {
     { id: 'm1', until: expect.any(Number) },
     { id: 'm2', until: expect.any(Number) },
     { id: 'm3', core: true },
-    { id: 'm5', text: 'Lives in York', replaces: 'm1', core: true },
+    { id: 'm5', text: 'Lives in York', replaces: ['m1'], core: true },
   ])
   await expect(familiar.memory.revise('m1', 'Again')).rejects.toThrow(
     'already past',
@@ -128,6 +136,52 @@ const toolResultsOf = (context: TranscriptContext) =>
         ]
       : [],
   )
+
+test('the model forgets a fact when asked, leaving no history', async () => {
+  const { faux, say, memory } = await setup()
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall('remember', { text: 'Owes Sam £20', importance: 2 }),
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Noted.'),
+    fauxAssistantMessage(fauxToolCall('forget', { id: 'm1' }), {
+      stopReason: 'toolUse',
+    }),
+    fauxAssistantMessage('Forgotten.'),
+  ])
+  await say('I owe Sam £20.')
+  await say('Please forget that.')
+  expect(await memory()).toEqual({ facts: [], next: 2 })
+})
+
+test('an edit that fails partway through a commit changes nothing', async () => {
+  const harness = await Harness.open(
+    new MemoryStorage(),
+    { models: createModels(), registry: createRegistry() },
+    BACKGROUND_CONTEXT,
+  )
+  try {
+    await harness.commit(async (tx) => {
+      rememberFact(await tx.doc(Memory), 'Lives in Leeds', 4, 10)
+    }, BACKGROUND_CONTEXT)
+    await expect(
+      harness.commit(async (tx) => {
+        const memory = await tx.doc(Memory)
+        rememberFact(memory, 'Has a cat', 3, 20)
+        reviseFact(memory, 'm9', 'Missing', 20)
+      }, BACKGROUND_CONTEXT),
+    ).rejects.toThrow(FactError)
+    const watch = (await harness.watchDoc(Memory, BACKGROUND_CONTEXT))!
+    await watch.stop()
+    expect(watch.value).toMatchObject({
+      facts: [{ id: 'm1', text: 'Lives in Leeds' }],
+      next: 2,
+    })
+  } finally {
+    await harness.close(BACKGROUND_CONTEXT)
+  }
+})
 
 test('a fact that does not exist is an error for the model, not a crash', async () => {
   const { faux, say, memory } = await setup()
@@ -230,7 +284,8 @@ test('memory saved by version 1 opens with every fact in core', async () => {
     version: 1,
     scope: 'session',
     initial: () => ({ facts: [], next: 1 }),
-    checkpointWhen: () => true,
+    // Never checkpoints again, so migration reads a base plus deltas.
+    checkpointWhen: () => false,
   })
   const storage = new MemoryStorage()
   // The old Harness closes without closing the storage the new one opens.
@@ -243,11 +298,14 @@ test('memory saved by version 1 opens with every fact in core', async () => {
     { models: createModels(), registry: createRegistry() },
     BACKGROUND_CONTEXT,
   )
-  await old.commit(async (tx) => {
-    const memory = await tx.doc(MemoryV1)
-    memory.facts.push({ id: 'm1', text: 'Uses pnpm', at: 10 })
-    memory.next = 2
-  }, BACKGROUND_CONTEXT)
+  // Separate commits, so the stored document is a base plus deltas.
+  await old.commit((tx) => tx.doc(MemoryV1), BACKGROUND_CONTEXT)
+  for (const [index, text] of ['Uses pnpm', 'Lives in Leeds'].entries())
+    await old.commit(async (tx) => {
+      const memory = await tx.doc(MemoryV1)
+      memory.facts.push({ id: `m${index + 1}`, text, at: 10 * (index + 1) })
+      memory.next = index + 2
+    }, BACKGROUND_CONTEXT)
   await old.close(BACKGROUND_CONTEXT)
 
   const { memory } = await setup({ storage })
@@ -261,7 +319,15 @@ test('memory saved by version 1 opens with every fact in core', async () => {
         importance: 3,
         core: true,
       },
+      {
+        id: 'm2',
+        text: 'Lives in Leeds',
+        at: 20,
+        created: 20,
+        importance: 3,
+        core: true,
+      },
     ],
-    next: 2,
+    next: 3,
   })
 })

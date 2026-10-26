@@ -72,7 +72,7 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     {
       id: 'm3',
       text: 'Lives in York',
-      replaces: 'm1',
+      replaces: ['m1'],
       until: expect.any(Number),
     },
   ])

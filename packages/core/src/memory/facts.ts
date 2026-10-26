@@ -21,8 +21,11 @@ export type Fact = {
   core: boolean
   /** When it stopped being true. A fact with `until` is past: kept as history, never in the prompt. */
   until?: number
-  /** The fact this one superseded, so changes form a chain. It may since have been forgotten. */
-  replaces?: string
+  /**
+   * The facts this one superseded, so changes form a chain: one for a
+   * correction, several for a merge. They may since have been forgotten.
+   */
+  replaces?: string[]
   /** When it last reached the model, for recency. */
   recalled?: number
 }
@@ -48,6 +51,11 @@ export const coreFacts = (memory: MemoryState) =>
 /** Facts as the model sees them; the core budget measures this. */
 export const listFacts = (facts: Fact[]) =>
   facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
+
+/** How long core would be with `fact` in it. */
+const coreWith = (memory: MemoryState, fact: Fact) =>
+  listFacts([...coreFacts(memory).filter(({ id }) => id !== fact.id), fact])
+    .length
 
 const current = (memory: MemoryState, id: string) => {
   const fact = memory.facts.find((fact) => fact.id === id)
@@ -79,36 +87,41 @@ export function rememberFact(
     core: false,
   }
   fact.core =
-    importance >= CORE_IMPORTANCE &&
-    listFacts([...coreFacts(memory), fact]).length <= CORE_BUDGET
+    importance >= CORE_IMPORTANCE && coreWith(memory, fact) <= CORE_BUDGET
   memory.next++
   memory.facts.push(fact)
   return fact
 }
 
 /**
- * Saves a new version of a current fact; the old one becomes past. The new
- * version keeps the old one's importance and place in core, even if it is
- * longer: a correction should never push a fact out of the prompt.
+ * Saves a new version of a current fact, folding in any facts it `merges`;
+ * they all become past, superseded by it. It takes the highest importance
+ * among them and stays in core if any of them was and it still fits.
  */
 export function reviseFact(
   memory: MemoryState,
   id: string,
   text: string,
   at: number,
+  merges: string[] = [],
 ): Fact {
-  const old = current(memory, id)
+  const ids = [...new Set([id, ...merges])]
+  const olds = ids.map((id) => current(memory, id))
   const fact: Fact = {
     id: `m${memory.next}`,
     text,
     at,
     created: at,
-    importance: old.importance,
-    core: old.core,
-    replaces: old.id,
+    importance: Math.max(...olds.map((old) => old.importance)),
+    core: false,
+    replaces: ids,
   }
-  old.until = at
-  old.core = false
+  const wasCore = olds.some((old) => old.core)
+  for (const old of olds) {
+    old.until = at
+    old.core = false
+  }
+  fact.core = wasCore && coreWith(memory, fact) <= CORE_BUDGET
   memory.next++
   memory.facts.push(fact)
   return fact
@@ -121,12 +134,15 @@ export function retireFact(memory: MemoryState, id: string, at: number) {
   fact.core = false
 }
 
-/**
- * Puts a current fact in core or takes it out. The owner decides, so this
- * may take core past its budget.
- */
+/** Puts a current fact in core or takes it out. Core never goes past its budget. */
 export function setCore(memory: MemoryState, id: string, core: boolean) {
-  current(memory, id).core = core
+  const fact = current(memory, id)
+  const size = coreWith(memory, fact)
+  if (core && size > CORE_BUDGET)
+    throw new FactError(
+      `Core memory is full (${size} of ${CORE_BUDGET} characters with ${id}). Unpin something first.`,
+    )
+  fact.core = core
 }
 
 /** Deletes a fact outright, past or current. The only way a fact leaves the store. */

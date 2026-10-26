@@ -65,8 +65,9 @@ Done when tests cover migration, each tool, supersede chains, and that no tool o
 2. Before each request, retrieve the top results for the latest messages (default 8, within about 1,000 tokens), excluding facts already in core, and add them near the end of the request. Update `recalled` on what was shown.
 3. Score as relevance × importance weight × recency decay. Put the weights in one place with a comment on their intent.
 4. Add the `recall` tool.
+5. Recall runs before upkeep passes too. Since step 2, upkeep's input lists only core facts, so without recall a pass can't see a fact saved outside core: it may save it again, or save a correction alongside it instead of revising it.
 
-Done when tests show an important non-core fact reaching the model when relevant, not reaching it when irrelevant, and the prompt section staying unchanged between requests.
+Done when tests show an important non-core fact reaching the model when relevant, not reaching it when irrelevant, the prompt section staying unchanged between requests, and upkeep revising a non-core fact on a later pass rather than duplicating it.
 
 ### 4. Episodes and upkeep
 
