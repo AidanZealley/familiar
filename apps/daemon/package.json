@@ -7,12 +7,15 @@
     "dev:demo": "node --watch src/demo.ts",
     "start": "node src/main.ts",
     "sign-in": "node src/sign-in.ts",
+    "eval:memory": "node src/memory-eval/main.ts",
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@earendil-works/chord": "1.4.0",
     "@earendil-works/pi-ai": "1.4.0",
     "@earendil-works/pi-durable": "1.4.0",
     "@familiar/core": "workspace:*",
+    "@familiar/memory": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "4.13.13"
   }

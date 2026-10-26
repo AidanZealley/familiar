@@ -88,3 +88,14 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | `FAMILIAR_DATA_DIR` | `~/.local/share/familiar` | Or `$XDG_DATA_HOME/familiar`          |
 
 The Pi packages are pinned to exact versions: their API changes without notice between releases.
+
+### Memory evaluation
+
+Sign in once with a separate ChatGPT login file, then run the 90-day memory scenario:
+
+```sh
+FAMILIAR_DATA_DIR=~/.local/share/familiar-eval pnpm sign-in
+pnpm eval:memory
+```
+
+The eval creates a fresh Familiar in temporary SQLite storage. Its clock advances through 90 days and waits for each 04:00 memory upkeep pass. A 4,000-token context budget compacts old conversation so the questions exercise memory and history search. It asks 15 questions about old facts, changed facts, reasoning across sessions, dates, and things Rowan never said. A model judges each answer against an expected answer. The command prints scores by category and writes the full answers and verdicts to `eval/results/<date>-<commit>.json`. It reads and refreshes only the eval login in `~/.local/share/familiar-eval/auth.json`; it does not open your usual Familiar data directory.
