@@ -450,3 +450,86 @@ test('closes question storage when opening Familiar fails', async () => {
   ).rejects.toThrow('Cannot open question')
   expect(close).toHaveBeenCalledOnce()
 })
+
+test('a replay stopped by a usage limit resumes from its storage', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-resume-'))
+  temporary.push(directory)
+  const replayPath = join(directory, 'replay.sqlite')
+  const faux = fauxProvider()
+  const models = createModels()
+  models.setProvider(faux.provider)
+  const scenario: Scenario = {
+    id: 'resume-test',
+    days: [
+      { date: '2026-01-05', text: 'My bicycle is called Bracken.' },
+      { date: '2026-01-06', text: 'I fixed a loose spoke today.' },
+      { date: '2026-01-07', text: 'I oiled the chain.' },
+      { date: '2026-01-08' },
+    ],
+    questions: [
+      {
+        id: 'bike',
+        category: 'old-facts',
+        text: 'What is my bicycle called?',
+        required: ['Bracken'],
+        optional: [],
+      },
+    ],
+  }
+  // Like ChatGPT's usage limit: from day 3 every call fails until it resets.
+  let limit: 'pending' | 'hit' | 'reset' = 'pending'
+  const sent: string[] = []
+  // One scripted model for every request: replies, upkeep, answers, judging.
+  const model = (context: { messages: unknown[] }) => {
+    const text = JSON.stringify(context.messages)
+    if (limit === 'pending' && text.includes('I oiled the chain.'))
+      limit = 'hit'
+    if (limit === 'hit')
+      return fauxAssistantMessage('', {
+        stopReason: 'error',
+        errorMessage: 'subscription_sharing_usage_limit_exceeded',
+      })
+    if (text.includes(judgePrompt.slice(0, 40)))
+      return fauxAssistantMessage('{"pass":true,"reason":"Names Bracken."}')
+    if (text.includes('long-term memory of'))
+      return fauxAssistantMessage('No changes.')
+    // The newest message in the request is the one being answered.
+    sent.push(
+      [...text.matchAll(/(My bicycle|I fixed|I oiled|What is)[^."]*/g)].at(
+        -1,
+      )![0],
+    )
+    return fauxAssistantMessage('Noted.')
+  }
+  faux.setResponses(Array.from({ length: 40 }, () => model))
+  const run = async (resume: boolean) =>
+    runMemoryEval({
+      storage: await openNodeSqliteStorage(replayPath),
+      createQuestionStorage: async (id) => {
+        const path = join(directory, `${id}.sqlite`)
+        copyFileSync(replayPath, path)
+        return openNodeSqliteStorage(path)
+      },
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
+      scenario,
+      questionConcurrency: 1,
+      resume,
+    })
+
+  await expect(run(false)).rejects.toThrow('did not advance')
+  limit = 'reset'
+  expect(sent).toEqual([
+    'My bicycle is called Bracken',
+    'I fixed a loose spoke today',
+  ])
+
+  const result = await run(true)
+  // Day 3 was sent before the limit hit, so the replay resumes after it; its
+  // message stays unanswered, and the first pass after the reset reviews it.
+  expect(result.resumedFrom).toBe('2026-01-08')
+  expect(result.upkeep.map(({ date }) => date)).toEqual(['2026-01-08'])
+  expect(result.results.map(({ verdict }) => verdict.pass)).toEqual([true])
+  expect(sent.at(-1)).toBe('What is my bicycle called?')
+}, 30_000)

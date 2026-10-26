@@ -3,7 +3,7 @@ import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar } from '@familiar/core'
 import { createClock } from './clock.ts'
 import { askQuestions, type QuestionResult } from './questions.ts'
-import { replayScenario, type UpkeepResult } from './replay.ts'
+import { replayScenario, resumePoint, type UpkeepResult } from './replay.ts'
 import type { Scenario } from './scenario.ts'
 import { addTokens, noTokens, tokensOf, type Tokens } from './tokens.ts'
 
@@ -12,6 +12,8 @@ export type EvalResult = {
   days: number
   /** Pinned apart from the model under test so a model change doesn't also change the grading. */
   judge: string
+  /** Set when the replay was resumed: the first day this run sent. Upkeep outcomes start there. */
+  resumedFrom?: string
   memory: { document: unknown; characters: number }
   compactions: number
   upkeep: UpkeepResult[]
@@ -29,6 +31,7 @@ export async function runMemoryEval({
   scenario,
   progress = () => {},
   questionConcurrency = 3,
+  resume = false,
 }: {
   storage: Storage
   /** Called after replay storage closes; each call opens a separate copy of its SQLite file. */
@@ -39,15 +42,22 @@ export async function runMemoryEval({
   scenario: Scenario
   progress?: (message: string) => void
   questionConcurrency?: number
+  /** Continue a replay stopped partway, such as by a usage limit, from its storage. */
+  resume?: boolean
 }): Promise<EvalResult> {
   if (!scenario.days.length)
     throw new Error('Memory eval needs at least one day.')
   if (!Number.isInteger(questionConcurrency) || questionConcurrency < 1)
     throw new Error('Question concurrency must be positive.')
-  const first = new Date(`${scenario.days[0].date}T12:00:00`)
+  const fromDay = resume ? await resumePoint(storage, scenario) : 0
+  if (fromDay >= scenario.days.length)
+    throw new Error('The stored replay already sent every scenario day.')
+  const first = new Date(`${scenario.days[fromDay].date}T12:00:00`)
   if (Number.isNaN(first.getTime()))
     throw new Error('Invalid first scenario date.')
   const clock = createClock(first.getTime())
+  if (fromDay > 0)
+    progress(`Resuming at day ${fromDay + 1}: ${scenario.days[fromDay].date}`)
   const familiar = await summonFamiliar({
     storage,
     models,
@@ -59,7 +69,14 @@ export async function runMemoryEval({
   let replay: Awaited<ReturnType<typeof replayScenario>>
   let replayed: Tokens
   try {
-    replay = await replayScenario(familiar, storage, clock, scenario, progress)
+    replay = await replayScenario(
+      familiar,
+      storage,
+      clock,
+      scenario,
+      progress,
+      fromDay,
+    )
     replayed = tokensOf(await familiar.usage())
   } finally {
     await familiar.dismiss()
@@ -78,6 +95,7 @@ export async function runMemoryEval({
     scenario: scenario.id,
     days: scenario.days.length,
     judge: judge.modelId,
+    ...(fromDay > 0 && { resumedFrom: scenario.days[fromDay].date }),
     ...replay,
     tokens: {
       replay: replayed,

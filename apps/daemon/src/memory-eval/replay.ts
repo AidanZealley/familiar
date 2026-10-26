@@ -32,16 +32,49 @@ async function upkeepThrough(storage: Storage): Promise<number | null> {
   return (document.value as UpkeepState).through
 }
 
+/**
+ * The first scenario day a stopped replay hasn't sent yet: the day after the
+ * newest message from Rowan, on the eval's fake clock. 0 for a fresh replay.
+ */
+export async function resumePoint(storage: Storage, scenario: Scenario) {
+  let newest = -Infinity
+  for (const entry of await entriesAfter(storage)) {
+    const said = saidBy(entry)
+    // Replies carry wall-clock times; only Rowan's messages use the fake clock.
+    if (said && said.who !== 'you') newest = Math.max(newest, said.at)
+  }
+  if (newest === -Infinity) return 0
+  const sent = scenario.days.findIndex(
+    (day) => new Date(`${day.date}T12:00:00`).getTime() === newest,
+  )
+  if (sent === -1)
+    throw new Error('The stored replay does not match this scenario.')
+  return sent + 1
+}
+
+/**
+ * Replays the scenario from `fromDay`. A resumed replay first lets an
+ * interrupted reply and any overdue upkeep pass finish.
+ */
 export async function replayScenario(
   familiar: Familiar,
   storage: Storage,
   clock: ReturnType<typeof createClock>,
   scenario: Scenario,
   progress: (message: string) => void,
+  fromDay = 0,
 ) {
   const upkeep: UpkeepResult[] = []
+  if (fromDay > 0)
+    await waitForIdle(
+      familiar,
+      clock,
+      nextUpkeep(clock.now()),
+      'Resumed replay to settle',
+    )
   await waitForUpkeep(familiar, storage, clock, nextUpkeep(clock.now()))
   for (const [index, day] of scenario.days.entries()) {
+    if (index < fromDay) continue
     const noon = new Date(`${day.date}T12:00:00`).getTime()
     if (Number.isNaN(noon) || noon < clock.now())
       throw new Error(`Scenario day ${day.date} is invalid or out of order.`)

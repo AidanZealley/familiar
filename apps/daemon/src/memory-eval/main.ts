@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { judge, model, models } from './models.ts'
+import { evalDataDir, judge, model, models } from './models.ts'
 import { summarize } from './questions.ts'
 import { runMemoryEval } from './run.ts'
 import { rowanV3 } from './scenario.ts'
@@ -20,11 +20,29 @@ const commit = execFileSync('git', ['describe', '--always', '--dirty'], {
   cwd: resolve(import.meta.dirname, '../../../..'),
 }).trim()
 
+// The replay is kept in a run directory, never deleted, so a run stopped
+// partway (a usage limit, a crash) continues with --resume <directory>.
+const resumeAt = process.argv.indexOf('--resume')
+const resume = resumeAt !== -1
+const runDirectory = resume
+  ? resolve(process.argv[resumeAt + 1] ?? '')
+  : join(
+      evalDataDir,
+      'runs',
+      `${new Date().toISOString().slice(0, 19)}-${commit}`,
+    )
+const replayPath = join(runDirectory, 'familiar.sqlite')
+if (resume && !existsSync(replayPath))
+  throw new Error(`No replay to resume in ${runDirectory}.`)
+mkdirSync(runDirectory, { recursive: true })
+console.log(`Replay storage: ${runDirectory}`)
+
+// Question copies are throwaway.
 const temporary = mkdtempSync(join(tmpdir(), 'familiar-memory-eval-'))
 try {
-  const replayPath = join(temporary, 'familiar.sqlite')
   const result = await runMemoryEval({
     storage: await openNodeSqliteStorage(replayPath),
+    resume,
     createQuestionStorage: async (id) => {
       const path = join(temporary, `question-${id}.sqlite`)
       if (existsSync(`${replayPath}-wal`))
