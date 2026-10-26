@@ -1,9 +1,9 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
 import type {
   ConversationView,
-  CoreBody,
   EntryRecord,
   HistoryPage,
+  PinBody,
   MemoryState,
   ReviseBody,
   SendBody,
@@ -40,7 +40,7 @@ export type FamiliarState = {
   abort(): Promise<void>
   reviseFact(id: string, text: string): Promise<void>
   retireFact(id: string): Promise<void>
-  setFactCore(id: string, core: boolean): Promise<void>
+  setFactPinned(id: string, pinned: boolean): Promise<void>
   forgetFact(id: string): Promise<void>
   /** Stop streaming. The store keeps its last view. */
   disconnect(): void
@@ -124,10 +124,10 @@ export function createFamiliarStore(baseUrl: string) {
       } satisfies ReviseBody),
     retireFact: (id) =>
       request('POST', `/memory/${encodeURIComponent(id)}/retire`),
-    setFactCore: (id, core) =>
-      request('PUT', `/memory/${encodeURIComponent(id)}/core`, {
-        core,
-      } satisfies CoreBody),
+    setFactPinned: (id, pinned) =>
+      request('PUT', `/memory/${encodeURIComponent(id)}/pin`, {
+        pinned,
+      } satisfies PinBody),
     forgetFact: (id) => request('DELETE', `/memory/${encodeURIComponent(id)}`),
     disconnect: () => events.close(),
   }))

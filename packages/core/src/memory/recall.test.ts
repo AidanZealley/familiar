@@ -5,7 +5,7 @@ import {
   reviseFact,
   type MemoryState,
 } from './facts.ts'
-import { describeFact, RECALL_LIMIT, searchFacts } from './recall.ts'
+import { describe, RECALL_LIMIT, searchMemory } from './recall.ts'
 
 const DAY = 24 * 60 * 60 * 1000
 const now = Date.UTC(2026, 0, 1)
@@ -18,7 +18,9 @@ const memoryOf = (...facts: [text: string, importance: number][]) => {
 }
 
 const ids = (memory: MemoryState, query: string) =>
-  searchFacts(memory, query, now).map((fact) => fact.id)
+  searchMemory(memory, undefined, query, now).map((item) =>
+    'fact' in item ? item.fact.id : item.episode.id,
+  )
 
 test('finds matching facts outside core and leaves out core', () => {
   const memory = memoryOf(
@@ -62,14 +64,14 @@ test('past facts are found, ranked below current ones and labelled', () => {
   reviseFact(memory, 'm1', 'Lives at 9 Foss Lane in York', now - 10 * DAY)
   memory.facts[1].core = false
   expect(ids(memory, 'Where do I live?')).toEqual(['m2', 'm1'])
-  expect(describeFact(memory, memory.facts[0])).toBe(
+  expect(describe(memory, { fact: memory.facts[0] })).toBe(
     'm1 (2025-12-02 to 2025-12-22, no longer current; replaced by m2): Lives at 18 Beech Terrace in Leeds',
   )
-  expect(describeFact(memory, memory.facts[1])).toBe(
+  expect(describe(memory, { fact: memory.facts[1] })).toBe(
     'm2 (since 2025-12-22): Lives at 9 Foss Lane in York',
   )
   retireFact(memory, 'm2', now)
-  expect(describeFact(memory, memory.facts[1])).toContain(
+  expect(describe(memory, { fact: memory.facts[1] })).toContain(
     'to 2026-01-01, no longer current): ',
   )
 })

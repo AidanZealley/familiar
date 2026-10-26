@@ -54,8 +54,8 @@ export type SendBody = { text: string; requestId: string }
  */
 export type ReviseBody = { text: string }
 
-/** `PUT /memory/:id/core` puts a fact in core or takes it out. */
-export type CoreBody = { core: boolean }
+/** `PUT /memory/:id/pin` pins a fact into core or unpins it. */
+export type PinBody = { pinned: boolean }
 
 export type HttpOptions = {
   /**
@@ -158,12 +158,12 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
     .post('/memory/:id/retire', (c) =>
       edit(c, () => familiar.memory.retire(c.req.param('id'))),
     )
-    .put('/memory/:id/core', async (c) => {
-      const body = await c.req.json<CoreBody>()
-      if (typeof body.core !== 'boolean')
-        return c.json({ error: 'core must be true or false' }, 400)
+    .put('/memory/:id/pin', async (c) => {
+      const body = await c.req.json<PinBody>()
+      if (typeof body.pinned !== 'boolean')
+        return c.json({ error: 'pinned must be true or false' }, 400)
       return edit(c, () =>
-        familiar.memory.setCore(c.req.param('id'), body.core),
+        familiar.memory.setPinned(c.req.param('id'), body.pinned),
       )
     })
     .delete('/memory/:id', (c) =>

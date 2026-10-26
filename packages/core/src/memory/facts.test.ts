@@ -9,7 +9,9 @@ import {
   rememberFact,
   retireFact,
   reviseFact,
-  setCore,
+  rebalanceCore,
+  setImportance,
+  setPinned,
   type MemoryState,
 } from './facts.ts'
 
@@ -141,22 +143,53 @@ test('past and missing facts cannot change, and nothing is touched trying', () =
   const before = structuredClone(memory)
   expect(() => reviseFact(memory, 'm1', 'New', 30)).toThrow('already past')
   expect(() => retireFact(memory, 'm1', 30)).toThrow('already past')
-  expect(() => setCore(memory, 'm1', true)).toThrow('already past')
+  expect(() => setPinned(memory, 'm1', true)).toThrow('already past')
+  expect(() => setImportance(memory, 'm1', 5)).toThrow('already past')
   expect(() => reviseFact(memory, 'm9', 'New', 30)).toThrow('No fact m9')
   expect(() => forgetFact(memory, 'm9')).toThrow('No fact m9')
   expect(memory).toEqual(before)
 })
 
-test('pinning refuses when core is full, and unpinning makes room', () => {
+test('pinning refuses when core is full, and pinned facts stay through rebalancing', () => {
   const memory = full(80)
   const outside = memory.facts.find((fact) => !fact.core)!
   const before = structuredClone(memory)
-  expect(() => setCore(memory, outside.id, true)).toThrow('Core memory is full')
+  expect(() => setPinned(memory, outside.id, true)).toThrow(
+    'Core memory is full',
+  )
   expect(memory).toEqual(before)
-  setCore(memory, coreFacts(memory)[0].id, false)
-  setCore(memory, outside.id, true)
-  expect(outside.core).toBe(true)
+
+  // Making room: a core fact turns out to matter less.
+  setImportance(memory, coreFacts(memory)[0].id, 1)
+  rebalanceCore(memory)
+  setPinned(memory, outside.id, true)
+  rebalanceCore(memory)
+  expect(outside).toMatchObject({ core: true, pinned: true })
+  setPinned(memory, outside.id, false)
+  expect(outside.pinned).toBeUndefined()
+})
+
+test('rebalancing fills core by importance, then recency, within budget', () => {
+  const memory = full(80)
+  // Minor facts never enter core unless pinned.
+  const minor = rememberFact(memory, 'Likes blue pens', 1, 5)
+  // A recently recalled fact beats equally important ones written earlier.
+  const recalled = memory.facts.find((fact) => !fact.core)!
+  recalled.recalled = 10
+  // An essential fact beats every importance-4 fact.
+  const essential = memory.facts.at(-2)!
+  setImportance(memory, essential.id, 5)
+  const count = memory.facts.length
+  rebalanceCore(memory)
+  expect(memory.facts).toHaveLength(count)
   expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
+  expect(minor.core).toBe(false)
+  expect(recalled.core).toBe(true)
+  expect(essential.core).toBe(true)
+  // Past facts never return to core.
+  retireFact(memory, essential.id, 20)
+  rebalanceCore(memory)
+  expect(essential.core).toBe(false)
 })
 
 test('forget removes a fact, past or current, without reusing its number', () => {
@@ -177,8 +210,10 @@ test('no change other than forget removes a fact', () => {
   const kept = ids()
   reviseFact(memory, 'm1', 'A2', 2)
   retireFact(memory, 'm2', 2)
-  setCore(memory, 'm3', false)
-  setCore(memory, 'm3', true)
+  setPinned(memory, 'm3', true)
+  setPinned(memory, 'm3', false)
+  setImportance(memory, 'm3', 1)
+  rebalanceCore(memory)
   expect(ids()).toEqual([...kept, 'm4'])
 })
 

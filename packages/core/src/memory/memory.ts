@@ -15,12 +15,14 @@ import {
   listFacts,
   markRecalled,
   migrateV1,
+  setImportance,
   rememberFact,
   retireFact,
   reviseFact,
   type MemoryState,
 } from './facts.ts'
-import { describeFact, searchFacts } from './recall.ts'
+import { Episodes, type EpisodesState } from './episodes.ts'
+import { describe, factIds, searchMemory } from './recall.ts'
 
 /**
  * What Familiar knows about the people it helps. One document for the whole
@@ -120,19 +122,34 @@ const forget = defineTool({
 const recall = defineTool({
   name: 'recall',
   description:
-    "Search everything you remember beyond what you always see, including facts that are no longer current, each with when it was true. Use it when you need something you don't see, such as an earlier address or a detail of an old project.",
+    "Search everything you remember beyond what you always see: facts, including ones no longer current, each with when it was true, and episodes, summaries of what happened each day, week and month. Use it when you need something you don't see, such as an earlier address, a detail of an old project or what was going on at a time.",
   parameters: Type.Object({ query: Type.String() }),
   execute: (args, api, context) =>
+    api
+      .commit(async (tx) => {
+        const memory = await tx.doc(Memory)
+        const episodes = await tx.doc(Episodes)
+        const found = searchMemory(memory, episodes, args.query, api.now())
+        markRecalled(memory, factIds(found), api.now())
+        return found.length
+          ? found.map((item) => describe(memory, item)).join('\n')
+          : 'Nothing found.'
+      }, context)
+      .then(text),
+})
+
+const rate = defineTool({
+  name: 'set_importance',
+  description:
+    'Re-rate how much a fact matters, 1 to 5, when it has proved more or less important than first rated. It decides whether the fact stays among what you always see.',
+  parameters: Type.Object({
+    id: Type.String(),
+    importance: Type.Integer({ minimum: 1, maximum: 5 }),
+  }),
+  execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const found = searchFacts(memory, args.query, api.now())
-      markRecalled(
-        memory,
-        found.map((fact) => fact.id),
-        api.now(),
-      )
-      return found.length
-        ? found.map((fact) => describeFact(memory, fact)).join('\n')
-        : 'Nothing found.'
+      setImportance(memory, args.id, args.importance)
+      return `${args.id} is now importance ${args.importance}.`
     }),
 })
 
@@ -150,11 +167,18 @@ const textOf = (message: Message) =>
         .join('\n')
 
 /** What to recall for one request, rendered once so retries can't differ. */
-const recallFor = (memory: MemoryState, query: string, now: number) => {
-  const facts = searchFacts(memory, query, now)
+const recallFor = (
+  memory: MemoryState,
+  episodes: EpisodesState | undefined,
+  query: string,
+  now: number,
+) => {
+  const found = searchMemory(memory, episodes, query, now)
   return {
-    ids: facts.map((fact) => fact.id),
-    note: `Recalled from memory for the latest message; use it only if relevant:\n${facts.map((fact) => describeFact(memory, fact)).join('\n')}`,
+    facts: factIds(found),
+    note: found.length
+      ? `Recalled from memory for the latest message; use it only if relevant:\n${found.map((item) => describe(memory, item)).join('\n')}`
+      : null,
   }
 }
 
@@ -172,7 +196,7 @@ export type MemoryExtensionOptions = {
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: [remember, revise, retire, recall, forget],
+    tools: [remember, revise, retire, rate, recall, forget],
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>
@@ -192,11 +216,16 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
           // even if memory changed in between.
           const recalled = await api.memo(
             'familiar.recall',
-            recallFor(memory, textOf(latest), options.now()),
+            recallFor(
+              memory,
+              await api.snapshot(Episodes, context),
+              textOf(latest),
+              options.now(),
+            ),
             context,
           )
-          if (!recalled.ids.length) return
-          await options.recalled(recalled.ids)
+          if (recalled.note === null) return
+          if (recalled.facts.length) await options.recalled(recalled.facts)
           const note: Message = {
             role: 'user',
             content: recalled.note,

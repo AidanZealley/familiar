@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Harness } from '@earendil-works/pi-durable'
 import { markRecalled } from './facts.ts'
+import { Episodes } from './episodes.ts'
 import { Memory, createMemoryExtension } from './memory.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep.ts'
 import { memoryApi } from './api.ts'
@@ -9,6 +10,7 @@ export * from './memory.ts'
 export * from './upkeep.ts'
 export * from './facts.ts'
 export * from './recall.ts'
+export * from './episodes.ts'
 export type { MemoryApi } from './api.ts'
 
 export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
@@ -34,7 +36,10 @@ export function createMemory(options: MemoryOptions) {
     async start(opened: Harness) {
       harness = opened
       // Watches only attach to documents that exist.
-      await harness.commit((tx) => tx.doc(Memory), BACKGROUND_CONTEXT)
+      await harness.commit(async (tx) => {
+        await tx.doc(Memory)
+        await tx.doc(Episodes)
+      }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
       return memoryApi(harness)
     },

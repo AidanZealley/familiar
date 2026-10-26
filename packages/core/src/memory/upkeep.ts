@@ -1,6 +1,7 @@
 import type { Context } from '@earendil-works/chord'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import {
+  AssistantEntry,
   configure,
   defineDoc,
   defineExtension,
@@ -10,14 +11,17 @@ import {
   type Extension,
   type ConversationId,
   type EntryId,
+  type EntryRecord,
   type Harness,
   type ModelRef,
   type TaskId,
+  type TaskRuntime,
   type Tx,
 } from '@earendil-works/pi-durable'
 import { saidBy } from '../conversation/message.ts'
 import { Memory } from './memory.ts'
-import { coreFacts } from './facts.ts'
+import { coreFacts, rebalanceCore } from './facts.ts'
+import { addEpisode, dueRollup, Episodes, localDay } from './episodes.ts'
 
 /** Passes run daily at this hour, in the host's time zone. */
 const UPKEEP_HOUR = 4
@@ -59,6 +63,20 @@ type UpkeepStep =
       reset: EntryId
       newest: EntryId
       input: string
+      /** The local days the messages span, for the day's episode. */
+      start: string
+      end: string
+    }
+  /** Rolls up the next finished week or month, if any, else sleeps. */
+  | { phase: 'rollup' }
+  | {
+      phase: 'summarize'
+      conversation: ConversationId
+      reset: EntryId
+      span: 'week' | 'month'
+      start: string
+      end: string
+      input: string
     }
 
 const instructions = (name: string) =>
@@ -70,7 +88,7 @@ const instructions = (name: string) =>
 - Save lasting facts from the conversation that were never saved, rating their importance: preferences, decisions, things about their lives and plans. Not passing details.
 - If nothing needs changing, change nothing.
 
-When you are done, reply with one short line saying what you changed.`
+When you are done, reply with only the episode: a few sentences on what happened and what was said, with names, places, dates, projects, decisions and changes, so it can answer later questions such as "what was going on in early March?". Don't mention memory or what you changed.`
 
 const day = (at: number) => new Date(at).toISOString().slice(0, 10)
 const minute = (at: number) => new Date(at).toISOString().slice(0, 16)
@@ -84,10 +102,13 @@ async function newMessages(
   through: EntryId | null,
   budget: number,
   name: string,
+  now: number,
 ) {
   const lines: string[] = []
   let newest: EntryId | undefined
   let tokens = 0
+  let first = Infinity
+  let last = -Infinity
   let cursor: Parameters<Tx['scanEntries']>[2]
   scan: do {
     const page = await tx.scanEntries(
@@ -107,19 +128,34 @@ async function newMessages(
       const size = estimateTextTokens(line)
       if (tokens + size > budget) {
         // A single message larger than the budget is cut, not skipped forever.
-        if (!lines.length) lines.push(line.slice(0, budget * 3))
+        if (!lines.length) {
+          lines.push(line.slice(0, budget * 3))
+          if (said.who !== 'you') first = last = said.at
+        }
         newest ??= entry.id
         break scan
       }
       newest ??= entry.id
       lines.push(line)
       tokens += size
+      // Dated by people's messages: model replies carry wall-clock times,
+      // not the Harness clock.
+      if (said.who !== 'you') {
+        first = Math.min(first, said.at)
+        last = Math.max(last, said.at)
+      }
     }
     cursor = page.next
   } while (cursor)
   return newest === undefined
     ? undefined
-    : { newest, transcript: lines.reverse().join('\n') }
+    : {
+        newest,
+        transcript: lines.reverse().join('\n'),
+        // Only replies, which can't happen in practice: date them today.
+        start: localDay(Number.isFinite(first) ? first : now),
+        end: localDay(Number.isFinite(last) ? last : now),
+      }
 }
 
 export type UpkeepOptions = {
@@ -147,6 +183,45 @@ export function createUpkeep(options: UpkeepOptions) {
       checkpoint: { phase: 'pass' },
     }) as const
 
+  /**
+   * Submits `input` to the upkeep conversation and returns the reply, or
+   * undefined after reporting a failure. The request ID finds the same
+   * submission if a restart reruns the phase.
+   */
+  const ask = async (
+    runtime: TaskRuntime<null, UpkeepStep, null, object>,
+    conversation: ConversationId,
+    reset: EntryId,
+    input: string,
+    context: Context,
+  ) => {
+    const handle = await runtime.conversation(conversation, context)
+    if (!handle) throw new Error(`No upkeep conversation ${conversation}.`)
+    const submission = await handle.submit(
+      { type: 'input', content: input, requestId: `upkeep:${reset}` },
+      context,
+    )
+    const settled = await submission.wait(context)
+    if (settled.status !== 'done') {
+      runtime.report(new Error(`Memory upkeep failed: ${settled.reason}`))
+      return undefined
+    }
+    // A task commit returns its next state, not values, so read into this.
+    let answer: EntryRecord | undefined
+    await runtime.commit(async (tx) => {
+      // An input that was answered always has its answer's entry.
+      answer = await tx.entry(AssistantEntry, settled.answer!)
+    }, context)
+    return (answer && saidBy(answer)?.text.trim()) ?? ''
+  }
+
+  /** Passes start from nothing, so the upkeep conversation never grows. */
+  const resetIn = (tx: Tx, conversation: ConversationId) =>
+    // Appended directly: nothing else runs there, and the last pass settled.
+    tx.appendEntry(ResetEntry, conversation, { head: 'self' })
+
+  const rollup = { status: 'running', checkpoint: { phase: 'rollup' } } as const
+
   const UpkeepTask = defineTask<null, UpkeepStep, null>({
     name: 'familiar.upkeep',
     version: 1,
@@ -158,14 +233,16 @@ export function createUpkeep(options: UpkeepOptions) {
       pass: (_task, runtime, context) =>
         runtime.commit(async (tx) => {
           const upkeep = await tx.doc(Upkeep)
+          if (upkeep.conversation === null) return sleep(runtime.now())
           const found = await newMessages(
             tx,
             upkeep.through,
             options.transcriptTokens,
             options.name,
+            runtime.now(),
           )
-          if (!found || upkeep.conversation === null)
-            return sleep(runtime.now())
+          // No conversation since the last pass: a rollup may still be due.
+          if (!found) return rollup
 
           // The facts the pass sees in its prompt section.
           const facts = coreFacts(await tx.doc(Memory))
@@ -173,12 +250,7 @@ export function createUpkeep(options: UpkeepOptions) {
             ? facts.map((fact) => `${fact.id}: ${day(fact.at)}`).join('\n')
             : '(no facts yet)'
           const input = `Recent conversation, oldest first:\n${found.transcript}\n\nWhen each fact was last written:\n${dates}`
-          // Passes start from nothing, so the upkeep conversation never grows.
-          // Appended directly: nothing else runs there, and the previous pass
-          // has settled.
-          const reset = await tx.appendEntry(ResetEntry, upkeep.conversation, {
-            head: 'self',
-          })
+          const reset = await resetIn(tx, upkeep.conversation)
           return {
             status: 'running',
             checkpoint: {
@@ -187,26 +259,75 @@ export function createUpkeep(options: UpkeepOptions) {
               reset: reset.id,
               newest: found.newest,
               input,
+              start: found.start,
+              end: found.end,
             },
           }
         }, context),
 
       consolidate: async (task, runtime, context) => {
-        const { conversation, reset, newest, input } = task.state.checkpoint
-        const handle = await runtime.conversation(conversation, context)
-        if (!handle) throw new Error(`No upkeep conversation ${conversation}.`)
-        // The request ID finds the same submission if a restart reruns this.
-        const submission = await handle.submit(
-          { type: 'input', content: input, requestId: `upkeep:${reset}` },
-          context,
-        )
-        const settled = await submission.wait(context)
-        if (settled.status !== 'done')
-          runtime.report(new Error(`Memory upkeep failed: ${settled.reason}`))
+        const { conversation, reset, newest, input, start, end } =
+          task.state.checkpoint
+        const episode = await ask(runtime, conversation, reset, input, context)
         await runtime.commit(async (tx) => {
           // A failed pass leaves these messages for the next one.
-          if (settled.status === 'done') (await tx.doc(Upkeep)).through = newest
-          return sleep(runtime.now())
+          if (episode === undefined) return sleep(runtime.now())
+          ;(await tx.doc(Upkeep)).through = newest
+          if (episode)
+            addEpisode(await tx.doc(Episodes), {
+              span: 'day',
+              start,
+              end,
+              text: episode,
+              at: runtime.now(),
+            })
+          rebalanceCore(await tx.doc(Memory))
+          return rollup
+        }, context)
+      },
+
+      rollup: (_task, runtime, context) =>
+        runtime.commit(async (tx) => {
+          const upkeep = await tx.doc(Upkeep)
+          const due = dueRollup(await tx.doc(Episodes), localDay(runtime.now()))
+          if (!due || upkeep.conversation === null) return sleep(runtime.now())
+          const days = due.days
+            .map(
+              (day) =>
+                `${day.start === day.end ? day.start : `${day.start} to ${day.end}`}: ${day.text}`,
+            )
+            .join('\n\n')
+          const input = `This is not a review: change no facts. Write the episode for the ${due.span} of ${due.start} to ${due.end} from its day episodes below. Keep every name, place, date, project, decision and change that mattered. Reply with only the episode.\n\n${days}`
+          const reset = await resetIn(tx, upkeep.conversation)
+          return {
+            status: 'running',
+            checkpoint: {
+              phase: 'summarize',
+              conversation: upkeep.conversation,
+              reset: reset.id,
+              span: due.span,
+              start: due.start,
+              end: due.end,
+              input,
+            },
+          }
+        }, context),
+
+      summarize: async (task, runtime, context) => {
+        const { conversation, reset, span, start, end, input } =
+          task.state.checkpoint
+        const episode = await ask(runtime, conversation, reset, input, context)
+        await runtime.commit(async (tx) => {
+          // Stop rather than retry in a loop; the next pass tries again.
+          if (!episode) return sleep(runtime.now())
+          addEpisode(await tx.doc(Episodes), {
+            span,
+            start,
+            end,
+            text: episode,
+            at: runtime.now(),
+          })
+          return rollup
         }, context)
       },
     },

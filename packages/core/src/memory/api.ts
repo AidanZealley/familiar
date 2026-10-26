@@ -1,21 +1,24 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
+import { Episodes, type EpisodesState } from './episodes.ts'
 import { Memory } from './memory.ts'
 import {
   forgetFact,
   retireFact,
   reviseFact,
-  setCore,
+  setPinned,
   type MemoryState,
 } from './facts.ts'
 
 /** The owner's corrections. Each rejects, changing nothing, when the fact is missing or already past. */
 export type MemoryApi = {
   watch(): Promise<DocumentWatch<MemoryState>>
+  /** Summaries of what happened, written by nightly upkeep. */
+  watchEpisodes(): Promise<DocumentWatch<EpisodesState>>
   revise(id: string, text: string): Promise<void>
   retire(id: string): Promise<void>
-  /** Put a fact in core or take it out, regardless of core's budget. */
-  setCore(id: string, core: boolean): Promise<void>
+  /** Pin a fact into core, or unpin it so rebalancing decides. Rejects when core is full. */
+  setPinned(id: string, pinned: boolean): Promise<void>
   forget(id: string): Promise<void>
 }
 
@@ -27,10 +30,12 @@ export function memoryApi(harness: Harness): MemoryApi {
 
   return {
     watch: async () => (await harness.watchDoc(Memory, context))!,
+    watchEpisodes: async () => (await harness.watchDoc(Episodes, context))!,
     revise: (id, text) =>
       editMemory((memory) => void reviseFact(memory, id, text, Date.now())),
     retire: (id) => editMemory((memory) => retireFact(memory, id, Date.now())),
-    setCore: (id, core) => editMemory((memory) => setCore(memory, id, core)),
+    setPinned: (id, pinned) =>
+      editMemory((memory) => setPinned(memory, id, pinned)),
     forget: (id) => editMemory((memory) => forgetFact(memory, id)),
   }
 }

@@ -17,8 +17,10 @@ export type Fact = {
   created: number
   /** 1 to 5, rated by the model: 5 for identity, close people, health and standing commitments; 1 for minor preferences. */
   importance: number
-  /** Whether it sits in the prompt. Facts outside core are kept, not lost. */
+  /** Whether it sits in the prompt now. Facts outside core are kept, not lost, and recalled when relevant. */
   core: boolean
+  /** The owner wants it in core: rebalancing places it first. */
+  pinned?: boolean
   /** When it stopped being true. A fact with `until` is past: kept as history, never in the prompt. */
   until?: number
   /**
@@ -115,11 +117,13 @@ export function reviseFact(
     importance: Math.max(...olds.map((old) => old.importance)),
     core: false,
     replaces: ids,
+    ...(olds.some((old) => old.pinned) && { pinned: true }),
   }
   const wasCore = olds.some((old) => old.core)
   for (const old of olds) {
     old.until = at
     old.core = false
+    delete old.pinned
   }
   fact.core = wasCore && coreWith(memory, fact) <= CORE_BUDGET
   memory.next++
@@ -132,17 +136,71 @@ export function retireFact(memory: MemoryState, id: string, at: number) {
   const fact = current(memory, id)
   fact.until = at
   fact.core = false
+  delete fact.pinned
 }
 
-/** Puts a current fact in core or takes it out. Core never goes past its budget. */
-export function setCore(memory: MemoryState, id: string, core: boolean) {
+/**
+ * Pins a current fact into core, or unpins it so rebalancing decides. Core
+ * never goes past its budget, so pinning refuses when there's no room.
+ */
+export function setPinned(memory: MemoryState, id: string, pinned: boolean) {
   const fact = current(memory, id)
+  if (!pinned) {
+    delete fact.pinned
+    return
+  }
   const size = coreWith(memory, fact)
-  if (core && size > CORE_BUDGET)
+  if (size > CORE_BUDGET)
     throw new FactError(
       `Core memory is full (${size} of ${CORE_BUDGET} characters with ${id}). Unpin something first.`,
     )
-  fact.core = core
+  fact.pinned = true
+  fact.core = true
+}
+
+/** Re-rates how much a current fact matters, which decides its place in core. */
+export function setImportance(
+  memory: MemoryState,
+  id: string,
+  importance: number,
+) {
+  const fact = current(memory, id)
+  fact.importance = importanceOf(importance)
+}
+
+const lastUsed = (fact: Fact) => Math.max(fact.at, fact.recalled ?? 0)
+
+/**
+ * Rebuilds core within its budget: pinned facts first, then facts important
+ * enough for core, most important first and, among equals, most recently
+ * written or recalled. Plain code rather than a model decision, so core
+ * can't drift. Moves facts in and out of core; never removes one.
+ */
+export function rebalanceCore(memory: MemoryState) {
+  const candidates = memory.facts
+    .filter(
+      (fact) =>
+        !isPast(fact) && (fact.pinned || fact.importance >= CORE_IMPORTANCE),
+    )
+    .sort(
+      (a, b) =>
+        Number(!!b.pinned) - Number(!!a.pinned) ||
+        b.importance - a.importance ||
+        lastUsed(b) - lastUsed(a),
+    )
+  const chosen = new Set<string>()
+  let size = 0
+  for (const fact of candidates) {
+    const line = listFacts([fact]).length + (chosen.size ? 1 : 0)
+    if (size + line > CORE_BUDGET) continue
+    chosen.add(fact.id)
+    size += line
+  }
+  for (const fact of memory.facts) {
+    const core = chosen.has(fact.id)
+    // Only real changes, so an unchanged core commits nothing.
+    if (fact.core !== core) fact.core = core
+  }
 }
 
 /** Records that facts reached the model. Facts forgotten meanwhile are skipped. */

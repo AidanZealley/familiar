@@ -112,12 +112,12 @@ test('people can revise, retire, pin and forget facts', async () => {
 
   await familiar.memory.revise('m1', 'Lives in York')
   await familiar.memory.retire('m2')
-  await familiar.memory.setCore('m3', true)
+  await familiar.memory.setPinned('m3', true)
   await familiar.memory.forget('m4')
   expect((await memory())?.facts).toMatchObject([
     { id: 'm1', until: expect.any(Number) },
     { id: 'm2', until: expect.any(Number) },
-    { id: 'm3', core: true },
+    { id: 'm3', core: true, pinned: true },
     { id: 'm5', text: 'Lives in York', replaces: ['m1'], core: true },
   ])
   await expect(familiar.memory.revise('m1', 'Again')).rejects.toThrow(

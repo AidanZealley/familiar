@@ -77,6 +77,11 @@ async function setup() {
     await watch.stop()
     return watch.value?.facts ?? []
   }
+  const episodes = async () => {
+    const watch = await familiar.memory.watchEpisodes()
+    await watch.stop()
+    return watch.value?.episodes ?? []
+  }
   const upkeepTasks = async () =>
     (
       await storage.scanTasks(
@@ -98,7 +103,16 @@ async function setup() {
     clock.advanceTo(time)
     await sleepingUntil(next)
   }
-  return { faux, say, memory, upkeepTasks, sleepingUntil, passAt, reopen }
+  return {
+    faux,
+    say,
+    memory,
+    episodes,
+    upkeepTasks,
+    sleepingUntil,
+    passAt,
+    reopen,
+  }
 }
 
 const opened: Familiar[] = []
@@ -106,14 +120,23 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-/** The pass's input: the last user message of an upkeep request. */
+/** The pass's input: the last user message of an upkeep request, before any recall note. */
 const inputOf = (context: TranscriptContext) => {
-  const last = context.messages.findLast((message) => message.role === 'user')
-  return typeof last?.content === 'string'
-    ? last.content
-    : (last?.content ?? [])
-        .map((part) => (part.type === 'text' ? part.text : ''))
-        .join('')
+  const text = (message: TranscriptContext['messages'][number]) =>
+    message.role !== 'user'
+      ? ''
+      : typeof message.content === 'string'
+        ? message.content
+        : message.content
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join('')
+  return (
+    context.messages
+      .map(text)
+      .findLast(
+        (input) => input && !input.startsWith('Recalled from memory'),
+      ) ?? ''
+  )
 }
 
 const isUpkeep = (context: TranscriptContext) =>
@@ -346,4 +369,69 @@ test('a pass can search for a fact its automatic recall missed', async () => {
       .filter((fact) => fact.until === undefined)
       .map((fact) => fact.text),
   ).toContain('Prefers black tea')
+})
+
+test("a pass writes the day's episode, rebalances core, and Monday's pass rolls up the week", async () => {
+  const { faux, say, memory, episodes, passAt } = await setup()
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall('remember', {
+        text: 'Plants bulbs with Noor',
+        importance: 3,
+      }),
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Lovely.'),
+  ])
+  // Sunday 25 October 2026; the first pass is Monday at 04:00.
+  await say('I spent today planting bulbs with Noor.')
+  expect((await memory())[0].core).toBe(true)
+
+  let rollupInput = ''
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall('set_importance', { id: 'm1', importance: 1 }),
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Rowan planted bulbs with Noor on Sunday.'),
+    (context) => {
+      expect(isUpkeep(context)).toBe(true)
+      rollupInput = inputOf(context)
+      return fauxAssistantMessage('A quiet week ending in bulb planting.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+
+  expect(await episodes()).toMatchObject([
+    {
+      id: 'e1',
+      span: 'day',
+      start: '2026-10-25',
+      end: '2026-10-25',
+      text: 'Rowan planted bulbs with Noor on Sunday.',
+    },
+    {
+      id: 'e2',
+      span: 'week',
+      start: '2026-10-19',
+      end: '2026-10-25',
+      text: 'A quiet week ending in bulb planting.',
+    },
+  ])
+  expect(rollupInput).toContain('week of 2026-10-19 to 2026-10-25')
+  expect(rollupInput).toContain(
+    '2026-10-25: Rowan planted bulbs with Noor on Sunday.',
+  )
+  // Rated down, so rebalancing moved it out of core; it is still kept.
+  expect(await memory()).toMatchObject([{ id: 'm1', core: false }])
+
+  let note = ''
+  faux.setResponses([
+    (context) => {
+      note = JSON.stringify(context.messages.at(-1))
+      return fauxAssistantMessage('You planted bulbs.')
+    },
+  ])
+  await say('What was I doing with Noor last week?')
+  expect(note).toContain('e1 (day of 2026-10-25)')
 })

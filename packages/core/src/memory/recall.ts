@@ -1,5 +1,6 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import MiniSearch from 'minisearch'
+import { localDay, type Episode, type EpisodesState } from './episodes.ts'
 import { isPast, type Fact, type MemoryState } from './facts.ts'
 
 /**
@@ -14,6 +15,8 @@ export const RANKING = {
   recency: (ageMs: number) => Math.max(0.25, 0.5 ** (ageMs / YEAR)),
   /** Past facts rank below current ones that match as well, but still answer "what was it before?". */
   past: 0.6,
+  /** Episodes count like an ordinary fact (importance 3). */
+  episode: 0.8,
 }
 
 /** At most this many facts are recalled before each request, within about this many tokens. */
@@ -29,13 +32,14 @@ const STOP_WORDS = new Set(
   ),
 )
 
-const indexes = new WeakMap<readonly Fact[], MiniSearch<Fact>>()
+type Searchable = { id: string; text: string }
+const indexes = new WeakMap<readonly Searchable[], MiniSearch<Searchable>>()
 
-/** The search index for a version of memory. Any change gives a new facts array, so a stale index is never used. */
-function indexOf(facts: readonly Fact[]) {
-  let index = indexes.get(facts)
+/** The search index for a version of a list. Any change gives a new array, so a stale index is never used. */
+function indexOf(items: readonly Searchable[]) {
+  let index = indexes.get(items)
   if (!index) {
-    index = new MiniSearch<Fact>({
+    index = new MiniSearch<Searchable>({
       fields: ['text'],
       processTerm: (term) => {
         const lower = term.toLowerCase()
@@ -51,32 +55,37 @@ function indexOf(facts: readonly Fact[]) {
         fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
       },
     })
-    index.addAll(facts)
-    indexes.set(facts, index)
+    index.addAll(items)
+    indexes.set(items, index)
   }
   return index
 }
 
+/** A fact or an episode. */
+export type Recalled = { fact: Fact } | { episode: Episode }
+
 /**
- * Facts outside core that match `query`, best first, within the limit and
- * token budget. Current core facts are left out: the model already sees them.
+ * Facts outside core and episodes that match `query`, best first, within the
+ * limit and token budget. Current core facts are left out: the model already
+ * sees them.
  */
-export function searchFacts(
+export function searchMemory(
   memory: MemoryState,
+  episodes: EpisodesState | undefined,
   query: string,
   now: number,
   { limit = RECALL_LIMIT, tokens = RECALL_TOKENS } = {},
-): Fact[] {
-  const byId = new Map(memory.facts.map((fact) => [fact.id, fact]))
-  const ranked = indexOf(memory.facts)
+): Recalled[] {
+  const facts = new Map(memory.facts.map((fact) => [fact.id, fact]))
+  const scoredFacts = indexOf(memory.facts)
     .search(query)
     .flatMap(({ id, score }) => {
-      const fact = byId.get(id)
+      const fact = facts.get(id)
       if (!fact || (fact.core && !isPast(fact))) return []
       const age = now - Math.max(fact.at, fact.recalled ?? 0)
       return [
         {
-          fact,
+          item: { fact },
           score:
             score *
             RANKING.importance(fact.importance) *
@@ -85,29 +94,56 @@ export function searchFacts(
         },
       ]
     })
-    .sort((a, b) => b.score - a.score)
+  const byId = new Map(
+    (episodes?.episodes ?? []).map((episode) => [episode.id, episode]),
+  )
+  const scoredEpisodes = indexOf(episodes?.episodes ?? [])
+    .search(query)
+    .flatMap(({ id, score }) => {
+      const episode = byId.get(id)
+      if (!episode) return []
+      return [
+        {
+          item: { episode },
+          score: score * RANKING.episode * RANKING.recency(now - episode.at),
+        },
+      ]
+    })
 
-  const chosen: Fact[] = []
+  const chosen: Recalled[] = []
   let used = 0
-  for (const { fact } of ranked) {
+  for (const { item } of [...scoredFacts, ...scoredEpisodes].sort(
+    (a, b) => b.score - a.score,
+  )) {
     if (chosen.length === limit) break
-    const size = estimateTextTokens(describeFact(memory, fact))
+    const size = estimateTextTokens(describe(memory, item))
     if (used + size > tokens) continue
-    chosen.push(fact)
+    chosen.push(item)
     used += size
   }
   return chosen
 }
 
-const day = (at: number) => new Date(at).toISOString().slice(0, 10)
+/** The facts among recalled items, for recording `recalled`. */
+export const factIds = (items: Recalled[]) =>
+  items.flatMap((item) => ('fact' in item ? [item.fact.id] : []))
 
-/** A fact as recall shows it: with when it was true and what replaced it, so past facts can't pass for current ones. */
-export function describeFact(memory: MemoryState, fact: Fact) {
+/**
+ * An item as recall shows it, with its dates: a fact with when it was true
+ * and what replaced it, so past facts can't pass for current ones; an
+ * episode with the days it covers.
+ */
+export function describe(memory: MemoryState, item: Recalled) {
+  if ('episode' in item) {
+    const { id, span, start, end, text } = item.episode
+    return `${id} (${span} of ${start === end ? start : `${start} to ${end}`}): ${text}`
+  }
+  const { fact } = item
   const replacedBy = memory.facts.find((other) =>
     other.replaces?.includes(fact.id),
   )
   const when = isPast(fact)
-    ? `${day(fact.created)} to ${day(fact.until!)}, no longer current${replacedBy ? `; replaced by ${replacedBy.id}` : ''}`
-    : `since ${day(fact.created)}`
+    ? `${localDay(fact.created)} to ${localDay(fact.until!)}, no longer current${replacedBy ? `; replaced by ${replacedBy.id}` : ''}`
+    : `since ${localDay(fact.created)}`
   return `${fact.id} (${when}): ${fact.text}`
 }

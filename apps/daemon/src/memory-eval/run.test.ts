@@ -248,6 +248,7 @@ test('scenario has five questions per category and distinct crowding facts', () 
   ).not.toMatch(/York|peppermint|hide|library/i)
 })
 
+// Replays 90 days with nightly upkeep and rollups, so it gets a longer timeout.
 test('full scenario compacts tested sessions out of verbatim context offline', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-full-'))
   temporary.push(directory)
@@ -318,7 +319,7 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
     result.upkeep.filter(({ outcome }) => outcome === 'advanced'),
   ).toHaveLength(18)
   expect(result.judge).toBe('faux-1')
-})
+}, 30_000)
 
 test('fails loudly if an upkeep pass does not advance through the messages', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-failed-upkeep-'))
