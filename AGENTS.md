@@ -19,7 +19,7 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --c
 ## Working with Pi
 
 - The `@earendil-works/*` packages are pinned to exact versions because their API changes between releases. Read the installed version's docs and types, not the GitHub `main` branch: `packages/core/node_modules/@earendil-works/pi-durable/README.md` and its `dist/**/*.d.ts`.
-- Test Familiar's behaviour with pi-ai's faux provider, as in [packages/core/src/familiar.test.ts](packages/core/src/familiar.test.ts): a scripted model drives the real harness with `MemoryStorage` and no network.
+- Test Familiar's behaviour with pi-ai's faux provider, as in [packages/core/src/familiar.test.ts](packages/core/src/familiar.test.ts): a scripted model drives the real harness with `MemoryStorage` and no network. Memory tests live beside their code in `packages/core/src/memory/`.
 
 ## Conventions
 

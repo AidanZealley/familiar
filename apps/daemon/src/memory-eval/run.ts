@@ -1,39 +1,11 @@
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
-import {
-  ROOT_CONVERSATION_ID,
-  type EntryId,
-  type EntryRecord,
-  type ModelRef,
-  type Storage,
-  type TaskRecord,
-} from '@earendil-works/pi-durable'
-import { openFamiliar, type Familiar } from '@familiar/core'
-import { nextUpkeep, saidBy, type UpkeepState } from '@familiar/memory'
-import { clearTimeout, setTimeout as armTimeout } from 'node:timers'
-import { setTimeout } from 'node:timers/promises'
+import type { ModelRef, Storage } from '@earendil-works/pi-durable'
+import { openFamiliar } from '@familiar/core'
 import { createClock } from './clock.ts'
-import { judgeAnswer, type Verdict } from './judge.ts'
-import {
-  categories,
-  type Category,
-  type Question,
-  type Scenario,
-} from './scenario.ts'
+import { askQuestions, type QuestionResult } from './questions.ts'
+import { replayScenario, type UpkeepResult } from './replay.ts'
+import type { Scenario } from './scenario.ts'
 
-const WAIT_MS = 10 * 60_000
-const context = BACKGROUND_CONTEXT
-export type QuestionResult = Question & {
-  answer: string
-  verdict: Verdict
-  toolCalls: { id: string; name: string; arguments: unknown; result: unknown }[]
-}
-export type UpkeepResult = {
-  date: string
-  throughBefore: number | null
-  throughAfter: number | null
-  outcome: 'advanced' | 'no-messages'
-}
 export type EvalResult = {
   scenario: string
   days: number
@@ -42,166 +14,6 @@ export type EvalResult = {
   compactions: number
   upkeep: UpkeepResult[]
   results: QuestionResult[]
-}
-
-export function summarize(results: QuestionResult[]) {
-  return categories.map((category: Category) => ({
-    category,
-    passed: results.filter(
-      (result) => result.category === category && result.verdict.pass,
-    ).length,
-    total: results.filter((result) => result.category === category).length,
-  }))
-}
-
-async function upkeepThrough(storage: Storage): Promise<number | null> {
-  const record = await storage.findDocument(
-    { kind: 'familiar.upkeep', scope: { kind: 'session' } },
-    'current',
-    context,
-  )
-  if (!record) throw new Error('Memory upkeep document is missing.')
-  const document = await storage.document(record.id, 'current', context)
-  if (!document) throw new Error('Memory upkeep document could not be read.')
-  return (document.value as UpkeepState).through
-}
-
-async function entriesAfter(storage: Storage, after?: EntryId) {
-  const entries: EntryRecord[] = []
-  let cursor: Parameters<Storage['scanEntries']>[2]
-  do {
-    const page = await storage.scanEntries(
-      {
-        conversationId: ROOT_CONVERSATION_ID,
-        order: 'ascending',
-        ...(after === undefined ? {} : { minEntryId: (after + 1) as EntryId }),
-      },
-      200,
-      cursor,
-      context,
-    )
-    entries.push(...page.items)
-    cursor = page.next
-  } while (cursor)
-  return entries
-}
-
-async function tasksIn(storage: Storage) {
-  const tasks: TaskRecord<unknown, unknown, unknown>[] = []
-  let cursor: Parameters<Storage['scanTasks']>[2]
-  do {
-    const page = await storage.scanTasks({}, 200, cursor, context)
-    tasks.push(...page.items)
-    cursor = page.next
-  } while (cursor)
-  return tasks
-}
-
-/**
- * Give asynchronous work time to arm retries, then fire only timers before the
- * next scripted event. Fails after `timeoutMs` without progress: each event
- * from `onProgress` (for example `familiar.onCommit`) restarts the deadline.
- */
-export async function waitWithClock(
-  clock: ReturnType<typeof createClock>,
-  boundary: number,
-  label: string,
-  check: () => Promise<boolean>,
-  timeoutMs = WAIT_MS,
-  onProgress?: (listener: () => void) => () => void,
-) {
-  let stopped = false
-  let timer: ReturnType<typeof armTimeout> | undefined
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = armTimeout(
-      () =>
-        reject(
-          new Error(
-            `${label} timed out after ${timeoutMs / 1000}s of inactivity at simulated ${new Date(clock.now()).toISOString()}.`,
-          ),
-        ),
-      timeoutMs,
-    )
-  })
-  const unsubscribe = onProgress?.(() => timer?.refresh())
-  try {
-    await Promise.race([
-      (async () => {
-        while (!stopped && !(await check())) {
-          if (stopped) return
-          await setTimeout(25)
-          if (stopped) return
-          const due = clock.nextDue()
-          if (due < boundary && due >= clock.now()) clock.advanceTo(due)
-        }
-      })(),
-      timeout,
-    ])
-  } finally {
-    stopped = true
-    unsubscribe?.()
-    clearTimeout(timer)
-  }
-}
-
-async function waitForIdle(
-  familiar: Familiar,
-  clock: ReturnType<typeof createClock>,
-  boundary: number,
-  label: string,
-) {
-  let settled = false
-  let failure: unknown
-  void familiar.idle().then(
-    () => {
-      settled = true
-    },
-    (error: unknown) => {
-      failure = error
-      settled = true
-    },
-  )
-  await waitWithClock(
-    clock,
-    boundary,
-    label,
-    async () => settled,
-    WAIT_MS,
-    familiar.onCommit,
-  )
-  if (failure) throw new Error(`${label} failed.`, { cause: failure })
-}
-
-async function waitForUpkeep(
-  familiar: Familiar,
-  storage: Storage,
-  clock: ReturnType<typeof createClock>,
-  until: number,
-  boundary = until,
-) {
-  await waitWithClock(
-    clock,
-    boundary,
-    `Memory upkeep before ${new Date(until).toISOString()}`,
-    async () => {
-      const { items } = await storage.scanTasks(
-        { kind: 'familiar.upkeep' },
-        2,
-        undefined,
-        context,
-      )
-      const state = items[0]?.state
-      if (state?.status === 'terminal')
-        throw new Error(`Memory upkeep ended: ${JSON.stringify(state.outcome)}`)
-      return (
-        items.length === 1 &&
-        state?.status === 'sleeping' &&
-        state.until === until
-      )
-    },
-    WAIT_MS,
-    familiar.onCommit,
-  )
 }
 
 export async function runMemoryEval({
@@ -230,206 +42,34 @@ export async function runMemoryEval({
   if (Number.isNaN(first.getTime()))
     throw new Error('Invalid first scenario date.')
   const clock = createClock(first.getTime())
-  const options = {
+  const familiar = await openFamiliar({
+    storage,
     models,
     model,
     contextBudget: 4_000,
     now: clock.now,
     setTimer: clock.setTimer,
-  }
-  const familiar = await openFamiliar({ storage, ...options })
-  let memory: EvalResult['memory']
-  let compactions: number
-  const upkeep: UpkeepResult[] = []
+  })
+  let replay: Awaited<ReturnType<typeof replayScenario>>
   try {
-    await waitForUpkeep(familiar, storage, clock, nextUpkeep(clock.now()))
-    for (const [index, day] of scenario.days.entries()) {
-      const noon = new Date(`${day.date}T12:00:00`).getTime()
-      if (Number.isNaN(noon) || noon < clock.now())
-        throw new Error(`Scenario day ${day.date} is invalid or out of order.`)
-      clock.advanceTo(noon)
-      const before = await upkeepThrough(storage)
-      if (day.text) {
-        await familiar.send({
-          author: 'Rowan',
-          text: day.text,
-          requestId: `eval:day:${index}`,
-        })
-        await waitForIdle(
-          familiar,
-          clock,
-          nextUpkeep(noon),
-          `Day ${day.date} reply`,
-        )
-        progress(`Day ${index + 1}/${scenario.days.length}: ${day.date}`)
-      }
-      const pass = nextUpkeep(noon)
-      clock.advanceTo(pass)
-      const followingNoon = new Date(noon)
-      followingNoon.setDate(followingNoon.getDate() + 1)
-      await waitForUpkeep(
-        familiar,
-        storage,
-        clock,
-        nextUpkeep(pass),
-        Math.min(nextUpkeep(pass), followingNoon.getTime()),
-      )
-      const after = await upkeepThrough(storage)
-      if (day.text && (after === null || (before !== null && after <= before)))
-        throw new Error(
-          `Memory upkeep on ${day.date} did not advance through (before ${before}, after ${after}).`,
-        )
-      upkeep.push({
-        date: day.date,
-        throughBefore: before,
-        throughAfter: after,
-        outcome: after !== before ? 'advanced' : 'no-messages',
-      })
-      clock.advanceTo(followingNoon.getTime())
-    }
-    await waitWithClock(
-      clock,
-      nextUpkeep(clock.now()),
-      'Replay tasks to settle before copying',
-      async () => {
-        const live = (await tasksIn(storage)).filter(
-          (task) => task.state.status !== 'terminal',
-        )
-        return (
-          live.length === 1 &&
-          live[0].kind === 'familiar.upkeep' &&
-          live[0].state.status === 'sleeping'
-        )
-      },
-      WAIT_MS,
-      familiar.onCommit,
-    )
-    if (scenario.testedFactsThrough) {
-      const transcript = await familiar.watch()
-      try {
-        const cutoff = new Date(
-          `${scenario.testedFactsThrough}T23:59:59`,
-        ).getTime()
-        if (
-          transcript.value.entries.some((entry) => {
-            const said = saidBy(entry)
-            return (
-              said &&
-              (said.at <= cutoff ||
-                (entry.kind === 'pi.assistant' &&
-                  scenario.testedPhrases?.some((phrase) =>
-                    said.text.toLowerCase().includes(phrase.toLowerCase()),
-                  )))
-            )
-          })
-        )
-          throw new Error(
-            'Tested sessions remain in verbatim context. Add more filler before asking questions.',
-          )
-      } finally {
-        await transcript.stop()
-      }
-    }
-    const watch = await familiar.memory.watch()
-    memory = {
-      document: watch.value,
-      characters:
-        watch.value?.facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
-          .length ?? 0,
-    }
-    await watch.stop()
-    compactions = (await entriesAfter(storage)).filter(
-      (entry) => entry.kind === 'pi.compaction',
-    ).length
+    replay = await replayScenario(familiar, storage, clock, scenario, progress)
   } finally {
     await familiar.close()
   }
-
-  const results = new Array<QuestionResult>(scenario.questions.length)
-  let next = 0
-  const workers = await Promise.allSettled(
-    Array.from(
-      { length: Math.min(questionConcurrency, results.length) },
-      async () => {
-        for (;;) {
-          const index = next++
-          if (index >= results.length) return
-          const question = scenario.questions[index]
-          const questionStorage = await createQuestionStorage(question.id)
-          const questionClock = createClock(clock.now())
-          let reopened: Familiar
-          try {
-            reopened = await openFamiliar({
-              storage: questionStorage,
-              ...options,
-              now: questionClock.now,
-              setTimer: questionClock.setTimer,
-            })
-          } catch (error) {
-            await questionStorage.close(context)
-            throw error
-          }
-          try {
-            const prior = (await entriesAfter(questionStorage)).at(-1)?.id
-            await reopened.send({
-              author: 'Rowan',
-              text: question.text,
-              requestId: `eval:question:${question.id}`,
-            })
-            await waitForIdle(
-              reopened,
-              questionClock,
-              nextUpkeep(questionClock.now()),
-              `Question ${question.id}`,
-            )
-            const entries = await entriesAfter(questionStorage, prior)
-            const answer = entries
-              .filter((entry) => entry.kind === 'pi.assistant')
-              .map((entry) => saidBy(entry)?.text)
-              .filter(Boolean)
-              .at(-1)
-            if (!answer)
-              throw new Error(`No assistant answer for ${question.id}.`)
-            const messages = entries.flatMap((entry) => entry.model ?? [])
-            const toolCalls = messages.flatMap((message) =>
-              message.role === 'assistant'
-                ? message.content.flatMap((part) =>
-                    part.type === 'toolCall'
-                      ? [
-                          {
-                            id: part.id,
-                            name: part.name,
-                            arguments: part.arguments,
-                            result: messages.find(
-                              (message) =>
-                                message.role === 'toolResult' &&
-                                message.toolCallId === part.id,
-                            ),
-                          },
-                        ]
-                      : [],
-                  )
-                : [],
-            )
-            const verdict = await judgeAnswer(models, model, question, answer)
-            results[index] = { ...question, answer, verdict, toolCalls }
-            progress(`${question.id}: ${verdict.pass ? 'pass' : 'fail'}`)
-          } finally {
-            await reopened.close()
-          }
-        }
-      },
-    ),
-  )
-  const failed = workers.find((worker) => worker.status === 'rejected')
-  if (failed?.status === 'rejected') throw failed.reason
+  const results = await askQuestions({
+    createQuestionStorage,
+    models,
+    model,
+    scenario,
+    progress,
+    questionConcurrency,
+    now: clock.now(),
+  })
   return {
     scenario: scenario.id,
     days: scenario.days.length,
     judgeIsTestModel: true,
-    memory,
-    compactions,
-    upkeep,
+    ...replay,
     results,
   }
 }

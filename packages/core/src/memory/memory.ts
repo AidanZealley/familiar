@@ -1,3 +1,4 @@
+import { reviseFact, forgetFact } from './edits.ts'
 import { Type } from '@earendil-works/pi-ai'
 import {
   defineDoc,
@@ -84,11 +85,10 @@ const revise = defineTool({
   parameters: Type.Object({ id: Type.String(), text: Type.String() }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const fact = memory.facts.find((fact) => fact.id === args.id)
-      if (!fact) throw new Error(`No fact ${args.id}.`)
-      fact.text = args.text
-      fact.at = api.now()
-      return `Revised ${fact.id}.`
+      const revised = reviseFact(memory, args.id, args.text, api.now())
+      if (revised === memory) throw new Error(`No fact ${args.id}.`)
+      Object.assign(memory, revised)
+      return `Revised ${args.id}.`
     }),
 })
 
@@ -99,9 +99,9 @@ const forget = defineTool({
   parameters: Type.Object({ id: Type.String() }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const index = memory.facts.findIndex((fact) => fact.id === args.id)
-      if (index === -1) throw new Error(`No fact ${args.id}.`)
-      memory.facts.splice(index, 1)
+      const forgotten = forgetFact(memory, args.id)
+      if (forgotten === memory) throw new Error(`No fact ${args.id}.`)
+      Object.assign(memory, forgotten)
       return `Forgot ${args.id}.`
     }),
 })

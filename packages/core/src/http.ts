@@ -1,6 +1,6 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView, EntryId } from '@earendil-works/pi-durable'
-import type { MemoryState } from '@familiar/memory'
+import type { MemoryState } from './memory/index.ts'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
@@ -22,16 +22,16 @@ export type {
   ToolResultMessage,
   UserMessage,
 } from '@earendil-works/pi-ai'
-export type { MESSAGE_KIND, MessageData } from './familiar.ts'
+export type { MESSAGE_KIND, MessageData } from './conversation/message.ts'
 
 /**
  * `GET /history?before=<entryId>&limit=<n>`: up to `limit` (at most 200)
  * entries older than `before`, newest first.
  */
-export type { HistoryPage } from './familiar.ts'
+export type { HistoryPage } from './conversation/api.ts'
 
 const HISTORY_LIMIT = 200
-export type { Fact, MemoryState } from '@familiar/memory'
+export type { Fact, MemoryState } from './memory/index.ts'
 
 /**
  * `GET /events` is a server-sent event stream of these. Each kind of state

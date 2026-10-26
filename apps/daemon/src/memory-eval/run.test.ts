@@ -11,9 +11,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test, vi } from 'vitest'
 import { judgePrompt, parseVerdict } from './judge.ts'
-import { runMemoryEval, summarize, waitWithClock } from './run.ts'
+import { summarize } from './questions.ts'
+import { runMemoryEval } from './run.ts'
 import { categories, memoryScenario, type Scenario } from './scenario.ts'
 import { createClock } from './clock.ts'
+import { waitWithClock } from './wait.ts'
 
 const temporary: string[] = []
 afterEach(() =>

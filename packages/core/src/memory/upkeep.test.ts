@@ -7,9 +7,9 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
-import { nextUpkeep } from '@familiar/memory'
+import { nextUpkeep } from './upkeep.ts'
 import { afterEach, expect, test, vi } from 'vitest'
-import { openFamiliar, type Familiar } from './familiar.ts'
+import { openFamiliar, type Familiar } from '../familiar.ts'
 
 const context = BACKGROUND_CONTEXT
 

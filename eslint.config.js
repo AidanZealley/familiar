@@ -19,13 +19,15 @@ const portable = [
 ]
 
 // The client ships to browsers, so it shares core's types but never its code.
-const typesOnlyFromCore = ['@familiar/core', '@familiar/core/http'].map(
-  (name) => ({
-    name,
-    message: 'The client may only import types from core.',
-    allowTypeImports: true,
-  }),
-)
+const typesOnlyFromCore = [
+  '@familiar/core',
+  '@familiar/core/http',
+  '@familiar/core/diagnostics',
+].map((name) => ({
+  name,
+  message: 'The client may only import types from core.',
+  allowTypeImports: true,
+}))
 
 export default defineConfig([
   globalIgnores([
