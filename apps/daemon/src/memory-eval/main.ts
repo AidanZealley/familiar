@@ -15,7 +15,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import { fileCredentialStore } from '../credentials.ts'
 import { summarize } from './questions.ts'
 import { runMemoryEval } from './run.ts'
-import { memoryScenario } from './scenario.ts'
+import { rowanV3 as memoryScenario } from './scenario.ts'
 
 // This command deliberately never imports config.ts: that module creates the
 // owner's data directory as a side effect when FAMILIAR_DATA_DIR is unset.
