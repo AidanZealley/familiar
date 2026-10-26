@@ -9,14 +9,14 @@ Familiar is a personal assistant in the spirit of Grok Bot, Meta's Muse and Open
 - **Memory.** A fact list the model keeps with `remember`, `revise_memory` and `forget` and sees on every request; `search_history` over the full transcript; a Memory page for corrections.
 - [Memory upkeep](specs/memory-upkeep.md): a 64k context budget, a hard cap on the fact list, and nightly consolidation.
 - [Chat UI](specs/chat-ui.md): shadcn's chat components, streamed Markdown, and `pnpm dev:demo`.
+- [Chat history](specs/chat-history.md): scrolling back past compactions, a Stopped marker, and a lazily loaded Markdown renderer.
 
 ## Next
 
 Pick these up in order unless the owner says otherwise. Each spec is complete enough to implement without earlier conversation.
 
-1. [Chat history](specs/chat-history.md): scroll back past compactions, a Stopped marker, and a smaller first load.
-2. **Long-term memory, revised.** The fact list is capped small and pushes the model to forget, which suits a working set but not years of knowledge. Redesign as tiers (always-present core memory, a searchable archive that is never silently lost, episodic summaries), and spec it before building.
-3. [Reminders and push](specs/reminders-and-push.md): a `remind` tool and Web Push notifications to the home-screen app.
+1. [Long-term memory](specs/long-term-memory.md): layered memory that never loses a true fact (core, archive, recall, episodes), measured by a memory evaluation built first. Background in [research/memory.md](research/memory.md).
+2. [Reminders and push](specs/reminders-and-push.md): a `remind` tool and Web Push notifications to the home-screen app.
 
 ## Later
 
@@ -25,5 +25,6 @@ Not specified yet. Write a spec before starting one.
 - **Full-text history search.** `search_history` scans the transcript linearly, which will slow down after years of use. Use an SQLite FTS index in the same database.
 - **Real-world tools.** Web search and fetch first, then calendar and email. Each tool that touches files or a shell must run in an environment that cannot see the data directory.
 - **Gatherbot.** A Cloudflare host for `@familiar/core`: one Durable Object per household, Gather's auth deciding who reaches which object, an API key instead of a subscription. The open question is which Convex identity the bot acts as when no member is present.
+- **AI Elements patterns** ([shadcn AI Elements](https://ui.shadcn.com/docs/ai-elements)), each with the feature that needs it: Confirmation (approving actions) with real-world tools, Sources and Inline Citation with web search, Context (a context-budget gauge) and Suggestion (prompts on an empty chat) whenever convenient.
 - **Native app.** Another client of the same API, reusing `@familiar/client`; APNs instead of Web Push.
 - **The real logo.** A cat. Replace `apps/web/public/icon.svg` and run `pnpm --filter @familiar/web icons`.
