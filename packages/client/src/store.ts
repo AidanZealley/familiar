@@ -16,8 +16,11 @@ export type Connection = 'connecting' | 'open' | 'reconnecting'
 export type History = {
   /** Committed entries older than any in the view, oldest first. */
   entries: readonly EntryRecord[]
-  /** `start` once `entries` reaches the start of the conversation. */
-  status: 'more' | 'loading' | 'start'
+  /**
+   * `start` once `entries` reaches the start of the conversation; `failed`
+   * if the last load did, until the next one.
+   */
+  status: 'more' | 'loading' | 'failed' | 'start'
 }
 
 export type FamiliarState = {
@@ -93,7 +96,7 @@ export function createFamiliarStore(baseUrl: string) {
       return page.more
     } catch (error) {
       store.setState(({ history }) => ({
-        history: { ...history, status: 'more' },
+        history: { ...history, status: 'failed' },
       }))
       throw error
     }

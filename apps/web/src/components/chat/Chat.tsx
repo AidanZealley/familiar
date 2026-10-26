@@ -10,11 +10,20 @@ import {
 } from '@/components/ui/message-scroller'
 import { useFamiliar } from '@/lib/familiar'
 import { Composer } from './components/composer'
+import { OlderMessages } from './components/older-messages'
 import { TranscriptItem } from './components/transcript-item'
 
 export const Chat = () => {
   const view = useFamiliar((state) => state.view)
-  const transcript = useMemo(() => view && toTranscript(view), [view])
+  const history = useFamiliar((state) => state.history.entries)
+  const transcript = useMemo(
+    () => view && toTranscript(view, history),
+    [view, history],
+  )
+  const firstItemIds = useMemo(
+    () => transcript?.items.slice(0, 3).map((item) => item.id) ?? [],
+    [transcript],
+  )
 
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
@@ -37,6 +46,7 @@ export const Chat = () => {
             ))}
           </MessageScrollerContent>
         </MessageScrollerViewport>
+        <OlderMessages firstItemIds={firstItemIds} />
         <MessageScrollerButton />
       </MessageScroller>
 
