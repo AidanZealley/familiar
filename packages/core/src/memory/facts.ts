@@ -2,7 +2,8 @@
  * The fact store and every rule about changing it. Tools, the owner's edits
  * and upkeep all go through these, so the rules live in one place. Each
  * function checks before it changes anything and throws when the change
- * isn't allowed, so a failed edit leaves memory as it was.
+ * isn't allowed, so a failed edit leaves memory as it was. Which facts are
+ * in core is decided only by `rebalanceCore`, which every edit ends with.
  */
 
 /** A change the rules don't allow, such as revising a missing or past fact. */
@@ -41,8 +42,14 @@ export type MemoryState = {
 /** Core is at most this many characters as the model sees it, so the prompt stays small however long Familiar runs. */
 export const CORE_BUDGET = 6_000
 
-/** `remember` puts a fact this important or more in core while there is room. */
+/** Facts this important or more are in core while there is room. */
 export const CORE_IMPORTANCE = 3
+
+/**
+ * A fact outside core displaces an equally important one inside only if it
+ * was used this much more recently, so core doesn't flip back and forth.
+ */
+export const CORE_STICKINESS = 14 * 24 * 60 * 60 * 1000
 
 export const isPast = (fact: Fact) => fact.until !== undefined
 
@@ -53,11 +60,6 @@ export const coreFacts = (memory: MemoryState) =>
 /** Facts as the model sees them; the core budget measures this. */
 export const listFacts = (facts: Fact[]) =>
   facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
-
-/** How long core would be with `fact` in it. */
-const coreWith = (memory: MemoryState, fact: Fact) =>
-  listFacts([...coreFacts(memory).filter(({ id }) => id !== fact.id), fact])
-    .length
 
 const current = (memory: MemoryState, id: string) => {
   const fact = memory.facts.find((fact) => fact.id === id)
@@ -73,7 +75,7 @@ const importanceOf = (value: number) => {
   return value
 }
 
-/** Saves a fact, in core if it is important enough and fits. Never refuses for space. */
+/** Saves a fact, in core if it ranks high enough. Never refuses for space. */
 export function rememberFact(
   memory: MemoryState,
   text: string,
@@ -88,17 +90,16 @@ export function rememberFact(
     importance: importanceOf(importance),
     core: false,
   }
-  fact.core =
-    importance >= CORE_IMPORTANCE && coreWith(memory, fact) <= CORE_BUDGET
   memory.next++
   memory.facts.push(fact)
+  rebalanceCore(memory)
   return fact
 }
 
 /**
  * Saves a new version of a current fact, folding in any facts it `merges`;
  * they all become past, superseded by it. It takes the highest importance
- * among them and stays in core if any of them was and it still fits.
+ * among them, and their pin if it still fits among the other pins.
  */
 export function reviseFact(
   memory: MemoryState,
@@ -117,17 +118,17 @@ export function reviseFact(
     importance: Math.max(...olds.map((old) => old.importance)),
     core: false,
     replaces: ids,
-    ...(olds.some((old) => old.pinned) && { pinned: true }),
   }
-  const wasCore = olds.some((old) => old.core)
+  const wasPinned = olds.some((old) => old.pinned)
   for (const old of olds) {
     old.until = at
-    old.core = false
     delete old.pinned
   }
-  fact.core = wasCore && coreWith(memory, fact) <= CORE_BUDGET
+  // A version too long to fit among the other pins stays current, unpinned.
+  if (wasPinned && pinnedSize(memory, fact) <= CORE_BUDGET) fact.pinned = true
   memory.next++
   memory.facts.push(fact)
+  rebalanceCore(memory)
   return fact
 }
 
@@ -135,27 +136,35 @@ export function reviseFact(
 export function retireFact(memory: MemoryState, id: string, at: number) {
   const fact = current(memory, id)
   fact.until = at
-  fact.core = false
   delete fact.pinned
+  rebalanceCore(memory)
 }
 
+/** How long the pinned facts are as the model sees them, with `extra` among them. */
+const pinnedSize = (memory: MemoryState, extra: Fact) =>
+  listFacts([
+    ...memory.facts.filter(
+      (fact) => fact.pinned && !isPast(fact) && fact.id !== extra.id,
+    ),
+    extra,
+  ]).length
+
 /**
- * Pins a current fact into core, or unpins it so rebalancing decides. Core
- * never goes past its budget, so pinning refuses when there's no room.
+ * Pins a current fact into core, or unpins it so ranking decides. Unpinned
+ * facts make room for pinned ones, so pinning refuses only when the pinned
+ * facts alone would pass core's budget.
  */
 export function setPinned(memory: MemoryState, id: string, pinned: boolean) {
   const fact = current(memory, id)
-  if (!pinned) {
-    delete fact.pinned
-    return
-  }
-  const size = coreWith(memory, fact)
-  if (size > CORE_BUDGET)
-    throw new FactError(
-      `Core memory is full (${size} of ${CORE_BUDGET} characters with ${id}). Unpin something first.`,
-    )
-  fact.pinned = true
-  fact.core = true
+  if (pinned) {
+    const size = pinnedSize(memory, fact)
+    if (size > CORE_BUDGET)
+      throw new FactError(
+        `Pinned facts would fill ${size} of core's ${CORE_BUDGET} characters. Unpin something first.`,
+      )
+    fact.pinned = true
+  } else delete fact.pinned
+  rebalanceCore(memory)
 }
 
 /** Re-rates how much a current fact matters, which decides its place in core. */
@@ -164,17 +173,19 @@ export function setImportance(
   id: string,
   importance: number,
 ) {
-  const fact = current(memory, id)
-  fact.importance = importanceOf(importance)
+  current(memory, id).importance = importanceOf(importance)
+  rebalanceCore(memory)
 }
 
-const lastUsed = (fact: Fact) => Math.max(fact.at, fact.recalled ?? 0)
+/** When it last mattered: written, or recalled in conversation. Core facts get a head start, see CORE_STICKINESS. */
+const standing = (fact: Fact) =>
+  Math.max(fact.at, fact.recalled ?? 0) + (fact.core ? CORE_STICKINESS : 0)
 
 /**
- * Rebuilds core within its budget: pinned facts first, then facts important
+ * Decides core within its budget: pinned facts first, then facts important
  * enough for core, most important first and, among equals, most recently
- * written or recalled. Plain code rather than a model decision, so core
- * can't drift. Moves facts in and out of core; never removes one.
+ * used. Plain code rather than a model decision, so core can't drift. Moves
+ * facts in and out of core; never removes one.
  */
 export function rebalanceCore(memory: MemoryState) {
   const candidates = memory.facts
@@ -186,7 +197,7 @@ export function rebalanceCore(memory: MemoryState) {
       (a, b) =>
         Number(!!b.pinned) - Number(!!a.pinned) ||
         b.importance - a.importance ||
-        lastUsed(b) - lastUsed(a),
+        standing(b) - standing(a),
     )
   const chosen = new Set<string>()
   let size = 0

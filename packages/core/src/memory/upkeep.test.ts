@@ -388,14 +388,28 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   expect((await memory())[0].core).toBe(true)
 
   let rollupInput = ''
+  let rollupTools: unknown[] = ['not called']
+  const toolsIn = (context: TranscriptContext) =>
+    context.messages.flatMap((message) =>
+      message.role === 'system' ? (message.toolsAdded ?? []) : [],
+    )
+  let reviewTools: unknown[] = []
   faux.setResponses([
-    fauxAssistantMessage(
-      fauxToolCall('set_importance', { id: 'm1', importance: 1 }),
-      { stopReason: 'toolUse' },
-    ),
+    (context) => {
+      reviewTools = toolsIn(context)
+      return fauxAssistantMessage(
+        fauxToolCall('set_importance', { id: 'm1', importance: 1 }),
+        { stopReason: 'toolUse' },
+      )
+    },
     fauxAssistantMessage('Rowan planted bulbs with Noor on Sunday.'),
     (context) => {
-      expect(isUpkeep(context)).toBe(true)
+      // Its own conversation: summarising instructions and no tools, so a
+      // rollup can't change facts.
+      expect(JSON.stringify(context.messages)).toContain(
+        'You write the episodes of Familiar',
+      )
+      rollupTools = toolsIn(context)
       rollupInput = inputOf(context)
       return fauxAssistantMessage('A quiet week ending in bulb planting.')
     },
@@ -418,7 +432,9 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
       text: 'A quiet week ending in bulb planting.',
     },
   ])
-  expect(rollupInput).toContain('week of 2026-10-19 to 2026-10-25')
+  expect(reviewTools).not.toEqual([])
+  expect(rollupTools).toEqual([])
+  expect(rollupInput).toContain('The week of 2026-10-19 to 2026-10-25:')
   expect(rollupInput).toContain(
     '2026-10-25: Rowan planted bulbs with Noor on Sunday.',
   )
@@ -434,4 +450,29 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   ])
   await say('What was I doing with Noor last week?')
   expect(note).toContain('e1 (day of 2026-10-25)')
+})
+
+test('an empty reply writes no episode and leaves the messages for the next pass', async () => {
+  const { faux, say, episodes, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage('Lovely.')])
+  await say('I spent today planting bulbs with Noor.')
+
+  faux.setResponses([fauxAssistantMessage('')])
+  await passAt(firstPass, secondPass)
+  expect(await episodes()).toEqual([])
+
+  let input = ''
+  faux.setResponses([
+    (context) => {
+      input = inputOf(context)
+      return fauxAssistantMessage('Rowan planted bulbs with Noor.')
+    },
+    fauxAssistantMessage('A week of bulbs.'),
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect(input).toContain('planting bulbs with Noor')
+  expect((await episodes()).map((episode) => episode.span)).toEqual([
+    'day',
+    'week',
+  ])
 })

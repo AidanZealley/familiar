@@ -1,6 +1,11 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import MiniSearch from 'minisearch'
-import { localDay, type Episode, type EpisodesState } from './episodes.ts'
+import {
+  calendarLabels,
+  localDay,
+  type Episode,
+  type EpisodesState,
+} from './episodes.ts'
 import { isPast, type Fact, type MemoryState } from './facts.ts'
 
 /**
@@ -32,15 +37,26 @@ const STOP_WORDS = new Set(
   ),
 )
 
-type Searchable = { id: string; text: string }
-const indexes = new WeakMap<readonly Searchable[], MiniSearch<Searchable>>()
+type Searchable = { id: string; text: string; labels?: string }
+const indexes = new WeakMap<
+  readonly Fact[],
+  WeakMap<readonly Episode[], MiniSearch<Searchable>>
+>()
 
-/** The search index for a version of a list. Any change gives a new array, so a stale index is never used. */
-function indexOf(items: readonly Searchable[]) {
-  let index = indexes.get(items)
+/**
+ * One index over facts and episodes, so their relevance scores come from the
+ * same word statistics and can be compared. Any change to memory gives new
+ * arrays, so a stale index is never used.
+ */
+function indexOf(facts: readonly Fact[], episodes: readonly Episode[]) {
+  let byEpisodes = indexes.get(facts)
+  if (!byEpisodes) indexes.set(facts, (byEpisodes = new WeakMap()))
+  let index = byEpisodes.get(episodes)
   if (!index) {
     index = new MiniSearch<Searchable>({
-      fields: ['text'],
+      // An episode's labels name its dates and months, so "what was going on
+      // in March?" finds it even when its text never says "March".
+      fields: ['text', 'labels'],
       processTerm: (term) => {
         const lower = term.toLowerCase()
         // Fragments such as the "s" of "what's" match nothing meaningful,
@@ -55,8 +71,15 @@ function indexOf(items: readonly Searchable[]) {
         fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
       },
     })
-    index.addAll(items)
-    indexes.set(items, index)
+    index.addAll(facts.map(({ id, text }) => ({ id, text })))
+    index.addAll(
+      episodes.map((episode) => ({
+        id: episode.id,
+        text: episode.text,
+        labels: calendarLabels(episode),
+      })),
+    )
+    byEpisodes.set(episodes, index)
   }
   return index
 }
@@ -64,10 +87,21 @@ function indexOf(items: readonly Searchable[]) {
 /** A fact or an episode. */
 export type Recalled = { fact: Fact } | { episode: Episode }
 
+/** A recalled item and how it is shown, shortened if it had to be to fit. */
+export type Found = { item: Recalled; line: string }
+
+/** The facts among recalled items, for recording `recalled`. */
+export const factIds = (found: Found[]) =>
+  found.flatMap(({ item }) => ('fact' in item ? [item.fact.id] : []))
+
+/** Below this many tokens left, an item is skipped rather than shortened. */
+const MIN_EXCERPT_TOKENS = 60
+
 /**
  * Facts outside core and episodes that match `query`, best first, within the
  * limit and token budget. Current core facts are left out: the model already
- * sees them.
+ * sees them. An item too long for what is left is shortened to fit rather
+ * than dropped, so a long monthly episode still comes back.
  */
 export function searchMemory(
   memory: MemoryState,
@@ -75,58 +109,56 @@ export function searchMemory(
   query: string,
   now: number,
   { limit = RECALL_LIMIT, tokens = RECALL_TOKENS } = {},
-): Recalled[] {
+): Found[] {
   const facts = new Map(memory.facts.map((fact) => [fact.id, fact]))
-  const scoredFacts = indexOf(memory.facts)
+  const allEpisodes = episodes?.episodes ?? []
+  const byId = new Map(allEpisodes.map((episode) => [episode.id, episode]))
+  const ranked = indexOf(memory.facts, allEpisodes)
     .search(query)
     .flatMap(({ id, score }) => {
       const fact = facts.get(id)
-      if (!fact || (fact.core && !isPast(fact))) return []
-      const age = now - Math.max(fact.at, fact.recalled ?? 0)
-      return [
-        {
-          item: { fact },
-          score:
-            score *
-            RANKING.importance(fact.importance) *
-            RANKING.recency(age) *
-            (isPast(fact) ? RANKING.past : 1),
-        },
-      ]
-    })
-  const byId = new Map(
-    (episodes?.episodes ?? []).map((episode) => [episode.id, episode]),
-  )
-  const scoredEpisodes = indexOf(episodes?.episodes ?? [])
-    .search(query)
-    .flatMap(({ id, score }) => {
+      if (fact) {
+        if (fact.core && !isPast(fact)) return []
+        const age = now - Math.max(fact.at, fact.recalled ?? 0)
+        return [
+          {
+            item: { fact } as Recalled,
+            score:
+              score *
+              RANKING.importance(fact.importance) *
+              RANKING.recency(age) *
+              (isPast(fact) ? RANKING.past : 1),
+          },
+        ]
+      }
       const episode = byId.get(id)
       if (!episode) return []
       return [
         {
-          item: { episode },
+          item: { episode } as Recalled,
           score: score * RANKING.episode * RANKING.recency(now - episode.at),
         },
       ]
     })
+    .sort((a, b) => b.score - a.score)
 
-  const chosen: Recalled[] = []
-  let used = 0
-  for (const { item } of [...scoredFacts, ...scoredEpisodes].sort(
-    (a, b) => b.score - a.score,
-  )) {
-    if (chosen.length === limit) break
-    const size = estimateTextTokens(describe(memory, item))
-    if (used + size > tokens) continue
-    chosen.push(item)
-    used += size
+  const found: Found[] = []
+  let left = tokens
+  for (const { item } of ranked) {
+    if (found.length === limit || left < MIN_EXCERPT_TOKENS) break
+    const line = describe(memory, item)
+    const size = estimateTextTokens(line)
+    if (size <= left) {
+      found.push({ item, line })
+      left -= size
+    } else {
+      const kept = Math.floor((line.length * left) / size) - 1
+      found.push({ item, line: `${line.slice(0, kept)}…` })
+      left = 0
+    }
   }
-  return chosen
+  return found
 }
-
-/** The facts among recalled items, for recording `recalled`. */
-export const factIds = (items: Recalled[]) =>
-  items.flatMap((item) => ('fact' in item ? [item.fact.id] : []))
 
 /**
  * An item as recall shows it, with its dates: a fact with when it was true

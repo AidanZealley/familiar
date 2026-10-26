@@ -1,11 +1,18 @@
 import { expect, test } from 'vitest'
+import { addEpisode, type EpisodesState, type Span } from './episodes.ts'
 import {
   rememberFact,
   retireFact,
   reviseFact,
   type MemoryState,
 } from './facts.ts'
-import { describe, RECALL_LIMIT, searchMemory } from './recall.ts'
+import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
+import {
+  describe,
+  RECALL_LIMIT,
+  RECALL_TOKENS,
+  searchMemory,
+} from './recall.ts'
 
 const DAY = 24 * 60 * 60 * 1000
 const now = Date.UTC(2026, 0, 1)
@@ -18,7 +25,7 @@ const memoryOf = (...facts: [text: string, importance: number][]) => {
 }
 
 const ids = (memory: MemoryState, query: string) =>
-  searchMemory(memory, undefined, query, now).map((item) =>
+  searchMemory(memory, undefined, query, now).map(({ item }) =>
     'fact' in item ? item.fact.id : item.episode.id,
   )
 
@@ -85,11 +92,20 @@ test('stays within the limit and the token budget', () => {
   )
   expect(ids(many, 'garden')).toHaveLength(RECALL_LIMIT)
 
+  // Too long for what's left: shortened to fit rather than dropped.
   const long = memoryOf(
     [`Garden plan: ${'raised beds and paths '.repeat(300)}`, 2],
     ['Garden gate is 84 cm', 2],
   )
-  expect(ids(long, 'garden')).toEqual(['m2'])
+  const found = searchMemory(long, undefined, 'garden', now)
+  expect(found.map(({ item }) => 'fact' in item && item.fact.id)).toEqual([
+    'm2',
+    'm1',
+  ])
+  expect(found[1].line).toMatch(/^m1 .*…$/)
+  expect(
+    found.reduce((total, { line }) => total + estimateTextTokens(line), 0),
+  ).toBeLessThanOrEqual(RECALL_TOKENS)
 })
 
 test('the index follows changes to memory', () => {
@@ -98,4 +114,51 @@ test('the index follows changes to memory', () => {
   const next = structuredClone(memory)
   rememberFact(next, 'Drinks peppermint tea', 2, now)
   expect(ids(next, 'tea')).toEqual(['m2'])
+})
+
+const episodesOf = (
+  ...episodes: [span: Span, start: string, end: string, text: string][]
+) => {
+  const state: EpisodesState = { episodes: [], next: 1 }
+  for (const [span, start, end, text] of episodes)
+    addEpisode(state, { span, start, end, text, at: now - 30 * DAY })
+  return state
+}
+
+const found = (memory: MemoryState, episodes: EpisodesState, query: string) =>
+  searchMemory(memory, episodes, query, now).map(({ item }) =>
+    'fact' in item ? item.fact.id : item.episode.id,
+  )
+
+test('episodes are found by when they happened, not only by their words', () => {
+  const episodes = episodesOf(
+    ['day', '2025-03-04', '2025-03-04', 'Fired the porcelain tiles.'],
+    ['week', '2025-03-10', '2025-03-16', 'Repaired flood-damaged atlases.'],
+    ['month', '2025-04-01', '2025-04-30', 'Paper Moon was performed.'],
+  )
+  const memory = memoryOf()
+  expect(found(memory, episodes, 'What was going on in March?').sort()).toEqual(
+    ['e1', 'e2'],
+  )
+  expect(found(memory, episodes, 'What happened on Tuesday 4 March?')[0]).toBe(
+    'e1',
+  )
+  expect(found(memory, episodes, 'And in April 2025?')[0]).toBe('e3')
+})
+
+test('facts and episodes are ranked on the same scale', () => {
+  // The same words: the essential fact must not lose to an ordinary episode
+  // just because those words are rarer among episodes.
+  const memory = memoryOf(['Reed Shelter is a birdwatching hide', 5])
+  for (let index = 0; index < 5; index++)
+    rememberFact(memory, `Unrelated fact ${index}`, 2, now - 30 * DAY)
+  // As if core were full of other facts.
+  memory.facts[0].core = false
+  const episodes = episodesOf([
+    'day',
+    '2025-03-17',
+    '2025-03-17',
+    'Reed Shelter is a birdwatching hide',
+  ])
+  expect(found(memory, episodes, 'Reed Shelter hide')).toEqual(['m1', 'e1'])
 })

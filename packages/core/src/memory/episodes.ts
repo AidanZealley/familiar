@@ -46,6 +46,35 @@ const parse = (day: string) => {
 /** The local date of a time, matching upkeep's local 04:00. */
 export const localDay = (at: number) => format(new Date(at))
 
+const MONTHS =
+  'January February March April May June July August September October November December'.split(
+    ' ',
+  )
+const WEEKDAYS =
+  'Sunday Monday Tuesday Wednesday Thursday Friday Saturday'.split(' ')
+
+/**
+ * Words naming when an episode happened, for search: each day as "Monday 3
+ * March 2025" for days and weeks, and the months and years it covers.
+ */
+export function calendarLabels(episode: Episode) {
+  const labels = new Set<string>()
+  const last = parse(episode.end)
+  for (
+    let date = parse(episode.start);
+    date <= last;
+    date = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+  ) {
+    const month = `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
+    labels.add(
+      episode.span === 'month'
+        ? month
+        : `${WEEKDAYS[date.getDay()]} ${date.getDate()} ${month}`,
+    )
+  }
+  return [...labels].join(', ')
+}
+
 export function addEpisode(
   state: EpisodesState,
   episode: Omit<Episode, 'id'>,
@@ -75,7 +104,7 @@ export type Rollup = {
   span: 'week' | 'month'
   start: string
   end: string
-  /** The day episodes it summarises, oldest first. */
+  /** The day episodes overlapping it, oldest first. */
   days: Episode[]
 }
 
@@ -92,8 +121,10 @@ export function dueRollup(
   const done = new Set(
     state.episodes.map((episode) => `${episode.span}:${episode.start}`),
   )
+  // An episode spanning several days (Familiar was off, or a chat ran past
+  // midnight into a new week) counts towards every period it overlaps.
   const due = days
-    .flatMap((day) => periodsOf(day.start))
+    .flatMap((day) => [periodsOf(day.start), periodsOf(day.end)].flat())
     .filter(
       (period) =>
         period.end < today && !done.has(`${period.span}:${period.start}`),
@@ -105,9 +136,7 @@ export function dueRollup(
   return (
     due && {
       ...due,
-      days: days.filter(
-        (day) => day.start >= due.start && day.start <= due.end,
-      ),
+      days: days.filter((day) => day.start <= due.end && day.end >= due.start),
     }
   )
 }

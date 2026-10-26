@@ -75,3 +75,20 @@ test('days with no conversation need no rollup', () => {
   expect(due(stateOf(), '2025-03-10')).toBeUndefined()
   expect(localDay(new Date(2025, 2, 9, 23, 59).getTime())).toBe('2025-03-09')
 })
+
+test('an episode spanning a new week or month counts towards both', () => {
+  // Familiar was off from Friday 30 January to Tuesday 3 February 2026.
+  const state = stateOf(['day', '2026-01-30', '2026-02-03'])
+  const order: unknown[] = []
+  for (let rollup = dueRollup(state, '2026-03-02'); rollup;) {
+    order.push([rollup.span, rollup.start, rollup.days.length])
+    addEpisode(state, { ...rollup, text: '', at: 0 })
+    rollup = dueRollup(state, '2026-03-02')
+  }
+  expect(order).toEqual([
+    ['month', '2026-01-01', 1],
+    ['week', '2026-01-26', 1],
+    ['week', '2026-02-02', 1],
+    ['month', '2026-02-01', 1],
+  ])
+})

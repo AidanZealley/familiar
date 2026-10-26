@@ -26,6 +26,13 @@ import { addEpisode, dueRollup, Episodes, localDay } from './episodes.ts'
 /** Passes run daily at this hour, in the host's time zone. */
 const UPKEEP_HOUR = 4
 
+/**
+ * The day a time belongs to. Upkeep days run from 04:00 to 04:00, so a chat
+ * at 1am counts as the night before, as people think of it.
+ */
+export const upkeepDay = (at: number) =>
+  localDay(at - UPKEEP_HOUR * 60 * 60 * 1000)
+
 /** The first upkeep time after `now`. */
 export function nextUpkeep(now: number) {
   const next = new Date(now)
@@ -37,6 +44,8 @@ export function nextUpkeep(now: number) {
 export type UpkeepState = {
   /** Where passes run: a conversation of its own, never shown to people. */
   conversation: ConversationId | null
+  /** Where rollups are written: no tools, so summarising can't change facts. */
+  rollups: ConversationId | null
   /** The one task that schedules passes. */
   task: TaskId | null
   /** The newest main-conversation entry a pass has reviewed. */
@@ -46,9 +55,19 @@ export type UpkeepState = {
 /** How Familiar finds its memory upkeep again after a restart. */
 export const Upkeep = defineDoc<UpkeepState>({
   kind: 'familiar.upkeep',
-  version: 1,
+  version: 2,
   scope: 'session',
-  initial: () => ({ conversation: null, task: null, through: null }),
+  initial: () => ({
+    conversation: null,
+    rollups: null,
+    task: null,
+    through: null,
+  }),
+  migrate: (value, fromVersion) => {
+    if (fromVersion !== 1)
+      throw new Error(`No migration from upkeep version ${fromVersion}.`)
+    return { ...(value as Omit<UpkeepState, 'rollups'>), rollups: null }
+  },
   checkpointWhen: () => true, // tiny: always store it whole
 })
 
@@ -63,9 +82,12 @@ type UpkeepStep =
       reset: EntryId
       newest: EntryId
       input: string
-      /** The local days the messages span, for the day's episode. */
-      start: string
-      end: string
+      /**
+       * The days the messages span, for the day's episode. Absent on a pass
+       * checkpointed before episodes existed, which then writes none.
+       */
+      start?: string
+      end?: string
     }
   /** Rolls up the next finished week or month, if any, else sleeps. */
   | { phase: 'rollup' }
@@ -80,15 +102,19 @@ type UpkeepStep =
     }
 
 const instructions = (name: string) =>
-  `You keep the long-term memory of ${name}, a personal assistant, tidy. Nobody reads this conversation. Each message gives you the assistant's recent conversation with the people it helps, and when each saved fact was last written. Review the saved facts against it, using only recall, remember, revise_memory and retire:
+  `You keep the long-term memory of ${name}, a personal assistant, tidy. Nobody reads this conversation. Each message gives you the assistant's recent conversation with the people it helps, and when each saved fact was last written. Review the saved facts against it, using only recall, remember, revise_memory, retire and set_importance:
 
 - Before saving or correcting anything, recall it with a short, specific search: it may already be saved where you can't see it. Revise what you find rather than saving it again.
 - Merge duplicates and near-duplicates into one fact: revise_memory one and list the rest in merge, keeping every detail.
 - Revise facts the conversation has changed; retire facts that stopped being true. A fact's date helps judge whether it still holds. Old versions are kept as history, so never drop a detail to save space.
 - Save lasting facts from the conversation that were never saved, rating their importance: preferences, decisions, things about their lives and plans. Not passing details.
+- Re-rate a fact with set_importance when the conversation shows it matters more or less than its rating.
 - If nothing needs changing, change nothing.
 
-When you are done, reply with only the episode: a few sentences on what happened and what was said, with names, places, dates, projects, decisions and changes, so it can answer later questions such as "what was going on in early March?". Don't mention memory or what you changed.`
+When you are done, reply with only the episode, under 150 words: what happened and what was said, with names, places, dates, projects, decisions and changes, so it can answer later questions such as "what was going on in early March?". Don't mention memory or what you changed.`
+
+const rollupInstructions = (name: string) =>
+  `You write the episodes of ${name}, a personal assistant: summaries of what happened in the lives of the people it helps. Nobody reads this conversation. Each message gives a week or a month and the episodes of its days. Reply with only the episode for that whole period, under 250 words, keeping every name, place, date, project, decision and change that mattered and leaving out what didn't.`
 
 const day = (at: number) => new Date(at).toISOString().slice(0, 10)
 const minute = (at: number) => new Date(at).toISOString().slice(0, 16)
@@ -102,13 +128,19 @@ async function newMessages(
   through: EntryId | null,
   budget: number,
   name: string,
-  now: number,
 ) {
   const lines: string[] = []
   let newest: EntryId | undefined
   let tokens = 0
-  let first = Infinity
-  let last = -Infinity
+  // People's messages date the span; model replies carry wall-clock times,
+  // not the Harness clock, so they date it only when nobody else spoke.
+  const people = { first: Infinity, last: -Infinity }
+  const replies = { first: Infinity, last: -Infinity }
+  const note = (said: { who: string; at: number }) => {
+    const span = said.who === 'you' ? replies : people
+    span.first = Math.min(span.first, said.at)
+    span.last = Math.max(span.last, said.at)
+  }
   let cursor: Parameters<Tx['scanEntries']>[2]
   scan: do {
     const page = await tx.scanEntries(
@@ -130,7 +162,7 @@ async function newMessages(
         // A single message larger than the budget is cut, not skipped forever.
         if (!lines.length) {
           lines.push(line.slice(0, budget * 3))
-          if (said.who !== 'you') first = last = said.at
+          note(said)
         }
         newest ??= entry.id
         break scan
@@ -138,12 +170,7 @@ async function newMessages(
       newest ??= entry.id
       lines.push(line)
       tokens += size
-      // Dated by people's messages: model replies carry wall-clock times,
-      // not the Harness clock.
-      if (said.who !== 'you') {
-        first = Math.min(first, said.at)
-        last = Math.max(last, said.at)
-      }
+      note(said)
     }
     cursor = page.next
   } while (cursor)
@@ -152,9 +179,12 @@ async function newMessages(
     : {
         newest,
         transcript: lines.reverse().join('\n'),
-        // Only replies, which can't happen in practice: date them today.
-        start: localDay(Number.isFinite(first) ? first : now),
-        end: localDay(Number.isFinite(last) ? last : now),
+        start: upkeepDay(
+          Number.isFinite(people.first) ? people.first : replies.first,
+        ),
+        end: upkeepDay(
+          Number.isFinite(people.last) ? people.last : replies.last,
+        ),
       }
 }
 
@@ -239,7 +269,6 @@ export function createUpkeep(options: UpkeepOptions) {
             upkeep.through,
             options.transcriptTokens,
             options.name,
-            runtime.now(),
           )
           // No conversation since the last pass: a rollup may still be due.
           if (!found) return rollup
@@ -270,10 +299,15 @@ export function createUpkeep(options: UpkeepOptions) {
           task.state.checkpoint
         const episode = await ask(runtime, conversation, reset, input, context)
         await runtime.commit(async (tx) => {
-          // A failed pass leaves these messages for the next one.
-          if (episode === undefined) return sleep(runtime.now())
+          // A failed or empty pass leaves these messages for the next one,
+          // so no day goes without its episode.
+          if (!episode) {
+            if (episode === '')
+              runtime.report(new Error('Memory upkeep wrote no episode.'))
+            return sleep(runtime.now())
+          }
           ;(await tx.doc(Upkeep)).through = newest
-          if (episode)
+          if (start && end)
             addEpisode(await tx.doc(Episodes), {
               span: 'day',
               start,
@@ -289,21 +323,24 @@ export function createUpkeep(options: UpkeepOptions) {
       rollup: (_task, runtime, context) =>
         runtime.commit(async (tx) => {
           const upkeep = await tx.doc(Upkeep)
-          const due = dueRollup(await tx.doc(Episodes), localDay(runtime.now()))
-          if (!due || upkeep.conversation === null) return sleep(runtime.now())
+          const due = dueRollup(
+            await tx.doc(Episodes),
+            upkeepDay(runtime.now()),
+          )
+          if (!due || upkeep.rollups === null) return sleep(runtime.now())
           const days = due.days
             .map(
               (day) =>
                 `${day.start === day.end ? day.start : `${day.start} to ${day.end}`}: ${day.text}`,
             )
             .join('\n\n')
-          const input = `This is not a review: change no facts. Write the episode for the ${due.span} of ${due.start} to ${due.end} from its day episodes below. Keep every name, place, date, project, decision and change that mattered. Reply with only the episode.\n\n${days}`
-          const reset = await resetIn(tx, upkeep.conversation)
+          const input = `The ${due.span} of ${due.start} to ${due.end}:\n\n${days}`
+          const reset = await resetIn(tx, upkeep.rollups)
           return {
             status: 'running',
             checkpoint: {
               phase: 'summarize',
-              conversation: upkeep.conversation,
+              conversation: upkeep.rollups,
               reset: reset.id,
               span: due.span,
               start: due.start,
@@ -360,11 +397,20 @@ export function createUpkeep(options: UpkeepOptions) {
           upkeep.conversation = (
             await tx.createConversation({ ownership: { kind: 'ownerless' } })
           ).id
+        if (upkeep.rollups === null)
+          upkeep.rollups = (
+            await tx.createConversation({ ownership: { kind: 'ownerless' } })
+          ).id
         // Every open, so a change of model or wording applies to the next pass.
         await configure(tx, upkeep.conversation, {
           model: options.model,
           extensions: [options.extension],
           instructions: instructions(options.name),
+        })
+        await configure(tx, upkeep.rollups, {
+          model: options.model,
+          extensions: [],
+          instructions: rollupInstructions(options.name),
         })
         if (!live)
           // Background, so it never keeps the main conversation busy or is

@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import {
   CORE_BUDGET,
+  CORE_STICKINESS,
   coreFacts,
   FactError,
   forgetFact,
@@ -46,14 +47,16 @@ test('beyond core budget, remember keeps the fact outside core instead of refusi
   expect(memory.facts).toHaveLength(80)
   expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
   expect(memory.facts.at(-1)?.core).toBe(false)
+  // More important than everything in core, so it takes a place there.
   const essential = rememberFact(
     memory,
     `Allergic to penicillin: ${'details '.repeat(25)}`,
     5,
     2,
   )
-  expect(essential.core).toBe(false)
-  expect(memory.facts).toContain(essential)
+  expect(essential.core).toBe(true)
+  expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
+  expect(memory.facts).toHaveLength(81)
 })
 
 test('importance outside 1 to 5 is refused without changing memory', () => {
@@ -150,32 +153,54 @@ test('past and missing facts cannot change, and nothing is touched trying', () =
   expect(memory).toEqual(before)
 })
 
-test('pinning refuses when core is full, and pinned facts stay through rebalancing', () => {
+test('unpinned facts make room for pins, which refuse only past the budget', () => {
   const memory = full(80)
   const outside = memory.facts.find((fact) => !fact.core)!
-  const before = structuredClone(memory)
-  expect(() => setPinned(memory, outside.id, true)).toThrow(
-    'Core memory is full',
-  )
-  expect(memory).toEqual(before)
-
-  // Making room: a core fact turns out to matter less.
-  setImportance(memory, coreFacts(memory)[0].id, 1)
-  rebalanceCore(memory)
   setPinned(memory, outside.id, true)
-  rebalanceCore(memory)
   expect(outside).toMatchObject({ core: true, pinned: true })
+  expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
+
+  // Pin everything: once pins alone would overflow core, pinning refuses.
+  let refused = 0
+  for (const fact of memory.facts) {
+    const before = structuredClone(memory)
+    try {
+      setPinned(memory, fact.id, true)
+    } catch (error) {
+      expect(String(error)).toContain('Pinned facts would fill')
+      expect(memory).toEqual(before)
+      refused++
+    }
+  }
+  expect(refused).toBeGreaterThan(0)
+  expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
   setPinned(memory, outside.id, false)
   expect(outside.pinned).toBeUndefined()
+})
+
+test('a revision too long to stay pinned stays current, unpinned', () => {
+  const memory = full(55)
+  for (const fact of memory.facts) setPinned(memory, fact.id, true)
+  const revised = reviseFact(memory, 'm1', 'x'.repeat(2_000), 2)
+  expect(revised.pinned).toBeUndefined()
+  expect(revised.until).toBeUndefined()
+  // Every other pin is still in core.
+  expect(
+    memory.facts.filter((fact) => fact.pinned).every((fact) => fact.core),
+  ).toBe(true)
 })
 
 test('rebalancing fills core by importance, then recency, within budget', () => {
   const memory = full(80)
   // Minor facts never enter core unless pinned.
   const minor = rememberFact(memory, 'Likes blue pens', 1, 5)
-  // A recently recalled fact beats equally important ones written earlier.
-  const recalled = memory.facts.find((fact) => !fact.core)!
-  recalled.recalled = 10
+  // A fact recalled well after core's facts were last used takes a place;
+  // CORE_STICKINESS keeps one recalled about as recently from flipping core.
+  const outside = memory.facts.filter((fact) => !fact.core)
+  const recalled = outside[0]
+  recalled.recalled = 2 + CORE_STICKINESS
+  const recent = outside[1]
+  recent.recalled = CORE_STICKINESS - 1
   // An essential fact beats every importance-4 fact.
   const essential = memory.facts.at(-2)!
   setImportance(memory, essential.id, 5)
@@ -185,6 +210,7 @@ test('rebalancing fills core by importance, then recency, within budget', () => 
   expect(listFacts(coreFacts(memory)).length).toBeLessThanOrEqual(CORE_BUDGET)
   expect(minor.core).toBe(false)
   expect(recalled.core).toBe(true)
+  expect(recent.core).toBe(false)
   expect(essential.core).toBe(true)
   // Past facts never return to core.
   retireFact(memory, essential.id, 20)

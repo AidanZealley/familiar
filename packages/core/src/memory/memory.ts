@@ -5,6 +5,7 @@ import {
   defineTool,
   GenerationTask,
   hook,
+  ROOT_CONVERSATION_ID,
   section,
   type ToolExecutionApi,
 } from '@earendil-works/pi-durable'
@@ -22,7 +23,7 @@ import {
   type MemoryState,
 } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
-import { describe, factIds, searchMemory } from './recall.ts'
+import { factIds, searchMemory } from './recall.ts'
 
 /**
  * What Familiar knows about the people it helps. One document for the whole
@@ -129,10 +130,15 @@ const recall = defineTool({
       .commit(async (tx) => {
         const memory = await tx.doc(Memory)
         const episodes = await tx.doc(Episodes)
-        const found = searchMemory(memory, episodes, args.query, api.now())
-        markRecalled(memory, factIds(found), api.now())
+        const found = searchMemory(memory, episodes, args.query, api.now(), {
+          limit: 12,
+          tokens: 3_000,
+        })
+        // Only conversation counts as use; upkeep's searches are housekeeping.
+        if (api.conversationId === ROOT_CONVERSATION_ID)
+          markRecalled(memory, factIds(found), api.now())
         return found.length
-          ? found.map((item) => describe(memory, item)).join('\n')
+          ? found.map(({ line }) => line).join('\n')
           : 'Nothing found.'
       }, context)
       .then(text),
@@ -177,7 +183,7 @@ const recallFor = (
   return {
     facts: factIds(found),
     note: found.length
-      ? `Recalled from memory for the latest message; use it only if relevant:\n${found.map((item) => describe(memory, item)).join('\n')}`
+      ? `Recalled from memory for the latest message; use it only if relevant:\n${found.map(({ line }) => line).join('\n')}`
       : null,
   }
 }
@@ -225,7 +231,12 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
             context,
           )
           if (recalled.note === null) return
-          if (recalled.facts.length) await options.recalled(recalled.facts)
+          // Only conversation counts as use; upkeep's recall is housekeeping.
+          if (
+            recalled.facts.length &&
+            api.conversationId === ROOT_CONVERSATION_ID
+          )
+            await options.recalled(recalled.facts)
           const note: Message = {
             role: 'user',
             content: recalled.note,
