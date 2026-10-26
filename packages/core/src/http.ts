@@ -22,13 +22,13 @@ export type {
   ToolResultMessage,
   UserMessage,
 } from '@earendil-works/pi-ai'
-export type { MESSAGE_KIND, MessageData } from './familiar.ts'
+export type { MESSAGE_KIND, MessageData } from './conversation/message.ts'
 
 /**
  * `GET /history?before=<entryId>&limit=<n>`: up to `limit` (at most 200)
  * entries older than `before`, newest first.
  */
-export type { HistoryPage } from './familiar.ts'
+export type { HistoryPage } from './conversation/api.ts'
 
 const HISTORY_LIMIT = 200
 export type { Fact, MemoryState } from './memory/index.ts'

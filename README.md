@@ -9,6 +9,8 @@ packages/core     openFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
   core/conversation Message format, history paging and search.
   core/memory     Long-term facts and daily consolidation at 04:00.
+  core/context    Request budget and compaction settings.
+  core/persona    Stable instructions and the current_time tool.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API
