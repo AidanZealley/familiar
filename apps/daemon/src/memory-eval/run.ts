@@ -6,9 +6,11 @@ import {
   type EntryRecord,
   type ModelRef,
   type Storage,
+  type TaskRecord,
 } from '@earendil-works/pi-durable'
 import { openFamiliar, type Familiar } from '@familiar/core'
 import { nextUpkeep, saidBy, type UpkeepState } from '@familiar/memory'
+import { clearTimeout, setTimeout as armTimeout } from 'node:timers'
 import { setTimeout } from 'node:timers/promises'
 import { createClock } from './clock.ts'
 import { judgeAnswer, type Verdict } from './judge.ts'
@@ -19,7 +21,7 @@ import {
   type Scenario,
 } from './scenario.ts'
 
-const WAIT_MS = 120_000
+const WAIT_MS = 10 * 60_000
 const context = BACKGROUND_CONTEXT
 export type QuestionResult = Question & {
   answer: string
@@ -84,6 +86,35 @@ async function entriesAfter(storage: Storage, after?: EntryId) {
   return entries
 }
 
+async function tasksIn(storage: Storage) {
+  const tasks: TaskRecord<unknown, unknown, unknown>[] = []
+  let cursor: Parameters<Storage['scanTasks']>[2]
+  do {
+    const page = await storage.scanTasks({}, 200, cursor, context)
+    tasks.push(...page.items)
+    cursor = page.next
+  } while (cursor)
+  return tasks
+}
+
+async function progressIn(storage: Storage) {
+  const tasks = await tasksIn(storage)
+  const conversations = new Set([
+    ROOT_CONVERSATION_ID,
+    ...tasks.flatMap((task) =>
+      task.conversationId ? [task.conversationId] : [],
+    ),
+  ])
+  const heads = await Promise.all(
+    [...conversations].map(
+      async (conversationId) =>
+        (await storage.scanEntries({ conversationId }, 1, undefined, context))
+          .items[0]?.id,
+    ),
+  )
+  return JSON.stringify({ tasks, heads })
+}
+
 /** Give asynchronous work time to arm retries, then fire only timers before the next scripted event. */
 export async function waitWithClock(
   clock: ReturnType<typeof createClock>,
@@ -91,20 +122,35 @@ export async function waitWithClock(
   label: string,
   check: () => Promise<boolean>,
   timeoutMs = WAIT_MS,
+  progress?: () => Promise<string>,
 ) {
   let stopped = false
-  const abort = new AbortController()
-  const timeout = setTimeout(timeoutMs, undefined, {
-    signal: abort.signal,
-  }).then(() => {
-    throw new Error(
-      `${label} timed out after ${timeoutMs / 1000}s at simulated ${new Date(clock.now()).toISOString()}.`,
+  let timer: ReturnType<typeof armTimeout> | undefined
+  let previousProgress: string | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = armTimeout(
+      () =>
+        reject(
+          new Error(
+            `${label} timed out after ${timeoutMs / 1000}s of inactivity at simulated ${new Date(clock.now()).toISOString()}.`,
+          ),
+        ),
+      timeoutMs,
     )
   })
   try {
     await Promise.race([
       (async () => {
         while (!stopped && !(await check())) {
+          if (stopped) return
+          if (progress) {
+            const current = await progress()
+            if (stopped) return
+            if (current !== previousProgress) {
+              previousProgress = current
+              timer?.refresh()
+            }
+          }
           await setTimeout(25)
           if (stopped) return
           const due = clock.nextDue()
@@ -115,12 +161,13 @@ export async function waitWithClock(
     ])
   } finally {
     stopped = true
-    abort.abort()
+    clearTimeout(timer)
   }
 }
 
 async function waitForIdle(
   familiar: Familiar,
+  storage: Storage,
   clock: ReturnType<typeof createClock>,
   boundary: number,
   label: string,
@@ -136,7 +183,14 @@ async function waitForIdle(
       settled = true
     },
   )
-  await waitWithClock(clock, boundary, label, async () => settled)
+  await waitWithClock(
+    clock,
+    boundary,
+    label,
+    async () => settled,
+    WAIT_MS,
+    () => progressIn(storage),
+  )
   if (failure) throw new Error(`${label} failed.`, { cause: failure })
 }
 
@@ -144,10 +198,11 @@ async function waitForUpkeep(
   storage: Storage,
   clock: ReturnType<typeof createClock>,
   until: number,
+  boundary = until,
 ) {
   await waitWithClock(
     clock,
-    until,
+    boundary,
     `Memory upkeep before ${new Date(until).toISOString()}`,
     async () => {
       const { items } = await storage.scanTasks(
@@ -165,6 +220,8 @@ async function waitForUpkeep(
         state.until === until
       )
     },
+    WAIT_MS,
+    () => progressIn(storage),
   )
 }
 
@@ -221,6 +278,7 @@ export async function runMemoryEval({
         })
         await waitForIdle(
           familiar,
+          storage,
           clock,
           nextUpkeep(noon),
           `Day ${day.date} reply`,
@@ -229,7 +287,14 @@ export async function runMemoryEval({
       }
       const pass = nextUpkeep(noon)
       clock.advanceTo(pass)
-      await waitForUpkeep(storage, clock, nextUpkeep(pass))
+      const followingNoon = new Date(noon)
+      followingNoon.setDate(followingNoon.getDate() + 1)
+      await waitForUpkeep(
+        storage,
+        clock,
+        nextUpkeep(pass),
+        Math.min(nextUpkeep(pass), followingNoon.getTime()),
+      )
       const after = await upkeepThrough(storage)
       if (day.text && (after === null || (before !== null && after <= before)))
         throw new Error(
@@ -241,10 +306,25 @@ export async function runMemoryEval({
         throughAfter: after,
         outcome: after !== before ? 'advanced' : 'no-messages',
       })
-      const followingNoon = new Date(noon)
-      followingNoon.setDate(followingNoon.getDate() + 1)
       clock.advanceTo(followingNoon.getTime())
     }
+    await waitWithClock(
+      clock,
+      nextUpkeep(clock.now()),
+      'Replay tasks to settle before copying',
+      async () => {
+        const live = (await tasksIn(storage)).filter(
+          (task) => task.state.status !== 'terminal',
+        )
+        return (
+          live.length === 1 &&
+          live[0].kind === 'familiar.upkeep' &&
+          live[0].state.status === 'sleeping'
+        )
+      },
+      WAIT_MS,
+      () => progressIn(storage),
+    )
     if (scenario.testedFactsThrough) {
       const transcript = await familiar.watch()
       try {
@@ -254,7 +334,14 @@ export async function runMemoryEval({
         if (
           transcript.value.entries.some((entry) => {
             const said = saidBy(entry)
-            return said && said.at <= cutoff
+            return (
+              said &&
+              (said.at <= cutoff ||
+                (entry.kind === 'pi.assistant' &&
+                  scenario.testedPhrases?.some((phrase) =>
+                    said.text.toLowerCase().includes(phrase.toLowerCase()),
+                  )))
+            )
           })
         )
           throw new Error(
@@ -291,12 +378,18 @@ export async function runMemoryEval({
           const question = scenario.questions[index]
           const questionStorage = await createQuestionStorage(question.id)
           const questionClock = createClock(clock.now())
-          const reopened = await openFamiliar({
-            storage: questionStorage,
-            ...options,
-            now: questionClock.now,
-            setTimer: questionClock.setTimer,
-          })
+          let reopened: Familiar
+          try {
+            reopened = await openFamiliar({
+              storage: questionStorage,
+              ...options,
+              now: questionClock.now,
+              setTimer: questionClock.setTimer,
+            })
+          } catch (error) {
+            await questionStorage.close(context)
+            throw error
+          }
           try {
             const prior = (await entriesAfter(questionStorage)).at(-1)?.id
             await reopened.send({
@@ -306,6 +399,7 @@ export async function runMemoryEval({
             })
             await waitForIdle(
               reopened,
+              questionStorage,
               questionClock,
               nextUpkeep(questionClock.now()),
               `Question ${question.id}`,

@@ -49,6 +49,10 @@ try {
     storage: await openNodeSqliteStorage(replayPath),
     createQuestionStorage: async (id) => {
       const path = join(temporary, `question-${id}.sqlite`)
+      if (existsSync(`${replayPath}-wal`))
+        throw new Error(
+          'Replay storage still has a WAL file after close; refusing to copy an unchecked database.',
+        )
       copyFileSync(replayPath, path)
       return openNodeSqliteStorage(path)
     },

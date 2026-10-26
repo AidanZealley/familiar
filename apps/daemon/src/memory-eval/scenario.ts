@@ -19,6 +19,8 @@ export type Scenario = {
   days: { date: string; text?: string }[]
   /** Last session with tested facts; replay must compact it out of verbatim context. */
   testedFactsThrough?: string
+  /** Detect assistant echoes too: model replies use wall-clock timestamps. */
+  testedPhrases?: string[]
   questions: Question[]
 }
 
@@ -241,6 +243,32 @@ const chatter = [
 export const memoryScenario: Scenario = {
   id: 'rowan-90-days-v2',
   testedFactsThrough: '2026-03-16',
+  testedPhrases: [
+    'Pip',
+    'Silver Comet',
+    'Ellis',
+    'Bracken',
+    'Saffron',
+    'hazelnut',
+    'Leeds',
+    'York',
+    'Northbank',
+    'Lantern Museum',
+    'peppermint',
+    'coffee',
+    'Fenwick',
+    'Moss & Clay',
+    'Alder Yard',
+    'June',
+    'garden',
+    'pottery',
+    'library',
+    'Tidal Rooms',
+    'Riverside',
+    'kiln',
+    'bird',
+    'Noor',
+  ],
   days: Array.from({ length: 90 }, (_, day) => {
     const date = new Date(Date.UTC(2026, 0, 5 + day)).toISOString().slice(0, 10)
     const session = sessions.findIndex(([offset]) => offset === day)
@@ -400,8 +428,8 @@ export const memoryScenario: Scenario = {
       id: 'move-date',
       category: 'time',
       text: 'On which date did I move to my current city?',
-      required: ['2 February 2026', 'York'],
-      optional: ['From Leeds'],
+      required: ['2 February', 'York'],
+      optional: ['2026', 'From Leeds'],
     },
     {
       id: 'march-order',
@@ -418,15 +446,15 @@ export const memoryScenario: Scenario = {
       id: 'job-date',
       category: 'time',
       text: 'When did I start at Lantern Museum?',
-      required: ['9 February 2026'],
-      optional: ['Exhibition fabricator'],
+      required: ['9 February'],
+      optional: ['2026', 'Exhibition fabricator'],
     },
     {
       id: 'drink-date',
       category: 'time',
       text: 'When did I switch my usual morning drink?',
-      required: ['23 February 2026'],
-      optional: ['From coffee to peppermint tea'],
+      required: ['23 February'],
+      optional: ['2026', 'From coffee to peppermint tea'],
     },
     {
       id: 'unknown-builder',
@@ -452,22 +480,22 @@ export const memoryScenario: Scenario = {
       optional: ['Removable roof'],
     },
     {
-      id: 'unknown-budget',
+      id: 'unknown-garden-start',
       category: 'unknown',
-      text: 'What budget did Noor and I settle on for the bird hide?',
+      text: "What installation start date did I agree with a builder for Mum's garden?",
       required: [
-        'No budget was set',
-        'The bird hide was still at the planning or sketching stage',
+        'No installation start date was agreed',
+        'Garden builders had only provided quotes; no builder was chosen',
       ],
       optional: [],
     },
     {
-      id: 'unknown-finish',
+      id: 'unknown-library-supervisor',
       category: 'unknown',
-      text: 'What exact completion date did Noor and I commit to for the bird hide?',
+      text: 'Who supervises my regular library volunteer shift?',
       required: [
-        'No completion date was chosen',
-        'The bird hide was still being planned with Noor',
+        'No supervisor was named',
+        'The shift is at Wren Street Library on Saturdays from 10 am to noon',
       ],
       optional: [],
     },

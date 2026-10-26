@@ -1,3 +1,4 @@
+import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
@@ -5,10 +6,10 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { judgePrompt, parseVerdict } from './judge.ts'
 import { runMemoryEval, summarize, waitWithClock } from './run.ts'
 import { categories, memoryScenario, type Scenario } from './scenario.ts'
@@ -99,8 +100,35 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     storage: await openNodeSqliteStorage(replayPath),
     createQuestionStorage: async (id) => {
       const path = join(directory, `${id}.sqlite`)
+      expect(existsSync(`${replayPath}-wal`)).toBe(false)
       copyFileSync(replayPath, path)
-      return openNodeSqliteStorage(path)
+      const storage = await openNodeSqliteStorage(path)
+      for (const status of [
+        'pending',
+        'running',
+        'waiting',
+        'completing',
+      ] as const) {
+        expect(
+          (
+            await storage.scanTasks(
+              { status },
+              1,
+              undefined,
+              BACKGROUND_CONTEXT,
+            )
+          ).items,
+        ).toEqual([])
+      }
+      const sleeping = await storage.scanTasks(
+        { status: 'sleeping' },
+        2,
+        undefined,
+        BACKGROUND_CONTEXT,
+      )
+      expect(sleeping.items).toHaveLength(1)
+      expect(sleeping.items[0].kind).toBe('familiar.upkeep')
+      return storage
     },
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
@@ -178,7 +206,9 @@ test('clock waits drive retries but never cross the next scripted event', async 
   )
   await expect(
     waitWithClock(clock, 200, 'Blocked reply', async () => false, 60),
-  ).rejects.toThrow('Blocked reply timed out after 0.06s at simulated')
+  ).rejects.toThrow(
+    'Blocked reply timed out after 0.06s of inactivity at simulated',
+  )
   expect(clock.now()).toBe(100)
 })
 
@@ -233,8 +263,35 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
     storage: await openNodeSqliteStorage(replayPath),
     createQuestionStorage: async (id) => {
       const path = join(directory, `${id}.sqlite`)
+      expect(existsSync(`${replayPath}-wal`)).toBe(false)
       copyFileSync(replayPath, path)
-      return openNodeSqliteStorage(path)
+      const storage = await openNodeSqliteStorage(path)
+      for (const status of [
+        'pending',
+        'running',
+        'waiting',
+        'completing',
+      ] as const) {
+        expect(
+          (
+            await storage.scanTasks(
+              { status },
+              1,
+              undefined,
+              BACKGROUND_CONTEXT,
+            )
+          ).items,
+        ).toEqual([])
+      }
+      const sleeping = await storage.scanTasks(
+        { status: 'sleeping' },
+        2,
+        undefined,
+        BACKGROUND_CONTEXT,
+      )
+      expect(sleeping.items).toHaveLength(1)
+      expect(sleeping.items[0].kind).toBe('familiar.upkeep')
+      return storage
     },
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
@@ -277,4 +334,96 @@ test('fails loudly if an upkeep pass does not advance through the messages', asy
       },
     }),
   ).rejects.toThrow('Memory upkeep on 2026-01-05 did not advance through')
+})
+
+test('clock waits reset the inactivity deadline while progress continues', async () => {
+  let checks = 0
+  await waitWithClock(
+    createClock(0),
+    1,
+    'Slow active reply',
+    async () => ++checks >= 20,
+    200,
+    async () => String(Math.floor(checks / 2)),
+  )
+  expect(checks).toBe(20)
+  await expect(
+    waitWithClock(
+      createClock(0),
+      1,
+      'Stalled upkeep',
+      async () => false,
+      60,
+      async () => 'unchanged',
+    ),
+  ).rejects.toThrow('Stalled upkeep timed out after 0.06s of inactivity')
+})
+
+test.each([
+  { name: 'tested user session', cutoff: '2026-01-05', reply: 'Noted.' },
+  {
+    name: 'assistant repeating a tested phrase',
+    cutoff: '2026-01-04',
+    reply: 'Your bicycle is Bracken.',
+  },
+])('rejects verbatim context containing $name', async ({ cutoff, reply }) => {
+  const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-context-'))
+  temporary.push(directory)
+  const faux = fauxProvider()
+  const models = createModels()
+  models.setProvider(faux.provider)
+  faux.setResponses([
+    fauxAssistantMessage(reply),
+    fauxAssistantMessage('No changes.'),
+  ])
+  await expect(
+    runMemoryEval({
+      storage: await openNodeSqliteStorage(join(directory, 'replay.sqlite')),
+      createQuestionStorage: async () => {
+        throw new Error('Must fail before copying')
+      },
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      scenario: {
+        id: 'context-guard',
+        testedFactsThrough: cutoff,
+        testedPhrases: ['bracken'],
+        days: [{ date: '2026-01-05', text: 'My bicycle is Bracken.' }],
+        questions: [],
+      },
+    }),
+  ).rejects.toThrow('Tested sessions remain in verbatim context')
+})
+
+test('closes question storage when opening Familiar fails', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-open-failure-'))
+  temporary.push(directory)
+  const replayPath = join(directory, 'replay.sqlite')
+  const faux = fauxProvider()
+  const models = createModels()
+  models.setProvider(faux.provider)
+  let close: ReturnType<typeof vi.spyOn> | undefined
+  await expect(
+    runMemoryEval({
+      storage: await openNodeSqliteStorage(replayPath),
+      createQuestionStorage: async () => {
+        const path = join(directory, 'question.sqlite')
+        copyFileSync(replayPath, path)
+        const storage = await openNodeSqliteStorage(path)
+        close = vi.spyOn(storage, 'close')
+        vi.spyOn(models, 'getModel').mockImplementationOnce(() => {
+          throw new Error('Cannot open question')
+        })
+        return storage
+      },
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      scenario: {
+        id: 'open-failure',
+        days: [{ date: '2026-01-05' }],
+        questions: [memoryScenario.questions[0]],
+      },
+    }),
+  ).rejects.toThrow('Cannot open question')
+  expect(close).toHaveBeenCalledOnce()
 })
