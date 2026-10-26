@@ -319,3 +319,21 @@ test('past the hard limit, remember refuses until the model makes room', async (
   expect(facts.at(-1)?.text).toBe('Fits now')
   expect(facts.find((fact) => fact.id === 'm2')?.text).toBe('Merged.')
 })
+
+test('current_time reads the Harness clock', async () => {
+  const at = new Date('2026-03-04T12:34:00Z').getTime()
+  const { faux, say } = await setup({ now: () => at })
+  let toolResult = ''
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('current_time', { timeZone: 'UTC' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      toolResult = JSON.stringify(context.messages.at(-1))
+      return fauxAssistantMessage('It is Wednesday afternoon.')
+    },
+  ])
+  await say('What time is it?')
+  expect(toolResult).toContain('Wednesday, 4 March 2026')
+  expect(toolResult).toContain('12:34')
+})

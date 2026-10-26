@@ -20,11 +20,11 @@ const currentTime = defineTool({
     ),
   }),
   replay: 'safe',
-  execute: async ({ timeZone }) => ({
+  execute: async ({ timeZone }, api) => ({
     output: [
       {
         type: 'text',
-        text: new Date().toLocaleString('en-GB', {
+        text: new Date(api.now()).toLocaleString('en-GB', {
           timeZone,
           dateStyle: 'full',
           timeStyle: 'long',

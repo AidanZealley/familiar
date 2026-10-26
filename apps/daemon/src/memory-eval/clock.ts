@@ -15,6 +15,7 @@ export function createClock(start: number) {
   return {
     now: () => now,
     setTimer,
+    nextDue: () => Math.min(...[...timers].map((timer) => timer.due)),
     advanceTo(time: number) {
       if (time < now) throw new Error('The eval clock cannot run backwards.')
       now = time
