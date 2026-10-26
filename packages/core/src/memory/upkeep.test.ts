@@ -124,8 +124,11 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
   faux.setResponses([
     fauxAssistantMessage(
       [
-        fauxToolCall('remember', { text: 'Has a cat' }),
-        fauxToolCall('remember', { text: 'Owns a cat called Miso' }),
+        fauxToolCall('remember', { text: 'Has a cat', importance: 3 }),
+        fauxToolCall('remember', {
+          text: 'Owns a cat called Miso',
+          importance: 3,
+        }),
       ],
       { stopReason: 'toolUse' },
     ),
@@ -140,8 +143,8 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
       input = inputOf(context)
       return fauxAssistantMessage(
         [
-          fauxToolCall('forget', { id: 'm1' }),
-          fauxToolCall('remember', { text: 'Is vegetarian' }),
+          fauxToolCall('retire', { id: 'm1' }),
+          fauxToolCall('remember', { text: 'Is vegetarian', importance: 4 }),
         ],
         { stopReason: 'toolUse' },
       )
@@ -154,10 +157,13 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
   expect(faux.getPendingResponseCount()).toBe(0)
   expect(input).toContain('aidan: I have a cat called Miso')
   expect(input).toContain('Familiar: Noted.')
-  expect((await memory()).map((fact) => fact.text)).toEqual([
-    'Owns a cat called Miso',
-    'Is vegetarian',
-  ])
+  // The merged duplicate stays as history; only current facts are believed.
+  expect(
+    (await memory())
+      .filter((fact) => fact.until === undefined)
+      .map((fact) => fact.text),
+  ).toEqual(['Owns a cat called Miso', 'Is vegetarian'])
+  expect(await memory()).toHaveLength(3)
 })
 
 test('a pass sees only messages since the previous one', async () => {

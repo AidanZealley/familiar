@@ -1,7 +1,7 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView, EntryId } from '@earendil-works/pi-durable'
-import type { MemoryState } from './memory/index.ts'
-import { Hono } from 'hono'
+import { FactError, type MemoryState } from './memory/index.ts'
+import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
 
@@ -47,8 +47,15 @@ export type StreamEvent =
 /** `POST /messages` */
 export type SendBody = { text: string; requestId: string }
 
-/** `PUT /memory/:id` replaces a fact's text; `DELETE /memory/:id` forgets it. */
+/**
+ * `PUT /memory/:id` saves a new version of a fact; `POST /memory/:id/retire`
+ * marks it no longer true; `DELETE /memory/:id` forgets it. Each answers 404,
+ * changing nothing, when the fact is missing or already past.
+ */
 export type ReviseBody = { text: string }
+
+/** `PUT /memory/:id/core` puts a fact in core or takes it out. */
+export type CoreBody = { core: boolean }
 
 export type HttpOptions = {
   /**
@@ -61,6 +68,17 @@ export type HttpOptions = {
 }
 
 /** The Familiar HTTP API as a fetch handler. Mount it under any path. */
+/** Answers 204, or 404 when the rules refuse the edit; other failures stay server errors. */
+async function edit(c: Context, run: () => Promise<void>) {
+  try {
+    await run()
+  } catch (error) {
+    if (error instanceof FactError) return c.json({ error: error.message }, 404)
+    throw error
+  }
+  return c.body(null, 204)
+}
+
 export function createHttpApi(familiar: Familiar, options: HttpOptions) {
   return new Hono<{ Variables: { author: string } }>()
     .use(async (c, next) => {
@@ -133,11 +151,22 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       const body = await c.req.json<ReviseBody>()
       if (typeof body.text !== 'string' || !body.text.trim())
         return c.json({ error: 'text is required' }, 400)
-      await familiar.memory.revise(c.req.param('id'), body.text.trim())
-      return c.body(null, 204)
+      return edit(c, () =>
+        familiar.memory.revise(c.req.param('id'), body.text.trim()),
+      )
     })
-    .delete('/memory/:id', async (c) => {
-      await familiar.memory.forget(c.req.param('id'))
-      return c.body(null, 204)
+    .post('/memory/:id/retire', (c) =>
+      edit(c, () => familiar.memory.retire(c.req.param('id'))),
+    )
+    .put('/memory/:id/core', async (c) => {
+      const body = await c.req.json<CoreBody>()
+      if (typeof body.core !== 'boolean')
+        return c.json({ error: 'core must be true or false' }, 400)
+      return edit(c, () =>
+        familiar.memory.setCore(c.req.param('id'), body.core),
+      )
     })
+    .delete('/memory/:id', (c) =>
+      edit(c, () => familiar.memory.forget(c.req.param('id'))),
+    )
 }

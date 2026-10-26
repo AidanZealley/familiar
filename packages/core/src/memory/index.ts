@@ -6,7 +6,7 @@ import { memoryApi } from './api.ts'
 
 export * from './memory.ts'
 export * from './upkeep.ts'
-export * from './edits.ts'
+export * from './facts.ts'
 export type { MemoryApi } from './api.ts'
 
 export function createMemory(options: UpkeepOptions) {

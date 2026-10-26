@@ -16,6 +16,7 @@ import {
 } from '@earendil-works/pi-durable'
 import { saidBy } from '../conversation/message.ts'
 import { Memory, MemoryExtension } from './memory.ts'
+import { coreFacts } from './facts.ts'
 
 /** Passes run daily at this hour, in the host's time zone. */
 const UPKEEP_HOUR = 4
@@ -60,12 +61,11 @@ type UpkeepStep =
     }
 
 const instructions = (name: string) =>
-  `You keep the long-term memory of ${name}, a personal assistant, tidy. Nobody reads this conversation. Each message gives you the assistant's recent conversation with the people it helps, and when each saved fact was last written. Review the saved facts against it, using only remember, revise_memory and forget:
+  `You keep the long-term memory of ${name}, a personal assistant, tidy. Nobody reads this conversation. Each message gives you the assistant's recent conversation with the people it helps, and when each saved fact was last written. Review the saved facts against it, using only remember, revise_memory and retire:
 
-- Merge duplicates and near-duplicates into one fact: revise one, forget the rest.
-- Revise or forget facts the conversation contradicts or has made stale. A fact's date helps judge whether it still holds.
-- Save lasting facts from the conversation that were never saved: preferences, decisions, things about their lives and plans. Not passing details.
-- Merge and forget before adding: memory has a size limit.
+- Merge duplicates and near-duplicates into one fact: revise one, retire the rest.
+- Revise facts the conversation has changed; retire facts that stopped being true. A fact's date helps judge whether it still holds. Old versions are kept as history, so never drop a detail to save space.
+- Save lasting facts from the conversation that were never saved, rating their importance: preferences, decisions, things about their lives and plans. Not passing details.
 - If nothing needs changing, change nothing.
 
 When you are done, reply with one short line saying what you changed.`
@@ -163,7 +163,8 @@ export function createUpkeep(options: UpkeepOptions) {
           if (!found || upkeep.conversation === null)
             return sleep(runtime.now())
 
-          const facts = (await tx.doc(Memory)).facts
+          // The facts the pass sees in its prompt section.
+          const facts = coreFacts(await tx.doc(Memory))
           const dates = facts.length
             ? facts.map((fact) => `${fact.id}: ${day(fact.at)}`).join('\n')
             : '(no facts yet)'

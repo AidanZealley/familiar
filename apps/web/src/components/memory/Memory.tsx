@@ -4,7 +4,9 @@ import { FactItem } from './components/fact-item'
 export const Memory = () => {
   const memory = useFamiliar((state) => state.memory)
   // Newest first: what was learnt recently is what most needs checking.
-  const facts = memory?.facts.toReversed() ?? []
+  // Past facts are history, not what Familiar currently believes.
+  const facts =
+    memory?.facts.filter((fact) => fact.until === undefined).toReversed() ?? []
 
   return (
     <main className="flex-1 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">

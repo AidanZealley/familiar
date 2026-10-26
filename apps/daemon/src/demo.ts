@@ -78,7 +78,10 @@ const scenarios: Record<string, () => AssistantMessage> = {
     ),
   memory: () =>
     fauxAssistantMessage(
-      fauxToolCall('remember', { text: 'Prefers tea to coffee' }),
+      fauxToolCall('remember', {
+        text: 'Prefers tea to coffee',
+        importance: 3,
+      }),
       { stopReason: 'toolUse' },
     ),
   slow: () => fauxAssistantMessage(slowReply),
