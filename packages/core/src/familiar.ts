@@ -57,10 +57,15 @@ export type Familiar = ConversationApi & {
   onCommit(listener: () => void): () => void
   /** What it remembers. The model keeps it; people can correct it. */
   memory: MemoryApi
-  close(): Promise<void>
+  /** Lets it go: finishes committing, then releases its storage. Summon again to resume. */
+  dismiss(): Promise<void>
 }
 
-export async function openFamiliar(
+/**
+ * Opens a Familiar over its storage, resuming whatever it was doing, and
+ * starts its background work. One process per storage; `dismiss()` it when done.
+ */
+export async function summonFamiliar(
   options: FamiliarOptions,
 ): Promise<Familiar> {
   const context = BACKGROUND_CONTEXT
@@ -95,6 +100,6 @@ export async function openFamiliar(
     ...conversation,
     memory: memoryActions,
     onCommit: (listener) => harness.subscribeCommits(() => listener()),
-    close: () => harness.close(context),
+    dismiss: () => harness.close(context),
   }
 }

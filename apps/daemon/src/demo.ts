@@ -24,7 +24,7 @@ import {
   defineTool,
   MemoryStorage,
 } from '@earendil-works/pi-durable'
-import { openFamiliar } from '@familiar/core'
+import { summonFamiliar } from '@familiar/core'
 import { serveFamiliar } from './serve.ts'
 
 const markdownReply = `## A quick tour
@@ -181,7 +181,7 @@ const fillContext = defineTool({
   }),
 })
 
-const familiar = await openFamiliar({
+const familiar = await summonFamiliar({
   storage: new MemoryStorage(),
   models,
   model: { provider: 'faux', modelId: 'faux-1' },

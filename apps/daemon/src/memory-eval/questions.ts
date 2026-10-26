@@ -1,7 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
-import { openFamiliar, type Familiar } from '@familiar/core'
+import { summonFamiliar, type Familiar } from '@familiar/core'
 import { nextUpkeep, saidBy } from '@familiar/core/diagnostics'
 import { createClock } from './clock.ts'
 import { judgeAnswer, type Verdict } from './judge.ts'
@@ -64,7 +64,7 @@ export async function askQuestions({
           const questionClock = createClock(now)
           let reopened: Familiar
           try {
-            reopened = await openFamiliar({
+            reopened = await summonFamiliar({
               storage: questionStorage,
               ...options,
               now: questionClock.now,
@@ -120,7 +120,7 @@ export async function askQuestions({
             results[index] = { ...question, answer, verdict, toolCalls }
             progress(`${question.id}: ${verdict.pass ? 'pass' : 'fail'}`)
           } finally {
-            await reopened.close()
+            await reopened.dismiss()
           }
         }
       },

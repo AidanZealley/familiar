@@ -9,7 +9,7 @@ import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
 import { nextUpkeep } from './upkeep.ts'
 import { afterEach, expect, test, vi } from 'vitest'
-import { openFamiliar, type Familiar } from '../familiar.ts'
+import { summonFamiliar, type Familiar } from '../familiar.ts'
 
 const context = BACKGROUND_CONTEXT
 
@@ -51,7 +51,7 @@ async function setup() {
   const clock = fakeClock(start)
 
   const open = async () => {
-    const familiar = await openFamiliar({
+    const familiar = await summonFamiliar({
       storage,
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
@@ -63,7 +63,7 @@ async function setup() {
   }
   let familiar = await open()
   const reopen = async () => {
-    await familiar.close()
+    await familiar.dismiss()
     opened.splice(opened.indexOf(familiar), 1)
     familiar = await open()
   }
@@ -103,7 +103,7 @@ async function setup() {
 
 const opened: Familiar[] = []
 afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.close()))
+  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
 /** The pass's input: the last user message of an upkeep request. */

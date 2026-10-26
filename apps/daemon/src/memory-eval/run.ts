@@ -1,6 +1,6 @@
 import type { Models } from '@earendil-works/pi-ai'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
-import { openFamiliar } from '@familiar/core'
+import { summonFamiliar } from '@familiar/core'
 import { createClock } from './clock.ts'
 import { askQuestions, type QuestionResult } from './questions.ts'
 import { replayScenario, type UpkeepResult } from './replay.ts'
@@ -42,7 +42,7 @@ export async function runMemoryEval({
   if (Number.isNaN(first.getTime()))
     throw new Error('Invalid first scenario date.')
   const clock = createClock(first.getTime())
-  const familiar = await openFamiliar({
+  const familiar = await summonFamiliar({
     storage,
     models,
     model,
@@ -54,7 +54,7 @@ export async function runMemoryEval({
   try {
     replay = await replayScenario(familiar, storage, clock, scenario, progress)
   } finally {
-    await familiar.close()
+    await familiar.dismiss()
   }
   const results = await askQuestions({
     createQuestionStorage,

@@ -9,7 +9,7 @@ import { MemoryStorage } from '@earendil-works/pi-durable'
 import { HARD_LIMIT, SOFT_LIMIT } from './memory.ts'
 import { afterEach, expect, test } from 'vitest'
 import {
-  openFamiliar,
+  summonFamiliar,
   type Familiar,
   type FamiliarOptions,
 } from '../familiar.ts'
@@ -24,7 +24,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
   const faux = fauxProvider({ models: [{ id: 'faux-1', contextWindow }] })
   const models = createModels()
   models.setProvider(faux.provider)
-  const familiar = await openFamiliar({
+  const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
@@ -46,7 +46,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
 
 const opened: Familiar[] = []
 afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.close()))
+  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
 /** The system prompt sections of one request. */

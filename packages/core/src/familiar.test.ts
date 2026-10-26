@@ -11,7 +11,7 @@ import { afterEach, expect, test } from 'vitest'
 import {
   compactionFor,
   MESSAGE_KIND,
-  openFamiliar,
+  summonFamiliar,
   type MessageData,
   type Familiar,
   type FamiliarOptions,
@@ -27,7 +27,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
   const faux = fauxProvider({ models: [{ id: 'faux-1', contextWindow }] })
   const models = createModels()
   models.setProvider(faux.provider)
-  const familiar = await openFamiliar({
+  const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
@@ -49,7 +49,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
 
 const opened: Familiar[] = []
 afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.close()))
+  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
 test('search_history finds what was said earlier', async () => {

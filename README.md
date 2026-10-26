@@ -5,7 +5,7 @@ A personal assistant built on [Pi Durable](https://github.com/earendil-works/pi/
 ## Layout
 
 ```
-packages/core     openFamiliar(): one assistant over one storage. Portable.
+packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
   core/conversation Message format, history paging and search.
   core/memory     Long-term facts and daily consolidation at 04:00.

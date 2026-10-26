@@ -36,7 +36,7 @@ export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
 
   const shutdown = () => {
     server.close()
-    void familiar.close().then(() => process.exit(0))
+    void familiar.dismiss().then(() => process.exit(0))
   }
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)
