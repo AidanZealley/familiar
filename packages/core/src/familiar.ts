@@ -80,6 +80,7 @@ export async function summonFamiliar(
   const budget = options.contextBudget ?? DEFAULT_CONTEXT_BUDGET
   // Half the budget leaves room for the prompt, memory and the pass's tool calls.
   const memory = createMemory({
+    now: options.now ?? Date.now,
     model: options.model,
     name,
     transcriptTokens: Math.floor(budget / 2),

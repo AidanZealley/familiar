@@ -7,6 +7,7 @@ import {
   defineTask,
   ResetEntry,
   ROOT_CONVERSATION_ID,
+  type Extension,
   type ConversationId,
   type EntryId,
   type Harness,
@@ -15,7 +16,7 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import { saidBy } from '../conversation/message.ts'
-import { Memory, MemoryExtension } from './memory.ts'
+import { Memory } from './memory.ts'
 import { coreFacts } from './facts.ts'
 
 /** Passes run daily at this hour, in the host's time zone. */
@@ -127,6 +128,8 @@ export type UpkeepOptions = {
   name: string
   /** At most this many tokens of conversation go into one pass. */
   transcriptTokens: number
+  /** The memory extension passes use: its tools, and recall of facts outside core. */
+  extension: Extension
 }
 
 /**
@@ -238,7 +241,7 @@ export function createUpkeep(options: UpkeepOptions) {
         // Every open, so a change of model or wording applies to the next pass.
         await configure(tx, upkeep.conversation, {
           model: options.model,
-          extensions: [MemoryExtension],
+          extensions: [options.extension],
           instructions: instructions(options.name),
         })
         if (!live)

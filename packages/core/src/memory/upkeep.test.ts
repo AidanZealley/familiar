@@ -242,3 +242,44 @@ test('reopening keeps exactly one upkeep task on its schedule', async () => {
   await passAt(firstPass, secondPass)
   expect(passes).toBe(1)
 })
+
+test('a later pass revises a fact saved outside core instead of duplicating it', async () => {
+  const { faux, say, memory, passAt } = await setup()
+  const recalledIn = (context: TranscriptContext) =>
+    JSON.stringify(context.messages).includes('m1 (since')
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Noted.'),
+  ])
+  await say('I prefer green tea.')
+  expect((await memory())[0].core).toBe(false)
+
+  faux.setResponses([
+    fauxAssistantMessage('Nothing to change.'),
+    fauxAssistantMessage('Noted.'),
+  ])
+  await passAt(firstPass, secondPass)
+  await say('I have switched to black tea now.')
+
+  let sawFact = false
+  faux.setResponses([
+    (context) => {
+      expect(isUpkeep(context)).toBe(true)
+      sawFact = recalledIn(context)
+      return fauxAssistantMessage(
+        fauxToolCall('revise_memory', { id: 'm1', text: 'Prefers black tea' }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage('Revised the tea preference.'),
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+
+  expect(sawFact).toBe(true)
+  expect(
+    (await memory()).filter((fact) => fact.until === undefined),
+  ).toMatchObject([{ id: 'm2', text: 'Prefers black tea', replaces: ['m1'] }])
+})

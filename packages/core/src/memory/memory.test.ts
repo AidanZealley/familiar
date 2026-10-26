@@ -331,3 +331,83 @@ test('memory saved by version 1 opens with every fact in core', async () => {
     next: 3,
   })
 })
+
+/** The recalled-memory note in one request, if any. */
+const recalledIn = (context: TranscriptContext) =>
+  context.messages
+    .flatMap((message) =>
+      message.role === 'user' && typeof message.content === 'string'
+        ? [message.content]
+        : [],
+    )
+    .find((content) => content.startsWith('Recalled from memory'))
+
+test('a relevant fact outside core reaches the model, and the prompt stays the same', async () => {
+  const { faux, say, memory } = await setup()
+  const seen: { note?: string; memory?: string | null }[] = []
+  const capture = (reply: string) => (context: TranscriptContext) => {
+    seen.push({
+      note: recalledIn(context),
+      memory: sectionsOf(context).findLast((sections) => sections.memory)
+        ?.memory,
+    })
+    return fauxAssistantMessage(reply)
+  }
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
+        fauxToolCall('remember', {
+          text: "Pip's waterproof coat is 66 cm, from Fell Houndwear",
+          importance: 2,
+        }),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Noted.'),
+    capture('Morning!'),
+    capture('66 cm, from Fell Houndwear.'),
+  ])
+  await say('About me and Pip.')
+  await say('Good morning!')
+  await say("What size is Pip's coat?")
+
+  expect(seen[0].note).toBeUndefined()
+  expect(seen[1].note).toMatch(
+    /\nm2 \(since \d{4}-\d{2}-\d{2}\): Pip's waterproof coat is 66 cm/,
+  )
+  expect(seen[1].note).not.toContain('Leeds')
+  expect(seen[1].memory).toBe(seen[0].memory)
+  expect(seen[1].memory).not.toContain('Pip')
+  expect((await memory())?.facts[1].recalled).toEqual(expect.any(Number))
+})
+
+test('the recall tool finds past facts, labelled as past', async () => {
+  const { faux, say } = await setup()
+  let results: string[] = []
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Noted.'),
+    fauxAssistantMessage(
+      fauxToolCall('revise_memory', { id: 'm1', text: 'Lives in York' }),
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Updated.'),
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'lived Leeds' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      results = toolResultsOf(context)
+      return fauxAssistantMessage('Leeds.')
+    },
+  ])
+  await say('I live in Leeds.')
+  await say('I moved to York.')
+  await say('Where did I live before?')
+  expect(results.at(-1)).toMatch(
+    /^m1 \(.* no longer current; replaced by m2\): Lives in Leeds$/,
+  )
+})

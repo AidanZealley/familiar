@@ -145,6 +145,11 @@ export function setCore(memory: MemoryState, id: string, core: boolean) {
   fact.core = core
 }
 
+/** Records that facts reached the model. Facts forgotten meanwhile are skipped. */
+export function markRecalled(memory: MemoryState, ids: string[], at: number) {
+  for (const fact of memory.facts) if (ids.includes(fact.id)) fact.recalled = at
+}
+
 /** Deletes a fact outright, past or current. The only way a fact leaves the store. */
 export function forgetFact(memory: MemoryState, id: string) {
   const index = memory.facts.findIndex((fact) => fact.id === id)

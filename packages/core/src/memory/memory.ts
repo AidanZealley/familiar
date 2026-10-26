@@ -1,8 +1,10 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type, type Message } from '@earendil-works/pi-ai'
 import {
   defineDoc,
   defineExtension,
   defineTool,
+  GenerationTask,
+  hook,
   section,
   type ToolExecutionApi,
 } from '@earendil-works/pi-durable'
@@ -11,12 +13,14 @@ import {
   coreFacts,
   forgetFact,
   listFacts,
+  markRecalled,
   migrateV1,
   rememberFact,
   retireFact,
   reviseFact,
   type MemoryState,
 } from './facts.ts'
+import { describeFact, searchFacts } from './recall.ts'
 
 /**
  * What Familiar knows about the people it helps. One document for the whole
@@ -113,20 +117,93 @@ const forget = defineTool({
     }),
 })
 
+const recall = defineTool({
+  name: 'recall',
+  description:
+    "Search everything you remember beyond what you always see, including facts that are no longer current, each with when it was true. Use it when you need something you don't see, such as an earlier address or a detail of an old project.",
+  parameters: Type.Object({ query: Type.String() }),
+  execute: (args, api, context) =>
+    change(api, context, (memory) => {
+      const found = searchFacts(memory, args.query, api.now())
+      markRecalled(
+        memory,
+        found.map((fact) => fact.id),
+        api.now(),
+      )
+      return found.length
+        ? found.map((fact) => describeFact(memory, fact)).join('\n')
+        : 'Nothing found.'
+    }),
+})
+
 const render = (memory: MemoryState | undefined) => {
   const listed = memory ? listFacts(coreFacts(memory)) : ''
-  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use forget only when someone asks you to forget something.
+  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use forget only when someone asks you to forget something. Use recall to search what you remember beyond this.
 ${listed || '(nothing yet)'}`
 }
 
-/** Long-term memory: core facts the model sees on every request, and tools to keep the store. */
-export const MemoryExtension = defineExtension({
-  name: 'familiar.memory',
-  tools: [remember, revise, retire, forget],
-  sections: [
-    // Changes only when core does, so the provider's prompt cache holds between.
-    section('memory', async (input, context) =>
-      render(await input.read.snapshot(Memory, context)),
-    ),
-  ],
-})
+const textOf = (message: Message) =>
+  typeof message.content === 'string'
+    ? message.content
+    : message.content
+        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+        .join('\n')
+
+export type MemoryExtensionOptions = {
+  /** Familiar's clock. */
+  now: () => number
+  /** Records that facts reached the model. Hooks can't commit, so the owner of the Harness does. */
+  recalled: (ids: string[]) => Promise<void>
+}
+
+/**
+ * Long-term memory: core facts the model sees on every request, facts
+ * recalled for the latest message, and tools to keep the store.
+ */
+export const createMemoryExtension = (options: MemoryExtensionOptions) =>
+  defineExtension({
+    name: 'familiar.memory',
+    tools: [remember, revise, retire, recall, forget],
+    sections: [
+      // Changes only when core does, so the provider's prompt cache holds between.
+      section('memory', async (input, context) =>
+        render(await input.read.snapshot(Memory, context)),
+      ),
+    ],
+    hooks: [
+      hook(GenerationTask, {
+        // Recalled facts go just before the latest message, for this request
+        // only: the prompt and the stored transcript stay unchanged.
+        beforeRequest: async ({ messages }, api, context) => {
+          const latest = messages.findLastIndex(
+            (message) => message.role === 'user',
+          )
+          const memory = await api.snapshot(Memory, context)
+          if (latest === -1 || !memory) return
+          // A retried request shows what the first attempt showed.
+          const ids = await api.memo(
+            'familiar.recall',
+            searchFacts(memory, textOf(messages[latest]), options.now()).map(
+              (fact) => fact.id,
+            ),
+            context,
+          )
+          const facts = memory.facts.filter((fact) => ids.includes(fact.id))
+          if (!facts.length) return
+          await options.recalled(ids)
+          const note: Message = {
+            role: 'user',
+            content: `Recalled from memory for the next message; use it only if relevant:\n${facts.map((fact) => describeFact(memory, fact)).join('\n')}`,
+            timestamp: messages[latest].timestamp,
+          }
+          return {
+            messages: [
+              ...messages.slice(0, latest),
+              note,
+              ...messages.slice(latest),
+            ],
+          }
+        },
+      }),
+    ],
+  })
