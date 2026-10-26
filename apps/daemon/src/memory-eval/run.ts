@@ -9,7 +9,8 @@ import type { Scenario } from './scenario.ts'
 export type EvalResult = {
   scenario: string
   days: number
-  judgeIsTestModel: true
+  /** Pinned apart from the model under test so a model change doesn't also change the grading. */
+  judge: string
   memory: { document: unknown; characters: number }
   compactions: number
   upkeep: UpkeepResult[]
@@ -21,6 +22,7 @@ export async function runMemoryEval({
   createQuestionStorage,
   models,
   model,
+  judge,
   scenario,
   progress = () => {},
   questionConcurrency = 3,
@@ -30,6 +32,7 @@ export async function runMemoryEval({
   createQuestionStorage: (id: string) => Promise<Storage>
   models: Models
   model: ModelRef
+  judge: ModelRef
   scenario: Scenario
   progress?: (message: string) => void
   questionConcurrency?: number
@@ -60,6 +63,7 @@ export async function runMemoryEval({
     createQuestionStorage,
     models,
     model,
+    judge,
     scenario,
     progress,
     questionConcurrency,
@@ -68,7 +72,7 @@ export async function runMemoryEval({
   return {
     scenario: scenario.id,
     days: scenario.days.length,
-    judgeIsTestModel: true,
+    judge: judge.modelId,
     ...replay,
     results,
   }

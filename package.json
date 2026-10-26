@@ -12,6 +12,7 @@
     "start": "pnpm --filter @familiar/daemon start",
     "sign-in": "pnpm --filter @familiar/daemon sign-in",
     "eval:memory": "pnpm --filter @familiar/daemon eval:memory",
+    "eval:memory:rejudge": "pnpm --filter @familiar/daemon eval:memory:rejudge",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",

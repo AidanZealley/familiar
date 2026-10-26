@@ -4,7 +4,7 @@ import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar, type Familiar } from '@familiar/core'
 import { nextUpkeep, saidBy } from '@familiar/core/diagnostics'
 import { createClock } from './clock.ts'
-import { judgeAnswer, type Verdict } from './judge.ts'
+import { judgeAnswer, transcriptOf, type Verdict } from './judge.ts'
 import {
   categories,
   type Category,
@@ -36,6 +36,7 @@ export async function askQuestions({
   createQuestionStorage,
   models,
   model,
+  judge,
   scenario,
   progress,
   questionConcurrency,
@@ -44,12 +45,14 @@ export async function askQuestions({
   createQuestionStorage: (id: string) => Promise<Storage>
   models: Models
   model: ModelRef
+  judge: ModelRef
   scenario: Scenario
   progress: (message: string) => void
   questionConcurrency: number
   now: number
 }): Promise<QuestionResult[]> {
   const options = { models, model, contextBudget: 4_000 }
+  const transcript = transcriptOf(scenario)
   const results = new Array<QuestionResult>(scenario.questions.length)
   let next = 0
   const workers = await Promise.allSettled(
@@ -116,7 +119,13 @@ export async function askQuestions({
                   )
                 : [],
             )
-            const verdict = await judgeAnswer(models, model, question, answer)
+            const verdict = await judgeAnswer(
+              models,
+              judge,
+              transcript,
+              question,
+              answer,
+            )
             results[index] = { ...question, answer, verdict, toolCalls }
             progress(`${question.id}: ${verdict.pass ? 'pass' : 'fail'}`)
           } finally {

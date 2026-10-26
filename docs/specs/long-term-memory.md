@@ -46,7 +46,7 @@ Build this first and record a baseline on today's memory, so the redesign is mea
 1. `pnpm eval:memory` replays a scripted, months-long conversation into a fresh Familiar on temporary storage, with a fake clock that advances through days so nightly upkeep runs, using a real model. It then asks questions and scores the answers.
 2. The real model needs its own sign-in, never the owner's live credentials: the eval uses a separate data directory (`~/.local/share/familiar-eval`) and documents signing in to it once with `FAMILIAR_DATA_DIR=… pnpm sign-in`. It must not touch `~/.local/share/familiar`.
 3. The script covers LongMemEval's categories (research notes): facts stated once long ago; facts that change (a move, a new job, a changed preference); multi-session reasoning; time questions ("what was I doing in early March?"); and things never said, where the right answer is not knowing. Include enough trivial chatter to crowd memory.
-4. Score each answer pass or fail with a model judge given the expected answer, and print a per-category table. Save results as JSON under `eval/results/` with the date and the commit.
+4. Score each answer pass or fail with a pinned model judge given the expected answer and the scenario text as ground truth, and print a per-category table. Save results as JSON under `eval/results/` with the date and the commit.
 5. Keep the scenario small enough to run in minutes and within normal subscription use; the conversation may be summarised days rather than full transcripts.
 
 Done when the eval runs end to end, its results for the current memory are committed as the baseline, and the README explains how to run it.

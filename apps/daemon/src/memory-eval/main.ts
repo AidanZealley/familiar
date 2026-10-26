@@ -7,36 +7,13 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { createModels } from '@earendil-works/pi-ai/models'
-import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { fileCredentialStore } from '../credentials.ts'
+import { judge, model, models } from './models.ts'
 import { summarize } from './questions.ts'
 import { runMemoryEval } from './run.ts'
 import { memoryScenario } from './scenario.ts'
-
-// This command deliberately never imports config.ts: that module creates the
-// owner's data directory as a side effect when FAMILIAR_DATA_DIR is unset.
-const evalDataDir = resolve(homedir(), '.local/share/familiar-eval')
-const authPath = join(evalDataDir, 'auth.json')
-const credentials = fileCredentialStore(authPath)
-if (!existsSync(authPath) || !(await credentials.read('openai'))) {
-  throw new Error(
-    `Memory eval needs its own ChatGPT sign-in. Run FAMILIAR_DATA_DIR=${evalDataDir} pnpm sign-in first.`,
-  )
-}
-const models = createModels({ credentials })
-models.setProvider(openaiProvider())
-const model = {
-  provider: 'openai',
-  modelId: process.env.FAMILIAR_MODEL ?? 'gpt-6.1-sol',
-}
-if (!models.getModel(model.provider, model.modelId))
-  throw new Error(
-    `Unknown eval model ${model.modelId}; set FAMILIAR_MODEL to a catalog model.`,
-  )
 
 const commit = execFileSync('git', ['describe', '--always', '--dirty'], {
   encoding: 'utf8',
@@ -59,6 +36,7 @@ try {
     },
     models,
     model,
+    judge,
     scenario: memoryScenario,
     progress: console.log,
   })

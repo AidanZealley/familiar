@@ -134,6 +134,7 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     },
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    judge: { provider: 'faux', modelId: 'faux-1' },
     scenario,
     questionConcurrency: 1,
   })
@@ -145,6 +146,10 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
   const judged = JSON.parse(JSON.parse(judgeInputs[0])[1].content)
   expect(judged.required).toEqual(['Bracken'])
   expect(judged.optional).toEqual(['It is green'])
+  expect(judged.transcript).toEqual([
+    '2026-01-05: My bicycle is called Bracken.',
+    '2026-01-06: I fixed a loose spoke today.',
+  ])
   expect(judgeInputs[0]).toContain('I cannot recall its name.')
   expect(result.results.map(({ verdict }) => verdict.pass)).toEqual([
     false,
@@ -297,6 +302,7 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
     },
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    judge: { provider: 'faux', modelId: 'faux-1' },
     scenario: memoryScenario,
   })
   expect(result.compactions).toBeGreaterThan(0)
@@ -305,7 +311,7 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
   expect(
     result.upkeep.filter(({ outcome }) => outcome === 'advanced'),
   ).toHaveLength(18)
-  expect(result.judgeIsTestModel).toBe(true)
+  expect(result.judge).toBe('faux-1')
 })
 
 test('fails loudly if an upkeep pass does not advance through the messages', async () => {
@@ -329,6 +335,7 @@ test('fails loudly if an upkeep pass does not advance through the messages', asy
       },
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
       scenario: {
         id: 'failed-upkeep',
         days: [{ date: '2026-01-05', text: 'My bicycle is Bracken.' }],
@@ -392,6 +399,7 @@ test.each([
       },
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
       scenario: {
         id: 'context-guard',
         testedFactsThrough: cutoff,
@@ -426,6 +434,7 @@ test('closes question storage when opening Familiar fails', async () => {
       },
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
       scenario: {
         id: 'open-failure',
         days: [{ date: '2026-01-05' }],
