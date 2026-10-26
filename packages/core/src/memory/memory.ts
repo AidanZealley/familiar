@@ -149,6 +149,15 @@ const textOf = (message: Message) =>
         .flatMap((part) => (part.type === 'text' ? [part.text] : []))
         .join('\n')
 
+/** What to recall for one request, rendered once so retries can't differ. */
+const recallFor = (memory: MemoryState, query: string, now: number) => {
+  const facts = searchFacts(memory, query, now)
+  return {
+    ids: facts.map((fact) => fact.id),
+    note: `Recalled from memory for the latest message; use it only if relevant:\n${facts.map((fact) => describeFact(memory, fact)).join('\n')}`,
+  }
+}
+
 export type MemoryExtensionOptions = {
   /** Familiar's clock. */
   now: () => number
@@ -172,37 +181,28 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
     ],
     hooks: [
       hook(GenerationTask, {
-        // Recalled facts go just before the latest message, for this request
-        // only: the prompt and the stored transcript stay unchanged.
+        // Recalled facts go after everything else, for this request only:
+        // the prompt, the stored transcript and every earlier message stay
+        // byte for byte the same, so the provider's prompt cache holds.
         beforeRequest: async ({ messages }, api, context) => {
-          const latest = messages.findLastIndex(
-            (message) => message.role === 'user',
-          )
+          const latest = messages.findLast((message) => message.role === 'user')
           const memory = await api.snapshot(Memory, context)
-          if (latest === -1 || !memory) return
-          // A retried request shows what the first attempt showed.
-          const ids = await api.memo(
+          if (!latest || !memory) return
+          // A retried request shows exactly what the first attempt showed,
+          // even if memory changed in between.
+          const recalled = await api.memo(
             'familiar.recall',
-            searchFacts(memory, textOf(messages[latest]), options.now()).map(
-              (fact) => fact.id,
-            ),
+            recallFor(memory, textOf(latest), options.now()),
             context,
           )
-          const facts = memory.facts.filter((fact) => ids.includes(fact.id))
-          if (!facts.length) return
-          await options.recalled(ids)
+          if (!recalled.ids.length) return
+          await options.recalled(recalled.ids)
           const note: Message = {
             role: 'user',
-            content: `Recalled from memory for the next message; use it only if relevant:\n${facts.map((fact) => describeFact(memory, fact)).join('\n')}`,
-            timestamp: messages[latest].timestamp,
+            content: recalled.note,
+            timestamp: messages.at(-1)!.timestamp,
           }
-          return {
-            messages: [
-              ...messages.slice(0, latest),
-              note,
-              ...messages.slice(latest),
-            ],
-          }
+          return { messages: [...messages, note] }
         },
       }),
     ],

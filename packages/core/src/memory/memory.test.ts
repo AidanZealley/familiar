@@ -411,3 +411,66 @@ test('the recall tool finds past facts, labelled as past', async () => {
     /^m1 \(.* no longer current; replaced by m2\): Lives in Leeds$/,
   )
 })
+
+/** Saves one fact outside core, so recall has something to show. */
+const saveGreenTea = () => [
+  fauxAssistantMessage(
+    fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
+    { stopReason: 'toolUse' },
+  ),
+  fauxAssistantMessage('Noted.'),
+]
+
+test('recall goes last, so a revision mid-run leaves the earlier messages unchanged', async () => {
+  const { faux, say } = await setup()
+  const requests: TranscriptContext['messages'][] = []
+  faux.setResponses([
+    ...saveGreenTea(),
+    (context) => {
+      requests.push(context.messages)
+      return fauxAssistantMessage(
+        fauxToolCall('revise_memory', { id: 'm1', text: 'Prefers black tea' }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    (context) => {
+      requests.push(context.messages)
+      return fauxAssistantMessage('Black tea it is.')
+    },
+  ])
+  await say('I like tea.')
+  await say('Actually, I have switched to black tea.')
+
+  const [first, second] = requests
+  expect(recalledIn({ messages: first } as TranscriptContext)).toBe(
+    first.at(-1)?.content,
+  )
+  expect(second.at(-1)?.content).toContain('replaced by m2')
+  // Everything before the first request's note is the start of the second.
+  expect(second.slice(0, first.length - 1)).toEqual(first.slice(0, -1))
+})
+
+test('a retried request recalls exactly what the first attempt did', async () => {
+  const { faux, familiar, say } = await setup()
+  const notes: (string | undefined)[] = []
+  faux.setResponses([
+    ...saveGreenTea(),
+    async (context) => {
+      notes.push(recalledIn(context))
+      // Memory changes between the attempts.
+      await familiar.memory.revise('m1', 'Prefers black tea')
+      return fauxAssistantMessage('', {
+        stopReason: 'error',
+        errorMessage: '503 server busy',
+      })
+    },
+    (context) => {
+      notes.push(recalledIn(context))
+      return fauxAssistantMessage('Tea, then.')
+    },
+  ])
+  await say('I like tea.')
+  await say('What tea do I like?')
+  expect(notes[0]).toContain('m1 (since')
+  expect(notes[1]).toBe(notes[0])
+})

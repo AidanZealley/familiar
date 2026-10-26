@@ -39,9 +39,17 @@ function indexOf(facts: readonly Fact[]) {
       fields: ['text'],
       processTerm: (term) => {
         const lower = term.toLowerCase()
-        return STOP_WORDS.has(lower) ? null : lower
+        // Fragments such as the "s" of "what's" match nothing meaningful,
+        // and prefix matching would expand them to every word they start.
+        // Short numbers, like the 66 of "66 cm", still count.
+        if (STOP_WORDS.has(lower) || (lower.length < 3 && !/^\d+$/.test(lower)))
+          return null
+        return lower
       },
-      searchOptions: { prefix: true, fuzzy: 0.2 },
+      searchOptions: {
+        prefix: (term) => term.length >= 4,
+        fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
+      },
     })
     index.addAll(facts)
     indexes.set(facts, index)

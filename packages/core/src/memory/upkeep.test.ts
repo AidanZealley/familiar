@@ -283,3 +283,67 @@ test('a later pass revises a fact saved outside core instead of duplicating it',
     (await memory()).filter((fact) => fact.until === undefined),
   ).toMatchObject([{ id: 'm2', text: 'Prefers black tea', replaces: ['m1'] }])
 })
+
+test('a pass can search for a fact its automatic recall missed', async () => {
+  const { faux, say, memory, passAt } = await setup()
+  const topics = Array.from(
+    { length: 10 },
+    (_, index) =>
+      `Topic ${index}: switched to a new routine for the garden now`,
+  )
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
+        ...topics.map((text) =>
+          fauxToolCall('remember', { text, importance: 1 }),
+        ),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Noted.'),
+  ])
+  await say('Lots about me.')
+  faux.setResponses([
+    fauxAssistantMessage('Nothing to change.'),
+    fauxAssistantMessage('Noted.'),
+  ])
+  await passAt(firstPass, secondPass)
+  await say(
+    `I have switched to black tea now. ${topics.join('. ')}. The garden routine is new.`,
+  )
+
+  let automatic = ''
+  let searched = ''
+  faux.setResponses([
+    (context) => {
+      expect(isUpkeep(context)).toBe(true)
+      automatic = JSON.stringify(context.messages.at(-1))
+      return fauxAssistantMessage(fauxToolCall('recall', { query: 'tea' }), {
+        stopReason: 'toolUse',
+      })
+    },
+    (context) => {
+      const last = context.messages.findLast(
+        (message) => message.role === 'toolResult',
+      )
+      searched = JSON.stringify(last)
+      return fauxAssistantMessage(
+        fauxToolCall('revise_memory', { id: 'm1', text: 'Prefers black tea' }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage('Revised the tea preference.'),
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+
+  // Crowded out of the automatic eight, but found by a targeted search.
+  expect(automatic).toContain('Recalled from memory')
+  expect(automatic).not.toContain('green tea')
+  expect(searched).toContain('m1 (since')
+  expect(
+    (await memory())
+      .filter((fact) => fact.until === undefined)
+      .map((fact) => fact.text),
+  ).toContain('Prefers black tea')
+})

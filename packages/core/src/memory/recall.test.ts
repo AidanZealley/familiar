@@ -35,6 +35,16 @@ test('a message with no meaningful overlap recalls nothing', () => {
     ['Likes blue pens', 1],
   )
   expect(ids(memory, 'How are you doing today?')).toEqual([])
+
+  // Contraction fragments ("s", "t") must not prefix-match whole words.
+  const shed = memoryOf(
+    ['Shed key is under the pot', 2],
+    ['Takes the tram to work', 2],
+    ['Samsung phone has a cracked screen', 1],
+  )
+  expect(ids(shed, "What's the weather today?")).toEqual([])
+  expect(ids(shed, "Don't worry about it")).toEqual([])
+  expect(ids(shed, "Where's the shed key?")).toEqual(['m1'])
 })
 
 test('importance and recency rank equally relevant facts', () => {
