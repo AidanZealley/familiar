@@ -1,3 +1,4 @@
+import { MESSAGE_KIND } from './conversation/message.ts'
 import type { ConversationView, EntryRecord } from '@familiar/core/http'
 import { expect, test } from 'vitest'
 import { carryOver, startOf, type History } from './store.ts'
@@ -8,7 +9,7 @@ const entry = (id: number, kind: string, rest: object = {}) =>
   ({ id, conversationId: 1, kind, ...rest }) as unknown as EntryRecord
 
 const said = (id: number, text: string) =>
-  entry(id, 'familiar.message', { data: { author: 'aidan', text } })
+  entry(id, MESSAGE_KIND, { data: { author: 'aidan', text } })
 
 const replied = (id: number, content: object[], stopReason: string = 'stop') =>
   entry(id, 'pi.assistant', {

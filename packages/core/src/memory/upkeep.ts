@@ -14,7 +14,7 @@ import {
   type TaskId,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { saidBy } from './history.ts'
+import { saidBy } from '../conversation/message.ts'
 import { Memory, MemoryExtension } from './memory.ts'
 
 /** Passes run daily at this hour, in the host's time zone. */

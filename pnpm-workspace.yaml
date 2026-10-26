@@ -1,6 +1,7 @@
 packages:
   - apps/*
-  - packages/*
+  - packages/core
+  - packages/client
 
 # Install scripts are off unless listed. None of these need theirs for Familiar.
 allowBuilds:

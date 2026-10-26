@@ -1,3 +1,5 @@
+import { createHistoryExtension, MESSAGE_KIND } from './conversation/index.ts'
+export { MESSAGE_KIND, type MessageData } from './conversation/message.ts'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
 import {
@@ -15,12 +17,11 @@ import {
   type Storage,
 } from '@earendil-works/pi-durable'
 import {
-  createHistoryExtension,
   createUpkeep,
   Memory,
   MemoryExtension,
   type MemoryState,
-} from '@familiar/memory'
+} from './memory/index.ts'
 import { createPersona } from './persona.ts'
 
 export type FamiliarOptions = {
@@ -54,11 +55,6 @@ export type Message = {
   /** Stable per logical message, so a retried send is admitted once. */
   requestId: string
 }
-
-/** The entry kind people's messages are stored as. */
-export const MESSAGE_KIND = 'familiar.message'
-
-export type MessageData = { author: string; text: string }
 
 /**
  * A Familiar is one assistant with one owner and one never-ending conversation.

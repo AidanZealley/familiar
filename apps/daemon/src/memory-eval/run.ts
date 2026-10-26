@@ -9,7 +9,11 @@ import {
   type TaskRecord,
 } from '@earendil-works/pi-durable'
 import { openFamiliar, type Familiar } from '@familiar/core'
-import { nextUpkeep, saidBy, type UpkeepState } from '@familiar/memory'
+import {
+  nextUpkeep,
+  saidBy,
+  type UpkeepState,
+} from '@familiar/core/diagnostics'
 import { clearTimeout, setTimeout as armTimeout } from 'node:timers'
 import { setTimeout } from 'node:timers/promises'
 import { createClock } from './clock.ts'

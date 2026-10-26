@@ -1,6 +1,6 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView, EntryId } from '@earendil-works/pi-durable'
-import type { MemoryState } from '@familiar/memory'
+import type { MemoryState } from './memory/index.ts'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
@@ -31,7 +31,7 @@ export type { MESSAGE_KIND, MessageData } from './familiar.ts'
 export type { HistoryPage } from './familiar.ts'
 
 const HISTORY_LIMIT = 200
-export type { Fact, MemoryState } from '@familiar/memory'
+export type { Fact, MemoryState } from './memory/index.ts'
 
 /**
  * `GET /events` is a server-sent event stream of these. Each kind of state

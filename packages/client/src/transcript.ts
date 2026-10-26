@@ -4,15 +4,13 @@ import type {
   EntryRecord,
   InboxState,
   LiveState,
-  MESSAGE_KIND as CoreMessageKind,
   MessageData,
   ToolCall as ModelToolCall,
   ToolResultMessage,
   UserMessage,
 } from '@familiar/core/http'
 
-// Typed against core's constant, so the two cannot drift apart.
-const MESSAGE_KIND: typeof CoreMessageKind = 'familiar.message'
+import { MESSAGE_KIND } from './conversation/message.ts'
 
 export type ToolCall = {
   id: string
