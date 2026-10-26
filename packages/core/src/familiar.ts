@@ -18,6 +18,8 @@ import {
 } from '@earendil-works/pi-durable'
 import {
   createUpkeep,
+  reviseFact,
+  forgetFact,
   Memory,
   MemoryExtension,
   type MemoryState,
@@ -206,12 +208,11 @@ export async function openFamiliar(
       watch: async () => (await harness.watchDoc(Memory, context))!,
       revise: (id, text) =>
         editMemory((memory) => {
-          const fact = memory.facts.find((fact) => fact.id === id)
-          if (fact) Object.assign(fact, { text, at: Date.now() })
+          Object.assign(memory, reviseFact(memory, id, text, Date.now()))
         }),
       forget: (id) =>
         editMemory((memory) => {
-          memory.facts = memory.facts.filter((fact) => fact.id !== id)
+          Object.assign(memory, forgetFact(memory, id))
         }),
     },
     close: () => harness.close(context),
