@@ -538,7 +538,7 @@ My porcelain is Audrey Blackman body, fired to 1,220 degrees Celsius. The model'
   ],
   [
     '2025-02-03',
-    `Today, 3 February 2025, I moved from Leeds to York, to Flat 2, 9 Foss Lane. The new rent is £860 a month. I still work at Northbank Ceramics. My regular library shift is now Saturday 10 am to noon at Wren Street Library, repairing book covers. The library has not named a supervisor for my shift.
+    `Today, 3 February 2025, I moved from Leeds to York, to Flat 2, 9 Foss Lane. The new rent is £860 a month. I still work at Northbank Ceramics. My regular library shift is now Saturday 10 am to noon at Wren Street Library, repairing book covers.
 The York flat's kitchen recess is 57 cm wide and 61 cm deep. The living-room curtain rail is 184 cm long. The landlord is Ruth Venn, and repairs go to Foss Lettings reference FL-209. My electricity tariff is Bramble Fixed 12, at 24.8 p per kWh. The stopcock is behind the bottom kitchen drawer. The hallway takes a runner no wider than 68 cm. My desk is an oak Ercol 449 with a 96 cm top.`,
   ],
   [
@@ -633,7 +633,7 @@ My map cabinet is a five-drawer Bisley A1 in goose grey. The drawer liners are 1
   ],
   [
     '2025-06-16',
-    `Today, 16 June 2025, I left Lantern Museum and joined Westfold Archive as a preventive conservation assistant. My manager is Ada Finch. My regular commute is now a 22 minute walk, replacing the museum bus. My new work week is Monday to Thursday, 8:30 am to 4:30 pm. Salary has not been agreed. The archive induction covered humidity sensors and pest traps.
+    `Today, 16 June 2025, I left Lantern Museum and joined Westfold Archive as a preventive conservation assistant. My manager is Ada Finch. My regular commute is now a 22 minute walk, replacing the museum bus. My new work week is Monday to Thursday, 8:30 am to 4:30 pm. The archive induction covered humidity sensors and pest traps.
 My archive badge number is WF-083. My preferred sensor is a Testo 174H. I record relative humidity as whole percentages and temperature to one decimal place. I use a 55 percent RH upper warning threshold for the textile store. The trap map uses bay labels A1 through F8. My inspection torch is a Ledlenser P4R. My inspection mirror has a 30 mm head. I carry a white Pelican 1010 case for sensor cables.`,
   ],
   [
@@ -653,7 +653,7 @@ My edit keyboard is a Keychron K2 with brown switches. I use a Kensington Orbit 
   ],
   [
     '2025-07-14',
-    `The listening venues have fixed offers: Willow Room, step-free, capacity 30, £110; Copper Loft, stairs only, capacity 40, £95; and Mill Studio, step-free, capacity 35, £145. No venue has been booked. I posted Saffron a birthday card. She is still my friend and allotment co-holder. I have not named a new romantic partner.
+    `The listening venues have fixed offers: Willow Room, step-free, capacity 30, £110; Copper Loft, stairs only, capacity 40, £95; and Mill Studio, step-free, capacity 35, £145. No venue has been booked. I posted Saffron a birthday card. She is still my friend and allotment co-holder.
 My card paper is 250 gsm Munken Pure. I print with a Canon Pixma iP8750 using CLI-551 inks. My envelope size for cards is C6, in kraft brown. Postage stamps stay in the top right desk drawer. My address stamp uses violet Trodat 7011 ink. I draw with a Faber-Castell Pitt fine pen in sepia. My birthday notebook is an undated red Paperblanks book. My paper trimmer is a Dahle 507 with a 320 mm cutting length.`,
   ],
   [
@@ -668,12 +668,12 @@ My website domain is rowanmakes.example. I use the font Atkinson Hyperlegible fo
   ],
   [
     '2025-08-04',
-    `From 4 August 2025, decaffeinated Assam replaces rooibos as my usual morning drink. I use Birch Tea's broken orange pekoe, 2.5 g brewed for four minutes. I need a Folded Atlas hinge that can hold at least 12 kg and fit a 16 mm rebate. The hinge budget is £35 for the set.
+    `From 4 August 2025, decaffeinated Assam replaces rooibos as my usual morning drink. I use Birch Tea's broken orange pekoe, 2.5 g brewed for four minutes. I need a Folded Atlas hinge that can hold at least 12 kg, with a leaf no wider than 16 mm so it fits the rebate. The hinge budget is £35 for the set.
 For cabinet work I prefer 12 mm Baltic birch plywood and 4 mm ash edging. My glue is Titebond Original, clamped for 45 minutes at room temperature. My block plane is a Veritas low-angle model with a 25 degree bevel. My smoothing plane is a Record number 4. I sharpen on Shapton 1,000 and 5,000 grit stones. My square cabinet knobs are 24 mm beech. I finish interiors with two coats of Osmo Polyx Raw 3044.`,
   ],
   [
     '2025-08-11',
-    `The fixed hinge offers are Finch Hardware, 14 kg rating, 15 mm rebate, £32 per set; Kite Fittings, 10 kg, 14 mm, £24; and Heron Ironwork, 16 kg, 18 mm, £33. None will alter these sizes. I have not ordered hinges. Ellis visited and measured the workshop doorway before we ate soup.
+    `The fixed hinge offers are Finch Hardware, 14 kg rating, 15 mm leaf, £32 per set; Kite Fittings, 10 kg, 14 mm leaf, £24; and Heron Ironwork, 16 kg, 18 mm leaf, £33. None will alter these sizes. I have not ordered hinges. Ellis visited and measured the workshop doorway before we ate soup.
 Ellis lives at 32 Cedar Avenue in Derby. He works as a railway signalling designer at Trent Signalworks. His birthday is 8 November. He drinks lapsang souchong without milk. His preferred bread is seeded rye. His cat is Mica, a tortoiseshell adopted in 2020. His touring bicycle is a blue Spa Wayfarer with 36-spoke wheels. His workshop vice is a red Record number 3. He keeps my backup drive in his upstairs study's locked oak cabinet.`,
   ],
   [
@@ -713,7 +713,7 @@ My soldering station is a Hakko FX-888D with a T18-D16 tip. My fume extractor is
   ],
   [
     '2025-10-06',
-    `Today, 6 October 2025, Westfold Archive changed my role to collections environment coordinator. I am still employed there, reporting to Ada Finch. My commute remains the bicycle ride. My work hours are now Monday to Friday, 9 am to 5 pm. The job involves monthly climate reports for four stores. Salary has not been agreed.
+    `Today, 6 October 2025, Westfold Archive changed my role to collections environment coordinator. I am still employed there, reporting to Ada Finch. My commute remains the bicycle ride. My work hours are now Monday to Friday, 9 am to 5 pm. The job involves monthly climate reports for four stores.
 My report template uses the title Store climate review. I export readings as CSV with ISO dates and a semicolon delimiter. My chart interval is 30 minutes. Store one holds textiles, store two paper, store three photographs and store four mixed objects. My escalation contact for leaks is facilities officer Tomas Reed. His radio call sign is Facilities Two. I keep emergency absorbent rolls in cupboard E4. My work notebook is a Rhodia number 16 dot pad.`,
   ],
   [
@@ -758,7 +758,7 @@ My route cards are A6 waterproof Polyart at 170 gsm. They show a 1:2,500 route m
   ],
   [
     '2025-12-08',
-    `Night Orchard's carrier measures 154 cm internally and weighs 14.6 kg when packed. That includes the stands and all nine pods. The Winter Lantern Walk remains scheduled for 13 December 2025. No rain-cancellation policy has been announced. The organiser is Petra Singh, and the assembly point is Birch Gate at 4 pm.
+    `Night Orchard's carrier measures 154 cm internally and weighs 14.6 kg when packed. That includes the stands and all nine pods. The Winter Lantern Walk remains scheduled for 13 December 2025. The organiser is Petra Singh, and the assembly point is Birch Gate at 4 pm.
 My event boots are insulated Muck Arctic Sport in size 8. I carry a black 20 litre Ortlieb dry bag. My event check-in sheet uses numbered boxes 1 to 9. My spare LED fuses are 2 A glass, 5 by 20 mm. My portable battery is a 12 V 7 Ah Yuasa NP7-12. My battery connectors are insulated 6.3 mm spades. My safety labels are yellow with black lettering. The carrier hangs from two 40 mm steel garage hooks at home.`,
   ],
   [
@@ -1018,29 +1018,25 @@ export const rowanV3: Scenario = {
         '£1,850',
         '58 cm beds',
         '88 cm clear gate',
-        '60 cm',
-        '84 cm',
-        '£2,000',
         'Moss & Clay',
         '72 cm beds',
         'Alder Yard',
         '£2,180',
       ],
-      optional: ['All quotes include installation', 'No installer chosen'],
+      optional: [
+        '60 cm',
+        '84 cm',
+        '£2,000',
+        'All quotes include installation',
+        'No installer chosen',
+      ],
     },
     {
       id: 'v3-roof-fit',
       category: 'multi-session',
       text: 'Which quoted roof panel can Noor lift within the limit we set for Reed Shelter, and what does it cost? Why does the other one fail?',
-      required: [
-        'Moor Timber',
-        '7.4 kg',
-        '£96',
-        '8 kg',
-        'Canal Boards',
-        '8.6 kg',
-      ],
-      optional: ['Larch versus cedar'],
+      required: ['Moor Timber', '7.4 kg', '£96', 'Canal Boards', '8.6 kg'],
+      optional: ['8 kg', 'Larch versus cedar'],
     },
     {
       id: 'v3-theatre-case',
@@ -1050,14 +1046,12 @@ export const rowanV3: Scenario = {
         'Ash Cases',
         '84 cm',
         '£74',
-        '82 cm',
-        '£90',
         'Bell Trunks',
         '79 cm',
         'Crateworks',
         '£112',
       ],
-      optional: ['Fixed internal widths'],
+      optional: ['82 cm', '£90', 'Fixed internal widths'],
     },
     {
       id: 'v3-audio-case',
@@ -1067,14 +1061,12 @@ export const rowanV3: Scenario = {
         'Larch Audio',
         '20 cm',
         '£38',
-        '21 cm',
-        '£45',
         'Beacon Sound',
         '23 cm',
         'Quiet Kit',
         '£61',
       ],
-      optional: ['Exterior case widths'],
+      optional: ['21 cm', '£45', 'Exterior case widths'],
     },
     {
       id: 'v3-drive-shelf',
@@ -1084,14 +1076,12 @@ export const rowanV3: Scenario = {
         'Rowanwood',
         '25 cm',
         '20 kg',
-        '27 cm',
-        '18 kg',
         'Flint Joinery',
         '30 cm',
         'Alder Shelving',
         '15 kg',
       ],
-      optional: ['£68', 'No order placed'],
+      optional: ['27 cm', '18 kg', '£68', 'No order placed'],
     },
     {
       id: 'v3-archive-paper',
@@ -1102,13 +1092,12 @@ export const rowanV3: Scenario = {
         'acid-free A3',
         '25 sheets',
         '£22',
-        '£24',
         'Fern Mill',
         'A4',
         'Bracken Press',
         '£27',
       ],
-      optional: ['No paper ordered'],
+      optional: ['£24', 'No paper ordered'],
     },
     {
       id: 'v3-field-light',
@@ -1118,14 +1107,12 @@ export const rowanV3: Scenario = {
         'Hare Lamp',
         'seven hours',
         '£46',
-        'six hours',
-        '£50',
         'Plover Light',
         'four hours',
         'Stoat Beam',
         '£65',
       ],
-      optional: ['No purchase made'],
+      optional: ['six hours', '£50', 'No purchase made'],
     },
     {
       id: 'v3-listening-venue',
@@ -1136,14 +1123,12 @@ export const rowanV3: Scenario = {
         'step-free',
         'capacity 30',
         '£110',
-        '28 people',
-        '£120',
         'Copper Loft',
         'stairs only',
         'Mill Studio',
         '£145',
       ],
-      optional: ['No venue booked'],
+      optional: ['28 people', '£120', 'No venue booked'],
     },
     {
       id: 'v3-cabinet-hinge',
@@ -1154,15 +1139,12 @@ export const rowanV3: Scenario = {
         '14 kg',
         '15 mm',
         '£32',
-        '12 kg',
-        '16 mm',
-        '£35',
         'Kite Fittings',
         '10 kg',
         'Heron Ironwork',
         '18 mm',
       ],
-      optional: ['Hinges were not ordered'],
+      optional: ['12 kg', '16 mm', '£35', 'Hinges were not ordered'],
     },
     {
       id: 'v3-lamp-driver',
@@ -1173,14 +1155,12 @@ export const rowanV3: Scenario = {
         '12 V DC',
         '30 W',
         '£28',
-        '24 W',
-        '£30',
         'Swift Electrics',
         '24 V DC',
         'Martin Supplies',
         '18 W',
       ],
-      optional: ['No driver bought as of the quotes'],
+      optional: ['24 W', '£30', 'No driver bought as of the quotes'],
     },
     {
       id: 'v3-march-week',
@@ -1296,7 +1276,7 @@ export const rowanV3: Scenario = {
       category: 'unknown',
       text: 'What was the name of the supervisor of my Saturday shift at Wren Street Library?',
       required: [
-        'The library has not named a supervisor for my shift',
+        'Says no supervisor was ever mentioned',
         'Saturday 10 am to noon',
         'Wren Street Library',
       ],
@@ -1307,7 +1287,7 @@ export const rowanV3: Scenario = {
       category: 'unknown',
       text: 'What annual salary did I agree for the collections environment coordinator role?',
       required: [
-        'Salary has not been agreed',
+        'Says no salary was ever mentioned',
         'collections environment coordinator',
         'Westfold Archive',
       ],
@@ -1318,7 +1298,7 @@ export const rowanV3: Scenario = {
       category: 'unknown',
       text: 'Who became my new romantic partner after Saffron?',
       required: [
-        'I have not named a new romantic partner',
+        'Says no new partner was ever mentioned',
         'remain friends',
         'share our allotment',
       ],
@@ -1365,7 +1345,7 @@ export const rowanV3: Scenario = {
       category: 'unknown',
       text: 'What rain-cancellation threshold did Petra set for the Winter Lantern Walk?',
       required: [
-        'No rain-cancellation policy has been announced',
+        'Says no rain-cancellation threshold was ever mentioned',
         'Petra Singh',
         '13 December 2025',
       ],
@@ -1395,3 +1375,6 @@ export const rowanV3: Scenario = {
     },
   ],
 }
+
+/** Every scenario a saved result may name, so old results can be graded again. */
+export const scenarios = [memoryScenario, rowanV3]

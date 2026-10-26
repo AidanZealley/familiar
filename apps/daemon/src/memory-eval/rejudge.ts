@@ -3,7 +3,7 @@ import { judgeAnswer, transcriptOf } from './judge.ts'
 import { judge, models } from './models.ts'
 import { summarize, type QuestionResult } from './questions.ts'
 import type { EvalResult } from './run.ts'
-import { memoryScenario } from './scenario.ts'
+import { scenarios } from './scenario.ts'
 import { addTokens, noTokens } from './tokens.ts'
 
 // Grades a saved run's answers again with the current judge, so judge changes
@@ -11,11 +11,10 @@ import { addTokens, noTokens } from './tokens.ts'
 const path = process.argv[2]
 if (!path) throw new Error('Usage: pnpm eval:memory:rejudge <result.json>')
 const saved = JSON.parse(readFileSync(path, 'utf8')) as EvalResult
-if (saved.scenario !== memoryScenario.id)
-  throw new Error(
-    `${path} is from scenario ${saved.scenario}, not ${memoryScenario.id}.`,
-  )
-const transcript = transcriptOf(memoryScenario)
+const scenario = scenarios.find(({ id }) => id === saved.scenario)
+if (!scenario)
+  throw new Error(`${path} has unknown scenario ${saved.scenario}.`)
+const transcript = transcriptOf(scenario)
 const results: QuestionResult[] = await Promise.all(
   saved.results.map(async (result) => {
     const { verdict, usage } = await judgeAnswer(

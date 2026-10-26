@@ -76,11 +76,28 @@ test.each(rowanV3.questions)(
     )
     // Required items are short verbatim phrases from the prose, so this checks
     // their grounding directly without adding evidence fields to shared types.
+    // A "Says …" item describes the answer, for things Rowan never mentioned,
+    // so it has no evidence to find.
     for (const required of question.required) {
       expect(required.trim()).not.toBe('')
+      if (required.startsWith('Says ')) {
+        expect(question.category, question.id).toBe('unknown')
+        continue
+      }
       expect(testedText, `${question.id}: ${required}`).toContain(
         normalise(required),
       )
     }
   },
 )
+
+test('v3 asks about some things Rowan never mentioned at all', () => {
+  // Explicit "not agreed yet" facts test remembering a negative; these test
+  // saying "I don't know" when nothing was ever said.
+  const neverSaid = rowanV3.questions.filter((question) =>
+    question.required.some((required) => required.startsWith('Says ')),
+  )
+  expect(neverSaid.length).toBeGreaterThanOrEqual(4)
+  for (const term of ['supervisor', 'salary', 'rain-cancellation'])
+    expect(normalise(groundTruth), term).not.toContain(term)
+})
