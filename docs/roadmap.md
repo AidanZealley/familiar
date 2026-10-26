@@ -15,7 +15,7 @@ Familiar is a personal assistant in the spirit of Grok Bot, Meta's Muse and Open
 
 Pick these up in order unless the owner says otherwise. Each spec is complete enough to implement without earlier conversation.
 
-1. [Long-term memory](specs/long-term-memory.md): layered memory that never loses a true fact (core, archive, recall, episodes), measured by a memory evaluation built first. Background in [research/memory.md](research/memory.md).
+1. [Long-term memory](specs/long-term-memory.md): step 1 (the evaluation) is done and the [core restructure](specs/core-structure.md) it builds on is merged. **Before step 2, fix the eval's judge and re-run the baseline:** the first baseline (`eval/results/2026-10-26-19cdb67.json`, 15 of 25) fails several correct answers because the judge only sees the expected answer, so true details it wasn't given count as invented. Give the judge the scenario's ground truth, or fail only on contradictions. Then continue with steps 2–6. The plan: layered memory that never loses a true fact (core, archive, recall, episodes), measured by a memory evaluation built first. Background in [research/memory.md](research/memory.md).
 2. [Reminders and push](specs/reminders-and-push.md): a `remind` tool and Web Push notifications to the home-screen app.
 
 ## Later

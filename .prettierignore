@@ -4,3 +4,4 @@ dist/
 apps/web/src/components/ui/
 apps/web/src/routeTree.gen.ts
 .claude/
+eval/results/
