@@ -12,6 +12,9 @@ export const DEFAULT_CONTEXT_BUDGET = 64_000
  * the top of the window, so the budget becomes the room reserved below it.
  * A window smaller than the budget keeps a quarter of itself free instead.
  */
+/** How long a model response may go silent before it fails and is retried. */
+export const STREAM_TIMEOUT_MS = 180_000
+
 export function compactionFor(
   contextWindow: number,
   budget: number,
@@ -43,6 +46,10 @@ export function harnessOptions(
     registry,
     settings: {
       compaction: window ? compactionFor(window, budget) : undefined,
+      // Without a limit, a stream that goes silent waits forever and blocks
+      // its conversation. Over WebSockets this is the longest silence allowed;
+      // over SSE, the longest wait for headers. Long enough for slow reasoning.
+      stream: { timeoutMs: STREAM_TIMEOUT_MS },
     },
     ...(options.now && { now: options.now }),
     ...(options.setTimer && { setTimer: options.setTimer }),
