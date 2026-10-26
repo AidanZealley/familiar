@@ -1,4 +1,4 @@
-import type { Models } from '@earendil-works/pi-ai'
+import type { Models, Usage } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type { Question, Scenario } from './scenario.ts'
 
@@ -39,7 +39,7 @@ export async function judgeAnswer(
   transcript: string[],
   question: Question,
   answer: string,
-): Promise<Verdict> {
+): Promise<{ verdict: Verdict; usage: Usage }> {
   const resolved = models.getModel(model.provider, model.modelId)
   if (!resolved) throw new Error(`Unknown judge model ${model.modelId}.`)
   const reply = await models.completeSimple(
@@ -64,9 +64,10 @@ export async function judgeAnswer(
   )
   if (reply.stopReason !== 'stop')
     throw new Error(`Judge failed: ${reply.errorMessage ?? reply.stopReason}`)
-  return parseVerdict(
+  const verdict = parseVerdict(
     reply.content
       .flatMap((part) => (part.type === 'text' ? [part.text] : []))
       .join('\n'),
   )
+  return { verdict, usage: reply.usage }
 }

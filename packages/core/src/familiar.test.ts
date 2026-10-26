@@ -185,3 +185,18 @@ test('current_time reads the Harness clock', async () => {
   expect(toolResult).toContain('Wednesday, 4 March 2026')
   expect(toolResult).toContain('12:34')
 })
+
+test('usage totals the model spend of every reply', async () => {
+  const { faux, familiar, say } = await setup()
+  faux.setResponses([
+    fauxAssistantMessage('Hello.'),
+    fauxAssistantMessage('Hello again.'),
+  ])
+  await say('Hi')
+  const once = (await familiar.usage()).models['faux/faux-1']
+  await say('Hi again')
+  const twice = (await familiar.usage()).models['faux/faux-1']
+  expect(once.input).toBeGreaterThan(0)
+  expect(twice.input).toBeGreaterThan(once.input)
+  expect(twice.output).toBeGreaterThan(once.output)
+})

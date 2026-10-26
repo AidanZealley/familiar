@@ -155,6 +155,12 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     false,
     true,
   ])
+  for (const phase of Object.values(result.tokens))
+    expect(phase.input).toBeGreaterThan(0)
+  // Each question's copy starts with the replay's spend; only its own counts.
+  expect(result.results[0].tokens.answer.input).toBeLessThan(
+    result.tokens.replay.input,
+  )
   expect(result.results[0].toolCalls).toContainEqual(
     expect.objectContaining({
       name: 'search_history',

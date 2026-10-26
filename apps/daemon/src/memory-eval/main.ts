@@ -46,6 +46,14 @@ try {
       `${category.padEnd(15)} ${String(passed).padStart(6)}  ${String(total).padStart(5)}`,
     )
   }
+  console.log('\nTokens          Input  Cached  Output')
+  for (const [phase, tokens] of Object.entries(result.tokens)) {
+    console.log(
+      `${phase.padEnd(9)} ${[tokens.input, tokens.cacheRead, tokens.output]
+        .map((count) => count.toLocaleString('en-GB').padStart(10))
+        .join('')}`,
+    )
+  }
   const date = new Date().toISOString().slice(0, 10)
   const directory = resolve(import.meta.dirname, '../../../../eval/results')
   mkdirSync(directory, { recursive: true })

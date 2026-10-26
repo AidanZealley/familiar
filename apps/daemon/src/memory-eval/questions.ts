@@ -12,6 +12,13 @@ import {
   type Scenario,
 } from './scenario.ts'
 import { entriesAfter } from './storage.ts'
+import {
+  addTokens,
+  noTokens,
+  subtractTokens,
+  tokensOf,
+  type Tokens,
+} from './tokens.ts'
 import { waitForIdle } from './wait.ts'
 
 const context = BACKGROUND_CONTEXT
@@ -19,6 +26,8 @@ const context = BACKGROUND_CONTEXT
 export type QuestionResult = Question & {
   answer: string
   verdict: Verdict
+  /** Answering includes its compactions; the copy's replay spend is excluded. */
+  tokens: { answer: Tokens; judge: Tokens }
   toolCalls: { id: string; name: string; arguments: unknown; result: unknown }[]
 }
 
@@ -79,6 +88,7 @@ export async function askQuestions({
           }
           try {
             const prior = (await entriesAfter(questionStorage)).at(-1)?.id
+            const replayed = tokensOf(await reopened.usage())
             await reopened.send({
               author: 'Rowan',
               text: question.text,
@@ -119,14 +129,24 @@ export async function askQuestions({
                   )
                 : [],
             )
-            const verdict = await judgeAnswer(
+            const answered = subtractTokens(
+              tokensOf(await reopened.usage()),
+              replayed,
+            )
+            const { verdict, usage } = await judgeAnswer(
               models,
               judge,
               transcript,
               question,
               answer,
             )
-            results[index] = { ...question, answer, verdict, toolCalls }
+            results[index] = {
+              ...question,
+              answer,
+              verdict,
+              tokens: { answer: answered, judge: addTokens(noTokens, usage) },
+              toolCalls,
+            }
             progress(`${question.id}: ${verdict.pass ? 'pass' : 'fail'}`)
           } finally {
             await reopened.dismiss()

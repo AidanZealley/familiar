@@ -5,6 +5,7 @@ import { createClock } from './clock.ts'
 import { askQuestions, type QuestionResult } from './questions.ts'
 import { replayScenario, type UpkeepResult } from './replay.ts'
 import type { Scenario } from './scenario.ts'
+import { addTokens, noTokens, tokensOf, type Tokens } from './tokens.ts'
 
 export type EvalResult = {
   scenario: string
@@ -14,6 +15,8 @@ export type EvalResult = {
   memory: { document: unknown; characters: number }
   compactions: number
   upkeep: UpkeepResult[]
+  /** Replay includes its compactions and nightly upkeep. */
+  tokens: { replay: Tokens; answers: Tokens; judge: Tokens }
   results: QuestionResult[]
 }
 
@@ -54,8 +57,10 @@ export async function runMemoryEval({
     setTimer: clock.setTimer,
   })
   let replay: Awaited<ReturnType<typeof replayScenario>>
+  let replayed: Tokens
   try {
     replay = await replayScenario(familiar, storage, clock, scenario, progress)
+    replayed = tokensOf(await familiar.usage())
   } finally {
     await familiar.dismiss()
   }
@@ -74,6 +79,15 @@ export async function runMemoryEval({
     days: scenario.days.length,
     judge: judge.modelId,
     ...replay,
+    tokens: {
+      replay: replayed,
+      answers: results
+        .map(({ tokens }) => tokens.answer)
+        .reduce(addTokens, noTokens),
+      judge: results
+        .map(({ tokens }) => tokens.judge)
+        .reduce(addTokens, noTokens),
+    },
     results,
   }
 }

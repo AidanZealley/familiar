@@ -4,6 +4,7 @@ import { judge, models } from './models.ts'
 import { summarize, type QuestionResult } from './questions.ts'
 import type { EvalResult } from './run.ts'
 import { memoryScenario } from './scenario.ts'
+import { addTokens, noTokens } from './tokens.ts'
 
 // Grades a saved run's answers again with the current judge, so judge changes
 // take a minute to check instead of a full replay.
@@ -17,7 +18,7 @@ if (saved.scenario !== memoryScenario.id)
 const transcript = transcriptOf(memoryScenario)
 const results: QuestionResult[] = await Promise.all(
   saved.results.map(async (result) => {
-    const verdict = await judgeAnswer(
+    const { verdict, usage } = await judgeAnswer(
       models,
       judge,
       transcript,
@@ -28,7 +29,11 @@ const results: QuestionResult[] = await Promise.all(
       console.log(
         `${result.id}: ${result.verdict.pass ? 'pass' : 'fail'} -> ${verdict.pass ? 'pass' : 'fail'} (${verdict.reason})`,
       )
-    return { ...result, verdict }
+    return {
+      ...result,
+      verdict,
+      tokens: { ...result.tokens, judge: addTokens(noTokens, usage) },
+    }
   }),
 )
 console.log('\nCategory        Passed  Total')
@@ -40,6 +45,22 @@ for (const { category, passed, total } of summarize(results)) {
 const out = path.replace(/\.json$/, `.rejudged.json`)
 writeFileSync(
   out,
-  `${JSON.stringify({ ...saved, judge: judge.modelId, results }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      ...saved,
+      judge: judge.modelId,
+      ...(saved.tokens && {
+        tokens: {
+          ...saved.tokens,
+          judge: results
+            .map(({ tokens }) => tokens.judge)
+            .reduce(addTokens, noTokens),
+        },
+      }),
+      results,
+    },
+    null,
+    2,
+  )}\n`,
 )
 console.log(`\nSaved ${out}`)
