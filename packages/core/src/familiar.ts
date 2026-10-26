@@ -4,8 +4,11 @@ import {
   createRegistry,
   Harness,
   type CompactionSettings,
+  type Cursor,
   type ConversationWatch,
   type DocumentWatch,
+  type EntryId,
+  type EntryRecord,
   type Extension,
   type HarnessOptions,
   type ModelRef,
@@ -63,12 +66,18 @@ export type MessageData = { author: string; text: string }
  */
 export type Familiar = {
   send(message: Message): Promise<void>
-  /** Stop the current run. Queued messages stay queued. */
+  /** Stop the current run and withdraw the messages queued behind it. */
   abort(): Promise<void>
   /** Resolves once nothing is running: every sent message is answered. */
   idle(): Promise<void>
   /** The conversation's committed view, then every commit's changes to it. */
   watch(): Promise<ConversationWatch>
+  /**
+   * Up to `limit` committed entries older than entry `before`, newest first,
+   * including those compaction took out of the view. `more` says whether
+   * older ones exist.
+   */
+  history(before: EntryId, limit: number): Promise<HistoryPage>
   /** What it remembers. The model keeps it; people can correct it. */
   memory: {
     watch(): Promise<DocumentWatch<MemoryState>>
@@ -77,6 +86,8 @@ export type Familiar = {
   }
   close(): Promise<void>
 }
+
+export type HistoryPage = { entries: EntryRecord[]; more: boolean }
 
 const context = BACKGROUND_CONTEXT
 
@@ -170,6 +181,24 @@ export async function openFamiliar(
     },
     idle: () => conversation.waitForIdle(context),
     watch: () => conversation.watch(context),
+    async history(before, limit) {
+      // Entry IDs are ascending integers, and the bound is inclusive.
+      const query = { maxEntryId: (before - 1) as EntryId }
+      const entries: EntryRecord[] = []
+      let cursor: Cursor | undefined
+      // One past the limit tells whether more exist.
+      do {
+        const page = await conversation.entries(
+          query,
+          limit + 1 - entries.length,
+          cursor,
+          context,
+        )
+        entries.push(...page.items)
+        cursor = page.next
+      } while (cursor && entries.length <= limit)
+      return { entries: entries.slice(0, limit), more: entries.length > limit }
+    },
     memory: {
       watch: async () => (await harness.watchDoc(Memory, context))!,
       revise: (id, text) =>

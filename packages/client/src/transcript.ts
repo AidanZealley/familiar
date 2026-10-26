@@ -51,15 +51,34 @@ export type Transcript = {
   busy: boolean
 }
 
-/** What a chat UI shows for a conversation view. Pure, so any client can reuse it. */
-export function toTranscript(view: ConversationView): Transcript {
+/**
+ * What a chat UI shows for a conversation view, after any `history` loaded
+ * before it (oldest first). Pure, so any client can reuse it.
+ */
+export function toTranscript(
+  view: ConversationView,
+  history: readonly EntryRecord[] = [],
+): Transcript {
   const live = view.docs['pi.live'] as LiveState | undefined
   const inbox = view.docs['pi.inbox'] as InboxState | undefined
 
   const items: TranscriptItem[] = []
   const calls = new Map<string, ToolCall>()
+  const entries = [...history, ...view.entries]
 
-  for (const entry of view.entries) {
+  // A compaction is committed after the entries it keeps, and a view starts
+  // with it, but it shows where its summary ends: before the first entry it
+  // kept, so everything above it is what was summarised.
+  const compactions = new Map<EntryRecord['id'], EntryRecord>()
+  for (const entry of entries)
+    if (entry.kind === 'pi.compaction' && entry.head !== undefined)
+      compactions.set(entry.head, entry)
+
+  for (const entry of entries) {
+    const compaction = compactions.get(entry.id)
+    if (compaction)
+      items.push({ type: 'compaction', id: `entry:${compaction.id}` })
+    if (entry.kind === 'pi.compaction') continue
     const item = toItem(entry, calls)
     if (item) items.push(item)
   }
@@ -123,8 +142,6 @@ function toItem(
       }
       return undefined
     }
-    case 'pi.compaction':
-      return { type: 'compaction', id }
     default:
       return undefined
   }

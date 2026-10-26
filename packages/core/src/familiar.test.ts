@@ -6,12 +6,14 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
-import { MemoryStorage } from '@earendil-works/pi-durable'
+import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
 import { HARD_LIMIT, SOFT_LIMIT } from '@familiar/memory'
 import { afterEach, expect, test } from 'vitest'
 import {
   compactionFor,
+  MESSAGE_KIND,
   openFamiliar,
+  type MessageData,
   type Familiar,
   type FamiliarOptions,
 } from './familiar.ts'
@@ -182,6 +184,52 @@ test('compaction keeps requests under the context budget', async () => {
   expect(requests.length).toBe(20)
   // Unbounded, the last request would hold all twenty days, about 2,800 tokens.
   expect(Math.max(...requests)).toBeLessThan(budget)
+})
+
+test('history returns the messages compaction took out of the view', async () => {
+  const { faux, familiar, say } = await setup({
+    contextWindow: 16_000,
+    contextBudget: 2_000,
+  })
+  faux.setResponses(
+    Array.from(
+      { length: 60 },
+      () => (context: TranscriptContext) =>
+        fauxAssistantMessage(
+          isSummaryRequest(context) ? '## Goal\nThe weather.' : 'Lovely.',
+        ),
+    ),
+  )
+  for (let day = 1; day <= 20; day++)
+    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+
+  const watch = await familiar.watch()
+  await watch.stop()
+  const [first] = watch.value.entries
+  expect(first.kind).toBe('pi.compaction')
+  const days = (entries: readonly EntryRecord[]) =>
+    entries.flatMap((entry) =>
+      entry.kind === MESSAGE_KIND
+        ? [Number(/Day (\d+)/.exec((entry.data as MessageData).text)![1])]
+        : [],
+    )
+  const inView = days(watch.value.entries)
+  expect(inView[0]).toBeGreaterThan(1)
+
+  // Page back from the view's oldest entry, a few at a time.
+  const older: EntryRecord[] = []
+  let before = first.head!
+  for (;;) {
+    const page = await familiar.history(before, 5)
+    expect(page.entries.length).toBeLessThanOrEqual(5)
+    older.unshift(...page.entries.toReversed())
+    if (!page.more) break
+    before = page.entries.at(-1)!.id
+  }
+  expect([...days(older), ...inView]).toEqual(
+    Array.from({ length: 20 }, (_, i) => i + 1),
+  )
+  expect(older.every((entry) => entry.id < first.head!)).toBe(true)
 })
 
 test('the default budget compacts gpt-6.1-sol well before its window', () => {
