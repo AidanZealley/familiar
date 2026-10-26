@@ -73,6 +73,12 @@ export type Familiar = {
   /** The conversation's committed view, then every commit's changes to it. */
   watch(): Promise<ConversationWatch>
   /**
+   * Called after every commit: any change to the conversation, memory or
+   * background work. Returns a function that stops listening. Listeners run
+   * synchronously, so keep them quick and don't call back into Familiar.
+   */
+  onCommit(listener: () => void): () => void
+  /**
    * Up to `limit` committed entries older than entry `before`, newest first,
    * including those compaction took out of the view. `more` says whether
    * older ones exist.
@@ -181,6 +187,7 @@ export async function openFamiliar(
     },
     idle: () => conversation.waitForIdle(context),
     watch: () => conversation.watch(context),
+    onCommit: (listener) => harness.subscribeCommits(() => listener()),
     async history(before, limit) {
       // Entry IDs are ascending integers, and the bound is inclusive.
       const query = { maxEntryId: (before - 1) as EntryId }

@@ -97,36 +97,21 @@ async function tasksIn(storage: Storage) {
   return tasks
 }
 
-async function progressIn(storage: Storage) {
-  const tasks = await tasksIn(storage)
-  const conversations = new Set([
-    ROOT_CONVERSATION_ID,
-    ...tasks.flatMap((task) =>
-      task.conversationId ? [task.conversationId] : [],
-    ),
-  ])
-  const heads = await Promise.all(
-    [...conversations].map(
-      async (conversationId) =>
-        (await storage.scanEntries({ conversationId }, 1, undefined, context))
-          .items[0]?.id,
-    ),
-  )
-  return JSON.stringify({ tasks, heads })
-}
-
-/** Give asynchronous work time to arm retries, then fire only timers before the next scripted event. */
+/**
+ * Give asynchronous work time to arm retries, then fire only timers before the
+ * next scripted event. Fails after `timeoutMs` without progress: each event
+ * from `onProgress` (for example `familiar.onCommit`) restarts the deadline.
+ */
 export async function waitWithClock(
   clock: ReturnType<typeof createClock>,
   boundary: number,
   label: string,
   check: () => Promise<boolean>,
   timeoutMs = WAIT_MS,
-  progress?: () => Promise<string>,
+  onProgress?: (listener: () => void) => () => void,
 ) {
   let stopped = false
   let timer: ReturnType<typeof armTimeout> | undefined
-  let previousProgress: string | undefined
   const timeout = new Promise<never>((_resolve, reject) => {
     timer = armTimeout(
       () =>
@@ -138,19 +123,12 @@ export async function waitWithClock(
       timeoutMs,
     )
   })
+  const unsubscribe = onProgress?.(() => timer?.refresh())
   try {
     await Promise.race([
       (async () => {
         while (!stopped && !(await check())) {
           if (stopped) return
-          if (progress) {
-            const current = await progress()
-            if (stopped) return
-            if (current !== previousProgress) {
-              previousProgress = current
-              timer?.refresh()
-            }
-          }
           await setTimeout(25)
           if (stopped) return
           const due = clock.nextDue()
@@ -161,13 +139,13 @@ export async function waitWithClock(
     ])
   } finally {
     stopped = true
+    unsubscribe?.()
     clearTimeout(timer)
   }
 }
 
 async function waitForIdle(
   familiar: Familiar,
-  storage: Storage,
   clock: ReturnType<typeof createClock>,
   boundary: number,
   label: string,
@@ -189,12 +167,13 @@ async function waitForIdle(
     label,
     async () => settled,
     WAIT_MS,
-    () => progressIn(storage),
+    familiar.onCommit,
   )
   if (failure) throw new Error(`${label} failed.`, { cause: failure })
 }
 
 async function waitForUpkeep(
+  familiar: Familiar,
   storage: Storage,
   clock: ReturnType<typeof createClock>,
   until: number,
@@ -221,7 +200,7 @@ async function waitForUpkeep(
       )
     },
     WAIT_MS,
-    () => progressIn(storage),
+    familiar.onCommit,
   )
 }
 
@@ -263,7 +242,7 @@ export async function runMemoryEval({
   let compactions: number
   const upkeep: UpkeepResult[] = []
   try {
-    await waitForUpkeep(storage, clock, nextUpkeep(clock.now()))
+    await waitForUpkeep(familiar, storage, clock, nextUpkeep(clock.now()))
     for (const [index, day] of scenario.days.entries()) {
       const noon = new Date(`${day.date}T12:00:00`).getTime()
       if (Number.isNaN(noon) || noon < clock.now())
@@ -278,7 +257,6 @@ export async function runMemoryEval({
         })
         await waitForIdle(
           familiar,
-          storage,
           clock,
           nextUpkeep(noon),
           `Day ${day.date} reply`,
@@ -290,6 +268,7 @@ export async function runMemoryEval({
       const followingNoon = new Date(noon)
       followingNoon.setDate(followingNoon.getDate() + 1)
       await waitForUpkeep(
+        familiar,
         storage,
         clock,
         nextUpkeep(pass),
@@ -323,7 +302,7 @@ export async function runMemoryEval({
         )
       },
       WAIT_MS,
-      () => progressIn(storage),
+      familiar.onCommit,
     )
     if (scenario.testedFactsThrough) {
       const transcript = await familiar.watch()
@@ -399,7 +378,6 @@ export async function runMemoryEval({
             })
             await waitForIdle(
               reopened,
-              questionStorage,
               questionClock,
               nextUpkeep(questionClock.now()),
               `Question ${question.id}`,

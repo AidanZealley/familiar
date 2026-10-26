@@ -337,16 +337,22 @@ test('fails loudly if an upkeep pass does not advance through the messages', asy
 })
 
 test('clock waits reset the inactivity deadline while progress continues', async () => {
+  // Progress events every 30ms keep a 60ms deadline alive well past 60ms.
   let checks = 0
+  const started = Date.now()
+  const everyThirtyMs = (listener: () => void) => {
+    const interval = setInterval(listener, 30)
+    return () => clearInterval(interval)
+  }
   await waitWithClock(
     createClock(0),
     1,
     'Slow active reply',
-    async () => ++checks >= 20,
-    200,
-    async () => String(Math.floor(checks / 2)),
+    async () => ++checks >= 8,
+    60,
+    everyThirtyMs,
   )
-  expect(checks).toBe(20)
+  expect(Date.now() - started).toBeGreaterThan(150)
   await expect(
     waitWithClock(
       createClock(0),
@@ -354,7 +360,7 @@ test('clock waits reset the inactivity deadline while progress continues', async
       'Stalled upkeep',
       async () => false,
       60,
-      async () => 'unchanged',
+      () => () => {},
     ),
   ).rejects.toThrow('Stalled upkeep timed out after 0.06s of inactivity')
 })
