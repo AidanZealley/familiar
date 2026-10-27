@@ -3,9 +3,9 @@ import type {
   ConversationView,
   EntryRecord,
   HistoryPage,
-  EpisodesState,
+  DocumentName,
+  Documents,
   PinBody,
-  MemoryState,
   ReviseBody,
   SendBody,
   StreamEvent,
@@ -25,7 +25,15 @@ export type History = {
   status: 'more' | 'loading' | 'failed' | 'start'
 }
 
-export type FamiliarState = {
+/**
+ * Every document the server streams, such as `memory` and `episodes`,
+ * mirrored like the view under its own name. Undefined until it arrives.
+ */
+export type MirroredDocuments = {
+  [Name in DocumentName]?: Readonly<Documents[Name]> | null
+}
+
+export type FamiliarState = MirroredDocuments & {
   connection: Connection
   /** The server's view of the conversation, mirrored exactly. Absent until the first frame. */
   view: ConversationView | undefined
@@ -35,10 +43,6 @@ export type FamiliarState = {
    * whether older ones remain; a call while one is loading shares its result.
    */
   loadOlder(): Promise<boolean>
-  /** What Familiar remembers, mirrored the same way. */
-  memory: Readonly<MemoryState> | null | undefined
-  /** What happened, as nightly upkeep summarised it, mirrored the same way. */
-  episodes: Readonly<EpisodesState> | null | undefined
   send(text: string): Promise<void>
   abort(): Promise<void>
   reviseFact(id: string, text: string): Promise<void>
@@ -114,8 +118,6 @@ export function createFamiliarStore(baseUrl: string) {
     history: { entries: [], status: 'more' },
     loadOlder: () =>
       (loading ??= loadOlder().finally(() => (loading = undefined))),
-    memory: undefined,
-    episodes: undefined,
     send: (text) =>
       request('POST', '/messages', {
         text,
@@ -157,16 +159,10 @@ export function createFamiliarStore(baseUrl: string) {
       return { view, history: carryOver(state.history, state.view, view) }
     }),
   )
-  on('memory', (memory) => store.setState({ memory }))
-  on('memory.ops', (ops) =>
-    store.setState(({ memory }) => ({
-      memory: applyImmutable(memory ?? undefined, ops),
-    })),
-  )
-  on('episodes', (episodes) => store.setState({ episodes }))
-  on('episodes.ops', (ops) =>
-    store.setState(({ episodes }) => ({
-      episodes: applyImmutable(episodes ?? undefined, ops),
+  on('document', ({ name, value }) => store.setState({ [name]: value }))
+  on('document.ops', ({ name, ops }) =>
+    store.setState((state) => ({
+      [name]: applyImmutable(state[name] ?? undefined, ops),
     })),
   )
   // EventSource reconnects by itself; the server answers with a fresh view.
