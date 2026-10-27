@@ -27,6 +27,8 @@ export type TranscriptItem =
       id: string
       author: string
       text: string
+      /** When it was sent, in ms since the epoch; absent while queued. */
+      at?: number
       /** Sent while busy; waiting for the current run to reach a boundary. */
       queued: boolean
     }
@@ -36,6 +38,10 @@ export type TranscriptItem =
       text: string
       thinking: string
       toolCalls: ToolCall[]
+      /** IDs of the facts its tool calls saved, new or revised. */
+      saved: string[]
+      /** When it was generated, in ms since the epoch. */
+      at: number
       /** Still being generated. */
       streaming: boolean
       /** Someone stopped it before it finished. */
@@ -107,8 +113,24 @@ export function toTranscript(
     })
   }
 
+  // Tool results arrive after their call, so what a reply saved is known
+  // only once every entry has been read.
+  for (const item of items)
+    if (item.type === 'reply') item.saved = savedBy(item.toolCalls)
+
   return { items, busy: live?.run !== undefined }
 }
+
+/** Core's memory tools answer "Saved as m12." when they save a fact. */
+const SAVING_TOOLS = new Set(['remember', 'revise_memory'])
+const SAVED_AS = /^Saved as (m\d+)/
+
+const savedBy = (calls: ToolCall[]) =>
+  calls.flatMap((call) =>
+    call.status === 'done' && SAVING_TOOLS.has(call.name)
+      ? (call.output.match(SAVED_AS)?.[1] ?? [])
+      : [],
+  )
 
 function toItem(
   entry: EntryRecord,
@@ -118,7 +140,14 @@ function toItem(
   switch (entry.kind) {
     case MESSAGE_KIND: {
       const data = entry.data as MessageData
-      return { type: 'message', id, ...data, queued: false }
+      const message = entry.model?.[0] as UserMessage | undefined
+      return {
+        type: 'message',
+        id,
+        ...data,
+        at: message?.timestamp,
+        queued: false,
+      }
     }
     case 'pi.user': {
       // Input submitted without an author, e.g. by a host directly.
@@ -128,6 +157,7 @@ function toItem(
         id,
         author: '',
         text: textOf(message.content),
+        at: message.timestamp,
         queued: false,
       }
     }
@@ -176,6 +206,8 @@ function toReply(
     text,
     thinking,
     toolCalls,
+    saved: [],
+    at: message.timestamp,
     streaming: false,
     stopped: message.stopReason === 'aborted',
     error: message.stopReason === 'error' ? message.errorMessage : undefined,

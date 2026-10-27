@@ -1,6 +1,10 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView, EntryId } from '@earendil-works/pi-durable'
-import { FactError, type MemoryState } from './memory/index.ts'
+import {
+  FactError,
+  type EpisodesState,
+  type MemoryState,
+} from './memory/index.ts'
 import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
@@ -31,7 +35,12 @@ export type { MESSAGE_KIND, MessageData } from './conversation/message.ts'
 export type { HistoryPage } from './conversation/api.ts'
 
 const HISTORY_LIMIT = 200
-export type { Fact, MemoryState } from './memory/index.ts'
+export type {
+  Episode,
+  EpisodesState,
+  Fact,
+  MemoryState,
+} from './memory/index.ts'
 
 /**
  * `GET /events` is a server-sent event stream of these. Each kind of state
@@ -43,6 +52,8 @@ export type StreamEvent =
   | { event: 'ops'; data: readonly Op[] }
   | { event: 'memory'; data: Readonly<MemoryState> | null }
   | { event: 'memory.ops'; data: readonly Op[] }
+  | { event: 'episodes'; data: Readonly<EpisodesState> | null }
+  | { event: 'episodes.ops'; data: readonly Op[] }
 
 /** `POST /messages` */
 export type SendBody = { text: string; requestId: string }
@@ -102,7 +113,13 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
         await send({ event: 'memory', data: memory.value })
         memory.start((_memory, ops) => send({ event: 'memory.ops', data: ops }))
 
-        const watches = [conversation, memory]
+        const episodes = await familiar.memory.watchEpisodes()
+        await send({ event: 'episodes', data: episodes.value })
+        episodes.start((_episodes, ops) =>
+          send({ event: 'episodes.ops', data: ops }),
+        )
+
+        const watches = [conversation, memory, episodes]
 
         // Proxies close streams that look idle.
         const heartbeat = setInterval(

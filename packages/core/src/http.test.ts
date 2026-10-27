@@ -77,3 +77,27 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     },
   ])
 })
+
+test('the event stream sends memory and episodes whole first', async () => {
+  const models = createModels()
+  models.setProvider(fauxProvider().provider)
+  const familiar = await summonFamiliar({
+    storage: new MemoryStorage(),
+    models,
+    model: { provider: 'faux', modelId: 'faux-1' },
+  })
+  opened.push(familiar)
+  const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
+
+  const response = await api.request('/events')
+  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
+  let text = ''
+  while (!text.includes('event: episodes\n'))
+    text += (await reader.read()).value
+  await reader.cancel()
+
+  const events = [...text.matchAll(/^event: (.+)$/gm)].map((match) => match[1])
+  expect(events).toEqual(['view', 'memory', 'episodes'])
+  const episodes = text.split('event: episodes\n')[1].match(/^data: (.+)$/m)
+  expect(JSON.parse(episodes![1])).toEqual({ episodes: [], next: 1 })
+})
