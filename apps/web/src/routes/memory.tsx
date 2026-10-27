@@ -1,4 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Memory } from '@/components/memory'
+import { MemoryLayout } from '@/components/memory-layout'
 
-export const Route = createFileRoute('/memory')({ component: Memory })
+export const Route = createFileRoute('/memory')({ component: MemoryLayout })

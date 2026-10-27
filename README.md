@@ -66,7 +66,7 @@ Both use your real conversation and memory. For UI work that shouldn't, use the 
 pnpm dev:demo
 ```
 
-It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. A word in your message picks what it does:
+It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. A word in your message picks what it does:
 
 | Word      | Familiar                                                                |
 | --------- | ----------------------------------------------------------------------- |

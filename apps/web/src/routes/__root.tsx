@@ -1,12 +1,18 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { AppHeader } from '@/components/app-header'
+import type { CSSProperties } from 'react'
+import { SiteHeader } from '@/components/site-header'
 import { ThemeProvider } from '@/components/theme-provider'
+
+// The header's height, so pages can size and stick things below it.
+const chrome = {
+  '--chrome': 'calc(3.5rem + env(safe-area-inset-top))',
+} as CSSProperties
 
 export const Route = createRootRoute({
   component: () => (
     <ThemeProvider>
-      <div className="mx-auto flex h-svh max-w-3xl flex-col">
-        <AppHeader />
+      <div className="flex min-h-svh flex-col" style={chrome}>
+        <SiteHeader />
         <Outlet />
       </div>
     </ThemeProvider>
