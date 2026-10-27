@@ -1,11 +1,12 @@
 import type { Op } from '@earendil-works/chord/delta'
-import type { ConversationView, EntryId } from '@earendil-works/pi-durable'
-import {
-  FactError,
-  type EpisodesState,
-  type MemoryState,
-} from './memory/index.ts'
-import { Hono, type Context } from 'hono'
+import type {
+  ConversationView,
+  DocumentWatch,
+  EntryId,
+} from '@earendil-works/pi-durable'
+import type { EpisodesState, MemoryState } from './memory/index.ts'
+import { memoryRoutes } from './memory/http.ts'
+import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
 
@@ -43,30 +44,39 @@ export type {
 } from './memory/index.ts'
 
 /**
- * `GET /events` is a server-sent event stream of these. Each kind of state
- * arrives whole first (again after any reconnect), then as each commit's
- * changes, to apply in order to the last value.
+ * The documents mirrored live to clients, by name. Adding one is a line here
+ * and a line in `/events`; clients mirror whatever arrives.
+ */
+export type Documents = {
+  memory: MemoryState
+  episodes: EpisodesState
+}
+export type DocumentName = keyof Documents
+
+/**
+ * `GET /events` is a server-sent event stream of these. The conversation's
+ * view and each document arrive whole first (again after any reconnect),
+ * then as each commit's changes, to apply in order to the last value.
  */
 export type StreamEvent =
   | { event: 'view'; data: ConversationView }
   | { event: 'ops'; data: readonly Op[] }
-  | { event: 'memory'; data: Readonly<MemoryState> | null }
-  | { event: 'memory.ops'; data: readonly Op[] }
-  | { event: 'episodes'; data: Readonly<EpisodesState> | null }
-  | { event: 'episodes.ops'; data: readonly Op[] }
+  | {
+      event: 'document'
+      data: {
+        [Name in DocumentName]: {
+          name: Name
+          value: Readonly<Documents[Name]> | null
+        }
+      }[DocumentName]
+    }
+  | { event: 'document.ops'; data: { name: DocumentName; ops: readonly Op[] } }
 
 /** `POST /messages` */
 export type SendBody = { text: string; requestId: string }
 
-/**
- * `PUT /memory/:id` saves a new version of a fact; `POST /memory/:id/retire`
- * marks it no longer true; `DELETE /memory/:id` forgets it. Each answers 404,
- * changing nothing, when the fact is missing or already past.
- */
-export type ReviseBody = { text: string }
-
-/** `PUT /memory/:id/pin` pins a fact into core or unpins it. */
-export type PinBody = { pinned: boolean }
+export type { PinBody, ReviseBody } from './memory/http.ts'
+export type { SavedDetails } from './memory/tools.ts'
 
 export type HttpOptions = {
   /**
@@ -79,18 +89,15 @@ export type HttpOptions = {
 }
 
 /** The Familiar HTTP API as a fetch handler. Mount it under any path. */
-/** Answers 204, or 404 when the rules refuse the edit; other failures stay server errors. */
-async function edit(c: Context, run: () => Promise<void>) {
-  try {
-    await run()
-  } catch (error) {
-    if (error instanceof FactError) return c.json({ error: error.message }, 404)
-    throw error
-  }
-  return c.body(null, 204)
-}
-
 export function createHttpApi(familiar: Familiar, options: HttpOptions) {
+  // Every document `/events` streams, by name; see `Documents`.
+  const documents: {
+    [Name in DocumentName]: () => Promise<DocumentWatch<Documents[Name]>>
+  } = {
+    memory: familiar.memory.watch,
+    episodes: familiar.memory.watchEpisodes,
+  }
+
   return new Hono<{ Variables: { author: string } }>()
     .use(async (c, next) => {
       const author = await options.authenticate(c.req.raw)
@@ -109,17 +116,24 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
         await send({ event: 'view', data: conversation.value })
         conversation.start((_view, ops) => send({ event: 'ops', data: ops }))
 
-        const memory = await familiar.memory.watch()
-        await send({ event: 'memory', data: memory.value })
-        memory.start((_memory, ops) => send({ event: 'memory.ops', data: ops }))
-
-        const episodes = await familiar.memory.watchEpisodes()
-        await send({ event: 'episodes', data: episodes.value })
-        episodes.start((_episodes, ops) =>
-          send({ event: 'episodes.ops', data: ops }),
-        )
-
-        const watches = [conversation, memory, episodes]
+        const watches: {
+          stop(): Promise<unknown>
+          closed: Promise<unknown>
+        }[] = [conversation]
+        for (const [name, open] of Object.entries(documents) as [
+          DocumentName,
+          () => Promise<DocumentWatch<Documents[DocumentName]>>,
+        ][]) {
+          const document = await open()
+          await send({
+            event: 'document',
+            data: { name, value: document.value },
+          } as StreamEvent)
+          document.start((_value, ops) =>
+            send({ event: 'document.ops', data: { name, ops } }),
+          )
+          watches.push(document)
+        }
 
         // Proxies close streams that look idle.
         const heartbeat = setInterval(
@@ -164,26 +178,5 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       await familiar.abort()
       return c.body(null, 202)
     })
-    .put('/memory/:id', async (c) => {
-      const body = await c.req.json<ReviseBody>()
-      if (typeof body.text !== 'string' || !body.text.trim())
-        return c.json({ error: 'text is required' }, 400)
-      return edit(c, () =>
-        familiar.memory.revise(c.req.param('id'), body.text.trim()),
-      )
-    })
-    .post('/memory/:id/retire', (c) =>
-      edit(c, () => familiar.memory.retire(c.req.param('id'))),
-    )
-    .put('/memory/:id/pin', async (c) => {
-      const body = await c.req.json<PinBody>()
-      if (typeof body.pinned !== 'boolean')
-        return c.json({ error: 'pinned must be true or false' }, 400)
-      return edit(c, () =>
-        familiar.memory.setPinned(c.req.param('id'), body.pinned),
-      )
-    })
-    .delete('/memory/:id', (c) =>
-      edit(c, () => familiar.memory.forget(c.req.param('id'))),
-    )
+    .route('/memory', memoryRoutes(familiar.memory))
 }

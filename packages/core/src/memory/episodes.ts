@@ -1,4 +1,5 @@
 import { defineDoc } from '@earendil-works/pi-durable'
+import { formatDay as format, parseDay as parse } from '../time/index.ts'
 
 /**
  * Episodes: what happened, as summaries. Upkeep writes one per pass over a
@@ -34,17 +35,6 @@ export const Episodes = defineDoc<EpisodesState>({
   initial: () => ({ episodes: [], next: 1 }),
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
 })
-
-const pad = (value: number) => String(value).padStart(2, '0')
-const format = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-const parse = (day: string) => {
-  const [year, month, date] = day.split('-').map(Number)
-  return new Date(year, month - 1, date)
-}
-
-/** The local date of a time, matching upkeep's local 04:00. */
-export const localDay = (at: number) => format(new Date(at))
 
 const MONTHS =
   'january february march april may june july august september october november december'.split(

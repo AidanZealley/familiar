@@ -3,10 +3,10 @@ import MiniSearch from 'minisearch'
 import {
   dateFit,
   datesIn,
-  localDay,
   type Episode,
   type EpisodesState,
 } from './episodes.ts'
+import { localDay } from '../time/index.ts'
 import { isPast, type Fact, type MemoryState } from './facts.ts'
 
 /**

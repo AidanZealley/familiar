@@ -18,7 +18,12 @@ const replied = (id: number, content: object[], stopReason: string = 'stop') =>
 
 const text = (text: string) => ({ type: 'text', text })
 
-const toolResult = (id: number, toolCallId: string, output: string) =>
+const toolResult = (
+  id: number,
+  toolCallId: string,
+  output: string,
+  details?: unknown,
+) =>
   entry(id, 'pi.tool-result', {
     model: [
       {
@@ -26,6 +31,7 @@ const toolResult = (id: number, toolCallId: string, output: string) =>
         toolCallId,
         content: [text(output)],
         isError: false,
+        ...(details !== undefined && { details }),
       },
     ],
   })
@@ -165,8 +171,8 @@ test('a reply lists the facts its memory tools saved', () => {
         call('r3', 'retire'),
         call('r4', 'remember'),
       ]),
-      toolResult(3, 'r1', 'Saved as m4.'),
-      toolResult(4, 'r2', 'Saved as m5; m2 now history.'),
+      toolResult(3, 'r1', 'Saved as m4.', { saved: 'm4' }),
+      toolResult(4, 'r2', 'Saved as m5; m2 now history.', { saved: 'm5' }),
       toolResult(5, 'r3', 'Retired m3.'),
       toolResult(6, 'r4', 'Core is full.'),
     ),

@@ -7,10 +7,11 @@ A personal assistant built on [Pi Durable](https://github.com/earendil-works/pi/
 ```
 packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
-  core/conversation Message format, history paging and search.
-  core/memory     Long-term facts and daily consolidation at 04:00.
-  core/context    Request budget and compaction settings.
-  core/persona    Stable instructions and the current_time tool.
+  core/persona    Who Familiar is: the stable start of every prompt.
+  core/time       The current_time tool, and how dates are written.
+  core/context    Request budget, compaction and stream settings.
+  core/conversation Message format, sending and history paging.
+  core/memory     Facts, recall, episodes and nightly upkeep at 04:00.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API
@@ -24,6 +25,7 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 
 - **One Familiar has one owner and one conversation.** Hosts that serve many owners (a household app, say) open one Familiar per owner, e.g. one Durable Object each. Core never knows about tenants.
 - **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
+- **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. See [docs/architecture.md](docs/architecture.md).
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
@@ -31,7 +33,7 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 
 ### How the UI stays live
 
-The daemon sends the conversation's committed view once, then each commit's [Chord](https://github.com/earendil-works/pi) operations. The client applies them with `applyImmutable`, so it mirrors the server exactly and reconnecting just means receiving a fresh view.
+The daemon sends the conversation's committed view once, then each commit's [Chord](https://github.com/earendil-works/pi) operations. Documents such as memory and episodes travel the same way, each under its name. The client applies them with `applyImmutable`, so it mirrors the server exactly and reconnecting just means receiving a fresh view.
 
 ## Use it
 

@@ -1,7 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
 import { Episodes, type EpisodesState } from './episodes.ts'
-import { Memory } from './memory.ts'
+import { Memory } from './facts.ts'
 import {
   forgetFact,
   retireFact,
@@ -24,7 +24,8 @@ export type MemoryApi = {
 
 const context = BACKGROUND_CONTEXT
 
-export function memoryApi(harness: Harness): MemoryApi {
+/** `now` is Familiar's clock, so the owner's edits are dated like everything else. */
+export function memoryApi(harness: Harness, now: () => number): MemoryApi {
   const editMemory = (edit: (memory: MemoryState) => void) =>
     harness.commit(async (tx) => edit(await tx.doc(Memory)), context)
 
@@ -32,8 +33,8 @@ export function memoryApi(harness: Harness): MemoryApi {
     watch: async () => (await harness.watchDoc(Memory, context))!,
     watchEpisodes: async () => (await harness.watchDoc(Episodes, context))!,
     revise: (id, text) =>
-      editMemory((memory) => void reviseFact(memory, id, text, Date.now())),
-    retire: (id) => editMemory((memory) => retireFact(memory, id, Date.now())),
+      editMemory((memory) => void reviseFact(memory, id, text, now())),
+    retire: (id) => editMemory((memory) => retireFact(memory, id, now())),
     setPinned: (id, pinned) =>
       editMemory((memory) => setPinned(memory, id, pinned)),
     forget: (id) => editMemory((memory) => forgetFact(memory, id)),

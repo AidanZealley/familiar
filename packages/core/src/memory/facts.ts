@@ -1,3 +1,5 @@
+import { defineDoc } from '@earendil-works/pi-durable'
+
 /**
  * The fact store and every rule about changing it. Tools, the owner's edits
  * and upkeep all go through these, so the rules live in one place. Each
@@ -242,3 +244,22 @@ export function migrateV1(value: {
     })),
   }
 }
+
+/**
+ * What Familiar knows about the people it helps. One document for the whole
+ * Familiar (every conversation shares it), stored with the transcript, so a
+ * fact and the reply that mentions it are committed together.
+ */
+export const Memory = defineDoc<MemoryState>({
+  kind: 'familiar.memory',
+  version: 2,
+  scope: 'session',
+  initial: () => ({ facts: [], next: 1 }),
+  migrate: (value, fromVersion) => {
+    if (fromVersion !== 1)
+      throw new Error(`No migration from memory version ${fromVersion}.`)
+    return migrateV1(value as Parameters<typeof migrateV1>[0])
+  },
+  // Store a full copy now and then, so reading it never replays a long history.
+  checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
+})

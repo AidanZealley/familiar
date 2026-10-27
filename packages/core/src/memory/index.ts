@@ -1,13 +1,13 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Harness } from '@earendil-works/pi-durable'
-import { markRecalled } from './facts.ts'
+import { markRecalled, Memory } from './facts.ts'
 import { Episodes } from './episodes.ts'
-import { Memory, createMemoryExtension } from './memory.ts'
-import { createUpkeep, type UpkeepOptions } from './upkeep.ts'
+import { createMemoryExtension } from './extension.ts'
+import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
-export * from './memory.ts'
-export * from './upkeep.ts'
+export * from './extension.ts'
+export * from './upkeep/index.ts'
 export * from './facts.ts'
 export * from './recall.ts'
 export * from './episodes.ts'
@@ -41,7 +41,7 @@ export function createMemory(options: MemoryOptions) {
         await tx.doc(Episodes)
       }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
-      return memoryApi(harness)
+      return memoryApi(harness, options.now)
     },
   }
 }

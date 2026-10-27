@@ -78,7 +78,7 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
   ])
 })
 
-test('the event stream sends memory and episodes whole first', async () => {
+test('the event stream sends the view and every document whole first', async () => {
   const models = createModels()
   models.setProvider(fauxProvider().provider)
   const familiar = await summonFamiliar({
@@ -92,12 +92,16 @@ test('the event stream sends memory and episodes whole first', async () => {
   const response = await api.request('/events')
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
   let text = ''
-  while (!text.includes('event: episodes\n'))
+  while ((text.match(/event: document\n/g) ?? []).length < 2)
     text += (await reader.read()).value
   await reader.cancel()
 
-  const events = [...text.matchAll(/^event: (.+)$/gm)].map((match) => match[1])
-  expect(events).toEqual(['view', 'memory', 'episodes'])
-  const episodes = text.split('event: episodes\n')[1].match(/^data: (.+)$/m)
-  expect(JSON.parse(episodes![1])).toEqual({ episodes: [], next: 1 })
+  const events = [...text.matchAll(/^event: (.+)\ndata: (.+)$/gm)].map(
+    ([, event, data]) => (event === 'document' ? JSON.parse(data) : { event }),
+  )
+  expect(events).toEqual([
+    { event: 'view' },
+    { name: 'memory', value: { facts: [], next: 1 } },
+    { name: 'episodes', value: { episodes: [], next: 1 } },
+  ])
 })

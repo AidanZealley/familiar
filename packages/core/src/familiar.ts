@@ -16,6 +16,7 @@ import {
 } from './conversation/index.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona } from './persona/index.ts'
+import { TimeExtension } from './time/index.ts'
 
 export { compactionFor } from './context/index.ts'
 export { MESSAGE_KIND, type MessageData } from './conversation/message.ts'
@@ -88,6 +89,7 @@ export async function summonFamiliar(
   const registry = createRegistry()
   for (const extension of [
     createPersona(name),
+    TimeExtension,
     ...memory.extensions,
     ...(options.extensions ?? []),
   ])

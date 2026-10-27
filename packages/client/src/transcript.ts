@@ -5,6 +5,7 @@ import type {
   InboxState,
   LiveState,
   MessageData,
+  SavedDetails,
   ToolCall as ModelToolCall,
   ToolResultMessage,
   UserMessage,
@@ -18,6 +19,8 @@ export type ToolCall = {
   arguments: ModelToolCall['arguments']
   status: 'running' | 'done' | 'error'
   output: string
+  /** The fact this call saved, when it was a memory tool that saved one. */
+  saved?: string
 }
 
 /** Item IDs are unique across the transcript and stable across updates: use them as keys. */
@@ -121,16 +124,8 @@ export function toTranscript(
   return { items, busy: live?.run !== undefined }
 }
 
-/** Core's memory tools answer "Saved as m12." when they save a fact. */
-const SAVING_TOOLS = new Set(['remember', 'revise_memory'])
-const SAVED_AS = /^Saved as (m\d+)/
-
 const savedBy = (calls: ToolCall[]) =>
-  calls.flatMap((call) =>
-    call.status === 'done' && SAVING_TOOLS.has(call.name)
-      ? (call.output.match(SAVED_AS)?.[1] ?? [])
-      : [],
-  )
+  calls.flatMap((call) => (call.saved ? [call.saved] : []))
 
 function toItem(
   entry: EntryRecord,
@@ -169,6 +164,8 @@ function toItem(
       if (call) {
         call.status = result.isError ? 'error' : 'done'
         call.output = textOf(result.content)
+        const details = result.details as Partial<SavedDetails> | undefined
+        if (typeof details?.saved === 'string') call.saved = details.saved
       }
       return undefined
     }
