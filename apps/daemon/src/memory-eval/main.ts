@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process'
 import {
+  appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -11,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { evalDataDir, judge, model, models } from './models.ts'
-import { summarize } from './questions.ts'
+import { summarize, type QuestionResult } from './questions.ts'
 import { runMemoryEval } from './run.ts'
 import { rowanV3 } from './scenario.ts'
 
@@ -37,12 +39,27 @@ if (resume && !existsSync(replayPath))
 mkdirSync(runDirectory, { recursive: true })
 console.log(`Replay storage: ${runDirectory}`)
 
+// Graded answers are kept as they come in, so a resumed run asks only the
+// questions it hasn't graded.
+const answersPath = join(runDirectory, 'answers.jsonl')
+const previous: QuestionResult[] =
+  resume && existsSync(answersPath)
+    ? readFileSync(answersPath, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as QuestionResult)
+    : []
+if (previous.length) console.log(`Keeping ${previous.length} graded answers.`)
+
 // Question copies are throwaway.
 const temporary = mkdtempSync(join(tmpdir(), 'familiar-memory-eval-'))
 try {
   const result = await runMemoryEval({
     storage: await openNodeSqliteStorage(replayPath),
     resume,
+    previous,
+    onAnswer: (result) =>
+      appendFileSync(answersPath, `${JSON.stringify(result)}\n`),
     createQuestionStorage: async (id) => {
       const path = join(temporary, `question-${id}.sqlite`)
       if (existsSync(`${replayPath}-wal`))

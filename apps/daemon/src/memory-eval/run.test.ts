@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test, vi } from 'vitest'
 import { judgePrompt, parseVerdict } from './judge.ts'
-import { summarize } from './questions.ts'
+import { summarize, type QuestionResult } from './questions.ts'
 import { runMemoryEval } from './run.ts'
 import { categories, memoryScenario, type Scenario } from './scenario.ts'
 import { createClock } from './clock.ts'
@@ -502,7 +502,7 @@ test('a replay stopped by a usage limit resumes from its storage', async () => {
     return fauxAssistantMessage('Noted.')
   }
   faux.setResponses(Array.from({ length: 40 }, () => model))
-  const run = async (resume: boolean) =>
+  const run = async (resume: boolean, previous?: QuestionResult[]) =>
     runMemoryEval({
       storage: await openNodeSqliteStorage(replayPath),
       createQuestionStorage: async (id) => {
@@ -516,6 +516,7 @@ test('a replay stopped by a usage limit resumes from its storage', async () => {
       scenario,
       questionConcurrency: 1,
       resume,
+      previous,
     })
 
   await expect(run(false)).rejects.toThrow('did not advance')
@@ -532,4 +533,12 @@ test('a replay stopped by a usage limit resumes from its storage', async () => {
   expect(result.upkeep.map(({ date }) => date)).toEqual(['2026-01-08'])
   expect(result.results.map(({ verdict }) => verdict.pass)).toEqual([true])
   expect(sent.at(-1)).toBe('What is my bicycle called?')
+
+  // Resuming a finished replay goes straight to the questions, and asks none
+  // already graded.
+  const asked = sent.length
+  const again = await run(true, result.results)
+  expect(again.resumedFrom).toBe('questions')
+  expect(again.results).toEqual(result.results)
+  expect(sent).toHaveLength(asked)
 }, 30_000)

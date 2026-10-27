@@ -33,10 +33,14 @@ async function upkeepThrough(storage: Storage): Promise<number | null> {
 }
 
 /**
- * The first scenario day a stopped replay hasn't sent yet: the day after the
- * newest message from Rowan, on the eval's fake clock. 0 for a fresh replay.
+ * The first scenario day a stopped replay hasn't finished: after the newest
+ * message from Rowan, and after the day the last upkeep pass covered (days
+ * without messages leave no other trace). 0 for a fresh replay; the number
+ * of days once the whole replay is done.
  */
 export async function resumePoint(storage: Storage, scenario: Scenario) {
+  const noonOf = (index: number) =>
+    new Date(`${scenario.days[index].date}T12:00:00`).getTime()
   let newest = -Infinity
   for (const entry of await entriesAfter(storage)) {
     const said = saidBy(entry)
@@ -44,12 +48,22 @@ export async function resumePoint(storage: Storage, scenario: Scenario) {
     if (said && said.who !== 'you') newest = Math.max(newest, said.at)
   }
   if (newest === -Infinity) return 0
-  const sent = scenario.days.findIndex(
-    (day) => new Date(`${day.date}T12:00:00`).getTime() === newest,
-  )
+  const sent = scenario.days.findIndex((_, index) => noonOf(index) === newest)
   if (sent === -1)
     throw new Error('The stored replay does not match this scenario.')
-  return sent + 1
+  // Upkeep sleeps until the pass after the last one it ran; that last pass,
+  // a day earlier, finished every day whose noon came before it.
+  const upkeep = (await tasksIn(storage)).find(
+    (task) => task.kind === 'familiar.upkeep',
+  )
+  const state = upkeep?.state as { status: string; until?: number } | undefined
+  const lastPass =
+    state?.status === 'sleeping' && state.until !== undefined
+      ? state.until - 24 * 60 * 60 * 1000
+      : -Infinity
+  let passed = 0
+  while (passed < scenario.days.length && noonOf(passed) < lastPass) passed++
+  return Math.max(sent + 1, passed)
 }
 
 /**

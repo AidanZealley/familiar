@@ -32,6 +32,8 @@ export async function runMemoryEval({
   progress = () => {},
   questionConcurrency = 3,
   resume = false,
+  previous,
+  onAnswer,
 }: {
   storage: Storage
   /** Called after replay storage closes; each call opens a separate copy of its SQLite file. */
@@ -44,19 +46,27 @@ export async function runMemoryEval({
   questionConcurrency?: number
   /** Continue a replay stopped partway, such as by a usage limit, from its storage. */
   resume?: boolean
+  /** Questions graded by an earlier attempt, kept rather than asked again. */
+  previous?: QuestionResult[]
+  onAnswer?: (result: QuestionResult) => void
 }): Promise<EvalResult> {
   if (!scenario.days.length)
     throw new Error('Memory eval needs at least one day.')
   if (!Number.isInteger(questionConcurrency) || questionConcurrency < 1)
     throw new Error('Question concurrency must be positive.')
   const fromDay = resume ? await resumePoint(storage, scenario) : 0
-  if (fromDay >= scenario.days.length)
-    throw new Error('The stored replay already sent every scenario day.')
-  const first = new Date(`${scenario.days[fromDay].date}T12:00:00`)
+  // A finished replay resumes at the noon after its last day, as if it had
+  // just ended, and goes straight to the questions.
+  const done = fromDay >= scenario.days.length
+  const first = new Date(
+    `${scenario.days[done ? scenario.days.length - 1 : fromDay].date}T12:00:00`,
+  )
   if (Number.isNaN(first.getTime()))
     throw new Error('Invalid first scenario date.')
+  if (done) first.setDate(first.getDate() + 1)
   const clock = createClock(first.getTime())
-  if (fromDay > 0)
+  if (done) progress('Replay already finished; asking the questions.')
+  else if (fromDay > 0)
     progress(`Resuming at day ${fromDay + 1}: ${scenario.days[fromDay].date}`)
   const familiar = await summonFamiliar({
     storage,
@@ -90,12 +100,16 @@ export async function runMemoryEval({
     progress,
     questionConcurrency,
     now: clock.now(),
+    previous,
+    onAnswer,
   })
   return {
     scenario: scenario.id,
     days: scenario.days.length,
     judge: judge.modelId,
-    ...(fromDay > 0 && { resumedFrom: scenario.days[fromDay].date }),
+    ...(fromDay > 0 && {
+      resumedFrom: scenario.days[fromDay]?.date ?? 'questions',
+    }),
     ...replay,
     tokens: {
       replay: replayed,
