@@ -1,9 +1,7 @@
 import type { Context } from '@earendil-works/chord'
-import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import {
   AssistantEntry,
   configure,
-  defineDoc,
   defineExtension,
   defineTask,
   ResetEntry,
@@ -14,63 +12,18 @@ import {
   type EntryRecord,
   type Harness,
   type ModelRef,
-  type TaskId,
   type TaskRuntime,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { saidBy } from '../conversation/message.ts'
-import { Memory } from './memory.ts'
-import { coreFacts, rebalanceCore } from './facts.ts'
-import { addEpisode, dueRollup, Episodes } from './episodes.ts'
-import { localDay, localMinute } from '../time/index.ts'
+import { saidBy } from '../../conversation/message.ts'
+import { localDay } from '../../time/index.ts'
+import { addEpisode, dueRollup, Episodes } from '../episodes.ts'
+import { coreFacts, Memory, rebalanceCore } from '../facts.ts'
+import { instructions, rollupInstructions } from './prompts.ts'
+import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
+import { newMessages } from './transcript.ts'
 
-/** Passes run daily at this hour, in the host's time zone. */
-const UPKEEP_HOUR = 4
-
-/**
- * The day a time belongs to. Upkeep days run from 04:00 to 04:00, so a chat
- * at 1am counts as the night before, as people think of it.
- */
-export const upkeepDay = (at: number) =>
-  localDay(at - UPKEEP_HOUR * 60 * 60 * 1000)
-
-/** The first upkeep time after `now`. */
-export function nextUpkeep(now: number) {
-  const next = new Date(now)
-  next.setHours(UPKEEP_HOUR, 0, 0, 0)
-  if (next.getTime() <= now) next.setDate(next.getDate() + 1)
-  return next.getTime()
-}
-
-export type UpkeepState = {
-  /** Where passes run: a conversation of its own, never shown to people. */
-  conversation: ConversationId | null
-  /** Where rollups are written: no tools, so summarising can't change facts. */
-  rollups: ConversationId | null
-  /** The one task that schedules passes. */
-  task: TaskId | null
-  /** The newest main-conversation entry a pass has reviewed. */
-  through: EntryId | null
-}
-
-/** How Familiar finds its memory upkeep again after a restart. */
-export const Upkeep = defineDoc<UpkeepState>({
-  kind: 'familiar.upkeep',
-  version: 2,
-  scope: 'session',
-  initial: () => ({
-    conversation: null,
-    rollups: null,
-    task: null,
-    through: null,
-  }),
-  migrate: (value, fromVersion) => {
-    if (fromVersion !== 1)
-      throw new Error(`No migration from upkeep version ${fromVersion}.`)
-    return { ...(value as Omit<UpkeepState, 'rollups'>), rollups: null }
-  },
-  checkpointWhen: () => true, // tiny: always store it whole
-})
+export { nextUpkeep, Upkeep, upkeepDay, type UpkeepState } from './schedule.ts'
 
 type UpkeepStep =
   | { phase: 'schedule' }
@@ -101,90 +54,6 @@ type UpkeepStep =
       end: string
       input: string
     }
-
-const instructions = (name: string) =>
-  `You keep the long-term memory of ${name}, a personal assistant, tidy. Nobody reads this conversation. Each message gives you the assistant's recent conversation with the people it helps, and when each saved fact was last written. Review the saved facts against it, using only recall, remember, revise_memory, retire and set_importance:
-
-- Before saving or correcting anything, recall it with a short, specific search: it may already be saved where you can't see it. Revise what you find rather than saving it again.
-- Merge duplicates and near-duplicates into one fact: revise_memory one and list the rest in merge, keeping every detail.
-- Revise facts the conversation has changed; retire facts that stopped being true. A fact's date helps judge whether it still holds. Old versions are kept as history, so never drop a detail to save space.
-- Save lasting facts from the conversation that were never saved, rating their importance: preferences, decisions, things about their lives and plans. Not passing details.
-- Re-rate a fact with set_importance when the conversation shows it matters more or less than its rating.
-- If nothing needs changing, change nothing.
-
-When you are done, reply with only the episode, under 150 words: what happened and what was said, with names, places, dates, projects, decisions and changes, so it can answer later questions such as "what was going on in early March?". Don't mention memory or what you changed.`
-
-const rollupInstructions = (name: string) =>
-  `You write the episodes of ${name}, a personal assistant: summaries of what happened in the lives of the people it helps. Nobody reads this conversation. Each message gives a week or a month and the episodes of its days. Reply with only the episode for that whole period, under 250 words, keeping every name, place, date, project, decision and change that mattered and leaving out what didn't.`
-
-/**
- * The messages since `through`, oldest first, keeping the newest that fit in
- * `budget` tokens, and the newest entry among them.
- */
-async function newMessages(
-  tx: Tx,
-  through: EntryId | null,
-  budget: number,
-  name: string,
-) {
-  const lines: string[] = []
-  let newest: EntryId | undefined
-  let tokens = 0
-  // People's messages date the span; model replies carry wall-clock times,
-  // not the Harness clock, so they date it only when nobody else spoke.
-  const people = { first: Infinity, last: -Infinity }
-  const replies = { first: Infinity, last: -Infinity }
-  const note = (said: { who: string; at: number }) => {
-    const span = said.who === 'you' ? replies : people
-    span.first = Math.min(span.first, said.at)
-    span.last = Math.max(span.last, said.at)
-  }
-  let cursor: Parameters<Tx['scanEntries']>[2]
-  scan: do {
-    const page = await tx.scanEntries(
-      {
-        conversationId: ROOT_CONVERSATION_ID,
-        order: 'descending',
-        ...(through === null ? {} : { minEntryId: (through + 1) as EntryId }),
-      },
-      200,
-      cursor,
-    )
-    for (const entry of page.items) {
-      const said = saidBy(entry)
-      if (!said) continue
-      const who = said.who === 'you' ? name : said.who
-      const line = `[${localMinute(said.at)}] ${who}: ${said.text}`
-      const size = estimateTextTokens(line)
-      if (tokens + size > budget) {
-        // A single message larger than the budget is cut, not skipped forever.
-        if (!lines.length) {
-          lines.push(line.slice(0, budget * 3))
-          note(said)
-        }
-        newest ??= entry.id
-        break scan
-      }
-      newest ??= entry.id
-      lines.push(line)
-      tokens += size
-      note(said)
-    }
-    cursor = page.next
-  } while (cursor)
-  return newest === undefined
-    ? undefined
-    : {
-        newest,
-        transcript: lines.reverse().join('\n'),
-        start: upkeepDay(
-          Number.isFinite(people.first) ? people.first : replies.first,
-        ),
-        end: upkeepDay(
-          Number.isFinite(people.last) ? people.last : replies.last,
-        ),
-      }
-}
 
 export type UpkeepOptions = {
   /** The model passes run with. */

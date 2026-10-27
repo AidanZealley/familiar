@@ -20,7 +20,7 @@ import {
   rememberFact,
   reviseFact,
 } from './facts.ts'
-import { Memory } from './memory.ts'
+import { Memory } from './facts.ts'
 import { afterEach, expect, test } from 'vitest'
 import {
   summonFamiliar,

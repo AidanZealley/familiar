@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { localDay } from '../time/index.ts'
-import { upkeepDay } from './upkeep.ts'
+import { upkeepDay } from './upkeep/index.ts'
 import {
   addEpisode,
   datesIn,

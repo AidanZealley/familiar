@@ -13,9 +13,9 @@ import {
   MemoryStorage,
   type SetTimer,
 } from '@earendil-works/pi-durable'
-import { nextUpkeep } from './upkeep.ts'
+import { nextUpkeep } from './index.ts'
 import { afterEach, expect, test, vi } from 'vitest'
-import { summonFamiliar, type Familiar } from '../familiar.ts'
+import { summonFamiliar, type Familiar } from '../../familiar.ts'
 
 const context = BACKGROUND_CONTEXT
 

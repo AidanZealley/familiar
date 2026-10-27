@@ -1,7 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
 import { Episodes, type EpisodesState } from './episodes.ts'
-import { Memory } from './memory.ts'
+import { Memory } from './facts.ts'
 import {
   forgetFact,
   retireFact,
