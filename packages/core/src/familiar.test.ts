@@ -52,28 +52,6 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-test('search_history finds what was said earlier', async () => {
-  const { faux, say } = await setup()
-  let result = ''
-  faux.setResponses([
-    fauxAssistantMessage('Sounds lovely.'),
-    fauxAssistantMessage(fauxToolCall('search_history', { query: 'lisbon' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      const last = context.messages.at(-1)
-      if (last?.role === 'toolResult')
-        result = last.content
-          .map((part) => ('text' in part ? part.text : ''))
-          .join('')
-      return fauxAssistantMessage('You mentioned Lisbon.')
-    },
-  ])
-  await say('We are going to Lisbon in May.')
-  await say('Where did I say we were going?')
-  expect(result).toContain('aidan: We are going to Lisbon in May.')
-})
-
 /** Pi's own estimate of a request's size, the one its thresholds use. */
 const tokensOf = (context: TranscriptContext) =>
   context.messages.reduce(

@@ -97,11 +97,7 @@ export async function summonFamiliar(
     harnessOptions(options, registry, budget),
     context,
   )
-  const conversation = await installConversation(
-    harness,
-    registry,
-    options.model,
-  )
+  const conversation = await installConversation(harness, options.model)
   const memoryActions = await memory.start(harness)
   harness.resume() // finish whatever the last process left unfinished
   return {

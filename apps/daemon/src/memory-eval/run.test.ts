@@ -83,7 +83,7 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     upkeep,
     fauxAssistantMessage('Sounds good.'),
     upkeep,
-    fauxAssistantMessage(fauxToolCall('search_history', { query: 'bicycle' }), {
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'bicycle' }), {
       stopReason: 'toolUse',
     }),
     fauxAssistantMessage('I cannot recall its name.'),
@@ -163,7 +163,7 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
   )
   expect(result.results[0].toolCalls).toContainEqual(
     expect.objectContaining({
-      name: 'search_history',
+      name: 'recall',
       arguments: { query: 'bicycle' },
       result: expect.objectContaining({ role: 'toolResult' }),
     }),

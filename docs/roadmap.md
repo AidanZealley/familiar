@@ -6,7 +6,7 @@ Familiar is a personal assistant in the spirit of Grok Bot, Meta's Muse and Open
 
 - **Core and hosts.** One durable conversation over Pi Durable; the HTTP + SSE API; the client store; the web UI.
 - **Always on.** A systemd user service serves the API and UI on `127.0.0.1:4317`, published tailnet-only over HTTPS on port 10000. The home-screen manifest is in place.
-- **Memory.** A fact list the model keeps with `remember`, `revise_memory` and `forget` and sees on every request; `search_history` over the full transcript; a Memory page for corrections.
+- **Memory.** A fact list the model keeps with `remember`, `revise_memory` and `forget` and sees on every request; a Memory page for corrections.
 - [Memory upkeep](specs/memory-upkeep.md): a 64k context budget, a hard cap on the fact list, and nightly consolidation.
 - [Chat UI](specs/chat-ui.md): shadcn's chat components, streamed Markdown, and `pnpm dev:demo`.
 - [Chat history](specs/chat-history.md): scrolling back past compactions, a Stopped marker, and a lazily loaded Markdown renderer.
@@ -28,7 +28,7 @@ Pick these up in order unless the owner says otherwise. Each spec is complete en
 
 Not specified yet. Write a spec before starting one.
 
-- **Full-text history search.** `search_history` scans the transcript linearly, which will slow down after years of use. Use an SQLite FTS index in the same database.
+- **Deep search.** A tool for when ordinary recall can't find something, searching in stages from broad to detailed: month episodes first, then weeks, then days, and only then the raw transcript, narrowed to the periods the earlier stages pointed at. Each stage is cheap to scan, so most searches stop early, and the transcript is read only where it's needed. `search_history`, a linear scan of the whole transcript, was removed for this reason: memory (facts, episodes and recall) is how Familiar reaches the past, and a transcript scan bypassed it and grew with every message.
 - **Real-world tools.** Web search and fetch first, then calendar and email. Each tool that touches files or a shell must run in an environment that cannot see the data directory.
 - **Gatherbot.** A Cloudflare host for `@familiar/core`: one Durable Object per household, Gather's auth deciding who reaches which object, an API key instead of a subscription. The open question is which Convex identity the bot acts as when no member is present.
 - **AI Elements patterns** ([shadcn AI Elements](https://ui.shadcn.com/docs/ai-elements)), each with the feature that needs it: Confirmation (approving actions) with real-world tools, Sources and Inline Citation with web search, Context (a context-budget gauge) and Suggestion (prompts on an empty chat) whenever convenient.
