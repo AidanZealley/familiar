@@ -41,7 +41,7 @@ export function createMemory(options: MemoryOptions) {
         await tx.doc(Episodes)
       }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
-      return memoryApi(harness)
+      return memoryApi(harness, options.now)
     },
   }
 }

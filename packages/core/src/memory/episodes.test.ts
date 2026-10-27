@@ -1,10 +1,10 @@
 import { expect, test } from 'vitest'
+import { localDay } from '../time/index.ts'
 import { upkeepDay } from './upkeep.ts'
 import {
   addEpisode,
   datesIn,
   dueRollup,
-  localDay,
   type EpisodesState,
   type Span,
 } from './episodes.ts'

@@ -21,7 +21,8 @@ import {
 import { saidBy } from '../conversation/message.ts'
 import { Memory } from './memory.ts'
 import { coreFacts, rebalanceCore } from './facts.ts'
-import { addEpisode, dueRollup, Episodes, localDay } from './episodes.ts'
+import { addEpisode, dueRollup, Episodes } from './episodes.ts'
+import { localDay, localMinute } from '../time/index.ts'
 
 /** Passes run daily at this hour, in the host's time zone. */
 const UPKEEP_HOUR = 4
@@ -116,9 +117,6 @@ When you are done, reply with only the episode, under 150 words: what happened a
 const rollupInstructions = (name: string) =>
   `You write the episodes of ${name}, a personal assistant: summaries of what happened in the lives of the people it helps. Nobody reads this conversation. Each message gives a week or a month and the episodes of its days. Reply with only the episode for that whole period, under 250 words, keeping every name, place, date, project, decision and change that mattered and leaving out what didn't.`
 
-const day = (at: number) => new Date(at).toISOString().slice(0, 10)
-const minute = (at: number) => new Date(at).toISOString().slice(0, 16)
-
 /**
  * The messages since `through`, oldest first, keeping the newest that fit in
  * `budget` tokens, and the newest entry among them.
@@ -156,7 +154,7 @@ async function newMessages(
       const said = saidBy(entry)
       if (!said) continue
       const who = said.who === 'you' ? name : said.who
-      const line = `[${minute(said.at)}] ${who}: ${said.text}`
+      const line = `[${localMinute(said.at)}] ${who}: ${said.text}`
       const size = estimateTextTokens(line)
       if (tokens + size > budget) {
         // A single message larger than the budget is cut, not skipped forever.
@@ -276,7 +274,7 @@ export function createUpkeep(options: UpkeepOptions) {
           // The facts the pass sees in its prompt section.
           const facts = coreFacts(await tx.doc(Memory))
           const dates = facts.length
-            ? facts.map((fact) => `${fact.id}: ${day(fact.at)}`).join('\n')
+            ? facts.map((fact) => `${fact.id}: ${localDay(fact.at)}`).join('\n')
             : '(no facts yet)'
           const input = `Recent conversation, oldest first:\n${found.transcript}\n\nWhen each fact was last written:\n${dates}`
           const reset = await resetIn(tx, upkeep.conversation)
