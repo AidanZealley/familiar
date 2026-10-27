@@ -2,7 +2,13 @@
 // Rowan, from the memory eval's rowan-v3 scenario, a year in.
 
 import { Type } from '@earendil-works/pi-ai'
-import { defineDoc, defineTool } from '@earendil-works/pi-durable'
+import { defineTool } from '@earendil-works/pi-durable'
+import {
+  Episodes,
+  Memory,
+  type Episode,
+  type Fact,
+} from '@familiar/core/diagnostics'
 
 /** The message the demo sends itself on start; the scripted model answers by calling both seed tools. */
 export const SEED_MESSAGE =
@@ -150,28 +156,6 @@ export const seedPinned = [
   'Saffron is allergic to hazelnuts, including hazelnut oil.',
 ]
 
-type Fact = {
-  id: string
-  text: string
-  at: number
-  created: number
-  importance: number
-  core: boolean
-  until?: number
-  replaces?: string[]
-}
-
-// Core keeps its memory documents to itself; these are the same documents,
-// by kind and version, so the demo can fill them without a year of use.
-// Core decides what's in core: the pins that follow rebalance it.
-const Memory = defineDoc<{ facts: Fact[]; next: number }>({
-  kind: 'familiar.memory',
-  version: 2,
-  scope: 'session',
-  initial: () => ({ facts: [], next: 1 }),
-  checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
-})
-
 /** The demo's facts as the memory document holds them, dated back from now. */
 function factsAsOf(now: Date) {
   const monthsAgo = (count: number) =>
@@ -218,22 +202,6 @@ export const seedMemory = defineTool({
       memory.next = memory.facts.length + 1
       return { output: [{ type: 'text', text: 'Memory written.' }] }
     }, context),
-})
-
-type Episode = {
-  id: string
-  span: 'day' | 'week' | 'month'
-  start: string
-  end: string
-  text: string
-  at: number
-}
-const Episodes = defineDoc<{ episodes: Episode[]; next: number }>({
-  kind: 'familiar.episodes',
-  version: 1,
-  scope: 'session',
-  initial: () => ({ episodes: [], next: 1 }),
-  checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
 })
 
 const months = [
