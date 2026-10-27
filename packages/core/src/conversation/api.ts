@@ -6,9 +6,7 @@ import {
   type EntryRecord,
   type Harness,
   type ModelRef,
-  type Registry,
 } from '@earendil-works/pi-durable'
-import { createHistoryExtension } from './history.ts'
 import { MESSAGE_KIND } from './message.ts'
 
 /** One message from a person. Hosts authenticate; Familiar only records who spoke. */
@@ -41,14 +39,11 @@ const context = BACKGROUND_CONTEXT
 
 export async function installConversation(
   harness: Harness,
-  registry: Registry,
   model: ModelRef,
 ): Promise<ConversationApi> {
   const conversation = await harness.root(context, { agent: { model } })
   // A configured model wins over the one the conversation was created with.
   await conversation.configure({ model }, context)
-  // Needs the conversation, so it joins once that exists, before any work runs.
-  registry.install(createHistoryExtension(conversation))
   return {
     async send({ author, text, requestId }) {
       await conversation.submit(

@@ -1,7 +1,11 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView, EntryId } from '@earendil-works/pi-durable'
-import type { MemoryState } from './memory/index.ts'
-import { Hono } from 'hono'
+import {
+  FactError,
+  type EpisodesState,
+  type MemoryState,
+} from './memory/index.ts'
+import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from './familiar.ts'
 
@@ -31,7 +35,12 @@ export type { MESSAGE_KIND, MessageData } from './conversation/message.ts'
 export type { HistoryPage } from './conversation/api.ts'
 
 const HISTORY_LIMIT = 200
-export type { Fact, MemoryState } from './memory/index.ts'
+export type {
+  Episode,
+  EpisodesState,
+  Fact,
+  MemoryState,
+} from './memory/index.ts'
 
 /**
  * `GET /events` is a server-sent event stream of these. Each kind of state
@@ -43,12 +52,21 @@ export type StreamEvent =
   | { event: 'ops'; data: readonly Op[] }
   | { event: 'memory'; data: Readonly<MemoryState> | null }
   | { event: 'memory.ops'; data: readonly Op[] }
+  | { event: 'episodes'; data: Readonly<EpisodesState> | null }
+  | { event: 'episodes.ops'; data: readonly Op[] }
 
 /** `POST /messages` */
 export type SendBody = { text: string; requestId: string }
 
-/** `PUT /memory/:id` replaces a fact's text; `DELETE /memory/:id` forgets it. */
+/**
+ * `PUT /memory/:id` saves a new version of a fact; `POST /memory/:id/retire`
+ * marks it no longer true; `DELETE /memory/:id` forgets it. Each answers 404,
+ * changing nothing, when the fact is missing or already past.
+ */
 export type ReviseBody = { text: string }
+
+/** `PUT /memory/:id/pin` pins a fact into core or unpins it. */
+export type PinBody = { pinned: boolean }
 
 export type HttpOptions = {
   /**
@@ -61,6 +79,17 @@ export type HttpOptions = {
 }
 
 /** The Familiar HTTP API as a fetch handler. Mount it under any path. */
+/** Answers 204, or 404 when the rules refuse the edit; other failures stay server errors. */
+async function edit(c: Context, run: () => Promise<void>) {
+  try {
+    await run()
+  } catch (error) {
+    if (error instanceof FactError) return c.json({ error: error.message }, 404)
+    throw error
+  }
+  return c.body(null, 204)
+}
+
 export function createHttpApi(familiar: Familiar, options: HttpOptions) {
   return new Hono<{ Variables: { author: string } }>()
     .use(async (c, next) => {
@@ -84,7 +113,13 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
         await send({ event: 'memory', data: memory.value })
         memory.start((_memory, ops) => send({ event: 'memory.ops', data: ops }))
 
-        const watches = [conversation, memory]
+        const episodes = await familiar.memory.watchEpisodes()
+        await send({ event: 'episodes', data: episodes.value })
+        episodes.start((_episodes, ops) =>
+          send({ event: 'episodes.ops', data: ops }),
+        )
+
+        const watches = [conversation, memory, episodes]
 
         // Proxies close streams that look idle.
         const heartbeat = setInterval(
@@ -133,11 +168,22 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       const body = await c.req.json<ReviseBody>()
       if (typeof body.text !== 'string' || !body.text.trim())
         return c.json({ error: 'text is required' }, 400)
-      await familiar.memory.revise(c.req.param('id'), body.text.trim())
-      return c.body(null, 204)
+      return edit(c, () =>
+        familiar.memory.revise(c.req.param('id'), body.text.trim()),
+      )
     })
-    .delete('/memory/:id', async (c) => {
-      await familiar.memory.forget(c.req.param('id'))
-      return c.body(null, 204)
+    .post('/memory/:id/retire', (c) =>
+      edit(c, () => familiar.memory.retire(c.req.param('id'))),
+    )
+    .put('/memory/:id/pin', async (c) => {
+      const body = await c.req.json<PinBody>()
+      if (typeof body.pinned !== 'boolean')
+        return c.json({ error: 'pinned must be true or false' }, 400)
+      return edit(c, () =>
+        familiar.memory.setPinned(c.req.param('id'), body.pinned),
+      )
     })
+    .delete('/memory/:id', (c) =>
+      edit(c, () => familiar.memory.forget(c.req.param('id'))),
+    )
 }

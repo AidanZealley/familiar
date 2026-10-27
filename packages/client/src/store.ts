@@ -3,6 +3,8 @@ import type {
   ConversationView,
   EntryRecord,
   HistoryPage,
+  EpisodesState,
+  PinBody,
   MemoryState,
   ReviseBody,
   SendBody,
@@ -35,9 +37,13 @@ export type FamiliarState = {
   loadOlder(): Promise<boolean>
   /** What Familiar remembers, mirrored the same way. */
   memory: Readonly<MemoryState> | null | undefined
+  /** What happened, as nightly upkeep summarised it, mirrored the same way. */
+  episodes: Readonly<EpisodesState> | null | undefined
   send(text: string): Promise<void>
   abort(): Promise<void>
   reviseFact(id: string, text: string): Promise<void>
+  retireFact(id: string): Promise<void>
+  setFactPinned(id: string, pinned: boolean): Promise<void>
   forgetFact(id: string): Promise<void>
   /** Stop streaming. The store keeps its last view. */
   disconnect(): void
@@ -109,6 +115,7 @@ export function createFamiliarStore(baseUrl: string) {
     loadOlder: () =>
       (loading ??= loadOlder().finally(() => (loading = undefined))),
     memory: undefined,
+    episodes: undefined,
     send: (text) =>
       request('POST', '/messages', {
         text,
@@ -119,6 +126,12 @@ export function createFamiliarStore(baseUrl: string) {
       request('PUT', `/memory/${encodeURIComponent(id)}`, {
         text,
       } satisfies ReviseBody),
+    retireFact: (id) =>
+      request('POST', `/memory/${encodeURIComponent(id)}/retire`),
+    setFactPinned: (id, pinned) =>
+      request('PUT', `/memory/${encodeURIComponent(id)}/pin`, {
+        pinned,
+      } satisfies PinBody),
     forgetFact: (id) => request('DELETE', `/memory/${encodeURIComponent(id)}`),
     disconnect: () => events.close(),
   }))
@@ -148,6 +161,12 @@ export function createFamiliarStore(baseUrl: string) {
   on('memory.ops', (ops) =>
     store.setState(({ memory }) => ({
       memory: applyImmutable(memory ?? undefined, ops),
+    })),
+  )
+  on('episodes', (episodes) => store.setState({ episodes }))
+  on('episodes.ops', (ops) =>
+    store.setState(({ episodes }) => ({
+      episodes: applyImmutable(episodes ?? undefined, ops),
     })),
   )
   // EventSource reconnects by itself; the server answers with a fresh view.

@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test, vi } from 'vitest'
 import { judgePrompt, parseVerdict } from './judge.ts'
-import { summarize } from './questions.ts'
+import { summarize, type QuestionResult } from './questions.ts'
 import { runMemoryEval } from './run.ts'
 import { categories, memoryScenario, type Scenario } from './scenario.ts'
 import { createClock } from './clock.ts'
@@ -83,7 +83,7 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     upkeep,
     fauxAssistantMessage('Sounds good.'),
     upkeep,
-    fauxAssistantMessage(fauxToolCall('search_history', { query: 'bicycle' }), {
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'bicycle' }), {
       stopReason: 'toolUse',
     }),
     fauxAssistantMessage('I cannot recall its name.'),
@@ -134,6 +134,7 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     },
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    judge: { provider: 'faux', modelId: 'faux-1' },
     scenario,
     questionConcurrency: 1,
   })
@@ -145,14 +146,24 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
   const judged = JSON.parse(JSON.parse(judgeInputs[0])[1].content)
   expect(judged.required).toEqual(['Bracken'])
   expect(judged.optional).toEqual(['It is green'])
+  expect(judged.transcript).toEqual([
+    '2026-01-05: My bicycle is called Bracken.',
+    '2026-01-06: I fixed a loose spoke today.',
+  ])
   expect(judgeInputs[0]).toContain('I cannot recall its name.')
   expect(result.results.map(({ verdict }) => verdict.pass)).toEqual([
     false,
     true,
   ])
+  for (const phase of Object.values(result.tokens))
+    expect(phase.input).toBeGreaterThan(0)
+  // Each question's copy starts with the replay's spend; only its own counts.
+  expect(result.results[0].tokens.answer.input).toBeLessThan(
+    result.tokens.replay.input,
+  )
   expect(result.results[0].toolCalls).toContainEqual(
     expect.objectContaining({
-      name: 'search_history',
+      name: 'recall',
       arguments: { query: 'bicycle' },
       result: expect.objectContaining({ role: 'toolResult' }),
     }),
@@ -237,6 +248,7 @@ test('scenario has five questions per category and distinct crowding facts', () 
   ).not.toMatch(/York|peppermint|hide|library/i)
 })
 
+// Replays 90 days with nightly upkeep and rollups, so it gets a longer timeout.
 test('full scenario compacts tested sessions out of verbatim context offline', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-full-'))
   temporary.push(directory)
@@ -297,6 +309,7 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
     },
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    judge: { provider: 'faux', modelId: 'faux-1' },
     scenario: memoryScenario,
   })
   expect(result.compactions).toBeGreaterThan(0)
@@ -305,8 +318,8 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
   expect(
     result.upkeep.filter(({ outcome }) => outcome === 'advanced'),
   ).toHaveLength(18)
-  expect(result.judgeIsTestModel).toBe(true)
-})
+  expect(result.judge).toBe('faux-1')
+}, 30_000)
 
 test('fails loudly if an upkeep pass does not advance through the messages', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-failed-upkeep-'))
@@ -329,6 +342,7 @@ test('fails loudly if an upkeep pass does not advance through the messages', asy
       },
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
       scenario: {
         id: 'failed-upkeep',
         days: [{ date: '2026-01-05', text: 'My bicycle is Bracken.' }],
@@ -392,6 +406,7 @@ test.each([
       },
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
       scenario: {
         id: 'context-guard',
         testedFactsThrough: cutoff,
@@ -426,6 +441,7 @@ test('closes question storage when opening Familiar fails', async () => {
       },
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
       scenario: {
         id: 'open-failure',
         days: [{ date: '2026-01-05' }],
@@ -435,3 +451,95 @@ test('closes question storage when opening Familiar fails', async () => {
   ).rejects.toThrow('Cannot open question')
   expect(close).toHaveBeenCalledOnce()
 })
+
+test('a replay stopped by a usage limit resumes from its storage', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'familiar-eval-resume-'))
+  temporary.push(directory)
+  const replayPath = join(directory, 'replay.sqlite')
+  const faux = fauxProvider()
+  const models = createModels()
+  models.setProvider(faux.provider)
+  const scenario: Scenario = {
+    id: 'resume-test',
+    days: [
+      { date: '2026-01-05', text: 'My bicycle is called Bracken.' },
+      { date: '2026-01-06', text: 'I fixed a loose spoke today.' },
+      { date: '2026-01-07', text: 'I oiled the chain.' },
+      { date: '2026-01-08' },
+    ],
+    questions: [
+      {
+        id: 'bike',
+        category: 'old-facts',
+        text: 'What is my bicycle called?',
+        required: ['Bracken'],
+        optional: [],
+      },
+    ],
+  }
+  // Like ChatGPT's usage limit: from day 3 every call fails until it resets.
+  let limit: 'pending' | 'hit' | 'reset' = 'pending'
+  const sent: string[] = []
+  // One scripted model for every request: replies, upkeep, answers, judging.
+  const model = (context: { messages: unknown[] }) => {
+    const text = JSON.stringify(context.messages)
+    if (limit === 'pending' && text.includes('I oiled the chain.'))
+      limit = 'hit'
+    if (limit === 'hit')
+      return fauxAssistantMessage('', {
+        stopReason: 'error',
+        errorMessage: 'subscription_sharing_usage_limit_exceeded',
+      })
+    if (text.includes(judgePrompt.slice(0, 40)))
+      return fauxAssistantMessage('{"pass":true,"reason":"Names Bracken."}')
+    if (text.includes('long-term memory of'))
+      return fauxAssistantMessage('No changes.')
+    // The newest message in the request is the one being answered.
+    sent.push(
+      [...text.matchAll(/(My bicycle|I fixed|I oiled|What is)[^."]*/g)].at(
+        -1,
+      )![0],
+    )
+    return fauxAssistantMessage('Noted.')
+  }
+  faux.setResponses(Array.from({ length: 40 }, () => model))
+  const run = async (resume: boolean, previous?: QuestionResult[]) =>
+    runMemoryEval({
+      storage: await openNodeSqliteStorage(replayPath),
+      createQuestionStorage: async (id) => {
+        const path = join(directory, `${id}.sqlite`)
+        copyFileSync(replayPath, path)
+        return openNodeSqliteStorage(path)
+      },
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      judge: { provider: 'faux', modelId: 'faux-1' },
+      scenario,
+      questionConcurrency: 1,
+      resume,
+      previous,
+    })
+
+  await expect(run(false)).rejects.toThrow('did not advance')
+  limit = 'reset'
+  expect(sent).toEqual([
+    'My bicycle is called Bracken',
+    'I fixed a loose spoke today',
+  ])
+
+  const result = await run(true)
+  // Day 3 was sent before the limit hit, so the replay resumes after it; its
+  // message stays unanswered, and the first pass after the reset reviews it.
+  expect(result.resumedFrom).toBe('2026-01-08')
+  expect(result.upkeep.map(({ date }) => date)).toEqual(['2026-01-08'])
+  expect(result.results.map(({ verdict }) => verdict.pass)).toEqual([true])
+  expect(sent.at(-1)).toBe('What is my bicycle called?')
+
+  // Resuming a finished replay goes straight to the questions, and asks none
+  // already graded.
+  const asked = sent.length
+  const again = await run(true, result.results)
+  expect(again.resumedFrom).toBe('questions')
+  expect(again.results).toEqual(result.results)
+  expect(sent).toHaveLength(asked)
+}, 30_000)

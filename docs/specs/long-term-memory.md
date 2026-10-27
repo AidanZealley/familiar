@@ -46,7 +46,7 @@ Build this first and record a baseline on today's memory, so the redesign is mea
 1. `pnpm eval:memory` replays a scripted, months-long conversation into a fresh Familiar on temporary storage, with a fake clock that advances through days so nightly upkeep runs, using a real model. It then asks questions and scores the answers.
 2. The real model needs its own sign-in, never the owner's live credentials: the eval uses a separate data directory (`~/.local/share/familiar-eval`) and documents signing in to it once with `FAMILIAR_DATA_DIR=… pnpm sign-in`. It must not touch `~/.local/share/familiar`.
 3. The script covers LongMemEval's categories (research notes): facts stated once long ago; facts that change (a move, a new job, a changed preference); multi-session reasoning; time questions ("what was I doing in early March?"); and things never said, where the right answer is not knowing. Include enough trivial chatter to crowd memory.
-4. Score each answer pass or fail with a model judge given the expected answer, and print a per-category table. Save results as JSON under `eval/results/` with the date and the commit.
+4. Score each answer pass or fail with a pinned model judge given the expected answer and the scenario text as ground truth, and print a per-category table. Save results as JSON under `eval/results/` with the date and the commit.
 5. Keep the scenario small enough to run in minutes and within normal subscription use; the conversation may be summarised days rather than full transcripts.
 
 Done when the eval runs end to end, its results for the current memory are committed as the baseline, and the README explains how to run it.
@@ -65,8 +65,9 @@ Done when tests cover migration, each tool, supersede chains, and that no tool o
 2. Before each request, retrieve the top results for the latest messages (default 8, within about 1,000 tokens), excluding facts already in core, and add them near the end of the request. Update `recalled` on what was shown.
 3. Score as relevance × importance weight × recency decay. Put the weights in one place with a comment on their intent.
 4. Add the `recall` tool.
+5. Recall runs before upkeep passes too. Since step 2, upkeep's input lists only core facts, so without recall a pass can't see a fact saved outside core: it may save it again, or save a correction alongside it instead of revising it.
 
-Done when tests show an important non-core fact reaching the model when relevant, not reaching it when irrelevant, and the prompt section staying unchanged between requests.
+Done when tests show an important non-core fact reaching the model when relevant, not reaching it when irrelevant, the prompt section staying unchanged between requests, and upkeep revising a non-core fact on a later pass rather than duplicating it.
 
 ### 4. Episodes and upkeep
 

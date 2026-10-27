@@ -7,6 +7,7 @@ import {
   type HarnessOptions,
   type ModelRef,
   type Storage,
+  type UsageState,
 } from '@earendil-works/pi-durable'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
@@ -19,6 +20,7 @@ import { createPersona } from './persona/index.ts'
 export { compactionFor } from './context/index.ts'
 export { MESSAGE_KIND, type MessageData } from './conversation/message.ts'
 export type { Message, HistoryPage } from './conversation/api.ts'
+export type { UsageState as Usage } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
   /** Where everything Familiar knows is kept. One host process owns it at a time. */
@@ -55,6 +57,11 @@ export type Familiar = ConversationApi & {
    * synchronously, so keep them quick and don't call back into Familiar.
    */
   onCommit(listener: () => void): () => void
+  /**
+   * Tokens and cost spent so far, per model and per tool, across everything
+   * it has done: replies, compaction summaries and memory upkeep.
+   */
+  usage(): Promise<UsageState>
   /** What it remembers. The model keeps it; people can correct it. */
   memory: MemoryApi
   /** Lets it go: finishes committing, then releases its storage. Summon again to resume. */
@@ -73,6 +80,7 @@ export async function summonFamiliar(
   const budget = options.contextBudget ?? DEFAULT_CONTEXT_BUDGET
   // Half the budget leaves room for the prompt, memory and the pass's tool calls.
   const memory = createMemory({
+    now: options.now ?? Date.now,
     model: options.model,
     name,
     transcriptTokens: Math.floor(budget / 2),
@@ -89,17 +97,14 @@ export async function summonFamiliar(
     harnessOptions(options, registry, budget),
     context,
   )
-  const conversation = await installConversation(
-    harness,
-    registry,
-    options.model,
-  )
+  const conversation = await installConversation(harness, options.model)
   const memoryActions = await memory.start(harness)
   harness.resume() // finish whatever the last process left unfinished
   return {
     ...conversation,
     memory: memoryActions,
     onCommit: (listener) => harness.subscribeCommits(() => listener()),
+    usage: () => harness.usage(context),
     dismiss: () => harness.close(context),
   }
 }

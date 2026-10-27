@@ -1,0 +1,1208 @@
+{
+  "date": "2026-10-26",
+  "commit": "19cdb67",
+  "model": "gpt-6.1-sol",
+  "scenario": "rowan-90-days-v2",
+  "days": 90,
+  "judgeIsTestModel": true,
+  "memory": {
+    "document": {
+      "facts": [
+        {
+          "id": "m1",
+          "text": "The user is Rowan, who moved from Leeds to York on 2 February and started as an exhibition fabricator at Lantern Museum on 9 February, leaving Northbank Ceramics; Rowan takes the bus to work. As of 16 March Rowan still lives in York and works at Lantern Museum. Rowan stopped drinking coffee; since 23 February their usual morning drink is peppermint tea. The years of these dates were not specified.",
+          "at": 1773662413300
+        },
+        {
+          "id": "m4",
+          "text": "Rowan's retired greyhound Pip came home in 2019; his racing name was Silver Comet.",
+          "at": 1767614400900
+        },
+        {
+          "id": "m5",
+          "text": "Rowan's brother Ellis restored Rowan's green steel bicycle, Bracken, for Rowan's thirtieth birthday in 2021.",
+          "at": 1767614400900
+        },
+        {
+          "id": "m6",
+          "text": "Rowan's partner Saffron has a hazelnut allergy.",
+          "at": 1767614400900
+        },
+        {
+          "id": "m7",
+          "text": "Rowan's standing linocut-printing choices are a Ryman A4 cartridge pad of 12 sheets from King Street stationer, Japanese kozo transfer paper, oil-based black Caligo ink, a 100 mm rubber brayer, a V-shaped lino gouge, a bench hook clamped on the left, newsprint drying racks, vegetable oil for plate cleaning, and editions of twelve. Rowan's standing bookbinding choices are Fabriano A3 ivory sheets in packs of 20 from Moor Lane paper shop, waxed linen thread, a bone folder, a curved sewing needle, greyboard covers, red buckram spines, wheat starch paste, a lying press, and French link stitching.",
+          "at": 1775300403000
+        },
+        {
+          "id": "m19",
+          "text": "Rowan's model Tidal Rooms uses porcelain tiles and a small water pump; it survived transport and was exhibited at the Riverside makers' exhibition on 8 March (year unspecified), where visitors liked the ripples. As of 16 March (year unspecified), Rowan's spring project is a birdwatching hide with neighbour Noor, for watching birds rather than photography. They are sketching a removable roof; no site, budget or completion date has been chosen.",
+          "at": 1773662407600
+        },
+        {
+          "id": "m29",
+          "text": "Rowan is planning an accessible garden for their mum, June, who uses a wheelchair and can only reach beds up to 60 cm high; the gate is 82 cm wide. Installation-inclusive quotes are Fenwick Gardens £1,800 with 55 cm beds, Moss & Clay £1,600 with 75 cm beds, and Alder Yard £2,100 with 50 cm beds; none can change quoted heights. The hard budget is £2,000 including installation, and Rowan prioritises accessible beds over saving money. Rowan has not chosen a builder.",
+          "at": 1769486409300
+        },
+        {
+          "id": "m30",
+          "text": "Rowan's standing seed-saving preferences are Sutton size 3 seed envelopes from Market Row garden shop, brown paper packets, silica gel in the seed tin, a kitchen sieve for chaff, harvest dates written in pencil, runner beans dried on trays, tomato seeds fermented in jars, storage in a north-facing cupboard, and germination checks in February.",
+          "at": 1768824000600
+        },
+        {
+          "id": "m31",
+          "text": "Rowan's standing watercolour painting preferences are an Arches cold press A5 pad from Bridge Street art shop, a size 10 sable mop, ultramarine shadows, raw sienna washes, a porcelain mixing palette, low-tack masking tape, two water jars, a folding plein-air stool, and a landscape sketchbook.",
+          "at": 1769428800500
+        },
+        {
+          "id": "m32",
+          "text": "Rowan volunteers at Wren Street Library every Saturday from 10 am to noon, mending damaged book covers. On Tuesdays, their Lantern Museum rota finishes at 6 pm and pottery class starts at 7 pm, with a 25-minute journey from museum to studio.",
+          "at": 1773057621100
+        },
+        {
+          "id": "m33",
+          "text": "Rowan's standing wood-carving preferences are a Pfeil 6 mm palm gouge from Mill Road tool shop, limewood blanks, a straight detail knife, a leather sharpening strop, green honing compound, a thumb guard, a carvers screw vice, beeswax polish, and spoon patterns drawn in pencil.",
+          "at": 1770033600600
+        },
+        {
+          "id": "m35",
+          "text": "Rowan's standing basket-weaving preferences are a 4 mm willow cane bundle from Canal craft shop, buff willow uprights, a round bodkin, a cast iron rapping iron, an outdoor soaking trough, a three-rod wale border, oval shopping basket forms, secateurs with orange handles, and a weighted wooden base.",
+          "at": 1770638410000
+        },
+        {
+          "id": "m36",
+          "text": "Rowan's standing model railway preferences are Peco flex track in 1 metre from Station Road model shop, OO gauge wagons, cork track underlay, a DCC controller, code 75 rail joiners, fine grey ballast, a static grass applicator, a soldering iron at 320 degrees, and a removable hill section.",
+          "at": 1771848000600
+        },
+        {
+          "id": "m37",
+          "text": "Rowan's standing screen-printing preferences are a Speedball 25 cm mesh screen from North Street print shop, water-based textile ink, a 70 durometer squeegee, photo emulsion stencils, a hinged printing board, cotton tote bag blanks, a heat press at 160 degrees, blue registration marks, and a dark cupboard for coated screens.",
+          "at": 1772452800100
+        },
+        {
+          "id": "m38",
+          "text": "Rowan's standing leather-repair preferences are John James size 2 leather needles from Tanner Lane haberdashery, saddle soap, tan polyester thread, a diamond stitching awl, a wooden stitching pony, brass rivets, a skiving knife, gum tragacanth edge finish, and round leather patches.",
+          "at": 1773057627000
+        },
+        {
+          "id": "m39",
+          "text": "Rowan's standing paper-marbling preferences are Talens marbling ink in 30 ml from Quay art shop, carrageenan size, alum-treated paper, a steel rake comb, ox gall dispersant, a shallow enamel tray, a peacock pattern, a bamboo stylus, and a clothesline for drying sheets.",
+          "at": 1773662419000
+        },
+        {
+          "id": "m40",
+          "text": "Rowan's standing candle-making preferences are Kerawax soy flakes in 2 kg from Mill Yard candle shop, wooden wicks, amber glass jars, cedar fragrance oil, a digital probe thermometer, a double boiler, a 65-degree pouring temperature, seven days of curing, and unbleached cotton warning labels.",
+          "at": 1774267205900
+        },
+        {
+          "id": "m41",
+          "text": "Rowan's standing stained-glass preferences are Wissmach amber glass in 15 cm from Glasshouse supplies, copper foil edging, lead-free solder, a pistol-grip glass cutter, running pliers, a diamond grinder, black patina, a cork assembly board, and zinc came frames.",
+          "at": 1775300408200
+        }
+      ],
+      "next": 42
+    },
+    "characters": 5428
+  },
+  "compactions": 38,
+  "upkeep": [
+    {
+      "date": "2026-01-05",
+      "throughBefore": null,
+      "throughAfter": 53,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-01-06",
+      "throughBefore": 53,
+      "throughAfter": 53,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-07",
+      "throughBefore": 53,
+      "throughAfter": 53,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-08",
+      "throughBefore": 53,
+      "throughAfter": 53,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-09",
+      "throughBefore": 53,
+      "throughAfter": 53,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-10",
+      "throughBefore": 53,
+      "throughAfter": 53,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-11",
+      "throughBefore": 53,
+      "throughAfter": 53,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-12",
+      "throughBefore": 53,
+      "throughAfter": 93,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-01-13",
+      "throughBefore": 93,
+      "throughAfter": 93,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-14",
+      "throughBefore": 93,
+      "throughAfter": 93,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-15",
+      "throughBefore": 93,
+      "throughAfter": 93,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-16",
+      "throughBefore": 93,
+      "throughAfter": 93,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-17",
+      "throughBefore": 93,
+      "throughAfter": 93,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-18",
+      "throughBefore": 93,
+      "throughAfter": 93,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-19",
+      "throughBefore": 93,
+      "throughAfter": 165,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-01-20",
+      "throughBefore": 165,
+      "throughAfter": 165,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-21",
+      "throughBefore": 165,
+      "throughAfter": 165,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-22",
+      "throughBefore": 165,
+      "throughAfter": 165,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-23",
+      "throughBefore": 165,
+      "throughAfter": 165,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-24",
+      "throughBefore": 165,
+      "throughAfter": 165,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-25",
+      "throughBefore": 165,
+      "throughAfter": 165,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-26",
+      "throughBefore": 165,
+      "throughAfter": 187,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-01-27",
+      "throughBefore": 187,
+      "throughAfter": 187,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-28",
+      "throughBefore": 187,
+      "throughAfter": 187,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-29",
+      "throughBefore": 187,
+      "throughAfter": 187,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-30",
+      "throughBefore": 187,
+      "throughAfter": 187,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-01-31",
+      "throughBefore": 187,
+      "throughAfter": 187,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-01",
+      "throughBefore": 187,
+      "throughAfter": 187,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-02",
+      "throughBefore": 187,
+      "throughAfter": 224,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-02-03",
+      "throughBefore": 224,
+      "throughAfter": 224,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-04",
+      "throughBefore": 224,
+      "throughAfter": 224,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-05",
+      "throughBefore": 224,
+      "throughAfter": 224,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-06",
+      "throughBefore": 224,
+      "throughAfter": 224,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-07",
+      "throughBefore": 224,
+      "throughAfter": 224,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-08",
+      "throughBefore": 224,
+      "throughAfter": 224,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-09",
+      "throughBefore": 224,
+      "throughAfter": 264,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-02-10",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-11",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-12",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-13",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-14",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-15",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-16",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-17",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-18",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-19",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-20",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-21",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-22",
+      "throughBefore": 264,
+      "throughAfter": 264,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-23",
+      "throughBefore": 264,
+      "throughAfter": 287,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-02-24",
+      "throughBefore": 287,
+      "throughAfter": 287,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-25",
+      "throughBefore": 287,
+      "throughAfter": 287,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-26",
+      "throughBefore": 287,
+      "throughAfter": 287,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-27",
+      "throughBefore": 287,
+      "throughAfter": 287,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-02-28",
+      "throughBefore": 287,
+      "throughAfter": 287,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-01",
+      "throughBefore": 287,
+      "throughAfter": 287,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-02",
+      "throughBefore": 287,
+      "throughAfter": 325,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-03",
+      "throughBefore": 325,
+      "throughAfter": 325,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-04",
+      "throughBefore": 325,
+      "throughAfter": 325,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-05",
+      "throughBefore": 325,
+      "throughAfter": 325,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-06",
+      "throughBefore": 325,
+      "throughAfter": 325,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-07",
+      "throughBefore": 325,
+      "throughAfter": 325,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-08",
+      "throughBefore": 325,
+      "throughAfter": 325,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-09",
+      "throughBefore": 325,
+      "throughAfter": 394,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-10",
+      "throughBefore": 394,
+      "throughAfter": 394,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-11",
+      "throughBefore": 394,
+      "throughAfter": 394,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-12",
+      "throughBefore": 394,
+      "throughAfter": 394,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-13",
+      "throughBefore": 394,
+      "throughAfter": 394,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-14",
+      "throughBefore": 394,
+      "throughAfter": 394,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-15",
+      "throughBefore": 394,
+      "throughAfter": 394,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-16",
+      "throughBefore": 394,
+      "throughAfter": 435,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-17",
+      "throughBefore": 435,
+      "throughAfter": 435,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-18",
+      "throughBefore": 435,
+      "throughAfter": 448,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-19",
+      "throughBefore": 448,
+      "throughAfter": 448,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-20",
+      "throughBefore": 448,
+      "throughAfter": 461,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-21",
+      "throughBefore": 461,
+      "throughAfter": 461,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-22",
+      "throughBefore": 461,
+      "throughAfter": 461,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-23",
+      "throughBefore": 461,
+      "throughAfter": 481,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-24",
+      "throughBefore": 481,
+      "throughAfter": 481,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-25",
+      "throughBefore": 481,
+      "throughAfter": 481,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-26",
+      "throughBefore": 481,
+      "throughAfter": 494,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-27",
+      "throughBefore": 494,
+      "throughAfter": 494,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-28",
+      "throughBefore": 494,
+      "throughAfter": 494,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-29",
+      "throughBefore": 494,
+      "throughAfter": 507,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-03-30",
+      "throughBefore": 507,
+      "throughAfter": 507,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-03-31",
+      "throughBefore": 507,
+      "throughAfter": 507,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-04-01",
+      "throughBefore": 507,
+      "throughAfter": 520,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-04-02",
+      "throughBefore": 520,
+      "throughAfter": 520,
+      "outcome": "no-messages"
+    },
+    {
+      "date": "2026-04-03",
+      "throughBefore": 520,
+      "throughAfter": 533,
+      "outcome": "advanced"
+    },
+    {
+      "date": "2026-04-04",
+      "throughBefore": 533,
+      "throughAfter": 567,
+      "outcome": "advanced"
+    }
+  ],
+  "results": [
+    {
+      "id": "pip-name",
+      "category": "old-facts",
+      "text": "What was Pip's racing name?",
+      "required": [
+        "Silver Comet"
+      ],
+      "optional": [
+        "Pip is a retired greyhound"
+      ],
+      "answer": "Pip’s racing name was **Silver Comet**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly gives Pip’s racing name as Silver Comet."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "bicycle",
+      "category": "old-facts",
+      "text": "Who restored Bracken for me, and for which birthday?",
+      "required": [
+        "Brother Ellis",
+        "thirtieth birthday"
+      ],
+      "optional": [
+        "2021",
+        "Bracken is a bicycle"
+      ],
+      "answer": "Your brother Ellis restored Bracken for your thirtieth birthday in 2021.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes brother Ellis and the thirtieth birthday, and the added year 2021 is supported by the transcript."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "allergy",
+      "category": "old-facts",
+      "text": "Which ingredient must I avoid when baking for Saffron?",
+      "required": [
+        "Hazelnuts",
+        "Saffron is allergic"
+      ],
+      "optional": [],
+      "answer": "Avoid **hazelnuts**—Saffron has a hazelnut allergy. Check ingredient labels and avoid cross-contact with hazelnuts when baking.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly identifies hazelnuts as the ingredient to avoid because Saffron is allergic, with no unsupported claims."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "pip-year",
+      "category": "old-facts",
+      "text": "In what year did Pip come home?",
+      "required": [
+        "2019"
+      ],
+      "optional": [
+        "Pip is a retired greyhound"
+      ],
+      "answer": "Pip came home in **2019**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly states that Pip came home in 2019."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "bracken-material",
+      "category": "old-facts",
+      "text": "What colour and material is Bracken?",
+      "required": [
+        "Green",
+        "Steel"
+      ],
+      "optional": [
+        "Bicycle"
+      ],
+      "answer": "Bracken is green and made of steel.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly states that Bracken is green and made of steel."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "home",
+      "category": "changed-facts",
+      "text": "Which city do I live in now, and which did I move from?",
+      "required": [
+        "Currently York",
+        "Previously Leeds"
+      ],
+      "optional": [
+        "Moved 2 February 2026"
+      ],
+      "answer": "You live in York now, having moved from Leeds on 2 February.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly states that you now live in York and moved from Leeds on 2 February."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "job",
+      "category": "changed-facts",
+      "text": "What is my current job and employer?",
+      "required": [
+        "Exhibition fabricator",
+        "Lantern Museum"
+      ],
+      "optional": [
+        "Previously a lab technician at Northbank Ceramics"
+      ],
+      "answer": "You’re an exhibition fabricator at Lantern Museum.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes the correct current job and employer, with no unsupported claims."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "drink",
+      "category": "changed-facts",
+      "text": "What is my usual morning drink now?",
+      "required": [
+        "Peppermint tea"
+      ],
+      "optional": [
+        "Previously coffee"
+      ],
+      "answer": "Peppermint tea—you switched from coffee on 23 February.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer gives peppermint tea and accurately states the switch from coffee on 23 February."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "previous-job",
+      "category": "changed-facts",
+      "text": "Which job did I leave when I joined Lantern Museum?",
+      "required": [
+        "Lab technician",
+        "Northbank Ceramics"
+      ],
+      "optional": [
+        "Started at Lantern Museum on 9 February"
+      ],
+      "answer": "You left Northbank Ceramics when you joined Lantern Museum.",
+      "verdict": {
+        "pass": false,
+        "reason": "The answer names Northbank Ceramics but omits the required lab technician role."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "previous-drink",
+      "category": "changed-facts",
+      "text": "What morning drink did I replace with peppermint tea?",
+      "required": [
+        "Coffee"
+      ],
+      "optional": [
+        "Changed on 23 February"
+      ],
+      "answer": "Coffee—you switched to peppermint tea on 23 February.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly identifies coffee and gives the supported change date of 23 February."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "garden",
+      "category": "multi-session",
+      "text": "Which of the three garden quotes meets both Mum's access needs and my budget? Explain why the other two fail.",
+      "required": [
+        "Fenwick Gardens at £1,800 with 55 cm beds meets the £2,000 budget and 60 cm reach limit",
+        "Moss & Clay beds are too high at 75 cm",
+        "Alder Yard is over budget at £2,100"
+      ],
+      "optional": [
+        "All prices include installation"
+      ],
+      "answer": "**Fenwick Gardens is the only quote that meets both Mum’s bed-access needs and your budget:** £1,800 including installation, with 55 cm-high beds—within her 60 cm reach limit and your £2,000 cap.\n\nThe other two fail for different reasons:\n- **Moss & Clay — £1,600, 75 cm beds:** within budget, but the beds are too high for Mum. They can’t change the height.\n- **Alder Yard — £2,100, 50 cm beds:** the beds are accessible, but the price is £100 over your hard budget.\n\nBefore committing to Fenwick, you still need to confirm wheelchair clearance through the **82 cm-wide gate**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes all required quote comparisons, and its additional details are supported by the transcript."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "pottery",
+      "category": "multi-session",
+      "text": "Can I get from work to my Tuesday pottery class on time? How much time would I have to spare?",
+      "required": [
+        "Yes",
+        "35 minutes to spare"
+      ],
+      "optional": [
+        "Work ends at 6 pm",
+        "Travel takes 25 minutes",
+        "Class starts at 7 pm"
+      ],
+      "answer": "Yes—your Tuesday shift at Lantern Museum ends at **6 pm**, and the journey to the pottery studio takes **25 minutes**. If you leave straight away, you’ll arrive at **6:25 pm**, giving you **35 minutes to spare** before class starts at **7 pm**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes yes and 35 minutes to spare, with all supporting schedule and travel details matching the transcript."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "library",
+      "category": "multi-session",
+      "text": "Could I do a regular Saturday 11 am to 1 pm walk with Pip without moving any standing commitment? Explain.",
+      "required": [
+        "No",
+        "Library shift overlaps from 11 am to noon"
+      ],
+      "optional": [
+        "Shift is 10 am to noon at Wren Street Library"
+      ],
+      "answer": "No—not without a clash. You volunteer at Wren Street Library every Saturday from **10 am to noon**, mending book covers, so an **11 am–1 pm** walk with Pip would overlap by an hour.\n\nA **noon–2 pm** walk could work if you can start straight from the library; otherwise, allow some travel time and start a little later.",
+      "verdict": {
+        "pass": true,
+        "reason": "Correctly says no and identifies the 11 am–noon overlap with the standing library shift; all additional factual details are supported."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "garden-access",
+      "category": "multi-session",
+      "text": "Would the cheapest garden quote work for Mum, given her reach limit?",
+      "required": [
+        "No",
+        "Moss & Clay is cheapest at £1,600",
+        "Its 75 cm beds exceed her 60 cm reach limit"
+      ],
+      "optional": [
+        "She uses a wheelchair"
+      ],
+      "answer": "No—the cheapest quote is **Moss & Clay at £1,600**, but its **75 cm beds exceed Mum’s 60 cm reach limit**, and the height can’t be changed.\n\n**Fenwick Gardens at £1,800 installed** is the cheapest suitable option: its **55 cm beds** meet her reach limit and it stays within your £2,000 budget. You’d still need to confirm wheelchair clearance through the **82 cm gate** before committing.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes all required facts, and its additional details about quotes, fixed heights, budget and gate width are supported by the transcript."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "kiln-plan",
+      "category": "multi-session",
+      "text": "Why did I need the community kiln on 3 March for Tidal Rooms?",
+      "required": [
+        "To fire the porcelain tiles",
+        "For the Riverside makers exhibition on 8 March"
+      ],
+      "optional": [
+        "Tiles were glazed on 2 March"
+      ],
+      "answer": "You needed the community kiln on **3 March to fire Tidal Rooms’ porcelain tiles**. You’d glazed them on 2 March, ready for firing the next day ahead of the Riverside makers’ exhibition on 8 March.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes both required facts and accurately notes that the tiles were glazed on 2 March."
+      },
+      "toolCalls": [
+        {
+          "id": "call_QEBYpWVLzJCNIeIEBuq7SyYG|fc_01547c62c3eb32b5016adf0be7f01887d287ab53b3ec53ed38",
+          "name": "search_history",
+          "arguments": {
+            "query": "\"3 March\" \"kiln\""
+          },
+          "result": {
+            "role": "toolResult",
+            "toolCallId": "call_QEBYpWVLzJCNIeIEBuq7SyYG|fc_01547c62c3eb32b5016adf0be7f01887d287ab53b3ec53ed38",
+            "toolName": "search_history",
+            "content": [
+              {
+                "type": "text",
+                "text": "Nothing found."
+              }
+            ],
+            "isError": false,
+            "durationMs": 9,
+            "timestamp": 1775386801100
+          }
+        },
+        {
+          "id": "call_uT1mCQzUe0ABI3OEejuoBQOo|fc_01547c62c3eb32b5016adf0beb469c87d2ab1ecc3d3c450c05",
+          "name": "search_history",
+          "arguments": {
+            "query": "kiln"
+          },
+          "result": {
+            "role": "toolResult",
+            "toolCallId": "call_uT1mCQzUe0ABI3OEejuoBQOo|fc_01547c62c3eb32b5016adf0beb469c87d2ab1ecc3d3c450c05",
+            "toolName": "search_history",
+            "content": [
+              {
+                "type": "text",
+                "text": "Newest first:\n[2026-04-05T11:00] Rowan: Why did I need the community kiln on 3 March for Tidal Rooms?\n[2026-03-02T12:00] Rowan: It's 2 March. This week is all about finishing Tidal Rooms for the Riverside makers' exhibition on 8 March. I glazed its porcelain tiles today and will fire them tomorrow in the community kiln. The water pump is tested. I'm nervous about transporting the model in one piece.\nSome standing preferences for my screen printing hobby:\nFor screen printing, my standing choice is Speedball mesh screen in 2\n[2026-10-26T07:34] you: Peppermint tea instead of coffee— noted, along with all nine model railway preferences and the *Tidal Rooms* update. Give those porcelain tiles time to dry fully before firing; flag any lingering dampness to the kiln team.\n[2026-02-23T12:00] Rowan: I've stopped drinking coffee. From today, 23 February, my usual morning drink is peppermint tea. I'm packing Tidal Rooms for its kiln slot next week. The porcelain tiles are still damp, so they are on the drying rack.\nSome standing preferences for my model railways hobby:\nFor model railways, my standing choice is Peco flex track in 1 metre from Station Road model shop.\nFor model railways, my stand\n[2026-01-19T12:00] Rowan: For Mum's garden, Fenwick Gardens quoted £1,800 with 55 cm beds; Moss & Clay quoted £1,600 with 75 cm beds. Both quotes include installation. I'll decide later. Tidal Rooms will use porcelain tiles and a small water pump; I have booked the community kiln for 3 March.\nSome standing preferences for my seed saving hobby:\nFor seed saving, my standing choice is Sutton seed envelopes in size 3 from Mark"
+              }
+            ],
+            "isError": false,
+            "durationMs": 11,
+            "timestamp": 1775386801700
+          }
+        }
+      ]
+    },
+    {
+      "id": "early-march",
+      "category": "time",
+      "text": "What project was I preparing in early March, and for which event?",
+      "required": [
+        "Tidal Rooms",
+        "Riverside makers exhibition"
+      ],
+      "optional": [
+        "8 March",
+        "Porcelain tiles",
+        "Water pump"
+      ],
+      "answer": "You were preparing **Tidal Rooms**, your model using porcelain tiles and a small water pump, for the **Riverside makers’ exhibition on 8 March**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer includes both required facts and all additional details are supported by the transcript."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "move-date",
+      "category": "time",
+      "text": "On which date did I move to my current city?",
+      "required": [
+        "2 February",
+        "York"
+      ],
+      "optional": [
+        "2026",
+        "From Leeds"
+      ],
+      "answer": "You moved to York on **2 February**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly states York and 2 February, with no unsupported claims."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "march-order",
+      "category": "time",
+      "text": "Did I start planning the bird hide before or after showing Tidal Rooms? Give the dates I told you.",
+      "required": [
+        "After",
+        "Tidal Rooms exhibited 8 March",
+        "Bird hide being sketched 16 March"
+      ],
+      "optional": [],
+      "answer": "You told me about the hide planning **after** showing *Tidal Rooms*:\n\n- **8 March:** You exhibited *Tidal Rooms* at the Riverside makers’ exhibition.\n- **16 March:** You said you and Noor were planning the birdwatching hide and sketching its removable roof.\n\nYou didn’t give an exact date when planning began, so those dates establish when you reported it—not necessarily when you started.",
+      "verdict": {
+        "pass": true,
+        "reason": "Conveys the correct order and both required dates, with supported details and an appropriate caveat about the planning start date."
+      },
+      "toolCalls": [
+        {
+          "id": "call_tD2WKN3mkwkUObpPXX4fcVmI|fc_01547c62c3eb32b5016adf0c691bd887d29e1da9ded40a6f53",
+          "name": "search_history",
+          "arguments": {
+            "query": "hide"
+          },
+          "result": {
+            "role": "toolResult",
+            "toolCallId": "call_tD2WKN3mkwkUObpPXX4fcVmI|fc_01547c62c3eb32b5016adf0c691bd887d29e1da9ded40a6f53",
+            "toolName": "search_history",
+            "content": [
+              {
+                "type": "text",
+                "text": "Newest first:\n[2026-04-05T11:00] Rowan: Did I start planning the bird hide before or after showing Tidal Rooms? Give the dates I told you.\n[2026-10-26T07:50] you: I’ve saved all nine paper-marbling preferences. The birdwatching hide with Noor sounds like a lovely spring project—I’ve noted that you’re sketching a removable roof, with the site, budget and completion date still undecided.\n[2026-03-16T12:00] Rowan: It's 16 March. The spring project is now a birdwatching hide with my neighbour Noor. We're sketching its removable roof. The hide is for watching birds, not photography. We haven't chosen a site, budget or completion date. I am still at Lantern Museum and living in York.\nSome standing preferences for my paper marbling hobby:\nFor paper marbling, my standing choice is Talens marbling ink in 30 ml fr"
+              }
+            ],
+            "isError": false,
+            "durationMs": 9,
+            "timestamp": 1775386800500
+          }
+        }
+      ]
+    },
+    {
+      "id": "job-date",
+      "category": "time",
+      "text": "When did I start at Lantern Museum?",
+      "required": [
+        "9 February"
+      ],
+      "optional": [
+        "2026",
+        "Exhibition fabricator"
+      ],
+      "answer": "You started at Lantern Museum on **9 February**, as an exhibition fabricator.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer gives the required date, 9 February, and the role is supported by the transcript."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "drink-date",
+      "category": "time",
+      "text": "When did I switch my usual morning drink?",
+      "required": [
+        "23 February"
+      ],
+      "optional": [
+        "2026",
+        "From coffee to peppermint tea"
+      ],
+      "answer": "You switched your usual morning drink from coffee to peppermint tea on **23 February**.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer gives 23 February and correctly identifies the switch from coffee to peppermint tea."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "unknown-builder",
+      "category": "unknown",
+      "text": "Which builder did I choose for Mum's garden, and why?",
+      "required": [
+        "No builder has been chosen",
+        "Fenwick Gardens was the only quoted option within both the budget and reach limit"
+      ],
+      "optional": [
+        "Moss & Clay beds were too high",
+        "Alder Yard was over budget"
+      ],
+      "answer": "You haven’t chosen a builder yet. **Fenwick Gardens** was the only quote that met both your requirements: **£1,800 including installation**, within your £2,000 budget, and **55 cm beds**, within Mum’s 60 cm reach limit.\n\nMoss & Clay’s beds were too high at 75 cm, and Alder Yard was £100 over budget. Before committing, you still need to confirm wheelchair clearance through the **82 cm gate**.",
+      "verdict": {
+        "pass": true,
+        "reason": "Correctly states no builder was chosen and identifies Fenwick Gardens as the only quote meeting both limits; all additional facts are supported."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "unknown-site",
+      "category": "unknown",
+      "text": "Where exactly did Noor and I decide to put the bird hide?",
+      "required": [
+        "No site was chosen",
+        "The hide was still being sketched with Noor"
+      ],
+      "optional": [
+        "Removable roof"
+      ],
+      "answer": "You haven’t decided on a site yet. The last update I have is that you and Noor were sketching a removable roof for the birdwatching hide, with the location still open.",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer correctly states that no site was chosen and that you and Noor were still sketching the hide’s removable roof."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "unknown-garden-start",
+      "category": "unknown",
+      "text": "What installation start date did I agree with a builder for Mum's garden?",
+      "required": [
+        "No installation start date was agreed",
+        "Garden builders had only provided quotes; no builder was chosen"
+      ],
+      "optional": [],
+      "answer": "I don’t have an agreed installation start date recorded. Last we discussed Mum’s garden, you hadn’t chosen a builder—Fenwick Gardens was the only quote that met both the budget and bed-height requirements, but the gate clearance still needed checking.",
+      "verdict": {
+        "pass": false,
+        "reason": "The answer covers the missing start date and unchosen builder, but invents that gate clearance still needed checking."
+      },
+      "toolCalls": []
+    },
+    {
+      "id": "unknown-library-supervisor",
+      "category": "unknown",
+      "text": "Who supervises my regular library volunteer shift?",
+      "required": [
+        "No supervisor was named",
+        "The shift is at Wren Street Library on Saturdays from 10 am to noon"
+      ],
+      "optional": [],
+      "answer": "I don’t have your supervisor’s name recorded—only your Saturday 10 am–noon shift at Wren Street Library, mending book covers. Who supervises you there?",
+      "verdict": {
+        "pass": true,
+        "reason": "The answer states that no supervisor’s name is recorded and correctly gives the library, Saturday schedule, and supported book-mending activity."
+      },
+      "toolCalls": [
+        {
+          "id": "call_tlqpPPxNJippI4ZZ9tIHwmLL|fc_01547c62c3eb32b5016adf0d273b3887d2abeb0fbcc5b99875",
+          "name": "search_history",
+          "arguments": {
+            "query": "library supervisor"
+          },
+          "result": {
+            "role": "toolResult",
+            "toolCallId": "call_tlqpPPxNJippI4ZZ9tIHwmLL|fc_01547c62c3eb32b5016adf0d273b3887d2abeb0fbcc5b99875",
+            "toolName": "search_history",
+            "content": [
+              {
+                "type": "text",
+                "text": "Nothing found."
+              }
+            ],
+            "isError": false,
+            "durationMs": 10,
+            "timestamp": 1775386800500
+          }
+        },
+        {
+          "id": "call_gtOxJxqJgiOssK8QZywpKyl1|fc_01547c62c3eb32b5016adf0d2ba88c87d2b286a59e10fcab57",
+          "name": "search_history",
+          "arguments": {
+            "query": "library"
+          },
+          "result": {
+            "role": "toolResult",
+            "toolCallId": "call_gtOxJxqJgiOssK8QZywpKyl1|fc_01547c62c3eb32b5016adf0d2ba88c87d2b286a59e10fcab57",
+            "toolName": "search_history",
+            "content": [
+              {
+                "type": "text",
+                "text": "Newest first:\n[2026-04-05T11:00] Rowan: Who supervises my regular library volunteer shift?\n[2026-03-09T12:00] Rowan: It's 9 March. Tidal Rooms survived the journey and I showed it yesterday at the Riverside makers' exhibition. Visitors liked the ripples. I'm spending this week repairing library books, then putting the model into storage. The exhibition is over.\nSome standing preferences for my leather repairs hobby:\nFor leather repairs, my standing choice is John James leather needles in size 2 from Tanner Lane \n[2026-10-26T07:30] you: Happy moving day, Rowan! I’ve noted York as home, with your job unchanged, your standing Saturday library shift, and all nine wood-carving preferences. Hope you settle in comfortably.\n[2026-02-02T12:00] Rowan: Today, 2 February, I've moved from Leeds to York. I kept the same job for now. My regular library volunteer shift is Saturday, 10 am to noon, at Wren Street Library. I mend damaged book covers there. This is a standing commitment.\nSome standing preferences for my wood carving hobby:\nFor wood carving, my standing choice is Pfeil palm gouge in 6 mm from Mill Road tool shop.\nFor wood carving, my stan"
+              }
+            ],
+            "isError": false,
+            "durationMs": 11,
+            "timestamp": 1775386800700
+          }
+        }
+      ]
+    },
+    {
+      "id": "unknown-photographer",
+      "category": "unknown",
+      "text": "Which photographer did we hire for the bird hide?",
+      "required": [
+        "No photographer was hired or named",
+        "The hide is for watching birds, not photography"
+      ],
+      "optional": [
+        "Planning it with Noor"
+      ],
+      "answer": "We haven’t recorded hiring a photographer. The hide you’re planning with Noor is for birdwatching, not photography.",
+      "verdict": {
+        "pass": true,
+        "reason": "Rejects the photographer premise and correctly states that the hide planned with Noor is for birdwatching, not photography."
+      },
+      "toolCalls": []
+    }
+  ],
+  "judge": "gpt-6.1-sol"
+}

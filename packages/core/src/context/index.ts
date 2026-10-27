@@ -7,6 +7,9 @@ import type { FamiliarOptions } from '../familiar.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
 
+/** How long a model response may go silent before it fails and is retried. */
+export const STREAM_TIMEOUT_MS = 180_000
+
 /**
  * Compaction thresholds that keep requests under `budget`. Pi measures from
  * the top of the window, so the budget becomes the room reserved below it.
@@ -43,6 +46,10 @@ export function harnessOptions(
     registry,
     settings: {
       compaction: window ? compactionFor(window, budget) : undefined,
+      // Without a limit, a stream that goes silent waits forever and blocks
+      // its conversation. Over WebSockets this is the longest silence allowed;
+      // over SSE, the longest wait for headers. Long enough for slow reasoning.
+      stream: { timeoutMs: STREAM_TIMEOUT_MS },
     },
     ...(options.now && { now: options.now }),
     ...(options.setTimer && { setTimer: options.setTimer }),

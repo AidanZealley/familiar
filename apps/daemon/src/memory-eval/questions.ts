@@ -4,7 +4,7 @@ import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar, type Familiar } from '@familiar/core'
 import { nextUpkeep, saidBy } from '@familiar/core/diagnostics'
 import { createClock } from './clock.ts'
-import { judgeAnswer, type Verdict } from './judge.ts'
+import { judgeAnswer, transcriptOf, type Verdict } from './judge.ts'
 import {
   categories,
   type Category,
@@ -12,6 +12,13 @@ import {
   type Scenario,
 } from './scenario.ts'
 import { entriesAfter } from './storage.ts'
+import {
+  addTokens,
+  noTokens,
+  subtractTokens,
+  tokensOf,
+  type Tokens,
+} from './tokens.ts'
 import { waitForIdle } from './wait.ts'
 
 const context = BACKGROUND_CONTEXT
@@ -19,6 +26,8 @@ const context = BACKGROUND_CONTEXT
 export type QuestionResult = Question & {
   answer: string
   verdict: Verdict
+  /** Answering includes its compactions; the copy's replay spend is excluded. */
+  tokens: { answer: Tokens; judge: Tokens }
   toolCalls: { id: string; name: string; arguments: unknown; result: unknown }[]
 }
 
@@ -36,20 +45,29 @@ export async function askQuestions({
   createQuestionStorage,
   models,
   model,
+  judge,
   scenario,
   progress,
   questionConcurrency,
   now,
+  previous = [],
+  onAnswer = () => {},
 }: {
   createQuestionStorage: (id: string) => Promise<Storage>
   models: Models
   model: ModelRef
+  judge: ModelRef
   scenario: Scenario
   progress: (message: string) => void
   questionConcurrency: number
+  /** Results kept from an earlier attempt; these questions aren't asked again. */
+  previous?: QuestionResult[]
+  /** Called as each question is graded, so a stopped run keeps its answers. */
+  onAnswer?: (result: QuestionResult) => void
   now: number
 }): Promise<QuestionResult[]> {
   const options = { models, model, contextBudget: 4_000 }
+  const transcript = transcriptOf(scenario)
   const results = new Array<QuestionResult>(scenario.questions.length)
   let next = 0
   const workers = await Promise.allSettled(
@@ -60,6 +78,11 @@ export async function askQuestions({
           const index = next++
           if (index >= results.length) return
           const question = scenario.questions[index]
+          const kept = previous.find((result) => result.id === question.id)
+          if (kept) {
+            results[index] = kept
+            continue
+          }
           const questionStorage = await createQuestionStorage(question.id)
           const questionClock = createClock(now)
           let reopened: Familiar
@@ -76,6 +99,7 @@ export async function askQuestions({
           }
           try {
             const prior = (await entriesAfter(questionStorage)).at(-1)?.id
+            const replayed = tokensOf(await reopened.usage())
             await reopened.send({
               author: 'Rowan',
               text: question.text,
@@ -93,8 +117,18 @@ export async function askQuestions({
               .map((entry) => saidBy(entry)?.text)
               .filter(Boolean)
               .at(-1)
-            if (!answer)
-              throw new Error(`No assistant answer for ${question.id}.`)
+            if (!answer) {
+              // Say why, such as a usage limit, rather than only that it failed.
+              const failure = entries
+                .flatMap((entry) => entry.model ?? [])
+                .findLast(
+                  (message) =>
+                    message.role === 'assistant' && message.errorMessage,
+                )
+              throw new Error(
+                `No assistant answer for ${question.id}${failure?.role === 'assistant' ? `: ${failure.errorMessage}` : '.'}`,
+              )
+            }
             const messages = entries.flatMap((entry) => entry.model ?? [])
             const toolCalls = messages.flatMap((message) =>
               message.role === 'assistant'
@@ -116,8 +150,25 @@ export async function askQuestions({
                   )
                 : [],
             )
-            const verdict = await judgeAnswer(models, model, question, answer)
-            results[index] = { ...question, answer, verdict, toolCalls }
+            const answered = subtractTokens(
+              tokensOf(await reopened.usage()),
+              replayed,
+            )
+            const { verdict, usage } = await judgeAnswer(
+              models,
+              judge,
+              transcript,
+              question,
+              answer,
+            )
+            results[index] = {
+              ...question,
+              answer,
+              verdict,
+              tokens: { answer: answered, judge: addTokens(noTokens, usage) },
+              toolCalls,
+            }
+            onAnswer(results[index])
             progress(`${question.id}: ${verdict.pass ? 'pass' : 'fail'}`)
           } finally {
             await reopened.dismiss()

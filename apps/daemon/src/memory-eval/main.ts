@@ -1,53 +1,65 @@
 import { execFileSync } from 'node:child_process'
 import {
+  appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { createModels } from '@earendil-works/pi-ai/models'
-import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { fileCredentialStore } from '../credentials.ts'
-import { summarize } from './questions.ts'
+import { evalDataDir, judge, model, models } from './models.ts'
+import { summarize, type QuestionResult } from './questions.ts'
 import { runMemoryEval } from './run.ts'
-import { memoryScenario } from './scenario.ts'
-
-// This command deliberately never imports config.ts: that module creates the
-// owner's data directory as a side effect when FAMILIAR_DATA_DIR is unset.
-const evalDataDir = resolve(homedir(), '.local/share/familiar-eval')
-const authPath = join(evalDataDir, 'auth.json')
-const credentials = fileCredentialStore(authPath)
-if (!existsSync(authPath) || !(await credentials.read('openai'))) {
-  throw new Error(
-    `Memory eval needs its own ChatGPT sign-in. Run FAMILIAR_DATA_DIR=${evalDataDir} pnpm sign-in first.`,
-  )
-}
-const models = createModels({ credentials })
-models.setProvider(openaiProvider())
-const model = {
-  provider: 'openai',
-  modelId: process.env.FAMILIAR_MODEL ?? 'gpt-6.1-sol',
-}
-if (!models.getModel(model.provider, model.modelId))
-  throw new Error(
-    `Unknown eval model ${model.modelId}; set FAMILIAR_MODEL to a catalog model.`,
-  )
+import { rowanV3 } from './scenario.ts'
 
 const commit = execFileSync('git', ['describe', '--always', '--dirty'], {
   encoding: 'utf8',
   cwd: resolve(import.meta.dirname, '../../../..'),
 }).trim()
 
+// The replay is kept in a run directory, never deleted, so a run stopped
+// partway (a usage limit, a crash) continues with --resume <directory>.
+const resumeAt = process.argv.indexOf('--resume')
+const resume = resumeAt !== -1
+const runDirectory = resume
+  ? resolve(process.argv[resumeAt + 1] ?? '')
+  : join(
+      evalDataDir,
+      'runs',
+      `${new Date().toISOString().slice(0, 19)}-${commit}`,
+    )
+const replayPath = join(runDirectory, 'familiar.sqlite')
+if (resume && !existsSync(replayPath))
+  throw new Error(`No replay to resume in ${runDirectory}.`)
+mkdirSync(runDirectory, { recursive: true })
+console.log(`Replay storage: ${runDirectory}`)
+
+// Graded answers are kept as they come in, so a resumed run asks only the
+// questions it hasn't graded.
+const answersPath = join(runDirectory, 'answers.jsonl')
+const previous: QuestionResult[] =
+  resume && existsSync(answersPath)
+    ? readFileSync(answersPath, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as QuestionResult)
+    : []
+if (previous.length) console.log(`Keeping ${previous.length} graded answers.`)
+
+// Question copies are throwaway.
 const temporary = mkdtempSync(join(tmpdir(), 'familiar-memory-eval-'))
 try {
-  const replayPath = join(temporary, 'familiar.sqlite')
   const result = await runMemoryEval({
     storage: await openNodeSqliteStorage(replayPath),
+    resume,
+    previous,
+    onAnswer: (result) =>
+      appendFileSync(answersPath, `${JSON.stringify(result)}\n`),
     createQuestionStorage: async (id) => {
       const path = join(temporary, `question-${id}.sqlite`)
       if (existsSync(`${replayPath}-wal`))
@@ -59,13 +71,22 @@ try {
     },
     models,
     model,
-    scenario: memoryScenario,
+    judge,
+    scenario: rowanV3,
     progress: console.log,
   })
   console.log('\nCategory        Passed  Total')
   for (const { category, passed, total } of summarize(result.results)) {
     console.log(
       `${category.padEnd(15)} ${String(passed).padStart(6)}  ${String(total).padStart(5)}`,
+    )
+  }
+  console.log('\nTokens          Input  Cached  Output')
+  for (const [phase, tokens] of Object.entries(result.tokens)) {
+    console.log(
+      `${phase.padEnd(9)} ${[tokens.input, tokens.cacheRead, tokens.output]
+        .map((count) => count.toLocaleString('en-GB').padStart(10))
+        .join('')}`,
     )
   }
   const date = new Date().toISOString().slice(0, 10)

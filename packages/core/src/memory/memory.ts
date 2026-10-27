@@ -1,26 +1,29 @@
-import { reviseFact, forgetFact } from './edits.ts'
-import { Type } from '@earendil-works/pi-ai'
+import { Type, type Message } from '@earendil-works/pi-ai'
 import {
   defineDoc,
   defineExtension,
   defineTool,
+  GenerationTask,
+  hook,
+  ROOT_CONVERSATION_ID,
   section,
   type ToolExecutionApi,
 } from '@earendil-works/pi-durable'
 import type { Context } from '@earendil-works/chord'
-
-export type Fact = {
-  id: string
-  text: string
-  /** When it was last written, in ms since the epoch. */
-  at: number
-}
-
-export type MemoryState = {
-  facts: Fact[]
-  /** Next fact number. Facts are `m1`, `m2`, …: short enough for the model to quote. */
-  next: number
-}
+import {
+  coreFacts,
+  forgetFact,
+  listFacts,
+  markRecalled,
+  migrateV1,
+  setImportance,
+  rememberFact,
+  retireFact,
+  reviseFact,
+  type MemoryState,
+} from './facts.ts'
+import { Episodes, type EpisodesState } from './episodes.ts'
+import { searchMemory } from './recall.ts'
 
 /**
  * What Familiar knows about the people it helps. One document for the whole
@@ -29,25 +32,17 @@ export type MemoryState = {
  */
 export const Memory = defineDoc<MemoryState>({
   kind: 'familiar.memory',
-  version: 1,
+  version: 2,
   scope: 'session',
   initial: () => ({ facts: [], next: 1 }),
+  migrate: (value, fromVersion) => {
+    if (fromVersion !== 1)
+      throw new Error(`No migration from memory version ${fromVersion}.`)
+    return migrateV1(value as Parameters<typeof migrateV1>[0])
+  },
   // Store a full copy now and then, so reading it never replays a long history.
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
 })
-
-/** Past this, the model is asked to merge facts rather than add more. */
-export const SOFT_LIMIT = 4_000
-/**
- * `remember` never takes memory past this, so the prompt stays small however
- * long Familiar runs. Revising and forgetting always work, so the model can
- * always get back under.
- */
-export const HARD_LIMIT = 6_000
-
-/** The facts as the model sees them; the limits measure this. */
-const list = (facts: Fact[]) =>
-  facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
 
 const text = (value: string) => ({
   output: [{ type: 'text' as const, text: value }],
@@ -63,67 +58,200 @@ const remember = defineTool({
   name: 'remember',
   description:
     'Save a lasting fact about the person or people you help: a preference, a decision, something about their life or plans. One fact per call, written so it makes sense on its own months from now. Not for things that only matter in this exchange.',
-  parameters: Type.Object({ text: Type.String() }),
+  parameters: Type.Object({
+    text: Type.String(),
+    importance: Type.Integer({
+      minimum: 1,
+      maximum: 5,
+      description:
+        '5: identity, close people, health, standing commitments. 3: ordinary lasting facts. 1: minor preferences and details.',
+    }),
+  }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const fact = { id: `m${memory.next}`, text: args.text, at: api.now() }
-      const size = list([...memory.facts, fact]).length
-      if (size > HARD_LIMIT)
-        throw new Error(
-          `Memory is full (${size} of ${HARD_LIMIT} characters with this fact), so nothing was saved. Merge related facts with revise_memory or forget stale ones, then save this again.`,
-        )
-      memory.next++
-      memory.facts.push(fact)
-      return `Saved as ${fact.id}.`
+      const fact = rememberFact(memory, args.text, args.importance, api.now())
+      return fact.core
+        ? `Saved as ${fact.id}.`
+        : `Saved as ${fact.id}. It is kept outside what you always see, because it is minor or that space is full.`
     }),
 })
 
 const revise = defineTool({
   name: 'revise_memory',
   description:
-    'Rewrite a saved fact that has changed or was wrong, or merge related facts into one (revise one, forget the rest).',
-  parameters: Type.Object({ id: Type.String(), text: Type.String() }),
+    'Save a new version of a fact that has changed or was wrong. The old version is kept as history. To merge facts that say the same thing, revise one and list the others in merge.',
+  parameters: Type.Object({
+    id: Type.String(),
+    text: Type.String(),
+    merge: Type.Optional(
+      Type.Array(Type.String(), {
+        description: 'Other facts the new text also covers.',
+      }),
+    ),
+  }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const revised = reviseFact(memory, args.id, args.text, api.now())
-      if (revised === memory) throw new Error(`No fact ${args.id}.`)
-      Object.assign(memory, revised)
-      return `Revised ${args.id}.`
+      const fact = reviseFact(memory, args.id, args.text, api.now(), args.merge)
+      return `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now history.`
+    }),
+})
+
+const retire = defineTool({
+  name: 'retire',
+  description:
+    'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history. Not for duplicates: merge those with revise_memory.',
+  parameters: Type.Object({ id: Type.String() }),
+  execute: (args, api, context) =>
+    change(api, context, (memory) => {
+      retireFact(memory, args.id, api.now())
+      return `Retired ${args.id}.`
     }),
 })
 
 const forget = defineTool({
   name: 'forget',
   description:
-    'Delete a saved fact that is no longer true or that the person asks you to forget.',
+    'Delete a fact outright, leaving no history. Only when someone asks you to forget it; use retire for things that stopped being true.',
   parameters: Type.Object({ id: Type.String() }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const forgotten = forgetFact(memory, args.id)
-      if (forgotten === memory) throw new Error(`No fact ${args.id}.`)
-      Object.assign(memory, forgotten)
+      forgetFact(memory, args.id)
       return `Forgot ${args.id}.`
     }),
 })
 
+const recall = defineTool({
+  name: 'recall',
+  description:
+    "Search everything you remember beyond what you always see: facts, including ones no longer current, each with when it was true, and episodes, summaries of what happened each day, week and month. Use it when you need something you don't see, such as an earlier address, a detail of an old project or what was going on at a time.",
+  parameters: Type.Object({ query: Type.String() }),
+  execute: (args, api, context) =>
+    api
+      .commit(async (tx) => {
+        const memory = await tx.doc(Memory)
+        const episodes = await tx.doc(Episodes)
+        const { found, used } = searchMemory(
+          memory,
+          episodes,
+          args.query,
+          api.now(),
+          {
+            limit: 12,
+            tokens: 3_000,
+          },
+        )
+        // Only conversation counts as use; upkeep's searches are housekeeping.
+        if (api.conversationId === ROOT_CONVERSATION_ID)
+          markRecalled(memory, used, api.now())
+        return found.length
+          ? found.map(({ line }) => line).join('\n')
+          : 'Nothing found.'
+      }, context)
+      .then(text),
+})
+
+const rate = defineTool({
+  name: 'set_importance',
+  description:
+    'Re-rate how much a fact matters, 1 to 5, when it has proved more or less important than first rated. It decides whether the fact stays among what you always see.',
+  parameters: Type.Object({
+    id: Type.String(),
+    importance: Type.Integer({ minimum: 1, maximum: 5 }),
+  }),
+  execute: (args, api, context) =>
+    change(api, context, (memory) => {
+      setImportance(memory, args.id, args.importance)
+      return `${args.id} is now importance ${args.importance}.`
+    }),
+})
+
 const render = (memory: MemoryState | undefined) => {
-  const listed = list(memory?.facts ?? [])
-  const guidance =
-    listed.length > SOFT_LIMIT
-      ? '\nMemory is getting long: merge or forget facts before adding new ones.'
-      : ''
-  return `What you remember. Use it without announcing it. Save new lasting facts with remember, and keep these current with revise_memory and forget.
-${listed || '(nothing yet)'}${guidance}`
+  const listed = memory ? listFacts(coreFacts(memory)) : ''
+  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use forget only when someone asks you to forget something. Use recall to search what you remember beyond this.
+${listed || '(nothing yet)'}`
 }
 
-/** Long-term memory: a fact list the model sees on every request, and tools to keep it. */
-export const MemoryExtension = defineExtension({
-  name: 'familiar.memory',
-  tools: [remember, revise, forget],
-  sections: [
-    // Changes only when memory does, so the provider's prompt cache holds between.
-    section('memory', async (input, context) =>
-      render(await input.read.snapshot(Memory, context)),
-    ),
-  ],
-})
+const textOf = (message: Message) =>
+  typeof message.content === 'string'
+    ? message.content
+    : message.content
+        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+        .join('\n')
+
+/** What to recall for one request, rendered once so retries can't differ. */
+const recallFor = (
+  memory: MemoryState,
+  episodes: EpisodesState | undefined,
+  query: string,
+  now: number,
+) => {
+  const { found, used } = searchMemory(memory, episodes, query, now)
+  return {
+    facts: used,
+    note: found.length
+      ? `Recalled from memory for the latest message; use it only if relevant:\n${found.map(({ line }) => line).join('\n')}`
+      : null,
+  }
+}
+
+export type MemoryExtensionOptions = {
+  /** Familiar's clock. */
+  now: () => number
+  /** Records that facts reached the model. Hooks can't commit, so the owner of the Harness does. */
+  recalled: (ids: string[]) => Promise<void>
+}
+
+/**
+ * Long-term memory: core facts the model sees on every request, facts
+ * recalled for the latest message, and tools to keep the store.
+ */
+export const createMemoryExtension = (options: MemoryExtensionOptions) =>
+  defineExtension({
+    name: 'familiar.memory',
+    tools: [remember, revise, retire, rate, recall, forget],
+    sections: [
+      // Changes only when core does, so the provider's prompt cache holds between.
+      section('memory', async (input, context) =>
+        render(await input.read.snapshot(Memory, context)),
+      ),
+    ],
+    hooks: [
+      hook(GenerationTask, {
+        // Recalled facts go after everything else, for this request only:
+        // the prompt, the stored transcript and every earlier message stay
+        // byte for byte the same, so the provider's prompt cache holds.
+        beforeRequest: async ({ messages }, api, context) => {
+          const latest = messages.findLast((message) => message.role === 'user')
+          const memory = await api.snapshot(Memory, context)
+          if (!latest || !memory) return
+          // A retried request shows exactly what the first attempt showed,
+          // even if memory changed in between.
+          const recalled = await api.memo(
+            'familiar.recall',
+            recallFor(
+              memory,
+              await api.snapshot(Episodes, context),
+              textOf(latest),
+              options.now(),
+            ),
+            context,
+          )
+          // Only conversation counts as use; upkeep's recall is housekeeping.
+          // Recorded even when nothing is shown: core facts the message
+          // matched were used too.
+          if (
+            recalled.facts.length &&
+            api.conversationId === ROOT_CONVERSATION_ID
+          )
+            await options.recalled(recalled.facts)
+          if (recalled.note === null) return
+          const note: Message = {
+            role: 'user',
+            content: recalled.note,
+            timestamp: messages.at(-1)!.timestamp,
+          }
+          return { messages: [...messages, note] }
+        },
+      }),
+    ],
+  })

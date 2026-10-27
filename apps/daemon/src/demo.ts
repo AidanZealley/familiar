@@ -1,6 +1,6 @@
 // A Familiar for UI work: a scripted model, fresh in-memory storage on every
-// start and no credentials, so it runs beside the real service without
-// touching its data directory. Usage: pnpm dev:demo
+// start, seeded with sample memory, and no credentials, so it runs beside the
+// real service without touching its data directory. Usage: pnpm dev:demo
 //
 // Deliberately imports nothing from config.ts, which creates the real data
 // directory on import.
@@ -25,6 +25,12 @@ import {
   MemoryStorage,
 } from '@earendil-works/pi-durable'
 import { summonFamiliar } from '@familiar/core'
+import {
+  SEED_MESSAGE,
+  seedEpisodes,
+  seedMemory,
+  seedPinned,
+} from './demo/seed.ts'
 import { serveFamiliar } from './serve.ts'
 
 const markdownReply = `## A quick tour
@@ -78,7 +84,10 @@ const scenarios: Record<string, () => AssistantMessage> = {
     ),
   memory: () =>
     fauxAssistantMessage(
-      fauxToolCall('remember', { text: 'Prefers tea to coffee' }),
+      fauxToolCall('remember', {
+        text: 'Prefers tea to coffee',
+        importance: 3,
+      }),
       { stopReason: 'toolUse' },
     ),
   slow: () => fauxAssistantMessage(slowReply),
@@ -109,6 +118,10 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
           stopReason: 'error',
           errorMessage: 'Your input exceeds the context window of this model',
         })
+  if (toolName.startsWith('seed_'))
+    return fauxAssistantMessage(
+      'Saved. The **Memory** pages show it all: facts, how they changed and a year of episodes.',
+    )
   return fauxAssistantMessage(
     toolName === 'remember'
       ? "Noted. I'll keep that in mind; you can check or correct it on the **Memory** page."
@@ -119,8 +132,12 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
 function reply(context: TranscriptContext) {
   if (isSummaryRequest(context))
     return fauxAssistantMessage('The person tried the demo scenarios.')
-  // A changed memory section adds a system message after a tool result.
-  const last = context.messages.findLast((message) => message.role !== 'system')
+  // A changed memory section adds a system message after a tool result, and
+  // recall adds a note after the latest message; neither is the person.
+  const messages = context.messages.filter(
+    (message) => message.role !== 'system' && !isRecallNote(message),
+  )
+  const last = messages.at(-1)
   if (last?.role === 'toolResult')
     return afterTool(
       last.toolName,
@@ -131,9 +148,15 @@ function reply(context: TranscriptContext) {
         ),
       ),
     )
-  const text = textOf(
-    context.messages.findLast((message) => message.role === 'user')?.content,
-  ).toLowerCase()
+  const latest = textOf(
+    messages.findLast((message) => message.role === 'user')?.content,
+  )
+  if (latest === SEED_MESSAGE)
+    return fauxAssistantMessage(
+      [fauxToolCall('seed_memory', {}), fauxToolCall('seed_episodes', {})],
+      { stopReason: 'toolUse' },
+    )
+  const text = latest.toLowerCase()
   const word = Object.keys(scenarios).find((word) =>
     new RegExp(`\\b${word}\\b`).test(text),
   )
@@ -147,6 +170,10 @@ const isSummaryRequest = (context: TranscriptContext) =>
       message.role === 'system' &&
       textOf(message.content).includes('context summarization assistant'),
   )
+
+const isRecallNote = (message: TranscriptContext['messages'][number]) =>
+  message.role === 'user' &&
+  textOf(message.content).startsWith('Recalled from memory')
 
 const textOf = (content: string | readonly object[] | undefined) =>
   typeof content === 'string'
@@ -186,9 +213,23 @@ const familiar = await summonFamiliar({
   models,
   model: { provider: 'faux', modelId: 'faux-1' },
   extensions: [
-    defineExtension({ name: 'familiar.demo', tools: [fillContext] }),
+    defineExtension({
+      name: 'familiar.demo',
+      tools: [fillContext, seedMemory, seedEpisodes],
+    }),
   ],
 })
+
+// Start with a year of sample memory, so the Memory pages have something to
+// show. Pinning goes through the owner's API, which rebalances core.
+await familiar.send({ author: 'demo', text: SEED_MESSAGE, requestId: 'seed' })
+await familiar.idle()
+const watch = await familiar.memory.watch()
+await watch.stop()
+for (const text of seedPinned) {
+  const fact = watch.value?.facts.find((fact) => fact.text === text)
+  if (fact) await familiar.memory.setPinned(fact.id, true)
+}
 
 serveFamiliar(familiar, {
   host: '127.0.0.1',

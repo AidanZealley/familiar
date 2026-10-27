@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as MemoryIndexRouteImport } from './routes/memory/index'
+import { Route as MemoryEpisodesRouteImport } from './routes/memory/episodes'
+import { Route as MemoryHistoryRouteImport } from './routes/memory/history'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +25,61 @@ const MemoryRoute = MemoryRouteImport.update({
   path: '/memory',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MemoryIndexRoute = MemoryIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MemoryRoute,
+} as any)
+const MemoryEpisodesRoute = MemoryEpisodesRouteImport.update({
+  id: '/episodes',
+  path: '/episodes',
+  getParentRoute: () => MemoryRoute,
+} as any)
+const MemoryHistoryRoute = MemoryHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => MemoryRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/memory': typeof MemoryRoute
+  '/memory': typeof MemoryRouteWithChildren
+  '/memory/episodes': typeof MemoryEpisodesRoute
+  '/memory/history': typeof MemoryHistoryRoute
+  '/memory/': typeof MemoryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/memory': typeof MemoryRoute
+  '/memory/episodes': typeof MemoryEpisodesRoute
+  '/memory/history': typeof MemoryHistoryRoute
+  '/memory': typeof MemoryIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/memory': typeof MemoryRoute
+  '/memory': typeof MemoryRouteWithChildren
+  '/memory/episodes': typeof MemoryEpisodesRoute
+  '/memory/history': typeof MemoryHistoryRoute
+  '/memory/': typeof MemoryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/memory'
+  fullPaths:
+    '/' | '/memory' | '/memory/episodes' | '/memory/history' | '/memory/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/memory'
-  id: '__root__' | '/' | '/memory'
+  to: '/' | '/memory/episodes' | '/memory/history' | '/memory'
+  id:
+    | '__root__'
+    | '/'
+    | '/memory'
+    | '/memory/episodes'
+    | '/memory/history'
+    | '/memory/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  MemoryRoute: typeof MemoryRoute
+  MemoryRoute: typeof MemoryRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +98,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/memory/': {
+      id: '/memory/'
+      path: '/'
+      fullPath: '/memory/'
+      preLoaderRoute: typeof MemoryIndexRouteImport
+      parentRoute: typeof MemoryRoute
+    }
+    '/memory/episodes': {
+      id: '/memory/episodes'
+      path: '/episodes'
+      fullPath: '/memory/episodes'
+      preLoaderRoute: typeof MemoryEpisodesRouteImport
+      parentRoute: typeof MemoryRoute
+    }
+    '/memory/history': {
+      id: '/memory/history'
+      path: '/history'
+      fullPath: '/memory/history'
+      preLoaderRoute: typeof MemoryHistoryRouteImport
+      parentRoute: typeof MemoryRoute
+    }
   }
 }
 
+interface MemoryRouteChildren {
+  MemoryEpisodesRoute: typeof MemoryEpisodesRoute
+  MemoryHistoryRoute: typeof MemoryHistoryRoute
+  MemoryIndexRoute: typeof MemoryIndexRoute
+}
+
+const MemoryRouteChildren: MemoryRouteChildren = {
+  MemoryEpisodesRoute: MemoryEpisodesRoute,
+  MemoryHistoryRoute: MemoryHistoryRoute,
+  MemoryIndexRoute: MemoryIndexRoute,
+}
+
+const MemoryRouteWithChildren =
+  MemoryRoute._addFileChildren(MemoryRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  MemoryRoute: MemoryRoute,
+  MemoryRoute: MemoryRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

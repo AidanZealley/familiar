@@ -22,9 +22,10 @@ export const Reply = ({ reply }: ReplyProps) => {
           <ToolCall key={call.id} call={call} />
         ))}
         {reply.text && (
-          // Full width, so tables and code blocks don't shrink to their text.
-          <Bubble variant="ghost" className="w-full">
-            <BubbleContent className="w-full">
+          // A quieter bubble than the person's. It can use the full width,
+          // so tables and code blocks aren't squeezed to 80%.
+          <Bubble variant="muted" className="max-w-full">
+            <BubbleContent className="min-w-0">
               <ReplyText text={reply.text} streaming={reply.streaming} />
             </BubbleContent>
           </Bubble>
