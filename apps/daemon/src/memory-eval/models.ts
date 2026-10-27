@@ -7,7 +7,7 @@ import { fileCredentialStore } from '../credentials.ts'
 
 // This command deliberately never imports config.ts: that module creates the
 // owner's data directory as a side effect when FAMILIAR_DATA_DIR is unset.
-const evalDataDir = resolve(homedir(), '.local/share/familiar-eval')
+export const evalDataDir = resolve(homedir(), '.local/share/familiar-eval')
 const authPath = join(evalDataDir, 'auth.json')
 const credentials = fileCredentialStore(authPath)
 if (!existsSync(authPath) || !(await credentials.read('openai'))) {

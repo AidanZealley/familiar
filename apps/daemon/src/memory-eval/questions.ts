@@ -50,6 +50,8 @@ export async function askQuestions({
   progress,
   questionConcurrency,
   now,
+  previous = [],
+  onAnswer = () => {},
 }: {
   createQuestionStorage: (id: string) => Promise<Storage>
   models: Models
@@ -58,6 +60,10 @@ export async function askQuestions({
   scenario: Scenario
   progress: (message: string) => void
   questionConcurrency: number
+  /** Results kept from an earlier attempt; these questions aren't asked again. */
+  previous?: QuestionResult[]
+  /** Called as each question is graded, so a stopped run keeps its answers. */
+  onAnswer?: (result: QuestionResult) => void
   now: number
 }): Promise<QuestionResult[]> {
   const options = { models, model, contextBudget: 4_000 }
@@ -72,6 +78,11 @@ export async function askQuestions({
           const index = next++
           if (index >= results.length) return
           const question = scenario.questions[index]
+          const kept = previous.find((result) => result.id === question.id)
+          if (kept) {
+            results[index] = kept
+            continue
+          }
           const questionStorage = await createQuestionStorage(question.id)
           const questionClock = createClock(now)
           let reopened: Familiar
@@ -106,8 +117,18 @@ export async function askQuestions({
               .map((entry) => saidBy(entry)?.text)
               .filter(Boolean)
               .at(-1)
-            if (!answer)
-              throw new Error(`No assistant answer for ${question.id}.`)
+            if (!answer) {
+              // Say why, such as a usage limit, rather than only that it failed.
+              const failure = entries
+                .flatMap((entry) => entry.model ?? [])
+                .findLast(
+                  (message) =>
+                    message.role === 'assistant' && message.errorMessage,
+                )
+              throw new Error(
+                `No assistant answer for ${question.id}${failure?.role === 'assistant' ? `: ${failure.errorMessage}` : '.'}`,
+              )
+            }
             const messages = entries.flatMap((entry) => entry.model ?? [])
             const toolCalls = messages.flatMap((message) =>
               message.role === 'assistant'
@@ -147,6 +168,7 @@ export async function askQuestions({
               tokens: { answer: answered, judge: addTokens(noTokens, usage) },
               toolCalls,
             }
+            onAnswer(results[index])
             progress(`${question.id}: ${verdict.pass ? 'pass' : 'fail'}`)
           } finally {
             await reopened.dismiss()

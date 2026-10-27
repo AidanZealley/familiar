@@ -1,4 +1,5 @@
 import type { Models, Usage } from '@earendil-works/pi-ai'
+import { retryAssistantCall } from '@earendil-works/pi-ai/utils/retry'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type { Question, Scenario } from './scenario.ts'
 
@@ -42,25 +43,32 @@ export async function judgeAnswer(
 ): Promise<{ verdict: Verdict; usage: Usage }> {
   const resolved = models.getModel(model.provider, model.modelId)
   if (!resolved) throw new Error(`Unknown judge model ${model.modelId}.`)
-  const reply = await models.completeSimple(
-    resolved,
-    {
-      systemPrompt: judgePrompt,
-      messages: [
+  // Retries what pi-ai classes as transient, such as an overloaded server:
+  // one failed grade would otherwise end the whole run.
+  const reply = await retryAssistantCall(
+    () =>
+      models.completeSimple(
+        resolved,
         {
-          role: 'user',
-          content: JSON.stringify({
-            transcript,
-            question: question.text,
-            required: question.required,
-            optional: question.optional,
-            answer,
-          }),
-          timestamp: Date.now(),
+          systemPrompt: judgePrompt,
+          messages: [
+            {
+              role: 'user',
+              content: JSON.stringify({
+                transcript,
+                question: question.text,
+                required: question.required,
+                optional: question.optional,
+                answer,
+              }),
+              timestamp: Date.now(),
+            },
+          ],
         },
-      ],
-    },
-    { reasoning: 'minimal', maxTokens: 512 },
+        { reasoning: 'minimal', maxTokens: 512 },
+      ),
+    { enabled: true, maxRetries: 4, baseDelayMs: 5_000 },
+    undefined,
   )
   if (reply.stopReason !== 'stop')
     throw new Error(`Judge failed: ${reply.errorMessage ?? reply.stopReason}`)
