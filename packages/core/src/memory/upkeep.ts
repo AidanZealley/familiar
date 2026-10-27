@@ -214,21 +214,21 @@ export function createUpkeep(options: UpkeepOptions) {
     }) as const
 
   /**
-   * Submits `input` to the upkeep conversation and returns the reply, or
-   * undefined after reporting a failure. The request ID finds the same
+   * Submits `input` to an upkeep conversation and returns the reply, or
+   * undefined after reporting a failure. `requestId` finds the same
    * submission if a restart reruns the phase.
    */
   const ask = async (
     runtime: TaskRuntime<null, UpkeepStep, null, object>,
     conversation: ConversationId,
-    reset: EntryId,
+    requestId: string,
     input: string,
     context: Context,
   ) => {
     const handle = await runtime.conversation(conversation, context)
     if (!handle) throw new Error(`No upkeep conversation ${conversation}.`)
     const submission = await handle.submit(
-      { type: 'input', content: input, requestId: `upkeep:${reset}` },
+      { type: 'input', content: input, requestId },
       context,
     )
     const settled = await submission.wait(context)
@@ -297,17 +297,33 @@ export function createUpkeep(options: UpkeepOptions) {
       consolidate: async (task, runtime, context) => {
         const { conversation, reset, newest, input, start, end } =
           task.state.checkpoint
-        const episode = await ask(runtime, conversation, reset, input, context)
+        let episode = await ask(
+          runtime,
+          conversation,
+          `upkeep:${reset}`,
+          input,
+          context,
+        )
+        // The review may end with its edits and no episode. Ask once more in
+        // the same conversation, so the edits stand and aren't made twice.
+        if (episode === '')
+          episode = await ask(
+            runtime,
+            conversation,
+            `upkeep:${reset}:episode`,
+            'Now reply with only the episode for that conversation.',
+            context,
+          )
         await runtime.commit(async (tx) => {
-          // A failed or empty pass leaves these messages for the next one,
-          // so no day goes without its episode.
-          if (!episode) {
-            if (episode === '')
-              runtime.report(new Error('Memory upkeep wrote no episode.'))
-            return sleep(runtime.now())
-          }
+          // A failed pass (the model couldn't be reached) leaves these
+          // messages for the next one.
+          if (episode === undefined) return sleep(runtime.now())
+          // Still nothing: move on rather than review the same messages
+          // again every night, growing each pass.
+          if (!episode)
+            runtime.report(new Error('Memory upkeep wrote no episode.'))
           ;(await tx.doc(Upkeep)).through = newest
-          if (start && end)
+          if (episode && start && end)
             addEpisode(await tx.doc(Episodes), {
               span: 'day',
               start,
@@ -353,7 +369,13 @@ export function createUpkeep(options: UpkeepOptions) {
       summarize: async (task, runtime, context) => {
         const { conversation, reset, span, start, end, input } =
           task.state.checkpoint
-        const episode = await ask(runtime, conversation, reset, input, context)
+        const episode = await ask(
+          runtime,
+          conversation,
+          `upkeep:${reset}`,
+          input,
+          context,
+        )
         await runtime.commit(async (tx) => {
           // Stop rather than retry in a loop; the next pass tries again.
           if (!episode) return sleep(runtime.now())

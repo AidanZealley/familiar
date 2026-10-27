@@ -23,7 +23,7 @@ import {
   type MemoryState,
 } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
-import { factIds, searchMemory } from './recall.ts'
+import { searchMemory } from './recall.ts'
 
 /**
  * What Familiar knows about the people it helps. One document for the whole
@@ -130,13 +130,19 @@ const recall = defineTool({
       .commit(async (tx) => {
         const memory = await tx.doc(Memory)
         const episodes = await tx.doc(Episodes)
-        const found = searchMemory(memory, episodes, args.query, api.now(), {
-          limit: 12,
-          tokens: 3_000,
-        })
+        const { found, used } = searchMemory(
+          memory,
+          episodes,
+          args.query,
+          api.now(),
+          {
+            limit: 12,
+            tokens: 3_000,
+          },
+        )
         // Only conversation counts as use; upkeep's searches are housekeeping.
         if (api.conversationId === ROOT_CONVERSATION_ID)
-          markRecalled(memory, factIds(found), api.now())
+          markRecalled(memory, used, api.now())
         return found.length
           ? found.map(({ line }) => line).join('\n')
           : 'Nothing found.'
@@ -179,9 +185,9 @@ const recallFor = (
   query: string,
   now: number,
 ) => {
-  const found = searchMemory(memory, episodes, query, now)
+  const { found, used } = searchMemory(memory, episodes, query, now)
   return {
-    facts: factIds(found),
+    facts: used,
     note: found.length
       ? `Recalled from memory for the latest message; use it only if relevant:\n${found.map(({ line }) => line).join('\n')}`
       : null,
@@ -230,13 +236,15 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
             ),
             context,
           )
-          if (recalled.note === null) return
           // Only conversation counts as use; upkeep's recall is housekeeping.
+          // Recorded even when nothing is shown: core facts the message
+          // matched were used too.
           if (
             recalled.facts.length &&
             api.conversationId === ROOT_CONVERSATION_ID
           )
             await options.recalled(recalled.facts)
+          if (recalled.note === null) return
           const note: Message = {
             role: 'user',
             content: recalled.note,

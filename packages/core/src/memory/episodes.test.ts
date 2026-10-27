@@ -1,6 +1,8 @@
 import { expect, test } from 'vitest'
+import { upkeepDay } from './upkeep.ts'
 import {
   addEpisode,
+  datesIn,
   dueRollup,
   localDay,
   type EpisodesState,
@@ -90,5 +92,60 @@ test('an episode spanning a new week or month counts towards both', () => {
     ['week', '2026-01-26', 1],
     ['week', '2026-02-02', 1],
     ['month', '2026-02-01', 1],
+  ])
+})
+
+test('a message names dates only explicitly, and past ones without a year', () => {
+  const today = '2026-02-09'
+  const ranges = (text: string) =>
+    datesIn(text, today).map(({ start, end }) => `${start}..${end}`)
+  expect(ranges('What was going on in March?')).toEqual([
+    '2025-03-01..2025-03-31',
+  ])
+  expect(ranges('What happened on 4 March?')).toEqual([
+    '2025-03-04..2025-03-04',
+  ])
+  expect(ranges('And on February 3rd, 2026?')).toEqual([
+    '2026-02-03..2026-02-03',
+  ])
+  expect(ranges('What about early January?')).toEqual([
+    '2026-01-01..2026-01-31',
+  ])
+  expect(ranges('Remind me what I said on 2025-12-01')).toEqual([
+    '2025-12-01..2025-12-01',
+  ])
+  expect(ranges('June 2024 was busy')).toEqual(['2024-06-01..2024-06-30'])
+  // Words that only look like dates.
+  for (const text of [
+    'It may rain later',
+    'May I ask something?',
+    'A perfect match',
+    'Chess club on Friday at 3',
+    'I march to my own drum',
+    'Book it for 31 February',
+  ])
+    expect(ranges(text), text).toEqual([])
+})
+
+test('a message at 1am belongs to the day before', () => {
+  expect(upkeepDay(new Date(2026, 1, 10, 1, 0).getTime())).toBe('2026-02-09')
+  expect(upkeepDay(new Date(2026, 1, 10, 4, 0).getTime())).toBe('2026-02-10')
+})
+
+test('an episode spanning several weeks counts towards each of them', () => {
+  // 31 days of failed passes, then one episode for the lot.
+  const state = stateOf(['day', '2026-03-02', '2026-04-01'])
+  const weeks: string[] = []
+  for (let rollup = dueRollup(state, '2026-05-01'); rollup;) {
+    if (rollup.span === 'week') weeks.push(rollup.start)
+    addEpisode(state, { ...rollup, text: '', at: 0 })
+    rollup = dueRollup(state, '2026-05-01')
+  }
+  expect(weeks).toEqual([
+    '2026-03-02',
+    '2026-03-09',
+    '2026-03-16',
+    '2026-03-23',
+    '2026-03-30',
   ])
 })

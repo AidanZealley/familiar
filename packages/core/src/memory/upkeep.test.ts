@@ -6,7 +6,13 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
-import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
+import {
+  createRegistry,
+  defineDoc,
+  Harness,
+  MemoryStorage,
+  type SetTimer,
+} from '@earendil-works/pi-durable'
 import { nextUpkeep } from './upkeep.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../familiar.ts'
@@ -43,11 +49,10 @@ const start = new Date(2026, 9, 25, 12).getTime() // local noon
 const firstPass = nextUpkeep(start)
 const secondPass = nextUpkeep(firstPass)
 
-async function setup() {
+async function setup(storage = new ReopenableStorage()) {
   const faux = fauxProvider()
   const models = createModels()
   models.setProvider(faux.provider)
-  const storage = new ReopenableStorage()
   const clock = fakeClock(start)
 
   const open = async () => {
@@ -452,27 +457,91 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   expect(note).toContain('e1 (day of 2026-10-25)')
 })
 
-test('an empty reply writes no episode and leaves the messages for the next pass', async () => {
+test('a review that ends without its episode is asked for it once more', async () => {
   const { faux, say, episodes, passAt } = await setup()
   faux.setResponses([fauxAssistantMessage('Lovely.')])
   await say('I spent today planting bulbs with Noor.')
 
-  faux.setResponses([fauxAssistantMessage('')])
-  await passAt(firstPass, secondPass)
-  expect(await episodes()).toEqual([])
-
-  let input = ''
+  let followUp = ''
   faux.setResponses([
+    fauxAssistantMessage(''),
     (context) => {
-      input = inputOf(context)
+      followUp = inputOf(context)
       return fauxAssistantMessage('Rowan planted bulbs with Noor.')
     },
     fauxAssistantMessage('A week of bulbs.'),
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
-  expect(input).toContain('planting bulbs with Noor')
-  expect((await episodes()).map((episode) => episode.span)).toEqual([
-    'day',
-    'week',
+  await passAt(firstPass, secondPass)
+  expect(followUp).toBe(
+    'Now reply with only the episode for that conversation.',
+  )
+  expect((await episodes()).map(({ span, text }) => [span, text])).toEqual([
+    ['day', 'Rowan planted bulbs with Noor.'],
+    ['week', 'A week of bulbs.'],
   ])
+})
+
+test('a pass that still writes no episode moves on rather than repeat itself', async () => {
+  const { faux, say, episodes, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage('Lovely.')])
+  await say('I spent today planting bulbs with Noor.')
+  faux.setResponses([fauxAssistantMessage(''), fauxAssistantMessage('')])
+  await passAt(firstPass, secondPass)
+  expect(await episodes()).toEqual([])
+
+  faux.setResponses([fauxAssistantMessage('Good.')])
+  await say('I tidied the shed.')
+  let input = ''
+  faux.setResponses([
+    (context) => {
+      input = inputOf(context)
+      return fauxAssistantMessage('Rowan tidied the shed.')
+    },
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  // The next night reviews only what's new.
+  expect(input).toContain('tidied the shed')
+  expect(input).not.toContain('planting bulbs')
+})
+
+test('upkeep saved before episodes opens, gains its rollup conversation and keeps one task', async () => {
+  const storage = new ReopenableStorage()
+  const UpkeepV1 = defineDoc<{
+    conversation: null
+    task: null
+    through: number | null
+  }>({
+    kind: 'familiar.upkeep',
+    version: 1,
+    scope: 'session',
+    initial: () => ({ conversation: null, task: null, through: null }),
+    checkpointWhen: () => true,
+  })
+  const old = await Harness.open(
+    storage,
+    { models: createModels(), registry: createRegistry() },
+    context,
+  )
+  await old.commit(async (tx) => void (await tx.doc(UpkeepV1)), context)
+  await old.close(context)
+
+  const { faux, say, episodes, upkeepTasks, passAt, reopen } =
+    await setup(storage)
+  await reopen()
+  expect(await upkeepTasks()).toHaveLength(1)
+
+  faux.setResponses([fauxAssistantMessage('Lovely.')])
+  await say('I spent today planting bulbs with Noor.')
+  faux.setResponses([
+    fauxAssistantMessage('Rowan planted bulbs with Noor.'),
+    (context) => {
+      // Rollups run in the conversation the migration made room for.
+      expect(JSON.stringify(context.messages)).toContain(
+        'You write the episodes of Familiar',
+      )
+      return fauxAssistantMessage('A week of bulbs.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
 })
