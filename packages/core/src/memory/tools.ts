@@ -20,15 +20,28 @@ import { searchMemory } from './recall.ts'
 
 /** The tools the model keeps memory with. Each change goes through facts.ts's rules. */
 
-const text = (value: string) => ({
-  output: [{ type: 'text' as const, text: value }],
-})
+/**
+ * The details of a memory tool's result that saved a fact. Clients read this,
+ * not the text the model sees, to show what a reply saved.
+ */
+export type SavedDetails = { saved: string }
+
+type Result = string | { text: string; saved: string }
+
+const toResult = (result: Result) =>
+  typeof result === 'string'
+    ? { output: [{ type: 'text' as const, text: result }] }
+    : {
+        output: [{ type: 'text' as const, text: result.text }],
+        details: { saved: result.saved } satisfies SavedDetails,
+      }
 
 const change = (
   api: ToolExecutionApi,
   context: Context,
-  edit: (memory: MemoryState) => string,
-) => api.commit(async (tx) => edit(await tx.doc(Memory)), context).then(text)
+  edit: (memory: MemoryState) => Result,
+) =>
+  api.commit(async (tx) => edit(await tx.doc(Memory)), context).then(toResult)
 
 const remember = defineTool({
   name: 'remember',
@@ -46,9 +59,12 @@ const remember = defineTool({
   execute: (args, api, context) =>
     change(api, context, (memory) => {
       const fact = rememberFact(memory, args.text, args.importance, api.now())
-      return fact.core
-        ? `Saved as ${fact.id}.`
-        : `Saved as ${fact.id}. It is kept outside what you always see, because it is minor or that space is full.`
+      return {
+        saved: fact.id,
+        text: fact.core
+          ? `Saved as ${fact.id}.`
+          : `Saved as ${fact.id}. It is kept outside what you always see, because it is minor or that space is full.`,
+      }
     }),
 })
 
@@ -68,7 +84,10 @@ const revise = defineTool({
   execute: (args, api, context) =>
     change(api, context, (memory) => {
       const fact = reviseFact(memory, args.id, args.text, api.now(), args.merge)
-      return `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now history.`
+      return {
+        saved: fact.id,
+        text: `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now history.`,
+      }
     }),
 })
 
@@ -123,7 +142,7 @@ const recall = defineTool({
           ? found.map(({ line }) => line).join('\n')
           : 'Nothing found.'
       }, context)
-      .then(text),
+      .then(toResult),
 })
 
 const rate = defineTool({

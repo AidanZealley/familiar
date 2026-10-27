@@ -70,7 +70,7 @@ const sectionsOf = (context: TranscriptContext) =>
   )
 
 test('the model remembers a fact and sees it on the next request', async () => {
-  const { faux, say, memory } = await setup()
+  const { faux, familiar, say, memory } = await setup()
   let prompt: Record<string, string | null>[] = []
   faux.setResponses([
     fauxAssistantMessage(
@@ -92,6 +92,14 @@ test('the model remembers a fact and sees it on the next request', async () => {
   await say('Which package manager?')
   const latest = prompt.findLast((sections) => sections.memory)
   expect(latest?.memory).toContain('m1: Uses pnpm')
+
+  // Clients learn what was saved from the result's details, not its wording.
+  const view = await familiar.watch()
+  await view.stop()
+  const result = view.value.entries.find(
+    (entry) => entry.kind === 'pi.tool-result',
+  )
+  expect(result?.model?.[0]).toMatchObject({ details: { saved: 'm1' } })
 })
 
 test('people can revise, retire, pin and forget facts', async () => {

@@ -76,6 +76,7 @@ export type StreamEvent =
 export type SendBody = { text: string; requestId: string }
 
 export type { PinBody, ReviseBody } from './memory/http.ts'
+export type { SavedDetails } from './memory/tools.ts'
 
 export type HttpOptions = {
   /**
