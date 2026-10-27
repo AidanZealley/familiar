@@ -224,6 +224,7 @@ export function forgetFact(memory: MemoryState, id: string) {
   const index = memory.facts.findIndex((fact) => fact.id === id)
   if (index === -1) throw new FactError(`No fact ${id}.`)
   memory.facts.splice(index, 1)
+  rebalanceCore(memory)
 }
 
 /** Version 1 facts were all in the prompt, so they all start in core. */

@@ -25,7 +25,7 @@ const memoryOf = (...facts: [text: string, importance: number][]) => {
 }
 
 const ids = (memory: MemoryState, query: string) =>
-  searchMemory(memory, undefined, query, now).map(({ item }) =>
+  searchMemory(memory, undefined, query, now).found.map(({ item }) =>
     'fact' in item ? item.fact.id : item.episode.id,
   )
 
@@ -92,17 +92,28 @@ test('stays within the limit and the token budget', () => {
   )
   expect(ids(many, 'garden')).toHaveLength(RECALL_LIMIT)
 
-  // Too long for what's left: shortened to fit rather than dropped.
+  // A fact too long for what's left is skipped, never cut: half a fact can
+  // say something else.
   const long = memoryOf(
     [`Garden plan: ${'raised beds and paths '.repeat(300)}`, 2],
     ['Garden gate is 84 cm', 2],
   )
-  const found = searchMemory(long, undefined, 'garden', now)
-  expect(found.map(({ item }) => 'fact' in item && item.fact.id)).toEqual([
-    'm2',
-    'm1',
-  ])
-  expect(found[1].line).toMatch(/^m1 .*…$/)
+  expect(ids(long, 'garden')).toEqual(['m2'])
+
+  // An episode is shortened to fit rather than dropped.
+  const { found } = searchMemory(
+    memoryOf(),
+    episodesOf([
+      'month',
+      '2025-11-01',
+      '2025-11-30',
+      `Garden month: ${'planted bulbs and mended paths '.repeat(200)}`,
+    ]),
+    'garden',
+    now,
+  )
+  expect(found).toHaveLength(1)
+  expect(found[0].line).toMatch(/^e1 .*…$/)
   expect(
     found.reduce((total, { line }) => total + estimateTextTokens(line), 0),
   ).toBeLessThanOrEqual(RECALL_TOKENS)
@@ -126,7 +137,7 @@ const episodesOf = (
 }
 
 const found = (memory: MemoryState, episodes: EpisodesState, query: string) =>
-  searchMemory(memory, episodes, query, now).map(({ item }) =>
+  searchMemory(memory, episodes, query, now).found.map(({ item }) =>
     'fact' in item ? item.fact.id : item.episode.id,
   )
 
@@ -161,4 +172,44 @@ test('facts and episodes are ranked on the same scale', () => {
     'Reed Shelter is a birdwatching hide',
   ])
   expect(found(memory, episodes, 'Reed Shelter hide')).toEqual(['m1', 'e1'])
+})
+
+test('everyday words never recall episodes by date', () => {
+  // A month of day episodes and a March week, as in the review that found
+  // "may", "match" and small numbers pulling in unrelated episodes.
+  const days: [Span, string, string, string][] = Array.from(
+    { length: 31 },
+    (_, index) => {
+      const day = `2025-05-${String(index + 1).padStart(2, '0')}`
+      return ['day', day, day, 'An ordinary day of chores.']
+    },
+  )
+  const episodes = episodesOf(...days, [
+    'week',
+    '2025-03-10',
+    '2025-03-16',
+    'Repaired flood-damaged atlases.',
+  ])
+  const memory = memoryOf(
+    ['Keeps an umbrella by the door', 2],
+    ['Sam goes to chess club', 2],
+  )
+  expect(
+    found(memory, episodes, 'It may rain later, should I take an umbrella?'),
+  ).toEqual(['m1'])
+  expect(
+    found(memory, episodes, 'That is a perfect match for the sofa'),
+  ).toEqual([])
+  expect(
+    found(memory, episodes, 'Sam has a chess club on Friday at 3'),
+  ).toEqual(['m2'])
+  // An explicit date still finds its day.
+  expect(found(memory, episodes, 'What did I do on 3 May?')[0]).toBe('e3')
+})
+
+test('core facts a message matches count as used without being shown', () => {
+  const memory = memoryOf(['Pip is a retired greyhound', 5])
+  const search = searchMemory(memory, undefined, 'Is Pip a greyhound?', now)
+  expect(search.found).toEqual([])
+  expect(search.used).toEqual(['m1'])
 })

@@ -1,7 +1,8 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import MiniSearch from 'minisearch'
 import {
-  calendarLabels,
+  dateFit,
+  datesIn,
   localDay,
   type Episode,
   type EpisodesState,
@@ -22,6 +23,12 @@ export const RANKING = {
   past: 0.6,
   /** Episodes count like an ordinary fact (importance 3). */
   episode: 0.8,
+  /**
+   * Added to an episode's relevance when the message names its dates, scaled
+   * by how closely they fit. About a strong word match, so "what was going
+   * on in March?" finds March even when its summary never says "March".
+   */
+  dated: 10,
 }
 
 /** At most this many facts are recalled before each request, within about this many tokens. */
@@ -37,7 +44,7 @@ const STOP_WORDS = new Set(
   ),
 )
 
-type Searchable = { id: string; text: string; labels?: string }
+type Searchable = { id: string; text: string }
 const indexes = new WeakMap<
   readonly Fact[],
   WeakMap<readonly Episode[], MiniSearch<Searchable>>
@@ -54,9 +61,7 @@ function indexOf(facts: readonly Fact[], episodes: readonly Episode[]) {
   let index = byEpisodes.get(episodes)
   if (!index) {
     index = new MiniSearch<Searchable>({
-      // An episode's labels name its dates and months, so "what was going on
-      // in March?" finds it even when its text never says "March".
-      fields: ['text', 'labels'],
+      fields: ['text'],
       processTerm: (term) => {
         const lower = term.toLowerCase()
         // Fragments such as the "s" of "what's" match nothing meaningful,
@@ -71,14 +76,7 @@ function indexOf(facts: readonly Fact[], episodes: readonly Episode[]) {
         fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
       },
     })
-    index.addAll(facts.map(({ id, text }) => ({ id, text })))
-    index.addAll(
-      episodes.map((episode) => ({
-        id: episode.id,
-        text: episode.text,
-        labels: calendarLabels(episode),
-      })),
-    )
+    index.addAll([...facts, ...episodes].map(({ id, text }) => ({ id, text })))
     byEpisodes.set(episodes, index)
   }
   return index
@@ -87,21 +85,27 @@ function indexOf(facts: readonly Fact[], episodes: readonly Episode[]) {
 /** A fact or an episode. */
 export type Recalled = { fact: Fact } | { episode: Episode }
 
-/** A recalled item and how it is shown, shortened if it had to be to fit. */
+/** A recalled item and how it is shown, an episode shortened if it had to be to fit. */
 export type Found = { item: Recalled; line: string }
 
-/** The facts among recalled items, for recording `recalled`. */
-export const factIds = (found: Found[]) =>
-  found.flatMap(({ item }) => ('fact' in item ? [item.fact.id] : []))
+export type Search = {
+  found: Found[]
+  /**
+   * Facts the message was about: those found, and core facts it matched,
+   * which aren't shown because the model already sees them. Recording these
+   * as used keeps relevant core facts from looking stale.
+   */
+  used: string[]
+}
 
-/** Below this many tokens left, an item is skipped rather than shortened. */
+/** Below this many tokens left, an episode is skipped rather than shortened. */
 const MIN_EXCERPT_TOKENS = 60
 
 /**
  * Facts outside core and episodes that match `query`, best first, within the
  * limit and token budget. Current core facts are left out: the model already
- * sees them. An item too long for what is left is shortened to fit rather
- * than dropped, so a long monthly episode still comes back.
+ * sees them. An episode too long for what is left is shortened to fit rather
+ * than dropped; a fact is never cut, since half a fact can say something else.
  */
 export function searchMemory(
   memory: MemoryState,
@@ -109,57 +113,64 @@ export function searchMemory(
   query: string,
   now: number,
   { limit = RECALL_LIMIT, tokens = RECALL_TOKENS } = {},
-): Found[] {
+): Search {
   const facts = new Map(memory.facts.map((fact) => [fact.id, fact]))
   const allEpisodes = episodes?.episodes ?? []
-  const byId = new Map(allEpisodes.map((episode) => [episode.id, episode]))
-  const ranked = indexOf(memory.facts, allEpisodes)
-    .search(query)
-    .flatMap(({ id, score }) => {
-      const fact = facts.get(id)
-      if (fact) {
-        if (fact.core && !isPast(fact)) return []
-        const age = now - Math.max(fact.at, fact.recalled ?? 0)
-        return [
-          {
-            item: { fact } as Recalled,
-            score:
-              score *
-              RANKING.importance(fact.importance) *
-              RANKING.recency(age) *
-              (isPast(fact) ? RANKING.past : 1),
-          },
-        ]
-      }
-      const episode = byId.get(id)
-      if (!episode) return []
-      return [
-        {
-          item: { episode } as Recalled,
-          score: score * RANKING.episode * RANKING.recency(now - episode.at),
-        },
-      ]
+  const relevance = new Map(
+    indexOf(memory.facts, allEpisodes)
+      .search(query)
+      .map(({ id, score }) => [id, score]),
+  )
+  const ranges = datesIn(query, localDay(now))
+  const used: string[] = []
+  const ranked: { item: Recalled; score: number }[] = []
+  for (const [id, score] of relevance) {
+    const fact = facts.get(id)
+    if (!fact) continue
+    if (fact.core && !isPast(fact)) {
+      used.push(id)
+      continue
+    }
+    const age = now - Math.max(fact.at, fact.recalled ?? 0)
+    ranked.push({
+      item: { fact },
+      score:
+        score *
+        RANKING.importance(fact.importance) *
+        RANKING.recency(age) *
+        (isPast(fact) ? RANKING.past : 1),
     })
-    .sort((a, b) => b.score - a.score)
+  }
+  for (const episode of allEpisodes) {
+    const fit = Math.max(0, ...ranges.map((range) => dateFit(episode, range)))
+    const score =
+      (relevance.get(episode.id) ?? 0) + RANKING.dated * Math.sqrt(fit)
+    if (score > 0)
+      ranked.push({
+        item: { episode },
+        score: score * RANKING.episode * RANKING.recency(now - episode.at),
+      })
+  }
+  ranked.sort((a, b) => b.score - a.score)
 
   const found: Found[] = []
   let left = tokens
   for (const { item } of ranked) {
-    if (found.length === limit || left < MIN_EXCERPT_TOKENS) break
+    if (found.length === limit) break
     const line = describe(memory, item)
     const size = estimateTextTokens(line)
     if (size <= left) {
       found.push({ item, line })
       left -= size
-    } else {
+    } else if ('episode' in item && left >= MIN_EXCERPT_TOKENS) {
       const kept = Math.floor((line.length * left) / size) - 1
       found.push({ item, line: `${line.slice(0, kept)}…` })
       left = 0
     }
   }
-  return found
+  for (const { item } of found) if ('fact' in item) used.push(item.fact.id)
+  return { found, used }
 }
-
 /**
  * An item as recall shows it, with its dates: a fact with when it was true
  * and what replaced it, so past facts can't pass for current ones; an

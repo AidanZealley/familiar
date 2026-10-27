@@ -17,7 +17,7 @@ export type MemoryApi = {
   watchEpisodes(): Promise<DocumentWatch<EpisodesState>>
   revise(id: string, text: string): Promise<void>
   retire(id: string): Promise<void>
-  /** Pin a fact into core, or unpin it so rebalancing decides. Rejects when core is full. */
+  /** Pin a fact into core, or unpin it so rebalancing decides. Rejects when the pinned facts alone would pass core's budget. */
   setPinned(id: string, pinned: boolean): Promise<void>
   forget(id: string): Promise<void>
 }
