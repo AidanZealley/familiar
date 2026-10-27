@@ -117,8 +117,18 @@ export async function askQuestions({
               .map((entry) => saidBy(entry)?.text)
               .filter(Boolean)
               .at(-1)
-            if (!answer)
-              throw new Error(`No assistant answer for ${question.id}.`)
+            if (!answer) {
+              // Say why, such as a usage limit, rather than only that it failed.
+              const failure = entries
+                .flatMap((entry) => entry.model ?? [])
+                .findLast(
+                  (message) =>
+                    message.role === 'assistant' && message.errorMessage,
+                )
+              throw new Error(
+                `No assistant answer for ${question.id}${failure?.role === 'assistant' ? `: ${failure.errorMessage}` : '.'}`,
+              )
+            }
             const messages = entries.flatMap((entry) => entry.model ?? [])
             const toolCalls = messages.flatMap((message) =>
               message.role === 'assistant'
