@@ -22,7 +22,8 @@ import {
   rememberFact,
   reviseFact,
 } from './facts.ts'
-import { readStored, storageWith } from './testing.ts'
+import { readStored, storageWith, withHarness } from './testing.ts'
+import { addEpisode, Episodes } from './episodes.ts'
 import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../context/index.ts'
@@ -439,4 +440,55 @@ test('recall finds an exchange compaction took out of the context', async () => 
   expect(results.at(-1)).toMatch(
     /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): My bike lock code is 7291/,
   )
+})
+
+test('health counts facts, core, episodes, exchanges and searches', async () => {
+  const YEAR = 365 * 24 * 60 * 60 * 1000
+  const storage = await storageWith(
+    ['Lives in Leeds', 4],
+    ['Has a cat', 3],
+    ['Old note nobody checked', 1, Date.now() - YEAR],
+  )
+  await withHarness(storage, (harness) =>
+    harness.commit(async (tx) => {
+      const episodes = await tx.doc(Episodes)
+      for (const [span, start, end] of [
+        ['day', '2026-01-05', '2026-01-05'],
+        ['day', '2026-01-06', '2026-01-06'],
+        ['week', '2026-01-05', '2026-01-11'],
+        ['month', '2026-01-01', '2026-01-31'],
+      ] as const) {
+        addEpisode(episodes, { span, start, end, text: 'Quiet.', at: 1 })
+      }
+    }, BACKGROUND_CONTEXT),
+  )
+  const { faux, familiar, say, memory } = await setup({ storage })
+  await familiar.memory.revise('f1', 'Lives in York')
+  faux.setResponses(
+    ['Hello.', 'Hi again.', 'Still here.'].map((reply) =>
+      fauxAssistantMessage(reply),
+    ),
+  )
+  for (const text of ['Hello.', 'How are you?', 'Bye.']) {
+    await say(text)
+  }
+
+  const core = coreFacts((await memory())!)
+  const health = await familiar.memory.health()
+  expect(health).toEqual({
+    facts: { current: 3, core: 2, past: 1 },
+    coreCharacters: listFacts(core).length,
+    unchecked: 1,
+    episodes: { day: 2, week: 1, month: 1 },
+    // The newest exchange waits for the next message before it's indexed.
+    exchanges: 2,
+    indexBuildMs: expect.any(Number),
+    // One automatic recall per message.
+    search: {
+      count: 3,
+      medianMs: expect.any(Number),
+      maxMs: expect.any(Number),
+    },
+  })
+  expect(health.search.maxMs).toBeGreaterThanOrEqual(health.search.medianMs)
 })

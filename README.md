@@ -11,7 +11,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/time       The current_time tool, and how dates are written.
   core/context    Request budget, compaction and stream settings.
   core/conversation Message format, sending and history paging.
-  core/memory     Facts, recall, episodes and nightly upkeep at 04:00.
+  core/memory     Facts, episodes, exchange search, recall and read_memory,
+                  health, and nightly upkeep at 04:00, the only writer of facts.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API

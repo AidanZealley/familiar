@@ -11,6 +11,7 @@ import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import { searchMemory } from './recall.ts'
 import type { TranscriptExchanges } from './exchanges.ts'
+import type { SearchTimes } from './health.ts'
 import { createMemoryTools } from './tools.ts'
 
 const render = (facts: FactsState | undefined) => {
@@ -31,8 +32,11 @@ const recallFor = (
   episodes: EpisodesState | undefined,
   query: string,
   now: number,
+  times: SearchTimes,
 ): RecallMemo => {
-  const { found, used } = searchMemory(memory, episodes, query, now)
+  const { found, used } = times.time(() =>
+    searchMemory(memory, episodes, query, now),
+  )
   return {
     facts: used,
     note: found.length
@@ -48,6 +52,8 @@ export type MemoryExtensionOptions = {
   recalled: (ids: string[]) => Promise<void>
   /** The exchange index the tools search. */
   exchanges: TranscriptExchanges
+  /** Where every search's time is recorded, for health. */
+  times: SearchTimes
 }
 
 /**
@@ -58,7 +64,7 @@ export type MemoryExtensionOptions = {
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: createMemoryTools(options.exchanges),
+    tools: createMemoryTools(options.exchanges, options.times),
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>
@@ -91,6 +97,7 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
                 await api.snapshot(Episodes, context),
                 textOf(latest),
                 options.now(),
+                options.times,
               ),
               context,
             )

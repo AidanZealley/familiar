@@ -13,7 +13,7 @@ import { openMemory, rememberFact } from './facts.ts'
 /** Test helpers for memory; not part of Familiar. */
 
 /** Opens a bare Harness on `storage`, runs `use`, and closes it again. */
-async function withHarness<T>(
+export async function withHarness<T>(
   storage: Storage,
   use: (harness: Harness) => Promise<T>,
 ) {

@@ -4,10 +4,12 @@ import { Facts, markRecalled, MemoryUsage } from './facts.ts'
 import { Episodes } from './episodes.ts'
 import { createMemoryExtension } from './extension.ts'
 import { transcriptExchanges } from './exchanges.ts'
+import { createSearchTimes } from './health.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
 export type { MemoryApi } from './api.ts'
+export type { MemoryHealth } from './health.ts'
 export type { Fact, FactsState } from './facts.ts'
 export type { Episode, EpisodesState } from './episodes.ts'
 
@@ -21,10 +23,14 @@ export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
  * runs before the Harness resumes, so it can open before they're installed.
  */
 export function createMemory(harness: Harness, options: MemoryOptions) {
+  // Both in memory for as long as Familiar runs: the index is rebuilt from
+  // the transcript, and search times are only for health.
+  const exchanges = transcriptExchanges()
+  const times = createSearchTimes()
   const extension = createMemoryExtension({
     now: options.now,
-    // In memory for as long as Familiar runs; rebuilt from the transcript.
-    exchanges: transcriptExchanges(),
+    exchanges,
+    times,
     recalled: async (ids) => {
       await harness.commit(
         async (tx) =>
@@ -47,7 +53,7 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
       }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
 
-      return memoryApi(harness, options.now)
+      return memoryApi(harness, options.now, exchanges, times)
     },
   }
 }

@@ -6,20 +6,20 @@ Familiar is a personal assistant in the spirit of Grok Bot, Meta's Muse and Open
 
 - **Core and hosts.** One durable conversation over Pi Durable; the HTTP + SSE API; the client store; the web UI.
 - **Always on.** A systemd user service serves the API and UI on `127.0.0.1:4317`, published tailnet-only over HTTPS on port 10000. The home-screen manifest is in place. The service has run `main` since 2026-10-28; its data directory was backed up first to `~/.local/share/familiar-backup-20261028-065558`.
-- **Memory.** A fact list the model keeps with `remember`, `revise_memory` and `forget` and sees on every request; a Memory page for corrections.
+- **Memory.** A fact list the model kept with `remember`, `revise_memory` and `forget` and saw on every request; a Memory page for corrections. Replaced by the memory overhaul.
 - [Memory upkeep](specs/memory-upkeep.md): a 64k context budget, a hard cap on the fact list, and nightly consolidation.
 - [Chat UI](specs/chat-ui.md): shadcn's chat components, streamed Markdown, and `pnpm dev:demo`.
 - [Long-term memory](specs/long-term-memory.md): facts with importance, core rebalanced in code, past facts kept as history, recall before each request and through `recall`, day episodes rolled up into weeks and months, and the Memory pages. The rowan-v3 baseline, 41 of 50 (`eval/results/2026-10-27-be415fd.json`), was measured before this layered memory, on the flat fact list with `search_history`; the layered system was never measured. Replaced by the memory overhaul.
 - [Chat history](specs/chat-history.md): scrolling back past compactions, a Stopped marker, and a lazily loaded Markdown renderer.
+- [Memory overhaul](specs/memory-overhaul.md): the transcript searchable as exchanges, upkeep as the only writer of short, dated facts that cite their sources, recall over every layer with `read_memory`, a nightly review of old facts, and the `pnpm eval:recall` rot test and `GET /api/memory/health` instead of replays. [memory.md](memory.md) explains the design and why. Not yet measured with a replay.
 
 ## Next
 
 Pick these up in order unless the owner says otherwise. Each spec is complete enough to implement without earlier conversation.
 
-1. [Memory overhaul](specs/memory-overhaul.md): the transcript searchable as exchanges, upkeep as the only writer of short, dated facts that cite their sources, recall over every layer with `read_memory`, a nightly review of old facts, and a free rot test and health numbers instead of replays. [memory.md](memory.md) explains the design and why.
-2. [Reminders and push](specs/reminders-and-push.md): schedules (a prompt Familiar runs at a time, once or repeating; a reminder is the simplest) and Web Push notifications to the home-screen app.
-3. [Extensions](specs/extensions.md): plugins with secrets the model never sees, a Connections page, and MCP servers as deferred tools. Real-world tools build on it.
-4. [Easy install](specs/easy-install.md): one command that installs, signs in and starts Familiar on Linux, macOS, Windows or a VPS, and export and import to move it between machines.
+1. [Reminders and push](specs/reminders-and-push.md): schedules (a prompt Familiar runs at a time, once or repeating; a reminder is the simplest) and Web Push notifications to the home-screen app.
+2. [Extensions](specs/extensions.md): plugins with secrets the model never sees, a Connections page, and MCP servers as deferred tools. Real-world tools build on it.
+3. [Easy install](specs/easy-install.md): one command that installs, signs in and starts Familiar on Linux, macOS, Windows or a VPS, and export and import to move it between machines.
 
 ## Later
 

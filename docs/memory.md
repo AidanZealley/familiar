@@ -1,7 +1,5 @@
 # How Familiar remembers
 
-> Status: this describes the design in [the memory overhaul](specs/memory-overhaul.md). Until that spec's steps land, the code differs; [architecture.md](architecture.md) describes the code as it is. The last step removes this note.
-
 Familiar should remember the people it helps well enough to be useful, and keep doing so for years without getting slower or less accurate. It doesn't need perfect recall. People forget details too, but a good cue brings them back, and that is the behaviour to aim for.
 
 ## In one paragraph

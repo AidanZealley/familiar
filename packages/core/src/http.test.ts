@@ -50,6 +50,12 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
   })
   // Nothing deletes a fact.
   expect((await call('DELETE', '/memory/f2')).status).toBe(404)
+  const health = await call('GET', '/memory/health')
+  expect(health.status).toBe(200)
+  expect(await health.json()).toMatchObject({
+    facts: { current: 1, past: 2 },
+    episodes: { day: 0, week: 0, month: 0 },
+  })
   expect((await call('PUT', '/memory/f2/pin', { pinned: 'yes' })).status).toBe(
     400,
   )

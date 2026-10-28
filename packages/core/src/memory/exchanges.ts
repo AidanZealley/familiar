@@ -143,9 +143,11 @@ export function transcriptExchanges() {
   const index = createExchangeIndex()
   let through: EntryId | undefined
   let open: Exchange | undefined
+  let buildMs = 0
 
   return {
     async catchUp(tx: Tx) {
+      const started = performance.now()
       for await (const entry of entriesOf(tx, {
         conversationId: ROOT_CONVERSATION_ID,
         order: 'ascending',
@@ -164,7 +166,13 @@ export function transcriptExchanges() {
           open = { ...open, text: `${open.text}\n${said.text}` }
         }
       }
+      buildMs += performance.now() - started
       return index
+    },
+
+    /** Time spent catching up since Familiar started, which is the index's build time. */
+    get buildMs() {
+      return buildMs
     },
   }
 }

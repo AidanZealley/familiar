@@ -1,5 +1,7 @@
 # Memory overhaul
 
+> Status: done. The code follows this spec, including the clarifications made while building it (noted in the commit bodies).
+
 Rebuild memory so it works at a decently high level and keeps working at that level for years: cost per reply and per night stays bounded, and answers to a fixed set of questions don't get worse as history grows. Read [how Familiar remembers](../memory.md) first. It describes the target and why each decision was made; this spec says what to change, the exact shapes, and when each step is done. The evidence is in the [research notes](../research/memory.md).
 
 Familiar is a prototype with no data worth keeping, so there are no migrations. Start the new fact document under a new kind, leave old documents unread, and rewrite the demo seed and tests to match.
