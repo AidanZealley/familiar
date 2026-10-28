@@ -25,15 +25,17 @@ Pick these up in order unless the owner says otherwise. Each spec is complete en
    - **v3 baseline** saved: 41 of 50 (`eval/results/2026-10-27-be415fd.json`).
    - **The owner's service** runs `main` since 2026-10-28, with the data directory backed up first to `~/.local/share/familiar-backup-20261028-065558`.
    - **Next**: use Familiar day to day. Step 6 runs later, in the background, when the eval's cost suits: the baseline took most of a week's ChatGPT usage.
-2. [Reminders and push](specs/reminders-and-push.md): a `remind` tool and Web Push notifications to the home-screen app.
-3. [Easy install](specs/easy-install.md): one command that installs, signs in and starts Familiar on Linux, macOS, Windows or a VPS, and export and import to move it between machines.
+2. [Reminders and push](specs/reminders-and-push.md): schedules (a prompt Familiar runs at a time, once or repeating; a reminder is the simplest) and Web Push notifications to the home-screen app.
+3. [Extensions](specs/extensions.md): plugins with secrets the model never sees, a Connections page, and MCP servers as deferred tools. Real-world tools build on it.
+4. [Easy install](specs/easy-install.md): one command that installs, signs in and starts Familiar on Linux, macOS, Windows or a VPS, and export and import to move it between machines.
 
 ## Later
 
 Not specified yet. Write a spec before starting one.
 
 - **Deep search.** A tool for when ordinary recall can't find something, searching in stages from broad to detailed: month episodes first, then weeks, then days, and only then the raw transcript, narrowed to the periods the earlier stages pointed at. Each stage is cheap to scan, so most searches stop early, and the transcript is read only where it's needed. `search_history`, a linear scan of the whole transcript, was removed for this reason: memory (facts, episodes and recall) is how Familiar reaches the past, and a transcript scan bypassed it and grew with every message.
-- **Real-world tools.** Web search and fetch first, then calendar and email. Each tool that touches files or a shell must run in an environment that cannot see the data directory.
+- **Real-world tools.** First-party plugins ([Extensions](specs/extensions.md)): web search and fetch first, written against a swappable search API rather than a model provider's built-in search; fetch blocks private and tailnet addresses. Then calendar, read-only from a private ICS URL, then email. Each tool that touches files or a shell must run in an environment that cannot see the data directory.
+- **Photos.** Image input from the chat, using the model's own vision and Pi's image resizing; the work is the message format and the UI.
 - **Gatherbot.** A Cloudflare host for `@familiar/core`: one Durable Object per household, Gather's auth deciding who reaches which object, an API key instead of a subscription. The open question is which Convex identity the bot acts as when no member is present.
 - **AI Elements patterns** ([shadcn AI Elements](https://ui.shadcn.com/docs/ai-elements)), each with the feature that needs it: Confirmation (approving actions) with real-world tools, Sources and Inline Citation with web search, Context (a context-budget gauge) and Suggestion (prompts on an empty chat) whenever convenient.
 - **Native app.** Another client of the same API, reusing `@familiar/client`; APNs instead of Web Push.
