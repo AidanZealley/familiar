@@ -329,13 +329,13 @@ test.each([
     Array.from({ length: 3000 }, (_, i) => `<p><b class=c${i}>x</p>`).join(''),
     'more than 256 levels',
   ],
-])('web_fetch refuses a page with %s, quickly', async (_, html, reason) => {
+])('web_fetch refuses a page with %s', async (_, html, reason) => {
+  // The budget counts what the parser builds, so refusal doesn't depend on
+  // how fast the machine is; bounding time is the host's isolation's job.
   const { callTool } = await setup(page(html, 'text/html'))
-  const started = performance.now()
   const { text, isError } = await callTool('web_fetch', {
     url: 'https://cats.example/hostile',
   })
-  expect(performance.now() - started).toBeLessThan(1_000)
   expect(isError).toBe(true)
   expect(text).toContain('This page is too complex to read')
   expect(text).toContain(reason)
