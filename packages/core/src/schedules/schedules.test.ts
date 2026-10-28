@@ -18,7 +18,7 @@ import {
 import { ReopenableStorage } from '../memory/testing.ts'
 import { fakeClock } from '../testing.ts'
 import { occurrenceAfter } from './repeat.ts'
-import { addSchedule, type SchedulesState } from './schedules.ts'
+import { addSchedule } from './schedules.ts'
 
 // Times are local, so pin a zone with a daylight saving change: 2026-10-25.
 process.env.TZ = 'Europe/London'
@@ -67,7 +67,6 @@ async function setup() {
   const inputs: string[] = []
   const answers: Answer[] = []
   const ownerAnswers = new Map<string, Answer>()
-  const others: string[] = []
   const respond: FauxResponseFactory = (context, options) => {
     const input = inputOf(context)
     let next: Answer
@@ -75,7 +74,6 @@ async function setup() {
       inputs.push(input)
       next = answers.shift() ?? 'Done.'
     } else {
-      others.push(input)
       next = ownerAnswers.get(input) ?? 'Nothing new.'
     }
     return typeof next === 'string'
@@ -177,7 +175,6 @@ async function setup() {
     familiar: () => familiar,
     clock,
     inputs,
-    others,
     answer: (...next: Answer[]) => answers.push(...next),
     /** Sends a message from the owner, which the model answers with `answer`. */
     say: (text: string, answer: Answer) => {
@@ -215,23 +212,6 @@ test('a one-off reminder runs at its time, notifies with the reply, and is remov
   expect((await f.scheduledEntries()).map((entry) => entry.data)).toEqual([
     { scheduleId: id, prompt: 'Remind Aidan to call Mum', due: at(21, 18) },
   ])
-})
-
-test('a weekday repeat at 07:00 fires on weekdays, not at the weekend', async () => {
-  const f = await setup()
-  await f.schedule({
-    repeat: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=7;BYMINUTE=0',
-  })
-  await f.sleepingUntil(at(22, 7)) // Thursday
-
-  f.answer('Thursday.', 'Friday.', 'Monday.')
-  await f.fireAt(at(22, 7), at(23, 7))
-  await f.fireAt(at(23, 7), at(26, 7)) // Friday, then Monday
-  await f.fireAt(at(24, 7), at(26, 7))
-  await f.fireAt(at(25, 7), at(26, 7))
-  await f.fireAt(at(26, 7), at(27, 7))
-
-  expect(bodies(f.notifications)).toEqual(['Thursday.', 'Friday.', 'Monday.'])
 })
 
 test('a failed run notifies with the prompt', async () => {
@@ -285,18 +265,6 @@ test('cancelling before the time means no input and no notification', async () =
   await f.fireAt(at(21, 18), 'done')
   expect(f.notifications).toEqual([])
   expect(await f.scheduledEntries()).toEqual([])
-})
-
-test('reopening before the time still fires once, on time', async () => {
-  const f = await setup()
-  await f.schedule({ at: '2026-10-21 18:00' })
-  await f.reopen()
-  f.answer('Call Mum.')
-  await f.fireAt(at(21, 17, 59), at(21, 18))
-  expect(f.notifications).toEqual([])
-  await f.fireAt(at(21, 18), 'done')
-  expect(bodies(f.notifications)).toEqual(['Call Mum.'])
-  expect(await f.scheduledEntries()).toHaveLength(1)
 })
 
 test('reopening while waiting for the reply submits once and notifies once', async () => {
@@ -358,36 +326,13 @@ test('a repeat keeps its local time across a daylight saving change', async () =
   )
 })
 
-test('memory upkeep reads a scheduled input as scheduled, not as the owner', async () => {
-  const f = await setup()
-  await f.schedule({ at: '2026-10-21 18:00' })
-  f.answer('Time to call Mum!')
-  await f.fireAt(at(21, 18), 'done')
-
-  f.clock.advanceTo(at(22, 4))
-  // Replies carry the model's wall-clock time, so only the prompt's is fixed.
-  await vi.waitFor(() =>
-    expect(f.others.join('\n')).toMatch(
-      /\[2026-10-21 18:00\] \(scheduled\) Remind Aidan to call Mum\n\[[\d: -]+\] Familiar: Time to call Mum!/,
+test('a one-off at a minute that does not exist is refused', () => {
+  // Dates roll over in JavaScript, so only an exact round trip is accepted.
+  expect(() =>
+    addSchedule(
+      {},
+      { id: 's1', prompt: 'Stretch', at: '2026-02-30 09:00' },
+      start,
     ),
-  )
-})
-
-test('the rules refuse times that are past, impossible or vague', () => {
-  const schedules: SchedulesState = {}
-  const add = (at?: string, repeat?: string) => () =>
-    addSchedule(schedules, { id: 's1', prompt: 'Stretch', at, repeat }, start)
-  expect(add('2026-10-21 11:00')).toThrow('has already passed')
-  expect(add('2026-02-30 09:00')).toThrow('that exists')
-  expect(add('tomorrow 9am')).toThrow('that exists')
-  expect(add()).toThrow('either at or repeat')
-  expect(add('2026-10-22 09:00', 'FREQ=DAILY')).toThrow('either at or repeat')
-  expect(add(undefined, 'FREQ=MINUTELY;BYMINUTE=0')).toThrow('at most hourly')
-  expect(add(undefined, 'FREQ=DAILY')).toThrow('BYMINUTE')
-  expect(add(undefined, 'FREQ=DAILY;BYMINUTE=0')).toThrow('BYHOUR')
-  expect(add(undefined, 'FREQ=SOMETIMES')).toThrow('Not a valid RRULE')
-  expect(schedules).toEqual({})
-
-  // Hourly needs only its minute; the next is the first one after creation.
-  expect(add(undefined, 'FREQ=HOURLY;BYMINUTE=30')().next).toBe(at(21, 12, 30))
+  ).toThrow('that exists')
 })

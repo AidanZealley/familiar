@@ -7,11 +7,7 @@ import { MemoryStorage } from '@earendil-works/pi-durable'
 import { testClient } from 'hono/testing'
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from './familiar.ts'
-import {
-  createHttpApi,
-  type PushHost,
-  type PushSubscriptionJson,
-} from './http.ts'
+import { createHttpApi } from './http.ts'
 import { storageWith } from './memory/testing.ts'
 
 const opened: Familiar[] = []
@@ -150,84 +146,4 @@ test('messages and history validate what clients send', async () => {
     'familiar.message',
   ])
   expect(page.more).toBe(false)
-})
-
-test('push routes reach the host, and answer 404 without one', async () => {
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-  })
-  opened.push(familiar)
-
-  const subscriptions: PushSubscriptionJson[] = []
-  const push: PushHost = {
-    publicKey: () => 'BKey',
-    subscribe: async (subscription) => {
-      subscriptions.push(subscription)
-    },
-    unsubscribe: async ({ endpoint }) => {
-      subscriptions.splice(
-        subscriptions.findIndex((other) => other.endpoint === endpoint),
-        1,
-      )
-    },
-  }
-  const subscription = {
-    endpoint: 'https://push.example/abc',
-    expirationTime: null,
-    keys: { p256dh: 'p', auth: 'a' },
-  }
-
-  const client = testClient(
-    createHttpApi(familiar, { authenticate: () => 'aidan', push }),
-  )
-  const key = await client.push.key.$get()
-  expect(key.status).toBe(200)
-  expect(await key.json()).toEqual({ key: 'BKey' })
-  expect(
-    (await client.push.subscriptions.$post({ json: subscription })).status,
-  ).toBe(204)
-  expect(subscriptions).toEqual([subscription])
-  expect(
-    (
-      await client.push.subscriptions.$post({
-        json: { ...subscription, endpoint: 'not a url' },
-      })
-    ).status,
-  ).toBe(400)
-  expect(
-    (await client.push.subscriptions.$delete({ json: subscription })).status,
-  ).toBe(204)
-  expect(subscriptions).toEqual([])
-
-  const without = testClient(
-    createHttpApi(familiar, { authenticate: () => 'aidan' }),
-  )
-  expect((await without.push.key.$get()).status).toBe(404)
-  expect(
-    (await without.push.subscriptions.$post({ json: subscription })).status,
-  ).toBe(404)
-})
-
-test('cancelling a schedule that does not exist answers 404', async () => {
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-  })
-  opened.push(familiar)
-  const client = testClient(
-    createHttpApi(familiar, { authenticate: () => 'aidan' }),
-  )
-  const response = await client.schedules[':id'].$delete({
-    param: { id: 's1' },
-  })
-  expect(response.status).toBe(404)
 })

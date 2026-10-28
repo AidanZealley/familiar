@@ -1,4 +1,3 @@
-import { describeRepeat } from '@familiar/client'
 import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -16,7 +15,6 @@ const nextFormat = new Intl.DateTimeFormat(undefined, {
 export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string>()
-  const repeat = describeRepeat(schedule.repeat)
 
   const cancel = async () => {
     setCancelling(true)
@@ -39,10 +37,10 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
             <AlarmClockIcon className="size-3" />
             {nextFormat.format(schedule.next)}
           </span>
-          {repeat && (
+          {schedule.repeat && (
             <span className="inline-flex items-center gap-1">
               <RepeatIcon className="size-3" />
-              {repeat}
+              Repeats
             </span>
           )}
         </p>
