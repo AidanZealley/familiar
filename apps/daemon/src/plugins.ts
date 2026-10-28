@@ -2,10 +2,10 @@ import { isAbsolute } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { FamiliarPlugin } from '@familiar/core'
 import { webPlugin } from '@familiar/plugin-web'
-import { workerConvert } from './convert.ts'
+import { createConverter } from './convert.ts'
 
 /** Plugins every daemon installs. */
-const firstParty: FamiliarPlugin[] = [webPlugin({ convert: workerConvert() })]
+const firstParty: FamiliarPlugin[] = [webPlugin({ convert: createConverter() })]
 
 /**
  * The daemon's plugins: the first-party ones, then any named in

@@ -9,6 +9,9 @@ import {
   type Handle,
 } from 'mdast-util-to-markdown'
 import { defaultTreeAdapter, parse, type DefaultTreeAdapterMap } from 'parse5'
+import { cutPage, type Page } from './shared.ts'
+
+export type { Page } from './shared.ts'
 
 /**
  * How large a page's tree may grow. Conversion is synchronous, so the read's
@@ -164,9 +167,6 @@ function keepWebUrls(node: MdastParents, base: string) {
   }
 }
 
-/** A page read as Markdown. */
-export type Page = { title?: string; markdown: string }
-
 /**
  * Turns an HTML page into Markdown, as `htmlToMarkdown` does, wherever the
  * host runs it. Conversion is synchronous and its cost depends on the page,
@@ -174,7 +174,16 @@ export type Page = { title?: string; markdown: string }
  * daemon runs it in a worker thread it can stop. It rejects with an error
  * the model reads when the page can't be converted.
  */
-export type Convert = (html: string, url: string) => Promise<Page>
+export type Convert = (
+  html: string,
+  url: string,
+  options: ConvertOptions,
+) => Promise<Page>
+
+export type ConvertOptions = {
+  /** The most Markdown to return; `total` says how much the page made. */
+  maxChars: number
+}
 
 /**
  * A link or image with its URL as written. Markdown escapes `&` before a
@@ -191,7 +200,11 @@ const literalUrl =
  * `<main>`, else the body, without navigation, scripts and other chrome.
  * Throws when the page is past the complexity budget.
  */
-export function htmlToMarkdown(html: string, url: string): Page {
+export function htmlToMarkdown(
+  html: string,
+  url: string,
+  { maxChars }: ConvertOptions,
+): Page {
   // A document always converts to a root.
   const document = fromParse5(parseWithinBudget(html)) as Root
   const heading = find(document, 'title') ?? find(document, 'h1')
@@ -213,16 +226,16 @@ export function htmlToMarkdown(html: string, url: string): Page {
   if ('children' in tree) {
     keepWebUrls(tree, base)
   }
-  return {
-    ...(title ? { title } : {}),
-    markdown: toMarkdown(tree, {
-      bullet: '-',
-      fences: true,
-      handlers: {
-        link: literalUrl(defaultHandlers.link),
-        image: literalUrl(defaultHandlers.image),
-      },
-      extensions: [gfmToMarkdown({ tablePipeAlign: false })],
-    }).trim(),
-  }
+  // Resolving links can make the Markdown far longer than the page: a long
+  // <base> is repeated in every link.
+  const markdown = toMarkdown(tree, {
+    bullet: '-',
+    fences: true,
+    handlers: {
+      link: literalUrl(defaultHandlers.link),
+      image: literalUrl(defaultHandlers.image),
+    },
+    extensions: [gfmToMarkdown({ tablePipeAlign: false })],
+  }).trim()
+  return cutPage(markdown, maxChars, title)
 }
