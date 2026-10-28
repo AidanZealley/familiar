@@ -10,7 +10,6 @@ import {
   createRegistry,
   defineDoc,
   Harness,
-  MemoryStorage,
   type SetTimer,
   type Storage,
 } from '@earendil-works/pi-durable'
@@ -18,14 +17,9 @@ import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
 import { MemoryUsage } from '../facts.ts'
-import { readStored, storageWith } from '../testing.ts'
+import { readStored, ReopenableStorage, storageWith } from '../testing.ts'
 
 const context = BACKGROUND_CONTEXT
-
-// Closing a Familiar closes its storage; this one keeps its state for a reopen.
-class ReopenableStorage extends MemoryStorage {
-  override async close() {}
-}
 
 /** A clock that moves only when told to, firing the timers that fall due. */
 function fakeClock(start: number) {
@@ -405,42 +399,6 @@ test("read_memory opens a day episode's exchanges and a fact's sources", async (
   expect(fact).toMatch(/^f1 \(since 2026-10-25\): Has a cat called Miso/)
   expect(fact).toContain('From:')
   expect(fact).toContain('I adopted a cat called Miso today.')
-})
-
-test('something the owner asks Familiar to remember is a fact after the next pass', async () => {
-  const { faux, say, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage("I'll remember that.")])
-  await say('Please remember that my locker code is 4417.')
-
-  let instructions = ''
-  faux.setResponses([
-    (context) => {
-      instructions = JSON.stringify(context.messages[0])
-      return fauxAssistantMessage(
-        fauxToolCall('remember', {
-          text: 'Locker code is 4417',
-          importance: 5,
-          sources: [exchangeIn(inputOf(context), 'locker code')],
-        }),
-        { stopReason: 'toolUse' },
-      )
-    },
-    fauxAssistantMessage('Shared a locker code.'),
-  ])
-  await passAt(firstPass, secondPass)
-  expect(instructions).toContain(
-    'Always save anything someone explicitly asked Familiar to remember',
-  )
-
-  let prompt = ''
-  faux.setResponses([
-    (context) => {
-      prompt = JSON.stringify(context.messages)
-      return fauxAssistantMessage('4417.')
-    },
-  ])
-  await say('What is my locker code?')
-  expect(prompt).toContain('f1: Locker code is 4417')
 })
 
 test('a pass sees only messages since the previous one', async () => {

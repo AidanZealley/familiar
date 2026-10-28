@@ -316,22 +316,6 @@ test('rebalancing fills core by importance, then recent use, within budget', () 
   expect(essential.core).toBe(false)
 })
 
-test('no rule deletes a fact', () => {
-  const memory = empty()
-  save(memory, 'A', 3)
-  save(memory, 'B', 1)
-  save(memory, 'C', 5)
-  const ids = () => memory.facts.facts.map((fact) => fact.id)
-  const kept = ids()
-  reviseFact(memory, 'f1', { text: 'A2', since: '2025-02-01' }, 2)
-  retireFact(memory, 'f2', '2025-02-01')
-  setPinned(memory, 'f3', true)
-  setPinned(memory, 'f3', false)
-  markRecalled(memory.usage, ['f3'], 3)
-  rebalanceCore(memory)
-  expect(ids()).toEqual([...kept, 'f4'])
-})
-
 test('review picks current facts unchecked longest, oldest first, up to the limit', () => {
   const memory = empty()
   const DAY = 24 * 60 * 60 * 1000

@@ -155,10 +155,7 @@ const median = (values: number[]) => {
  * only when a scenario exchange in the top 5 or 10 contains it: filler names
  * projects, so its hits would flatter the score.
  */
-export function runRecallEval(
-  scenario: Scenario,
-  clock: () => number = performance.now.bind(performance),
-): RecallResult {
+export function runRecallEval(scenario: Scenario): RecallResult {
   const real = scenarioExchanges(scenario)
   const evidence = new Map(real.map((exchange) => [exchange.id, exchange]))
   const everything = real
@@ -200,11 +197,11 @@ export function runRecallEval(
     )
     added += days
 
-    const started = clock()
+    const started = performance.now()
     for (const exchange of pending) {
       index.add(exchange)
     }
-    buildMs += clock() - started
+    buildMs += performance.now() - started
     result.buildMs[years] = buildMs
     result.exchanges[years] = index.size
     pending = []
@@ -219,12 +216,12 @@ export function runRecallEval(
       ]),
     )
     for (const question of scenario.questions) {
-      const searchStarted = clock()
+      const searchStarted = performance.now()
       const found = index.search(question.text, now, {
         limit: 10,
         ranges: datesIn(question.text, localDay(now)),
       })
-      times.push(clock() - searchStarted)
+      times.push(performance.now() - searchStarted)
       const texts = found.map((exchange) =>
         (evidence.get(exchange.id)?.text ?? '').toLowerCase(),
       )

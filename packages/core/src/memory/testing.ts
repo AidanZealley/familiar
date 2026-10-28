@@ -12,6 +12,11 @@ import { openMemory, rememberFact } from './facts.ts'
 
 /** Test helpers for memory; not part of Familiar. */
 
+/** Keeps committed state available after Familiar closes its storage. */
+export class ReopenableStorage extends MemoryStorage {
+  override async close() {}
+}
+
 /** Opens a bare Harness on `storage`, runs `use`, and closes it again. */
 export async function withHarness<T>(
   storage: Storage,
@@ -39,12 +44,8 @@ export async function storageWith(
   ...facts: [text: string, importance: number, saved?: number][]
 ): Promise<Storage> {
   const now = Date.now()
-  const storage = new MemoryStorage()
-  const kept = new Proxy(storage, {
-    get: (target, key) =>
-      key === 'close' ? async () => {} : Reflect.get(target, key, target),
-  })
-  await withHarness(kept, (harness) =>
+  const storage = new ReopenableStorage()
+  await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
       const memory = await openMemory(tx)
       for (const [text, importance, saved = now] of facts) {
@@ -56,7 +57,7 @@ export async function storageWith(
       }
     }, BACKGROUND_CONTEXT),
   )
-  return kept
+  return storage
 }
 
 /** A stored memory document's value, read once Familiar has been dismissed. */
