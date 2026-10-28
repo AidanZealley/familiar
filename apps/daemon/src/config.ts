@@ -30,6 +30,12 @@ export const config = {
   },
   /** Who the daemon's one user is. The network (Tailscale) is the auth. */
   owner: process.env.FAMILIAR_OWNER ?? 'owner',
+  /**
+   * Sent to push services (Apple, Google, Mozilla) with each notification, so
+   * they can reach whoever runs this sender. A mailto: or https: URL.
+   */
+  pushContact:
+    process.env.FAMILIAR_PUSH_CONTACT ?? 'mailto:familiar@example.com',
 }
 
 // Private to this user even if the directory already existed. Holds the

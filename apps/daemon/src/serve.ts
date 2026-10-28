@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import type { Familiar } from '@familiar/core'
-import { createHttpApi } from '@familiar/core/http'
+import { createHttpApi, type PushHost } from '@familiar/core/http'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -13,13 +13,17 @@ export type ServeOptions = {
   /** The built web UI, served when it exists. */
   webDir?: string
   label: string
+  push?: PushHost
 }
 
 /** Serve one Familiar over HTTP until SIGINT or SIGTERM, then close it. */
 export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
   const app = new Hono().route(
     '/api',
-    createHttpApi(familiar, { authenticate: () => options.owner }),
+    createHttpApi(familiar, {
+      authenticate: () => options.owner,
+      push: options.push,
+    }),
   )
 
   // In development Vite serves the UI instead.
