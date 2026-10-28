@@ -1,5 +1,4 @@
-// A named import, unlike core's: the client is always bundled, and rrule's
-// ES module build has no default export.
+// rrule's ES module build has no default export.
 import { rrulestr } from 'rrule'
 
 /**
