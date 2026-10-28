@@ -11,6 +11,7 @@ import type { HistoryPage } from './conversation/index.ts'
 import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
+import { connectionRoutes } from './plugins/http.ts'
 import { pushRoutes, type PushHost } from './push.ts'
 import type { SchedulesState } from './schedules/index.ts'
 import { scheduleRoutes } from './schedules/http.ts'
@@ -28,6 +29,11 @@ export type {
 } from './conversation/index.ts'
 export type { Schedule, SchedulesState } from './schedules/index.ts'
 export type { PushHost, PushSubscriptionJson } from './push.ts'
+export type {
+  Connection,
+  ConnectionInfo,
+  PluginSecret,
+} from './plugins/index.ts'
 export type {
   Episode,
   EpisodesState,
@@ -204,5 +210,6 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       .route('/memory', memoryRoutes(familiar.memory))
       .route('/schedules', scheduleRoutes(familiar.schedules))
       .route('/push', pushRoutes(options.push))
+      .route('/connections', connectionRoutes(familiar.connections))
   )
 }

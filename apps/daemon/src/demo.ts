@@ -24,13 +24,14 @@ import {
   defineTool,
   MemoryStorage,
 } from '@earendil-works/pi-durable'
-import { summonFamiliar } from '@familiar/core'
+import { definePlugin, memorySecrets, summonFamiliar } from '@familiar/core'
 import {
   SEED_MESSAGE,
   seedEpisodes,
   seedMemory,
   seedPinned,
 } from './demo/seed.ts'
+import { guardedFetch } from './fetch.ts'
 import { openPush } from './push.ts'
 import { serveFamiliar } from './serve.ts'
 
@@ -65,7 +66,7 @@ export function greet(name: string) {
 }
 \`\`\`
 
-> Say **tool**, **memory**, **remind**, **slow**, **compact** or **error** to see the other scenarios.`
+> Say **tool**, **memory**, **remind**, **key**, **slow**, **compact** or **error** to see the other scenarios.`
 
 const slowReply = Array.from(
   { length: 30 },
@@ -103,6 +104,10 @@ const scenarios: Record<string, () => AssistantMessage> = {
       }),
       { stopReason: 'toolUse' },
     ),
+  key: () =>
+    fauxAssistantMessage(fauxToolCall('check_demo_key', {}), {
+      stopReason: 'toolUse',
+    }),
   slow: () => fauxAssistantMessage(slowReply),
   compact: () =>
     // Tool output is truncated to about 12k tokens, and Pi keeps the newest 20k.
@@ -136,6 +141,9 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
     return fauxAssistantMessage(
       'Saved. The **Memory** pages show it all: facts, how they changed and a year of episodes.',
     )
+  }
+  if (toolName === 'check_demo_key') {
+    return fauxAssistantMessage(output)
   }
   if (toolName === 'schedule') {
     return fauxAssistantMessage(`I'll remind you within a minute. ${output}`)
@@ -235,6 +243,44 @@ const fillContext = defineTool({
   }),
 })
 
+// The tool echoes its key, so the reply shows redaction at work.
+const checkDemoKey = (secret: (name: string) => Promise<string>) =>
+  defineTool({
+    name: 'check_demo_key',
+    description: 'Demo only: checks the demo key from the Connections page.',
+    parameters: Type.Object({}),
+    execute: async () => ({
+      output: [
+        {
+          type: 'text',
+          text: `The demo key works. It is ${await secret('key')}.`,
+        },
+      ],
+    }),
+  })
+
+const demoPlugin = definePlugin({
+  name: 'demo',
+  title: 'Demo',
+  secrets: [
+    {
+      name: 'key',
+      label: 'Demo key',
+      help: 'Any text of eight or more characters. Say "key" in chat to try it.',
+    },
+  ],
+  extension: (context) =>
+    defineExtension({
+      name: 'demo',
+      tools: [
+        fillContext,
+        seedMemory,
+        seedEpisodes,
+        checkDemoKey(context.secret),
+      ],
+    }),
+})
+
 // Keys and subscriptions last as long as the demo, so a browser subscribes
 // again after a restart. Every notification is logged too.
 const push = openPush({ contact: 'mailto:familiar@example.com' })
@@ -247,12 +293,9 @@ const familiar = await summonFamiliar({
     console.log('Notification:', JSON.stringify(notification))
     await push.notify(notification)
   },
-  extensions: [
-    defineExtension({
-      name: 'familiar.demo',
-      tools: [fillContext, seedMemory, seedEpisodes],
-    }),
-  ],
+  plugins: [demoPlugin],
+  secrets: memorySecrets(),
+  fetch: guardedFetch,
 })
 
 // Start with a year of sample memory, so the Memory pages have something to

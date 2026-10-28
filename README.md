@@ -15,20 +15,26 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   health, and nightly upkeep at 04:00, the only writer of facts.
   core/schedules  Prompts Familiar runs at a time, once or repeating (a reminder
                   is the simplest), each reply sent to the host's notify.
+  core/plugins    Plugins (everything beyond core), their secrets, redaction
+                  of secret values from tool results, and the connection routes.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
-apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API
-                  (and the built web UI).
+apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
+                  guarded fetch and plugin list; serves the API (and the built
+                  web UI).
 apps/web          Optional chat UI: Vite, TanStack Router, shadcn (Base UI).
 ```
 
-The daemon keeps everything it stores in `~/.local/share/familiar`, outside the repo: the ChatGPT login (`auth.json`), the conversation (`familiar.sqlite`), this installation's ID, and Web Push's keys (`vapid.json`) and subscribed browsers (`push.json`). The directory is private to your user. Treat it like a password: it holds a token for your subscription and everything you've told Familiar.
+The daemon keeps everything it stores in `~/.local/share/familiar`, outside the repo: the ChatGPT login (`auth.json`), the conversation (`familiar.sqlite`), this installation's ID, and Web Push's keys (`vapid.json`) and subscribed browsers (`push.json`), and plugins' secrets such as API keys (`secrets.json`). The directory is private to your user. Treat it like a password: it holds a token for your subscription and everything you've told Familiar.
 
 ### Rules
 
 - **One Familiar has one owner and one conversation.** Hosts that serve many owners (a household app, say) open one Familiar per owner, e.g. one Durable Object each. Core never knows about tenants.
 - **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
 - **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. See [docs/architecture.md](docs/architecture.md).
+- **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given its secrets, the clock, `notify` and the host's `fetch`. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
+- **Secrets never reach the model.** Plugins read them in tool code; the owner sets them through write-only routes, never in chat, which is stored for good. Core also replaces any known secret value in a tool's result with `[secret]`. The host stores them, keyed by connection kind, name and secret.
+- **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
@@ -84,21 +90,23 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | `tool`    | Calls `current_time`, then replies                                      |
 | `memory`  | Calls `recall` for the morning drink, then replies with what it found   |
 | `remind`  | Schedules a reminder for the next minute, which then notifies           |
+| `key`     | Calls the demo plugin's tool, which echoes its key, shown as `[secret]` |
 | `slow`    | Writes a long reply, to try Stop and queued messages                    |
 | `compact` | Fills the context until Pi compacts it (the overflow error is expected) |
 | `error`   | Fails partway with an error message                                     |
 
 ### Settings
 
-| Variable                | Default                       |                                          |
-| ----------------------- | ----------------------------- | ---------------------------------------- |
-| `FAMILIAR_MODEL`        | `gpt-6.1-sol`                 | Any OpenAI model in pi-ai's catalog      |
-| `FAMILIAR_NAME`         | `Familiar`                    | What the assistant calls itself          |
-| `FAMILIAR_OWNER`        | `owner`                       | The author recorded for your messages    |
-| `FAMILIAR_PORT`         | `4317`                        |                                          |
-| `FAMILIAR_HOST`         | `127.0.0.1`                   |                                          |
-| `FAMILIAR_DATA_DIR`     | `~/.local/share/familiar`     | Or `$XDG_DATA_HOME/familiar`             |
-| `FAMILIAR_PUSH_CONTACT` | `mailto:familiar@example.com` | Sent to push services with notifications |
+| Variable                | Default                       |                                                           |
+| ----------------------- | ----------------------------- | --------------------------------------------------------- |
+| `FAMILIAR_MODEL`        | `gpt-6.1-sol`                 | Any OpenAI model in pi-ai's catalog                       |
+| `FAMILIAR_NAME`         | `Familiar`                    | What the assistant calls itself                           |
+| `FAMILIAR_OWNER`        | `owner`                       | The author recorded for your messages                     |
+| `FAMILIAR_PORT`         | `4317`                        |                                                           |
+| `FAMILIAR_HOST`         | `127.0.0.1`                   |                                                           |
+| `FAMILIAR_DATA_DIR`     | `~/.local/share/familiar`     | Or `$XDG_DATA_HOME/familiar`                              |
+| `FAMILIAR_PUSH_CONTACT` | `mailto:familiar@example.com` | Sent to push services with notifications                  |
+| `FAMILIAR_PLUGINS`      | (none)                        | Extra plugins, comma-separated packages or absolute paths |
 
 The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog: their API changes without notice between releases.
 

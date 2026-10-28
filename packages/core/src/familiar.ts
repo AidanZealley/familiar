@@ -3,7 +3,6 @@ import type { Models } from '@earendil-works/pi-ai'
 import {
   createRegistry,
   Harness,
-  type Extension,
   type HarnessOptions,
   type ModelRef,
   type Storage,
@@ -17,6 +16,13 @@ import {
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona } from './persona/index.ts'
 import {
+  createPlugins,
+  type ConnectionsApi,
+  type FamiliarPlugin,
+  type PluginFetch,
+  type SecretStore,
+} from './plugins/index.ts'
+import {
   createSchedules,
   type Notify,
   type SchedulesApi,
@@ -27,6 +33,19 @@ import { TimeExtension } from './time/index.ts'
 export type { HistoryPage, Message } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
 export type { Notification, SchedulesApi } from './schedules/index.ts'
+export {
+  ConnectionError,
+  definePlugin,
+  memorySecrets,
+  type Connection,
+  type ConnectionInfo,
+  type ConnectionsApi,
+  type FamiliarPlugin,
+  type PluginContext,
+  type PluginFetch,
+  type PluginSecret,
+  type SecretStore,
+} from './plugins/index.ts'
 export type { UsageState as Usage } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
@@ -34,7 +53,18 @@ export type FamiliarOptions = {
   models: Models
   model: ModelRef
   name?: string
-  extensions?: Extension[]
+  /** Everything beyond core: tools, sections and hooks, with their secrets. */
+  plugins?: readonly FamiliarPlugin[]
+  /** Where plugins' secrets are kept. Without it, every secret is missing. */
+  secrets?: SecretStore
+  /**
+   * How plugins reach the network. A model can be talked into fetching any
+   * URL, so if this process can reach private, loopback or tailnet addresses,
+   * this must refuse them, at connection time and on every redirect. A
+   * Cloudflare Worker can't reach them, so it passes its own `fetch`.
+   * Without one, plugins' fetches fail.
+   */
+  fetch?: PluginFetch
   /**
    * Roughly how many tokens each request may send, whatever the model's context
    * window; older conversation is compacted into a summary to stay under it.
@@ -60,6 +90,7 @@ export type FamiliarOptions = {
 export type Familiar = ConversationApi & {
   memory: MemoryApi
   schedules: SchedulesApi
+  connections: ConnectionsApi
   /**
    * Called after every commit. Listeners run synchronously, so keep them quick
    * and don't call back into Familiar. Returns a function that stops listening.
@@ -99,12 +130,21 @@ export async function summonFamiliar(
 
   const schedules = createSchedules({ name, notify: options.notify })
 
+  const plugins = createPlugins({
+    plugins: options.plugins ?? [],
+    secrets: options.secrets,
+    fetch: options.fetch,
+    notify: options.notify,
+    now: options.now ?? Date.now,
+  })
+
+  // Plugins last, so core's tools and sections come first.
   const extensions = [
     createPersona(name),
     TimeExtension,
     ...memory.extensions,
     schedules.extension,
-    ...(options.extensions ?? []),
+    ...plugins.extensions,
   ]
 
   for (const extension of extensions) {
@@ -122,6 +162,7 @@ export async function summonFamiliar(
     ...conversation,
     memory: memoryActions,
     schedules: scheduleActions,
+    connections: plugins.api,
     onCommit: (listener) => harness.subscribeCommits(() => listener()),
     usage: () => harness.usage(context),
     dismiss: () => harness.close(context),
