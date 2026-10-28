@@ -309,6 +309,97 @@ test('a change upkeep cannot make is an error for the model, not a crash', async
   expect(facts[0].until).toBeUndefined()
 })
 
+test('a fact cited from several messages is true from the earliest', async () => {
+  const { faux, say, memory, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage('Lovely.')])
+  await say('I started learning the cello today.')
+  let first = ''
+  faux.setResponses([
+    (context) => {
+      first = exchangeIn(inputOf(context), 'cello')
+      return fauxAssistantMessage('Started the cello.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+
+  faux.setResponses([fauxAssistantMessage('Good habit.')])
+  await say('I practise the cello every evening now.')
+  faux.setResponses([
+    (context) =>
+      fauxAssistantMessage(
+        fauxToolCall('remember', {
+          text: 'Plays the cello, practising every evening',
+          importance: 3,
+          sources: [exchangeIn(inputOf(context), 'every evening'), first],
+        }),
+        { stopReason: 'toolUse' },
+      ),
+    fauxAssistantMessage('Cello practice.'),
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect(await memory()).toMatchObject([
+    {
+      since: '2026-10-25',
+      sources: [expect.any(Number), Number(first.slice(1))],
+    },
+  ])
+})
+
+test("read_memory opens a day episode's exchanges and a fact's sources", async () => {
+  const { faux, say, episodes, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage('Welcome home, Miso.')])
+  await say('I adopted a cat called Miso today.')
+  faux.setResponses([
+    (context) =>
+      fauxAssistantMessage(
+        fauxToolCall('remember', {
+          text: 'Has a cat called Miso',
+          importance: 4,
+          sources: [exchangeIn(inputOf(context), 'Miso')],
+        }),
+        { stopReason: 'toolUse' },
+      ),
+    fauxAssistantMessage('Adopted a cat, Miso.'),
+  ])
+  await passAt(firstPass, secondPass)
+  expect((await episodes())[0].entries).toEqual({
+    from: expect.any(Number),
+    to: expect.any(Number),
+  })
+
+  let results: string[] = []
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall('read_memory', { id: 'e1' }),
+        fauxToolCall('read_memory', { id: 'f1' }),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    (context) => {
+      results = context.messages.flatMap((message) =>
+        message.role === 'toolResult'
+          ? [
+              message.content
+                .map((part) => ('text' in part ? part.text : ''))
+                .join(''),
+            ]
+          : [],
+      )
+      return fauxAssistantMessage('Miso came home on Sunday.')
+    },
+  ])
+  await say('When did Miso arrive?')
+  const [day, fact] = results.slice(-2)
+  expect(day).toMatch(/^e1 \(day of 2026-10-25\): Adopted a cat, Miso\./)
+  expect(day).toMatch(
+    /x\d+ \(2026-10-25 12:00\):\nI adopted a cat called Miso today\.\nWelcome home, Miso\./,
+  )
+  expect(fact).toMatch(/^f1 \(since 2026-10-25\): Has a cat called Miso/)
+  expect(fact).toContain('From:')
+  expect(fact).toContain('I adopted a cat called Miso today.')
+})
+
 test('something the owner asks Familiar to remember is a fact after the next pass', async () => {
   const { faux, say, passAt } = await setup()
   faux.setResponses([fauxAssistantMessage("I'll remember that.")])
@@ -591,7 +682,9 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
     },
   ])
   await say('What was I doing with Noor last week?')
-  expect(note).toContain('e1 (day of 2026-10-25)')
+  // The week is rolled up, so it stands in for its day.
+  expect(note).toContain('e2 (week of 2026-10-19 to 2026-10-25)')
+  expect(note).not.toContain('e1 (day')
 })
 
 test('a review that ends without its episode is asked for it once more', async () => {

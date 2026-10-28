@@ -32,6 +32,8 @@ type UpkeepStep =
       phase: 'consolidate'
       conversation: ConversationId
       reset: EntryId
+      /** The batch's first and last entries. */
+      oldest: EntryId
       newest: EntryId
       input: string
       /**
@@ -167,6 +169,7 @@ export function createUpkeep(options: UpkeepOptions) {
               phase: 'consolidate',
               conversation: upkeep.conversation,
               reset: reset.id,
+              oldest: found.oldest,
               newest: found.newest,
               input,
               start: found.start,
@@ -176,7 +179,7 @@ export function createUpkeep(options: UpkeepOptions) {
         }, context),
 
       consolidate: async (task, runtime, context) => {
-        const { conversation, reset, newest, input, start, end } =
+        const { conversation, reset, oldest, newest, input, start, end } =
           task.state.checkpoint
         let episode = await ask(
           runtime,
@@ -221,6 +224,7 @@ export function createUpkeep(options: UpkeepOptions) {
               end,
               text: episode,
               at: runtime.now(),
+              entries: { from: oldest, to: newest },
             })
           }
 

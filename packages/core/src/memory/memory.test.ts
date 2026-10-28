@@ -339,7 +339,7 @@ test('the recall tool finds past facts, labelled as past', async () => {
   // Matches no fact, so only the tool's search records a use.
   await say('Anything from the past?')
   expect(results.at(-1)).toMatch(
-    /^f1 \(2026-01-05 to .*, replaced by f2\): Lives in Leeds$/,
+    /^Facts:\nf1 \(2026-01-05 to .*, replaced by f2\): Lives in Leeds$/,
   )
   // What the conversation's search found counts as used.
   await dismiss(familiar)
@@ -399,4 +399,44 @@ test('a retried request recalls exactly what the first attempt did', async () =>
   await say('What tea do I like?')
   expect(notes[0]).toContain('f1 (since')
   expect(notes[1]).toBe(notes[0])
+})
+
+test('recall finds an exchange compaction took out of the context', async () => {
+  const { faux, familiar, say } = await setup({
+    contextWindow: 16_000,
+    contextBudget: 2_000,
+  })
+  const isSummary = (context: TranscriptContext) =>
+    JSON.stringify(context.messages[0]).includes('context summarization')
+  faux.setResponses(
+    Array.from(
+      { length: 60 },
+      () => (context: TranscriptContext) =>
+        fauxAssistantMessage(
+          isSummary(context) ? '## Goal\nThe weather.' : 'Lovely.',
+        ),
+    ),
+  )
+  await say('My bike lock code is 7291, keep it safe.')
+  for (let day = 1; day <= 20; day++) {
+    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+  }
+  const view = await familiar.watch()
+  await view.stop()
+  expect(JSON.stringify(view.value.entries)).not.toContain('7291')
+
+  let results: string[] = []
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'bike lock code' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      results = toolResultsOf(context)
+      return fauxAssistantMessage('7291.')
+    },
+  ])
+  await say('What was my bike lock code?')
+  expect(results.at(-1)).toMatch(
+    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): My bike lock code is 7291/,
+  )
 })

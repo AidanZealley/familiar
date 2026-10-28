@@ -1,5 +1,10 @@
-import type { EntryId } from '@earendil-works/pi-durable'
+import {
+  ROOT_CONVERSATION_ID,
+  type EntryId,
+  type Tx,
+} from '@earendil-works/pi-durable'
 import MiniSearch from 'minisearch'
+import { entriesOf, saidBy } from '../conversation/message.ts'
 import { localDay } from '../time/index.ts'
 import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
@@ -41,6 +46,12 @@ export type ExchangeIndex = {
     now: number,
     options?: ExchangeSearchOptions,
   ): Exchange[]
+  /** An exchange and the ones either side of it, if it is indexed. */
+  around(
+    id: string,
+  ): { before?: Exchange; exchange: Exchange; after?: Exchange } | undefined
+  /** Exchanges whose person message is from `from` to `to`, oldest first. */
+  between(from: EntryId, to: EntryId): Exchange[]
   /** How many exchanges are indexed. */
   readonly size: number
 }
@@ -53,13 +64,13 @@ export function createExchangeIndex(): ExchangeIndex {
   })
   // In the order added, which is the transcript's, with each one's day.
   const exchanges: { exchange: Exchange; day: string }[] = []
-  const byId = new Map<string, Exchange>()
+  const positions = new Map<string, number>()
 
   return {
     add(exchange) {
       index.add({ id: exchange.id, text: exchange.text })
+      positions.set(exchange.id, exchanges.length)
       exchanges.push({ exchange, day: localDay(exchange.at) })
-      byId.set(exchange.id, exchange)
     },
 
     search(query, now, { limit = 6, ranges = [] } = {}) {
@@ -82,7 +93,7 @@ export function createExchangeIndex(): ExchangeIndex {
 
       return [...scores]
         .map(([id, score]) => {
-          const exchange = byId.get(id)!
+          const { exchange } = exchanges[positions.get(id)!]
           return {
             exchange,
             score: score * RANKING.recency(now - exchange.at),
@@ -93,8 +104,69 @@ export function createExchangeIndex(): ExchangeIndex {
         .map(({ exchange }) => exchange)
     },
 
+    around(id) {
+      const at = positions.get(id)
+      return at === undefined
+        ? undefined
+        : {
+            before: exchanges[at - 1]?.exchange,
+            exchange: exchanges[at].exchange,
+            after: exchanges[at + 1]?.exchange,
+          }
+    },
+
+    between(from, to) {
+      return exchanges.flatMap(({ exchange }) => {
+        const entry = entryOf(exchange.id)
+        return entry !== undefined && entry >= from && entry <= to
+          ? [exchange]
+          : []
+      })
+    },
+
     get size() {
       return exchanges.length
     },
   }
 }
+
+/**
+ * The index over the main conversation, kept by memory for as long as
+ * Familiar runs. `catchUp` reads the transcript after the last entry it saw
+ * and is called at the start of each search, so the index never needs
+ * telling about new messages. An exchange is added only once the next
+ * person message exists, so every indexed text is final; the newest is
+ * still in the model's context anyway. After a restart the first search
+ * rebuilds it from the start of the transcript.
+ */
+export function transcriptExchanges() {
+  const index = createExchangeIndex()
+  let through: EntryId | undefined
+  let open: Exchange | undefined
+
+  return {
+    async catchUp(tx: Tx) {
+      for await (const entry of entriesOf(tx, {
+        conversationId: ROOT_CONVERSATION_ID,
+        order: 'ascending',
+        ...(through !== undefined && {
+          minEntryId: (through + 1) as EntryId,
+        }),
+      })) {
+        through = entry.id
+        const said = saidBy(entry)
+        if (said?.role === 'person') {
+          if (open) {
+            index.add(open)
+          }
+          open = { id: exchangeId(entry.id), at: said.at, text: said.text }
+        } else if (said && open) {
+          open = { ...open, text: `${open.text}\n${said.text}` }
+        }
+      }
+      return index
+    },
+  }
+}
+
+export type TranscriptExchanges = ReturnType<typeof transcriptExchanges>

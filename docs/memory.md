@@ -60,7 +60,7 @@ Automatic recall stays small and precise because models use the middle of long c
 
 ### 7. Old periods are recalled as their gist
 
-Automatic recall considers a day's episode only until its week is rolled up, and a week's until its month is. So its pool grows by about 12 month episodes a year instead of hundreds of days, and older periods surface as their gist, as they do for people. The detail is still there: a question that names a date reaches that day's episode, and `recall` and `read_memory` reach the exchanges. RAPTOR found searching all levels of a summary tree at once beat walking down it, so the hierarchy is a way to navigate, never a gate.
+Automatic recall considers a day's episode only until a rollup covers it (its week or its month), and a week's until its month is (both months, for a week that straddles two). So its pool grows by about 12 month episodes a year instead of hundreds of days, and older periods surface as their gist, as they do for people. The detail is still there: a question that names a date reaches that day's episode, and `recall` and `read_memory` reach the exchanges. RAPTOR found searching all levels of a summary tree at once beat walking down it, so the hierarchy is a way to navigate, never a gate.
 
 ### 8. Old facts get rechecked
 

@@ -3,10 +3,14 @@ import { addEpisode, type EpisodesState, type Span } from './episodes.ts'
 import { rememberFact, retireFact, reviseFact, type Memory } from './facts.ts'
 import { localDay } from '../time/index.ts'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
+import { createExchangeIndex } from './exchanges.ts'
 import {
   describe,
+  excerpt,
   RECALL_LIMIT,
   RECALL_TOKENS,
+  RECALL_TOOL_TOKENS,
+  recallAll,
   searchMemory,
 } from './recall.ts'
 
@@ -240,4 +244,81 @@ test('core facts a message matches count as used without being shown', () => {
   )
   expect(search.found).toEqual([])
   expect(search.used).toEqual(['f1'])
+})
+
+test('automatic recall prefers a rolled-up month to its days, but reaches a day by its date', () => {
+  const days: [Span, string, string, string][] = Array.from(
+    { length: 30 },
+    (_, index) => {
+      const day = `2025-11-${String(index + 1).padStart(2, '0')}`
+      return ['day', day, day, `Worked on the shed roof, day ${index + 1}.`]
+    },
+  )
+  const episodes = episodesOf(...days, [
+    'month',
+    '2025-11-01',
+    '2025-11-30',
+    'A month of shed roof repairs.',
+  ])
+  const memory = memoryOf()
+  expect(found(memory, episodes, 'How did the shed roof go?')).toEqual(['e31'])
+  expect(found(memory, episodes, 'What happened on 12 November 2025?')[0]).toBe(
+    'e12',
+  )
+  // Before the rollup, the days themselves are the candidates.
+  const unrolled = episodesOf(...days)
+  expect(found(memory, unrolled, 'How did the shed roof go?')).toHaveLength(
+    RECALL_LIMIT,
+  )
+})
+
+test('the recall tool groups facts, episodes and exchanges, current facts first', () => {
+  const memory = memoryOf(['Lives at 18 Beech Terrace in Leeds', 2])
+  reviseFact(
+    memory,
+    'f1',
+    { text: 'Lives at 9 Foss Lane in York', since: '2025-12-01' },
+    now,
+  )
+  memory.facts.facts[1].core = false
+  const episodes = episodesOf([
+    'day',
+    '2025-12-01',
+    '2025-12-01',
+    'Moved house to Foss Lane in York.',
+  ])
+  const exchanges = createExchangeIndex()
+  exchanges.add({
+    id: 'x7',
+    at: now - 31 * DAY,
+    text: `${'Packing boxes all morning. '.repeat(20)}We finally moved to Foss Lane today and the kettle is lost. ${'Unpacking later. '.repeat(20)}`,
+  })
+  const { text, used } = recallAll(
+    memory.facts,
+    episodes,
+    exchanges,
+    'Where do I live now, Foss Lane?',
+    now,
+  )
+  const lines = text.split('\n')
+  expect(lines[0]).toBe('Facts:')
+  expect(lines[1]).toMatch(/^f2 \(since 2025-12-01\)/)
+  expect(lines[2]).toMatch(/^f1 \(.*replaced by f2\)/)
+  expect(lines[3]).toBe('Episodes:')
+  expect(lines[4]).toMatch(/^e1 \(day of 2025-12-01\)/)
+  expect(lines[5]).toBe('Exchanges:')
+  // About 300 characters around the match, not the whole exchange.
+  expect(lines[6]).toMatch(/^x7 \(2025-12-01\): ….*Foss Lane.*…$/)
+  expect(lines[6].length).toBeLessThan(340)
+  expect(used).toEqual(['f2', 'f1'])
+  expect(estimateTextTokens(text)).toBeLessThanOrEqual(RECALL_TOOL_TOKENS)
+  expect(recallAll(memory.facts, episodes, exchanges, 'zebra', now).text).toBe(
+    'Nothing found.',
+  )
+})
+
+test('an excerpt is the whole text when short, and starts at the match when long', () => {
+  expect(excerpt('Short and sweet.', 'sweet')).toBe('Short and sweet.')
+  const long = `${'a '.repeat(400)}needle here ${'b '.repeat(400)}`
+  expect(excerpt(long, 'the needle')).toMatch(/^….*needle here.*…$/)
 })

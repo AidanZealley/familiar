@@ -30,9 +30,13 @@ packages/core/src
                      every rule for changing facts. Pure: no model, no Pi
                      beyond the documents.
     exchanges.ts     The in-memory search index over exchanges (a message and
-                     its replies), derived from the transcript.
-    tools.ts         The conversation's memory tool, recall. It only reads.
-    recall.ts        Search and ranking over facts and episodes.
+                     its replies). It catches up with the transcript at the
+                     start of each search and is rebuilt after a restart.
+    tools.ts         recall and read_memory, the tools that read memory. The
+                     conversation and upkeep both have them.
+    recall.ts        Search and ranking: automatic recall over facts and
+                     episodes, and the recall tool's groups, exchanges too.
+    read.ts          What read_memory shows behind an ID.
     episodes.ts      The episode shape, the Episodes document, dates in messages,
                      and when weeks and months are due to roll up.
     extension.ts     What memory adds to a request: core facts in the prompt, and

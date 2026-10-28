@@ -3,6 +3,7 @@ import type { Harness } from '@earendil-works/pi-durable'
 import { Facts, markRecalled, MemoryUsage } from './facts.ts'
 import { Episodes } from './episodes.ts'
 import { createMemoryExtension } from './extension.ts'
+import { transcriptExchanges } from './exchanges.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
@@ -22,6 +23,8 @@ export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
 export function createMemory(harness: Harness, options: MemoryOptions) {
   const extension = createMemoryExtension({
     now: options.now,
+    // In memory for as long as Familiar runs; rebuilt from the transcript.
+    exchanges: transcriptExchanges(),
     recalled: async (ids) => {
       await harness.commit(
         async (tx) =>

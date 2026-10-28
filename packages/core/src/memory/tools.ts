@@ -1,40 +1,62 @@
 import { Type } from '@earendil-works/pi-ai'
 import { defineTool, ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
-import { markRecalled, MemoryUsage, Facts } from './facts.ts'
+import type { TranscriptExchanges } from './exchanges.ts'
 import { Episodes } from './episodes.ts'
-import { searchMemory } from './recall.ts'
+import { Facts, markRecalled, MemoryUsage } from './facts.ts'
+import { readMemory } from './read.ts'
+import { recallAll } from './recall.ts'
 
-const recall = defineTool({
-  name: 'recall',
-  description:
-    "Search everything you remember beyond what you always see: facts, including ones no longer current, each with when it was true, and episodes, summaries of what happened each day, week and month. Use it when you need something you don't see, such as an earlier address, a detail of an old project or what was going on at a time.",
-  parameters: Type.Object({ query: Type.String() }),
-  execute: (args, api, context) =>
-    api
-      .commit(async (tx) => {
-        const facts = await tx.doc(Facts)
-        const usage = await tx.doc(MemoryUsage)
-        const episodes = await tx.doc(Episodes)
-        const { found, used } = searchMemory(
-          facts,
-          episodes,
-          args.query,
-          api.now(),
-          {
-            limit: 12,
-            tokens: 3_000,
-          },
-        )
-        // Only conversation counts as use; upkeep's searches are housekeeping.
-        if (api.conversationId === ROOT_CONVERSATION_ID) {
-          markRecalled(usage, used, api.now())
-        }
-        return found.length
-          ? found.map(({ line }) => line).join('\n')
-          : 'Nothing found.'
-      }, context)
-      .then((text) => ({ output: [{ type: 'text' as const, text }] })),
+const text = (text: string) => ({
+  output: [{ type: 'text' as const, text }],
 })
 
-/** The conversation's memory tools: it reads memory; nightly upkeep writes it. */
-export const memoryTools = [recall]
+/**
+ * The tools that read memory, for the conversation and for upkeep. Both
+ * search the exchanges too, so each catches the index up with the
+ * transcript first. Reads come before the one write, since a transaction
+ * can't read after writing.
+ */
+export function createMemoryTools(exchanges: TranscriptExchanges) {
+  const recall = defineTool({
+    name: 'recall',
+    description:
+      "Search everything you remember beyond what you always see: facts, including ones no longer true, each with when it was true; episodes, summaries of each day, week and month; and exchanges, the original messages with their replies. Use it when you need something you don't see, such as an earlier address, a detail of an old project or what was going on at a time. Results are grouped by kind; read_memory opens any of them.",
+    parameters: Type.Object({ query: Type.String() }),
+    execute: (args, api, context) =>
+      api
+        .commit(async (tx) => {
+          const index = await exchanges.catchUp(tx)
+          const facts = await tx.doc(Facts)
+          const usage = await tx.doc(MemoryUsage)
+          const episodes = await tx.doc(Episodes)
+          const found = recallAll(facts, episodes, index, args.query, api.now())
+          // Only conversation counts as use; upkeep's searches are housekeeping.
+          if (api.conversationId === ROOT_CONVERSATION_ID) {
+            markRecalled(usage, found.used, api.now())
+          }
+          return found.text
+        }, context)
+        .then(text),
+  })
+
+  const read = defineTool({
+    name: 'read_memory',
+    description:
+      'Open what lies behind an ID from recall: for an exchange (x…), it and the messages either side; for a fact (f…), how it changed and the messages it came from; for a day episode (e…), its exchanges; for a week or month, the episodes it was rolled up from.',
+    parameters: Type.Object({ id: Type.String() }),
+    execute: (args, api, context) =>
+      api
+        .commit(async (tx) => {
+          const index = await exchanges.catchUp(tx)
+          return readMemory(
+            args.id.trim(),
+            await tx.doc(Facts),
+            await tx.doc(Episodes),
+            index,
+          )
+        }, context)
+        .then(text),
+  })
+
+  return [recall, read]
+}

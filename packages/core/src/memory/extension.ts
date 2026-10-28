@@ -10,11 +10,12 @@ import { textOf } from '../conversation/message.ts'
 import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import { searchMemory } from './recall.ts'
-import { memoryTools } from './tools.ts'
+import type { TranscriptExchanges } from './exchanges.ts'
+import { createMemoryTools } from './tools.ts'
 
 const render = (facts: FactsState | undefined) => {
   const listed = facts ? listFacts(coreFacts(facts)) : ''
-  return `What you remember, filed from your conversations each night. Use it without announcing it. You can't save facts yourself: when someone asks you to remember something, say you will, and it is filed tonight. Use recall to search what you remember beyond this, including earlier conversations.
+  return `What you remember, filed from your conversations each night. Use it without announcing it. You can't save facts yourself: when someone asks you to remember something, say you will, and it is filed tonight. Use recall to search what you remember beyond this, including earlier conversations, and read_memory to open what it finds.
 ${listed || '(nothing yet)'}`
 }
 
@@ -45,6 +46,8 @@ export type MemoryExtensionOptions = {
   now: () => number
   /** Records that facts reached the model. Hooks can't commit, so the owner of the Harness does. */
   recalled: (ids: string[]) => Promise<void>
+  /** The exchange index the tools search. */
+  exchanges: TranscriptExchanges
 }
 
 /**
@@ -55,7 +58,7 @@ export type MemoryExtensionOptions = {
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: memoryTools,
+    tools: createMemoryTools(options.exchanges),
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>

@@ -1,3 +1,4 @@
+import type { EntryId } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { parseDay } from '../time/index.ts'
 import { datesIn } from './episodes.ts'
@@ -70,4 +71,22 @@ test('stays within the limit, adding as it goes', () => {
   index.add({ id: 'x21', at: now, text: 'Garden gate is 84 cm' })
   expect(index.size).toBe(21)
   expect(ids(index, 'garden gate', 1)).toEqual(['x21'])
+})
+
+test('opens an exchange with its neighbours, and those between two entries', () => {
+  const index = indexOf(
+    ['2025-03-01', 'First.'],
+    ['2025-03-02', 'Second.'],
+    ['2025-03-03', 'Third.'],
+  )
+  expect(index.around('x2')).toMatchObject({
+    before: { id: 'x1' },
+    exchange: { id: 'x2' },
+    after: { id: 'x3' },
+  })
+  expect(index.around('x1')?.before).toBeUndefined()
+  expect(index.around('x9')).toBeUndefined()
+  expect(index.between(2 as EntryId, 3 as EntryId).map(({ id }) => id)).toEqual(
+    ['x2', 'x3'],
+  )
 })

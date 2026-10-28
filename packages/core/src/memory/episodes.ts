@@ -1,4 +1,4 @@
-import { defineDoc } from '@earendil-works/pi-durable'
+import { defineDoc, type EntryId } from '@earendil-works/pi-durable'
 import { formatDay, parseDay } from '../time/index.ts'
 
 /**
@@ -19,6 +19,8 @@ export type Episode = {
   text: string
   /** When it was written, in ms since the epoch. */
   at: number
+  /** A day's first and last entries in the main conversation, so its exchanges can be read. */
+  entries?: { from: EntryId; to: EntryId }
 }
 
 export type EpisodesState = {
@@ -179,7 +181,7 @@ function periodsOf(day: string) {
 }
 
 /** Every day an episode covers. */
-function daysOf(episode: Episode) {
+export function daysOf(episode: DateRange) {
   const days: string[] = []
   const last = parseDay(episode.end)
   for (

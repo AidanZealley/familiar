@@ -86,7 +86,7 @@ An exchange is a person message (`saidBy(entry)?.role === 'person'` in the root 
 
 ### Automatic recall
 
-Same hook, memo and budget as today (8 items, about 1,000 tokens), over facts outside core and episodes, without exchanges. An episode is a candidate only while nothing covers it: a day until its week is rolled up, a week until its month is, and months always. When the message names dates (`datesIn`), episodes of every span that overlap them are candidates too. Ranking keeps `RANKING` in `recall.ts`. Add exchange weights there, and use `since` and `until` instead of record time for facts.
+Same hook, memo and budget as today (8 items, about 1,000 tokens), over facts outside core and episodes, without exchanges. An episode is a candidate only while no rollup covers it: a day until its week or month is rolled up, a week until every day of it is in a rolled-up month (a week can straddle two), and months always. When the message names dates (`datesIn`), episodes of every span that overlap them are candidates too. Ranking keeps `RANKING` in `recall.ts`. Add exchange weights there, and use `since` and `until` instead of record time for facts.
 
 ### Upkeep
 
