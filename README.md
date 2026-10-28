@@ -16,7 +16,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/schedules  Prompts Familiar runs at a time, once or repeating (a reminder
                   is the simplest), each reply sent to the host's notify.
   core/plugins    Plugins (everything beyond core), their secrets, redaction
-                  of secret values from tool results, and the connection routes.
+                  of secret values from what their tools report, and the
+                  connection routes.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
@@ -33,7 +34,7 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 - **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
 - **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. See [docs/architecture.md](docs/architecture.md).
 - **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given its secrets, the clock, `notify` and the host's `fetch`. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
-- **Secrets never reach the model.** Plugins read them in tool code; the owner sets them through write-only routes, never in chat, which is stored for good. Core also replaces any known secret value in a tool's result with `[secret]`. The host stores them, keyed by connection kind, name and secret.
+- **Secrets never reach the model.** Plugins read them in tool code; the owner sets them through write-only routes, never in chat, which is stored for good. Core also wraps plugin tools so any known secret value they report, while running or in their result, becomes `[secret]`. The host stores them, keyed by connection kind, name and secret.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.

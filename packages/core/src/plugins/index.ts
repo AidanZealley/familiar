@@ -1,9 +1,4 @@
-import {
-  defineExtension,
-  hook,
-  ToolTask,
-  type Extension,
-} from '@earendil-works/pi-durable'
+import type { Extension } from '@earendil-works/pi-durable'
 import type { Notification, Notify } from '../schedules/index.ts'
 import { createSecrets, type Connection, type SecretStore } from './secrets.ts'
 
@@ -81,9 +76,9 @@ const unavailableFetch: PluginFetch = () =>
   Promise.reject(new Error('This Familiar has no network access for plugins.'))
 
 /**
- * Plugins and their secrets: each plugin's extension, plus one that redacts
- * secret values from every tool result, as a second line of defence for a
- * plugin that echoes one. Install `extensions` after core's.
+ * Plugins and their secrets: each plugin's extension, its tools wrapped to
+ * redact secret values from everything they report, as a second line of
+ * defence for a plugin that echoes one. Install `extensions` after core's.
  */
 export function createPlugins(options: PluginsOptions) {
   const byName = new Map<string, FamiliarPlugin>()
@@ -136,20 +131,14 @@ export function createPlugins(options: PluginsOptions) {
     fetch: options.fetch ?? unavailableFetch,
   })
 
-  const redaction = defineExtension({
-    name: 'familiar.redaction',
-    hooks: [
-      hook(ToolTask, { afterTool: (_call, result) => secrets.redact(result) }),
-    ],
-  })
-
-  const extensions = [
-    redaction,
-    ...options.plugins.map((plugin) => ({
-      ...plugin.extension(contextFor(plugin)),
+  const extensions = options.plugins.map((plugin): Extension => {
+    const extension = plugin.extension(contextFor(plugin))
+    return {
+      ...extension,
       name: `familiar.plugin.${plugin.name}`,
-    })),
-  ]
+      tools: extension.tools?.map(secrets.redactTool),
+    }
+  })
 
   const api: ConnectionsApi = {
     list: () =>

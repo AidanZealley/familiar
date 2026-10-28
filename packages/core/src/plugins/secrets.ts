@@ -1,4 +1,8 @@
-import type { ToolExecutionResult } from '@earendil-works/pi-durable'
+import type {
+  ToolExecutionApi,
+  ToolExecutionResult,
+  ToolRegistration,
+} from '@earendil-works/pi-durable'
 
 /** What owns a secret: a plugin, or (later) an MCP server. */
 export type Connection = { kind: 'plugin' | 'mcp'; name: string }
@@ -68,7 +72,8 @@ export function createSecrets(
     return redacted
   }
 
-  // Generic, for the result's typed channels; all of them are JSON.
+  // Generic, for the typed channels a tool reports on; all of them are JSON.
+  // Keys too: a plugin may index results by an authenticated URL.
   const redactJson = <Value>(value: Value): Value => {
     if (typeof value === 'string') {
       return redactString(value) as Value
@@ -78,7 +83,10 @@ export function createSecrets(
     }
     if (value && typeof value === 'object') {
       return Object.fromEntries(
-        Object.entries(value).map(([key, item]) => [key, redactJson(item)]),
+        Object.entries(value).map(([key, item]) => [
+          redactString(key),
+          redactJson(item),
+        ]),
       ) as Value
     }
     return value
@@ -97,26 +105,62 @@ export function createSecrets(
     delete: async (connection: Connection, secret: string) => {
       await store?.delete(connection, secret)
     },
-    /** The result with every known secret value replaced by `[secret]`. */
-    redact: async (
-      result: ToolExecutionResult,
-    ): Promise<ToolExecutionResult> => {
-      await load()
-      if (known.size === 0) {
-        return result
-      }
-      // Every channel a tool's text reaches someone on, including error text
-      // in diagnostics. `control` and `usage` are the Harness's, not text.
-      return {
-        ...result,
-        output: redactJson(result.output),
-        structuredOutput: redactJson(result.structuredOutput),
-        details: redactJson(result.details),
-        diagnostics: result.diagnostics?.map((diagnostic) => ({
-          ...diagnostic,
-          message: redactString(diagnostic.message),
-        })),
-      }
-    },
+    /**
+     * The tool with every known secret value replaced by `[secret]` wherever
+     * it reports: progress, its result, and errors it throws. Progress is
+     * redacted before Pi commits it, because Pi streams it to clients and
+     * keeps it as the result of a call that's aborted. Output is held until
+     * the call returns, so a value split across chunks is still found, and
+     * an aborted call keeps none.
+     */
+    redactTool: <Tool extends ToolRegistration>(tool: Tool): Tool => ({
+      ...tool,
+      execute: async (
+        args: unknown,
+        api: ToolExecutionApi,
+        context: Parameters<Tool['execute']>[2],
+      ) => {
+        await load()
+        const decoder = new TextDecoder()
+        let output = ''
+        const redacting: ToolExecutionApi = {
+          ...api,
+          // Pi's docs: a wrapper that transforms output must clear this, so
+          // skipped text can't bypass it.
+          outputWindow: undefined,
+          output: (chunk) => {
+            output +=
+              typeof chunk === 'string'
+                ? chunk
+                : decoder.decode(chunk, { stream: true })
+          },
+          retainedOutput: () => ({
+            text: redactString(output),
+            truncated: false,
+          }),
+          diagnostic: (diagnostic) => api.diagnostic(redactJson(diagnostic)),
+          details: (value, detailsContext) =>
+            api.details(redactJson(value), detailsContext),
+        }
+        let result: ToolExecutionResult
+        try {
+          result = await tool.execute(args as never, redacting, context)
+        } catch (error) {
+          // No `cause`: the original's message is what holds the secret.
+          // eslint-disable-next-line preserve-caught-error
+          throw new Error(
+            redactString(
+              error instanceof Error ? error.message : String(error),
+            ),
+          )
+        }
+        return redactJson({
+          ...result,
+          output:
+            result.output ??
+            (output ? [{ type: 'text' as const, text: output }] : undefined),
+        })
+      },
+    }),
   }
 }

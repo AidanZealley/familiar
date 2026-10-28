@@ -17,6 +17,9 @@ import { definePlugin, memorySecrets } from './index.ts'
 
 const KEY = 'sk-test-0123456789'
 
+// Lets a test look at a running call, then decide how it ends.
+let release = () => {}
+
 // A plugin whose tool echoes its key, as a careless plugin might in an error.
 const echo = definePlugin({
   name: 'echo',
@@ -37,8 +40,24 @@ const echo = definePlugin({
             }
             return {
               output: [{ type: 'text', text: `The key is ${key}.` }],
-              details: { key },
+              // Keyed by the secret too, as results indexed by URL would be.
+              details: { key, [key]: 'indexed' },
             }
+          },
+        }),
+        defineTool({
+          name: 'report_key',
+          description: 'Reports the key while it runs, then waits.',
+          parameters: Type.Object({}),
+          execute: async (_args, api, toolContext) => {
+            const key = await context.secret('key')
+            // Split, as streamed output may arrive.
+            api.output(`Calling ?key=${key.slice(0, 6)}`)
+            api.output(`${key.slice(6)} now`)
+            api.diagnostic({ severity: 'info', message: `key=${key}` })
+            await api.details({ [key]: key }, toolContext)
+            await new Promise<void>((resolve) => (release = resolve))
+            return {}
           },
         }),
       ],
@@ -104,6 +123,31 @@ test('a tool reads its secret, and its result never shows the value', async () =
   const watch = await familiar.watch()
   await watch.stop()
   expect(JSON.stringify(watch.value)).not.toContain(KEY)
+})
+
+test('progress never shows the value, while running or once aborted', async () => {
+  const { faux, familiar, secrets } = await setup()
+  await secrets.set(connection, 'key', KEY)
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('report_key', {}), {
+      stopReason: 'toolUse',
+    }),
+    fauxAssistantMessage('Stopped.'),
+  ])
+  const view = async () => {
+    const watch = await familiar.watch()
+    await watch.stop()
+    return JSON.stringify(watch.value)
+  }
+
+  await familiar.send({ author: 'owner', text: 'Go', requestId: 'go' })
+  await expect.poll(view).toContain('key=[secret]')
+  expect(await view()).not.toContain(KEY)
+
+  await familiar.abort()
+  release()
+  await familiar.idle()
+  expect(await view()).not.toContain(KEY)
 })
 
 test('without its secret, the model is told to ask the owner', async () => {
