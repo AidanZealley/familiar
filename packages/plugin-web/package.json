@@ -1,0 +1,22 @@
+{
+  "name": "@familiar/plugin-web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "@familiar/core": "workspace:*",
+    "@mozilla/readability": "0.6.0",
+    "linkedom": "0.18.14",
+    "turndown": "7.2.4"
+  },
+  "devDependencies": {
+    "@types/turndown": "5.0.6"
+  }
+}

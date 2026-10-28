@@ -1,9 +1,10 @@
 import { isAbsolute } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { FamiliarPlugin } from '@familiar/core'
+import web from '@familiar/plugin-web'
 
 /** Plugins every daemon installs. */
-const firstParty: FamiliarPlugin[] = []
+const firstParty: FamiliarPlugin[] = [web]
 
 /**
  * The daemon's plugins: the first-party ones, then any named in

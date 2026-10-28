@@ -20,6 +20,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   what their tools report, and the connection routes.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
+packages/plugin-web  web_search (Brave, with the owner's key) and web_fetch,
+                  public pages as Markdown. First-party, so the daemon installs it.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
                   guarded fetch and plugin list; serves the API (and the built
                   web UI).

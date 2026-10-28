@@ -17,6 +17,7 @@
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
     "@familiar/core": "workspace:*",
+    "@familiar/plugin-web": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "catalog:",
     "node-fetch": "3.3.2",
