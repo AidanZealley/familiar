@@ -483,6 +483,7 @@ test('health counts facts, core, episodes, exchanges and searches', async () => 
     // The newest exchange waits for the next message before it's indexed.
     exchanges: 2,
     indexBuildMs: expect.any(Number),
+    indexCatchUpMs: null,
     // One automatic recall per message.
     search: {
       count: 3,
@@ -491,4 +492,14 @@ test('health counts facts, core, episodes, exchanges and searches', async () => 
     },
   })
   expect(health.search.maxMs).toBeGreaterThanOrEqual(health.search.medianMs)
+
+  // Reading health without new transcript entries must not inflate timings.
+  expect(await familiar.memory.health()).toEqual(health)
+  faux.setResponses([fauxAssistantMessage('One more reply.')])
+  await say('One more message.')
+  const updated = await familiar.memory.health()
+  expect(updated.indexBuildMs).toBe(health.indexBuildMs)
+  expect(updated.indexCatchUpMs).toEqual(expect.any(Number))
+  expect(updated.exchanges).toBe(health.exchanges + 1)
+  expect(await familiar.memory.health()).toEqual(updated)
 })

@@ -20,8 +20,10 @@ export type MemoryHealth = {
   unchecked: number
   episodes: Record<Span, number>
   exchanges: number
-  /** Time spent building the exchange index since Familiar started. */
-  indexBuildMs: number
+  /** First nonempty index build after opening Familiar; not a cumulative total. */
+  indexBuildMs: number | null
+  /** Latest nonempty update after that build; idle polls leave it unchanged. */
+  indexCatchUpMs: number | null
   search: { count: number; medianMs: number; maxMs: number }
 }
 
@@ -53,7 +55,10 @@ export function createSearchTimes() {
       const sorted = times.toSorted((a, b) => a - b)
       return {
         count: sorted.length,
-        medianMs: sorted[Math.floor(sorted.length / 2)] ?? 0,
+        medianMs:
+          ((sorted[Math.floor((sorted.length - 1) / 2)] ?? 0) +
+            (sorted[Math.floor(sorted.length / 2)] ?? 0)) /
+          2,
         maxMs: sorted.at(-1) ?? 0,
       }
     },
@@ -65,7 +70,7 @@ export type SearchTimes = ReturnType<typeof createSearchTimes>
 export function memoryHealth(
   memory: Memory,
   episodes: EpisodesState,
-  exchanges: { size: number; buildMs: number },
+  exchanges: { size: number; buildMs: number | null; catchUpMs: number | null },
   search: MemoryHealth['search'],
   now: number,
 ): MemoryHealth {
@@ -87,6 +92,7 @@ export function memoryHealth(
     episodes: { day: spans('day'), week: spans('week'), month: spans('month') },
     exchanges: exchanges.size,
     indexBuildMs: exchanges.buildMs,
+    indexCatchUpMs: exchanges.catchUpMs,
     search,
   }
 }

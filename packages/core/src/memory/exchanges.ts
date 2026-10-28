@@ -143,11 +143,13 @@ export function transcriptExchanges() {
   const index = createExchangeIndex()
   let through: EntryId | undefined
   let open: Exchange | undefined
-  let buildMs = 0
+  let buildMs: number | null = null
+  let catchUpMs: number | null = null
 
   return {
     async catchUp(tx: Tx) {
       const started = performance.now()
+      const previous = through
       for await (const entry of entriesOf(tx, {
         conversationId: ROOT_CONVERSATION_ID,
         order: 'ascending',
@@ -166,13 +168,26 @@ export function transcriptExchanges() {
           open = { ...open, text: `${open.text}\n${said.text}` }
         }
       }
-      buildMs += performance.now() - started
+      // Empty polls do not build anything and must not change the timings.
+      if (through !== previous) {
+        const elapsed = performance.now() - started
+        if (buildMs === null) {
+          buildMs = elapsed
+        } else {
+          catchUpMs = elapsed
+        }
+      }
       return index
     },
 
-    /** Time spent catching up since Familiar started, which is the index's build time. */
+    /** First nonempty build after opening Familiar, or null before one runs. */
     get buildMs() {
       return buildMs
+    },
+
+    /** Latest nonempty update after the initial build, or null before one runs. */
+    get catchUpMs() {
+      return catchUpMs
     },
   }
 }

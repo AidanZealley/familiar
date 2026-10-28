@@ -60,7 +60,11 @@ export function memoryApi(
         return memoryHealth(
           await openMemory(tx),
           await tx.doc(Episodes),
-          { size: index.size, buildMs: exchanges.buildMs },
+          {
+            size: index.size,
+            buildMs: exchanges.buildMs,
+            catchUpMs: exchanges.catchUpMs,
+          },
           times.summary(),
           now(),
         )

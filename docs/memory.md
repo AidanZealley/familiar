@@ -22,7 +22,7 @@ Exchanges aren't stored. They are a view of the transcript: the index is built o
 
 **When a message arrives.** The prompt already holds core facts. Memory searches facts outside core and the episodes, and adds the best few (at most 8, about 1,000 tokens) after the message, for that request only. The model answers. If that isn't enough, it calls `recall`, which searches facts, episodes and the original exchanges, and `read_memory`, which opens a fact, an episode or an exchange and shows what lies behind it.
 
-**At 04:00.** Upkeep works in three stages, each bounded so a night's work never grows with the size of memory:
+**At 04:00.** Upkeep works in three stages. Individual model requests are bounded; total nightly work depends on the backlog and due rollups, so catching up after an outage can take longer:
 
 1. **File the backlog,** one day at a time, oldest first. For each day it saves new facts, revises or retires ones the conversation changed, and writes the day's episode. Each fact cites the messages it came from.
 2. **Roll up** finished weeks and months into their own episodes.
@@ -38,7 +38,7 @@ Facts and summaries are lossy by nature: whatever the writer leaves out is gone 
 
 ### 2. Upkeep is the only writer of facts
 
-The conversation model only reads memory. Upkeep sees a whole day at once, so it writes better facts than a mid-conversation save. With one writer there are no duplicates to reconcile and every rule about facts has one owner. Other assistants (OpenClaw, ChatGPT, Letta) save "remember this" immediately, mainly so compaction can't lose it before it's written down. Familiar doesn't need that: the message is searchable the moment it's sent, and upkeep files it that night. If daily use shows explicit requests being missed, the fallback is a `remember` tool for explicit requests only.
+The conversation model only reads memory. Upkeep sees a whole day at once, so it writes better facts than a mid-conversation save. With one writer there are no duplicates to reconcile and every rule about facts has one owner. Other assistants (OpenClaw, ChatGPT, Letta) save "remember this" immediately, mainly so compaction can't lose it before it's written down. Familiar keeps the newest exchange in immediate conversation context. Once the next person message arrives, the exchange becomes eligible for indexed search; upkeep files lasting facts that night. If daily use shows explicit requests being missed, the fallback is a `remember` tool for explicit requests only.
 
 ### 3. Facts are short and say when they were true
 
@@ -66,19 +66,31 @@ Upkeep only reads new conversation, so a fact nobody mentions again would stay "
 
 ## How it stays good over time
 
-| What grows     | Why it doesn't rot                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------- |
-| The transcript | Pi stores it and reads it by entry range; the exchange index only ever appends.                   |
-| Facts          | Capped in length; superseded rather than duplicated; rechecked on a rotation.                     |
-| Core           | Fixed budget, chosen by code from importance and recent use, so it can't drift.                   |
-| Episodes       | Automatic recall moves to rollups as periods age; days stay reachable by date and by tool.        |
-| Nightly work   | Day batches, rollups and review are each bounded, and progress is saved after each step.          |
-| Search time    | Facts and episodes are small enough to search directly; exchanges use an index that only appends. |
+| What grows     | Why it doesn't rot                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------- |
+| The transcript | Pi stores it and reads it by entry range; the exchange index only ever appends.                            |
+| Facts          | Capped in length; superseded rather than duplicated; rechecked on a rotation.                              |
+| Core           | Fixed budget, chosen by code from importance and recent use, so it can't drift.                            |
+| Episodes       | Automatic recall moves to rollups as periods age; days stay reachable by date and by tool.                 |
+| Nightly work   | Individual requests are bounded and progress is saved after each batch; total work grows with the backlog. |
+| Search time    | Facts and episodes are small enough to search directly; exchanges use an index that only appends.          |
 
 Two things check this rather than assume it:
 
 - **The rot test** (`pnpm eval:recall`) asks rowan-v3's questions against its year of exchanges, then again with years of extra conversation added after it. No model is involved, so it runs in seconds. The line should stay flat.
 - **Health numbers** (`GET /api/memory/health`) report from real data: fact counts, how full core is, facts unchecked for six months, episodes, exchanges indexed, and search times.
+
+The health API reports `indexBuildMs` for the first nonempty index build after Familiar opens and `indexCatchUpMs` for the latest nonempty update after that build. Each stays `null` until that work occurs; empty polls leave both unchanged. These are individual durations, not cumulative totals, and reset when Familiar restarts. Search statistics cover the latest 200 searches. The endpoint is diagnostic data; there is no health dashboard.
+
+## Search performance finding
+
+A diagnostic run on 2026-10-28 traced the slowest synthetic retrieval queries to date scoring in `memory/exchanges.ts`. Word search uses MiniSearch's index, but a query naming dates also checks every exchange against every extracted date range. That extra work grows linearly with the number of exchanges and ranges, even when few exchanges fall within those dates.
+
+With 36,562 indexed exchanges, the slowest question compared two weeks in December 2025 and produced four date ranges. It took about 390 ms with date scoring and about 4 ms with date scoring disabled. Disabling dates changes ranking; this comparison isolates the cost and is not a proposed fix. The saved final eval's median search time was about 9 ms at that history size.
+
+The history consisted of 62 scenario exchanges plus ten years of short, deterministic filler at ten exchanges a day. These are local synthetic timings, not a capacity guarantee for ten years of real conversation. Search runs synchronously, so a slow query also occupies the daemon's JavaScript thread.
+
+Keep the current search while testing normal use. If date-heavy searches cause noticeable delays or interfere with other requests, first investigate a date index or ordered date lookup that scores only exchanges in the relevant ranges, while preserving candidates from word search. Measure retrieval quality as well as latency before replacing the full scan. This finding does not justify a new database or search service.
 
 ## What it deliberately doesn't do
 
