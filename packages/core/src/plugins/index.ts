@@ -170,7 +170,19 @@ export function createPlugins(options: PluginsOptions) {
         }
         return value
       }
-      return authorizedFetch(fetch, secret, value, input, init)
+      let response: Response
+      try {
+        response = await authorizedFetch(fetch, secret, value, input, init)
+      } catch (error) {
+        // The host's fetch may name the request's headers in its error.
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(
+          secrets.redactString(
+            error instanceof Error ? error.message : String(error),
+          ),
+        )
+      }
+      return secrets.redactResponse(response)
     },
   })
 

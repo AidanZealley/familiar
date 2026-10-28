@@ -100,11 +100,13 @@ async function setup(plugins: FamiliarPlugin[] = [echo]) {
   models.setProvider(faux.provider)
   const secrets = memorySecrets()
 
-  // The host's fetch: records each request and echoes the key header.
+  // The host's fetch: records each request and echoes the key header, in
+  // its body and a header.
   const sent: { url: string; init?: RequestInit }[] = []
   const fetch: PluginFetch = async (input, init) => {
     sent.push({ url: String(input), init })
-    return new Response(new Headers(init?.headers).get('X-Key') ?? '')
+    const key = new Headers(init?.headers).get('X-Key') ?? ''
+    return new Response(key, { headers: { 'X-Echo': key } })
   }
 
   const familiar = await summonFamiliar({
@@ -164,6 +166,16 @@ test('a declared request carries the secret, and nothing reported shows it', asy
   expect(await view()).not.toContain(KEY)
 })
 
+test('a service that echoes the key gives plugin code only [secret]', async () => {
+  const { secrets, sent } = await setup()
+  await secrets.set(connection, 'key', KEY)
+
+  const response = await context.authorizedFetch('key', ENDPOINT)
+  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
+  expect(response.headers.get('X-Echo')).toBe('[secret]')
+  expect(await response.text()).toBe('[secret]')
+})
+
 test('authorizedFetch refuses any other request without sending it', async () => {
   const { secrets, sent } = await setup()
   await secrets.set(connection, 'key', KEY)
@@ -204,8 +216,9 @@ test('progress never shows the secret, while running or once aborted', async () 
   await expect.poll(view).toContain('body=[secret]')
   expect(await view()).not.toContain(KEY)
 
-  await familiar.abort()
+  const aborted = familiar.abort()
   release()
+  await aborted
   await familiar.idle()
   expect(await view()).not.toContain(KEY)
 })
