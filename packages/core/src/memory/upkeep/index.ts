@@ -16,8 +16,25 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import { saidBy } from '../../conversation/message.ts'
-import { addEpisode, dueRollup, Episodes } from '../episodes.ts'
-import { coreFacts, Facts, openMemory, rebalanceCore } from '../facts.ts'
+import {
+  addEpisode,
+  dueRollup,
+  Episodes,
+  type EpisodesState,
+} from '../episodes.ts'
+import { describeEpisode } from '../recall.ts'
+import { formatDay, parseDay } from '../../time/index.ts'
+import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
+import {
+  coreFacts,
+  dueForReview,
+  factDays,
+  Facts,
+  markChecked,
+  MemoryUsage,
+  openMemory,
+  rebalanceCore,
+} from '../facts.ts'
 import { instructions, rollupInstructions } from './prompts.ts'
 import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
 import { upkeepTools } from './tools.ts'
@@ -54,6 +71,16 @@ type UpkeepStep =
       end: string
       input: string
     }
+  /** Once rollups are done, picks the facts due for a recheck, else sleeps. */
+  | { phase: 'review' }
+  | {
+      phase: 'recheck'
+      conversation: ConversationId
+      reset: EntryId
+      /** The facts the review was given, stamped checked when it succeeds. */
+      facts: string[]
+      input: string
+    }
 
 /** Upkeep's extension, which holds the tools that write facts. */
 export const UPKEEP_EXTENSION = 'familiar.upkeep'
@@ -65,11 +92,39 @@ export type UpkeepOptions = {
   extension: Extension
 }
 
+/** The review sees the day episodes of this many days. */
+const REVIEW_DAYS = 30
+
 /**
- * Daily memory consolidation: at 04:00 a background task reviews unreviewed
- * messages in bounded, oldest-first day batches in a separate conversation
- * with memory tools. Install `extension`, then call `start`
- * once the Harness is open.
+ * The day episodes of the last REVIEW_DAYS before `today`, newest kept first
+ * when they pass `budget`, shown oldest first.
+ */
+function recentDays(episodes: EpisodesState, today: string, budget: number) {
+  const from = parseDay(today)
+  from.setDate(from.getDate() - REVIEW_DAYS)
+  const since = formatDay(from)
+  const lines: string[] = []
+  let tokens = 0
+  for (const day of episodes.episodes
+    .filter((episode) => episode.span === 'day' && episode.end >= since)
+    .sort((a, b) => b.end.localeCompare(a.end))) {
+    const line = describeEpisode(day)
+    tokens += estimateTextTokens(line)
+    if (tokens > budget) {
+      break
+    }
+    lines.unshift(line)
+  }
+  return lines.join('\n\n')
+}
+
+/**
+ * Daily memory upkeep: at 04:00 a background task files unreviewed messages
+ * in bounded, oldest-first day batches in a separate conversation with the
+ * writing tools, rolls up finished weeks and months, then rechecks the facts
+ * that have gone longest without a check. Each stage is bounded, so a
+ * night's work never grows with the size of memory. Install `extension`,
+ * then call `start` once the Harness is open.
  */
 export function createUpkeep(options: UpkeepOptions) {
   const sleep = (now: number) =>
@@ -122,6 +177,9 @@ export function createUpkeep(options: UpkeepOptions) {
 
   /** Once the backlog is clear, write any rollups that are due. */
   const rollup = { status: 'running', checkpoint: { phase: 'rollup' } } as const
+
+  /** Once rollups are written, recheck the facts that are due. */
+  const review = { status: 'running', checkpoint: { phase: 'review' } } as const
 
   const UpkeepTask = defineTask<null, UpkeepStep, null>({
     name: 'familiar.upkeep',
@@ -240,8 +298,11 @@ export function createUpkeep(options: UpkeepOptions) {
             await tx.doc(Episodes),
             upkeepDay(runtime.now()),
           )
-          if (!due || upkeep.rollups === null) {
+          if (upkeep.rollups === null) {
             return sleep(runtime.now())
+          }
+          if (!due) {
+            return review
           }
           const days = due.days
             .map(
@@ -288,6 +349,58 @@ export function createUpkeep(options: UpkeepOptions) {
             at: runtime.now(),
           })
           return rollup
+        }, context)
+      },
+
+      review: (_task, runtime, context) =>
+        runtime.commit(async (tx) => {
+          const upkeep = await tx.doc(Upkeep)
+          const memory = await openMemory(tx)
+          const due = dueForReview(memory, runtime.now())
+          if (!due.length || upkeep.conversation === null) {
+            return sleep(runtime.now())
+          }
+          const facts = due
+            .map(
+              (fact) =>
+                `${fact.id} (${factDays(memory.facts, fact)}): ${fact.text}`,
+            )
+            .join('\n')
+          const days = recentDays(
+            await tx.doc(Episodes),
+            upkeepDay(runtime.now()),
+            options.transcriptTokens,
+          )
+          const input = `Check these facts against what happened recently:\n${facts}\n\nThe days of the last ${REVIEW_DAYS}, oldest first:\n${days || '(none recorded)'}`
+          const reset = await resetIn(tx, upkeep.conversation)
+          return {
+            status: 'running',
+            checkpoint: {
+              phase: 'recheck',
+              conversation: upkeep.conversation,
+              reset: reset.id,
+              facts: due.map((fact) => fact.id),
+              input,
+            },
+          }
+        }, context),
+
+      recheck: async (task, runtime, context) => {
+        const { conversation, reset, facts, input } = task.state.checkpoint
+        const reply = await ask(
+          runtime,
+          conversation,
+          `upkeep:${reset}`,
+          input,
+          context,
+        )
+        await runtime.commit(async (tx) => {
+          // A failed review has been reported; unstamped, its facts are
+          // first in line again the next night.
+          if (reply !== undefined) {
+            markChecked(await tx.doc(MemoryUsage), facts, runtime.now())
+          }
+          return sleep(runtime.now())
         }, context)
       },
     },

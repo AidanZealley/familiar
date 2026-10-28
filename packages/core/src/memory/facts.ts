@@ -341,3 +341,41 @@ export function markRecalled(usage: UsageState, ids: string[], at: number) {
     usage.facts[id] = { ...usage.facts[id], recalled: at }
   }
 }
+
+/**
+ * Upkeep rechecks this many facts a night at most, so a store of 2,000 is
+ * fully reviewed every 100 days at a fixed cost per night.
+ */
+export const REVIEW_LIMIT = 20
+
+/** A fact is due for review once it has gone this long unchecked. */
+export const REVIEW_AFTER = 30 * 24 * 60 * 60 * 1000
+
+/** When a fact was last checked by upkeep, or else saved. */
+export const lastChecked = (usage: UsageState, fact: Fact) =>
+  usage.facts[fact.id]?.checked ?? fact.saved
+
+/**
+ * The current facts that have gone longest without a check, up to `limit`:
+ * upkeep only reads new conversation, so without this a fact nobody mentions
+ * again would stay current forever.
+ */
+export function dueForReview(
+  { facts, usage }: Memory,
+  now: number,
+  limit = REVIEW_LIMIT,
+) {
+  return facts.facts
+    .filter(
+      (fact) => !isPast(fact) && now - lastChecked(usage, fact) > REVIEW_AFTER,
+    )
+    .sort((a, b) => lastChecked(usage, a) - lastChecked(usage, b))
+    .slice(0, limit)
+}
+
+/** Records that upkeep checked facts against recent days. */
+export function markChecked(usage: UsageState, ids: string[], at: number) {
+  for (const id of ids) {
+    usage.facts[id] = { ...usage.facts[id], checked: at }
+  }
+}

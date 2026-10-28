@@ -31,12 +31,14 @@ async function withHarness<T>(
 
 /**
  * Storage that already holds these facts, as nightly upkeep would have
- * saved them; the conversation model can't save facts itself. Closing it
+ * saved them; the conversation model can't save facts itself. Each is saved
+ * now unless given a time, so none is due for review. Closing the storage
  * does nothing, so a test can read it after dismissing Familiar.
  */
 export async function storageWith(
-  ...facts: [text: string, importance: number][]
+  ...facts: [text: string, importance: number, saved?: number][]
 ): Promise<Storage> {
+  const now = Date.now()
   const storage = new MemoryStorage()
   const kept = new Proxy(storage, {
     get: (target, key) =>
@@ -45,11 +47,11 @@ export async function storageWith(
   await withHarness(kept, (harness) =>
     harness.commit(async (tx) => {
       const memory = await openMemory(tx)
-      for (const [text, importance] of facts) {
+      for (const [text, importance, saved = now] of facts) {
         rememberFact(
           memory,
           { text, importance, since: '2026-01-05', sources: [] },
-          1,
+          saved,
         )
       }
     }, BACKGROUND_CONTEXT),

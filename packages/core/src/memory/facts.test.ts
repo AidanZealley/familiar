@@ -4,11 +4,14 @@ import {
   CORE_BUDGET,
   CORE_STICKINESS,
   coreFacts,
+  dueForReview,
   FACT_LIMIT,
   FactError,
   factDays,
   listFacts,
+  markChecked,
   markRecalled,
+  REVIEW_LIMIT,
   rememberFact,
   retireFact,
   reviseFact,
@@ -327,4 +330,24 @@ test('no rule deletes a fact', () => {
   markRecalled(memory.usage, ['f3'], 3)
   rebalanceCore(memory)
   expect(ids()).toEqual([...kept, 'f4'])
+})
+
+test('review picks current facts unchecked longest, oldest first, up to the limit', () => {
+  const memory = empty()
+  const DAY = 24 * 60 * 60 * 1000
+  const now = 1_000 * DAY
+  for (let index = 0; index < REVIEW_LIMIT + 5; index++) {
+    save(memory, `Fact ${index}`, 2, now - (100 + index) * DAY)
+  }
+  // Checked recently: not due, however old.
+  markChecked(memory.usage, ['f25'], now - 10 * DAY)
+  // Checked long ago, but after it was saved: due, ahead of newer saves.
+  markChecked(memory.usage, ['f1'], now - 110.5 * DAY)
+  retireFact(memory, 'f24', '2025-06-01')
+  const due = dueForReview(memory, now).map(({ id }) => id)
+  expect(due).toHaveLength(REVIEW_LIMIT)
+  expect(due).not.toContain('f24')
+  expect(due).not.toContain('f25')
+  expect(due.slice(0, 3)).toEqual(['f23', 'f22', 'f21'])
+  expect(due.indexOf('f1')).toBe(due.indexOf('f12') + 1)
 })

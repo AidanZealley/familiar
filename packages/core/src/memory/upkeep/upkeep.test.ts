@@ -17,7 +17,8 @@ import {
 import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
-import { storageWith } from '../testing.ts'
+import { MemoryUsage } from '../facts.ts'
+import { readStored, storageWith } from '../testing.ts'
 
 const context = BACKGROUND_CONTEXT
 
@@ -139,6 +140,12 @@ const opened: Familiar[] = []
 afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
+
+/** Dismisses a Familiar before the test ends, so its storage can be read. */
+const dismiss = async (familiar: Familiar) => {
+  opened.splice(opened.indexOf(familiar), 1)
+  await familiar.dismiss()
+}
 
 /** The pass's input: the last user message of an upkeep request, before any recall note. */
 const inputOf = (context: TranscriptContext) => {
@@ -931,4 +938,112 @@ test('an oversized single message is bounded and does not strand the messages af
   expect(inputs[0].length).toBeLessThan(100_000)
   expect(inputs[1]).toContain('Reply after the long message.')
   expect(inputs[1]).not.toContain('Long message:')
+})
+
+const DAY = 24 * 60 * 60 * 1000
+
+test('after the backlog and rollups, a review rechecks the longest-unchecked facts', async () => {
+  const storage = await storageWith(
+    ['Works at Northbank Ceramics', 4, start - 300 * DAY],
+    ...Array.from(
+      { length: 24 },
+      (_, index) =>
+        [`Minor detail ${index}`, 2, start - (200 - index) * DAY] as [
+          string,
+          number,
+          number,
+        ],
+    ),
+  )
+  const { faux, familiar, say, memory, passAt } = await setup(storage)
+  faux.setResponses([fauxAssistantMessage('Congratulations!')])
+  await say('I started at Lantern Museum today and left Northbank.')
+
+  const order: string[] = []
+  let review = ''
+  faux.setResponses([
+    () => {
+      order.push('pass')
+      // The pass files the day without noticing the old fact.
+      return fauxAssistantMessage('Rowan left Northbank for Lantern Museum.')
+    },
+    () => {
+      order.push('rollup')
+      return fauxAssistantMessage('A week of changing jobs.')
+    },
+    (context) => {
+      order.push('review')
+      review = inputOf(context)
+      return fauxAssistantMessage(
+        fauxToolCall('retire', { id: 'f1', until: '2026-10-25' }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage('Checked.'),
+  ])
+  await passAt(firstPass, secondPass)
+
+  expect(order).toEqual(['pass', 'rollup', 'review'])
+  // The twenty checked longest ago, oldest first, with their days.
+  expect(review).toMatch(
+    /^Check these facts against what happened recently:\nf1 \(since 2026-01-05\): Works at Northbank Ceramics\nf2 /,
+  )
+  expect(review).toContain('f20 ')
+  expect(review).not.toContain('f21 ')
+  expect(review).toContain(
+    'e1 (day of 2026-10-25): Rowan left Northbank for Lantern Museum.',
+  )
+  expect((await memory())[0]).toMatchObject({ id: 'f1', until: '2026-10-25' })
+
+  await dismiss(familiar())
+  const { facts } = await readStored(storage, MemoryUsage)
+  expect(Object.keys(facts)).toHaveLength(20)
+  expect(facts.f20).toEqual({ checked: firstPass })
+  expect(facts.f21).toBeUndefined()
+})
+
+test('a failed review stamps nothing and runs again the next night, then sleeps', async () => {
+  const storage = await storageWith(
+    ['Has a cat', 3, start - 90 * DAY],
+    ['Likes blue pens', 1, start - 60 * DAY],
+  )
+  const { faux, familiar, say, passAt } = await setup(storage)
+  faux.setResponses([fauxAssistantMessage('Hello.')])
+  await say('Hi.')
+  const reviews: string[] = []
+  const review =
+    (reply: () => ReturnType<typeof fauxAssistantMessage>) =>
+    (context: TranscriptContext) => {
+      reviews.push(inputOf(context))
+      return reply()
+    }
+  faux.setResponses([
+    fauxAssistantMessage('Said hello.'),
+    fauxAssistantMessage('A week of greetings.'),
+    review(() =>
+      fauxAssistantMessage('', {
+        stopReason: 'error',
+        errorMessage: 'The model failed on purpose.',
+      }),
+    ),
+  ])
+  await passAt(firstPass, secondPass)
+  expect(reviews).toHaveLength(1)
+
+  faux.setResponses([review(() => fauxAssistantMessage('Checked.'))])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect(reviews).toHaveLength(2)
+  expect(reviews[1]).toBe(reviews[0])
+
+  // Both are checked now, so the next night has nothing to review.
+  const calls = faux.state.callCount
+  const third = nextUpkeep(secondPass)
+  await passAt(third, nextUpkeep(third))
+  expect(faux.state.callCount).toBe(calls)
+
+  await dismiss(familiar())
+  expect((await readStored(storage, MemoryUsage)).facts).toEqual({
+    f1: { checked: secondPass },
+    f2: { checked: secondPass },
+  })
 })
