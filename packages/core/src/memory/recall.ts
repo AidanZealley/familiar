@@ -45,6 +45,29 @@ const STOP_WORDS = new Set(
 )
 
 /**
+ * How every memory index splits and matches words, so facts, episodes and
+ * exchanges are searched alike.
+ */
+export const TERMS = {
+  processTerm: (term: string) => {
+    const lower = term.toLowerCase()
+
+    // Fragments such as the "s" of "what's" match nothing meaningful, and
+    // prefix matching would expand them to every word they start. Short
+    // numbers, like the 66 of "66 cm", still count.
+    if (STOP_WORDS.has(lower) || (lower.length < 3 && !/^\d+$/.test(lower))) {
+      return null
+    }
+
+    return lower
+  },
+  searchOptions: {
+    prefix: (term: string) => term.length >= 4,
+    fuzzy: (term: string) => (term.length >= 5 ? 0.2 : false),
+  },
+}
+
+/**
  * One index over facts and episodes, so their relevance scores come from the
  * same word statistics and can be compared. Built per search, which runs once
  * per reply: about 25 ms for a year of memory, small beside the model's reply,
@@ -53,22 +76,7 @@ const STOP_WORDS = new Set(
 function buildIndex(facts: readonly Fact[], episodes: readonly Episode[]) {
   const index = new MiniSearch<{ id: string; text: string }>({
     fields: ['text'],
-    processTerm: (term) => {
-      const lower = term.toLowerCase()
-
-      // Fragments such as the "s" of "what's" match nothing meaningful, and
-      // prefix matching would expand them to every word they start. Short
-      // numbers, like the 66 of "66 cm", still count.
-      if (STOP_WORDS.has(lower) || (lower.length < 3 && !/^\d+$/.test(lower))) {
-        return null
-      }
-
-      return lower
-    },
-    searchOptions: {
-      prefix: (term) => term.length >= 4,
-      fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
-    },
+    ...TERMS,
   })
 
   index.addAll([...facts, ...episodes].map(({ id, text }) => ({ id, text })))

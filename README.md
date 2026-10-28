@@ -94,7 +94,15 @@ The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog:
 
 ### Memory evaluation
 
-Sign in once with a separate ChatGPT login file, then run the memory scenario:
+Two evals measure memory. The rot test is quick and needs no model; the replay is the real thing and takes hours.
+
+```sh
+pnpm eval:recall
+```
+
+The rot test asks exchange search alone `rowan-v3`'s questions, with no model: each day of the scenario becomes one exchange, then 1, 5 and 10 years of deterministic filler conversation (ten exchanges a day mentioning the same people and projects) are added after it. At each padding level it checks whether each required answer string appears in a scenario exchange among the top 5 and top 10 results, skipping the few required strings that appear nowhere in the scenario. It prints recall@5 and recall@10 by category and padding level, with index build time and median and maximum search times, and writes them to `eval/results/recall-<date>-<git-describe>.json`. It runs in seconds, so run it after any change to search or ranking; the scores should stay flat as padding grows.
+
+The replay plays the scenario through a real model. Sign in once with a separate ChatGPT login file, then run it:
 
 ```sh
 FAMILIAR_DATA_DIR=~/.local/share/familiar-eval pnpm sign-in

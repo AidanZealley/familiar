@@ -141,12 +141,13 @@ const dayNumber = (day: string) => {
 }
 
 /**
- * How closely an episode's days match a range: shared days over all the days
- * either covers. 1 for the same span, so "in March" favours March's summary
- * and "4 March" that day's episode; 0 when they don't overlap.
+ * How closely an episode's or exchange's days match a range: shared days
+ * over all the days either covers. 1 for the same span, so "in March"
+ * favours March's summary and "4 March" that day's episode; 0 when they
+ * don't overlap.
  */
-export function dateFit(episode: Episode, range: DateRange) {
-  const [a, b] = [dayNumber(episode.start), dayNumber(episode.end)]
+export function dateFit(days: DateRange, range: DateRange) {
+  const [a, b] = [dayNumber(days.start), dayNumber(days.end)]
   const [c, d] = [dayNumber(range.start), dayNumber(range.end)]
   const shared = Math.min(b, d) - Math.max(a, c) + 1
   return shared > 0 ? shared / (Math.max(b, d) - Math.min(a, c) + 1) : 0
