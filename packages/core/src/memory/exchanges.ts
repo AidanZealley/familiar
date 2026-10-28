@@ -10,7 +10,7 @@ import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
 
 /**
- * Exchanges: each person message with the replies after it, the smallest
+ * Exchanges: each person message (or scheduled prompt) with the replies after it, the smallest
  * piece of the transcript worth finding. They are never stored. The index is
  * a view of the transcript, so losing it loses nothing: it is rebuilt.
  */
@@ -159,7 +159,8 @@ export function transcriptExchanges() {
       })) {
         through = entry.id
         const said = saidBy(entry)
-        if (said?.role === 'person') {
+        // A scheduled prompt and its reply are an exchange of their own.
+        if (said && said.role !== 'assistant') {
           if (open) {
             index.add(open)
           }

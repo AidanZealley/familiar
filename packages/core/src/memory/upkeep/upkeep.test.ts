@@ -10,48 +10,16 @@ import {
   createRegistry,
   defineDoc,
   Harness,
-  type SetTimer,
   type Storage,
 } from '@earendil-works/pi-durable'
 import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
 import { MemoryUsage } from '../facts.ts'
+import { fakeClock } from '../../testing.ts'
 import { readStored, ReopenableStorage, storageWith } from '../testing.ts'
 
 const context = BACKGROUND_CONTEXT
-
-/** A clock that moves only when told to, firing the timers that fall due. */
-function fakeClock(start: number) {
-  let now = start
-  let timers: { due: number; fire: () => void }[] = []
-  const setTimer: SetTimer = (fire, delayMs, { background }) => {
-    if (background) {
-      return undefined
-    } // only frees memory
-    const timer = { due: now + delayMs, fire }
-    timers.push(timer)
-    return () => {
-      timers = timers.filter((other) => other !== timer)
-    }
-  }
-  const advanceTo = (time: number) => {
-    now = time
-    const due = timers.filter((timer) => timer.due <= now)
-    timers = timers.filter((timer) => timer.due > now)
-    for (const timer of due) {
-      timer.fire()
-    }
-  }
-  return {
-    now: () => now,
-    setTimer,
-    advanceTo,
-    setTime: (time: number) => {
-      now = time
-    },
-  }
-}
 
 const start = new Date(2026, 9, 25, 12).getTime() // local noon
 const firstPass = nextUpkeep(start)

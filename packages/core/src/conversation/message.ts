@@ -11,6 +11,16 @@ export const MESSAGE_KIND = 'familiar.message'
 
 export type MessageData = { author: string; text: string }
 
+/** The entry kind a schedule's prompt is submitted as when it falls due. */
+export const SCHEDULED_KIND = 'familiar.scheduled'
+
+export type ScheduledData = {
+  scheduleId: string
+  prompt: string
+  /** The time it was scheduled for, in ms since the epoch. */
+  due: number
+}
+
 /** The text of a model message, without its images, thinking or tool calls. */
 export const textOf = (message: Message) => {
   if (typeof message.content === 'string') {
@@ -26,6 +36,8 @@ export const textOf = (message: Message) => {
 export type Said =
   | { role: 'person'; author: string; text: string; at: number }
   | { role: 'assistant'; text: string; at: number }
+  /** A schedule's prompt, set up earlier and submitted when due. */
+  | { role: 'scheduled'; text: string; at: number }
 
 /** Who said what, for the entries people and the assistant wrote. */
 export function saidBy(entry: EntryRecord): Said | undefined {
@@ -43,6 +55,16 @@ export function saidBy(entry: EntryRecord): Said | undefined {
       role: 'person',
       author: data?.author || 'user',
       text: textOf(message),
+      at: message.timestamp,
+    }
+  }
+
+  if (entry.kind === SCHEDULED_KIND) {
+    const data = entry.data as Partial<ScheduledData> | undefined
+
+    return {
+      role: 'scheduled',
+      text: data?.prompt ?? textOf(message),
       at: message.timestamp,
     }
   }

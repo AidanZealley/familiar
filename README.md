@@ -13,6 +13,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/conversation Message format, sending and history paging.
   core/memory     Facts, episodes, exchange search, recall and read_memory,
                   health, and nightly upkeep at 04:00, the only writer of facts.
+  core/schedules  Prompts Familiar runs at a time, once or repeating (a reminder
+                  is the simplest), each reply sent to the host's notify.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API

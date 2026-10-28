@@ -8,7 +8,7 @@ Familiar is a thin layer over [Pi Durable](../packages/core/node_modules/@earend
 
 - **The Harness** owns one storage and runs everything durably: a restart picks up where the last process stopped.
 - **Conversations and entries.** Familiar has one conversation. Each message, reply, tool result and compaction summary is an entry in it.
-- **Documents** (`defineDoc`) are typed JSON state stored beside the transcript and changed inside transactions (`tx.doc(...)`), so a fact and the tool result that saved it commit together. Familiar's are `Facts`, `MemoryUsage`, `Episodes` and `Upkeep`.
+- **Documents** (`defineDoc`) are typed JSON state stored beside the transcript and changed inside transactions (`tx.doc(...)`), so a fact and the tool result that saved it commit together. Familiar's are `Facts`, `MemoryUsage`, `Episodes`, `Upkeep` and `Schedules`.
 - **Extensions** add to what the model sees and can do: **sections** (parts of the system prompt), **tools**, **hooks** (code that runs around a request, such as adding recalled facts), and **tasks** (durable background work, such as the nightly pass).
 
 ## The map
@@ -49,6 +49,15 @@ packages/core/src
     api.ts, http.ts  The owner's corrections and health, and their routes.
     testing.ts       Test helpers: storage seeded as upkeep would leave it.
     index.ts         createMemory(): wires the above together.
+  schedules/
+    schedules.ts     The Schedules document and its rules: adding, cancelling,
+                     what's due and what's next. Pure, like facts.ts.
+    repeat.ts        RRULE repeats in local time, through rrule.
+    task.ts          One task per schedule: sleeps until due, submits the prompt
+                     to the main conversation, notifies the host with the reply.
+    tools.ts         schedule, list_schedules and cancel_schedule.
+    index.ts         createSchedules(): the extension, its prompt section and
+                     the owner's API; http.ts its route.
 packages/client/src
   store.ts           A live mirror of the conversation and every streamed document.
   transcript.ts      Turns entries into chat items: messages, replies, tool calls.
@@ -62,10 +71,11 @@ apps/web/src         The chat and Memory pages, built on @familiar/client.
 2. `persona`, `time` and `context`: small, and they show the extension pattern plainly.
 3. `conversation/message.ts`, then `conversation/api.ts`.
 4. Memory, from the rules out (for how it works and why, read [memory.md](memory.md)): `facts.ts`, `episodes.ts`, `exchanges.ts`, `recall.ts`, `read.ts`, `tools.ts`, `extension.ts`, `upkeep/`, then `health.ts`, `api.ts`, `http.ts` and `index.ts`.
-5. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
-6. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
+5. Schedules, the same way: `schedules.ts`, `repeat.ts`, `task.ts`, `tools.ts`, then `index.ts`.
+6. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
+7. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
 
-Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model.
+Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep and schedules, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `schedules.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model.
 
 ## One message, end to end
 
