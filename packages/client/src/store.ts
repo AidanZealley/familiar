@@ -4,6 +4,7 @@ import type {
   DocumentName,
   Documents,
   HttpApi,
+  PushSubscriptionJson,
   StreamEvent,
 } from '@familiar/core/http'
 import { hc } from 'hono/client'
@@ -45,6 +46,11 @@ export type FamiliarState = MirroredDocuments & {
   reviseFact(id: string, text: string): Promise<void>
   retireFact(id: string): Promise<void>
   setFactPinned(id: string, pinned: boolean): Promise<void>
+  cancelSchedule(id: string): Promise<void>
+  /** The key to subscribe to push with, or undefined if the server has no push. */
+  pushKey(): Promise<string | undefined>
+  subscribePush(subscription: PushSubscriptionJson): Promise<void>
+  unsubscribePush(subscription: PushSubscriptionJson): Promise<void>
   /** Stop streaming. The store keeps its last view. */
   disconnect(): void
 }
@@ -126,6 +132,22 @@ export function createFamiliarStore(baseUrl: string) {
       succeed(api.memory[':id'].retire.$post({ param: { id } })),
     setFactPinned: (id, pinned) =>
       succeed(api.memory[':id'].pin.$put({ param: { id }, json: { pinned } })),
+    cancelSchedule: (id) =>
+      succeed(api.schedules[':id'].$delete({ param: { id } })),
+    pushKey: async () => {
+      const response = await api.push.key.$get()
+      if (response.status === 404) {
+        return undefined
+      }
+      if (!response.ok) {
+        throw failed(response)
+      }
+      return (await response.json()).key
+    },
+    subscribePush: (subscription) =>
+      succeed(api.push.subscriptions.$post({ json: subscription })),
+    unsubscribePush: (subscription) =>
+      succeed(api.push.subscriptions.$delete({ json: subscription })),
     disconnect: () => events.close(),
   }))
 

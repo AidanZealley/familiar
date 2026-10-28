@@ -12,6 +12,11 @@ declare module '@tanstack/react-router' {
   }
 }
 
+// Only for notifications; the app never needs it to load.
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.register('/sw.js')
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <RouterProvider router={router} />

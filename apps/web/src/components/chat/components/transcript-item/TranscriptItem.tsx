@@ -1,4 +1,5 @@
-import { Marker, MarkerContent } from '@/components/ui/marker'
+import { AlarmClockIcon } from 'lucide-react'
+import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { formatTime } from '@/lib/memory'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
@@ -9,6 +10,23 @@ import type { TranscriptItemProps } from './types'
  * was sent. On a phone an answer's time sits under it.
  */
 export const TranscriptItem = ({ item, margin }: TranscriptItemProps) => {
+  // Familiar's own earlier prompt, not the owner's words: a quiet line.
+  if (item.type === 'scheduled') {
+    return (
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
+        <Marker className="justify-center text-xs">
+          <MarkerIcon>
+            <AlarmClockIcon />
+          </MarkerIcon>
+          <MarkerContent className="min-w-0 text-center">
+            Scheduled · {item.prompt}
+            {item.queued && ' (waiting)'}
+          </MarkerContent>
+        </Marker>
+      </div>
+    )
+  }
+
   if (item.type === 'compaction') {
     return (
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
