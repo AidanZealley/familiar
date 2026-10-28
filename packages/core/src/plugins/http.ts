@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
-import { ConnectionError, type ConnectionsApi } from './index.ts'
+import { ConnectionError, secretValue, type ConnectionsApi } from './index.ts'
 import type { Connection } from './secrets.ts'
 
 const KINDS: readonly string[] = [
@@ -32,10 +32,15 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
       '/:kind/:name/secrets/:secret',
       secretPath,
       validator('json', (body, c) => {
-        if (typeof body?.value !== 'string' || !body.value.trim()) {
-          return c.json({ error: 'value is required' }, 400)
+        const value =
+          typeof body?.value === 'string' ? secretValue(body.value) : undefined
+        if (value === undefined) {
+          return c.json(
+            { error: 'value must be visible ASCII characters' },
+            400,
+          )
         }
-        return { value: body.value as string }
+        return { value }
       }),
       async (c) => {
         const { connection, secret } = c.req.valid('param')

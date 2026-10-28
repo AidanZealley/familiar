@@ -52,3 +52,27 @@ test('output passes to Pi as it arrives, not held until the end', async () => {
   // All but the last few bytes, held back in case a key was split.
   expect(passedWhileRunning).toBe(100)
 })
+
+test('a value learned while a tool runs is redacted from then on', async () => {
+  const store = memorySecrets()
+  const secrets = createSecrets(store, () => [{ connection, secret: 'key' }])
+  const passed: string[] = []
+  const tool = secrets.redactTool(
+    defineTool({
+      name: 'write',
+      description: 'Writes output.',
+      parameters: Type.Object({}),
+      execute: async (_args, api) => {
+        api.output('before ')
+        await secrets.set(connection, 'key', KEY)
+        api.output(`${KEY} after`)
+        return {}
+      },
+    }),
+  )
+  const api = {
+    output: (chunk: string | Uint8Array) => passed.push(String(chunk)),
+  } as unknown as ToolExecutionApi
+  await tool.execute({}, api, undefined as never)
+  expect(passed.join('')).toBe('before [secret] after')
+})

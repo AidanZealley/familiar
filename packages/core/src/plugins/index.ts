@@ -87,7 +87,11 @@ export type ConnectionInfo = {
 
 export type ConnectionsApi = {
   list(): Promise<ConnectionInfo[]>
-  /** Rejects with a ConnectionError when the connection has no such secret. */
+  /**
+   * Stores `secretValue(value)`. Rejects with a ConnectionError when the
+   * connection has no such secret, and with an Error when the value can't be
+   * sent.
+   */
   setSecret(
     connection: Connection,
     secret: string,
@@ -98,6 +102,19 @@ export type ConnectionsApi = {
 }
 
 export class ConnectionError extends Error {}
+
+/**
+ * A secret's value as it will be sent, or undefined if it can't be. Headers
+ * trim surrounding whitespace, so the stored value must already be trimmed,
+ * or redaction would look for something other than what was sent. Visible
+ * ASCII only: what API keys and tokens are, and safe in any header.
+ */
+export function secretValue(value: string) {
+  const trimmed = value.trim()
+  return /^[\x21-\x7e]([\x20-\x7e]*[\x21-\x7e])?$/.test(trimmed)
+    ? trimmed
+    : undefined
+}
 
 export type PluginsOptions = {
   plugins: readonly FamiliarPlugin[]
@@ -217,7 +234,11 @@ export function createPlugins(options: PluginsOptions) {
       ),
     setSecret: async (connection, secret, value) => {
       declared(connection, secret)
-      await secrets.set(connection, secret, value)
+      const sendable = secretValue(value)
+      if (sendable === undefined) {
+        throw new Error('A secret must be visible ASCII characters.')
+      }
+      await secrets.set(connection, secret, sendable)
     },
     deleteSecret: async (connection, secret) => {
       declared(connection, secret)
