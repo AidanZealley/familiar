@@ -1,4 +1,4 @@
-import { MESSAGE_KIND, SCHEDULED_KIND } from './conversation/message.ts'
+import { MESSAGE_KIND } from './conversation/message.ts'
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { carryOver, startOf, type History } from './store.ts'
@@ -44,7 +44,7 @@ const labels = (view: ConversationView, history?: EntryRecord[]) =>
       : item.type === 'message'
         ? `> ${item.text}`
         : item.type === 'scheduled'
-          ? `(scheduled${item.queued ? ', queued' : ''}) ${item.prompt}`
+          ? `(scheduled) ${item.prompt}`
           : item.text || item.toolCalls.map((call) => call.name).join(),
   )
 
@@ -149,41 +149,4 @@ test('history starts over when the new view leaves a gap', () => {
   })
   // Unchanged when the view's start stays put.
   expect(carryOver(loaded, view, view)).toBe(loaded)
-})
-
-test('scheduled prompts show as their own items, queued or placed', () => {
-  const prompt = (id: number, due: number) =>
-    entry(id, SCHEDULED_KIND, {
-      data: { scheduleId: 's1', prompt: 'Remind Aidan to call Mum', due },
-    })
-  const placed = viewOf(prompt(1, 100), replied(2, [text('Call Mum!')]))
-  const queued = {
-    ...placed,
-    docs: {
-      'pi.inbox': {
-        items: [
-          {
-            id: 7,
-            mode: 'followUp',
-            entry: {
-              kind: SCHEDULED_KIND,
-              data: { scheduleId: 's2', prompt: 'Stretch', due: 200 },
-            },
-          },
-        ],
-      },
-    },
-  } as unknown as ConversationView
-  expect(labels(queued)).toEqual([
-    '(scheduled) Remind Aidan to call Mum',
-    'Call Mum!',
-    '(scheduled, queued) Stretch',
-  ])
-  expect(toTranscript(placed).items[0]).toEqual({
-    type: 'scheduled',
-    id: 'entry:1',
-    prompt: 'Remind Aidan to call Mum',
-    due: 100,
-    queued: false,
-  })
 })

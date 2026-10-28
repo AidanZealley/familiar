@@ -1,4 +1,3 @@
-import { schedulesByNext } from '@familiar/client'
 import { useFamiliar } from '@/lib/familiar'
 import { ScheduleItem } from './components/schedule-item'
 
@@ -8,7 +7,9 @@ export const ScheduleList = () => {
   if (schedules === undefined) {
     return null
   }
-  const sorted = schedulesByNext(schedules)
+  const sorted = Object.values(schedules ?? {}).toSorted(
+    (a, b) => a.next - b.next,
+  )
 
   if (!sorted.length) {
     return (
