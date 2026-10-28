@@ -25,7 +25,7 @@ import { newMessages } from './transcript.ts'
 
 type UpkeepStep =
   | { phase: 'schedule' }
-  /** Asleep until the next 04:00, then looks for new messages. */
+  /** Selects the next batch, on waking at 04:00 or after a completed batch. */
   | { phase: 'pass' }
   /** Built in `pass`, so a rerun after a restart submits the same input. */
   | {
@@ -61,9 +61,9 @@ export type UpkeepOptions = {
 }
 
 /**
- * Daily memory consolidation: at 04:00 a background task gives the messages
- * since the last pass to a separate conversation where the model reviews
- * memory with its own memory tools. Install `extension`, then call `start`
+ * Daily memory consolidation: at 04:00 a background task reviews unreviewed
+ * messages in bounded, oldest-first day batches in a separate conversation
+ * with memory tools. Install `extension`, then call `start`
  * once the Harness is open.
  */
 export function createUpkeep(options: UpkeepOptions) {
@@ -115,7 +115,7 @@ export function createUpkeep(options: UpkeepOptions) {
   const resetIn = (tx: Tx, conversation: ConversationId) =>
     tx.appendEntry(ResetEntry, conversation, { head: 'self' })
 
-  /** The next step after a pass or a rollup: look for a rollup that's due. */
+  /** Once the backlog is clear, write any rollups that are due. */
   const rollup = { status: 'running', checkpoint: { phase: 'rollup' } } as const
 
   const UpkeepTask = defineTask<null, UpkeepStep, null>({
@@ -138,9 +138,17 @@ export function createUpkeep(options: UpkeepOptions) {
             options.transcriptTokens,
             options.name,
           )
-          // No conversation since the last pass: a rollup may still be due.
+          // Rollups wait until every pending batch has been reviewed.
           if (!found) {
             return rollup
+          }
+
+          if (found.truncated) {
+            runtime.report(
+              new Error(
+                `Memory upkeep truncated oversized message ${found.newest}.`,
+              ),
+            )
           }
 
           // The facts the pass sees in its prompt section.
@@ -194,8 +202,8 @@ export function createUpkeep(options: UpkeepOptions) {
             return sleep(runtime.now())
           }
 
-          // Still nothing: move on rather than review the same messages
-          // again every night, growing each pass.
+          // Still nothing: report the missing episode and move on rather
+          // than review the same batch again every night.
           if (!episode) {
             runtime.report(new Error('Memory upkeep wrote no episode.'))
           }
@@ -214,7 +222,7 @@ export function createUpkeep(options: UpkeepOptions) {
           }
 
           rebalanceCore(await tx.doc(Memory))
-          return rollup
+          return { status: 'running', checkpoint: { phase: 'pass' } } as const
         }, context)
       },
 
