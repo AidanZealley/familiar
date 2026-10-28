@@ -24,7 +24,13 @@ import {
   defineTool,
   MemoryStorage,
 } from '@earendil-works/pi-durable'
-import { definePlugin, memorySecrets, summonFamiliar } from '@familiar/core'
+import {
+  definePlugin,
+  memorySecrets,
+  summonFamiliar,
+  type PluginContext,
+  type PluginFetch,
+} from '@familiar/core'
 import {
   SEED_MESSAGE,
   seedEpisodes,
@@ -243,20 +249,35 @@ const fillContext = defineTool({
   }),
 })
 
-// The tool echoes its key, so the reply shows redaction at work.
-const checkDemoKey = (secret: (name: string) => Promise<string>) =>
+// A pretend service, answered here rather than over the network, that
+// echoes the key it was sent: the reply shows the key arrived, and that
+// redaction keeps it out of the chat.
+const DEMO_SERVICE = 'https://demo.invalid'
+
+const demoFetch: PluginFetch = async (input, init) =>
+  new URL(input).origin === DEMO_SERVICE
+    ? new Response(new Headers(init?.headers).get('X-Demo-Key') ?? '')
+    : guardedFetch(input, init)
+
+const checkDemoKey = (context: PluginContext) =>
   defineTool({
     name: 'check_demo_key',
     description: 'Demo only: checks the demo key from the Connections page.',
     parameters: Type.Object({}),
-    execute: async () => ({
-      output: [
-        {
-          type: 'text',
-          text: `The demo key works. It is ${await secret('key')}.`,
-        },
-      ],
-    }),
+    execute: async () => {
+      const response = await context.authorizedFetch(
+        'key',
+        `${DEMO_SERVICE}/echo`,
+      )
+      return {
+        output: [
+          {
+            type: 'text',
+            text: `The demo key works. The service echoed it as ${await response.text()}.`,
+          },
+        ],
+      }
+    },
   })
 
 const demoPlugin = definePlugin({
@@ -267,17 +288,17 @@ const demoPlugin = definePlugin({
       name: 'key',
       label: 'Demo key',
       help: 'Any text of eight or more characters. Say "key" in chat to try it.',
+      sendAs: {
+        header: 'X-Demo-Key',
+        origin: DEMO_SERVICE,
+        requests: [{ method: 'GET', path: '/echo' }],
+      },
     },
   ],
   extension: (context) =>
     defineExtension({
       name: 'demo',
-      tools: [
-        fillContext,
-        seedMemory,
-        seedEpisodes,
-        checkDemoKey(context.secret),
-      ],
+      tools: [fillContext, seedMemory, seedEpisodes, checkDemoKey(context)],
     }),
 })
 
@@ -295,7 +316,7 @@ const familiar = await summonFamiliar({
   },
   plugins: [demoPlugin],
   secrets: memorySecrets(),
-  fetch: guardedFetch,
+  fetch: demoFetch,
 })
 
 // Start with a year of sample memory, so the Memory pages have something to

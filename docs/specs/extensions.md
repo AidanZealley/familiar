@@ -4,10 +4,11 @@ Familiar should be easy to give new tools without changing core, at three levels
 
 Known decisions:
 
-- **A plugin is a named factory for a Pi extension**, given a small context: its secrets, the clock, `notify`, and a guarded `fetch`. It is the one interface for everything that isn't core: first-party extras such as web search, calendar and Home Assistant use it exactly as third parties would. Pi's extension (tools, sections, hooks, tasks) stays the unit of behaviour; the plugin only adds what Familiar provides around it.
+- **A plugin is a named factory for a Pi extension**, given a small context: the clock, `notify`, a guarded `fetch`, and `authorizedFetch` for requests that carry its secrets. It is the one interface for everything that isn't core: first-party extras such as web search, calendar and Home Assistant use it exactly as third parties would. Pi's extension (tools, sections, hooks, tasks) stays the unit of behaviour; the plugin only adds what Familiar provides around it.
 - **Core stays minimal**: persona, time, conversation, memory, schedules, and the machinery in this spec. Everything else is a plugin.
 - **First-party plugins are workspace packages**, `packages/plugin-<name>` published as `@familiar/plugin-<name>`. They follow the package rules (portable, no `node:*`), so a Cloudflare host can install them too. `pnpm-workspace.yaml` lists packages one by one, so each needs a line there. The daemon installs every first-party plugin; hosts like Gatherbot choose their own list.
-- **Secrets never reach the model.** A plugin reads its secrets through its context, in tool code. The model sees tool names, arguments and results, never a secret's value, so no conversation can make it reveal one. Secrets are set on a Connections page through write-only routes, never in chat: anything said in chat is stored in the transcript for good.
+- **Secrets never reach plugin code, or the model.** A secret declares where it is sent: a header, an exact origin and the requests it may accompany. Core attaches it to those requests and nothing else, so a plugin can't echo it, log it, render it into a prompt, or send it to a URL the model chose. This is how credential-injecting proxies and agent sandboxes do it (Fly.io's Tokenizer, Cloudflare's outbound Workers, E2B, Daytona, Codex cloud secrets), and what OWASP's agent guidance asks for: authorization in execution code, outside the model's context. Secrets are set on a Connections page through write-only routes, never in chat: anything said in chat is stored in the transcript for good.
+- **What that does and doesn't protect.** It stops careless plugin code and prompt injection from revealing a key. It doesn't stop a prompt-injected model from _using_ a connected service within its declared requests, or from leaking private data through searches and public fetches; that is confirmation's job (see Later). It doesn't stop a malicious plugin either, which runs in the host's process (below).
 - **The host stores secrets**, as it stores the login: the daemon in its data directory, a Cloudflare host in its own storage. Core asks through a `secrets` option.
 - **Code plugins are trusted like the daemon.** They run in its process with its permissions, so they can read the data directory; only the owner installs them. The README's rule that tools never see the data directory is about tools the model drives (files, shell), and still holds.
 - **MCP is how the owner connects services without code.** An MCP server's tools become Pi tools marked `deferred: true`, found through Pi's `tool_search` (pi-durable README, "Who may call a tool"), so a large server costs no context until it's used. Home Assistant's MCP Server integration and a future Gather MCP server both arrive this way.
@@ -25,21 +26,46 @@ A new capability folder, `packages/core/src/plugins/`.
    type FamiliarPlugin = {
      name: string // 'web'; its extension is named 'familiar.plugin.web'
      title: string // 'Web search', for the Connections page
-     secrets?: { name: string; label: string; help?: string }[]
+     secrets?: PluginSecret[]
      extension: (context: PluginContext) => Extension
    }
 
+   type PluginSecret = {
+     name: string // 'braveApiKey'
+     label: string // 'Brave Search API key'
+     help?: string
+     /** Where core sends it; plugin code never sees the value. */
+     sendAs: {
+       header: string // 'X-Subscription-Token'
+       prefix?: string // 'Bearer ' for an Authorization header
+       origin: string // 'https://api.search.brave.com', exactly
+       requests: { method: string; path: string }[] // [{ method: 'GET', path: '/res/v1/web/search' }]
+     }
+   }
+
    type PluginContext = {
-     /** The secret's value, or a thrown error the model reads as "not connected". */
-     secret(name: string): Promise<string>
      now(): number
      notify(notification: Notification): Promise<void>
-     /** The host's guarded fetch; see below. */
+     /** The host's guarded fetch, for public URLs; see below. Never carries a secret. */
      fetch(input: string | URL, init?: RequestInit): Promise<Response>
+     /** A request that carries the named secret, made only where it declares. */
+     authorizedFetch(
+       secret: string,
+       input: string | URL,
+       init?: RequestInit,
+     ): Promise<Response>
    }
    ```
 
-   Export `definePlugin` (an identity function, for inference) and the types from `@familiar/core`. `secret()` throws `<title> isn't connected. Ask the owner to add <label> on the Connections page.` when the value is missing, so every plugin reports it the same way without its own check.
+   Export `definePlugin` (an identity function, for inference) and the types from `@familiar/core`. `summonFamiliar` refuses a plugin whose secret's `origin` isn't an exact `https:` origin or that declares no requests.
+
+   `authorizedFetch` makes the request through the host's `fetch` only if all of these hold, and otherwise throws without sending anything:
+   - the secret is one the plugin declares;
+   - the URL's origin (scheme, host and port) equals `origin` exactly, so no subdomains, and it has no username or password;
+   - the method and the URL's path exactly match one of `requests`;
+   - the caller didn't set the secret's header or `Host`.
+
+   It sets the header to `prefix` plus the value and asks for `redirect: 'manual'`, so a redirect comes back to the plugin as a response and the secret is never sent anywhere else. Secrets go in headers only: a key in a query string spreads into logs, errors and redirects. When the value is missing it throws `<title> isn't connected. Ask the owner to add <label> on the Connections page.`, so every plugin reports it the same way without its own check. Services that need request signing (AWS SigV4) or OAuth refresh get a dedicated adapter when one is needed, not access to the raw value.
 
    `fetch` is how plugins reach the network, so the host decides what they can reach. A model-chosen URL must not reach the host's own network: a web page could otherwise tell Familiar to read the owner's router or Home Assistant and pass the result on in its next search. So a host whose process can reach private, loopback, link-local or tailnet addresses must pass a `fetch` that refuses them, at connection time and on every redirect. A Cloudflare Worker can't reach private networks, so it passes its own `fetch`. The host passes it as `fetch?:` on `FamiliarOptions`, whose doc comment says this; without one, the context's `fetch` throws, rather than falling back to an unguarded one.
 
@@ -55,10 +81,10 @@ A new capability folder, `packages/core/src/plugins/`.
    }
    ```
 
-   Core is the only thing that creates connections, so `kind` is a closed union; the host stores by it without interpreting it. Without a store, every `secret()` throws as above.
+   Core is the only thing that creates connections, so `kind` is a closed union; the host stores by it without interpreting it. Without a store, every secret is missing.
 
 3. **`plugins` replaces `extensions`** on `FamiliarOptions`. `familiar.ts` installs each plugin's extension after core's. Move the demo's extensions into a plugin.
-4. **Redaction, as a second line of defence.** Core wraps each plugin tool's `execute` so that any secret value of eight or more characters becomes `[secret]` everywhere the tool reports: `details()` and `diagnostic()` progress, its result (`output`, `structuredOutput`, `details`, diagnostics, object keys included) and errors it throws. A plugin that echoes a URL in an error can't leak it. Progress must be redacted before Pi commits it, not in an `afterTool` hook: Pi streams progress to clients while the tool runs and keeps it as the result of an aborted call, and neither path runs `afterTool`. `output()` chunks are held until the call returns, so a value split across chunks is still found and an aborted call keeps none; the wrapper clears `outputWindow`, as Pi requires of a wrapper that transforms output. The store can't list its contents, so the names to load come from the plugins' declared secrets (and, from step 4, each MCP server's token). Load values before a wrapped tool first runs; cache them in memory and update the cache when the owner API sets or deletes one. Keep a replaced or deleted value in the cache until the process ends, so a call that started with it is still redacted.
+4. **Redaction, as a second line of defence.** Core wraps each plugin tool's `execute` so that any secret value of eight or more characters becomes `[secret]` everywhere the tool reports: `details()` and `diagnostic()` progress, its result (`output`, `structuredOutput`, `details`, diagnostics, object keys included) and errors it throws. A service that echoes its key, or a plugin that reports a response carrying it, can't leak it that way. Nothing relies on it: like GitHub's secret masking, it misses encoded forms and short values. Progress must be redacted before Pi commits it, not in an `afterTool` hook: Pi streams progress to clients while the tool runs and keeps it as the result of an aborted call, and neither path runs `afterTool`. `output()` chunks are held until the call returns, so a value split across chunks is still found and an aborted call keeps none; the wrapper clears `outputWindow`, as Pi requires of a wrapper that transforms output. The store can't list its contents, so the names to load come from the plugins' declared secrets (and, from step 4, each MCP server's token). Load values before a wrapped tool first runs; cache them in memory and update the cache when the owner API sets or deletes one. Keep a replaced or deleted value in the cache until the process ends, so a call that started with it is still redacted.
 5. **Owner API and routes.** `familiar.connections.list()` returns one list of connections, each `{ kind: 'plugin', name, title, secrets }` with secrets as `{ name, label, help, set: boolean }`, never values. Step 4 adds `kind: 'mcp'`. `PUT /api/connections/:kind/:name/secrets/:secret` with `{ value }` and `DELETE` on the same path. Add the wire types to `http.ts`.
 6. **The daemon's store**, in `apps/daemon/src/secrets.ts`: `secrets.json` in the data directory, nested by kind, name and secret (`{ "plugin": { "web": { "braveApiKey": "…" } } }`), mode 0600, written atomically. The export in [easy install](easy-install.md) leaves it behind, like the login.
 7. **The daemon's guarded fetch**, in `apps/daemon/src/fetch.ts`: [`node-fetch`](https://github.com/node-fetch/node-fetch) with `agent: useAgent` from [`request-filtering-agent`](https://github.com/azu/request-filtering-agent), and at most five redirects. The agent checks each connection's resolved address inside `lookup` (so a name can't resolve to a public address for the check and a private one for the connection), checks literal IP addresses too, and allows only what `ipaddr.js` calls `unicast`, which excludes private, loopback, link-local, `100.64.0.0/10` (Tailscale) and `fc00::/7`. `useAgent` picks the agent per URL, so redirects across `http` and `https` are checked as well. Node's built-in `fetch` can't take an `http.Agent`, hence `node-fetch`.
@@ -66,8 +92,9 @@ A new capability folder, `packages/core/src/plugins/`.
 
 Tests, with the faux provider and a test plugin whose tool uses a secret:
 
-- With the secret set, the tool works; its result never contains the value, even when the tool returns it.
-- Without it, the model gets the "isn't connected" error result.
+- With the secret set, a tool's request to its declared endpoint carries it in the declared header, and when the endpoint echoes it, nothing the tool reports contains it.
+- `authorizedFetch` refuses, without calling the host's `fetch`: another origin, a subdomain, `http:`, a URL with credentials, another path or method, a caller-set header, and an undeclared secret. It asks for `redirect: 'manual'`.
+- Without the secret, the model gets the "isn't connected" error result.
 - The list route reports `set: true` and no value; after `DELETE`, `set: false` and the tool fails again.
 - A plugin's extension is installed after core's and is active on the first request.
 - The daemon's fetch refuses `127.0.0.1`, `10.0.0.1`, `100.100.1.1`, `[::ffff:127.0.0.1]` and `localhost`. (The agent's own tests cover DNS rebinding and redirects.)
@@ -84,7 +111,7 @@ Done when, on the demo, setting the test plugin's secret on the page makes its t
 
 The first real plugin, and the first use of a real secret: `packages/plugin-web`, published as `@familiar/plugin-web`, installed by the daemon. Its design follows the Pi community's web extensions ([pi-web-access](https://github.com/nicobailon/pi-web-access), [pi-web-lite](https://github.com/YoungJurry/pi-web-lite), [pi-web-research](https://github.com/wynainfo/pi-web-research) and Mario Zechner's [Brave skill](https://github.com/badlogic/pi-skills/tree/main/brave-search)), which agree on keeping search and reading as separate tools and on compact ranked results. None can be reused directly: they depend on Node and on unguarded fetches.
 
-1. **The plugin.** Name `web`, title `Web search`, one secret: `braveApiKey`, labelled `Brave Search API key`, with help linking to Brave's API dashboard. All its network calls go through `context.fetch`.
+1. **The plugin.** Name `web`, title `Web search`, one secret: `braveApiKey`, labelled `Brave Search API key`, with help linking to Brave's API dashboard, sent as `X-Subscription-Token` to `GET https://api.search.brave.com/res/v1/web/search` only. Search goes through `context.authorizedFetch`, page reads through `context.fetch`.
 2. **`web_search({ query, count?, freshness?, domains? })`.** `count` defaults to 5, at most 10. `freshness` is `day`, `week`, `month` or `year`. `domains` becomes `site:` terms in the query. Call Brave's web search API behind a small adapter that returns `{ title, url, published?, snippet }[]`, so another search service can be added later without touching the tool. Output: numbered results, each with title, exact URL, date when Brave gives one, and the snippet cut to 500 characters, under a line naming the service and the time; the whole output at most 8,000 characters. The same results go in `structuredOutput`, and the sources in `details` for the UI.
 3. **`web_fetch({ url, maxChars? })`.** Reads one public page without running its JavaScript. `maxChars` defaults to 12,000, at most 30,000. Stop reading the body at 3 MB and give up after 15 seconds, including the time spent reading the body. Plain text and Markdown pass through. HTML goes through Readability, on a DOM from LinkeDOM, and then Turndown, keeping headings, links, code and tables. Output: title, final URL, retrieval time, then the Markdown, ending in `[cut at <n> of <total> characters]` when it was cut. Other content types, such as PDFs and images, return an error result saying the type isn't supported.
 4. **The tool descriptions** say that search returns snippets, not whole pages, and that a fetched page is untrusted text from the web.
@@ -102,7 +129,7 @@ Done when the tests pass and, on the owner's own Familiar, setting the key on th
 
 A core capability folder, `packages/core/src/mcp/`. It lives in core, not in a plugin, because it installs extensions into the registry while Familiar runs.
 
-1. **The document.** `McpServers`: a list of `{ name, url, auth: { type: 'none' } | { type: 'bearer' } }`. A bearer server's token is stored at `({ kind: 'mcp', name }, 'token')` in the secret store and only becomes an `Authorization` header inside the transport. A server's name and URL can't be edited: to change either, remove it and add it again, so a token is never sent to a URL it wasn't entered for. Removing a server deletes its token. The document travels with an export; the token stays behind. (This follows the Pi coding agent's own MCP support, which also keys credentials by server and URL.)
+1. **The document.** `McpServers`: a list of `{ name, url, auth: { type: 'none' } | { type: 'bearer' } }`. A bearer server's token is stored at `({ kind: 'mcp', name }, 'token')` in the secret store. It is sent the same way as a plugin's secret: the transport's `fetch` is core's authorized fetch, bound to the server's origin and path (`GET`, `POST` and `DELETE`, as Streamable HTTP uses), as `Authorization: Bearer <token>`. A server's name and URL can't be edited: to change either, remove it and add it again, so a token is never sent to a URL it wasn't entered for. Removing a server deletes its token. The document travels with an export; the token stays behind. (This follows the Pi coding agent's own MCP support, which also keys credentials by server and URL.)
 2. **The bridge.** For each server: connect with the MCP TypeScript SDK's client over Streamable HTTP, list its tools, and install an extension `familiar.mcp.<name>` with one deferred tool per MCP tool, named `mcp__<name>__<tool>`, its input schema passed through as JSON Schema, and the MCP tool's description. A call runs `callTool` and maps text and image content to Pi's output; an MCP error result becomes an error result. When the server's tools change, reinstall its extension (pi-durable README, "Reload"); the SDK's `listChanged.tools.onChanged` client option reports that, so don't handle the notification by hand.
 3. **Tool search.** Install `createToolSearchExtension()` from `@earendil-works/pi-durable/tool-search` once, so the model can find and load MCP tools.
 4. **Failures.** A server that can't be reached gets an extension with no tools and a status the Connections page shows. Retry on the next start and when the owner presses Reconnect. When the server says the session has expired, reconnect and retry the call once: the server never ran it. After any other failure, return an error result without retrying, because the call may have run and a retry could act twice.
@@ -130,4 +157,5 @@ Not part of this spec; each needs its own before starting.
 - **Skills.** Instruction-only `SKILL.md` folders (the agentskills.io format OpenClaw and Hermes use), listed in a section and loaded with a `use_skill` tool. Without a shell they are mostly named procedures, so wait until there's a need memory doesn't meet.
 - **MCP OAuth**, for servers that don't accept a token.
 - **MCP headers.** Servers that want `X-API-Key` or several headers: map each header name to a secret name, so values stay write-only and out of the exported document.
+- **Data leaving through allowed requests.** A prompt-injected model can put private data in a search query or a public URL. Willison's "lethal trifecta" (private data, untrusted content, a way out) describes it. Confirmation, or limits on what may follow reading untrusted content, is the answer; origin-bound secrets aren't.
 - **More search services.** Tavily or Exa behind the same adapter, or a self-hosted SearXNG, which needs no key but needs plugin settings as well as secrets. Paging through long pages with an `offset` on `web_fetch`, if the model often hits the limit.
