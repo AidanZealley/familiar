@@ -1,4 +1,4 @@
-import type { AssistantMessage, UserMessage } from '@earendil-works/pi-ai'
+import type { Message } from '@earendil-works/pi-ai'
 import type { EntryRecord } from '@earendil-works/pi-durable'
 
 /** The entry kind people's messages are stored as. */
@@ -6,26 +6,48 @@ export const MESSAGE_KIND = 'familiar.message'
 
 export type MessageData = { author: string; text: string }
 
+/** The text of a model message, without its images, thinking or tool calls. */
+export const textOf = (message: Message) => {
+  if (typeof message.content === 'string') {
+    return message.content
+  }
+
+  // flatMap rather than filter, so TypeScript knows each part is text.
+  return message.content
+    .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+    .join('\n')
+}
+
+export type Said =
+  | { role: 'person'; author: string; text: string; at: number }
+  | { role: 'assistant'; text: string; at: number }
+
 /** Who said what, for the entries people and the assistant wrote. */
-export function saidBy(entry: EntryRecord) {
-  const message = entry.model?.[0] as UserMessage | AssistantMessage | undefined
-  if (!message) return undefined
+export function saidBy(entry: EntryRecord): Said | undefined {
+  const message = entry.model?.[0]
+
+  if (!message) {
+    return undefined
+  }
+
+  // pi.user is input submitted without an author, such as by a host directly.
   if (entry.kind === MESSAGE_KIND || entry.kind === 'pi.user') {
     const data = entry.data as Partial<MessageData> | undefined
-    const content = (message as UserMessage).content
-    const text =
-      typeof content === 'string'
-        ? content
-        : content
-            .map((part) => (part.type === 'text' ? part.text : ''))
-            .join('')
-    return { who: data?.author || 'user', text, at: message.timestamp }
+
+    return {
+      role: 'person',
+      author: data?.author || 'user',
+      text: textOf(message),
+      at: message.timestamp,
+    }
   }
+
   if (entry.kind === 'pi.assistant') {
-    const text = (message as AssistantMessage).content
-      .map((part) => (part.type === 'text' ? part.text : ''))
-      .join('')
-    return text ? { who: 'you', text, at: message.timestamp } : undefined
+    const text = textOf(message)
+
+    // A reply that only called tools has nothing to show.
+    return text ? { role: 'assistant', text, at: message.timestamp } : undefined
   }
+
   return undefined
 }

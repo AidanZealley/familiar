@@ -34,8 +34,9 @@ const runDirectory = resume
       `${new Date().toISOString().slice(0, 19)}-${commit}`,
     )
 const replayPath = join(runDirectory, 'familiar.sqlite')
-if (resume && !existsSync(replayPath))
+if (resume && !existsSync(replayPath)) {
   throw new Error(`No replay to resume in ${runDirectory}.`)
+}
 mkdirSync(runDirectory, { recursive: true })
 console.log(`Replay storage: ${runDirectory}`)
 
@@ -49,7 +50,9 @@ const previous: QuestionResult[] =
         .filter(Boolean)
         .map((line) => JSON.parse(line) as QuestionResult)
     : []
-if (previous.length) console.log(`Keeping ${previous.length} graded answers.`)
+if (previous.length) {
+  console.log(`Keeping ${previous.length} graded answers.`)
+}
 
 // Question copies are throwaway.
 const temporary = mkdtempSync(join(tmpdir(), 'familiar-memory-eval-'))
@@ -62,10 +65,11 @@ try {
       appendFileSync(answersPath, `${JSON.stringify(result)}\n`),
     createQuestionStorage: async (id) => {
       const path = join(temporary, `question-${id}.sqlite`)
-      if (existsSync(`${replayPath}-wal`))
+      if (existsSync(`${replayPath}-wal`)) {
         throw new Error(
           'Replay storage still has a WAL file after close; refusing to copy an unchecked database.',
         )
+      }
       copyFileSync(replayPath, path)
       return openNodeSqliteStorage(path)
     },

@@ -107,7 +107,7 @@ const scenarios: Record<string, () => AssistantMessage> = {
 
 /** After a tool runs, a reply that uses its result. */
 function afterTool(toolName: string, output: string, compacted: boolean) {
-  if (toolName === 'fill_context')
+  if (toolName === 'fill_context') {
     return compacted
       ? fauxAssistantMessage(
           'Older messages were summarised to make room. They are still stored, but I now see the summary instead.',
@@ -118,10 +118,12 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
           stopReason: 'error',
           errorMessage: 'Your input exceeds the context window of this model',
         })
-  if (toolName.startsWith('seed_'))
+  }
+  if (toolName.startsWith('seed_')) {
     return fauxAssistantMessage(
       'Saved. The **Memory** pages show it all: facts, how they changed and a year of episodes.',
     )
+  }
   return fauxAssistantMessage(
     toolName === 'remember'
       ? "Noted. I'll keep that in mind; you can check or correct it on the **Memory** page."
@@ -130,15 +132,16 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
 }
 
 function reply(context: TranscriptContext) {
-  if (isSummaryRequest(context))
+  if (isSummaryRequest(context)) {
     return fauxAssistantMessage('The person tried the demo scenarios.')
+  }
   // A changed memory section adds a system message after a tool result, and
   // recall adds a note after the latest message; neither is the person.
   const messages = context.messages.filter(
     (message) => message.role !== 'system' && !isRecallNote(message),
   )
   const last = messages.at(-1)
-  if (last?.role === 'toolResult')
+  if (last?.role === 'toolResult') {
     return afterTool(
       last.toolName,
       textOf(last.content),
@@ -148,14 +151,16 @@ function reply(context: TranscriptContext) {
         ),
       ),
     )
+  }
   const latest = textOf(
     messages.findLast((message) => message.role === 'user')?.content,
   )
-  if (latest === SEED_MESSAGE)
+  if (latest === SEED_MESSAGE) {
     return fauxAssistantMessage(
       [fauxToolCall('seed_memory', {}), fauxToolCall('seed_episodes', {})],
       { stopReason: 'toolUse' },
     )
+  }
   const text = latest.toLowerCase()
   const word = Object.keys(scenarios).find((word) =>
     new RegExp(`\\b${word}\\b`).test(text),
@@ -228,7 +233,9 @@ const watch = await familiar.memory.watch()
 await watch.stop()
 for (const text of seedPinned) {
   const fact = watch.value?.facts.find((fact) => fact.text === text)
-  if (fact) await familiar.memory.setPinned(fact.id, true)
+  if (fact) {
+    await familiar.memory.setPinned(fact.id, true)
+  }
 }
 
 serveFamiliar(familiar, {

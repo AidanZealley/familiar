@@ -20,7 +20,9 @@ export const upkeepDay = (at: number) =>
 export function nextUpkeep(now: number) {
   const next = new Date(now)
   next.setHours(UPKEEP_HOUR, 0, 0, 0)
-  if (next.getTime() <= now) next.setDate(next.getDate() + 1)
+  if (next.getTime() <= now) {
+    next.setDate(next.getDate() + 1)
+  }
   return next.getTime()
 }
 
@@ -47,8 +49,9 @@ export const Upkeep = defineDoc<UpkeepState>({
     through: null,
   }),
   migrate: (value, fromVersion) => {
-    if (fromVersion !== 1)
+    if (fromVersion !== 1) {
       throw new Error(`No migration from upkeep version ${fromVersion}.`)
+    }
     return { ...(value as Omit<UpkeepState, 'rollups'>), rollups: null }
   },
   checkpointWhen: () => true, // tiny: always store it whole

@@ -12,7 +12,9 @@ export const Composer = ({ busy }: ComposerProps) => {
   const submit = async (event?: FormEvent) => {
     event?.preventDefault()
     const message = text.trim()
-    if (!message) return
+    if (!message) {
+      return
+    }
     setText('')
     setError(undefined)
     try {

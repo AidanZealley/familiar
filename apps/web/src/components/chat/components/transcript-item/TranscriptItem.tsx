@@ -17,7 +17,7 @@ import type { TranscriptItemProps } from './types'
  * book's margin. On a phone an answer's margin folds under it, time first.
  */
 export const TranscriptItem = ({ item, margin }: TranscriptItemProps) => {
-  if (item.type === 'compaction')
+  if (item.type === 'compaction') {
     return (
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
         <Marker variant="separator" className="text-xs">
@@ -25,6 +25,7 @@ export const TranscriptItem = ({ item, margin }: TranscriptItemProps) => {
         </Marker>
       </div>
     )
+  }
 
   const time = margin?.at === undefined ? undefined : formatTime(margin.at)
   const saved = margin?.saved ?? []

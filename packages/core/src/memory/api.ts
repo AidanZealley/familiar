@@ -1,9 +1,9 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
 import { Episodes, type EpisodesState } from './episodes.ts'
-import { Memory } from './facts.ts'
 import {
   forgetFact,
+  Memory,
   retireFact,
   reviseFact,
   setPinned,
@@ -30,10 +30,11 @@ export function memoryApi(harness: Harness, now: () => number): MemoryApi {
     harness.commit(async (tx) => edit(await tx.doc(Memory)), context)
 
   return {
+    // Memory's start() creates both documents, so a watch always attaches.
     watch: async () => (await harness.watchDoc(Memory, context))!,
     watchEpisodes: async () => (await harness.watchDoc(Episodes, context))!,
     revise: (id, text) =>
-      editMemory((memory) => void reviseFact(memory, id, text, now())),
+      editMemory((memory) => reviseFact(memory, id, text, now())),
     retire: (id) => editMemory((memory) => retireFact(memory, id, now())),
     setPinned: (id, pinned) =>
       editMemory((memory) => setPinned(memory, id, pinned)),

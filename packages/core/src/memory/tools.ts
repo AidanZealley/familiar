@@ -136,8 +136,9 @@ const recall = defineTool({
           },
         )
         // Only conversation counts as use; upkeep's searches are housekeeping.
-        if (api.conversationId === ROOT_CONVERSATION_ID)
+        if (api.conversationId === ROOT_CONVERSATION_ID) {
           markRecalled(memory, used, api.now())
+        }
         return found.length
           ? found.map(({ line }) => line).join('\n')
           : 'Nothing found.'

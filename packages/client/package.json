@@ -9,8 +9,11 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@earendil-works/chord": "1.4.0",
+    "@earendil-works/chord": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
     "@familiar/core": "workspace:*",
+    "hono": "catalog:",
     "zustand": "5.0.16"
   }
 }

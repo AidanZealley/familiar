@@ -6,7 +6,9 @@ import type { SavedFactsProps } from './types'
 export const SavedFacts = ({ ids }: SavedFactsProps) => {
   const facts = useFamiliar((state) => state.memory?.facts)
   const saved = ids.flatMap((id) => facts?.find((fact) => fact.id === id) ?? [])
-  if (saved.length === 0) return null
+  if (saved.length === 0) {
+    return null
+  }
 
   return (
     <div>

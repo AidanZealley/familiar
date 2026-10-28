@@ -6,16 +6,19 @@ import { MemoryOverview } from './components/memory-overview'
 
 export const MemoryFacts = () => {
   const facts = useFamiliar((state) => state.memory?.facts)
-  if (!facts) return null
+  if (!facts) {
+    return null
+  }
   const core = coreFacts(facts)
   const reserve = reserveFacts(facts)
 
-  if (core.length + reserve.length === 0)
+  if (core.length + reserve.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
         Nothing yet. Tell Familiar something worth remembering.
       </p>
     )
+  }
 
   return (
     <div className="flex flex-col gap-10">

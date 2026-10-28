@@ -18,7 +18,19 @@ const portable = [
   },
 ]
 
-// The client ships to browsers, so it shares core's types but never its code.
+// The client ships to browsers, so it shares core's and Pi's types but never
+// their code. Chord is the exception: the client applies its ops.
+const typesOnlyFromPi = {
+  group: [
+    '@earendil-works/pi-ai',
+    '@earendil-works/pi-ai/*',
+    '@earendil-works/pi-durable',
+    '@earendil-works/pi-durable/*',
+  ],
+  message: 'The client may only import types from Pi.',
+  allowTypeImports: true,
+}
+
 const typesOnlyFromCore = [
   '@familiar/core',
   '@familiar/core/http',
@@ -39,6 +51,7 @@ export default defineConfig([
   {
     files: ['**/*.{ts,tsx,js}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: { curly: ['error', 'all'] },
   },
   {
     files: ['packages/**/*.ts'],
@@ -54,7 +67,7 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
-        { patterns: portable, paths: typesOnlyFromCore },
+        { patterns: [...portable, typesOnlyFromPi], paths: typesOnlyFromCore },
       ],
     },
   },

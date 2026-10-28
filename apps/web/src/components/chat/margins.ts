@@ -19,11 +19,12 @@ export const marginsOf = (items: readonly TranscriptItem[]) => {
   let turn: Extract<TranscriptItem, { type: 'reply' }>[] = []
   const close = () => {
     const last = turn.at(-1)
-    if (last && !last.streaming)
+    if (last && !last.streaming) {
       margins.set(last.id, {
         at: last.at,
         saved: turn.flatMap((reply) => reply.saved),
       })
+    }
     turn = []
   }
   for (const item of items) {
@@ -32,8 +33,9 @@ export const marginsOf = (items: readonly TranscriptItem[]) => {
       continue
     }
     close()
-    if (item.type === 'message')
+    if (item.type === 'message') {
       margins.set(item.id, { at: item.at, saved: [] })
+    }
   }
   close()
   return margins

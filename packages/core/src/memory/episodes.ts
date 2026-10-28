@@ -1,5 +1,5 @@
 import { defineDoc } from '@earendil-works/pi-durable'
-import { formatDay as format, parseDay as parse } from '../time/index.ts'
+import { formatDay, parseDay } from '../time/index.ts'
 
 /**
  * Episodes: what happened, as summaries. Upkeep writes one per pass over a
@@ -53,61 +53,84 @@ export type DateRange = { start: string; end: string }
  */
 export function datesIn(text: string, today: string): DateRange[] {
   const ranges: DateRange[] = []
-  const now = parse(today)
+  const now = parseDay(today)
   const monthOf = (name: string) => MONTHS.indexOf(name.toLowerCase())
-  const year = (given: string | undefined, month: number, date = 1) => {
-    if (given) return Number(given)
-    // The most recent one that has started.
-    const candidate = new Date(now.getFullYear(), month, date)
-    return candidate > now ? now.getFullYear() - 1 : now.getFullYear()
+
+  // The given year, or the most recent one in which that date has started.
+  const yearOf = (given: string | undefined, month: number, date = 1) => {
+    if (given) {
+      return Number(given)
+    }
+
+    const thisYear = new Date(now.getFullYear(), month, date)
+    return thisYear > now ? now.getFullYear() - 1 : now.getFullYear()
   }
-  const day = (y: number, month: number, date: number) => {
-    const at = new Date(y, month, date)
+
+  const addDay = (year: number, month: number, date: number) => {
+    const at = new Date(year, month, date)
+
     // Rejects dates like 31 February rather than rolling them over.
-    if (at.getMonth() !== month) return
-    ranges.push({ start: format(at), end: format(at) })
+    if (at.getMonth() !== month) {
+      return
+    }
+
+    ranges.push({ start: formatDay(at), end: formatDay(at) })
   }
-  const month = (y: number, index: number) =>
+
+  const addMonth = (year: number, month: number) =>
     ranges.push({
-      start: format(new Date(y, index, 1)),
-      end: format(new Date(y, index + 1, 0)),
+      start: formatDay(new Date(year, month, 1)),
+      end: formatDay(new Date(year, month + 1, 0)),
     })
 
-  for (const [, y, m, d] of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g))
-    day(Number(y), Number(m) - 1, Number(d))
-  const numbered = [
-    // 4 March, 4th of March 2025
+  // 2025-03-04
+  for (const [, year, month, date] of text.matchAll(
+    /\b(\d{4})-(\d{2})-(\d{2})\b/g,
+  )) {
+    addDay(Number(year), Number(month) - 1, Number(date))
+  }
+
+  // 4 March, 4th of March 2025
+  for (const [, date, name, year] of text.matchAll(
     new RegExp(
       `\\b(\\d{1,2})${ORDINAL}\\s+(?:of\\s+)?${MONTH}\\b(?:,?\\s+(\\d{4}))?`,
       'gi',
     ),
-    // March 4, March 4th, 2025
+  )) {
+    const month = monthOf(name)
+    addDay(yearOf(year, month, Number(date)), month, Number(date))
+  }
+
+  // March 4, March 4th, 2025
+  for (const [, name, date, year] of text.matchAll(
     new RegExp(
       `\\b${MONTH}\\s+(\\d{1,2})${ORDINAL}\\b(?:,?\\s+(\\d{4}))?`,
       'gi',
     ),
-  ]
-  for (const [, date, name, y] of text.matchAll(numbered[0])) {
-    const index = monthOf(name)
-    day(year(y, index, Number(date)), index, Number(date))
+  )) {
+    const month = monthOf(name)
+    addDay(yearOf(year, month, Number(date)), month, Number(date))
   }
-  for (const [, name, date, y] of text.matchAll(numbered[1])) {
-    const index = monthOf(name)
-    day(year(y, index, Number(date)), index, Number(date))
-  }
-  // March 2025, or a month after a word that makes it one: "in March",
-  // "early March", "since May". A bare "may" is a verb far more often.
-  for (const [, name, y] of text.matchAll(
+
+  // March 2025
+  for (const [, name, year] of text.matchAll(
     new RegExp(`\\b${MONTH}\\s+(\\d{4})\\b`, 'gi'),
-  ))
-    month(Number(y), monthOf(name))
+  )) {
+    addMonth(Number(year), monthOf(name))
+  }
+
+  // A month after a word that makes it one: "in March", "early March",
+  // "since May". A bare "may" is a verb far more often.
   for (const [, name] of text.matchAll(
     new RegExp(
       `\\b(?:in|during|throughout|since|until|by|of|early|late|mid|last|this|next)\\s+(?:early\\s+|late\\s+|mid-?\\s*)?${MONTH}\\b(?!\\s+\\d)`,
       'gi',
     ),
-  ))
-    month(year(undefined, monthOf(name)), monthOf(name))
+  )) {
+    const month = monthOf(name)
+    addMonth(yearOf(undefined, month), month)
+  }
+
   return ranges
 }
 
@@ -141,7 +164,7 @@ export function addEpisode(
 
 /** The Monday-to-Sunday week and the calendar month a day falls in. */
 function periodsOf(day: string) {
-  const date = parse(day)
+  const date = parseDay(day)
   const monday = new Date(date)
   monday.setDate(date.getDate() - ((date.getDay() + 6) % 7))
   const sunday = new Date(monday)
@@ -149,21 +172,22 @@ function periodsOf(day: string) {
   const first = new Date(date.getFullYear(), date.getMonth(), 1)
   const last = new Date(date.getFullYear(), date.getMonth() + 1, 0)
   return [
-    { span: 'week' as const, start: format(monday), end: format(sunday) },
-    { span: 'month' as const, start: format(first), end: format(last) },
+    { span: 'week' as const, start: formatDay(monday), end: formatDay(sunday) },
+    { span: 'month' as const, start: formatDay(first), end: formatDay(last) },
   ]
 }
 
 /** Every day an episode covers. */
 function daysOf(episode: Episode) {
   const days: string[] = []
-  const last = parse(episode.end)
+  const last = parseDay(episode.end)
   for (
-    let date = parse(episode.start);
+    let date = parseDay(episode.start);
     date <= last;
     date = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-  )
-    days.push(format(date))
+  ) {
+    days.push(formatDay(date))
+  }
   return days
 }
 

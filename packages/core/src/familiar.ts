@@ -18,20 +18,16 @@ import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona } from './persona/index.ts'
 import { TimeExtension } from './time/index.ts'
 
-export { compactionFor } from './context/index.ts'
-export { MESSAGE_KIND, type MessageData } from './conversation/message.ts'
-export type { Message, HistoryPage } from './conversation/api.ts'
+// The types in Familiar's own signatures, so hosts can name them.
+export type { HistoryPage, Message } from './conversation/index.ts'
+export type { MemoryApi } from './memory/index.ts'
 export type { UsageState as Usage } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
-  /** Where everything Familiar knows is kept. One host process owns it at a time. */
   storage: Storage
-  /** The host's model collection, with its providers and credentials configured. */
   models: Models
   model: ModelRef
-  /** What the assistant calls itself. */
   name?: string
-  /** Host-specific tools and behaviour, installed after Familiar's own. */
   extensions?: Extension[]
   /**
    * Roughly how many tokens each request may send, whatever the model's context
@@ -41,9 +37,7 @@ export type FamiliarOptions = {
    * Default 64,000.
    */
   contextBudget?: number
-  /** The clock, for tests and hosts with their own; default `Date.now`. */
   now?: HarnessOptions['now']
-  /** Arms timers on that clock; default `setTimeout`. */
   setTimer?: HarnessOptions['setTimer']
 }
 
@@ -52,20 +46,13 @@ export type FamiliarOptions = {
  * A host that serves many owners (households, users) opens one Familiar each.
  */
 export type Familiar = ConversationApi & {
+  memory: MemoryApi
   /**
-   * Called after every commit: any change to the conversation, memory or
-   * background work. Returns a function that stops listening. Listeners run
-   * synchronously, so keep them quick and don't call back into Familiar.
+   * Called after every commit. Listeners run synchronously, so keep them quick
+   * and don't call back into Familiar. Returns a function that stops listening.
    */
   onCommit(listener: () => void): () => void
-  /**
-   * Tokens and cost spent so far, per model and per tool, across everything
-   * it has done: replies, compaction summaries and memory upkeep.
-   */
   usage(): Promise<UsageState>
-  /** What it remembers. The model keeps it; people can correct it. */
-  memory: MemoryApi
-  /** Lets it go: finishes committing, then releases its storage. Summon again to resume. */
   dismiss(): Promise<void>
 }
 
@@ -79,29 +66,41 @@ export async function summonFamiliar(
   const context = BACKGROUND_CONTEXT
   const name = options.name ?? 'Familiar'
   const budget = options.contextBudget ?? DEFAULT_CONTEXT_BUDGET
-  // Half the budget leaves room for the prompt, memory and the pass's tool calls.
-  const memory = createMemory({
-    now: options.now ?? Date.now,
-    model: options.model,
-    name,
-    transcriptTokens: Math.floor(budget / 2),
-  })
+
+  // Extensions can be installed after opening: nothing runs until resume().
   const registry = createRegistry()
-  for (const extension of [
-    createPersona(name),
-    TimeExtension,
-    ...memory.extensions,
-    ...(options.extensions ?? []),
-  ])
-    registry.install(extension)
+
   const harness = await Harness.open(
     options.storage,
     harnessOptions(options, registry, budget),
     context,
   )
+
+  // Half the budget leaves room for the prompt, memory and the pass's tool calls.
+  const memory = createMemory(harness, {
+    now: options.now ?? Date.now,
+    model: options.model,
+    name,
+    transcriptTokens: Math.floor(budget / 2),
+  })
+
+  const extensions = [
+    createPersona(name),
+    TimeExtension,
+    ...memory.extensions,
+    ...(options.extensions ?? []),
+  ]
+
+  for (const extension of extensions) {
+    registry.install(extension)
+  }
+
   const conversation = await installConversation(harness, options.model)
-  const memoryActions = await memory.start(harness)
-  harness.resume() // finish whatever the last process left unfinished
+  const memoryActions = await memory.start()
+
+  // finish whatever the last process left unfinished
+  harness.resume()
+
   return {
     ...conversation,
     memory: memoryActions,

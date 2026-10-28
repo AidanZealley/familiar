@@ -29,7 +29,7 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
-- **UIs depend only on `@familiar/client`.** The web app gets nothing other apps can't. pnpm's strict resolution enforces this; ESLint also limits the client to type-only imports from core.
+- **UIs depend only on `@familiar/client`.** The web app gets nothing other apps can't. pnpm's strict resolution enforces this; ESLint also limits the client to type-only imports from core and Pi.
 
 ### How the UI stays live
 
@@ -90,7 +90,7 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | `FAMILIAR_HOST`     | `127.0.0.1`               |                                       |
 | `FAMILIAR_DATA_DIR` | `~/.local/share/familiar` | Or `$XDG_DATA_HOME/familiar`          |
 
-The Pi packages are pinned to exact versions: their API changes without notice between releases.
+The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog: their API changes without notice between releases.
 
 ### Memory evaluation
 

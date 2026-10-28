@@ -5,7 +5,9 @@ export function createClock(start: number) {
   let now = start
   const timers = new Set<{ due: number; fire: () => void }>()
   const setTimer: SetTimer = (fire, delay, { background }) => {
-    if (background) return undefined // Pi's cache eviction needs no simulated timer.
+    if (background) {
+      return undefined
+    } // Pi's cache eviction needs no simulated timer.
     const timer = { due: now + delay, fire }
     timers.add(timer)
     return () => {
@@ -17,10 +19,14 @@ export function createClock(start: number) {
     setTimer,
     nextDue: () => Math.min(...[...timers].map((timer) => timer.due)),
     advanceTo(time: number) {
-      if (time < now) throw new Error('The eval clock cannot run backwards.')
+      if (time < now) {
+        throw new Error('The eval clock cannot run backwards.')
+      }
       now = time
       for (const timer of [...timers]) {
-        if (timer.due > now) continue
+        if (timer.due > now) {
+          continue
+        }
         timers.delete(timer)
         timer.fire()
       }

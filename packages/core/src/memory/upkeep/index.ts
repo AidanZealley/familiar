@@ -23,8 +23,6 @@ import { instructions, rollupInstructions } from './prompts.ts'
 import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
 import { newMessages } from './transcript.ts'
 
-export { nextUpkeep, Upkeep, upkeepDay, type UpkeepState } from './schedule.ts'
-
 type UpkeepStep =
   | { phase: 'schedule' }
   /** Asleep until the next 04:00, then looks for new messages. */
@@ -56,13 +54,9 @@ type UpkeepStep =
     }
 
 export type UpkeepOptions = {
-  /** The model passes run with. */
   model: ModelRef
-  /** What the assistant calls itself, so the pass knows whose replies are whose. */
   name: string
-  /** At most this many tokens of conversation go into one pass. */
   transcriptTokens: number
-  /** The memory extension passes use: its tools, and recall of facts outside core. */
   extension: Extension
 }
 
@@ -93,7 +87,9 @@ export function createUpkeep(options: UpkeepOptions) {
     context: Context,
   ) => {
     const handle = await runtime.conversation(conversation, context)
-    if (!handle) throw new Error(`No upkeep conversation ${conversation}.`)
+    if (!handle) {
+      throw new Error(`No upkeep conversation ${conversation}.`)
+    }
     const submission = await handle.submit(
       { type: 'input', content: input, requestId },
       context,
@@ -112,11 +108,14 @@ export function createUpkeep(options: UpkeepOptions) {
     return (answer && saidBy(answer)?.text.trim()) ?? ''
   }
 
-  /** Passes start from nothing, so the upkeep conversation never grows. */
+  /**
+   * Passes start from nothing, so the upkeep conversation never grows.
+   * Appended directly: nothing else runs there, and the last pass settled.
+   */
   const resetIn = (tx: Tx, conversation: ConversationId) =>
-    // Appended directly: nothing else runs there, and the last pass settled.
     tx.appendEntry(ResetEntry, conversation, { head: 'self' })
 
+  /** The next step after a pass or a rollup: look for a rollup that's due. */
   const rollup = { status: 'running', checkpoint: { phase: 'rollup' } } as const
 
   const UpkeepTask = defineTask<null, UpkeepStep, null>({
@@ -130,7 +129,9 @@ export function createUpkeep(options: UpkeepOptions) {
       pass: (_task, runtime, context) =>
         runtime.commit(async (tx) => {
           const upkeep = await tx.doc(Upkeep)
-          if (upkeep.conversation === null) return sleep(runtime.now())
+          if (upkeep.conversation === null) {
+            return sleep(runtime.now())
+          }
           const found = await newMessages(
             tx,
             upkeep.through,
@@ -138,7 +139,9 @@ export function createUpkeep(options: UpkeepOptions) {
             options.name,
           )
           // No conversation since the last pass: a rollup may still be due.
-          if (!found) return rollup
+          if (!found) {
+            return rollup
+          }
 
           // The facts the pass sees in its prompt section.
           const facts = coreFacts(await tx.doc(Memory))
@@ -171,9 +174,10 @@ export function createUpkeep(options: UpkeepOptions) {
           input,
           context,
         )
+
         // The review may end with its edits and no episode. Ask once more in
         // the same conversation, so the edits stand and aren't made twice.
-        if (episode === '')
+        if (episode === '') {
           episode = await ask(
             runtime,
             conversation,
@@ -181,16 +185,25 @@ export function createUpkeep(options: UpkeepOptions) {
             'Now reply with only the episode for that conversation.',
             context,
           )
+        }
+
         await runtime.commit(async (tx) => {
           // A failed pass (the model couldn't be reached) leaves these
           // messages for the next one.
-          if (episode === undefined) return sleep(runtime.now())
+          if (episode === undefined) {
+            return sleep(runtime.now())
+          }
+
           // Still nothing: move on rather than review the same messages
           // again every night, growing each pass.
-          if (!episode)
+          if (!episode) {
             runtime.report(new Error('Memory upkeep wrote no episode.'))
-          ;(await tx.doc(Upkeep)).through = newest
-          if (episode && start && end)
+          }
+
+          const upkeep = await tx.doc(Upkeep)
+          upkeep.through = newest
+
+          if (episode && start && end) {
             addEpisode(await tx.doc(Episodes), {
               span: 'day',
               start,
@@ -198,6 +211,8 @@ export function createUpkeep(options: UpkeepOptions) {
               text: episode,
               at: runtime.now(),
             })
+          }
+
           rebalanceCore(await tx.doc(Memory))
           return rollup
         }, context)
@@ -210,7 +225,9 @@ export function createUpkeep(options: UpkeepOptions) {
             await tx.doc(Episodes),
             upkeepDay(runtime.now()),
           )
-          if (!due || upkeep.rollups === null) return sleep(runtime.now())
+          if (!due || upkeep.rollups === null) {
+            return sleep(runtime.now())
+          }
           const days = due.days
             .map(
               (day) =>
@@ -245,7 +262,9 @@ export function createUpkeep(options: UpkeepOptions) {
         )
         await runtime.commit(async (tx) => {
           // Stop rather than retry in a loop; the next pass tries again.
-          if (!episode) return sleep(runtime.now())
+          if (!episode) {
+            return sleep(runtime.now())
+          }
           addEpisode(await tx.doc(Episodes), {
             span,
             start,
@@ -282,14 +301,12 @@ export function createUpkeep(options: UpkeepOptions) {
           task.state.status !== 'terminal' &&
           task.state.status !== 'completing'
 
-        if (upkeep.conversation === null)
-          upkeep.conversation = (
-            await tx.createConversation({ ownership: { kind: 'ownerless' } })
-          ).id
-        if (upkeep.rollups === null)
-          upkeep.rollups = (
-            await tx.createConversation({ ownership: { kind: 'ownerless' } })
-          ).id
+        const createConversation = async () =>
+          (await tx.createConversation({ ownership: { kind: 'ownerless' } })).id
+
+        upkeep.conversation ??= await createConversation()
+        upkeep.rollups ??= await createConversation()
+
         // Every open, so a change of model or wording applies to the next pass.
         await configure(tx, upkeep.conversation, {
           model: options.model,
@@ -301,14 +318,16 @@ export function createUpkeep(options: UpkeepOptions) {
           extensions: [],
           instructions: rollupInstructions(options.name),
         })
-        if (!live)
-          // Background, so it never keeps the main conversation busy or is
-          // stopped with it.
+
+        // Background, so it never keeps the main conversation busy or is
+        // stopped with it.
+        if (!live) {
           upkeep.task = await tx.createTask(UpkeepTask, null, {
             ownership: { kind: 'conversation' },
             conversationId: ROOT_CONVERSATION_ID,
             background: true,
           })
+        }
       }, context),
   }
 }

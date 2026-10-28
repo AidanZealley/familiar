@@ -26,9 +26,13 @@ async function upkeepThrough(storage: Storage): Promise<number | null> {
     'current',
     context,
   )
-  if (!record) throw new Error('Memory upkeep document is missing.')
+  if (!record) {
+    throw new Error('Memory upkeep document is missing.')
+  }
   const document = await storage.document(record.id, 'current', context)
-  if (!document) throw new Error('Memory upkeep document could not be read.')
+  if (!document) {
+    throw new Error('Memory upkeep document could not be read.')
+  }
   return (document.value as UpkeepState).through
 }
 
@@ -45,12 +49,17 @@ export async function resumePoint(storage: Storage, scenario: Scenario) {
   for (const entry of await entriesAfter(storage)) {
     const said = saidBy(entry)
     // Replies carry wall-clock times; only Rowan's messages use the fake clock.
-    if (said && said.who !== 'you') newest = Math.max(newest, said.at)
+    if (said?.role === 'person') {
+      newest = Math.max(newest, said.at)
+    }
   }
-  if (newest === -Infinity) return 0
+  if (newest === -Infinity) {
+    return 0
+  }
   const sent = scenario.days.findIndex((_, index) => noonOf(index) === newest)
-  if (sent === -1)
+  if (sent === -1) {
     throw new Error('The stored replay does not match this scenario.')
+  }
   // Upkeep sleeps until the pass after the last one it ran; that last pass,
   // a day earlier, finished every day whose noon came before it.
   const upkeep = (await tasksIn(storage)).find(
@@ -62,7 +71,9 @@ export async function resumePoint(storage: Storage, scenario: Scenario) {
       ? state.until - 24 * 60 * 60 * 1000
       : -Infinity
   let passed = 0
-  while (passed < scenario.days.length && noonOf(passed) < lastPass) passed++
+  while (passed < scenario.days.length && noonOf(passed) < lastPass) {
+    passed++
+  }
   return Math.max(sent + 1, passed)
 }
 
@@ -79,19 +90,23 @@ export async function replayScenario(
   fromDay = 0,
 ) {
   const upkeep: UpkeepResult[] = []
-  if (fromDay > 0)
+  if (fromDay > 0) {
     await waitForIdle(
       familiar,
       clock,
       nextUpkeep(clock.now()),
       'Resumed replay to settle',
     )
+  }
   await waitForUpkeep(familiar, storage, clock, nextUpkeep(clock.now()))
   for (const [index, day] of scenario.days.entries()) {
-    if (index < fromDay) continue
+    if (index < fromDay) {
+      continue
+    }
     const noon = new Date(`${day.date}T12:00:00`).getTime()
-    if (Number.isNaN(noon) || noon < clock.now())
+    if (Number.isNaN(noon) || noon < clock.now()) {
       throw new Error(`Scenario day ${day.date} is invalid or out of order.`)
+    }
     clock.advanceTo(noon)
     const before = await upkeepThrough(storage)
     if (day.text) {
@@ -120,10 +135,11 @@ export async function replayScenario(
       Math.min(nextUpkeep(pass), followingNoon.getTime()),
     )
     const after = await upkeepThrough(storage)
-    if (day.text && (after === null || (before !== null && after <= before)))
+    if (day.text && (after === null || (before !== null && after <= before))) {
       throw new Error(
         `Memory upkeep on ${day.date} did not advance through (before ${before}, after ${after}).`,
       )
+    }
     upkeep.push({
       date: day.date,
       throughBefore: before,
@@ -167,10 +183,11 @@ export async function replayScenario(
                 )))
           )
         })
-      )
+      ) {
         throw new Error(
           'Tested sessions remain in verbatim context. Add more filler before asking questions.',
         )
+      }
     } finally {
       await transcript.stop()
     }

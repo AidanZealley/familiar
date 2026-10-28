@@ -1,9 +1,10 @@
+import type { Models } from '@earendil-works/pi-ai'
 import type {
   CompactionSettings,
   HarnessOptions,
+  ModelRef,
   Registry,
 } from '@earendil-works/pi-durable'
-import type { FamiliarOptions } from '../familiar.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
 
@@ -31,8 +32,13 @@ export function compactionFor(
   }
 }
 
+type HostOptions = Pick<HarnessOptions, 'now' | 'setTimer'> & {
+  models: Models
+  model: ModelRef
+}
+
 export function harnessOptions(
-  options: FamiliarOptions,
+  options: HostOptions,
   registry: Registry,
   budget: number,
 ): HarnessOptions {
@@ -51,7 +57,8 @@ export function harnessOptions(
       // over SSE, the longest wait for headers. Long enough for slow reasoning.
       stream: { timeoutMs: STREAM_TIMEOUT_MS },
     },
-    ...(options.now && { now: options.now }),
-    ...(options.setTimer && { setTimer: options.setTimer }),
+    // Pi falls back to Date.now and setTimeout when these are undefined.
+    now: options.now,
+    setTimer: options.setTimer,
   }
 }

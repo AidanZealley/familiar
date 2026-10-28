@@ -1,4 +1,4 @@
-import type { ConversationView, EntryRecord } from '@familiar/core/http'
+import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import { afterEach, expect, test, vi } from 'vitest'
 import { createFamiliarStore } from './store.ts'
 
@@ -46,10 +46,7 @@ test('loadOlder pages back to the start, one request per page', async () => {
   expect(await loadOlder()).toBe(false)
   expect(await loadOlder()).toBe(false)
 
-  expect(requests).toEqual([
-    '/api/history?before=3&limit=50',
-    '/api/history?before=2&limit=50',
-  ])
+  expect(requests).toEqual(['/api/history?before=3', '/api/history?before=2'])
   expect(store.getState().history).toEqual({
     entries: [entry(1), entry(2)],
     status: 'start',

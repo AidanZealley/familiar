@@ -1,15 +1,12 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
+import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import type {
-  ConversationView,
-  EntryRecord,
-  HistoryPage,
   DocumentName,
   Documents,
-  PinBody,
-  ReviseBody,
-  SendBody,
+  HttpApi,
   StreamEvent,
 } from '@familiar/core/http'
+import { hc } from 'hono/client'
 import { createStore } from 'zustand/vanilla'
 
 export type Connection = 'connecting' | 'open' | 'reconnecting'
@@ -60,37 +57,40 @@ export type FamiliarState = MirroredDocuments & {
  * @param baseUrl Where the HTTP API is mounted, e.g. `/api`.
  */
 export function createFamiliarStore(baseUrl: string) {
+  const api = hc<HttpApi>(baseUrl)
   const events = new EventSource(`${baseUrl}/events`)
 
-  const fetchOk = async (path: string, init?: RequestInit) => {
-    const response = await fetch(`${baseUrl}${path}`, init)
-    if (!response.ok)
-      throw new Error(
-        `${path} failed: ${response.status} ${response.statusText}`,
-      )
-    return response
-  }
-  const request = async (method: string, path: string, body?: unknown) => {
-    await fetchOk(path, {
-      method,
-      headers: { 'content-type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    })
+  /** Rejects on an error status, which fetch doesn't. */
+  const succeed = async (request: Promise<Response>) => {
+    const response = await request
+
+    if (!response.ok) {
+      throw failed(response)
+    }
   }
 
   let loading: Promise<boolean> | undefined
   const loadOlder = async () => {
     const state = store.getState()
     const { history } = state
-    if (history.status === 'start') return false
+    if (history.status === 'start') {
+      return false
+    }
     const before = oldestOf(state)
-    if (before === undefined) return true
+    if (before === undefined) {
+      return true
+    }
     store.setState({ history: { ...history, status: 'loading' } })
     try {
-      const response = await fetchOk(
-        `/history?before=${before}&limit=${HISTORY_PAGE}`,
-      )
-      const page = (await response.json()) as HistoryPage
+      const response = await api.history.$get({
+        query: { before: String(before) },
+      })
+
+      if (!response.ok) {
+        throw failed(response)
+      }
+
+      const page = await response.json()
       const current = store.getState()
       // A reconnect left a gap, so history starts again from the new view.
       if (oldestOf(current) !== before) {
@@ -119,22 +119,15 @@ export function createFamiliarStore(baseUrl: string) {
     loadOlder: () =>
       (loading ??= loadOlder().finally(() => (loading = undefined))),
     send: (text) =>
-      request('POST', '/messages', {
-        text,
-        requestId: randomId(),
-      } satisfies SendBody),
-    abort: () => request('POST', '/abort'),
+      succeed(api.messages.$post({ json: { text, requestId: randomId() } })),
+    abort: () => succeed(api.abort.$post()),
     reviseFact: (id, text) =>
-      request('PUT', `/memory/${encodeURIComponent(id)}`, {
-        text,
-      } satisfies ReviseBody),
+      succeed(api.memory[':id'].$put({ param: { id }, json: { text } })),
     retireFact: (id) =>
-      request('POST', `/memory/${encodeURIComponent(id)}/retire`),
+      succeed(api.memory[':id'].retire.$post({ param: { id } })),
     setFactPinned: (id, pinned) =>
-      request('PUT', `/memory/${encodeURIComponent(id)}/pin`, {
-        pinned,
-      } satisfies PinBody),
-    forgetFact: (id) => request('DELETE', `/memory/${encodeURIComponent(id)}`),
+      succeed(api.memory[':id'].pin.$put({ param: { id }, json: { pinned } })),
+    forgetFact: (id) => succeed(api.memory[':id'].$delete({ param: { id } })),
     disconnect: () => events.close(),
   }))
 
@@ -175,7 +168,8 @@ export function createFamiliarStore(baseUrl: string) {
 
 export type FamiliarStore = ReturnType<typeof createFamiliarStore>
 
-const HISTORY_PAGE = 50
+const failed = (response: Response) =>
+  new Error(`${response.url} failed: ${response.status} ${response.statusText}`)
 
 /**
  * The oldest entry in a view. A view opens with its head marker, such as a
@@ -200,9 +194,12 @@ export function carryOver(
 ): History {
   const from = before && startOf(before)
   const to = after && startOf(after)
-  if (from === undefined || to === undefined || to <= from) return history
-  if (!before!.entries.some((entry) => entry.id === to))
+  if (from === undefined || to === undefined || to <= from) {
+    return history
+  }
+  if (!before!.entries.some((entry) => entry.id === to)) {
     return { entries: [], status: 'more' }
+  }
   const left = before!.entries.filter((entry) => entry.id < to)
   return {
     ...history,

@@ -29,8 +29,9 @@ export function parseVerdict(text: string): Verdict {
     !('reason' in value) ||
     typeof value.reason !== 'string' ||
     !value.reason.trim()
-  )
+  ) {
     throw new Error('Judge must return a boolean pass and a nonempty reason.')
+  }
   return { pass: value.pass, reason: value.reason }
 }
 
@@ -42,7 +43,9 @@ export async function judgeAnswer(
   answer: string,
 ): Promise<{ verdict: Verdict; usage: Usage }> {
   const resolved = models.getModel(model.provider, model.modelId)
-  if (!resolved) throw new Error(`Unknown judge model ${model.modelId}.`)
+  if (!resolved) {
+    throw new Error(`Unknown judge model ${model.modelId}.`)
+  }
   // Retries what pi-ai classes as transient, such as an overloaded server:
   // one failed grade would otherwise end the whole run.
   const reply = await retryAssistantCall(
@@ -70,8 +73,9 @@ export async function judgeAnswer(
     { enabled: true, maxRetries: 4, baseDelayMs: 5_000 },
     undefined,
   )
-  if (reply.stopReason !== 'stop')
+  if (reply.stopReason !== 'stop') {
     throw new Error(`Judge failed: ${reply.errorMessage ?? reply.stopReason}`)
+  }
   const verdict = parseVerdict(
     reply.content
       .flatMap((part) => (part.type === 'text' ? [part.text] : []))

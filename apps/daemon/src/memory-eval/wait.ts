@@ -39,11 +39,17 @@ export async function waitWithClock(
     await Promise.race([
       (async () => {
         while (!stopped && !(await check())) {
-          if (stopped) return
+          if (stopped) {
+            return
+          }
           await setTimeout(25)
-          if (stopped) return
+          if (stopped) {
+            return
+          }
           const due = clock.nextDue()
-          if (due < boundary && due >= clock.now()) clock.advanceTo(due)
+          if (due < boundary && due >= clock.now()) {
+            clock.advanceTo(due)
+          }
         }
       })(),
       timeout,
@@ -80,7 +86,9 @@ export async function waitForIdle(
     WAIT_MS,
     familiar.onCommit,
   )
-  if (failure) throw new Error(`${label} failed.`, { cause: failure })
+  if (failure) {
+    throw new Error(`${label} failed.`, { cause: failure })
+  }
 }
 
 export async function waitForUpkeep(
@@ -102,8 +110,9 @@ export async function waitForUpkeep(
         context,
       )
       const state = items[0]?.state
-      if (state?.status === 'terminal')
+      if (state?.status === 'terminal') {
         throw new Error(`Memory upkeep ended: ${JSON.stringify(state.outcome)}`)
+      }
       return (
         items.length === 1 &&
         state?.status === 'sleeping' &&

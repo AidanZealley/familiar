@@ -31,12 +31,15 @@ await models.login(
       })
     },
     notify: (event) => {
-      if (event.type === 'auth_url') console.log(`\nOpen:\n${event.url}\n`)
-      else if (event.type === 'device_code')
+      if (event.type === 'auth_url') {
+        console.log(`\nOpen:\n${event.url}\n`)
+      } else if (event.type === 'device_code') {
         console.log(
           `\nOpen ${event.verificationUri} and enter ${event.userCode}\n`,
         )
-      else console.log(event.message)
+      } else {
+        console.log(event.message)
+      }
     },
   },
   { getDeviceId: deviceId, agentName: config.name },

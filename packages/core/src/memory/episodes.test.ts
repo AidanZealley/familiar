@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { localDay } from '../time/index.ts'
-import { upkeepDay } from './upkeep/index.ts'
+import { upkeepDay } from './upkeep/schedule.ts'
 import {
   addEpisode,
   datesIn,
@@ -11,8 +11,9 @@ import {
 
 const stateOf = (...episodes: [Span, string, string?][]) => {
   const state: EpisodesState = { episodes: [], next: 1 }
-  for (const [span, start, end = start] of episodes)
+  for (const [span, start, end = start] of episodes) {
     addEpisode(state, { span, start, end, text: `${span} ${start}`, at: 0 })
+  }
   return state
 }
 
@@ -123,8 +124,9 @@ test('a message names dates only explicitly, and past ones without a year', () =
     'Chess club on Friday at 3',
     'I march to my own drum',
     'Book it for 31 February',
-  ])
+  ]) {
     expect(ranges(text), text).toEqual([])
+  }
 })
 
 test('a message at 1am belongs to the day before', () => {
@@ -137,7 +139,9 @@ test('an episode spanning several weeks counts towards each of them', () => {
   const state = stateOf(['day', '2026-03-02', '2026-04-01'])
   const weeks: string[] = []
   for (let rollup = dueRollup(state, '2026-05-01'); rollup;) {
-    if (rollup.span === 'week') weeks.push(rollup.start)
+    if (rollup.span === 'week') {
+      weeks.push(rollup.start)
+    }
     addEpisode(state, { ...rollup, text: '', at: 0 })
     rollup = dueRollup(state, '2026-05-01')
   }

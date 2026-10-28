@@ -65,15 +65,19 @@ export const listFacts = (facts: Fact[]) =>
 
 const current = (memory: MemoryState, id: string) => {
   const fact = memory.facts.find((fact) => fact.id === id)
-  if (!fact) throw new FactError(`No fact ${id}.`)
-  if (isPast(fact))
+  if (!fact) {
+    throw new FactError(`No fact ${id}.`)
+  }
+  if (isPast(fact)) {
     throw new FactError(`${id} is already past; only current facts can change.`)
+  }
   return fact
 }
 
 const importanceOf = (value: number) => {
-  if (!Number.isInteger(value) || value < 1 || value > 5)
+  if (!Number.isInteger(value) || value < 1 || value > 5) {
     throw new FactError('Importance must be a whole number from 1 to 5.')
+  }
   return value
 }
 
@@ -127,7 +131,9 @@ export function reviseFact(
     delete old.pinned
   }
   // A version too long to fit among the other pins stays current, unpinned.
-  if (wasPinned && pinnedSize(memory, fact) <= CORE_BUDGET) fact.pinned = true
+  if (wasPinned && pinnedSize(memory, fact) <= CORE_BUDGET) {
+    fact.pinned = true
+  }
   memory.next++
   memory.facts.push(fact)
   rebalanceCore(memory)
@@ -160,12 +166,15 @@ export function setPinned(memory: MemoryState, id: string, pinned: boolean) {
   const fact = current(memory, id)
   if (pinned) {
     const size = pinnedSize(memory, fact)
-    if (size > CORE_BUDGET)
+    if (size > CORE_BUDGET) {
       throw new FactError(
         `Pinned facts would fill ${size} of core's ${CORE_BUDGET} characters. Unpin something first.`,
       )
+    }
     fact.pinned = true
-  } else delete fact.pinned
+  } else {
+    delete fact.pinned
+  }
   rebalanceCore(memory)
 }
 
@@ -205,26 +214,36 @@ export function rebalanceCore(memory: MemoryState) {
   let size = 0
   for (const fact of candidates) {
     const line = listFacts([fact]).length + (chosen.size ? 1 : 0)
-    if (size + line > CORE_BUDGET) continue
+    if (size + line > CORE_BUDGET) {
+      continue
+    }
     chosen.add(fact.id)
     size += line
   }
   for (const fact of memory.facts) {
     const core = chosen.has(fact.id)
     // Only real changes, so an unchanged core commits nothing.
-    if (fact.core !== core) fact.core = core
+    if (fact.core !== core) {
+      fact.core = core
+    }
   }
 }
 
 /** Records that facts reached the model. Facts forgotten meanwhile are skipped. */
 export function markRecalled(memory: MemoryState, ids: string[], at: number) {
-  for (const fact of memory.facts) if (ids.includes(fact.id)) fact.recalled = at
+  for (const fact of memory.facts) {
+    if (ids.includes(fact.id)) {
+      fact.recalled = at
+    }
+  }
 }
 
 /** Deletes a fact outright, past or current. The only way a fact leaves the store. */
 export function forgetFact(memory: MemoryState, id: string) {
   const index = memory.facts.findIndex((fact) => fact.id === id)
-  if (index === -1) throw new FactError(`No fact ${id}.`)
+  if (index === -1) {
+    throw new FactError(`No fact ${id}.`)
+  }
   memory.facts.splice(index, 1)
   rebalanceCore(memory)
 }
@@ -256,8 +275,9 @@ export const Memory = defineDoc<MemoryState>({
   scope: 'session',
   initial: () => ({ facts: [], next: 1 }),
   migrate: (value, fromVersion) => {
-    if (fromVersion !== 1)
+    if (fromVersion !== 1) {
       throw new Error(`No migration from memory version ${fromVersion}.`)
+    }
     return migrateV1(value as Parameters<typeof migrateV1>[0])
   },
   // Store a full copy now and then, so reading it never replays a long history.

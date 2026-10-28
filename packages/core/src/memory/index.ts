@@ -6,41 +6,42 @@ import { createMemoryExtension } from './extension.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
-export * from './extension.ts'
-export * from './upkeep/index.ts'
-export * from './facts.ts'
-export * from './recall.ts'
-export * from './episodes.ts'
 export type { MemoryApi } from './api.ts'
+export type { Fact, MemoryState } from './facts.ts'
+export type { Episode, EpisodesState } from './episodes.ts'
 
 export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
   /** Familiar's clock. */
   now: () => number
 }
 
-export function createMemory(options: MemoryOptions) {
-  // Set by start(); the model can't run, so nothing is recalled, before then.
-  let harness: Harness | undefined
+/**
+ * Memory's extensions, to install, and `start`, to call once they are. Nothing
+ * runs before the Harness resumes, so it can open before they're installed.
+ */
+export function createMemory(harness: Harness, options: MemoryOptions) {
   const extension = createMemoryExtension({
     now: options.now,
     recalled: async (ids) => {
-      await harness!.commit(
+      await harness.commit(
         async (tx) => markRecalled(await tx.doc(Memory), ids, options.now()),
         BACKGROUND_CONTEXT,
       )
     },
   })
+
   const upkeep = createUpkeep({ ...options, extension })
+
   return {
     extensions: [extension, upkeep.extension],
-    async start(opened: Harness) {
-      harness = opened
+    start: async () => {
       // Watches only attach to documents that exist.
       await harness.commit(async (tx) => {
         await tx.doc(Memory)
         await tx.doc(Episodes)
       }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
+
       return memoryApi(harness, options.now)
     },
   }

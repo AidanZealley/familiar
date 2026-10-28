@@ -42,6 +42,8 @@ export const dataPath = (name: string) => resolve(config.dataDir, name)
 /** This installation's stable ID; OpenAI identifies the app's logins by it. */
 export function deviceId() {
   const path = dataPath('device-id')
-  if (!existsSync(path)) writeFileSync(path, randomUUID(), { mode: 0o600 })
+  if (!existsSync(path)) {
+    writeFileSync(path, randomUUID(), { mode: 0o600 })
+  }
   return readFileSync(path, 'utf8').trim()
 }

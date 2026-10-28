@@ -12,10 +12,11 @@ test('v3 preserves v2 and has ten uniquely identified questions per category', (
   expect(new Set(rowanV3.questions.map((question) => question.id)).size).toBe(
     50,
   )
-  for (const category of categories)
+  for (const category of categories) {
     expect(
       rowanV3.questions.filter((question) => question.category === category),
     ).toHaveLength(10)
+  }
 })
 
 test('v3 spans a year with consecutive dates and an affordable text budget', () => {
@@ -28,10 +29,11 @@ test('v3 spans a year with consecutive dates and an affordable text budget', () 
   for (const [index, day] of rowanV3.days.entries()) {
     const date = Date.parse(`${day.date}T00:00:00Z`)
     expect(new Date(date).toISOString().slice(0, 10)).toBe(day.date)
-    if (index > 0)
+    if (index > 0) {
       expect(
         date - Date.parse(`${rowanV3.days[index - 1].date}T00:00:00Z`),
       ).toBe(86_400_000)
+    }
   }
 })
 
@@ -57,10 +59,11 @@ test('v3 leaves substantial fact-free chatter after the last tested day', () => 
   expect(rowanV3.testedPhrases!.length).toBeGreaterThan(30)
   for (const phrase of rowanV3.testedPhrases!) {
     expect(normalise(groundTruth), phrase).toContain(normalise(phrase))
-    for (const day of tail)
+    for (const day of tail) {
       expect(normalise(day.text!), `${day.date}: ${phrase}`).not.toContain(
         normalise(phrase),
       )
+    }
   }
 })
 
@@ -98,6 +101,7 @@ test('v3 asks about some things Rowan never mentioned at all', () => {
     question.required.some((required) => required.startsWith('Says ')),
   )
   expect(neverSaid.length).toBeGreaterThanOrEqual(4)
-  for (const term of ['supervisor', 'salary', 'rain-cancellation'])
+  for (const term of ['supervisor', 'salary', 'rain-cancellation']) {
     expect(normalise(groundTruth), term).not.toContain(term)
+  }
 })

@@ -13,7 +13,7 @@ import {
   MemoryStorage,
   type SetTimer,
 } from '@earendil-works/pi-durable'
-import { nextUpkeep } from './index.ts'
+import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
 
@@ -29,7 +29,9 @@ function fakeClock(start: number) {
   let now = start
   let timers: { due: number; fire: () => void }[] = []
   const setTimer: SetTimer = (fire, delayMs, { background }) => {
-    if (background) return undefined // only frees memory
+    if (background) {
+      return undefined
+    } // only frees memory
     const timer = { due: now + delayMs, fire }
     timers.push(timer)
     return () => {
@@ -40,7 +42,9 @@ function fakeClock(start: number) {
     now = time
     const due = timers.filter((timer) => timer.due <= now)
     timers = timers.filter((timer) => timer.due > now)
-    for (const timer of due) timer.fire()
+    for (const timer of due) {
+      timer.fire()
+    }
   }
   return { now: () => now, setTimer, advanceTo }
 }

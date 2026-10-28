@@ -155,8 +155,9 @@ test('replays upkeep, isolates questions, and records judge failures offline', a
     false,
     true,
   ])
-  for (const phase of Object.values(result.tokens))
+  for (const phase of Object.values(result.tokens)) {
     expect(phase.input).toBeGreaterThan(0)
+  }
   // Each question's copy starts with the replay's spend; only its own counts.
   expect(result.results[0].tokens.answer.input).toBeLessThan(
     result.tokens.replay.input,
@@ -226,12 +227,13 @@ test('clock waits drive retries but never cross the next scripted event', async 
 })
 
 test('scenario has five questions per category and distinct crowding facts', () => {
-  for (const category of categories)
+  for (const category of categories) {
     expect(
       memoryScenario.questions.filter(
         (question) => question.category === category,
       ),
     ).toHaveLength(5)
+  }
   const preferences = memoryScenario.days.flatMap(
     (day) =>
       day.text
@@ -262,14 +264,18 @@ test('full scenario compacts tested sessions out of verbatim context offline', a
         JSON.stringify(context.messages[0]).includes(
           'You grade a personal assistant',
         )
-      )
+      ) {
         return fauxAssistantMessage(
           '{"pass":false,"reason":"Scripted answer lacks required facts."}',
         )
-      if (JSON.stringify(context.messages[0]).includes('context summarization'))
+      }
+      if (
+        JSON.stringify(context.messages[0]).includes('context summarization')
+      ) {
         return fauxAssistantMessage(
           '## Goal\nDiscussing hobbies and daily life.',
         )
+      }
       return fauxAssistantMessage('Noted.')
     }),
   )
@@ -483,17 +489,21 @@ test('a replay stopped by a usage limit resumes from its storage', async () => {
   // One scripted model for every request: replies, upkeep, answers, judging.
   const model = (context: { messages: unknown[] }) => {
     const text = JSON.stringify(context.messages)
-    if (limit === 'pending' && text.includes('I oiled the chain.'))
+    if (limit === 'pending' && text.includes('I oiled the chain.')) {
       limit = 'hit'
-    if (limit === 'hit')
+    }
+    if (limit === 'hit') {
       return fauxAssistantMessage('', {
         stopReason: 'error',
         errorMessage: 'subscription_sharing_usage_limit_exceeded',
       })
-    if (text.includes(judgePrompt.slice(0, 40)))
+    }
+    if (text.includes(judgePrompt.slice(0, 40))) {
       return fauxAssistantMessage('{"pass":true,"reason":"Names Bracken."}')
-    if (text.includes('long-term memory of'))
+    }
+    if (text.includes('long-term memory of')) {
       return fauxAssistantMessage('No changes.')
+    }
     // The newest message in the request is the one being answered.
     sent.push(
       [...text.matchAll(/(My bicycle|I fixed|I oiled|What is)[^."]*/g)].at(

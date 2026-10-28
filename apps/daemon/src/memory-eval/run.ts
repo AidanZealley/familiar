@@ -50,10 +50,12 @@ export async function runMemoryEval({
   previous?: QuestionResult[]
   onAnswer?: (result: QuestionResult) => void
 }): Promise<EvalResult> {
-  if (!scenario.days.length)
+  if (!scenario.days.length) {
     throw new Error('Memory eval needs at least one day.')
-  if (!Number.isInteger(questionConcurrency) || questionConcurrency < 1)
+  }
+  if (!Number.isInteger(questionConcurrency) || questionConcurrency < 1) {
     throw new Error('Question concurrency must be positive.')
+  }
   const fromDay = resume ? await resumePoint(storage, scenario) : 0
   // A finished replay resumes at the noon after its last day, as if it had
   // just ended, and goes straight to the questions.
@@ -61,13 +63,18 @@ export async function runMemoryEval({
   const first = new Date(
     `${scenario.days[done ? scenario.days.length - 1 : fromDay].date}T12:00:00`,
   )
-  if (Number.isNaN(first.getTime()))
+  if (Number.isNaN(first.getTime())) {
     throw new Error('Invalid first scenario date.')
-  if (done) first.setDate(first.getDate() + 1)
+  }
+  if (done) {
+    first.setDate(first.getDate() + 1)
+  }
   const clock = createClock(first.getTime())
-  if (done) progress('Replay already finished; asking the questions.')
-  else if (fromDay > 0)
+  if (done) {
+    progress('Replay already finished; asking the questions.')
+  } else if (fromDay > 0) {
     progress(`Resuming at day ${fromDay + 1}: ${scenario.days[fromDay].date}`)
+  }
   const familiar = await summonFamiliar({
     storage,
     models,

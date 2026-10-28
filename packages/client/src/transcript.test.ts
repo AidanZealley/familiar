@@ -1,5 +1,5 @@
 import { MESSAGE_KIND } from './conversation/message.ts'
-import type { ConversationView, EntryRecord } from '@familiar/core/http'
+import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { carryOver, startOf, type History } from './store.ts'
 import { toTranscript } from './transcript.ts'

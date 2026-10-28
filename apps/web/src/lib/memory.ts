@@ -53,8 +53,12 @@ export const historyChains = (facts: readonly Fact[]) => {
   const superseded = new Set(facts.flatMap((fact) => fact.replaces ?? []))
   const chains: Fact[][] = []
   for (const head of facts) {
-    if (superseded.has(head.id)) continue
-    if (!isPast(head) && !head.replaces?.length) continue
+    if (superseded.has(head.id)) {
+      continue
+    }
+    if (!isPast(head) && !head.replaces?.length) {
+      continue
+    }
     const chain = [head]
     // A merge replaces several; follow the first, the fact it revised.
     let previous = head.replaces?.[0]
@@ -93,9 +97,13 @@ export const episodeMonths = (episodes: readonly Episode[]): EpisodeMonth[] => {
       weeks: [],
       days: [],
     }
-    if (episode.span === 'month') month.month = episode
-    else if (episode.span === 'week') month.weeks.push(episode)
-    else month.days.push(episode)
+    if (episode.span === 'month') {
+      month.month = episode
+    } else if (episode.span === 'week') {
+      month.weeks.push(episode)
+    } else {
+      month.days.push(episode)
+    }
     months.set(key, month)
   }
   return [...months.values()].toSorted((a, b) => b.key.localeCompare(a.key))
@@ -157,7 +165,11 @@ export const formatTime = (ms: number) => timeFormat.format(ms)
 /** An episode's dates: `7 Jan` for a day, `22–28 Dec` for a week. */
 export const formatSpan = (episode: Episode) => {
   const start = localDate(episode.start)
-  if (episode.span === 'day') return formatDay(start.getTime())
-  if (episode.span === 'month') return monthFormat.format(start)
+  if (episode.span === 'day') {
+    return formatDay(start.getTime())
+  }
+  if (episode.span === 'month') {
+    return monthFormat.format(start)
+  }
   return dayFormat.formatRange(start, localDate(episode.end))
 }

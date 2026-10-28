@@ -21,8 +21,9 @@ const empty = (): MemoryState => ({ facts: [], next: 1 })
 /** Memory with `count` important facts of about 100 characters each. */
 const full = (count: number) => {
   const memory = empty()
-  for (let index = 0; index < count; index++)
+  for (let index = 0; index < count; index++) {
     rememberFact(memory, `Fact ${index}: ${'worth keeping '.repeat(6)}`, 4, 1)
+  }
   return memory
 }
 
@@ -61,8 +62,9 @@ test('beyond core budget, remember keeps the fact outside core instead of refusi
 
 test('importance outside 1 to 5 is refused without changing memory', () => {
   const memory = empty()
-  for (const importance of [0, 6, 2.5])
+  for (const importance of [0, 6, 2.5]) {
     expect(() => rememberFact(memory, 'Text', importance, 1)).toThrow(FactError)
+  }
   expect(memory).toEqual(empty())
 })
 
@@ -180,7 +182,9 @@ test('unpinned facts make room for pins, which refuse only past the budget', () 
 
 test('a revision too long to stay pinned stays current, unpinned', () => {
   const memory = full(55)
-  for (const fact of memory.facts) setPinned(memory, fact.id, true)
+  for (const fact of memory.facts) {
+    setPinned(memory, fact.id, true)
+  }
   const revised = reviseFact(memory, 'm1', 'x'.repeat(2_000), 2)
   expect(revised.pinned).toBeUndefined()
   expect(revised.until).toBeUndefined()

@@ -5,6 +5,7 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
+import { testClient } from 'hono/testing'
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from './familiar.ts'
 import { createHttpApi } from './http.ts'
@@ -92,8 +93,9 @@ test('the event stream sends the view and every document whole first', async () 
   const response = await api.request('/events')
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
   let text = ''
-  while ((text.match(/event: document\n/g) ?? []).length < 2)
+  while ((text.match(/event: document\n/g) ?? []).length < 2) {
     text += (await reader.read()).value
+  }
   await reader.cancel()
 
   const events = [...text.matchAll(/^event: (.+)\ndata: (.+)$/gm)].map(
@@ -104,4 +106,49 @@ test('the event stream sends the view and every document whole first', async () 
     { name: 'memory', value: { facts: [], next: 1 } },
     { name: 'episodes', value: { episodes: [], next: 1 } },
   ])
+})
+
+test('messages and history validate what clients send', async () => {
+  const faux = fauxProvider()
+  const models = createModels()
+  models.setProvider(faux.provider)
+  const familiar = await summonFamiliar({
+    storage: new MemoryStorage(),
+    models,
+    model: { provider: 'faux', modelId: 'faux-1' },
+  })
+  opened.push(familiar)
+  faux.setResponses([fauxAssistantMessage('Hello.')])
+  const client = testClient(
+    createHttpApi(familiar, { authenticate: () => 'aidan' }),
+  )
+
+  const sent = await client.messages.$post({
+    json: { text: 'Hi', requestId: 'hi' },
+  })
+  expect(sent.status).toBe(202)
+  await familiar.idle()
+
+  const blank = await client.messages.$post({
+    json: { text: ' ', requestId: 'blank' },
+  })
+  expect(blank.status).toBe(400)
+
+  const unbounded = await client.history.$get({ query: { before: 'latest' } })
+  expect(unbounded.status).toBe(400)
+
+  const response = await client.history.$get({
+    query: { before: String(Number.MAX_SAFE_INTEGER) },
+  })
+  if (!response.ok) {
+    throw new Error(`history failed: ${response.status}`)
+  }
+  const page = await response.json()
+  // The whole conversation fits in one page, newest first.
+  expect(page.entries.map((entry) => entry.kind)).toEqual([
+    'pi.assistant',
+    'pi.system',
+    'familiar.message',
+  ])
+  expect(page.more).toBe(false)
 })

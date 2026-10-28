@@ -8,11 +8,10 @@ import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
+import { compactionFor } from './context/index.ts'
+import { MESSAGE_KIND, type MessageData } from './conversation/index.ts'
 import {
-  compactionFor,
-  MESSAGE_KIND,
   summonFamiliar,
-  type MessageData,
   type Familiar,
   type FamiliarOptions,
 } from './familiar.ts'
@@ -71,15 +70,17 @@ test('compaction keeps requests under the context budget', async () => {
   const requests: number[] = []
   faux.setResponses(
     Array.from({ length: 60 }, () => (context: TranscriptContext) => {
-      if (isSummaryRequest(context))
+      if (isSummaryRequest(context)) {
         return fauxAssistantMessage('## Goal\nChatting about the weather.')
+      }
       requests.push(tokensOf(context))
       return fauxAssistantMessage('Lovely. '.repeat(20))
     }),
   )
 
-  for (let day = 1; day <= 20; day++)
+  for (let day = 1; day <= 20; day++) {
     await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+  }
 
   const watch = await familiar.watch()
   await watch.stop()
@@ -105,8 +106,9 @@ test('history returns the messages compaction took out of the view', async () =>
         ),
     ),
   )
-  for (let day = 1; day <= 20; day++)
+  for (let day = 1; day <= 20; day++) {
     await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+  }
 
   const watch = await familiar.watch()
   await watch.stop()
@@ -128,7 +130,9 @@ test('history returns the messages compaction took out of the view', async () =>
     const page = await familiar.history(before, 5)
     expect(page.entries.length).toBeLessThanOrEqual(5)
     older.unshift(...page.entries.toReversed())
-    if (!page.more) break
+    if (!page.more) {
+      break
+    }
     before = page.entries.at(-1)!.id
   }
   expect([...days(older), ...inView]).toEqual(

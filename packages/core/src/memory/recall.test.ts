@@ -19,8 +19,9 @@ const now = Date.UTC(2026, 0, 1)
 
 const memoryOf = (...facts: [text: string, importance: number][]) => {
   const memory: MemoryState = { facts: [], next: 1 }
-  for (const [text, importance] of facts)
+  for (const [text, importance] of facts) {
     rememberFact(memory, text, importance, now - 30 * DAY)
+  }
   return memory
 }
 
@@ -131,8 +132,9 @@ const episodesOf = (
   ...episodes: [span: Span, start: string, end: string, text: string][]
 ) => {
   const state: EpisodesState = { episodes: [], next: 1 }
-  for (const [span, start, end, text] of episodes)
+  for (const [span, start, end, text] of episodes) {
     addEpisode(state, { span, start, end, text, at: now - 30 * DAY })
+  }
   return state
 }
 
@@ -161,8 +163,9 @@ test('facts and episodes are ranked on the same scale', () => {
   // The same words: the essential fact must not lose to an ordinary episode
   // just because those words are rarer among episodes.
   const memory = memoryOf(['Reed Shelter is a birdwatching hide', 5])
-  for (let index = 0; index < 5; index++)
+  for (let index = 0; index < 5; index++) {
     rememberFact(memory, `Unrelated fact ${index}`, 2, now - 30 * DAY)
+  }
   // As if core were full of other facts.
   memory.facts[0].core = false
   const episodes = episodesOf([

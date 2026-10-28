@@ -11,7 +11,9 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
 
   const save = async () => {
     const text = draft.trim()
-    if (!text || text === fact.text) return onDone()
+    if (!text || text === fact.text) {
+      return onDone()
+    }
     setSaving(true)
     setError(undefined)
     try {
@@ -34,7 +36,9 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
             event.preventDefault()
             void save()
           }
-          if (event.key === 'Escape') onDone()
+          if (event.key === 'Escape') {
+            onDone()
+          }
         }}
         className="min-h-16"
       />

@@ -9,11 +9,14 @@ import { addTokens, noTokens } from './tokens.ts'
 // Grades a saved run's answers again with the current judge, so judge changes
 // take a minute to check instead of a full replay.
 const path = process.argv[2]
-if (!path) throw new Error('Usage: pnpm eval:memory:rejudge <result.json>')
+if (!path) {
+  throw new Error('Usage: pnpm eval:memory:rejudge <result.json>')
+}
 const saved = JSON.parse(readFileSync(path, 'utf8')) as EvalResult
 const scenario = scenarios.find(({ id }) => id === saved.scenario)
-if (!scenario)
+if (!scenario) {
   throw new Error(`${path} has unknown scenario ${saved.scenario}.`)
+}
 const transcript = transcriptOf(scenario)
 const results: QuestionResult[] = await Promise.all(
   saved.results.map(async (result) => {
@@ -24,10 +27,11 @@ const results: QuestionResult[] = await Promise.all(
       result,
       result.answer,
     )
-    if (verdict.pass !== result.verdict.pass)
+    if (verdict.pass !== result.verdict.pass) {
       console.log(
         `${result.id}: ${result.verdict.pass ? 'pass' : 'fail'} -> ${verdict.pass ? 'pass' : 'fail'} (${verdict.reason})`,
       )
+    }
     return {
       ...result,
       verdict,

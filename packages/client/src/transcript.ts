@@ -1,15 +1,16 @@
 import type {
   AssistantMessage,
+  ToolCall as ModelToolCall,
+  ToolResultMessage,
+  UserMessage,
+} from '@earendil-works/pi-ai'
+import type {
   ConversationView,
   EntryRecord,
   InboxState,
   LiveState,
-  MessageData,
-  SavedDetails,
-  ToolCall as ModelToolCall,
-  ToolResultMessage,
-  UserMessage,
-} from '@familiar/core/http'
+} from '@earendil-works/pi-durable'
+import type { MessageData, SavedDetails } from '@familiar/core/http'
 
 import { MESSAGE_KIND } from './conversation/message.ts'
 
@@ -79,17 +80,24 @@ export function toTranscript(
   // with it, but it shows where its summary ends: before the first entry it
   // kept, so everything above it is what was summarised.
   const compactions = new Map<EntryRecord['id'], EntryRecord>()
-  for (const entry of entries)
-    if (entry.kind === 'pi.compaction' && entry.head !== undefined)
+  for (const entry of entries) {
+    if (entry.kind === 'pi.compaction' && entry.head !== undefined) {
       compactions.set(entry.head, entry)
+    }
+  }
 
   for (const entry of entries) {
     const compaction = compactions.get(entry.id)
-    if (compaction)
+    if (compaction) {
       items.push({ type: 'compaction', id: `entry:${compaction.id}` })
-    if (entry.kind === 'pi.compaction') continue
+    }
+    if (entry.kind === 'pi.compaction') {
+      continue
+    }
     const item = toItem(entry, calls)
-    if (item) items.push(item)
+    if (item) {
+      items.push(item)
+    }
   }
 
   // Tool calls of the current round, already in the transcript, now running.
@@ -102,11 +110,14 @@ export function toTranscript(
   }
 
   const partial = live?.generation?.message as AssistantMessage | undefined
-  if (partial)
+  if (partial) {
     items.push({ ...toReply('streaming', partial, calls), streaming: true })
+  }
 
   for (const item of inbox?.items ?? []) {
-    if (item.mode === 'write' || item.entry?.kind !== MESSAGE_KIND) continue
+    if (item.mode === 'write' || item.entry?.kind !== MESSAGE_KIND) {
+      continue
+    }
     const data = item.entry.data as MessageData
     items.push({
       type: 'message',
@@ -118,8 +129,11 @@ export function toTranscript(
 
   // Tool results arrive after their call, so what a reply saved is known
   // only once every entry has been read.
-  for (const item of items)
-    if (item.type === 'reply') item.saved = savedBy(item.toolCalls)
+  for (const item of items) {
+    if (item.type === 'reply') {
+      item.saved = savedBy(item.toolCalls)
+    }
+  }
 
   return { items, busy: live?.run !== undefined }
 }
@@ -165,7 +179,9 @@ function toItem(
         call.status = result.isError ? 'error' : 'done'
         call.output = textOf(result.content)
         const details = result.details as Partial<SavedDetails> | undefined
-        if (typeof details?.saved === 'string') call.saved = details.saved
+        if (typeof details?.saved === 'string') {
+          call.saved = details.saved
+        }
       }
       return undefined
     }
@@ -183,9 +199,11 @@ function toReply(
   let thinking = ''
   const toolCalls: ToolCall[] = []
   for (const block of message.content) {
-    if (block.type === 'text') text += block.text
-    else if (block.type === 'thinking') thinking += block.thinking
-    else {
+    if (block.type === 'text') {
+      text += block.text
+    } else if (block.type === 'thinking') {
+      thinking += block.thinking
+    } else {
       const call: ToolCall = {
         id: block.id,
         name: block.name,

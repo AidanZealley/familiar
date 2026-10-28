@@ -1,11 +1,11 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import {
-  type ConversationWatch,
-  type Cursor,
-  type EntryId,
-  type EntryRecord,
-  type Harness,
-  type ModelRef,
+import type {
+  ConversationWatch,
+  Cursor,
+  EntryId,
+  EntryRecord,
+  Harness,
+  ModelRef,
 } from '@earendil-works/pi-durable'
 import { MESSAGE_KIND } from './message.ts'
 
@@ -45,7 +45,7 @@ export async function installConversation(
   // A configured model wins over the one the conversation was created with.
   await conversation.configure({ model }, context)
   return {
-    async send({ author, text, requestId }) {
+    send: async ({ author, text, requestId }) => {
       await conversation.submit(
         {
           type: 'input',
@@ -56,16 +56,18 @@ export async function installConversation(
         context,
       )
     },
-    async abort() {
+    abort: async () => {
       await conversation.abort(context)
     },
     idle: () => conversation.waitForIdle(context),
     watch: () => conversation.watch(context),
-    async history(before, limit) {
+    history: async (before, limit) => {
       // Entry IDs are ascending integers, and the bound is inclusive.
       const query = { maxEntryId: (before - 1) as EntryId }
       const entries: EntryRecord[] = []
+
       let cursor: Cursor | undefined
+
       // One past the limit tells whether more exist.
       do {
         const page = await conversation.entries(
@@ -77,7 +79,11 @@ export async function installConversation(
         entries.push(...page.items)
         cursor = page.next
       } while (cursor && entries.length <= limit)
-      return { entries: entries.slice(0, limit), more: entries.length > limit }
+
+      return {
+        entries: entries.slice(0, limit),
+        more: entries.length > limit,
+      }
     },
   }
 }

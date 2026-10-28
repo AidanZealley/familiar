@@ -10,12 +10,13 @@ export const FactItem = ({ fact }: FactItemProps) => {
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string>()
 
-  if (editing)
+  if (editing) {
     return (
       <li className="py-3">
         <FactEditor fact={fact} onDone={() => setEditing(false)} />
       </li>
     )
+  }
 
   return (
     <li className="flex items-start gap-2 py-3">

@@ -44,41 +44,34 @@ const STOP_WORDS = new Set(
   ),
 )
 
-type Searchable = { id: string; text: string }
-const indexes = new WeakMap<
-  readonly Fact[],
-  WeakMap<readonly Episode[], MiniSearch<Searchable>>
->()
-
 /**
  * One index over facts and episodes, so their relevance scores come from the
- * same word statistics and can be compared. Any change to memory gives new
- * arrays, so a stale index is never used.
+ * same word statistics and can be compared. Built per search, which runs once
+ * per reply: about 25 ms for a year of memory, small beside the model's reply,
+ * and caching it misses anyway, since each reply marks the facts it recalled.
  */
-function indexOf(facts: readonly Fact[], episodes: readonly Episode[]) {
-  let byEpisodes = indexes.get(facts)
-  if (!byEpisodes) indexes.set(facts, (byEpisodes = new WeakMap()))
-  let index = byEpisodes.get(episodes)
-  if (!index) {
-    index = new MiniSearch<Searchable>({
-      fields: ['text'],
-      processTerm: (term) => {
-        const lower = term.toLowerCase()
-        // Fragments such as the "s" of "what's" match nothing meaningful,
-        // and prefix matching would expand them to every word they start.
-        // Short numbers, like the 66 of "66 cm", still count.
-        if (STOP_WORDS.has(lower) || (lower.length < 3 && !/^\d+$/.test(lower)))
-          return null
-        return lower
-      },
-      searchOptions: {
-        prefix: (term) => term.length >= 4,
-        fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
-      },
-    })
-    index.addAll([...facts, ...episodes].map(({ id, text }) => ({ id, text })))
-    byEpisodes.set(episodes, index)
-  }
+function buildIndex(facts: readonly Fact[], episodes: readonly Episode[]) {
+  const index = new MiniSearch<{ id: string; text: string }>({
+    fields: ['text'],
+    processTerm: (term) => {
+      const lower = term.toLowerCase()
+
+      // Fragments such as the "s" of "what's" match nothing meaningful, and
+      // prefix matching would expand them to every word they start. Short
+      // numbers, like the 66 of "66 cm", still count.
+      if (STOP_WORDS.has(lower) || (lower.length < 3 && !/^\d+$/.test(lower))) {
+        return null
+      }
+
+      return lower
+    },
+    searchOptions: {
+      prefix: (term) => term.length >= 4,
+      fuzzy: (term) => (term.length >= 5 ? 0.2 : false),
+    },
+  })
+
+  index.addAll([...facts, ...episodes].map(({ id, text }) => ({ id, text })))
   return index
 }
 
@@ -117,7 +110,7 @@ export function searchMemory(
   const facts = new Map(memory.facts.map((fact) => [fact.id, fact]))
   const allEpisodes = episodes?.episodes ?? []
   const relevance = new Map(
-    indexOf(memory.facts, allEpisodes)
+    buildIndex(memory.facts, allEpisodes)
       .search(query)
       .map(({ id, score }) => [id, score]),
   )
@@ -126,7 +119,9 @@ export function searchMemory(
   const ranked: { item: Recalled; score: number }[] = []
   for (const [id, score] of relevance) {
     const fact = facts.get(id)
-    if (!fact) continue
+    if (!fact) {
+      continue
+    }
     if (fact.core && !isPast(fact)) {
       used.push(id)
       continue
@@ -145,18 +140,21 @@ export function searchMemory(
     const fit = Math.max(0, ...ranges.map((range) => dateFit(episode, range)))
     const score =
       (relevance.get(episode.id) ?? 0) + RANKING.dated * Math.sqrt(fit)
-    if (score > 0)
+    if (score > 0) {
       ranked.push({
         item: { episode },
         score: score * RANKING.episode * RANKING.recency(now - episode.at),
       })
+    }
   }
   ranked.sort((a, b) => b.score - a.score)
 
   const found: Found[] = []
   let left = tokens
   for (const { item } of ranked) {
-    if (found.length === limit) break
+    if (found.length === limit) {
+      break
+    }
     const line = describe(memory, item)
     const size = estimateTextTokens(line)
     if (size <= left) {
@@ -168,9 +166,14 @@ export function searchMemory(
       left = 0
     }
   }
-  for (const { item } of found) if ('fact' in item) used.push(item.fact.id)
+  for (const { item } of found) {
+    if ('fact' in item) {
+      used.push(item.fact.id)
+    }
+  }
   return { found, used }
 }
+
 /**
  * An item as recall shows it, with its dates: a fact with when it was true
  * and what replaced it, so past facts can't pass for current ones; an

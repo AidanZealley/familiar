@@ -9,7 +9,9 @@ export function lockDataDir(path: string) {
   try {
     writeFileSync(path, String(process.pid), { flag: 'wx', mode: 0o600 })
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error
+    }
     const owner = Number(readFileSync(path, 'utf8'))
     if (isRunning(owner)) {
       console.error(

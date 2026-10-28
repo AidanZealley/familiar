@@ -76,7 +76,9 @@ export async function askQuestions({
       async () => {
         for (;;) {
           const index = next++
-          if (index >= results.length) return
+          if (index >= results.length) {
+            return
+          }
           const question = scenario.questions[index]
           const kept = previous.find((result) => result.id === question.id)
           if (kept) {
@@ -178,6 +180,8 @@ export async function askQuestions({
     ),
   )
   const failed = workers.find((worker) => worker.status === 'rejected')
-  if (failed?.status === 'rejected') throw failed.reason
+  if (failed?.status === 'rejected') {
+    throw failed.reason
+  }
   return results
 }

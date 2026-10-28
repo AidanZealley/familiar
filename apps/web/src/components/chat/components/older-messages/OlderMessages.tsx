@@ -26,11 +26,13 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
   // Runs again when a page arrives, so one that leaves the top in view loads
   // the next. A failure waits for Retry rather than looping.
   useEffect(() => {
-    if (nearTop && status === 'more') loadOlder()
+    if (nearTop && status === 'more') {
+      loadOlder()
+    }
   }, [nearTop, status])
 
   const floating = 'absolute top-3 left-1/2 -translate-x-1/2 text-xs shadow-sm'
-  if (status === 'loading')
+  if (status === 'loading') {
     return (
       <div
         role="status"
@@ -43,7 +45,8 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         Loading earlier messages
       </div>
     )
-  if (status === 'failed')
+  }
+  if (status === 'failed') {
     return (
       <Button
         variant="secondary"
@@ -54,5 +57,6 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         Couldn't load earlier messages. Retry
       </Button>
     )
+  }
   return null
 }

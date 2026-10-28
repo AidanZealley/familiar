@@ -28,9 +28,11 @@ export const MemoryEpisodes = () => {
         ? parseFloat(getComputedStyle(heading).top) + heading.offsetHeight + 8
         : 0
       let current = sections?.[0]?.dataset.month
-      for (const section of sections ?? [])
-        if (section.getBoundingClientRect().top <= line)
+      for (const section of sections ?? []) {
+        if (section.getBoundingClientRect().top <= line) {
           current = section.dataset.month
+        }
+      }
       setActive(current)
     }
     update()

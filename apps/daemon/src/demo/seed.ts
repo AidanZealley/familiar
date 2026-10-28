@@ -186,8 +186,9 @@ function factsAsOf(now: Date) {
   }
   const [text, from, until, importance] = retired
   save(text, importance, monthsAgo(from)).until = monthsAgo(until)
-  for (const [text, ago, importance] of facts)
+  for (const [text, ago, importance] of facts) {
     save(text, importance, monthsAgo(ago))
+  }
   return saved
 }
 
@@ -277,8 +278,9 @@ export const seedEpisodes = defineTool({
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
       const state = await tx.doc(Episodes)
-      for (const episode of episodesUntil(new Date(api.now())))
+      for (const episode of episodesUntil(new Date(api.now()))) {
         state.episodes.push({ id: `e${state.next++}`, ...episode })
+      }
       return { output: [{ type: 'text', text: 'Episodes written.' }] }
     }, context),
 })

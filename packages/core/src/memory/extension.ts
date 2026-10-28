@@ -6,6 +6,7 @@ import {
   ROOT_CONVERSATION_ID,
   section,
 } from '@earendil-works/pi-durable'
+import { textOf } from '../conversation/message.ts'
 import { coreFacts, listFacts, Memory, type MemoryState } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import { searchMemory } from './recall.ts'
@@ -17,20 +18,19 @@ const render = (memory: MemoryState | undefined) => {
 ${listed || '(nothing yet)'}`
 }
 
-const textOf = (message: Message) =>
-  typeof message.content === 'string'
-    ? message.content
-    : message.content
-        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-        .join('\n')
+type RecallMemo = {
+  /** Facts the message used, to record as recalled. */
+  facts: string[]
+  /** What the model is shown, or null when nothing matched. */
+  note: string | null
+}
 
-/** What to recall for one request, rendered once so retries can't differ. */
 const recallFor = (
   memory: MemoryState,
   episodes: EpisodesState | undefined,
   query: string,
   now: number,
-) => {
+): RecallMemo => {
   const { found, used } = searchMemory(memory, episodes, query, now)
   return {
     facts: used,
@@ -69,33 +69,49 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
         beforeRequest: async ({ messages }, api, context) => {
           const latest = messages.findLast((message) => message.role === 'user')
           const memory = await api.snapshot(Memory, context)
-          if (!latest || !memory) return
-          // A retried request shows exactly what the first attempt showed,
-          // even if memory changed in between.
-          const recalled = await api.memo(
-            'familiar.recall',
-            recallFor(
-              memory,
-              await api.snapshot(Episodes, context),
-              textOf(latest),
-              options.now(),
-            ),
-            context,
-          )
-          // Only conversation counts as use; upkeep's recall is housekeeping.
-          // Recorded even when nothing is shown: core facts the message
-          // matched were used too.
-          if (
-            recalled.facts.length &&
-            api.conversationId === ROOT_CONVERSATION_ID
-          )
-            await options.recalled(recalled.facts)
-          if (recalled.note === null) return
+
+          if (!latest || !memory) {
+            return
+          }
+
+          // Searched once per run and memoised, so a retried or follow-up
+          // request shows exactly what the first one did, even if memory has
+          // changed since.
+          let recalled = await api.memo<RecallMemo>('familiar.recall', context)
+
+          if (!recalled) {
+            recalled = await api.memo(
+              'familiar.recall',
+              recallFor(
+                memory,
+                await api.snapshot(Episodes, context),
+                textOf(latest),
+                options.now(),
+              ),
+              context,
+            )
+
+            // Only conversation counts as use; upkeep's recall is housekeeping.
+            // Recorded even when nothing is shown: core facts the message
+            // matched were used too.
+            if (
+              recalled.facts.length &&
+              api.conversationId === ROOT_CONVERSATION_ID
+            ) {
+              await options.recalled(recalled.facts)
+            }
+          }
+
+          if (recalled.note === null) {
+            return
+          }
+
           const note: Message = {
             role: 'user',
             content: recalled.note,
             timestamp: messages.at(-1)!.timestamp,
           }
+
           return { messages: [...messages, note] }
         },
       }),

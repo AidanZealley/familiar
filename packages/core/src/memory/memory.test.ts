@@ -18,9 +18,9 @@ import {
   FactError,
   listFacts,
   rememberFact,
+  Memory,
   reviseFact,
 } from './facts.ts'
-import { Memory } from './facts.ts'
 import { afterEach, expect, test } from 'vitest'
 import {
   summonFamiliar,
@@ -308,12 +308,13 @@ test('memory saved by version 1 opens with every fact in core', async () => {
   )
   // Separate commits, so the stored document is a base plus deltas.
   await old.commit((tx) => tx.doc(MemoryV1), BACKGROUND_CONTEXT)
-  for (const [index, text] of ['Uses pnpm', 'Lives in Leeds'].entries())
+  for (const [index, text] of ['Uses pnpm', 'Lives in Leeds'].entries()) {
     await old.commit(async (tx) => {
       const memory = await tx.doc(MemoryV1)
       memory.facts.push({ id: `m${index + 1}`, text, at: 10 * (index + 1) })
       memory.next = index + 2
     }, BACKGROUND_CONTEXT)
+  }
   await old.close(BACKGROUND_CONTEXT)
 
   const { memory } = await setup({ storage })

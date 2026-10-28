@@ -24,7 +24,9 @@ export const YearNav = ({
   useEffect(() => {
     const element = nav.current
     const current = element?.querySelector<HTMLElement>('[aria-current]')
-    if (!horizontal || !element || !current) return
+    if (!horizontal || !element || !current) {
+      return
+    }
     // Centred, but never short of its year's start, so that year's label
     // is the one held at the left rather than half pushed off by it.
     const year = current.parentElement!
@@ -42,7 +44,7 @@ export const YearNav = ({
 
   // Every month in one strip; each year's label sticks at the left while
   // its months scroll under it, until the next year's pushes it away.
-  if (horizontal)
+  if (horizontal) {
     return (
       <nav
         ref={nav}
@@ -78,6 +80,7 @@ export const YearNav = ({
         ))}
       </nav>
     )
+  }
 
   return (
     <nav
