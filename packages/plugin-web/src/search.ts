@@ -1,6 +1,6 @@
 import { Type, type Static } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
-import { cut, TIMEOUT_MS, timestamp, withTimeout } from './shared.ts'
+import { cut, MAX_TITLE, TIMEOUT_MS, timestamp, withTimeout } from './shared.ts'
 
 const Result = Type.Object({
   title: Type.String(),
@@ -27,7 +27,6 @@ export type SearchService = {
   search(request: SearchRequest, signal?: AbortSignal): Promise<SearchResult[]>
 }
 
-const MAX_TITLE = 300
 const MAX_SNIPPET = 500
 const MAX_OUTPUT = 8_000
 

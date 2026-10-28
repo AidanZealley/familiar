@@ -441,3 +441,53 @@ test('times are written in local time', () => {
     }
   }
 })
+
+test('the charset prescan reads tags as the HTML spec does', async () => {
+  for (const [html, expected] of [
+    // A `>` in a quoted value doesn't end the tag.
+    ['<meta data-x=">" charset=windows-1252><p>Café</p>', 'Café'],
+    // A <meta> inside another tag's attribute isn't one.
+    ['<div title="<meta charset=windows-1252>"></div><p>Café</p>', 'Caf�'],
+    // Nor is one in a comment.
+    ['<!-- <meta charset=windows-1252> --><p>Café</p>', 'Caf�'],
+    // content= counts only with http-equiv="Content-Type".
+    ['<meta content="text/html; charset=windows-1252"><p>Café</p>', 'Caf�'],
+    [
+      "<meta content='text/html; charset=windows-1252' http-equiv=Content-Type><p>Café</p>",
+      'Café',
+    ],
+  ]) {
+    const { callTool } = await setup(page(windows1252(html), 'text/html'))
+    const { text } = await callTool('web_fetch', {
+      url: 'https://cats.example/cafe',
+    })
+    expect(text).toContain(expected)
+  }
+})
+
+test('web_fetch cuts the Markdown as it converts, and says how long it was', async () => {
+  // A long <base> repeats in every link: 100 KB of HTML makes 20 MB of
+  // Markdown.
+  const html = `<base href="https://cats.example/${'a'.repeat(100_000)}/">${Array.from(
+    { length: 200 },
+    (_, i) => `<a href="${i}">${i}</a>`,
+  ).join(' ')}`
+  const { callTool } = await setup(page(html, 'text/html'))
+  const { text } = await callTool('web_fetch', {
+    url: 'https://cats.example/',
+    maxChars: 1_000,
+  })
+  expect(text).toMatch(/\n\n\[cut at 1000 of \d{8} characters\]$/)
+  expect(text.length).toBeLessThan(1_200)
+})
+
+test('web_fetch cuts a long title', async () => {
+  const { callTool } = await setup(
+    page(`<title>${'Purr '.repeat(200_000)}</title><p>Hi</p>`, 'text/html'),
+  )
+  const { text } = await callTool('web_fetch', { url: 'https://cats.example/' })
+  const [title] = text.split('\n')
+  expect(title.length).toBeLessThanOrEqual('Title: '.length + 300)
+  expect(title).toMatch(/…$/)
+  expect(text.length).toBeLessThan(13_000)
+})

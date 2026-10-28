@@ -2,8 +2,8 @@ import { Type } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
 import type { PluginFetch } from '@familiar/core'
 import { decode } from './charset.ts'
-import type { Convert, Page } from './markdown.ts'
-import { TIMEOUT_MS, timestamp, withTimeout } from './shared.ts'
+import type { Convert } from './markdown.ts'
+import { cutPage, TIMEOUT_MS, timestamp, withTimeout } from './shared.ts'
 
 /** Where reading a body stops: well past any article, short of a video. */
 export const MAX_BYTES = 3 * 1024 * 1024
@@ -116,14 +116,13 @@ export const webFetchTool = (fetch: PluginFetch, convert: Convert) =>
       const body = decode(bytes, response.headers.get('content-type') ?? '', {
         html,
       })
-      const page: Page = html
-        ? await convert(body, finalUrl)
-        : { markdown: body.trim() }
+      const page = html
+        ? await convert(body, finalUrl, { maxChars })
+        : cutPage(body.trim(), maxChars)
 
-      const total = page.markdown.length
       const markdown =
-        total > maxChars
-          ? `${page.markdown.slice(0, maxChars)}\n\n[cut at ${maxChars} of ${total} characters]`
+        page.total > page.markdown.length
+          ? `${page.markdown}\n\n[cut at ${maxChars} of ${page.total} characters]`
           : page.markdown
       const text = [
         ...(page.title ? [`Title: ${page.title}`] : []),

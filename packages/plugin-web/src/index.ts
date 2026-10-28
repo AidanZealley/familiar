@@ -5,7 +5,7 @@ import { webFetchTool } from './fetch-page.ts'
 import { htmlToMarkdown, type Convert } from './markdown.ts'
 import { webSearchTool } from './search.ts'
 
-export type { Convert, Page } from './markdown.ts'
+export type { Convert, ConvertOptions, Page } from './markdown.ts'
 export type { SearchRequest, SearchResult, SearchService } from './search.ts'
 
 export type WebPluginOptions = {
@@ -24,7 +24,7 @@ export type WebPluginOptions = {
  * fetch, which needs nothing.
  */
 export const webPlugin = ({
-  convert = async (html, url) => htmlToMarkdown(html, url),
+  convert = async (html, url, options) => htmlToMarkdown(html, url, options),
 }: WebPluginOptions = {}) =>
   definePlugin({
     name: 'web',
