@@ -1,5 +1,7 @@
 # Long-term memory
 
+> Done, and replaced by [the memory overhaul](memory-overhaul.md). Kept as a record of the layered memory it built.
+
 Familiar should remember what matters about the people it helps for years, accurately, while keeping each request's context small and current. Today it has one fact list, capped at 6,000 characters, that is always in the prompt; when it fills, the model must forget true facts to make room. Replace it with layered memory, following [the research notes](../research/memory.md): read them first.
 
 Keep these from today: the context budget, `search_history`, nightly upkeep at 04:00 (its scheduling, upkeep conversation and once-only guarantees), and the Memory page's place in the app. Everything stays portable (README Rules): memory lives in Pi Durable documents and works on any host.

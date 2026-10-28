@@ -49,7 +49,7 @@ apps/web/src         The chat and Memory pages, built on @familiar/client.
 1. `core/familiar.ts`, about 100 lines. Everything else hangs off it.
 2. `persona`, `time` and `context`: small, and they show the extension pattern plainly.
 3. `conversation/message.ts`, then `conversation/api.ts`.
-4. Memory, from the rules out: `facts.ts`, `tools.ts`, `recall.ts`, `episodes.ts`, `extension.ts`, `upkeep/`, then `api.ts`, `http.ts` and `index.ts`.
+4. Memory, from the rules out (for how it works and why, read [memory.md](memory.md)): `facts.ts`, `tools.ts`, `recall.ts`, `episodes.ts`, `extension.ts`, `upkeep/`, then `api.ts`, `http.ts` and `index.ts`.
 5. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
 6. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
 
