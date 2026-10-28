@@ -77,6 +77,10 @@ Read each test file beside its source. They run the real Harness with a scripted
 6. Each commit reaches `/api/events` as operations: the conversation's, and those of any document that changed. The client applies them, `toTranscript()` turns entries into chat items, and React renders them.
 7. At 04:00, upkeep (`upkeep/index.ts`) files unreviewed message text oldest first with the writing tools only its conversation is given (`upkeep/tools.ts`), citing each person's message by its exchange ID. Batches stop at each 04:00 day boundary or the transcript budget, whichever comes first. Each completed batch saves an episode and its review position, so a failed later batch can resume without repeating earlier ones. Once the backlog is clear, upkeep rolls up finished weeks and months, then rechecks the 20 current facts that have gone longest without a check against the last 30 days' episodes, stamping them checked in the usage document only if that review succeeds. A single message larger than the budget is truncated and reported to the host; ordinary batch overflow is left for the next batch.
 
+## Memory storage
+
+Facts live in the session document `familiar.facts`, version 1, and recall and review timestamps in `familiar.memory-usage`, version 1. The fact document is streamed to clients as `memory`; usage is not streamed. The earlier `familiar.memory` fact document is not migrated or read by the current implementation. The transcript and episodes remain stored separately.
+
 ## Where new things go
 
 - **A tool**: a capability folder (new, or the one it belongs to) exports an extension with it, and `familiar.ts` installs it. If people act on it directly, the folder also exports an owner API and routes, mounted in `http.ts` as memory's are.

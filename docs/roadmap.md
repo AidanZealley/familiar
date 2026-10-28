@@ -9,9 +9,8 @@ Familiar is a personal assistant in the spirit of Grok Bot, Meta's Muse and Open
 - **Memory.** A fact list the model kept with `remember`, `revise_memory` and `forget` and saw on every request; a Memory page for corrections. Replaced by the memory overhaul.
 - [Memory upkeep](specs/memory-upkeep.md): a 64k context budget, a hard cap on the fact list, and nightly consolidation.
 - [Chat UI](specs/chat-ui.md): shadcn's chat components, streamed Markdown, and `pnpm dev:demo`.
-- [Long-term memory](specs/long-term-memory.md): facts with importance, core rebalanced in code, past facts kept as history, recall before each request and through `recall`, day episodes rolled up into weeks and months, and the Memory pages. The rowan-v3 baseline, 41 of 50 (`eval/results/2026-10-27-be415fd.json`), was measured before this layered memory, on the flat fact list with `search_history`; the layered system was never measured. Replaced by the memory overhaul.
 - [Chat history](specs/chat-history.md): scrolling back past compactions, a Stopped marker, and a lazily loaded Markdown renderer.
-- [Memory overhaul](specs/memory-overhaul.md): the transcript searchable as exchanges, upkeep as the only writer of short, dated facts that cite their sources, recall over every layer with `read_memory`, a nightly review of old facts, and the `pnpm eval:recall` rot test and `GET /api/memory/health` instead of replays. [memory.md](memory.md) explains the design and why. Not yet measured with a replay.
+- [Memory](memory.md): searchable transcript exchanges, short dated facts with sources written by upkeep, recall over every layer with `read_memory`, nightly fact review, the model-free `pnpm eval:recall` test and health diagnostics. Real-model evaluation is still pending.
 
 ## Next
 

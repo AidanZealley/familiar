@@ -2,8 +2,6 @@
 
 Restructure so each piece of behaviour has one home, and understanding it doesn't mean chasing files across packages. Behaviour does not change: the existing tests must pass, adjusted only for moved imports.
 
-Do this before the [long-term memory](long-term-memory.md) steps 2–6, which build on the result.
-
 ## Problems
 
 1. `packages/memory` can't import from core (core depends on it), so it re-knows core's facts: `history.ts` hard-codes the `'familiar.message'` entry kind, upkeep assumes `ROOT_CONVERSATION_ID`, and memory's tests live in `packages/core`.

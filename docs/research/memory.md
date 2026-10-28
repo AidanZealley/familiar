@@ -1,6 +1,6 @@
 # Long-term memory: research notes
 
-The evidence behind [how Familiar remembers](../memory.md) and [the memory overhaul](../specs/memory-overhaul.md). The goal is memory that works at a decently high level and keeps working at that level for years. Perfect recall is not the goal; human memory isn't perfect either.
+The evidence behind [how Familiar remembers](../memory.md). The goal is memory that works at a decently high level and keeps working at that level for years. Perfect recall is not the goal; human memory isn't perfect either.
 
 ## The shared idea: layers with different jobs
 

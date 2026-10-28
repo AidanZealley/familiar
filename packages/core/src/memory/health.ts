@@ -9,8 +9,8 @@ import {
 
 /**
  * Health numbers from real data, so whether memory keeps working as it
- * grows is measured rather than assumed. Each "Later, only if measured"
- * change in the memory overhaul spec names the number that would call for it.
+ * grows is measured rather than assumed. Read alongside the retrieval eval;
+ * docs/memory.md explains what these numbers measure and when to investigate.
  */
 
 export type MemoryHealth = {
