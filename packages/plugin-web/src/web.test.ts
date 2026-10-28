@@ -14,6 +14,7 @@ import {
 import { afterEach, expect, test } from 'vitest'
 import { MAX_BYTES } from './fetch-page.ts'
 import web from './index.ts'
+import { timestamp } from './shared.ts'
 
 const KEY = 'BSA-test-0123456789'
 
@@ -219,14 +220,14 @@ test('web_fetch turns an article into Markdown with its links', async () => {
   )
 
   expect(text).toMatch(
-    /^Title: How cats purr.*\nURL: https:\/\/cats\.example\/purring\nRetrieved: \d{4}-\d\d-\d\d \d\d:\d\d UTC\n\n/,
+    /^Title: How cats purr.*\nURL: https:\/\/cats\.example\/purring\nRetrieved: \d{4}-\d\d-\d\d \d\d:\d\d\n\n/,
   )
   expect(text).toContain('## Measuring a purr')
   expect(text).toContain('[Cat Institute](https://cats.example/about)')
   expect(text).toContain(
     '```python\npurr = record(cat)\nprint(purr.frequency)\n```',
   )
-  expect(text).toContain('| Cat | Hertz |\n| --- | --- |\n| Tabby | 26 |')
+  expect(text).toContain('| Cat | Hertz |\n| - | - |\n| Tabby | 26 |')
   expect(text).not.toContain('document.write')
   expect(text).not.toContain('Shop')
 })
@@ -293,4 +294,150 @@ test('web_fetch reads a page that leaves out its optional tags', async () => {
   })
   expect(text).toContain('Title: Purrs')
   expect(text).toContain('See [more](https://cats.example/more).')
+})
+
+test('web_fetch keeps a table on a page that leaves out its optional tags', async () => {
+  const { callTool } = await setup(
+    page(
+      '<title>Purrs</title><table><tr><td>Tabby<td>26<tr><td>Siamese<td>31</table>',
+      'text/html',
+    ),
+  )
+  const { text } = await callTool('web_fetch', {
+    url: 'https://cats.example/table',
+  })
+  expect(text).toContain(
+    // Without <th> cells, the header row stays empty rather than claim a
+    // row of data.
+    '| | |\n| - | - |\n| Tabby | 26 |\n| Siamese | 31 |',
+  )
+})
+
+test.each([
+  [
+    '300,000 paragraphs',
+    '<p>x</p>'.repeat(300_000),
+    'more than 50,000 elements',
+  ],
+  [
+    '10,000 nested elements',
+    `${'<div>'.repeat(10_000)}x`,
+    'more than 256 levels',
+  ],
+  [
+    'formatting the parser re-creates',
+    Array.from({ length: 3000 }, (_, i) => `<p><b class=c${i}>x</p>`).join(''),
+    'more than 256 levels',
+  ],
+])('web_fetch refuses a page with %s, quickly', async (_, html, reason) => {
+  const { callTool } = await setup(page(html, 'text/html'))
+  const started = performance.now()
+  const { text, isError } = await callTool('web_fetch', {
+    url: 'https://cats.example/hostile',
+  })
+  expect(performance.now() - started).toBeLessThan(1_000)
+  expect(isError).toBe(true)
+  expect(text).toContain('This page is too complex to read')
+  expect(text).toContain(reason)
+})
+
+const windows1252 = (html: string) =>
+  Uint8Array.from(html, (char) => (char === 'é' ? 0xe9 : char.charCodeAt(0)))
+
+test('web_fetch reads the charset a page declares only in <meta>', async () => {
+  for (const meta of [
+    '<meta charset="windows-1252">',
+    '<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">',
+  ]) {
+    const { callTool } = await setup(
+      page(
+        windows1252(`${meta}<title>Café</title><p>Café au lait</p>`),
+        'text/html',
+      ),
+    )
+    const { text } = await callTool('web_fetch', {
+      url: 'https://cats.example/cafe',
+    })
+    expect(text).toContain('Title: Café')
+    expect(text).toContain('Café au lait')
+  }
+})
+
+test('web_fetch prefers the header to <meta>, and a byte order mark to both', async () => {
+  const html = '<meta charset="utf-8"><p>Café</p>'
+  const header = await setup(
+    page(windows1252(html), 'text/html; charset=windows-1252'),
+  )
+  expect(
+    (await header.callTool('web_fetch', { url: 'https://cats.example/a' }))
+      .text,
+  ).toContain('Café')
+
+  const utf8 = new TextEncoder().encode(html)
+  const bom = await setup(
+    page(
+      new Uint8Array([0xef, 0xbb, 0xbf, ...utf8]),
+      'text/html; charset=windows-1252',
+    ),
+  )
+  const { text } = await bom.callTool('web_fetch', {
+    url: 'https://cats.example/b',
+  })
+  expect(text).toContain('Café')
+  expect(text).not.toContain('\ufeff')
+})
+
+test("web_fetch falls back to UTF-8 for a charset it can't decode", async () => {
+  const { callTool } = await setup(
+    page(new TextEncoder().encode('<p>Café</p>'), 'text/html; charset=klingon'),
+  )
+  const { text } = await callTool('web_fetch', { url: 'https://cats.example/' })
+  expect(text).toContain('Café')
+})
+
+test('web_fetch keeps only web links and images', async () => {
+  const { callTool } = await setup(
+    page(
+      `<base href="javascript:alert(1)//">
+      <p><a href="javascript:alert(1)">Run me</a>, <a href="data:text/html,hi">see data</a>,
+      <a href="mailto:cat@cats.example">mail</a>, <a>anchor</a> and <a href="/next">next</a>.</p>
+      <p><img src="data:image/png;base64,AAAA" alt="Inline"><img src="/cat.png" alt="Cat"></p>`,
+      'text/html',
+    ),
+  )
+  const { text } = await callTool('web_fetch', {
+    url: 'https://cats.example/links',
+  })
+  expect(text).toContain(
+    'Run me, see data, mail, anchor and [next](https://cats.example/next).',
+  )
+  expect(text).toContain('![Cat](https://cats.example/cat.png)')
+  expect(text).not.toMatch(/javascript:|data:|mailto:|Inline/)
+})
+
+test('web_fetch resolves links against a web <base>', async () => {
+  const { callTool } = await setup(
+    page(
+      '<base href="https://cdn.example/docs/"><p><a href="guide">Guide</a></p>',
+      'text/html',
+    ),
+  )
+  const { text } = await callTool('web_fetch', {
+    url: 'https://cats.example/links',
+  })
+  expect(text).toContain('[Guide](https://cdn.example/docs/guide)')
+})
+
+test('times are written in local time', () => {
+  const zone = process.env.TZ
+  process.env.TZ = 'Asia/Kolkata'
+  try {
+    expect(timestamp(Date.UTC(2026, 9, 28, 14, 5))).toBe('2026-10-28 19:35')
+  } finally {
+    if (zone === undefined) {
+      delete process.env.TZ
+    } else {
+      process.env.TZ = zone
+    }
+  }
 })

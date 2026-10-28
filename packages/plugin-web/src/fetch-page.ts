@@ -1,7 +1,8 @@
 import { Type } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
 import type { PluginFetch } from '@familiar/core'
-import { htmlToMarkdown } from './markdown.ts'
+import { decode } from './charset.ts'
+import type { Convert, Page } from './markdown.ts'
 import { TIMEOUT_MS, timestamp, withTimeout } from './shared.ts'
 
 /** Where reading a body stops: well past any article, short of a video. */
@@ -57,16 +58,7 @@ async function readBody(
   return { bytes, stopped }
 }
 
-function decode(bytes: Uint8Array, charset: string | undefined) {
-  try {
-    return new TextDecoder(charset ?? 'utf-8').decode(bytes)
-  } catch {
-    // An unknown or misspelt charset; most pages are UTF-8 anyway.
-    return new TextDecoder().decode(bytes)
-  }
-}
-
-export const webFetchTool = (fetch: PluginFetch) =>
+export const webFetchTool = (fetch: PluginFetch, convert: Convert) =>
   defineTool({
     name: 'web_fetch',
     description:
@@ -120,13 +112,13 @@ export const webFetchTool = (fetch: PluginFetch) =>
 
       // A redirect's destination, where the host's fetch followed one.
       const finalUrl = response.url || requested.href
-      const charset = /charset=["']?([^;"'\s]+)/i.exec(
-        response.headers.get('content-type') ?? '',
-      )?.[1]
-      const body = decode(bytes, charset)
-      const page = HTML.includes(mediaType)
-        ? htmlToMarkdown(body, finalUrl)
-        : { title: undefined, markdown: body.trim() }
+      const html = HTML.includes(mediaType)
+      const body = decode(bytes, response.headers.get('content-type') ?? '', {
+        html,
+      })
+      const page: Page = html
+        ? await convert(body, finalUrl)
+        : { markdown: body.trim() }
 
       const total = page.markdown.length
       const markdown =

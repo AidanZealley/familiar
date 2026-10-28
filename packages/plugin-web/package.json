@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./markdown": "./src/markdown.ts"
   },
   "scripts": {
     "typecheck": "tsc"
@@ -12,11 +13,14 @@
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
     "@familiar/core": "workspace:*",
-    "@mozilla/readability": "0.6.0",
-    "linkedom": "0.18.14",
-    "turndown": "7.2.4"
+    "hast-util-from-parse5": "8.0.3",
+    "hast-util-to-mdast": "10.1.2",
+    "mdast-util-gfm": "3.1.0",
+    "mdast-util-to-markdown": "2.2.1",
+    "parse5": "7.3.0"
   },
   "devDependencies": {
-    "@types/turndown": "5.0.6"
+    "@types/hast": "3.0.5",
+    "@types/mdast": "4.0.4"
   }
 }
