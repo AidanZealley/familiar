@@ -5,62 +5,43 @@ import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
 import type { TranscriptItemProps } from './types'
 
-/**
- * One item, with a margin beside it on wide screens: the time a message
- * was sent. On a phone an answer's time sits under it.
- */
-export const TranscriptItem = ({ item, margin }: TranscriptItemProps) => {
+/** One item, with the time a turn was answered under its answer. */
+export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
   // Familiar's own earlier prompt, not the owner's words: a quiet line.
   if (item.type === 'scheduled') {
     return (
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
-        <Marker className="justify-center text-xs">
-          <MarkerIcon>
-            <AlarmClockIcon />
-          </MarkerIcon>
-          <MarkerContent className="min-w-0 text-center">
-            Scheduled · {item.prompt}
-            {item.queued && ' (waiting)'}
-          </MarkerContent>
-        </Marker>
-      </div>
+      <Marker className="justify-center text-xs">
+        <MarkerIcon>
+          <AlarmClockIcon />
+        </MarkerIcon>
+        <MarkerContent className="min-w-0 text-center">
+          Scheduled · {item.prompt}
+          {item.queued && ' (waiting)'}
+        </MarkerContent>
+      </Marker>
     )
   }
 
   if (item.type === 'compaction') {
     return (
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
-        <Marker variant="separator" className="text-xs">
-          <MarkerContent>Earlier messages summarised</MarkerContent>
-        </Marker>
-      </div>
+      <Marker variant="separator" className="text-xs">
+        <MarkerContent>Earlier messages summarised</MarkerContent>
+      </Marker>
     )
   }
 
-  const time = margin?.at === undefined ? undefined : formatTime(margin.at)
-  const showsFooter = item.type === 'reply' && time !== undefined
+  if (item.type === 'message') {
+    return <PersonMessage message={item} />
+  }
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
-      <div className="flex min-w-0 flex-col gap-2">
-        {item.type === 'message' ? (
-          <PersonMessage message={item} />
-        ) : (
-          <Reply reply={item} />
-        )}
-        {showsFooter && (
-          <p className="pl-4 font-heading text-[0.7rem] text-muted-foreground lg:hidden">
-            {time}
-          </p>
-        )}
-      </div>
-      <aside className="hidden pl-4 lg:block">
-        {item.type === 'message' && time && (
-          <p className="pt-1 font-heading text-[0.65rem] text-muted-foreground">
-            {time}
-          </p>
-        )}
-      </aside>
+    <div className="flex min-w-0 flex-col gap-2">
+      <Reply reply={item} />
+      {time !== undefined && (
+        <p className="pl-4 font-heading text-[0.7rem] text-muted-foreground">
+          {formatTime(time)}
+        </p>
+      )}
     </div>
   )
 }
