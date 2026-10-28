@@ -1,3 +1,4 @@
+import { repeatText } from '@familiar/client'
 import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,7 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
           {schedule.repeat && (
             <span className="inline-flex items-center gap-1">
               <RepeatIcon className="size-3" />
-              Repeats
+              {repeatText(schedule.repeat)}
             </span>
           )}
         </p>
