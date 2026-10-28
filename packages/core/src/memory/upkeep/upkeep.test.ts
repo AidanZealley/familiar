@@ -12,6 +12,7 @@ import {
   Harness,
   MemoryStorage,
   type SetTimer,
+  type Storage,
 } from '@earendil-works/pi-durable'
 import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -61,7 +62,7 @@ const start = new Date(2026, 9, 25, 12).getTime() // local noon
 const firstPass = nextUpkeep(start)
 const secondPass = nextUpkeep(firstPass)
 
-async function setup(storage: MemoryStorage = new ReopenableStorage()) {
+async function setup(storage: Storage = new ReopenableStorage()) {
   const faux = fauxProvider()
   const models = createModels()
   models.setProvider(faux.provider)
@@ -276,6 +277,38 @@ test("a pass rejects sources that are not people's messages", async () => {
   expect(await memory()).toEqual([])
 })
 
+test('a change upkeep cannot make is an error for the model, not a crash', async () => {
+  const { faux, say, memory, passAt } = await setup(
+    await storageWith(['Lives in Leeds', 4]),
+  )
+  faux.setResponses([fauxAssistantMessage('Noted.')])
+  await say('I moved to York.')
+
+  let results = ''
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall('retire', { id: 'f9', until: '2026-10-25' }),
+        // Without sources, nothing says when it happened.
+        fauxToolCall('revise_memory', { id: 'f1', text: 'Lives in York' }),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    (context) => {
+      results = JSON.stringify(
+        context.messages.filter((message) => message.role === 'toolResult'),
+      )
+      return fauxAssistantMessage('Moved to York.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  expect(results).toContain('No fact f9')
+  expect(results).toContain('Give since, or cite the messages')
+  const facts = await memory()
+  expect(facts).toHaveLength(1)
+  expect(facts[0].until).toBeUndefined()
+})
+
 test('something the owner asks Familiar to remember is a fact after the next pass', async () => {
   const { faux, say, passAt } = await setup()
   faux.setResponses([fauxAssistantMessage("I'll remember that.")])
@@ -442,10 +475,12 @@ test('a pass can search for a fact its automatic recall missed', async () => {
 
   let automatic = ''
   let searched = ''
+  let source = ''
   faux.setResponses([
     (context) => {
       expect(isUpkeep(context)).toBe(true)
       automatic = JSON.stringify(context.messages.at(-1))
+      source = exchangeIn(inputOf(context), 'black tea')
       return fauxAssistantMessage(fauxToolCall('recall', { query: 'tea' }), {
         stopReason: 'toolUse',
       })
@@ -456,7 +491,11 @@ test('a pass can search for a fact its automatic recall missed', async () => {
       )
       searched = JSON.stringify(last)
       return fauxAssistantMessage(
-        fauxToolCall('revise_memory', { id: 'f1', text: 'Prefers black tea' }),
+        fauxToolCall('revise_memory', {
+          id: 'f1',
+          text: 'Prefers black tea',
+          sources: [source],
+        }),
         { stopReason: 'toolUse' },
       )
     },
@@ -494,9 +533,13 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   faux.setResponses([
     (context) => {
       reviewTools = toolsIn(context)
-      return fauxAssistantMessage(fauxToolCall('retire', { id: 'f1' }), {
-        stopReason: 'toolUse',
-      })
+      return fauxAssistantMessage(
+        fauxToolCall('retire', {
+          id: 'f1',
+          sources: [exchangeIn(inputOf(context), 'planting bulbs')],
+        }),
+        { stopReason: 'toolUse' },
+      )
     },
     fauxAssistantMessage('Rowan planted bulbs with Noor on Sunday.'),
     (context) => {
@@ -534,8 +577,8 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   expect(rollupInput).toContain(
     '2026-10-25: Rowan planted bulbs with Noor on Sunday.',
   )
-  // Retired on the day being filed, so rebalancing moved it out of core;
-  // it is still kept.
+  // Retired on the day of the message that said so, so rebalancing moved it
+  // out of core; it is still kept.
   expect(await memory()).toMatchObject([
     { id: 'f1', core: false, until: '2026-10-25' },
   ])

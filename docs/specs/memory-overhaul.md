@@ -46,7 +46,7 @@ Rules:
 - Text over `FACT_LIMIT` throws a `FactError` that tells the model to split it into separate facts.
 - `since` and `until` are world time and `saved` is record time. Describe a fact with its days (`since 2025-11-03`, `2025-02-02 to 2025-11-03, replaced by f40`), never with `saved`.
 - Revising a fact sets the old one's `until` to the new one's `since`, or to the old one's own `since` if the revision is dated earlier (a correction), so no fact ends before it began. Retiring clamps `until` the same way. A revision's `sources` are the given ones plus those of the facts it replaces.
-- Retiring sets `until`, defaulting to the day of the batch being reviewed (for the owner, today).
+- Upkeep's `since` and `until` default to the day of the earliest message the change cites; with no sources, upkeep must give the day. The owner's edits are dated today. So every date in memory comes from what someone said, never from when upkeep happened to run.
 - No rule deletes a fact.
 
 ### Usage document
@@ -71,9 +71,9 @@ An exchange is a person message (`saidBy(entry)?.role === 'person'` in the root 
 | `read_memory(id)`                                                | Conversation and upkeep | Opens what lies behind an ID (below).                                   |
 | `remember(text, importance, sources, since?)`                    | Upkeep only             | Saves a fact. `sources` must name at least one existing person message. |
 | `revise_memory(id, text, sources?, importance?, since?, merge?)` | Upkeep only             | Saves a new version that replaces `id` and any `merge` facts.           |
-| `retire(id, until?)`                                             | Upkeep only             | Marks a fact no longer true.                                            |
+| `retire(id, sources?, until?)`                                   | Upkeep only             | Marks a fact no longer true.                                            |
 
-`forget` and `set_importance` are removed. Install the conversation's tools through the memory extension and upkeep's through the upkeep extension. A tool only the other conversation should have must not be offered at all, not merely refused.
+`forget` and `set_importance` are removed. Install the conversation's tools through the memory extension and upkeep's through the upkeep extension. A tool only the other conversation should have must not be offered at all, not merely refused. Pi gives a conversation every installed extension unless it chooses, so Familiar's default selection (`harnessOptions`) leaves out upkeep's extension, and only upkeep's conversation selects it.
 
 `recall` returns up to 8 facts, 4 episodes and 6 exchanges, at most 3,000 tokens in total. It groups them under Facts, Episodes and Exchanges, and ranks each group separately, so scores never need to be comparable across kinds. Facts list current ones first, and past ones show their days and what replaced them. Exchanges show their ID, date and up to about 300 characters around the best match.
 

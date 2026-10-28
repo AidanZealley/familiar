@@ -23,7 +23,7 @@ import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
 import { upkeepTools } from './tools.ts'
 import { newMessages } from './transcript.ts'
 
-export type UpkeepStep =
+type UpkeepStep =
   | { phase: 'schedule' }
   /** Selects the next batch, on waking at 04:00 or after a completed batch. */
   | { phase: 'pass' }
@@ -52,6 +52,9 @@ export type UpkeepStep =
       end: string
       input: string
     }
+
+/** Upkeep's extension, which holds the tools that write facts. */
+export const UPKEEP_EXTENSION = 'familiar.upkeep'
 
 export type UpkeepOptions = {
   model: ModelRef
@@ -291,9 +294,10 @@ export function createUpkeep(options: UpkeepOptions) {
       ),
   })
 
-  // The writing tools, only for upkeep's conversation; see start().
+  // The writing tools: selected by upkeep's conversation, and left out of
+  // every other's default (see summonFamiliar).
   const extension = defineExtension({
-    name: 'familiar.upkeep',
+    name: UPKEEP_EXTENSION,
     tasks: [UpkeepTask],
     tools: upkeepTools,
   })
@@ -324,11 +328,6 @@ export function createUpkeep(options: UpkeepOptions) {
           model: options.model,
           extensions: [options.extension, extension],
           instructions: instructions(options.name),
-        })
-        // Every installed extension reaches the main conversation unless it
-        // is left out, and upkeep is the only writer of facts.
-        await configure(tx, ROOT_CONVERSATION_ID, {
-          extensions: { remove: [extension] },
         })
         await configure(tx, upkeep.rollups, {
           model: options.model,

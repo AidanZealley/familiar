@@ -5,6 +5,7 @@ import type {
   ModelRef,
   Registry,
 } from '@earendil-works/pi-durable'
+import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
 
@@ -51,6 +52,14 @@ export function harnessOptions(
     models: options.models,
     registry,
     settings: {
+      // What a conversation gets unless it chooses: everything but the tools
+      // that write facts, which only upkeep's conversation selects.
+      get extensions() {
+        return registry
+          .snapshot()
+          .installed()
+          .filter((extension) => extension.name !== UPKEEP_EXTENSION)
+      },
       compaction: window ? compactionFor(window, budget) : undefined,
       // Without a limit, a stream that goes silent waits forever and blocks
       // its conversation. Over WebSockets this is the longest silence allowed;

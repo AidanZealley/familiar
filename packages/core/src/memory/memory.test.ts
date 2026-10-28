@@ -17,11 +17,15 @@ import {
   FactError,
   Facts,
   listFacts,
+  MemoryUsage,
   openMemory,
   rememberFact,
   reviseFact,
 } from './facts.ts'
-import { storageWith } from './testing.ts'
+import { readStored, storageWith } from './testing.ts'
+import { createMemory } from './index.ts'
+import { Upkeep } from './upkeep/schedule.ts'
+import { harnessOptions } from '../context/index.ts'
 import { afterEach, expect, test } from 'vitest'
 import {
   summonFamiliar,
@@ -63,6 +67,12 @@ const opened: Familiar[] = []
 afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
+
+/** Dismisses a Familiar before the test ends, so its storage can be read. */
+const dismiss = async (familiar: Familiar) => {
+  opened.splice(opened.indexOf(familiar), 1)
+  await familiar.dismiss()
+}
 
 /** The system prompt sections of one request. */
 const sectionsOf = (context: TranscriptContext) =>
@@ -111,6 +121,53 @@ test('the conversation model reads memory but is never offered the tools that wr
   const shown = prompt.findLast((sections) => sections.memory)?.memory
   expect(shown).toContain('f1: Uses pnpm')
   expect(shown).toContain('filed tonight')
+})
+
+test("only upkeep's conversation is given the tools that write facts", async () => {
+  const registry = createRegistry()
+  const model = { provider: 'faux', modelId: 'faux-1' }
+  const harness = await Harness.open(
+    new MemoryStorage(),
+    harnessOptions({ models: createModels(), model }, registry, 64_000),
+    BACKGROUND_CONTEXT,
+  )
+  try {
+    const memory = createMemory(harness, {
+      now: Date.now,
+      model,
+      name: 'Familiar',
+      transcriptTokens: 1_000,
+    })
+    for (const extension of memory.extensions) {
+      registry.install(extension)
+    }
+    const root = await harness.root(BACKGROUND_CONTEXT)
+    await memory.start()
+    // As a host's own extension might: a conversation that chooses nothing.
+    const { other, upkeep } = await harness.commit(
+      async (tx) => ({
+        upkeep: (await tx.doc(Upkeep)).conversation!,
+        other: (
+          await tx.createConversation({ ownership: { kind: 'ownerless' } })
+        ).id,
+      }),
+      BACKGROUND_CONTEXT,
+    )
+    const toolsIn = async (id: typeof other) =>
+      (
+        await (await harness.conversation(id, BACKGROUND_CONTEXT))!.agent(
+          BACKGROUND_CONTEXT,
+        )
+      ).tools.map((tool) => tool.name)
+    const writers = ['remember', 'revise_memory', 'retire']
+    for (const tools of [await toolsIn(other), await toolsIn(root.id)]) {
+      expect(tools).toContain('recall')
+      expect(tools.filter((name) => writers.includes(name))).toEqual([])
+    }
+    expect(await toolsIn(upkeep)).toEqual(expect.arrayContaining(writers))
+  } finally {
+    await harness.close(BACKGROUND_CONTEXT)
+  }
 })
 
 test('people can revise, retire and pin facts', async () => {
@@ -178,9 +235,11 @@ test('an edit that fails partway through a commit changes nothing', async () => 
   }
 })
 
-test('beyond core budget, facts stay outside the prompt', async () => {
-  const { faux, say, memory } = await setup({
+test('the prompt shows current core facts within budget, and nothing past', async () => {
+  const { faux, familiar, say, memory } = await setup({
     storage: await storageWith(
+      ['Lives in Leeds', 5],
+      ['Works at Northbank', 5],
       ...Array.from(
         { length: 70 },
         (_, index) =>
@@ -189,31 +248,6 @@ test('beyond core budget, facts stay outside the prompt', async () => {
             number,
           ],
       ),
-    ),
-  })
-  let prompt: Record<string, string | null>[] = []
-  faux.setResponses([
-    (context) => {
-      prompt = sectionsOf(context)
-      return fauxAssistantMessage('Hello.')
-    },
-  ])
-  const state = (await memory())!
-  const core = coreFacts(state)
-  expect(core.length).toBeLessThan(70)
-  expect(listFacts(core).length).toBeLessThanOrEqual(CORE_BUDGET)
-
-  await say('Hi.')
-  const shown = prompt.findLast((sections) => sections.memory)?.memory ?? ''
-  expect(shown).toContain(listFacts(core))
-  expect(shown).not.toContain(state.facts.at(-1)!.text)
-})
-
-test('past facts never appear in the prompt', async () => {
-  const { faux, familiar, say } = await setup({
-    storage: await storageWith(
-      ['Lives in Leeds', 4],
-      ['Works at Northbank', 4],
     ),
   })
   await familiar.memory.revise('f1', 'Lives in York')
@@ -225,11 +259,19 @@ test('past facts never appear in the prompt', async () => {
       return fauxAssistantMessage('York.')
     },
   ])
+  const state = (await memory())!
+  const core = coreFacts(state)
+  expect(core.length).toBeLessThan(state.facts.length - 2)
+  expect(listFacts(core).length).toBeLessThanOrEqual(CORE_BUDGET)
+
   await say('Where do I live?')
-  const shown = prompt.findLast((sections) => sections.memory)?.memory
-  expect(shown).toContain('f3: Lives in York')
+  const shown = prompt.findLast((sections) => sections.memory)?.memory ?? ''
+  expect(shown).toContain(listFacts(core))
+  expect(shown).toContain('f73: Lives in York')
+  // Past facts and facts that didn't fit stay out.
   expect(shown).not.toContain('Leeds')
   expect(shown).not.toContain('Northbank')
+  expect(shown).not.toContain('Fact 69:')
 })
 
 /** The recalled-memory note in one request, if any. */
@@ -243,12 +285,11 @@ const recalledIn = (context: TranscriptContext) =>
     .find((content) => content.startsWith('Recalled from memory'))
 
 test('a relevant fact outside core reaches the model, and the prompt stays the same', async () => {
-  const { faux, say, memory } = await setup({
-    storage: await storageWith(
-      ['Lives in Leeds', 4],
-      ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
-    ),
-  })
+  const storage = await storageWith(
+    ['Lives in Leeds', 4],
+    ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
+  )
+  const { faux, familiar, say, memory } = await setup({ storage })
   const seen: { note?: string; memory?: string | null }[] = []
   const capture = (reply: string) => (context: TranscriptContext) => {
     seen.push({
@@ -275,12 +316,15 @@ test('a relevant fact outside core reaches the model, and the prompt stays the s
   expect(seen[1].memory).not.toContain('Pip')
   // Recalling a fact records its use apart from the facts clients receive.
   expect(await memory()).toEqual(before)
+  await dismiss(familiar)
+  expect((await readStored(storage, MemoryUsage)).facts).toEqual({
+    f2: { recalled: expect.any(Number) },
+  })
 })
 
 test('the recall tool finds past facts, labelled as past', async () => {
-  const { faux, familiar, say } = await setup({
-    storage: await storageWith(['Lives in Leeds', 4]),
-  })
+  const storage = await storageWith(['Lives in Leeds', 4])
+  const { faux, familiar, say } = await setup({ storage })
   await familiar.memory.revise('f1', 'Lives in York')
   let results: string[] = []
   faux.setResponses([
@@ -292,9 +336,15 @@ test('the recall tool finds past facts, labelled as past', async () => {
       return fauxAssistantMessage('Leeds.')
     },
   ])
-  await say('Where did I live before?')
+  // Matches no fact, so only the tool's search records a use.
+  await say('Anything from the past?')
   expect(results.at(-1)).toMatch(
     /^f1 \(2026-01-05 to .*, replaced by f2\): Lives in Leeds$/,
+  )
+  // What the conversation's search found counts as used.
+  await dismiss(familiar)
+  expect((await readStored(storage, MemoryUsage)).facts.f1?.recalled).toEqual(
+    expect.any(Number),
   )
 })
 

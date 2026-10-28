@@ -7,7 +7,7 @@ export const instructions = (name: string) =>
 - Split rather than merge into long facts. Merge only true duplicates: revise_memory one and list the rest in merge.
 - Always save anything someone explicitly asked ${name} to remember, at importance 4 or 5.
 - Before saving or correcting anything, recall it with a short, specific search: it may already be saved where you can't see it. Revise what you find rather than saving it again.
-- Revise facts the conversation has changed; retire facts that stopped being true. Give the day it became true or stopped, when the conversation says so. Old versions are kept as history, so never drop a detail to save space.
+- Revise facts the conversation has changed; retire facts that stopped being true. Cite the messages that show it in sources, and give the day it became true or stopped when the conversation says so. Old versions are kept as history, so never drop a detail to save space.
 - If nothing needs changing, change nothing.
 
 When you are done, reply with only the episode, under 150 words: what happened and what was said, with names, places, dates, projects, decisions and changes, so it can answer later questions such as "what was going on in early March?". Don't mention memory or what you changed.`

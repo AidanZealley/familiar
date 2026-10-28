@@ -21,7 +21,8 @@ packages/core/src
   diagnostics.ts     For tools around Familiar (the demo, the eval), not hosts.
   persona/           Who Familiar is: the prompt's preamble.
   time/              current_time, and how dates are written (local days).
-  context/           How much conversation fits in a request; compaction; timeouts.
+  context/           How much conversation fits in a request; compaction; timeouts;
+                     which extensions a conversation gets by default.
   conversation/      The message format (message.ts) and sending, watching and
                      paging the conversation (api.ts).
   memory/

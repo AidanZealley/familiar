@@ -18,8 +18,6 @@ import {
   reviseFact,
   type Memory,
 } from '../facts.ts'
-import type { UpkeepStep } from './index.ts'
-import { Upkeep } from './schedule.ts'
 
 /**
  * The tools that write facts. Only upkeep has them: it reads a whole day at
@@ -27,32 +25,9 @@ import { Upkeep } from './schedule.ts'
  * writer means one owner for every rule. Each change goes through facts.ts.
  */
 
-/** What a writing tool knows besides its arguments, read before it writes. */
-type Batch = {
-  /** The day being filed, for facts and retirements given no day. */
-  day: string
-  /** Each cited source's entry and the local day it was sent. */
-  sources: Map<string, { entry: EntryId; day: string }>
-}
-
-/**
- * The day of the batch the pass is filing, from upkeep's own checkpoint, or
- * today outside a pass. Read from the task rather than stored again, so the
- * checkpoint stays the one owner of what is being filed.
- */
-async function batchDay(tx: Tx, now: number) {
-  const upkeep = await tx.doc(Upkeep)
-  const task = upkeep.task === null ? undefined : await tx.task(upkeep.task)
-  const step =
-    task?.state.status === 'running' || task?.state.status === 'sleeping'
-      ? (task.state.checkpoint as UpkeepStep)
-      : undefined
-  return step?.phase === 'consolidate' && step.end ? step.end : localDay(now)
-}
-
 /** Checks that every ID names a person's message in the conversation. */
 async function sourcesOf(tx: Tx, ids: string[]) {
-  const sources: Batch['sources'] = new Map()
+  const sources = new Map<string, { entry: EntryId; day: string }>()
   for (const id of ids) {
     const entry = entryOf(id)
     const record = entry === undefined ? undefined : await tx.entry(entry)
@@ -70,37 +45,45 @@ async function sourcesOf(tx: Tx, ids: string[]) {
   return sources
 }
 
-/** The day the earliest cited message was sent, else the batch's. */
-const earliestDay = (batch: Batch) =>
-  [...batch.sources.values()].map(({ day }) => day).sort()[0] ?? batch.day
+type Sources = Awaited<ReturnType<typeof sourcesOf>>
 
 /**
- * Commits one change. Reads come first, since a transaction can't read
- * after writing; a refused change throws and changes nothing.
+ * The day a fact became or stopped being true: the one given, else the day
+ * its earliest cited message was sent. Every date in memory comes from what
+ * someone said, so a fact filed from a week-old backlog keeps its own day.
+ */
+function dayFrom(given: string | undefined, sources: Sources, what: string) {
+  const day = given ?? [...sources.values()].map(({ day }) => day).sort()[0]
+  if (!day) {
+    throw new FactError(
+      `Give ${what}, or cite the messages that show it in sources.`,
+    )
+  }
+  return day
+}
+
+const entries = (sources: Sources) =>
+  [...sources.values()].map(({ entry }) => entry)
+
+/**
+ * Commits one change. Sources are read first, since a transaction can't
+ * read after writing; a refused change throws and changes nothing.
  */
 const change = (
   api: ToolExecutionApi,
   context: Context,
-  sources: string[],
-  edit: (memory: Memory, batch: Batch) => string,
+  ids: string[],
+  edit: (memory: Memory, sources: Sources) => string,
 ) =>
   api
     .commit(async (tx) => {
-      const batch = {
-        sources: await sourcesOf(tx, sources),
-        day: await batchDay(tx, api.now()),
-      }
-      return edit(await openMemory(tx), batch)
+      const sources = await sourcesOf(tx, ids)
+      return edit(await openMemory(tx), sources)
     }, context)
     .then((text) => ({ output: [{ type: 'text' as const, text }] }))
 
-const entries = (batch: Batch) =>
-  [...batch.sources.values()].map(({ entry }) => entry)
-
 const SOURCES =
   'The [x…] IDs of the messages it came from, as shown in the conversation.'
-const SINCE =
-  'The day it became true, YYYY-MM-DD, when the conversation says so. Defaults to the day of its earliest source.'
 
 const remember = defineTool({
   name: 'remember',
@@ -115,11 +98,16 @@ const remember = defineTool({
         '5: identity, close people, health, standing commitments, and anything they asked to be remembered. 3: ordinary lasting facts. 1: minor preferences and details.',
     }),
     sources: Type.Array(Type.String(), { minItems: 1, description: SOURCES }),
-    since: Type.Optional(Type.String({ description: SINCE })),
+    since: Type.Optional(
+      Type.String({
+        description:
+          'The day it became true, YYYY-MM-DD, when the conversation says so. Defaults to the day of its earliest source.',
+      }),
+    ),
   }),
   execute: (args, api, context) =>
-    change(api, context, args.sources, (memory, batch) => {
-      if (!batch.sources.size) {
+    change(api, context, args.sources, (memory, sources) => {
+      if (!sources.size) {
         throw new FactError('Cite at least one message the fact came from.')
       }
       const fact = rememberFact(
@@ -127,8 +115,8 @@ const remember = defineTool({
         {
           text: args.text,
           importance: args.importance,
-          since: args.since ?? earliestDay(batch),
-          sources: entries(batch),
+          since: dayFrom(args.since, sources, 'since'),
+          sources: entries(sources),
         },
         api.now(),
       )
@@ -152,7 +140,7 @@ const revise = defineTool({
     since: Type.Optional(
       Type.String({
         description:
-          'The day the new version became true, YYYY-MM-DD. Defaults to the day of its earliest source, or of the conversation being filed.',
+          'The day the new version became true, YYYY-MM-DD. Defaults to the day of its earliest source; needed without sources.',
       }),
     ),
     merge: Type.Optional(
@@ -162,14 +150,14 @@ const revise = defineTool({
     ),
   }),
   execute: (args, api, context) =>
-    change(api, context, args.sources ?? [], (memory, batch) => {
+    change(api, context, args.sources ?? [], (memory, sources) => {
       const fact = reviseFact(
         memory,
         args.id,
         {
           text: args.text,
-          since: args.since ?? earliestDay(batch),
-          sources: entries(batch),
+          since: dayFrom(args.since, sources, 'since'),
+          sources: entries(sources),
           importance: args.importance,
           merge: args.merge,
         },
@@ -185,16 +173,21 @@ const retire = defineTool({
     'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history. Not for duplicates: merge those with revise_memory.',
   parameters: Type.Object({
     id: Type.String(),
+    sources: Type.Optional(
+      Type.Array(Type.String(), {
+        description: `${SOURCES} Those that show it stopped being true.`,
+      }),
+    ),
     until: Type.Optional(
       Type.String({
         description:
-          'The day it stopped being true, YYYY-MM-DD. Defaults to the day of the conversation being filed.',
+          'The day it stopped being true, YYYY-MM-DD. Defaults to the day of its earliest source; needed without sources.',
       }),
     ),
   }),
   execute: (args, api, context) =>
-    change(api, context, [], (memory, batch) => {
-      retireFact(memory, args.id, args.until ?? batch.day)
+    change(api, context, args.sources ?? [], (memory, sources) => {
+      retireFact(memory, args.id, dayFrom(args.until, sources, 'until'))
       return `Retired ${args.id}.`
     }),
 })
