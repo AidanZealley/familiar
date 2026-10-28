@@ -14,7 +14,7 @@ Filing a day. The message gives a day of the assistant's conversation with the p
 
 When you are done, reply with only the episode, under 150 words: what happened and what was said, with names, places, dates, projects, decisions and changes, so it can answer later questions such as "what was going on in early March?". Don't mention memory or what you changed.
 
-Checking facts. The message gives facts that haven't been checked for a while, and summaries of the last month's days. Revise or retire any the days show have changed, giving the day it happened (since or until) and citing messages when you find them with recall and read_memory. Leave the rest alone: a fact nobody mentioned is usually still true. Reply with only "Checked." when you are done.`
+Checking facts. The message gives facts that haven't been checked for a while, and summaries of the last month's days. Where the days suggest one has changed, check the original messages with recall and read_memory before changing anything: a summary can be wrong. Revise or retire it only if they confirm it, citing them in sources and giving the day it happened when they say so. Leave the rest alone: a fact nobody mentioned is usually still true. Reply with only "Checked." when you are done.`
 
 export const rollupInstructions = (name: string) =>
   `You write the episodes of ${name}, a personal assistant: summaries of what happened in the lives of the people it helps. Nobody reads this conversation. Each message gives a week or a month and the episodes of its days. Reply with only the episode for that whole period, under 250 words, keeping every name, place, date, project, decision and change that mattered and leaving out what didn't.`

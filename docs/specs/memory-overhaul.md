@@ -98,7 +98,7 @@ Phases, in order, each bounded:
    - Always save anything the owner explicitly asked Familiar to remember, at importance 4 or 5.
    - Check with `recall` before saving, as now.
    - Write the episode.
-2. **Rollup**, unchanged.
+2. **Rollup**, unchanged, except that a failed rollup no longer ends the night: it is reported, the review still runs, and the next night tries the rollup again.
 3. **Review.** Choose up to `REVIEW_LIMIT` (20) current facts whose `checked ?? saved` is more than 30 days old, oldest first. If there are none, sleep. Otherwise reset the upkeep conversation and send those facts with their days, plus the day episodes of the last 30 days within the transcript budget. The prompt asks the model to revise or retire facts the episodes show have changed, using `recall` and `read_memory` to check, and to leave the rest. When the pass succeeds, set `checked` to now on every fact it was given, then sleep. A failed review is reported and retried the next night.
 
 A single message larger than the batch budget is still cut off and reported. It stays whole in the transcript, so search still finds it.

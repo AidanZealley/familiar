@@ -337,9 +337,10 @@ export function createUpkeep(options: UpkeepOptions) {
           context,
         )
         await runtime.commit(async (tx) => {
-          // Stop rather than retry in a loop; the next pass tries again.
+          // Move on rather than retry in a loop: the review doesn't need
+          // this rollup, and the next night tries it again.
           if (!episode) {
-            return sleep(runtime.now())
+            return review
           }
           addEpisode(await tx.doc(Episodes), {
             span,

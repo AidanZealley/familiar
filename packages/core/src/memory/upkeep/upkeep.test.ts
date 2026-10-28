@@ -1047,3 +1047,79 @@ test('a failed review stamps nothing and runs again the next night, then sleeps'
     f2: { checked: secondPass },
   })
 })
+
+test('a restart during the review neither submits it twice nor stamps more than it was given', async () => {
+  const storage = await storageWith(
+    ['Has a cat', 3, start - 90 * DAY],
+    ['Likes blue pens', 1, start - 60 * DAY],
+  )
+  const { faux, familiar, say, passAt, reopen } = await setup(storage)
+  faux.setResponses([fauxAssistantMessage('Hello.')])
+  await say('Hi.')
+  const reviews: string[][] = []
+  const checks = (context: TranscriptContext) =>
+    context.messages
+      .map((message) => JSON.stringify(message))
+      .filter((message) => message.includes('Check these facts'))
+  let restarted: Promise<void> | undefined
+  faux.setResponses([
+    fauxAssistantMessage('Said hello.'),
+    fauxAssistantMessage('A week of greetings.'),
+    (context) => {
+      reviews.push(checks(context))
+      // The process stops while the review is being answered.
+      restarted = reopen()
+      return fauxAssistantMessage('Checked.')
+    },
+    (context) => {
+      reviews.push(checks(context))
+      return fauxAssistantMessage('Checked.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  await restarted
+  await vi.waitFor(async () => {
+    const tasks = await storage.scanTasks(
+      { kind: 'familiar.upkeep' },
+      10,
+      undefined,
+      context,
+    )
+    expect(tasks.items[0]?.state).toMatchObject({ status: 'sleeping' })
+  })
+  // Answered again after the restart, but asked only once.
+  expect(reviews).toEqual([[expect.any(String)], [expect.any(String)]])
+
+  await dismiss(familiar())
+  expect((await readStored(storage, MemoryUsage)).facts).toEqual({
+    f1: { checked: firstPass },
+    f2: { checked: firstPass },
+  })
+})
+
+test('a failed rollup still lets the review run, and is tried again the next night', async () => {
+  const { faux, say, episodes, passAt } = await setup(
+    await storageWith(['Has a cat', 3, start - 90 * DAY]),
+  )
+  faux.setResponses([fauxAssistantMessage('Hello.')])
+  await say('Hi.')
+  let reviewed = false
+  faux.setResponses([
+    fauxAssistantMessage('Said hello.'),
+    fauxAssistantMessage('', {
+      stopReason: 'error',
+      errorMessage: 'The model failed on purpose.',
+    }),
+    () => {
+      reviewed = true
+      return fauxAssistantMessage('Checked.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  expect(reviewed).toBe(true)
+  expect((await episodes()).map(({ span }) => span)).toEqual(['day'])
+
+  faux.setResponses([fauxAssistantMessage('A week of greetings.')])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
+})
