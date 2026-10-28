@@ -120,19 +120,31 @@ export function createSecrets(
     return redacted
   }
 
+  // Known values as bytes, longest first so one inside another is covered
+  // whole; rebuilt only when a value is learned.
+  let knownBytes: Uint8Array[] = []
+  const currentBytes = () => {
+    if (knownBytes.length !== known.size) {
+      knownBytes = [...known]
+        .map((value) => encoder.encode(value))
+        .sort((a, b) => b.length - a.length)
+    }
+    return knownBytes
+  }
+
   /**
    * Redacts a stream of bytes as it passes, holding back only enough to
    * catch a value split across chunks: one byte less than the longest value.
-   * `push` returns what's safe to pass on; `end` returns the rest.
+   * Each chunk is checked against the values known then, so a value learned
+   * while the stream runs is caught too. `push` returns what's safe to pass
+   * on; `end` returns the rest.
    */
   const redactStream = () => {
-    const values = [...known]
-      .map((value) => encoder.encode(value))
-      .sort((a, b) => b.length - a.length)
-    const hold = Math.max(1, ...values.map((value) => value.length)) - 1
     let held = new Uint8Array(0)
     return {
       push: (chunk: Uint8Array) => {
+        const values = currentBytes()
+        const hold = Math.max(1, ...values.map((value) => value.length)) - 1
         const redacted = redactBytes(concat([held, chunk]), values)
         const cut = Math.max(0, redacted.length - hold)
         held = redacted.slice(cut)
@@ -182,7 +194,8 @@ export function createSecrets(
     /**
      * A service's response with every known secret value in its headers and
      * body replaced by `[secret]`, so a service that echoes the key it was
-     * sent doesn't hand it to plugin code.
+     * sent doesn't hand it to plugin code. A header whose name holds one is
+     * dropped, since `[secret]` isn't a valid name.
      */
     redactResponse: async (response: Response): Promise<Response> => {
       await load()
@@ -206,13 +219,16 @@ export function createSecrets(
               }),
             )
           : null
+      // Only what's checked crosses: header names and values, and no status
+      // text, which is the service's to choose and rarely useful.
       const headers = new Headers()
-      response.headers.forEach((value, name) =>
-        headers.append(name, redactString(value)),
-      )
+      response.headers.forEach((value, name) => {
+        if (redactString(name) === name) {
+          headers.append(name, redactString(value))
+        }
+      })
       const redacted = new Response(body, {
         status: response.status,
-        statusText: response.statusText,
         headers,
       })
       // Read-only on a constructed Response, but plugins need them.

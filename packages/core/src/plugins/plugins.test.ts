@@ -106,7 +106,11 @@ async function setup(plugins: FamiliarPlugin[] = [echo]) {
   const fetch: PluginFetch = async (input, init) => {
     sent.push({ url: String(input), init })
     const key = new Headers(init?.headers).get('X-Key') ?? ''
-    return new Response(key, { headers: { 'X-Echo': key } })
+    // Everywhere a response can carry text back.
+    return new Response(key, {
+      statusText: key,
+      headers: key ? { 'X-Echo': key, [`X-${key}`]: 'name' } : {},
+    })
   }
 
   const familiar = await summonFamiliar({
@@ -173,7 +177,27 @@ test('a service that echoes the key gives plugin code only [secret]', async () =
   const response = await context.authorizedFetch('key', ENDPOINT)
   expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
   expect(response.headers.get('X-Echo')).toBe('[secret]')
+  expect([...response.headers].flat().join(' ')).not.toContain(KEY)
+  expect(response.statusText).not.toContain(KEY)
   expect(await response.text()).toBe('[secret]')
+})
+
+test('a key is stored as it will be sent, so a pasted space hides nothing', async () => {
+  const { api, sent } = await setup()
+  const put = (value: string) =>
+    api.request('/connections/plugin/echo/secrets/key', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ value }),
+    })
+
+  expect((await put(`  ${KEY}\n`)).status).toBe(204)
+  const response = await context.authorizedFetch('key', ENDPOINT)
+  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
+  expect(await response.text()).toBe('[secret]')
+
+  expect((await put('two\nlines')).status).toBe(400)
+  expect((await put('   ')).status).toBe(400)
 })
 
 test('authorizedFetch refuses any other request without sending it', async () => {
