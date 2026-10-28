@@ -1,9 +1,13 @@
 /** How long a search or a page read may take, reading the body included. */
 export const TIMEOUT_MS = 15_000
 
-/** A time as `2026-10-28 14:05 UTC`, the same wherever the host runs. */
-export const timestamp = (at: number) =>
-  `${new Date(at).toISOString().slice(0, 16).replace('T', ' ')} UTC`
+const pad = (value: number) => String(value).padStart(2, '0')
+
+/** A time as `2026-10-28 14:05`, in local time, as Familiar writes times. */
+export const timestamp = (at: number) => {
+  const date = new Date(at)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 /** At most `max` characters, ending in … when cut. */
 export const cut = (text: string, max: number) =>
