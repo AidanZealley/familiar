@@ -16,11 +16,17 @@ import {
 } from './conversation/index.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona } from './persona/index.ts'
+import {
+  createSchedules,
+  type Notify,
+  type SchedulesApi,
+} from './schedules/index.ts'
 import { TimeExtension } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
 export type { HistoryPage, Message } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
+export type { Notification, SchedulesApi } from './schedules/index.ts'
 export type { UsageState as Usage } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
@@ -37,6 +43,12 @@ export type FamiliarOptions = {
    * Default 64,000.
    */
   contextBudget?: number
+  /**
+   * Shows the owner a notification: each scheduled run's reply, or its
+   * prompt if there was none. Without it, schedules still run in the
+   * conversation. Hosts deliver it however suits them, such as Web Push.
+   */
+  notify?: Notify
   now?: HarnessOptions['now']
   setTimer?: HarnessOptions['setTimer']
 }
@@ -47,6 +59,7 @@ export type FamiliarOptions = {
  */
 export type Familiar = ConversationApi & {
   memory: MemoryApi
+  schedules: SchedulesApi
   /**
    * Called after every commit. Listeners run synchronously, so keep them quick
    * and don't call back into Familiar. Returns a function that stops listening.
@@ -84,10 +97,13 @@ export async function summonFamiliar(
     transcriptTokens: Math.floor(budget / 2),
   })
 
+  const schedules = createSchedules({ name, notify: options.notify })
+
   const extensions = [
     createPersona(name),
     TimeExtension,
     ...memory.extensions,
+    schedules.extension,
     ...(options.extensions ?? []),
   ]
 
@@ -97,6 +113,7 @@ export async function summonFamiliar(
 
   const conversation = await installConversation(harness, options.model)
   const memoryActions = await memory.start()
+  const scheduleActions = await schedules.start(harness)
 
   // finish whatever the last process left unfinished
   harness.resume()
@@ -104,6 +121,7 @@ export async function summonFamiliar(
   return {
     ...conversation,
     memory: memoryActions,
+    schedules: scheduleActions,
     onCommit: (listener) => harness.subscribeCommits(() => listener()),
     usage: () => harness.usage(context),
     dismiss: () => harness.close(context),

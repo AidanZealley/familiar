@@ -65,6 +65,9 @@ export function harnessOptions(
       // its conversation. Over WebSockets this is the longest silence allowed;
       // over SSE, the longest wait for headers. Long enough for slow reasoning.
       stream: { timeoutMs: STREAM_TIMEOUT_MS },
+      // Pi's default keeps inputs queued behind a failed run until the next
+      // message, which would hold a due reminder back indefinitely.
+      afterFailedRun: 'continue',
     },
     // Pi falls back to Date.now and setTimeout when these are undefined.
     now: options.now,

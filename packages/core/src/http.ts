@@ -11,13 +11,21 @@ import type { HistoryPage } from './conversation/index.ts'
 import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
+import type { SchedulesState } from './schedules/index.ts'
+import { scheduleRoutes } from './schedules/http.ts'
 
 // The wire contract every client speaks. Owned here; @familiar/client imports
 // these types, so a change to the API is a type error on both sides. Routes
 // are typed by `HttpApi`; the event stream, which Hono's client can't type,
 // by `StreamEvent`. The conversation is Pi's view as it is, so clients type
 // it with Pi's own types.
-export type { MESSAGE_KIND, MessageData } from './conversation/index.ts'
+export type {
+  MESSAGE_KIND,
+  MessageData,
+  SCHEDULED_KIND,
+  ScheduledData,
+} from './conversation/index.ts'
+export type { Schedule, SchedulesState } from './schedules/index.ts'
 export type {
   Episode,
   EpisodesState,
@@ -35,6 +43,7 @@ export type HttpApi = ReturnType<typeof createHttpApi>
 export type Documents = {
   memory: FactsState
   episodes: EpisodesState
+  schedules: SchedulesState
 }
 
 export type DocumentName = keyof Documents
@@ -120,6 +129,7 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
             conversation,
             await streamDocument('memory', familiar.memory.watch),
             await streamDocument('episodes', familiar.memory.watchEpisodes),
+            await streamDocument('schedules', familiar.schedules.watch),
           ]
 
           const heartbeat = setInterval(
@@ -188,5 +198,6 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
         return c.body(null, 202)
       })
       .route('/memory', memoryRoutes(familiar.memory))
+      .route('/schedules', scheduleRoutes(familiar.schedules))
   )
 }

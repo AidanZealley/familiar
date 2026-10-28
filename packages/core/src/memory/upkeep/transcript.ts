@@ -20,7 +20,7 @@ async function precedingDay(tx: Tx, through: EntryId | null) {
     order: 'descending',
   })) {
     const said = saidBy(entry)
-    if (said?.role === 'person') {
+    if (said && said.role !== 'assistant') {
       return upkeepDay(said.at)
     }
   }
@@ -54,7 +54,7 @@ export async function newMessages(
 
     // Model replies use wall-clock timestamps, while people's messages use
     // Familiar's clock. Keep replies with their turn rather than redating it.
-    if (said.role === 'person') {
+    if (said.role !== 'assistant') {
       turnDay = upkeepDay(said.at)
     } else if (day === undefined) {
       turnDay = await precedingDay(tx, through)
@@ -65,10 +65,13 @@ export async function newMessages(
     }
 
     // People's lines carry their exchange ID, which facts cite as sources.
+    // Scheduled prompts are Familiar's own earlier words, so they can't be.
     const line =
       said.role === 'person'
         ? `[${exchangeId(entry.id)} ${localMinute(said.at)}] ${said.author}: ${said.text}`
-        : `[${localMinute(said.at)}] ${name}: ${said.text}`
+        : said.role === 'scheduled'
+          ? `[${localMinute(said.at)}] (scheduled) ${said.text}`
+          : `[${localMinute(said.at)}] ${name}: ${said.text}`
     const size = estimateTextTokens(line)
     if (tokens + size > budget) {
       if (!lines.length) {
