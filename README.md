@@ -58,6 +58,11 @@ sudo tailscale serve --bg --https=10000 http://127.0.0.1:4317
 
 Then open `https://<machine>.<tailnet>.ts.net:10000` and add it to your home screen.
 
+Ask Familiar for reminders and anything regular in chat ("remind me at 6 to call Mum", "every weekday at 7, brief me on my day"). Each one runs at its time in the conversation, and its reply arrives as a notification on every device you enabled with **Enable** on the Schedules page:
+
+- **iPhone:** only from the home-screen app, iOS 16.4 or later.
+- **Brave on macOS:** turn on "Use Google services for push messaging" in `brave://settings/privacy`, and allow Brave in System Settings → Notifications.
+
 ### Developing
 
 Only one daemon may own the data directory; a second one refuses to start.

@@ -10,9 +10,9 @@ import type {
   InboxState,
   LiveState,
 } from '@earendil-works/pi-durable'
-import type { MessageData } from '@familiar/core/http'
+import type { MessageData, ScheduledData } from '@familiar/core/http'
 
-import { MESSAGE_KIND } from './conversation/message.ts'
+import { MESSAGE_KIND, SCHEDULED_KIND } from './conversation/message.ts'
 
 export type ToolCall = {
   id: string
@@ -47,6 +47,16 @@ export type TranscriptItem =
       /** Someone stopped it before it finished. */
       stopped: boolean
       error?: string
+    }
+  /** A schedule's prompt, arriving now that it's due. Familiar's reply follows it. */
+  | {
+      type: 'scheduled'
+      id: string
+      prompt: string
+      /** The time it was scheduled for, in ms since the epoch. */
+      due: number
+      /** Waiting for the current run to reach a boundary. */
+      queued: boolean
     }
   /** Older messages were summarised; they stay in storage but the model sees the summary. */
   | { type: 'compaction'; id: string }
@@ -111,16 +121,16 @@ export function toTranscript(
   }
 
   for (const item of inbox?.items ?? []) {
-    if (item.mode === 'write' || item.entry?.kind !== MESSAGE_KIND) {
+    if (item.mode === 'write') {
       continue
     }
-    const data = item.entry.data as MessageData
-    items.push({
-      type: 'message',
-      id: `queued:${item.id}`,
-      ...data,
-      queued: true,
-    })
+    const id = `queued:${item.id}`
+    if (item.entry?.kind === MESSAGE_KIND) {
+      const data = item.entry.data as MessageData
+      items.push({ type: 'message', id, ...data, queued: true })
+    } else if (item.entry?.kind === SCHEDULED_KIND) {
+      items.push(scheduled(id, item.entry.data as ScheduledData, true))
+    }
   }
 
   return { items, busy: live?.run !== undefined }
@@ -155,6 +165,8 @@ function toItem(
         queued: false,
       }
     }
+    case SCHEDULED_KIND:
+      return scheduled(id, entry.data as ScheduledData, false)
     case 'pi.assistant':
       return toReply(id, entry.model?.[0] as AssistantMessage, calls)
     case 'pi.tool-result': {
@@ -170,6 +182,12 @@ function toItem(
       return undefined
   }
 }
+
+const scheduled = (
+  id: string,
+  { prompt, due }: ScheduledData,
+  queued: boolean,
+): TranscriptItem => ({ type: 'scheduled', id, prompt, due, queued })
 
 function toReply(
   id: string,

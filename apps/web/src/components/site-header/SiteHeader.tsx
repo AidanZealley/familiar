@@ -1,6 +1,11 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from 'cn'
-import { CatIcon, LibraryIcon, MessageSquareIcon } from 'lucide-react'
+import {
+  AlarmClockIcon,
+  CatIcon,
+  LibraryIcon,
+  MessageSquareIcon,
+} from 'lucide-react'
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -52,6 +57,20 @@ export const SiteHeader = () => {
               >
                 <MessageSquareIcon />
                 Chat
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                active={path === '/schedules'}
+                render={<Link to="/schedules" />}
+                className={cn(
+                  navigationMenuTriggerStyle(),
+                  'gap-1.5 text-muted-foreground',
+                  path === '/schedules' && current,
+                )}
+              >
+                <AlarmClockIcon />
+                <span className="max-sm:sr-only">Schedules</span>
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>

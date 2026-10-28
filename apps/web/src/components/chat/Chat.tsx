@@ -47,9 +47,13 @@ export const Chat = () => {
                 <MessageScrollerItem
                   key={item.id}
                   messageId={item.id}
-                  // A message starts a turn once Familiar takes it up. A queued
-                  // one would jump over the reply still streaming above it.
-                  scrollAnchor={item.type === 'message' && !item.queued}
+                  // A message, or a scheduled prompt, starts a turn once
+                  // Familiar takes it up. A queued one would jump over the
+                  // reply still streaming above it.
+                  scrollAnchor={
+                    (item.type === 'message' || item.type === 'scheduled') &&
+                    !item.queued
+                  }
                 >
                   <TranscriptItem item={item} margin={margins.get(item.id)} />
                 </MessageScrollerItem>

@@ -54,6 +54,10 @@ export default defineConfig([
     rules: { curly: ['error', 'all'] },
   },
   {
+    files: ['apps/web/public/sw.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ['packages/**/*.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
