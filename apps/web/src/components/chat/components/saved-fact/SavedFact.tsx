@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { ArchiveIcon, PinIcon, PinOffIcon, Trash2Icon } from 'lucide-react'
+import { ArchiveIcon, PinIcon, PinOffIcon } from 'lucide-react'
 import { useState } from 'react'
 import {
   DropdownMenu,
@@ -71,13 +71,6 @@ export const SavedFact = ({ fact }: SavedFactProps) => {
               <DropdownMenuItem onClick={() => run(store.retireFact(fact.id))}>
                 <ArchiveIcon />
                 No longer true
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => run(store.forgetFact(fact.id))}
-              >
-                <Trash2Icon />
-                Forget
               </DropdownMenuItem>
             </>
           )}

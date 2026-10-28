@@ -4,5 +4,5 @@ export type {
   Episode,
   EpisodesState,
   Fact,
-  MemoryState,
+  FactsState,
 } from '@familiar/core/http'

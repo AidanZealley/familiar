@@ -56,5 +56,3 @@ export const memoryRoutes = (memory: MemoryApi) =>
           memory.setPinned(c.req.param('id'), c.req.valid('json').pinned),
         ),
     )
-    // Forgets a fact outright.
-    .delete('/:id', (c) => edit(c, () => memory.forget(c.req.param('id'))))

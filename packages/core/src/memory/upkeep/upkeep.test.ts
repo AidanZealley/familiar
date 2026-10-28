@@ -184,9 +184,9 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
       return fauxAssistantMessage(
         [
           fauxToolCall('revise_memory', {
-            id: 'm2',
+            id: 'f2',
             text: 'Owns a cat called Miso',
-            merge: ['m1'],
+            merge: ['f1'],
           }),
           fauxToolCall('remember', { text: 'Is vegetarian', importance: 4 }),
         ],
@@ -207,7 +207,7 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
       .filter((fact) => fact.until === undefined)
       .map((fact) => [fact.text, fact.replaces]),
   ).toEqual([
-    ['Owns a cat called Miso', ['m2', 'm1']],
+    ['Owns a cat called Miso', ['f2', 'f1']],
     ['Is vegetarian', undefined],
   ])
   expect(await memory()).toHaveLength(4)
@@ -286,7 +286,7 @@ test('reopening keeps exactly one upkeep task on its schedule', async () => {
 test('a later pass revises a fact saved outside core instead of duplicating it', async () => {
   const { faux, say, memory, passAt } = await setup()
   const recalledIn = (context: TranscriptContext) =>
-    JSON.stringify(context.messages).includes('m1 (since')
+    JSON.stringify(context.messages).includes('f1 (since')
   faux.setResponses([
     fauxAssistantMessage(
       fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
@@ -310,7 +310,7 @@ test('a later pass revises a fact saved outside core instead of duplicating it',
       expect(isUpkeep(context)).toBe(true)
       sawFact = recalledIn(context)
       return fauxAssistantMessage(
-        fauxToolCall('revise_memory', { id: 'm1', text: 'Prefers black tea' }),
+        fauxToolCall('revise_memory', { id: 'f1', text: 'Prefers black tea' }),
         { stopReason: 'toolUse' },
       )
     },
@@ -321,7 +321,7 @@ test('a later pass revises a fact saved outside core instead of duplicating it',
   expect(sawFact).toBe(true)
   expect(
     (await memory()).filter((fact) => fact.until === undefined),
-  ).toMatchObject([{ id: 'm2', text: 'Prefers black tea', replaces: ['m1'] }])
+  ).toMatchObject([{ id: 'f2', text: 'Prefers black tea', replaces: ['f1'] }])
 })
 
 test('a pass can search for a fact its automatic recall missed', async () => {
@@ -369,7 +369,7 @@ test('a pass can search for a fact its automatic recall missed', async () => {
       )
       searched = JSON.stringify(last)
       return fauxAssistantMessage(
-        fauxToolCall('revise_memory', { id: 'm1', text: 'Prefers black tea' }),
+        fauxToolCall('revise_memory', { id: 'f1', text: 'Prefers black tea' }),
         { stopReason: 'toolUse' },
       )
     },
@@ -380,7 +380,7 @@ test('a pass can search for a fact its automatic recall missed', async () => {
   // Crowded out of the automatic eight, but found by a targeted search.
   expect(automatic).toContain('Recalled from memory')
   expect(automatic).not.toContain('green tea')
-  expect(searched).toContain('m1 (since')
+  expect(searched).toContain('f1 (since')
   expect(
     (await memory())
       .filter((fact) => fact.until === undefined)
@@ -414,10 +414,9 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   faux.setResponses([
     (context) => {
       reviewTools = toolsIn(context)
-      return fauxAssistantMessage(
-        fauxToolCall('set_importance', { id: 'm1', importance: 1 }),
-        { stopReason: 'toolUse' },
-      )
+      return fauxAssistantMessage(fauxToolCall('retire', { id: 'f1' }), {
+        stopReason: 'toolUse',
+      })
     },
     fauxAssistantMessage('Rowan planted bulbs with Noor on Sunday.'),
     (context) => {
@@ -455,8 +454,10 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   expect(rollupInput).toContain(
     '2026-10-25: Rowan planted bulbs with Noor on Sunday.',
   )
-  // Rated down, so rebalancing moved it out of core; it is still kept.
-  expect(await memory()).toMatchObject([{ id: 'm1', core: false }])
+  // Retired, so rebalancing moved it out of core; it is still kept.
+  expect(await memory()).toMatchObject([
+    { id: 'f1', core: false, until: '2026-10-26' },
+  ])
 
   let note = ''
   faux.setResponses([

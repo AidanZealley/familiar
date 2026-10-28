@@ -7,14 +7,14 @@ import {
   section,
 } from '@earendil-works/pi-durable'
 import { textOf } from '../conversation/message.ts'
-import { coreFacts, listFacts, Memory, type MemoryState } from './facts.ts'
+import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import { searchMemory } from './recall.ts'
 import { memoryTools } from './tools.ts'
 
-const render = (memory: MemoryState | undefined) => {
-  const listed = memory ? listFacts(coreFacts(memory)) : ''
-  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use forget only when someone asks you to forget something. Use recall to search what you remember beyond this.
+const render = (facts: FactsState | undefined) => {
+  const listed = facts ? listFacts(coreFacts(facts)) : ''
+  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use recall to search what you remember beyond this.
 ${listed || '(nothing yet)'}`
 }
 
@@ -26,7 +26,7 @@ type RecallMemo = {
 }
 
 const recallFor = (
-  memory: MemoryState,
+  memory: FactsState,
   episodes: EpisodesState | undefined,
   query: string,
   now: number,
@@ -58,7 +58,7 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>
-        render(await input.read.snapshot(Memory, context)),
+        render(await input.read.snapshot(Facts, context)),
       ),
     ],
     hooks: [
@@ -68,9 +68,9 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
         // byte for byte the same, so the provider's prompt cache holds.
         beforeRequest: async ({ messages }, api, context) => {
           const latest = messages.findLast((message) => message.role === 'user')
-          const memory = await api.snapshot(Memory, context)
+          const facts = await api.snapshot(Facts, context)
 
-          if (!latest || !memory) {
+          if (!latest || !facts) {
             return
           }
 
@@ -83,7 +83,7 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
             recalled = await api.memo(
               'familiar.recall',
               recallFor(
-                memory,
+                facts,
                 await api.snapshot(Episodes, context),
                 textOf(latest),
                 options.now(),

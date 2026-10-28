@@ -16,9 +16,8 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import { saidBy } from '../../conversation/message.ts'
-import { localDay } from '../../time/index.ts'
 import { addEpisode, dueRollup, Episodes } from '../episodes.ts'
-import { coreFacts, Memory, rebalanceCore } from '../facts.ts'
+import { coreFacts, Facts, openMemory, rebalanceCore } from '../facts.ts'
 import { instructions, rollupInstructions } from './prompts.ts'
 import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
 import { newMessages } from './transcript.ts'
@@ -152,11 +151,11 @@ export function createUpkeep(options: UpkeepOptions) {
           }
 
           // The facts the pass sees in its prompt section.
-          const facts = coreFacts(await tx.doc(Memory))
+          const facts = coreFacts(await tx.doc(Facts))
           const dates = facts.length
-            ? facts.map((fact) => `${fact.id}: ${localDay(fact.at)}`).join('\n')
+            ? facts.map((fact) => `${fact.id}: since ${fact.since}`).join('\n')
             : '(no facts yet)'
-          const input = `Recent conversation, oldest first:\n${found.transcript}\n\nWhen each fact was last written:\n${dates}`
+          const input = `Recent conversation, oldest first:\n${found.transcript}\n\nWhen each fact became true:\n${dates}`
           const reset = await resetIn(tx, upkeep.conversation)
           return {
             status: 'running',
@@ -221,7 +220,7 @@ export function createUpkeep(options: UpkeepOptions) {
             })
           }
 
-          rebalanceCore(await tx.doc(Memory))
+          rebalanceCore(await openMemory(tx))
           return { status: 'running', checkpoint: { phase: 'pass' } } as const
         }, context)
       },

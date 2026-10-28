@@ -6,17 +6,16 @@ import {
 } from '@earendil-works/pi-durable'
 import type { Context } from '@earendil-works/chord'
 import {
-  forgetFact,
   markRecalled,
-  Memory,
+  openMemory,
   rememberFact,
   retireFact,
   reviseFact,
-  setImportance,
-  type MemoryState,
+  type Memory,
 } from './facts.ts'
 import { Episodes } from './episodes.ts'
 import { searchMemory } from './recall.ts'
+import { localDay } from '../time/index.ts'
 
 /** The tools the model keeps memory with. Each change goes through facts.ts's rules. */
 
@@ -39,9 +38,9 @@ const toResult = (result: Result) =>
 const change = (
   api: ToolExecutionApi,
   context: Context,
-  edit: (memory: MemoryState) => Result,
+  edit: (memory: Memory) => Result,
 ) =>
-  api.commit(async (tx) => edit(await tx.doc(Memory)), context).then(toResult)
+  api.commit(async (tx) => edit(await openMemory(tx)), context).then(toResult)
 
 const remember = defineTool({
   name: 'remember',
@@ -58,7 +57,16 @@ const remember = defineTool({
   }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const fact = rememberFact(memory, args.text, args.importance, api.now())
+      const fact = rememberFact(
+        memory,
+        {
+          text: args.text,
+          importance: args.importance,
+          since: localDay(api.now()),
+          sources: [],
+        },
+        api.now(),
+      )
       return {
         saved: fact.id,
         text: fact.core
@@ -83,7 +91,12 @@ const revise = defineTool({
   }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      const fact = reviseFact(memory, args.id, args.text, api.now(), args.merge)
+      const fact = reviseFact(
+        memory,
+        args.id,
+        { text: args.text, since: localDay(api.now()), merge: args.merge },
+        api.now(),
+      )
       return {
         saved: fact.id,
         text: `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now history.`,
@@ -98,20 +111,8 @@ const retire = defineTool({
   parameters: Type.Object({ id: Type.String() }),
   execute: (args, api, context) =>
     change(api, context, (memory) => {
-      retireFact(memory, args.id, api.now())
+      retireFact(memory, args.id, localDay(api.now()))
       return `Retired ${args.id}.`
-    }),
-})
-
-const forget = defineTool({
-  name: 'forget',
-  description:
-    'Delete a fact outright, leaving no history. Only when someone asks you to forget it; use retire for things that stopped being true.',
-  parameters: Type.Object({ id: Type.String() }),
-  execute: (args, api, context) =>
-    change(api, context, (memory) => {
-      forgetFact(memory, args.id)
-      return `Forgot ${args.id}.`
     }),
 })
 
@@ -123,10 +124,10 @@ const recall = defineTool({
   execute: (args, api, context) =>
     api
       .commit(async (tx) => {
-        const memory = await tx.doc(Memory)
+        const memory = await openMemory(tx)
         const episodes = await tx.doc(Episodes)
         const { found, used } = searchMemory(
-          memory,
+          memory.facts,
           episodes,
           args.query,
           api.now(),
@@ -137,7 +138,7 @@ const recall = defineTool({
         )
         // Only conversation counts as use; upkeep's searches are housekeeping.
         if (api.conversationId === ROOT_CONVERSATION_ID) {
-          markRecalled(memory, used, api.now())
+          markRecalled(memory.usage, used, api.now())
         }
         return found.length
           ? found.map(({ line }) => line).join('\n')
@@ -146,19 +147,4 @@ const recall = defineTool({
       .then(toResult),
 })
 
-const rate = defineTool({
-  name: 'set_importance',
-  description:
-    'Re-rate how much a fact matters, 1 to 5, when it has proved more or less important than first rated. It decides whether the fact stays among what you always see.',
-  parameters: Type.Object({
-    id: Type.String(),
-    importance: Type.Integer({ minimum: 1, maximum: 5 }),
-  }),
-  execute: (args, api, context) =>
-    change(api, context, (memory) => {
-      setImportance(memory, args.id, args.importance)
-      return `${args.id} is now importance ${args.importance}.`
-    }),
-})
-
-export const memoryTools = [remember, revise, retire, rate, recall, forget]
+export const memoryTools = [remember, revise, retire, recall]

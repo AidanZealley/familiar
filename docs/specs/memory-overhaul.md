@@ -45,7 +45,7 @@ Rules:
 
 - Text over `FACT_LIMIT` throws a `FactError` that tells the model to split it into separate facts.
 - `since` and `until` are world time and `saved` is record time. Describe a fact with its days (`since 2025-11-03`, `2025-02-02 to 2025-11-03, replaced by f40`), never with `saved`.
-- Revising a fact sets the old one's `until` to the new one's `since`. A revision's `sources` are the given ones plus those of the facts it replaces.
+- Revising a fact sets the old one's `until` to the new one's `since`, or to the old one's own `since` if the revision is dated earlier (a correction), so no fact ends before it began. Retiring clamps `until` the same way. A revision's `sources` are the given ones plus those of the facts it replaces.
 - Retiring sets `until`, defaulting to the day of the batch being reviewed (for the owner, today).
 - No rule deletes a fact.
 

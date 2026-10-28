@@ -49,32 +49,33 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     })
 
   expect(
-    (await call('PUT', '/memory/m1', { text: 'Lives in York' })).status,
+    (await call('PUT', '/memory/f1', { text: 'Lives in York' })).status,
   ).toBe(204)
-  expect((await call('PUT', '/memory/m2/pin', { pinned: true })).status).toBe(
+  expect((await call('PUT', '/memory/f2/pin', { pinned: true })).status).toBe(
     204,
   )
-  expect((await call('POST', '/memory/m3/retire')).status).toBe(204)
-  const past = await call('PUT', '/memory/m1', { text: 'Again' })
+  expect((await call('POST', '/memory/f3/retire')).status).toBe(204)
+  const past = await call('PUT', '/memory/f1', { text: 'Again' })
   expect(past.status).toBe(404)
   expect(await past.json()).toEqual({
-    error: 'm1 is already past; only current facts can change.',
+    error: 'f1 is already past; only current facts can change.',
   })
-  expect((await call('DELETE', '/memory/m9')).status).toBe(404)
-  expect((await call('PUT', '/memory/m2/pin', { pinned: 'yes' })).status).toBe(
+  // Nothing deletes a fact.
+  expect((await call('DELETE', '/memory/f2')).status).toBe(404)
+  expect((await call('PUT', '/memory/f2/pin', { pinned: 'yes' })).status).toBe(
     400,
   )
-  expect((await call('DELETE', '/memory/m1')).status).toBe(204)
 
   const watch = await familiar.memory.watch()
   await watch.stop()
   expect(watch.value?.facts).toMatchObject([
-    { id: 'm2', core: true, pinned: true },
+    { id: 'f1', until: expect.any(String) },
+    { id: 'f2', core: true, pinned: true },
     {
-      id: 'm3',
+      id: 'f3',
       text: 'Lives in York',
-      replaces: ['m1'],
-      until: expect.any(Number),
+      replaces: ['f1'],
+      until: expect.any(String),
     },
   ])
 })

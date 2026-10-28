@@ -64,7 +64,7 @@ export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
   const reserveSize = reserveBlocks.reduce((sum, block) => sum + block.size, 0)
   // Measured when shown, not live: a fact ageing past 30 days can wait.
   const [now] = useState(Date.now)
-  const recent = facts.filter((fact) => now - fact.created < MONTH).length
+  const recent = facts.filter((fact) => now - fact.saved < MONTH).length
 
   // `core:pinned`, `reserve:importance-2`…: the open block, if any.
   const [selected, setSelected] = useState<string>()

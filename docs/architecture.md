@@ -8,7 +8,7 @@ Familiar is a thin layer over [Pi Durable](../packages/core/node_modules/@earend
 
 - **The Harness** owns one storage and runs everything durably: a restart picks up where the last process stopped.
 - **Conversations and entries.** Familiar has one conversation. Each message, reply, tool result and compaction summary is an entry in it.
-- **Documents** (`defineDoc`) are typed JSON state stored beside the transcript and changed inside transactions (`tx.doc(...)`), so a fact and the reply that saved it commit together. Familiar's are `Memory`, `Episodes` and `Upkeep`.
+- **Documents** (`defineDoc`) are typed JSON state stored beside the transcript and changed inside transactions (`tx.doc(...)`), so a fact and the reply that saved it commit together. Familiar's are `Facts`, `MemoryUsage`, `Episodes` and `Upkeep`.
 - **Extensions** add to what the model sees and can do: **sections** (parts of the system prompt), **tools**, **hooks** (code that runs around a request, such as adding recalled facts), and **tasks** (durable background work, such as the nightly pass).
 
 ## The map
@@ -25,8 +25,11 @@ packages/core/src
   conversation/      The message format (message.ts) and sending, watching and
                      paging the conversation (api.ts).
   memory/
-    facts.ts         The fact shape, the Memory document and every rule for
-                     changing facts. Pure: no model, no Pi beyond the document.
+    facts.ts         The fact shape, the Facts and MemoryUsage documents and
+                     every rule for changing facts. Pure: no model, no Pi
+                     beyond the documents.
+    exchanges.ts     The in-memory search index over exchanges (a message and
+                     its replies), derived from the transcript.
     tools.ts         The model's memory tools. Each calls a rule in facts.ts.
     recall.ts        Search and ranking over facts and episodes.
     episodes.ts      The episode shape, the Episodes document, dates in messages,

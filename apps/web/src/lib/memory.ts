@@ -23,7 +23,7 @@ export const isPast = (fact: Fact) => fact.until !== undefined
 const byStanding = (a: Fact, b: Fact) =>
   Number(!!b.pinned) - Number(!!a.pinned) ||
   b.importance - a.importance ||
-  b.at - a.at
+  b.saved - a.saved
 
 export const coreFacts = (facts: readonly Fact[]) =>
   facts.filter((fact) => fact.core && !isPast(fact)).toSorted(byStanding)
@@ -69,8 +69,8 @@ export const historyChains = (facts: readonly Fact[]) => {
     }
     chains.push(chain)
   }
-  const changed = (chain: Fact[]) => chain.at(-1)!.until ?? chain.at(-1)!.at
-  return chains.toSorted((a, b) => changed(b) - changed(a))
+  const changed = (chain: Fact[]) => chain.at(-1)!.until ?? chain.at(-1)!.since
+  return chains.toSorted((a, b) => changed(b).localeCompare(changed(a)))
 }
 
 /** The fact that superseded a past one, if any. */
@@ -159,6 +159,9 @@ export const formatDay = (ms: number) =>
   new Date(ms).getFullYear() === new Date().getFullYear()
     ? dayFormat.format(ms)
     : dayYearFormat.format(ms)
+
+/** A `YYYY-MM-DD` day, such as a fact's `since`, as `formatDay` writes it. */
+export const formatDate = (day: string) => formatDay(localDate(day).getTime())
 
 export const formatTime = (ms: number) => timeFormat.format(ms)
 

@@ -6,8 +6,8 @@ import {
   type Episode,
   type EpisodesState,
 } from './episodes.ts'
-import { localDay } from '../time/index.ts'
-import { isPast, type Fact, type MemoryState } from './facts.ts'
+import { localDay, parseDay } from '../time/index.ts'
+import { factDays, isPast, type Fact, type FactsState } from './facts.ts'
 
 /**
  * How recall ranks a match: relevance × importance × recency × past. Text
@@ -17,7 +17,10 @@ import { isPast, type Fact, type MemoryState } from './facts.ts'
 export const RANKING = {
   /** 1 counts 0.6, 5 counts 1: a minor fact that matches well still beats an important one that barely does. */
   importance: (importance: number) => 0.5 + importance / 10,
-  /** Halves each year since the fact was last written or recalled, never below a quarter: old facts are still true. */
+  /**
+   * Halves each year since it was true, never below a quarter: a current
+   * fact is true now, a past one until its `until`, an episode when written.
+   */
   recency: (ageMs: number) => Math.max(0.25, 0.5 ** (ageMs / YEAR)),
   /** Past facts rank below current ones that match as well, but still answer "what was it before?". */
   past: 0.6,
@@ -109,7 +112,7 @@ const MIN_EXCERPT_TOKENS = 60
  * than dropped; a fact is never cut, since half a fact can say something else.
  */
 export function searchMemory(
-  memory: MemoryState,
+  memory: FactsState,
   episodes: EpisodesState | undefined,
   query: string,
   now: number,
@@ -134,7 +137,8 @@ export function searchMemory(
       used.push(id)
       continue
     }
-    const age = now - Math.max(fact.at, fact.recalled ?? 0)
+    // World time, not when it was saved: a fact filed late isn't fresher.
+    const age = fact.until ? now - parseDay(fact.until).getTime() : 0
     ranked.push({
       item: { fact },
       score:
@@ -187,17 +191,11 @@ export function searchMemory(
  * and what replaced it, so past facts can't pass for current ones; an
  * episode with the days it covers.
  */
-export function describe(memory: MemoryState, item: Recalled) {
+export function describe(memory: FactsState, item: Recalled) {
   if ('episode' in item) {
     const { id, span, start, end, text } = item.episode
     return `${id} (${span} of ${start === end ? start : `${start} to ${end}`}): ${text}`
   }
   const { fact } = item
-  const replacedBy = memory.facts.find((other) =>
-    other.replaces?.includes(fact.id),
-  )
-  const when = isPast(fact)
-    ? `${localDay(fact.created)} to ${localDay(fact.until!)}, no longer current${replacedBy ? `; replaced by ${replacedBy.id}` : ''}`
-    : `since ${localDay(fact.created)}`
-  return `${fact.id} (${when}): ${fact.text}`
+  return `${fact.id} (${factDays(memory, fact)}): ${fact.text}`
 }
