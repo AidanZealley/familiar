@@ -5,6 +5,7 @@ import {
   CatIcon,
   LibraryIcon,
   MessageSquareIcon,
+  PlugIcon,
 } from 'lucide-react'
 import {
   NavigationMenu,
@@ -71,6 +72,20 @@ export const SiteHeader = () => {
               >
                 <AlarmClockIcon />
                 <span className="max-sm:sr-only">Schedules</span>
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                active={path === '/connections'}
+                render={<Link to="/connections" />}
+                className={cn(
+                  navigationMenuTriggerStyle(),
+                  'gap-1.5 text-muted-foreground',
+                  path === '/connections' && current,
+                )}
+              >
+                <PlugIcon />
+                <span className="max-sm:sr-only">Connections</span>
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>

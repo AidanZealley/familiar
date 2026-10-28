@@ -1,6 +1,8 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import type {
+  Connection as ConnectionKey,
+  ConnectionInfo,
   DocumentName,
   Documents,
   HttpApi,
@@ -51,6 +53,14 @@ export type FamiliarState = MirroredDocuments & {
   pushKey(): Promise<string | undefined>
   subscribePush(subscription: PushSubscriptionJson): Promise<void>
   unsubscribePush(subscription: PushSubscriptionJson): Promise<void>
+  /** Every connection and whether each secret is set. Never values. */
+  connections(): Promise<ConnectionInfo[]>
+  setSecret(
+    connection: ConnectionKey,
+    secret: string,
+    value: string,
+  ): Promise<void>
+  deleteSecret(connection: ConnectionKey, secret: string): Promise<void>
   /** Stop streaming. The store keeps its last view. */
   disconnect(): void
 }
@@ -148,6 +158,26 @@ export function createFamiliarStore(baseUrl: string) {
       succeed(api.push.subscriptions.$post({ json: subscription })),
     unsubscribePush: (subscription) =>
       succeed(api.push.subscriptions.$delete({ json: subscription })),
+    connections: async () => {
+      const response = await api.connections.$get()
+      if (!response.ok) {
+        throw failed(response)
+      }
+      return response.json()
+    },
+    setSecret: (connection, secret, value) =>
+      succeed(
+        api.connections[':kind'][':name'].secrets[':secret'].$put({
+          param: { ...connection, secret },
+          json: { value },
+        }),
+      ),
+    deleteSecret: (connection, secret) =>
+      succeed(
+        api.connections[':kind'][':name'].secrets[':secret'].$delete({
+          param: { ...connection, secret },
+        }),
+      ),
     disconnect: () => events.close(),
   }))
 
