@@ -1,8 +1,7 @@
 import type { TranscriptItem } from '@familiar/client'
-import type { Margin } from '../../margins'
 
 export type TranscriptItemProps = {
   item: TranscriptItem
-  /** Its time, if it has a margin. */
-  margin?: Margin
+  /** When its turn was answered, if it's the turn's last reply. */
+  time?: number
 }

@@ -12,7 +12,7 @@ import { useFamiliar } from '@/lib/familiar'
 import { Composer } from './components/composer'
 import { OlderMessages } from './components/older-messages'
 import { TranscriptItem } from './components/transcript-item'
-import { marginsOf } from './margins'
+import { turnTimes } from './times'
 
 export const Chat = () => {
   const view = useFamiliar((state) => state.view)
@@ -21,10 +21,7 @@ export const Chat = () => {
     () => view && toTranscript(view, history),
     [view, history],
   )
-  const margins = useMemo(
-    () => marginsOf(transcript?.items ?? []),
-    [transcript],
-  )
+  const times = useMemo(() => turnTimes(transcript?.items ?? []), [transcript])
   const firstItemIds = useMemo(
     () => transcript?.items.slice(0, 3).map((item) => item.id) ?? [],
     [transcript],
@@ -39,9 +36,7 @@ export const Chat = () => {
           <MessageScrollerViewport>
             <MessageScrollerContent
               aria-busy={transcript?.busy}
-              // The margin's rule, drawn once down the whole conversation:
-              // items can't draw it, as they clip what overflows them.
-              className="relative mx-auto w-full max-w-5xl gap-4 p-4 lg:before:absolute lg:before:inset-y-0 lg:before:right-[calc(1rem+15rem)] lg:before:w-px lg:before:bg-border"
+              className="mx-auto w-full max-w-5xl gap-4 p-4"
             >
               {transcript?.items.map((item) => (
                 <MessageScrollerItem
@@ -55,7 +50,7 @@ export const Chat = () => {
                     !item.queued
                   }
                 >
-                  <TranscriptItem item={item} margin={margins.get(item.id)} />
+                  <TranscriptItem item={item} time={times.get(item.id)} />
                 </MessageScrollerItem>
               ))}
             </MessageScrollerContent>
@@ -64,8 +59,8 @@ export const Chat = () => {
           <MessageScrollerButton />
         </MessageScroller>
 
-        {/* Lined up with the conversation, clear of the margin. */}
-        <div className="mx-auto w-full max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
+        {/* Lined up with the conversation. */}
+        <div className="mx-auto w-full max-w-5xl">
           <Composer busy={transcript?.busy ?? false} />
         </div>
       </div>
