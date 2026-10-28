@@ -7,14 +7,16 @@ import {
   section,
 } from '@earendil-works/pi-durable'
 import { textOf } from '../conversation/message.ts'
-import { coreFacts, listFacts, Memory, type MemoryState } from './facts.ts'
+import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import { searchMemory } from './recall.ts'
-import { memoryTools } from './tools.ts'
+import type { TranscriptExchanges } from './exchanges.ts'
+import type { SearchTimes } from './health.ts'
+import { createMemoryTools } from './tools.ts'
 
-const render = (memory: MemoryState | undefined) => {
-  const listed = memory ? listFacts(coreFacts(memory)) : ''
-  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use forget only when someone asks you to forget something. Use recall to search what you remember beyond this.
+const render = (facts: FactsState | undefined) => {
+  const listed = facts ? listFacts(coreFacts(facts)) : ''
+  return `What you remember, filed from your conversations each night. Use it without announcing it. You can't save facts yourself: when someone asks you to remember something, say you will, and it is filed tonight. Use recall to search what you remember beyond this, including earlier conversations, and read_memory to open what it finds.
 ${listed || '(nothing yet)'}`
 }
 
@@ -26,12 +28,15 @@ type RecallMemo = {
 }
 
 const recallFor = (
-  memory: MemoryState,
+  memory: FactsState,
   episodes: EpisodesState | undefined,
   query: string,
   now: number,
+  times: SearchTimes,
 ): RecallMemo => {
-  const { found, used } = searchMemory(memory, episodes, query, now)
+  const { found, used } = times.time(() =>
+    searchMemory(memory, episodes, query, now),
+  )
   return {
     facts: used,
     note: found.length
@@ -45,20 +50,25 @@ export type MemoryExtensionOptions = {
   now: () => number
   /** Records that facts reached the model. Hooks can't commit, so the owner of the Harness does. */
   recalled: (ids: string[]) => Promise<void>
+  /** The exchange index the tools search. */
+  exchanges: TranscriptExchanges
+  /** Where every search's time is recorded, for health. */
+  times: SearchTimes
 }
 
 /**
  * Long-term memory: core facts the model sees on every request, facts
- * recalled for the latest message, and tools to keep the store.
+ * recalled for the latest message, and the tools to search them. Nightly
+ * upkeep writes them.
  */
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: memoryTools,
+    tools: createMemoryTools(options.exchanges, options.times),
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>
-        render(await input.read.snapshot(Memory, context)),
+        render(await input.read.snapshot(Facts, context)),
       ),
     ],
     hooks: [
@@ -68,9 +78,9 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
         // byte for byte the same, so the provider's prompt cache holds.
         beforeRequest: async ({ messages }, api, context) => {
           const latest = messages.findLast((message) => message.role === 'user')
-          const memory = await api.snapshot(Memory, context)
+          const facts = await api.snapshot(Facts, context)
 
-          if (!latest || !memory) {
+          if (!latest || !facts) {
             return
           }
 
@@ -83,10 +93,11 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
             recalled = await api.memo(
               'familiar.recall',
               recallFor(
-                memory,
+                facts,
                 await api.snapshot(Episodes, context),
                 textOf(latest),
                 options.now(),
+                options.times,
               ),
               context,
             )

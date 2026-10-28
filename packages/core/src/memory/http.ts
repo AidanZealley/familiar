@@ -24,6 +24,8 @@ async function edit(c: Context, run: () => Promise<void>) {
  */
 export const memoryRoutes = (memory: MemoryApi) =>
   new Hono()
+    // Numbers that show whether memory is keeping up as it grows.
+    .get('/health', async (c) => c.json(await memory.health()))
     // Saves a new version of a fact.
     .put(
       '/:id',
@@ -56,5 +58,3 @@ export const memoryRoutes = (memory: MemoryApi) =>
           memory.setPinned(c.req.param('id'), c.req.valid('json').pinned),
         ),
     )
-    // Forgets a fact outright.
-    .delete('/:id', (c) => edit(c, () => memory.forget(c.req.param('id'))))

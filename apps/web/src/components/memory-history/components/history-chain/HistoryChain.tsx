@@ -1,16 +1,13 @@
 import { cn } from 'cn'
-import { useState } from 'react'
-import { FactMenu } from '@/components/fact-menu'
-import { formatDay, isPast } from '@/lib/memory'
+import { formatDate, isPast } from '@/lib/memory'
 import type { HistoryChainProps } from './types'
 
 /**
  * A vertical stepper, newest first: what's true now on top, each earlier
- * version beneath it. Current versions are edited on the Facts page; here
- * old ones can only be forgotten.
+ * version beneath it with the days it was true. Current versions are edited
+ * on the Facts page; old ones are history and don't change.
  */
 export const HistoryChain = ({ chain }: HistoryChainProps) => {
-  const [error, setError] = useState<string>()
   const latest = chain.at(-1)!
   const steps = chain.toReversed()
 
@@ -18,7 +15,7 @@ export const HistoryChain = ({ chain }: HistoryChainProps) => {
     <article>
       {isPast(latest) && (
         <p className="mb-2 pl-[1.4rem] text-xs text-muted-foreground">
-          Retired on {formatDay(latest.until!)}; nothing replaced it.
+          No longer true from {formatDate(latest.until!)}; nothing replaced it.
         </p>
       )}
       <ol>
@@ -39,8 +36,8 @@ export const HistoryChain = ({ chain }: HistoryChainProps) => {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-muted-foreground">
-                  {formatDay(fact.at)}
-                  {current ? ' · now' : ` → ${formatDay(fact.until!)}`}
+                  {formatDate(fact.since)}
+                  {current ? ' · now' : ` → ${formatDate(fact.until!)}`}
                 </p>
                 <p
                   className={cn('text-sm', !current && 'text-muted-foreground')}
@@ -48,14 +45,10 @@ export const HistoryChain = ({ chain }: HistoryChainProps) => {
                   {fact.text}
                 </p>
               </div>
-              {!current && <FactMenu fact={fact} onError={setError} />}
             </li>
           )
         })}
       </ol>
-      {error && (
-        <p className="mt-1 pl-[1.4rem] text-xs text-destructive">{error}</p>
-      )}
     </article>
   )
 }

@@ -45,7 +45,6 @@ export type FamiliarState = MirroredDocuments & {
   reviseFact(id: string, text: string): Promise<void>
   retireFact(id: string): Promise<void>
   setFactPinned(id: string, pinned: boolean): Promise<void>
-  forgetFact(id: string): Promise<void>
   /** Stop streaming. The store keeps its last view. */
   disconnect(): void
 }
@@ -127,7 +126,6 @@ export function createFamiliarStore(baseUrl: string) {
       succeed(api.memory[':id'].retire.$post({ param: { id } })),
     setFactPinned: (id, pinned) =>
       succeed(api.memory[':id'].pin.$put({ param: { id }, json: { pinned } })),
-    forgetFact: (id) => succeed(api.memory[':id'].$delete({ param: { id } })),
     disconnect: () => events.close(),
   }))
 

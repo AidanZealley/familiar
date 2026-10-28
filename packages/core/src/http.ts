@@ -9,7 +9,7 @@ import { streamSSE } from 'hono/streaming'
 import { validator } from 'hono/validator'
 import type { HistoryPage } from './conversation/index.ts'
 import type { Familiar } from './familiar.ts'
-import type { EpisodesState, MemoryState } from './memory/index.ts'
+import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
 
 // The wire contract every client speaks. Owned here; @familiar/client imports
@@ -22,9 +22,8 @@ export type {
   Episode,
   EpisodesState,
   Fact,
-  MemoryState,
+  FactsState,
 } from './memory/index.ts'
-export type { SavedDetails } from './memory/tools.ts'
 
 /** Every route, for Hono's typed client: `hc<HttpApi>(baseUrl)`. */
 export type HttpApi = ReturnType<typeof createHttpApi>
@@ -34,7 +33,7 @@ export type HttpApi = ReturnType<typeof createHttpApi>
  * and a line in `/events`; clients mirror whatever arrives.
  */
 export type Documents = {
-  memory: MemoryState
+  memory: FactsState
   episodes: EpisodesState
 }
 

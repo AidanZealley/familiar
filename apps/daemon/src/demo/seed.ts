@@ -5,10 +5,13 @@ import { Type } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
 import {
   Episodes,
-  Memory,
+  Facts,
+  localDay,
   type Episode,
   type Fact,
 } from '@familiar/core/diagnostics'
+
+const dayOf = (date: Date) => localDay(date.getTime())
 
 /** The message the demo sends itself on start; the scripted model answers by calling both seed tools. */
 export const SEED_MESSAGE =
@@ -16,7 +19,7 @@ export const SEED_MESSAGE =
 
 type Dated = [text: string, monthsAgo: number]
 
-/** Facts still true, with their importance and how long ago they were saved. */
+/** Facts still true, with their importance and how many months ago they became true. */
 const facts: [...Dated, importance: number][] = [
   ['Name is Rowan. Turned thirty in 2021.', 12, 5],
   [
@@ -89,7 +92,7 @@ const facts: [...Dated, importance: number][] = [
   ['Binoculars: Opticron Discovery 8x42.', 0, 1],
 ]
 
-/** Facts that changed, each version with when it was saved; the last is still true. */
+/** Facts that changed, each version with when it became true; the last is still true. */
 const changes: { importance: number; versions: Dated[] }[] = [
   {
     importance: 5,
@@ -140,10 +143,10 @@ const changes: { importance: number; versions: Dated[] }[] = [
   },
 ]
 
-/** A fact that stopped being true with nothing to replace it: saved, then retired. */
+/** A fact that stopped being true with nothing to replace it: months ago since, and until. */
 const retired: [
   text: string,
-  saved: number,
+  since: number,
   until: number,
   importance: number,
 ] = ['Commutes on the number 14 bus with a £64 monthly pass.', 11, 4, 2]
@@ -156,18 +159,23 @@ export const seedPinned = [
   'Saffron is allergic to hazelnuts, including hazelnut oil.',
 ]
 
-/** The demo's facts as the memory document holds them, dated back from now. */
+/**
+ * The demo's facts as the fact document holds them, dated back from now:
+ * each true since the 10th of its month, and saved that day, as if upkeep
+ * had kept up. Seeded facts cite no messages; the demo has none to cite.
+ */
 function factsAsOf(now: Date) {
   const monthsAgo = (count: number) =>
-    new Date(now.getFullYear(), now.getMonth() - count, 10).getTime()
+    new Date(now.getFullYear(), now.getMonth() - count, 10)
   const saved: Fact[] = []
-  const save = (text: string, importance: number, at: number) => {
+  const save = (text: string, importance: number, since: Date) => {
     const fact: Fact = {
-      id: `m${saved.length + 1}`,
+      id: `f${saved.length + 1}`,
       text,
-      at,
-      created: at,
       importance,
+      since: dayOf(since),
+      sources: [],
+      saved: since.getTime(),
       core: false,
     }
     saved.push(fact)
@@ -178,14 +186,14 @@ function factsAsOf(now: Date) {
     for (const [text, ago] of versions) {
       const fact = save(text, importance, monthsAgo(ago))
       if (previous) {
-        previous.until = fact.at
+        previous.until = fact.since
         fact.replaces = [previous.id]
       }
       previous = fact
     }
   }
   const [text, from, until, importance] = retired
-  save(text, importance, monthsAgo(from)).until = monthsAgo(until)
+  save(text, importance, monthsAgo(from)).until = dayOf(monthsAgo(until))
   for (const [text, ago, importance] of facts) {
     save(text, importance, monthsAgo(ago))
   }
@@ -198,7 +206,7 @@ export const seedMemory = defineTool({
   parameters: Type.Object({}),
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
-      const memory = await tx.doc(Memory)
+      const memory = await tx.doc(Facts)
       memory.facts = factsAsOf(new Date(api.now()))
       memory.next = memory.facts.length + 1
       return { output: [{ type: 'text', text: 'Memory written.' }] }
@@ -229,9 +237,6 @@ const days = [
   'Cycled in through frost. Booked June a call with Fenwick Gardens for next week.',
 ]
 
-const pad = (value: number) => String(value).padStart(2, '0')
-const dayOf = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 const daysBefore = (date: Date, count: number) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate() - count)
 

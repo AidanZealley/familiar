@@ -2,13 +2,13 @@ import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
-  fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { testClient } from 'hono/testing'
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from './familiar.ts'
 import { createHttpApi } from './http.ts'
+import { storageWith } from './memory/testing.ts'
 
 const opened: Familiar[] = []
 afterEach(async () => {
@@ -20,23 +20,11 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
   const models = createModels()
   models.setProvider(faux.provider)
   const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
+    storage: await storageWith(['Lives in Leeds', 4], ['Likes blue pens', 1]),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
   })
   opened.push(familiar)
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
-        fauxToolCall('remember', { text: 'Likes blue pens', importance: 1 }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await familiar.send({ author: 'aidan', text: 'Hi', requestId: 'hi' })
-  await familiar.idle()
 
   const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
   const call = (method: string, path: string, body?: unknown) =>
@@ -49,32 +37,39 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     })
 
   expect(
-    (await call('PUT', '/memory/m1', { text: 'Lives in York' })).status,
+    (await call('PUT', '/memory/f1', { text: 'Lives in York' })).status,
   ).toBe(204)
-  expect((await call('PUT', '/memory/m2/pin', { pinned: true })).status).toBe(
+  expect((await call('PUT', '/memory/f2/pin', { pinned: true })).status).toBe(
     204,
   )
-  expect((await call('POST', '/memory/m3/retire')).status).toBe(204)
-  const past = await call('PUT', '/memory/m1', { text: 'Again' })
+  expect((await call('POST', '/memory/f3/retire')).status).toBe(204)
+  const past = await call('PUT', '/memory/f1', { text: 'Again' })
   expect(past.status).toBe(404)
   expect(await past.json()).toEqual({
-    error: 'm1 is already past; only current facts can change.',
+    error: 'f1 is already past; only current facts can change.',
   })
-  expect((await call('DELETE', '/memory/m9')).status).toBe(404)
-  expect((await call('PUT', '/memory/m2/pin', { pinned: 'yes' })).status).toBe(
+  // Nothing deletes a fact.
+  expect((await call('DELETE', '/memory/f2')).status).toBe(404)
+  const health = await call('GET', '/memory/health')
+  expect(health.status).toBe(200)
+  expect(await health.json()).toMatchObject({
+    facts: { current: 1, past: 2 },
+    episodes: { day: 0, week: 0, month: 0 },
+  })
+  expect((await call('PUT', '/memory/f2/pin', { pinned: 'yes' })).status).toBe(
     400,
   )
-  expect((await call('DELETE', '/memory/m1')).status).toBe(204)
 
   const watch = await familiar.memory.watch()
   await watch.stop()
   expect(watch.value?.facts).toMatchObject([
-    { id: 'm2', core: true, pinned: true },
+    { id: 'f1', until: expect.any(String) },
+    { id: 'f2', core: true, pinned: true },
     {
-      id: 'm3',
+      id: 'f3',
       text: 'Lives in York',
-      replaces: ['m1'],
-      until: expect.any(Number),
+      replaces: ['f1'],
+      until: expect.any(String),
     },
   ])
 })

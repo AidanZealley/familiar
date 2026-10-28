@@ -1,13 +1,16 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Harness } from '@earendil-works/pi-durable'
-import { markRecalled, Memory } from './facts.ts'
+import { Facts, markRecalled, MemoryUsage } from './facts.ts'
 import { Episodes } from './episodes.ts'
 import { createMemoryExtension } from './extension.ts'
+import { transcriptExchanges } from './exchanges.ts'
+import { createSearchTimes } from './health.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
 export type { MemoryApi } from './api.ts'
-export type { Fact, MemoryState } from './facts.ts'
+export type { MemoryHealth } from './health.ts'
+export type { Fact, FactsState } from './facts.ts'
 export type { Episode, EpisodesState } from './episodes.ts'
 
 export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
@@ -20,11 +23,18 @@ export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
  * runs before the Harness resumes, so it can open before they're installed.
  */
 export function createMemory(harness: Harness, options: MemoryOptions) {
+  // Both in memory for as long as Familiar runs: the index is rebuilt from
+  // the transcript, and search times are only for health.
+  const exchanges = transcriptExchanges()
+  const times = createSearchTimes()
   const extension = createMemoryExtension({
     now: options.now,
+    exchanges,
+    times,
     recalled: async (ids) => {
       await harness.commit(
-        async (tx) => markRecalled(await tx.doc(Memory), ids, options.now()),
+        async (tx) =>
+          markRecalled(await tx.doc(MemoryUsage), ids, options.now()),
         BACKGROUND_CONTEXT,
       )
     },
@@ -37,12 +47,13 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
     start: async () => {
       // Watches only attach to documents that exist.
       await harness.commit(async (tx) => {
-        await tx.doc(Memory)
+        await tx.doc(Facts)
+        await tx.doc(MemoryUsage)
         await tx.doc(Episodes)
       }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
 
-      return memoryApi(harness, options.now)
+      return memoryApi(harness, options.now, exchanges, times)
     },
   }
 }

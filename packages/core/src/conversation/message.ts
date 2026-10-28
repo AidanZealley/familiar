@@ -1,5 +1,10 @@
 import type { Message } from '@earendil-works/pi-ai'
-import type { EntryRecord } from '@earendil-works/pi-durable'
+import type {
+  Cursor,
+  EntryQuery,
+  EntryRecord,
+  Tx,
+} from '@earendil-works/pi-durable'
 
 /** The entry kind people's messages are stored as. */
 export const MESSAGE_KIND = 'familiar.message'
@@ -50,4 +55,14 @@ export function saidBy(entry: EntryRecord): Said | undefined {
   }
 
   return undefined
+}
+
+/** A conversation's entries in a transaction, a page at a time, so a long transcript never sits in memory whole. */
+export async function* entriesOf(tx: Tx, query: EntryQuery) {
+  let cursor: Cursor | undefined
+  do {
+    const page = await tx.scanEntries(query, 200, cursor)
+    yield* page.items
+    cursor = page.next
+  } while (cursor)
 }

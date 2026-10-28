@@ -1,45 +1,94 @@
-import { defineDoc } from '@earendil-works/pi-durable'
+import { defineDoc, type EntryId, type Tx } from '@earendil-works/pi-durable'
+import { formatDay, parseDay } from '../time/index.ts'
 
 /**
- * The fact store and every rule about changing it. Tools, the owner's edits
- * and upkeep all go through these, so the rules live in one place. Each
+ * The fact store and every rule about changing it. Upkeep's tools and the
+ * owner's edits all go through these, so the rules live in one place. Each
  * function checks before it changes anything and throws when the change
  * isn't allowed, so a failed edit leaves memory as it was. Which facts are
  * in core is decided only by `rebalanceCore`, which every edit ends with.
+ * No rule deletes a fact: the transcript it came from can't be erased
+ * either, so retiring is the honest way to say it no longer holds.
  */
 
 /** A change the rules don't allow, such as revising a missing or past fact. */
 export class FactError extends Error {}
 
+/**
+ * A fact is one statement this long at most. Without a cap, merging makes
+ * facts grow, core holds fewer each year, and long facts match searches
+ * they aren't about.
+ */
+export const FACT_LIMIT = 300
+
 export type Fact = {
-  /** `m1`, `m2`, …: short enough for the model to quote. Never reused. */
+  /** `f1`, `f2`, …: short enough for the model to quote. Never reused. */
   id: string
+  /** One statement, at most FACT_LIMIT characters. */
   text: string
-  /** When it was last written, in ms since the epoch. */
-  at: number
-  created: number
-  /** 1 to 5, rated by the model: 5 for identity, close people, health and standing commitments; 1 for minor preferences. */
+  /** 1 to 5: 5 for identity, close people, health and standing commitments; 1 for minor preferences. */
   importance: number
+  /** The local day it became true, `YYYY-MM-DD`: world time, not when it was saved. */
+  since: string
+  /** The local day it stopped being true. A fact with `until` is past: kept as history, never in the prompt. */
+  until?: string
+  /** Entry IDs of the person messages it came from. Empty only for seeded and owner-written facts. */
+  sources: EntryId[]
+  /** When upkeep or the owner wrote it, in ms since the epoch: record time. */
+  saved: number
+  /** The facts this one superseded: one for a correction, several for a merge. */
+  replaces?: string[]
   /** Whether it sits in the prompt now. Facts outside core are kept, not lost, and recalled when relevant. */
   core: boolean
   /** The owner wants it in core: rebalancing places it first. */
   pinned?: boolean
-  /** When it stopped being true. A fact with `until` is past: kept as history, never in the prompt. */
-  until?: number
-  /**
-   * The facts this one superseded, so changes form a chain: one for a
-   * correction, several for a merge. They may since have been forgotten.
-   */
-  replaces?: string[]
-  /** When it last reached the model, for recency. */
-  recalled?: number
 }
 
-export type MemoryState = {
+export type FactsState = {
   facts: Fact[]
   /** Next fact number. */
   next: number
 }
+
+/** When each fact was last used and checked, in ms. Kept apart so facts change only when facts do. */
+export type UsageState = {
+  facts: Record<string, { recalled?: number; checked?: number }>
+}
+
+/** The two documents every rule reads: facts, and how they've been used. */
+export type Memory = { facts: FactsState; usage: UsageState }
+
+/**
+ * What Familiar knows about the people it helps. One document for the whole
+ * Familiar, stored with the transcript, and streamed to clients as `memory`.
+ */
+export const Facts = defineDoc<FactsState>({
+  kind: 'familiar.facts',
+  version: 1,
+  scope: 'session',
+  initial: () => ({ facts: [], next: 1 }),
+  // Store a full copy now and then, so reading it never replays a long history.
+  checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
+})
+
+/**
+ * When facts last reached the model and were last checked by upkeep. These
+ * change on nearly every reply, so they live apart from the facts clients
+ * receive, and aren't streamed.
+ */
+export const MemoryUsage = defineDoc<UsageState>({
+  kind: 'familiar.memory-usage',
+  version: 1,
+  scope: 'session',
+  initial: () => ({ facts: {} }),
+  checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
+})
+
+/** Both memory documents, for a transaction that changes facts. */
+export const openMemory = async (tx: Tx): Promise<Memory> => ({
+  facts: await tx.doc(Facts),
+  usage: await tx.doc(MemoryUsage),
+})
 
 /** Core is at most this many characters as the model sees it, so the prompt stays small however long Familiar runs. */
 export const CORE_BUDGET = 6_000
@@ -56,15 +105,32 @@ export const CORE_STICKINESS = 14 * 24 * 60 * 60 * 1000
 export const isPast = (fact: Fact) => fact.until !== undefined
 
 /** The facts in the prompt, oldest first. */
-export const coreFacts = (memory: MemoryState) =>
-  memory.facts.filter((fact) => fact.core && !isPast(fact))
+export const coreFacts = (facts: FactsState) =>
+  facts.facts.filter((fact) => fact.core && !isPast(fact))
 
 /** Facts as the model sees them; the core budget measures this. */
 export const listFacts = (facts: Fact[]) =>
   facts.map((fact) => `${fact.id}: ${fact.text}`).join('\n')
 
-const current = (memory: MemoryState, id: string) => {
-  const fact = memory.facts.find((fact) => fact.id === id)
+/** The fact that superseded a past one, if any. */
+export const successorOf = (facts: FactsState, fact: Fact) =>
+  facts.facts.find((other) => other.replaces?.includes(fact.id))
+
+/**
+ * A fact's days as recall and upkeep show them: `since 2025-11-03`, or
+ * `2025-02-02 to 2025-11-03, replaced by f40` once past. Never its record
+ * time, so a fact filed late can't claim it became true the night it was filed.
+ */
+export function factDays(facts: FactsState, fact: Fact) {
+  if (!isPast(fact)) {
+    return `since ${fact.since}`
+  }
+  const successor = successorOf(facts, fact)
+  return `${fact.since} to ${fact.until}, ${successor ? `replaced by ${successor.id}` : 'no longer current'}`
+}
+
+const current = (facts: FactsState, id: string) => {
+  const fact = facts.facts.find((fact) => fact.id === id)
   if (!fact) {
     throw new FactError(`No fact ${id}.`)
   }
@@ -81,77 +147,126 @@ const importanceOf = (value: number) => {
   return value
 }
 
+const textOf = (value: string) => {
+  const text = value.trim()
+  if (!text) {
+    throw new FactError('A fact needs text.')
+  }
+  if (text.length > FACT_LIMIT) {
+    throw new FactError(
+      `A fact is at most ${FACT_LIMIT} characters and this is ${text.length}. Split it into separate facts, one statement each.`,
+    )
+  }
+  return text
+}
+
+/** A real local day, `YYYY-MM-DD`. */
+export const dayOf = (value: string) => {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    formatDay(parseDay(value)) !== value
+  ) {
+    throw new FactError(`${value} is not a day; write it as YYYY-MM-DD.`)
+  }
+  return value
+}
+
+export type NewFact = {
+  text: string
+  importance: number
+  since: string
+  sources: EntryId[]
+}
+
 /** Saves a fact, in core if it ranks high enough. Never refuses for space. */
 export function rememberFact(
-  memory: MemoryState,
-  text: string,
-  importance: number,
-  at: number,
+  memory: Memory,
+  { text, importance, since, sources }: NewFact,
+  saved: number,
 ): Fact {
+  const { facts } = memory
   const fact: Fact = {
-    id: `m${memory.next}`,
-    text,
-    at,
-    created: at,
+    id: `f${facts.next}`,
+    text: textOf(text),
     importance: importanceOf(importance),
+    since: dayOf(since),
+    sources: [...new Set(sources)],
+    saved,
     core: false,
   }
-  memory.next++
-  memory.facts.push(fact)
+  facts.next++
+  facts.facts.push(fact)
   rebalanceCore(memory)
   return fact
+}
+
+export type Revision = {
+  text: string
+  since: string
+  sources?: EntryId[]
+  /** Defaults to the highest importance among the facts it replaces. */
+  importance?: number
+  /** Other current facts the new text also covers. */
+  merge?: string[]
 }
 
 /**
- * Saves a new version of a current fact, folding in any facts it `merges`;
- * they all become past, superseded by it. It takes the highest importance
- * among them, and their pin if it still fits among the other pins.
+ * Saves a new version of a current fact, folding in any facts it `merge`s;
+ * they all become past, ending when the new version begins. It keeps all
+ * their sources, and their pin if it still fits among the other pins.
  */
 export function reviseFact(
-  memory: MemoryState,
+  memory: Memory,
   id: string,
-  text: string,
-  at: number,
-  merges: string[] = [],
+  { text, since, sources = [], importance, merge = [] }: Revision,
+  saved: number,
 ): Fact {
-  const ids = [...new Set([id, ...merges])]
-  const olds = ids.map((id) => current(memory, id))
+  const { facts } = memory
+  const ids = [...new Set([id, ...merge])]
+  const olds = ids.map((id) => current(facts, id))
   const fact: Fact = {
-    id: `m${memory.next}`,
-    text,
-    at,
-    created: at,
-    importance: Math.max(...olds.map((old) => old.importance)),
-    core: false,
+    id: `f${facts.next}`,
+    text: textOf(text),
+    importance:
+      importance === undefined
+        ? Math.max(...olds.map((old) => old.importance))
+        : importanceOf(importance),
+    since: dayOf(since),
+    sources: [...new Set([...sources, ...olds.flatMap((old) => old.sources)])],
+    saved,
     replaces: ids,
+    core: false,
   }
   const wasPinned = olds.some((old) => old.pinned)
   for (const old of olds) {
-    old.until = at
+    // A correction can date the new version before the old one began; an
+    // old fact never ends before it started.
+    old.until = fact.since < old.since ? old.since : fact.since
     delete old.pinned
   }
   // A version too long to fit among the other pins stays current, unpinned.
-  if (wasPinned && pinnedSize(memory, fact) <= CORE_BUDGET) {
+  if (wasPinned && pinnedSize(facts, fact) <= CORE_BUDGET) {
     fact.pinned = true
   }
-  memory.next++
-  memory.facts.push(fact)
+  facts.next++
+  facts.facts.push(fact)
   rebalanceCore(memory)
   return fact
 }
 
-/** Marks a current fact no longer true. It stays as history. */
-export function retireFact(memory: MemoryState, id: string, at: number) {
-  const fact = current(memory, id)
-  fact.until = at
+/** Marks a current fact no longer true from `until`. It stays as history. */
+export function retireFact(memory: Memory, id: string, until: string) {
+  const fact = current(memory.facts, id)
+  const day = dayOf(until)
+  fact.until = day < fact.since ? fact.since : day
   delete fact.pinned
   rebalanceCore(memory)
 }
 
 /** How long the pinned facts are as the model sees them, with `extra` among them. */
-const pinnedSize = (memory: MemoryState, extra: Fact) =>
+const pinnedSize = (facts: FactsState, extra: Fact) =>
   listFacts([
-    ...memory.facts.filter(
+    ...facts.facts.filter(
       (fact) => fact.pinned && !isPast(fact) && fact.id !== extra.id,
     ),
     extra,
@@ -162,10 +277,10 @@ const pinnedSize = (memory: MemoryState, extra: Fact) =>
  * facts make room for pinned ones, so pinning refuses only when the pinned
  * facts alone would pass core's budget.
  */
-export function setPinned(memory: MemoryState, id: string, pinned: boolean) {
-  const fact = current(memory, id)
+export function setPinned(memory: Memory, id: string, pinned: boolean) {
+  const fact = current(memory.facts, id)
   if (pinned) {
-    const size = pinnedSize(memory, fact)
+    const size = pinnedSize(memory.facts, fact)
     if (size > CORE_BUDGET) {
       throw new FactError(
         `Pinned facts would fill ${size} of core's ${CORE_BUDGET} characters. Unpin something first.`,
@@ -178,28 +293,19 @@ export function setPinned(memory: MemoryState, id: string, pinned: boolean) {
   rebalanceCore(memory)
 }
 
-/** Re-rates how much a current fact matters, which decides its place in core. */
-export function setImportance(
-  memory: MemoryState,
-  id: string,
-  importance: number,
-) {
-  current(memory, id).importance = importanceOf(importance)
-  rebalanceCore(memory)
-}
-
-/** When it last mattered: written, or recalled in conversation. Core facts get a head start, see CORE_STICKINESS. */
-const standing = (fact: Fact) =>
-  Math.max(fact.at, fact.recalled ?? 0) + (fact.core ? CORE_STICKINESS : 0)
-
 /**
  * Decides core within its budget: pinned facts first, then facts important
  * enough for core, most important first and, among equals, most recently
  * used. Plain code rather than a model decision, so core can't drift. Moves
  * facts in and out of core; never removes one.
  */
-export function rebalanceCore(memory: MemoryState) {
-  const candidates = memory.facts
+export function rebalanceCore({ facts, usage }: Memory) {
+  // When it last mattered: written, or recalled in conversation. Core facts
+  // get a head start, see CORE_STICKINESS.
+  const standing = (fact: Fact) =>
+    Math.max(fact.saved, usage.facts[fact.id]?.recalled ?? 0) +
+    (fact.core ? CORE_STICKINESS : 0)
+  const candidates = facts.facts
     .filter(
       (fact) =>
         !isPast(fact) && (fact.pinned || fact.importance >= CORE_IMPORTANCE),
@@ -220,7 +326,7 @@ export function rebalanceCore(memory: MemoryState) {
     chosen.add(fact.id)
     size += line
   }
-  for (const fact of memory.facts) {
+  for (const fact of facts.facts) {
     const core = chosen.has(fact.id)
     // Only real changes, so an unchanged core commits nothing.
     if (fact.core !== core) {
@@ -229,57 +335,47 @@ export function rebalanceCore(memory: MemoryState) {
   }
 }
 
-/** Records that facts reached the model. Facts forgotten meanwhile are skipped. */
-export function markRecalled(memory: MemoryState, ids: string[], at: number) {
-  for (const fact of memory.facts) {
-    if (ids.includes(fact.id)) {
-      fact.recalled = at
-    }
-  }
-}
-
-/** Deletes a fact outright, past or current. The only way a fact leaves the store. */
-export function forgetFact(memory: MemoryState, id: string) {
-  const index = memory.facts.findIndex((fact) => fact.id === id)
-  if (index === -1) {
-    throw new FactError(`No fact ${id}.`)
-  }
-  memory.facts.splice(index, 1)
-  rebalanceCore(memory)
-}
-
-/** Version 1 facts were all in the prompt, so they all start in core. */
-export function migrateV1(value: {
-  facts: { id: string; text: string; at: number }[]
-  next: number
-}): MemoryState {
-  return {
-    next: value.next,
-    facts: value.facts.map((fact) => ({
-      ...fact,
-      created: fact.at,
-      importance: CORE_IMPORTANCE,
-      core: true,
-    })),
+/** Records that facts reached the conversation model, for recency. */
+export function markRecalled(usage: UsageState, ids: string[], at: number) {
+  for (const id of ids) {
+    usage.facts[id] = { ...usage.facts[id], recalled: at }
   }
 }
 
 /**
- * What Familiar knows about the people it helps. One document for the whole
- * Familiar (every conversation shares it), stored with the transcript, so a
- * fact and the reply that mentions it are committed together.
+ * Upkeep rechecks this many facts a night at most, so a store of 2,000 is
+ * fully reviewed every 100 days at a fixed cost per night.
  */
-export const Memory = defineDoc<MemoryState>({
-  kind: 'familiar.memory',
-  version: 2,
-  scope: 'session',
-  initial: () => ({ facts: [], next: 1 }),
-  migrate: (value, fromVersion) => {
-    if (fromVersion !== 1) {
-      throw new Error(`No migration from memory version ${fromVersion}.`)
-    }
-    return migrateV1(value as Parameters<typeof migrateV1>[0])
-  },
-  // Store a full copy now and then, so reading it never replays a long history.
-  checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
-})
+export const REVIEW_LIMIT = 20
+
+/** A fact is due for review once it has gone this long unchecked. */
+export const REVIEW_AFTER = 30 * 24 * 60 * 60 * 1000
+
+/** When a fact was last checked by upkeep, or else saved. */
+export const lastChecked = (usage: UsageState, fact: Fact) =>
+  usage.facts[fact.id]?.checked ?? fact.saved
+
+/**
+ * The current facts that have gone longest without a check, up to `limit`:
+ * upkeep only reads new conversation, so without this a fact nobody mentions
+ * again would stay current forever.
+ */
+export function dueForReview(
+  { facts, usage }: Memory,
+  now: number,
+  limit = REVIEW_LIMIT,
+) {
+  return facts.facts
+    .filter(
+      (fact) => !isPast(fact) && now - lastChecked(usage, fact) > REVIEW_AFTER,
+    )
+    .sort((a, b) => lastChecked(usage, a) - lastChecked(usage, b))
+    .slice(0, limit)
+}
+
+/** Records that upkeep checked facts against recent days. */
+export function markChecked(usage: UsageState, ids: string[], at: number) {
+  for (const id of ids) {
+    usage.facts[id] = { ...usage.facts[id], checked: at }
+  }
+}

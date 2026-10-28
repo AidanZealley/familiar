@@ -5,5 +5,8 @@
  */
 export { nextUpkeep, type UpkeepState } from './memory/upkeep/schedule.ts'
 export { saidBy } from './conversation/message.ts'
-export { Memory, type Fact } from './memory/facts.ts'
+export { Facts, type Fact } from './memory/facts.ts'
 export { Episodes, type Episode } from './memory/episodes.ts'
+export { createExchangeIndex, type Exchange } from './memory/exchanges.ts'
+export { datesIn } from './memory/episodes.ts'
+export { localDay } from './time/index.ts'

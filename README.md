@@ -11,7 +11,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/time       The current_time tool, and how dates are written.
   core/context    Request budget, compaction and stream settings.
   core/conversation Message format, sending and history paging.
-  core/memory     Facts, recall, episodes and nightly upkeep at 04:00.
+  core/memory     Facts, episodes, exchange search, recall and read_memory,
+                  health, and nightly upkeep at 04:00, the only writer of facts.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API
@@ -74,7 +75,7 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | --------- | ----------------------------------------------------------------------- |
 | (none)    | Replies with headings, lists, a table and code                          |
 | `tool`    | Calls `current_time`, then replies                                      |
-| `memory`  | Calls `remember`, then replies                                          |
+| `memory`  | Calls `recall` for the morning drink, then replies with what it found   |
 | `slow`    | Writes a long reply, to try Stop and queued messages                    |
 | `compact` | Fills the context until Pi compacts it (the overflow error is expected) |
 | `error`   | Fails partway with an error message                                     |
@@ -94,14 +95,22 @@ The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog:
 
 ### Memory evaluation
 
-Sign in once with a separate ChatGPT login file, then run the memory scenario:
+Two evals measure memory. The rot test is quick and needs no model; the replay is the real thing and takes hours.
+
+```sh
+pnpm eval:recall
+```
+
+The rot test asks exchange search alone `rowan-v3`'s questions, with no model: each day of the scenario becomes one exchange, then 1, 5 and 10 years of deterministic filler conversation (ten exchanges a day mentioning the same people and projects) are added after it. At each padding level it checks whether each required answer string appears in a scenario exchange among the top 5 and top 10 results, skipping the few required strings that appear nowhere in the scenario. It prints recall@5 and recall@10 by category and padding level, with index build time and median and maximum search times, and writes them to `eval/results/recall-<date>-<git-describe>.json`. It runs in seconds, so run it after any change to search or ranking; the scores should stay flat as padding grows.
+
+The replay plays the scenario through a real model. Sign in once with a separate ChatGPT login file, then run it:
 
 ```sh
 FAMILIAR_DATA_DIR=~/.local/share/familiar-eval pnpm sign-in
 pnpm eval:memory
 ```
 
-The eval creates a fresh Familiar in temporary SQLite storage. It replays `rowan-v3`, about a year of Rowan's life with far more lasting detail than core memory holds; its clock advances through 400 days and waits for each 04:00 memory upkeep pass. A 4,000-token context budget compacts old conversation so the questions exercise memory and history search. After replay it closes Familiar and asks each question in a fresh copy of the same SQLite file, three at a time. It asks 50 questions, 10 each about old details, earlier values of facts that changed, reasoning across sessions, periods of time, and things Rowan never said or hasn't decided. A judge model, pinned to `gpt-6.1-sol` (override with `FAMILIAR_JUDGE_MODEL`) so changing the model under test doesn't also change the grading, checks each answer against its required facts and checks any other claim against the scenario's full text. Expect about three hours with `gpt-6.1-sol`, mostly replay, depending on model latency and retries. The command prints scores by category and tokens spent on replay, answers and judging, and writes those totals, per-question tokens, the final memory and its character count, compaction count, daily upkeep outcomes, answer tool calls, full answers and verdicts to `eval/results/<date>-<git-describe>.json`. Dirty runs include `-dirty` in the filename. It reads and refreshes only the eval login in `~/.local/share/familiar-eval/auth.json`; it does not open your usual Familiar data directory.
+The eval creates a fresh Familiar in SQLite storage retained under its eval run directory. It replays `rowan-v3`, about a year of Rowan's life with far more lasting detail than core memory holds; its clock advances through 400 days and waits for each 04:00 memory upkeep pass. A 4,000-token context budget compacts old conversation so the questions exercise memory and history search. After replay it closes Familiar and asks each question in a fresh copy of the same SQLite file, three at a time. It asks 50 questions, 10 each about old details, earlier values of facts that changed, reasoning across sessions, periods of time, and things Rowan never said or hasn't decided. A judge model, pinned to `gpt-6.1-sol` (override with `FAMILIAR_JUDGE_MODEL`) so changing the model under test doesn't also change the grading, checks each answer against its required facts and checks any other claim against the scenario's full text. Expect about three hours with `gpt-6.1-sol`, mostly replay, depending on model latency and retries. The command prints scores by category and tokens spent on replay, answers and judging, and writes those totals, per-question tokens, the final memory and its character count, compaction count, daily upkeep outcomes, answer tool calls, full answers and verdicts to `eval/results/<date>-<git-describe>.json`. Dirty runs include `-dirty` in the filename. It reads and refreshes only the eval login in `~/.local/share/familiar-eval/auth.json`; it does not open your usual Familiar data directory.
 
 The replay is kept in `~/.local/share/familiar-eval/runs/<time>-<commit>/`. If a run stops partway, for example at a ChatGPT usage limit, continue it from the day after the last one it sent:
 

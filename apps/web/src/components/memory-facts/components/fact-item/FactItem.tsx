@@ -1,7 +1,7 @@
 import { HistoryIcon, PinIcon } from 'lucide-react'
 import { useState } from 'react'
 import { FactMenu } from '@/components/fact-menu'
-import { formatDay } from '@/lib/memory'
+import { formatDate } from '@/lib/memory'
 import { FactEditor } from '../fact-editor'
 import { ImportanceDots } from '../importance-dots'
 import type { FactItemProps } from './types'
@@ -39,11 +39,7 @@ export const FactItem = ({ fact }: FactItemProps) => {
               Changed
             </span>
           ) : null}
-          <span>
-            {fact.recalled
-              ? `Used ${formatDay(fact.recalled)}`
-              : `Saved ${formatDay(fact.at)}`}
-          </span>
+          <span>Since {formatDate(fact.since)}</span>
         </p>
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>

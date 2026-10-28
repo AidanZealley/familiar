@@ -8,7 +8,6 @@ import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   createRegistry,
-  defineDoc,
   Harness,
   MemoryStorage,
 } from '@earendil-works/pi-durable'
@@ -16,11 +15,18 @@ import {
   CORE_BUDGET,
   coreFacts,
   FactError,
+  Facts,
   listFacts,
+  MemoryUsage,
+  openMemory,
   rememberFact,
-  Memory,
   reviseFact,
 } from './facts.ts'
+import { readStored, storageWith, withHarness } from './testing.ts'
+import { addEpisode, Episodes } from './episodes.ts'
+import { createMemory } from './index.ts'
+import { Upkeep } from './upkeep/schedule.ts'
+import { harnessOptions } from '../context/index.ts'
 import { afterEach, expect, test } from 'vitest'
 import {
   summonFamiliar,
@@ -63,75 +69,25 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
+/** Dismisses a Familiar before the test ends, so its storage can be read. */
+const dismiss = async (familiar: Familiar) => {
+  opened.splice(opened.indexOf(familiar), 1)
+  await familiar.dismiss()
+}
+
 /** The system prompt sections of one request. */
 const sectionsOf = (context: TranscriptContext) =>
   context.messages.flatMap((message) =>
     message.role === 'system' ? [message.sections ?? {}] : [],
   )
 
-test('the model remembers a fact and sees it on the next request', async () => {
-  const { faux, familiar, say, memory } = await setup()
-  let prompt: Record<string, string | null>[] = []
-  faux.setResponses([
-    fauxAssistantMessage(
-      fauxToolCall('remember', { text: 'Uses pnpm', importance: 3 }),
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-    (context) => {
-      prompt = sectionsOf(context)
-      return fauxAssistantMessage('pnpm, as always.')
-    },
-  ])
-
-  await say('I always use pnpm.')
-  expect((await memory())?.facts).toMatchObject([
-    { id: 'm1', text: 'Uses pnpm', importance: 3, core: true },
-  ])
-
-  await say('Which package manager?')
-  const latest = prompt.findLast((sections) => sections.memory)
-  expect(latest?.memory).toContain('m1: Uses pnpm')
-
-  // Clients learn what was saved from the result's details, not its wording.
-  const view = await familiar.watch()
-  await view.stop()
-  const result = view.value.entries.find(
-    (entry) => entry.kind === 'pi.tool-result',
+/** The names of the tools offered in one request. */
+const toolsOf = (context: TranscriptContext) =>
+  context.messages.flatMap((message) =>
+    message.role === 'system'
+      ? (message.toolsAdded ?? []).map((tool) => tool.name)
+      : [],
   )
-  expect(result?.model?.[0]).toMatchObject({ details: { saved: 'm1' } })
-})
-
-test('people can revise, retire, pin and forget facts', async () => {
-  const { faux, familiar, say, memory } = await setup()
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
-        fauxToolCall('remember', { text: 'Has a cat', importance: 3 }),
-        fauxToolCall('remember', { text: 'Likes blue pens', importance: 1 }),
-        fauxToolCall('remember', { text: 'Typo', importance: 2 }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await say('About me.')
-
-  await familiar.memory.revise('m1', 'Lives in York')
-  await familiar.memory.retire('m2')
-  await familiar.memory.setPinned('m3', true)
-  await familiar.memory.forget('m4')
-  expect((await memory())?.facts).toMatchObject([
-    { id: 'm1', until: expect.any(Number) },
-    { id: 'm2', until: expect.any(Number) },
-    { id: 'm3', core: true, pinned: true },
-    { id: 'm5', text: 'Lives in York', replaces: ['m1'], core: true },
-  ])
-  await expect(familiar.memory.revise('m1', 'Again')).rejects.toThrow(
-    'already past',
-  )
-})
 
 /** The text of every tool result sent back in one request. */
 const toolResultsOf = (context: TranscriptContext) =>
@@ -145,22 +101,105 @@ const toolResultsOf = (context: TranscriptContext) =>
       : [],
   )
 
-test('the model forgets a fact when asked, leaving no history', async () => {
-  const { faux, say, memory } = await setup()
+test('the conversation model reads memory but is never offered the tools that write it', async () => {
+  const { faux, say } = await setup({
+    storage: await storageWith(['Uses pnpm', 3]),
+  })
+  let tools: string[] = []
+  let prompt: Record<string, string | null>[] = []
   faux.setResponses([
-    fauxAssistantMessage(
-      fauxToolCall('remember', { text: 'Owes Sam £20', importance: 2 }),
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-    fauxAssistantMessage(fauxToolCall('forget', { id: 'm1' }), {
-      stopReason: 'toolUse',
-    }),
-    fauxAssistantMessage('Forgotten.'),
+    (context) => {
+      tools = toolsOf(context)
+      prompt = sectionsOf(context)
+      return fauxAssistantMessage('pnpm, as always.')
+    },
   ])
-  await say('I owe Sam £20.')
-  await say('Please forget that.')
-  expect(await memory()).toEqual({ facts: [], next: 2 })
+  await say('Which package manager do I use? Remember that I like pnpm.')
+  expect(tools).toContain('recall')
+  for (const writer of ['remember', 'revise_memory', 'retire']) {
+    expect(tools).not.toContain(writer)
+  }
+  const shown = prompt.findLast((sections) => sections.memory)?.memory
+  expect(shown).toContain('f1: Uses pnpm')
+  expect(shown).toContain('filed tonight')
+})
+
+test("only upkeep's conversation is given the tools that write facts", async () => {
+  const registry = createRegistry()
+  const model = { provider: 'faux', modelId: 'faux-1' }
+  const harness = await Harness.open(
+    new MemoryStorage(),
+    harnessOptions({ models: createModels(), model }, registry, 64_000),
+    BACKGROUND_CONTEXT,
+  )
+  try {
+    const memory = createMemory(harness, {
+      now: Date.now,
+      model,
+      name: 'Familiar',
+      transcriptTokens: 1_000,
+    })
+    for (const extension of memory.extensions) {
+      registry.install(extension)
+    }
+    const root = await harness.root(BACKGROUND_CONTEXT)
+    await memory.start()
+    // As a host's own extension might: a conversation that chooses nothing.
+    const { other, upkeep } = await harness.commit(
+      async (tx) => ({
+        upkeep: (await tx.doc(Upkeep)).conversation!,
+        other: (
+          await tx.createConversation({ ownership: { kind: 'ownerless' } })
+        ).id,
+      }),
+      BACKGROUND_CONTEXT,
+    )
+    const toolsIn = async (id: typeof other) =>
+      (
+        await (await harness.conversation(id, BACKGROUND_CONTEXT))!.agent(
+          BACKGROUND_CONTEXT,
+        )
+      ).tools.map((tool) => tool.name)
+    const writers = ['remember', 'revise_memory', 'retire']
+    for (const tools of [await toolsIn(other), await toolsIn(root.id)]) {
+      expect(tools).toContain('recall')
+      expect(tools.filter((name) => writers.includes(name))).toEqual([])
+    }
+    expect(await toolsIn(upkeep)).toEqual(expect.arrayContaining(writers))
+  } finally {
+    await harness.close(BACKGROUND_CONTEXT)
+  }
+})
+
+test('people can revise, retire and pin facts', async () => {
+  const { familiar, memory } = await setup({
+    storage: await storageWith(
+      ['Lives in Leeds', 4],
+      ['Has a cat', 3],
+      ['Likes blue pens', 1],
+    ),
+  })
+  await familiar.memory.revise('f1', 'Lives in York')
+  await familiar.memory.retire('f2')
+  await familiar.memory.setPinned('f3', true)
+  expect((await memory())?.facts).toMatchObject([
+    { id: 'f1', until: expect.any(String) },
+    { id: 'f2', until: expect.any(String) },
+    { id: 'f3', core: true, pinned: true },
+    {
+      id: 'f4',
+      text: 'Lives in York',
+      replaces: ['f1'],
+      sources: [],
+      core: true,
+    },
+  ])
+  await expect(familiar.memory.revise('f1', 'Again')).rejects.toThrow(
+    'already past',
+  )
+  await expect(familiar.memory.revise('f4', 'x'.repeat(301))).rejects.toThrow(
+    'Split it',
+  )
 })
 
 test('an edit that fails partway through a commit changes nothing', async () => {
@@ -169,21 +208,27 @@ test('an edit that fails partway through a commit changes nothing', async () => 
     { models: createModels(), registry: createRegistry() },
     BACKGROUND_CONTEXT,
   )
+  const fact = (text: string) => ({
+    text,
+    importance: 3,
+    since: '2025-01-01',
+    sources: [],
+  })
   try {
     await harness.commit(async (tx) => {
-      rememberFact(await tx.doc(Memory), 'Lives in Leeds', 4, 10)
+      rememberFact(await openMemory(tx), fact('Lives in Leeds'), 10)
     }, BACKGROUND_CONTEXT)
     await expect(
       harness.commit(async (tx) => {
-        const memory = await tx.doc(Memory)
-        rememberFact(memory, 'Has a cat', 3, 20)
-        reviseFact(memory, 'm9', 'Missing', 20)
+        const memory = await openMemory(tx)
+        rememberFact(memory, fact('Has a cat'), 20)
+        reviseFact(memory, 'f9', { text: 'Missing', since: '2025-01-01' }, 20)
       }, BACKGROUND_CONTEXT),
     ).rejects.toThrow(FactError)
-    const watch = (await harness.watchDoc(Memory, BACKGROUND_CONTEXT))!
+    const watch = (await harness.watchDoc(Facts, BACKGROUND_CONTEXT))!
     await watch.stop()
     expect(watch.value).toMatchObject({
-      facts: [{ id: 'm1', text: 'Lives in Leeds' }],
+      facts: [{ id: 'f1', text: 'Lives in Leeds' }],
       next: 2,
     })
   } finally {
@@ -191,154 +236,43 @@ test('an edit that fails partway through a commit changes nothing', async () => 
   }
 })
 
-test('a fact that does not exist is an error for the model, not a crash', async () => {
-  const { faux, say, memory } = await setup()
-  let results: string[] = []
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('retire', { id: 'm9' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      results = toolResultsOf(context)
-      return fauxAssistantMessage('Nothing to retire.')
-    },
-  ])
-  await say('Retire m9.')
-  expect(results.join()).toContain('No fact m9')
-  expect((await memory())?.facts).toEqual([])
-})
-
-/** One reply that saves `count` important facts of about 100 characters each. */
-const rememberMany = (count: number) =>
-  fauxAssistantMessage(
-    Array.from({ length: count }, (_, index) =>
-      fauxToolCall('remember', {
-        text: `Fact ${index}: ${'something worth keeping '.repeat(4)}`,
-        importance: 4,
-      }),
+test('the prompt shows current core facts within budget, and nothing past', async () => {
+  const { faux, familiar, say, memory } = await setup({
+    storage: await storageWith(
+      ['Lives in Leeds', 5],
+      ['Works at Northbank', 5],
+      ...Array.from(
+        { length: 70 },
+        (_, index) =>
+          [`Fact ${index}: ${'something worth keeping '.repeat(4)}`, 4] as [
+            string,
+            number,
+          ],
+      ),
     ),
-    { stopReason: 'toolUse' },
-  )
-
-test('beyond core budget, remember keeps facts outside the prompt instead of refusing', async () => {
-  const { faux, say, memory } = await setup()
-  let results: string[] = []
+  })
+  await familiar.memory.revise('f1', 'Lives in York')
+  await familiar.memory.retire('f2')
   let prompt: Record<string, string | null>[] = []
   faux.setResponses([
-    rememberMany(70),
-    (context) => {
-      results = toolResultsOf(context)
-      return fauxAssistantMessage('Noted.')
-    },
-    (context) => {
-      prompt = sectionsOf(context)
-      return fauxAssistantMessage('Hello.')
-    },
-  ])
-  await say('Here is far too much about me.')
-  const state = (await memory())!
-  expect(state.facts).toHaveLength(70)
-  expect(results.filter((result) => result.includes('outside'))).not.toEqual([])
-  const core = coreFacts(state)
-  expect(core.length).toBeLessThan(70)
-  expect(listFacts(core).length).toBeLessThanOrEqual(CORE_BUDGET)
-
-  await say('Hi.')
-  const shown = prompt.findLast((sections) => sections.memory)?.memory ?? ''
-  expect(shown).toContain(listFacts(core))
-  expect(shown).not.toContain(state.facts.at(-1)!.text)
-})
-
-test('past facts never appear in the prompt', async () => {
-  const { faux, say } = await setup()
-  let prompt: Record<string, string | null>[] = []
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
-        fauxToolCall('remember', { text: 'Works at Northbank', importance: 4 }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-    fauxAssistantMessage(
-      [
-        fauxToolCall('revise_memory', { id: 'm1', text: 'Lives in York' }),
-        fauxToolCall('retire', { id: 'm2' }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Updated.'),
     (context) => {
       prompt = sectionsOf(context)
       return fauxAssistantMessage('York.')
     },
   ])
-  await say('I live in Leeds and work at Northbank.')
-  await say('I moved to York and left Northbank.')
+  const state = (await memory())!
+  const core = coreFacts(state)
+  expect(core.length).toBeLessThan(state.facts.length - 2)
+  expect(listFacts(core).length).toBeLessThanOrEqual(CORE_BUDGET)
+
   await say('Where do I live?')
-  const shown = prompt.findLast((sections) => sections.memory)?.memory
-  expect(shown).toContain('m3: Lives in York')
+  const shown = prompt.findLast((sections) => sections.memory)?.memory ?? ''
+  expect(shown).toContain(listFacts(core))
+  expect(shown).toContain('f73: Lives in York')
+  // Past facts and facts that didn't fit stay out.
   expect(shown).not.toContain('Leeds')
   expect(shown).not.toContain('Northbank')
-})
-
-test('memory saved by version 1 opens with every fact in core', async () => {
-  const MemoryV1 = defineDoc<{
-    facts: { id: string; text: string; at: number }[]
-    next: number
-  }>({
-    kind: 'familiar.memory',
-    version: 1,
-    scope: 'session',
-    initial: () => ({ facts: [], next: 1 }),
-    // Never checkpoints again, so migration reads a base plus deltas.
-    checkpointWhen: () => false,
-  })
-  const storage = new MemoryStorage()
-  // The old Harness closes without closing the storage the new one opens.
-  const kept = new Proxy(storage, {
-    get: (target, key) =>
-      key === 'close' ? async () => {} : Reflect.get(target, key, target),
-  })
-  const old = await Harness.open(
-    kept,
-    { models: createModels(), registry: createRegistry() },
-    BACKGROUND_CONTEXT,
-  )
-  // Separate commits, so the stored document is a base plus deltas.
-  await old.commit((tx) => tx.doc(MemoryV1), BACKGROUND_CONTEXT)
-  for (const [index, text] of ['Uses pnpm', 'Lives in Leeds'].entries()) {
-    await old.commit(async (tx) => {
-      const memory = await tx.doc(MemoryV1)
-      memory.facts.push({ id: `m${index + 1}`, text, at: 10 * (index + 1) })
-      memory.next = index + 2
-    }, BACKGROUND_CONTEXT)
-  }
-  await old.close(BACKGROUND_CONTEXT)
-
-  const { memory } = await setup({ storage })
-  expect(await memory()).toEqual({
-    facts: [
-      {
-        id: 'm1',
-        text: 'Uses pnpm',
-        at: 10,
-        created: 10,
-        importance: 3,
-        core: true,
-      },
-      {
-        id: 'm2',
-        text: 'Lives in Leeds',
-        at: 20,
-        created: 20,
-        importance: 3,
-        core: true,
-      },
-    ],
-    next: 3,
-  })
+  expect(shown).not.toContain('Fact 69:')
 })
 
 /** The recalled-memory note in one request, if any. */
@@ -352,7 +286,11 @@ const recalledIn = (context: TranscriptContext) =>
     .find((content) => content.startsWith('Recalled from memory'))
 
 test('a relevant fact outside core reaches the model, and the prompt stays the same', async () => {
-  const { faux, say, memory } = await setup()
+  const storage = await storageWith(
+    ['Lives in Leeds', 4],
+    ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
+  )
+  const { faux, familiar, say, memory } = await setup({ storage })
   const seen: { note?: string; memory?: string | null }[] = []
   const capture = (reply: string) => (context: TranscriptContext) => {
     seen.push({
@@ -363,48 +301,34 @@ test('a relevant fact outside core reaches the model, and the prompt stays the s
     return fauxAssistantMessage(reply)
   }
   faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
-        fauxToolCall('remember', {
-          text: "Pip's waterproof coat is 66 cm, from Fell Houndwear",
-          importance: 2,
-        }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
     capture('Morning!'),
     capture('66 cm, from Fell Houndwear.'),
   ])
-  await say('About me and Pip.')
   await say('Good morning!')
+  const before = await memory()
   await say("What size is Pip's coat?")
 
   expect(seen[0].note).toBeUndefined()
   expect(seen[1].note).toMatch(
-    /\nm2 \(since \d{4}-\d{2}-\d{2}\): Pip's waterproof coat is 66 cm/,
+    /\nf2 \(since 2026-01-05\): Pip's waterproof coat is 66 cm/,
   )
   expect(seen[1].note).not.toContain('Leeds')
   expect(seen[1].memory).toBe(seen[0].memory)
   expect(seen[1].memory).not.toContain('Pip')
-  expect((await memory())?.facts[1].recalled).toEqual(expect.any(Number))
+  // Recalling a fact records its use apart from the facts clients receive.
+  expect(await memory()).toEqual(before)
+  await dismiss(familiar)
+  expect((await readStored(storage, MemoryUsage)).facts).toEqual({
+    f2: { recalled: expect.any(Number) },
+  })
 })
 
 test('the recall tool finds past facts, labelled as past', async () => {
-  const { faux, say } = await setup()
+  const storage = await storageWith(['Lives in Leeds', 4])
+  const { faux, familiar, say } = await setup({ storage })
+  await familiar.memory.revise('f1', 'Lives in York')
   let results: string[] = []
   faux.setResponses([
-    fauxAssistantMessage(
-      fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-    fauxAssistantMessage(
-      fauxToolCall('revise_memory', { id: 'm1', text: 'Lives in York' }),
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Updated.'),
     fauxAssistantMessage(fauxToolCall('recall', { query: 'lived Leeds' }), {
       stopReason: 'toolUse',
     }),
@@ -413,61 +337,56 @@ test('the recall tool finds past facts, labelled as past', async () => {
       return fauxAssistantMessage('Leeds.')
     },
   ])
-  await say('I live in Leeds.')
-  await say('I moved to York.')
-  await say('Where did I live before?')
+  // Matches no fact, so only the tool's search records a use.
+  await say('Anything from the past?')
   expect(results.at(-1)).toMatch(
-    /^m1 \(.* no longer current; replaced by m2\): Lives in Leeds$/,
+    /^Facts:\nf1 \(2026-01-05 to .*, replaced by f2\): Lives in Leeds$/,
+  )
+  // What the conversation's search found counts as used.
+  await dismiss(familiar)
+  expect((await readStored(storage, MemoryUsage)).facts.f1?.recalled).toEqual(
+    expect.any(Number),
   )
 })
 
-/** Saves one fact outside core, so recall has something to show. */
-const saveGreenTea = () => [
-  fauxAssistantMessage(
-    fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
-    { stopReason: 'toolUse' },
-  ),
-  fauxAssistantMessage('Noted.'),
-]
-
 test('recall goes last, so a revision mid-run leaves the earlier messages unchanged', async () => {
-  const { faux, say } = await setup()
+  const { faux, familiar, say } = await setup({
+    storage: await storageWith(['Prefers green tea', 1]),
+  })
   const requests: TranscriptContext['messages'][] = []
   faux.setResponses([
-    ...saveGreenTea(),
-    (context) => {
+    async (context) => {
       requests.push(context.messages)
-      return fauxAssistantMessage(
-        fauxToolCall('revise_memory', { id: 'm1', text: 'Prefers black tea' }),
-        { stopReason: 'toolUse' },
-      )
+      await familiar.memory.revise('f1', 'Prefers black tea')
+      return fauxAssistantMessage(fauxToolCall('current_time', {}), {
+        stopReason: 'toolUse',
+      })
     },
     (context) => {
       requests.push(context.messages)
       return fauxAssistantMessage('Black tea it is.')
     },
   ])
-  await say('I like tea.')
-  await say('Actually, I have switched to black tea.')
+  await say('What tea do I like?')
 
   const [first, second] = requests
   expect(recalledIn({ messages: first } as TranscriptContext)).toBe(
     first.at(-1)?.content,
   )
-  expect(second.at(-1)?.content).toContain('replaced by m2')
   // Everything before the first request's note is the start of the second.
   expect(second.slice(0, first.length - 1)).toEqual(first.slice(0, -1))
 })
 
 test('a retried request recalls exactly what the first attempt did', async () => {
-  const { faux, familiar, say } = await setup()
+  const { faux, familiar, say } = await setup({
+    storage: await storageWith(['Prefers green tea', 1]),
+  })
   const notes: (string | undefined)[] = []
   faux.setResponses([
-    ...saveGreenTea(),
     async (context) => {
       notes.push(recalledIn(context))
       // Memory changes between the attempts.
-      await familiar.memory.revise('m1', 'Prefers black tea')
+      await familiar.memory.revise('f1', 'Prefers black tea')
       return fauxAssistantMessage('', {
         stopReason: 'error',
         errorMessage: '503 server busy',
@@ -478,8 +397,109 @@ test('a retried request recalls exactly what the first attempt did', async () =>
       return fauxAssistantMessage('Tea, then.')
     },
   ])
-  await say('I like tea.')
   await say('What tea do I like?')
-  expect(notes[0]).toContain('m1 (since')
+  expect(notes[0]).toContain('f1 (since')
   expect(notes[1]).toBe(notes[0])
+})
+
+test('recall finds an exchange compaction took out of the context', async () => {
+  const { faux, familiar, say } = await setup({
+    contextWindow: 16_000,
+    contextBudget: 2_000,
+  })
+  const isSummary = (context: TranscriptContext) =>
+    JSON.stringify(context.messages[0]).includes('context summarization')
+  faux.setResponses(
+    Array.from(
+      { length: 60 },
+      () => (context: TranscriptContext) =>
+        fauxAssistantMessage(
+          isSummary(context) ? '## Goal\nThe weather.' : 'Lovely.',
+        ),
+    ),
+  )
+  await say('My bike lock code is 7291, keep it safe.')
+  for (let day = 1; day <= 20; day++) {
+    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+  }
+  const view = await familiar.watch()
+  await view.stop()
+  expect(JSON.stringify(view.value.entries)).not.toContain('7291')
+
+  let results: string[] = []
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'bike lock code' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      results = toolResultsOf(context)
+      return fauxAssistantMessage('7291.')
+    },
+  ])
+  await say('What was my bike lock code?')
+  expect(results.at(-1)).toMatch(
+    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): My bike lock code is 7291/,
+  )
+})
+
+test('health counts facts, core, episodes, exchanges and searches', async () => {
+  const YEAR = 365 * 24 * 60 * 60 * 1000
+  const storage = await storageWith(
+    ['Lives in Leeds', 4],
+    ['Has a cat', 3],
+    ['Old note nobody checked', 1, Date.now() - YEAR],
+  )
+  await withHarness(storage, (harness) =>
+    harness.commit(async (tx) => {
+      const episodes = await tx.doc(Episodes)
+      for (const [span, start, end] of [
+        ['day', '2026-01-05', '2026-01-05'],
+        ['day', '2026-01-06', '2026-01-06'],
+        ['week', '2026-01-05', '2026-01-11'],
+        ['month', '2026-01-01', '2026-01-31'],
+      ] as const) {
+        addEpisode(episodes, { span, start, end, text: 'Quiet.', at: 1 })
+      }
+    }, BACKGROUND_CONTEXT),
+  )
+  const { faux, familiar, say, memory } = await setup({ storage })
+  await familiar.memory.revise('f1', 'Lives in York')
+  faux.setResponses(
+    ['Hello.', 'Hi again.', 'Still here.'].map((reply) =>
+      fauxAssistantMessage(reply),
+    ),
+  )
+  for (const text of ['Hello.', 'How are you?', 'Bye.']) {
+    await say(text)
+  }
+
+  const core = coreFacts((await memory())!)
+  const health = await familiar.memory.health()
+  expect(health).toEqual({
+    facts: { current: 3, core: 2, past: 1 },
+    coreCharacters: listFacts(core).length,
+    unchecked: 1,
+    episodes: { day: 2, week: 1, month: 1 },
+    // The newest exchange waits for the next message before it's indexed.
+    exchanges: 2,
+    indexBuildMs: expect.any(Number),
+    indexCatchUpMs: null,
+    // One automatic recall per message.
+    search: {
+      count: 3,
+      medianMs: expect.any(Number),
+      maxMs: expect.any(Number),
+    },
+  })
+  expect(health.search.maxMs).toBeGreaterThanOrEqual(health.search.medianMs)
+
+  // Reading health without new transcript entries must not inflate timings.
+  expect(await familiar.memory.health()).toEqual(health)
+  faux.setResponses([fauxAssistantMessage('One more reply.')])
+  await say('One more message.')
+  const updated = await familiar.memory.health()
+  expect(updated.indexBuildMs).toBe(health.indexBuildMs)
+  expect(updated.indexCatchUpMs).toEqual(expect.any(Number))
+  expect(updated.exchanges).toBe(health.exchanges + 1)
+  expect(await familiar.memory.health()).toEqual(updated)
 })

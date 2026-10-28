@@ -15,7 +15,7 @@ export const MemoryFacts = () => {
   if (core.length + reserve.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        Nothing yet. Tell Familiar something worth remembering.
+        Nothing yet. What you tell Familiar is filed here each night.
       </p>
     )
   }
