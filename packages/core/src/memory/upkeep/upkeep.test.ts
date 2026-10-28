@@ -46,7 +46,14 @@ function fakeClock(start: number) {
       timer.fire()
     }
   }
-  return { now: () => now, setTimer, advanceTo }
+  return {
+    now: () => now,
+    setTimer,
+    advanceTo,
+    setTime: (time: number) => {
+      now = time
+    },
+  }
 }
 
 const start = new Date(2026, 9, 25, 12).getTime() // local noon
@@ -115,6 +122,7 @@ async function setup(storage = new ReopenableStorage()) {
   return {
     faux,
     say,
+    setTime: clock.setTime,
     memory,
     episodes,
     upkeepTasks,
@@ -548,4 +556,161 @@ test('upkeep saved before episodes opens, gains its rollup conversation and keep
   ])
   await passAt(firstPass, secondPass)
   expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
+})
+
+test('a busy day reviews every message in ordered batches before its rollup', async () => {
+  const { faux, say, episodes, passAt, reopen } = await setup()
+  const messages = ['first', 'second'].map(
+    (label) => `${label}: ${'detail '.repeat(8_000)} end-${label}`,
+  )
+  faux.setResponses([
+    fauxAssistantMessage('First reply.'),
+    fauxAssistantMessage('Second reply.'),
+  ])
+  for (const message of messages) {
+    await say(message)
+  }
+
+  const inputs: string[] = []
+  const review = (context: TranscriptContext) => {
+    inputs.push(inputOf(context))
+    return fauxAssistantMessage(`Batch ${inputs.length}.`)
+  }
+  let rollupInput = ''
+  faux.setResponses([
+    review,
+    review,
+    (context) => {
+      rollupInput = inputOf(context)
+      return fauxAssistantMessage('Both batches.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  expect(inputs).toHaveLength(2)
+  expect(inputs[0]).toContain(messages[0])
+  expect(inputs[0]).not.toContain('end-second')
+  expect(inputs[1]).toContain(messages[1])
+  expect(inputs[1]).not.toContain('end-first')
+  expect(inputs.join('\n')).toContain('First reply.')
+  expect(inputs.join('\n')).toContain('Second reply.')
+  expect(rollupInput).toContain('Batch 1.')
+  expect(rollupInput).toContain('Batch 2.')
+  expect(
+    (await episodes()).map(({ span, start, end }) => [span, start, end]),
+  ).toEqual([
+    ['day', '2026-10-25', '2026-10-25'],
+    ['day', '2026-10-25', '2026-10-25'],
+    ['week', '2026-10-19', '2026-10-25'],
+  ])
+  await reopen()
+  const calls = faux.state.callCount
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect(faux.state.callCount).toBe(calls)
+})
+
+test('a backlog is split at 04:00 and all days are reviewed before rollups', async () => {
+  const { faux, say, setTime, episodes, passAt } = await setup()
+  faux.setResponses([
+    fauxAssistantMessage('Sunday reply.'),
+    fauxAssistantMessage('Monday reply.'),
+  ])
+  await say('Sunday news.')
+  // Simulate downtime in the scheduler while recording another day of chat.
+  setTime(firstPass + 60 * 60 * 1000)
+  await say('Monday news.')
+  const inputs: string[] = []
+  const review = (context: TranscriptContext) => {
+    inputs.push(inputOf(context))
+    return fauxAssistantMessage(`Day ${inputs.length}.`)
+  }
+  let rollupInput = ''
+  faux.setResponses([
+    review,
+    review,
+    (context) => {
+      rollupInput = inputOf(context)
+      return fauxAssistantMessage('Sunday week.')
+    },
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect(inputs).toHaveLength(2)
+  expect(inputs[0]).toContain('Sunday news.')
+  expect(inputs[0]).not.toContain('Monday news.')
+  expect(inputs[1]).toContain('Monday news.')
+  expect(inputs[1]).not.toContain('Sunday news.')
+  expect((await episodes()).filter(({ span }) => span === 'day')).toMatchObject(
+    [
+      { start: '2026-10-25', end: '2026-10-25' },
+      { start: '2026-10-26', end: '2026-10-26' },
+    ],
+  )
+  expect(rollupInput).toContain('Day 1.')
+  expect(rollupInput).not.toContain('Day 2.')
+})
+
+test('a failed later batch keeps earlier progress across a restart and delays rollups', async () => {
+  const { faux, say, episodes, passAt, reopen } = await setup()
+  const messages = ['first', 'second'].map(
+    (label) => `${label}: ${'detail '.repeat(8_000)} end-${label}`,
+  )
+  faux.setResponses([
+    fauxAssistantMessage('First reply.'),
+    fauxAssistantMessage('Second reply.'),
+  ])
+  for (const message of messages) {
+    await say(message)
+  }
+  faux.setResponses([
+    fauxAssistantMessage('First batch episode.'),
+    fauxAssistantMessage('', {
+      stopReason: 'error',
+      errorMessage: 'insufficient_quota',
+    }),
+  ])
+  await passAt(firstPass, secondPass)
+  expect((await episodes()).map(({ span, text }) => [span, text])).toEqual([
+    ['day', 'First batch episode.'],
+  ])
+  await reopen()
+  let input = ''
+  let rollupInput = ''
+  faux.setResponses([
+    (context) => {
+      input = inputOf(context)
+      return fauxAssistantMessage('Second batch episode.')
+    },
+    (context) => {
+      rollupInput = inputOf(context)
+      return fauxAssistantMessage('Both batches.')
+    },
+  ])
+  await passAt(secondPass, nextUpkeep(secondPass))
+  expect(input).toContain(messages[1])
+  expect(input).not.toContain('end-first')
+  expect(rollupInput).toContain('First batch episode.')
+  expect(rollupInput).toContain('Second batch episode.')
+  expect((await episodes()).map(({ span }) => span)).toEqual([
+    'day',
+    'day',
+    'week',
+  ])
+})
+
+test('an oversized single message is bounded and does not strand the messages after it', async () => {
+  const { faux, say, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage('Reply after the long message.')])
+  await say(`Long message: ${'detail '.repeat(17_000)} end-long`)
+  const inputs: string[] = []
+  const review = (context: TranscriptContext) => {
+    inputs.push(inputOf(context))
+    return fauxAssistantMessage(`Batch ${inputs.length}.`)
+  }
+  faux.setResponses([review, review, fauxAssistantMessage('Week.')])
+  await passAt(firstPass, secondPass)
+  expect(inputs).toHaveLength(2)
+  expect(inputs[0]).toContain('Long message:')
+  expect(inputs[0]).not.toContain('end-long')
+  expect(inputs[0].length).toBeLessThan(100_000)
+  expect(inputs[1]).toContain('Reply after the long message.')
+  expect(inputs[1]).not.toContain('Long message:')
 })

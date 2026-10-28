@@ -3,35 +3,42 @@ import {
   ROOT_CONVERSATION_ID,
   type Cursor,
   type EntryId,
+  type EntryQuery,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { saidBy, type Said } from '../../conversation/message.ts'
+import { saidBy } from '../../conversation/message.ts'
 import { localMinute } from '../../time/index.ts'
 import { upkeepDay } from './schedule.ts'
 
-/** The main conversation's entries after `through`, newest first. */
-async function* entriesAfter(tx: Tx, through: EntryId | null) {
+/** Paginated scans keep a long backlog out of memory. */
+async function* entries(tx: Tx, query: EntryQuery) {
   let cursor: Cursor | undefined
-
   do {
-    const page = await tx.scanEntries(
-      {
-        conversationId: ROOT_CONVERSATION_ID,
-        order: 'descending',
-        ...(through !== null && { minEntryId: (through + 1) as EntryId }),
-      },
-      200,
-      cursor,
-    )
+    const page = await tx.scanEntries(query, 200, cursor)
     yield* page.items
     cursor = page.next
   } while (cursor)
 }
 
-/**
- * The messages since `through`, oldest first, keeping the newest that fit in
- * `budget` tokens, and the newest entry among them.
- */
+/** A reply belongs to the person's turn, even when a batch splits that turn. */
+async function precedingDay(tx: Tx, through: EntryId | null) {
+  if (through === null) {
+    return undefined
+  }
+  for await (const entry of entries(tx, {
+    conversationId: ROOT_CONVERSATION_ID,
+    maxEntryId: through,
+    order: 'descending',
+  })) {
+    const said = saidBy(entry)
+    if (said?.role === 'person') {
+      return upkeepDay(said.at)
+    }
+  }
+  return undefined
+}
+
+/** The oldest unreviewed day, split further only when its text exceeds `budget`. */
 export async function newMessages(
   tx: Tx,
   through: EntryId | null,
@@ -41,56 +48,61 @@ export async function newMessages(
   const lines: string[] = []
   let newest: EntryId | undefined
   let tokens = 0
+  let day: string | undefined
+  let turnDay: string | undefined
+  let truncated = false
 
-  // People's messages date the span. Model replies carry wall-clock times, not
-  // the Harness clock, so they date it only when nobody else spoke.
-  const people = { first: Infinity, last: -Infinity }
-  const replies = { first: Infinity, last: -Infinity }
-
-  const note = (said: Said) => {
-    const span = said.role === 'assistant' ? replies : people
-    span.first = Math.min(span.first, said.at)
-    span.last = Math.max(span.last, said.at)
-  }
-
-  for await (const entry of entriesAfter(tx, through)) {
+  for await (const entry of entries(tx, {
+    conversationId: ROOT_CONVERSATION_ID,
+    order: 'ascending',
+    ...(through !== null && { minEntryId: (through + 1) as EntryId }),
+  })) {
     const said = saidBy(entry)
-
     if (!said) {
       continue
+    }
+
+    // Model replies use wall-clock timestamps, while people's messages use
+    // Familiar's clock. Keep replies with their turn rather than redating it.
+    if (said.role === 'person') {
+      turnDay = upkeepDay(said.at)
+    } else if (day === undefined) {
+      turnDay = await precedingDay(tx, through)
+    }
+    const messageDay = turnDay ?? upkeepDay(said.at)
+    if (day !== undefined && messageDay !== day) {
+      break
     }
 
     const who = said.role === 'assistant' ? name : said.author
     const line = `[${localMinute(said.at)}] ${who}: ${said.text}`
     const size = estimateTextTokens(line)
-    newest ??= entry.id
-
     if (tokens + size > budget) {
-      // A single message larger than the budget is cut, not skipped forever.
-      // Three characters a token keeps the cut safely under it.
       if (!lines.length) {
+        // Preserve progress for a single oversized message. Report the loss
+        // to the host rather than silently treating it as a complete review.
         lines.push(line.slice(0, budget * 3))
-        note(said)
+        newest = entry.id
+        day = messageDay
+        truncated = true
       }
-
       break
     }
 
     lines.push(line)
     tokens += size
-    note(said)
+    newest = entry.id
+    day = messageDay
   }
 
-  if (newest === undefined) {
+  if (newest === undefined || day === undefined) {
     return undefined
   }
-
   return {
     newest,
-    transcript: lines.reverse().join('\n'),
-    start: upkeepDay(
-      Number.isFinite(people.first) ? people.first : replies.first,
-    ),
-    end: upkeepDay(Number.isFinite(people.last) ? people.last : replies.last),
+    transcript: lines.join('\n'),
+    start: day,
+    end: day,
+    truncated,
   }
 }

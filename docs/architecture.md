@@ -63,7 +63,7 @@ Read each test file beside its source. They run the real Harness with a scripted
 4. Memory's `beforeRequest` hook (`extension.ts`) searches facts and episodes for the latest message and adds a recall note at the end of this request only.
 5. The model may call a tool, say `remember`. `tools.ts` commits the change through `facts.ts`'s rules; the new fact and the tool's result are committed together.
 6. Each commit reaches `/api/events` as operations: the conversation's, and those of any document that changed. The client applies them, `toTranscript()` turns entries into chat items, and React renders them.
-7. At 04:00, upkeep (`upkeep/index.ts`) reviews the day's messages with the same memory tools, writes the day's episode, rebalances core, and rolls up any finished week or month.
+7. At 04:00, upkeep (`upkeep/index.ts`) reviews unreviewed message text oldest first with the same memory tools. Batches stop at each 04:00 day boundary or the transcript budget, whichever comes first. Each completed batch saves an episode and its review position, so a failed later batch can resume without repeating earlier ones. Once the backlog is clear, upkeep rolls up finished weeks and months. A single message larger than the budget is truncated and reported to the host; ordinary batch overflow is left for the next batch.
 
 ## Where new things go
 
