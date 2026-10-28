@@ -7,7 +7,7 @@ import {
   type Exchange,
   type ExchangeIndex,
 } from './exchanges.ts'
-import { successorOf, type Fact, type FactsState } from './facts.ts'
+import type { Fact, FactsState } from './facts.ts'
 import { describe, describeEpisode } from './recall.ts'
 
 /**
@@ -47,64 +47,93 @@ function readExchange(exchanges: ExchangeIndex, id: string) {
     .join('\n\n')
 }
 
-/** Every version a fact replaced, oldest first, merges included. */
-function earlier(facts: FactsState, fact: Fact): Fact[] {
-  return (fact.replaces ?? []).flatMap((id) => {
-    const old = facts.facts.find((other) => other.id === id)
-    return old ? [...earlier(facts, old), old] : []
-  })
-}
-
-/** The versions that replaced a fact, in order. */
-function later(facts: FactsState, fact: Fact): Fact[] {
-  const next = successorOf(facts, fact)
-  return next ? [next, ...later(facts, next)] : []
-}
-
-/** The fact, how it changed, and the messages it came from. */
-function readFact(facts: FactsState, exchanges: ExchangeIndex, fact: Fact) {
-  const show = (other: Fact) => describe(facts, { fact: other })
-  const before = earlier(facts, fact)
-  const after = later(facts, fact)
-  const sources = fact.sources.flatMap(
-    (entry) => exchanges.around(exchangeId(entry))?.exchange ?? [],
-  )
-  const parts = [show(fact)]
-  if (before.length || after.length) {
-    parts.push(
-      `How it changed, oldest first:\n${[...before, fact, ...after].map(show).join('\n')}`,
-    )
+/**
+ * Every version connected to a fact through replacements, in either
+ * direction, oldest first: what it replaced, what replaced it, and what
+ * else a merge folded in along the way.
+ */
+function history(facts: FactsState, fact: Fact) {
+  const byId = new Map(facts.facts.map((other) => [other.id, other]))
+  const seen = new Map([[fact.id, fact]])
+  const queue = [fact]
+  for (let next = queue.pop(); next; next = queue.pop()) {
+    const linked = [
+      ...(next.replaces ?? []).flatMap((id) => byId.get(id) ?? []),
+      ...facts.facts.filter((other) => other.replaces?.includes(next!.id)),
+    ]
+    for (const other of linked) {
+      if (!seen.has(other.id)) {
+        seen.set(other.id, other)
+        queue.push(other)
+      }
+    }
   }
-  parts.push(
-    sources.length
-      ? `From:\n${sources
-          .map((source) =>
-            showExchange(source, (READ_TOKENS * 0.8) / sources.length),
-          )
-          .join('\n\n')}`
-      : 'It cites no messages: it was written by hand.',
+  const number = (fact: Fact) => Number(fact.id.slice(1))
+  return [...seen.values()].sort(
+    (a, b) => a.since.localeCompare(b.since) || number(a) - number(b),
   )
-  return parts.join('\n\n')
 }
 
-/** As many of `items` as fit in what is left of the budget, then where to continue. */
+/**
+ * As many of `items` as fit in `tokens`, then a note naming the IDs of the
+ * rest, and the tokens left.
+ */
 function upTo(
   items: { id: string; text: string }[],
-  used: string,
-  next: (id: string) => string,
+  tokens: number,
+  rest: (ids: string[]) => string,
 ) {
   const lines: string[] = []
-  let left = READ_TOKENS - estimateTextTokens(used)
-  for (const item of items) {
+  let left = tokens
+  for (const [index, item] of items.entries()) {
     const size = estimateTextTokens(item.text)
     if (size > left) {
-      lines.push(next(item.id))
+      lines.push(rest(items.slice(index).map(({ id }) => id)))
       break
     }
     lines.push(item.text)
     left -= size
   }
-  return lines
+  return { lines, left }
+}
+
+/** The fact, how it changed, and the messages it came from, all within the budget. */
+function readFact(facts: FactsState, exchanges: ExchangeIndex, fact: Fact) {
+  const head = describe(facts, { fact })
+  const parts = [head]
+  let left = READ_TOKENS - estimateTextTokens(head)
+  const versions = history(facts, fact)
+  if (versions.length > 1) {
+    // Half the room at most, so the messages behind it still show.
+    const changed = upTo(
+      versions.map((version) => ({
+        id: version.id,
+        text: describe(facts, { fact: version }),
+      })),
+      left / 2,
+      (ids) => `Not shown: ${ids.join(', ')}.`,
+    )
+    parts.push(`How it changed, oldest first:\n${changed.lines.join('\n')}`)
+    left -= left / 2 - changed.left
+  }
+  const sources = fact.sources.flatMap(
+    (entry) => exchanges.around(exchangeId(entry))?.exchange ?? [],
+  )
+  if (!sources.length) {
+    parts.push('It cites no messages: it was written by hand.')
+  } else {
+    const shown = upTo(
+      sources.map((source) => ({
+        id: source.id,
+        // Each gets an equal share, so one long message can't hide the rest.
+        text: showExchange(source, left / sources.length - 20),
+      })),
+      left,
+      (ids) => `Not shown: ${ids.join(', ')}.`,
+    )
+    parts.push(`From:\n${shown.lines.join('\n\n')}`)
+  }
+  return parts.join('\n\n')
 }
 
 const finer: Record<Span, Span[]> = {
@@ -134,8 +163,10 @@ function readEpisode(
       .filter(
         (other) =>
           finer[episode.span].includes(other.span) &&
-          other.start >= episode.start &&
-          other.end <= episode.end,
+          // Overlapping, as rollups are built: a day across a month's end
+          // went into both months.
+          other.start <= episode.end &&
+          other.end >= episode.start,
       )
       .sort(
         (a, b) =>
@@ -151,7 +182,11 @@ function readEpisode(
       ? [
           head,
           'Rolled up from:',
-          ...upTo(children, head, (id) => `More from ${id} onwards.`),
+          ...upTo(
+            children,
+            READ_TOKENS - estimateTextTokens(head),
+            ([id]) => `More from ${id} onwards.`,
+          ).lines,
         ].join('\n')
       : head
   }
@@ -168,9 +203,9 @@ function readEpisode(
         id: exchange.id,
         text: showExchange(exchange, READ_TOKENS),
       })),
-      head,
-      (id) => `Left out from ${id} onwards: read_memory ${id} to read on.`,
-    ),
+      READ_TOKENS - estimateTextTokens(head),
+      ([id]) => `Left out from ${id} onwards: read_memory ${id} to read on.`,
+    ).lines,
   ].join('\n\n')
 }
 
