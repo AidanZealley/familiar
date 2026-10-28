@@ -8,15 +8,15 @@ const KINDS: readonly string[] = [
   'mcp',
 ] satisfies Connection['kind'][]
 
+// Its output keeps the path's names: Hono's typed client derives the params
+// it sends from them.
 const secretPath = validator('param', (params, c) => {
   if (!KINDS.includes(params.kind)) {
     return c.json({ error: 'no such connection' }, 404)
   }
   return {
-    connection: {
-      kind: params.kind as Connection['kind'],
-      name: params.name,
-    },
+    kind: params.kind as Connection['kind'],
+    name: params.name,
     secret: params.secret,
   }
 })
@@ -38,10 +38,10 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
         return { value: body.value as string }
       }),
       async (c) => {
-        const { connection, secret } = c.req.valid('param')
+        const { kind, name, secret } = c.req.valid('param')
         try {
           await connections.setSecret(
-            connection,
+            { kind, name },
             secret,
             c.req.valid('json').value,
           )
@@ -52,9 +52,9 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
       },
     )
     .delete('/:kind/:name/secrets/:secret', secretPath, async (c) => {
-      const { connection, secret } = c.req.valid('param')
+      const { kind, name, secret } = c.req.valid('param')
       try {
-        await connections.deleteSecret(connection, secret)
+        await connections.deleteSecret({ kind, name }, secret)
       } catch (error) {
         return notFound(c, error)
       }
