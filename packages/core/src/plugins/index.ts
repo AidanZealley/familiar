@@ -1,5 +1,6 @@
 import type { Extension } from '@earendil-works/pi-durable'
 import type { Notification, Notify } from '../schedules/index.ts'
+import { authorizedFetch, checkDeclaration } from './authorized-fetch.ts'
 import { createSecrets, type Connection, type SecretStore } from './secrets.ts'
 
 export { memorySecrets, type Connection, type SecretStore } from './secrets.ts'
@@ -13,17 +14,44 @@ export type PluginFetch = (
   init?: RequestInit,
 ) => Promise<Response>
 
-/** What Familiar gives a plugin's extension. */
+/**
+ * What Familiar gives a plugin's extension. Never a secret's value: a plugin
+ * that can't see one can't echo it, log it, or send it somewhere else.
+ */
 export type PluginContext = {
-  /** The secret's value; throws a message the model reads as "not connected". */
-  secret(name: string): Promise<string>
   now(): number
   notify(notification: Notification): Promise<void>
   /** The host's fetch, which keeps plugins off its private networks. */
   fetch: PluginFetch
+  /**
+   * A request carrying the named secret, made through `fetch` only if it
+   * matches what the secret declares; otherwise throws without sending.
+   * Throws a message the model reads as "not connected" when it isn't set.
+   * Redirects come back as responses, unfollowed.
+   */
+  authorizedFetch(
+    secret: string,
+    input: string | URL,
+    init?: RequestInit,
+  ): Promise<Response>
 }
 
-export type PluginSecret = { name: string; label: string; help?: string }
+export type PluginSecret = {
+  name: string
+  /** For the owner, on the Connections page. */
+  label: string
+  help?: string
+  /** Where core sends it. Nothing else does. */
+  sendAs: {
+    header: string
+    /** Before the value, such as `Bearer `. */
+    prefix?: string
+    /** Exactly, such as `https://api.example.com`: no subdomains. */
+    origin: string
+    /** Exactly; no patterns. */
+    requests: { method: string; path: string }[]
+  }
+}
 
 /**
  * Everything that isn't core arrives as a plugin: a Pi extension, built with
@@ -47,7 +75,14 @@ export type ConnectionInfo = {
   kind: 'plugin'
   name: string
   title: string
-  secrets: (PluginSecret & { set: boolean })[]
+  secrets: {
+    name: string
+    label: string
+    help?: string
+    /** Where it's sent, so the owner knows who they're trusting with it. */
+    origin: string
+    set: boolean
+  }[]
 }
 
 export type ConnectionsApi = {
@@ -87,6 +122,9 @@ export function createPlugins(options: PluginsOptions) {
       throw new Error(`Two plugins are named ${plugin.name}.`)
     }
     byName.set(plugin.name, plugin)
+    for (const secret of plugin.secrets ?? []) {
+      checkDeclaration(plugin.name, secret)
+    }
   }
 
   const connectionOf = (plugin: FamiliarPlugin): Connection => ({
@@ -115,20 +153,25 @@ export function createPlugins(options: PluginsOptions) {
     return declaration
   }
 
+  const fetch = options.fetch ?? unavailableFetch
+
   const contextFor = (plugin: FamiliarPlugin): PluginContext => ({
-    secret: async (name) => {
-      const { label } = declared(connectionOf(plugin), name)
-      const value = await secrets.get(connectionOf(plugin), name)
-      if (!value) {
-        throw new Error(
-          `${plugin.title} isn't connected. Ask the owner to add ${label} on the Connections page.`,
-        )
-      }
-      return value
-    },
     now: options.now,
     notify: options.notify ?? (async () => {}),
-    fetch: options.fetch ?? unavailableFetch,
+    fetch,
+    authorizedFetch: async (name, input, init) => {
+      const secret = declared(connectionOf(plugin), name)
+      const value = async () => {
+        const value = await secrets.get(connectionOf(plugin), name)
+        if (!value) {
+          throw new Error(
+            `${plugin.title} isn't connected. Ask the owner to add ${secret.label} on the Connections page.`,
+          )
+        }
+        return value
+      }
+      return authorizedFetch(fetch, secret, value, input, init)
+    },
   })
 
   const extensions = options.plugins.map((plugin): Extension => {
@@ -149,7 +192,10 @@ export function createPlugins(options: PluginsOptions) {
           title: plugin.title,
           secrets: await Promise.all(
             (plugin.secrets ?? []).map(async (secret) => ({
-              ...secret,
+              name: secret.name,
+              label: secret.label,
+              help: secret.help,
+              origin: secret.sendAs.origin,
               set: Boolean(
                 await secrets.get(connectionOf(plugin), secret.name),
               ),

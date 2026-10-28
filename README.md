@@ -15,9 +15,9 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   health, and nightly upkeep at 04:00, the only writer of facts.
   core/schedules  Prompts Familiar runs at a time, once or repeating (a reminder
                   is the simplest), each reply sent to the host's notify.
-  core/plugins    Plugins (everything beyond core), their secrets, redaction
-                  of secret values from what their tools report, and the
-                  connection routes.
+  core/plugins    Plugins (everything beyond core), their secrets and the
+                  requests that carry them, redaction of secret values from
+                  what their tools report, and the connection routes.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
@@ -33,8 +33,8 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 - **One Familiar has one owner and one conversation.** Hosts that serve many owners (a household app, say) open one Familiar per owner, e.g. one Durable Object each. Core never knows about tenants.
 - **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
 - **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. See [docs/architecture.md](docs/architecture.md).
-- **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given its secrets, the clock, `notify` and the host's `fetch`. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
-- **Secrets never reach the model.** Plugins read them in tool code; the owner sets them through write-only routes, never in chat, which is stored for good. Core also wraps plugin tools so any known secret value they report, while running or in their result, becomes `[secret]`. The host stores them, keyed by connection kind, name and secret.
+- **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
+- **Secrets never reach plugin code, or the model.** Each secret declares the header, exact origin and requests it is sent with, and core's `authorizedFetch` attaches it to those and nothing else, never following a redirect. The owner sets secrets through write-only routes, never in chat, which is stored for good. As a backstop, core wraps plugin tools so any known secret value they report, while running or in their result, becomes `[secret]`; nothing relies on it. The host stores secrets, keyed by connection kind, name and secret. This protects keys from careless plugins and prompt injection, not from a malicious plugin, which runs in the host's process.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
@@ -85,16 +85,16 @@ pnpm dev:demo
 
 It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. A word in your message picks what it does:
 
-| Word      | Familiar                                                                |
-| --------- | ----------------------------------------------------------------------- |
-| (none)    | Replies with headings, lists, a table and code                          |
-| `tool`    | Calls `current_time`, then replies                                      |
-| `memory`  | Calls `recall` for the morning drink, then replies with what it found   |
-| `remind`  | Schedules a reminder for the next minute, which then notifies           |
-| `key`     | Calls the demo plugin's tool, which echoes its key, shown as `[secret]` |
-| `slow`    | Writes a long reply, to try Stop and queued messages                    |
-| `compact` | Fills the context until Pi compacts it (the overflow error is expected) |
-| `error`   | Fails partway with an error message                                     |
+| Word      | Familiar                                                                    |
+| --------- | --------------------------------------------------------------------------- |
+| (none)    | Replies with headings, lists, a table and code                              |
+| `tool`    | Calls `current_time`, then replies                                          |
+| `memory`  | Calls `recall` for the morning drink, then replies with what it found       |
+| `remind`  | Schedules a reminder for the next minute, which then notifies               |
+| `key`     | Sends the demo key to a pretend service that echoes it, shown as `[secret]` |
+| `slow`    | Writes a long reply, to try Stop and queued messages                        |
+| `compact` | Fills the context until Pi compacts it (the overflow error is expected)     |
+| `error`   | Fails partway with an error message                                         |
 
 ### Settings
 
