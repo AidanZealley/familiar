@@ -24,7 +24,6 @@ export type {
   Fact,
   FactsState,
 } from './memory/index.ts'
-export type { SavedDetails } from './memory/tools.ts'
 
 /** Every route, for Hono's typed client: `hc<HttpApi>(baseUrl)`. */
 export type HttpApi = ReturnType<typeof createHttpApi>

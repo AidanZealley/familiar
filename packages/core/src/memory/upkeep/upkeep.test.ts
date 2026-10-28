@@ -16,6 +16,7 @@ import {
 import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
+import { storageWith } from '../testing.ts'
 
 const context = BACKGROUND_CONTEXT
 
@@ -60,7 +61,7 @@ const start = new Date(2026, 9, 25, 12).getTime() // local noon
 const firstPass = nextUpkeep(start)
 const secondPass = nextUpkeep(firstPass)
 
-async function setup(storage = new ReopenableStorage()) {
+async function setup(storage: MemoryStorage = new ReopenableStorage()) {
   const faux = fauxProvider()
   const models = createModels()
   models.setProvider(faux.provider)
@@ -121,6 +122,7 @@ async function setup(storage = new ReopenableStorage()) {
   }
   return {
     faux,
+    familiar: () => familiar,
     say,
     setTime: clock.setTime,
     memory,
@@ -159,21 +161,18 @@ const inputOf = (context: TranscriptContext) => {
 const isUpkeep = (context: TranscriptContext) =>
   JSON.stringify(context.messages).includes('long-term memory of Familiar')
 
-test('a pass at 04:00 consolidates memory with the memory tools', async () => {
-  const { faux, say, memory, passAt } = await setup()
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Has a cat', importance: 3 }),
-        fauxToolCall('remember', {
-          text: 'Owns a cat called Miso',
-          importance: 3,
-        }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-  ])
+/** The exchange ID upkeep's input gives the person's line containing `text`. */
+const exchangeIn = (input: string, text: string) =>
+  input
+    .split('\n')
+    .find((line) => line.includes(text))
+    ?.match(/^\[(x\d+) /)?.[1] ?? 'missing'
+
+test('a pass at 04:00 files facts with their sources and days', async () => {
+  const { faux, say, memory, passAt } = await setup(
+    await storageWith(['Has a cat', 3], ['Owns a cat called Miso', 3]),
+  )
+  faux.setResponses([fauxAssistantMessage('Noted.')])
   await say('I have a cat called Miso, and I am vegetarian.')
 
   let input = ''
@@ -181,14 +180,20 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
     (context) => {
       expect(isUpkeep(context)).toBe(true)
       input = inputOf(context)
+      const source = exchangeIn(input, 'vegetarian')
       return fauxAssistantMessage(
         [
           fauxToolCall('revise_memory', {
             id: 'f2',
             text: 'Owns a cat called Miso',
+            sources: [source],
             merge: ['f1'],
           }),
-          fauxToolCall('remember', { text: 'Is vegetarian', importance: 4 }),
+          fauxToolCall('remember', {
+            text: 'Is vegetarian',
+            importance: 4,
+            sources: [source],
+          }),
         ],
         { stopReason: 'toolUse' },
       )
@@ -199,18 +204,112 @@ test('a pass at 04:00 consolidates memory with the memory tools', async () => {
   await passAt(firstPass, secondPass)
 
   expect(faux.getPendingResponseCount()).toBe(0)
-  expect(input).toContain('aidan: I have a cat called Miso')
+  expect(input).toMatch(
+    /\[x\d+ 2026-10-25 12:00\] aidan: I have a cat called Miso/,
+  )
   expect(input).toContain('Familiar: Noted.')
+  const source = Number(exchangeIn(input, 'vegetarian').slice(1))
   // Merged duplicates stay as history; only current facts are believed.
   expect(
     (await memory())
       .filter((fact) => fact.until === undefined)
-      .map((fact) => [fact.text, fact.replaces]),
+      .map(({ text, replaces, sources, since }) => ({
+        text,
+        replaces,
+        sources,
+        since,
+      })),
   ).toEqual([
-    ['Owns a cat called Miso', ['f2', 'f1']],
-    ['Is vegetarian', undefined],
+    {
+      text: 'Owns a cat called Miso',
+      replaces: ['f2', 'f1'],
+      sources: [source],
+      since: '2026-10-25',
+    },
+    {
+      text: 'Is vegetarian',
+      replaces: undefined,
+      sources: [source],
+      since: '2026-10-25',
+    },
   ])
   expect(await memory()).toHaveLength(4)
+})
+
+test("a pass rejects sources that are not people's messages", async () => {
+  const { faux, familiar, say, memory, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage('Noted.')])
+  await say('I am vegetarian.')
+  const view = await familiar().watch()
+  await view.stop()
+  const reply = view.value.entries.find(
+    (entry) => entry.kind === 'pi.assistant',
+  )
+
+  let results = ''
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall('remember', {
+          text: 'Is vegetarian',
+          importance: 4,
+          sources: [`x${reply!.id}`],
+        }),
+        fauxToolCall('remember', {
+          text: 'Is vegetarian',
+          importance: 4,
+          sources: ['x9999'],
+        }),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    (context) => {
+      results = JSON.stringify(
+        context.messages.filter((message) => message.role === 'toolResult'),
+      )
+      return fauxAssistantMessage('Nothing filed.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  expect(results).toContain(`x${reply!.id} is not a message from a person`)
+  expect(results).toContain('x9999 is not a message from a person')
+  expect(await memory()).toEqual([])
+})
+
+test('something the owner asks Familiar to remember is a fact after the next pass', async () => {
+  const { faux, say, passAt } = await setup()
+  faux.setResponses([fauxAssistantMessage("I'll remember that.")])
+  await say('Please remember that my locker code is 4417.')
+
+  let instructions = ''
+  faux.setResponses([
+    (context) => {
+      instructions = JSON.stringify(context.messages[0])
+      return fauxAssistantMessage(
+        fauxToolCall('remember', {
+          text: 'Locker code is 4417',
+          importance: 5,
+          sources: [exchangeIn(inputOf(context), 'locker code')],
+        }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage('Shared a locker code.'),
+  ])
+  await passAt(firstPass, secondPass)
+  expect(instructions).toContain(
+    'Always save anything someone explicitly asked Familiar to remember',
+  )
+
+  let prompt = ''
+  faux.setResponses([
+    (context) => {
+      prompt = JSON.stringify(context.messages)
+      return fauxAssistantMessage('4417.')
+    },
+  ])
+  await say('What is my locker code?')
+  expect(prompt).toContain('f1: Locker code is 4417')
 })
 
 test('a pass sees only messages since the previous one', async () => {
@@ -284,24 +383,14 @@ test('reopening keeps exactly one upkeep task on its schedule', async () => {
 })
 
 test('a later pass revises a fact saved outside core instead of duplicating it', async () => {
-  const { faux, say, memory, passAt } = await setup()
+  const { faux, say, memory, passAt } = await setup(
+    await storageWith(['Prefers green tea', 1]),
+  )
   const recalledIn = (context: TranscriptContext) =>
     JSON.stringify(context.messages).includes('f1 (since')
-  faux.setResponses([
-    fauxAssistantMessage(
-      fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await say('I prefer green tea.')
   expect((await memory())[0].core).toBe(false)
 
-  faux.setResponses([
-    fauxAssistantMessage('Nothing to change.'),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await passAt(firstPass, secondPass)
+  faux.setResponses([fauxAssistantMessage('Noted.')])
   await say('I have switched to black tea now.')
 
   let sawFact = false
@@ -310,45 +399,43 @@ test('a later pass revises a fact saved outside core instead of duplicating it',
       expect(isUpkeep(context)).toBe(true)
       sawFact = recalledIn(context)
       return fauxAssistantMessage(
-        fauxToolCall('revise_memory', { id: 'f1', text: 'Prefers black tea' }),
+        fauxToolCall('revise_memory', {
+          id: 'f1',
+          text: 'Prefers black tea',
+          sources: [exchangeIn(inputOf(context), 'black tea')],
+        }),
         { stopReason: 'toolUse' },
       )
     },
     fauxAssistantMessage('Revised the tea preference.'),
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(firstPass, secondPass)
 
   expect(sawFact).toBe(true)
-  expect(
-    (await memory()).filter((fact) => fact.until === undefined),
-  ).toMatchObject([{ id: 'f2', text: 'Prefers black tea', replaces: ['f1'] }])
+  expect(await memory()).toMatchObject([
+    { id: 'f1', since: '2026-01-05', until: '2026-10-25' },
+    {
+      id: 'f2',
+      text: 'Prefers black tea',
+      replaces: ['f1'],
+      since: '2026-10-25',
+    },
+  ])
 })
 
 test('a pass can search for a fact its automatic recall missed', async () => {
-  const { faux, say, memory, passAt } = await setup()
   const topics = Array.from(
     { length: 10 },
     (_, index) =>
       `Topic ${index}: switched to a new routine for the garden now`,
   )
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Prefers green tea', importance: 1 }),
-        ...topics.map((text) =>
-          fauxToolCall('remember', { text, importance: 1 }),
-        ),
-      ],
-      { stopReason: 'toolUse' },
+  const { faux, say, memory, passAt } = await setup(
+    await storageWith(
+      ['Prefers green tea', 1],
+      ...topics.map((text) => [text, 1] as [string, number]),
     ),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await say('Lots about me.')
-  faux.setResponses([
-    fauxAssistantMessage('Nothing to change.'),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await passAt(firstPass, secondPass)
+  )
+  faux.setResponses([fauxAssistantMessage('Noted.')])
   await say(
     `I have switched to black tea now. ${topics.join('. ')}. The garden routine is new.`,
   )
@@ -375,7 +462,7 @@ test('a pass can search for a fact its automatic recall missed', async () => {
     },
     fauxAssistantMessage('Revised the tea preference.'),
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(firstPass, secondPass)
 
   // Crowded out of the automatic eight, but found by a targeted search.
   expect(automatic).toContain('Recalled from memory')
@@ -389,17 +476,10 @@ test('a pass can search for a fact its automatic recall missed', async () => {
 })
 
 test("a pass writes the day's episode, rebalances core, and Monday's pass rolls up the week", async () => {
-  const { faux, say, memory, episodes, passAt } = await setup()
-  faux.setResponses([
-    fauxAssistantMessage(
-      fauxToolCall('remember', {
-        text: 'Plants bulbs with Noor',
-        importance: 3,
-      }),
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Lovely.'),
-  ])
+  const { faux, say, memory, episodes, passAt } = await setup(
+    await storageWith(['Plants bulbs with Noor', 3]),
+  )
+  faux.setResponses([fauxAssistantMessage('Lovely.')])
   // Sunday 25 October 2026; the first pass is Monday at 04:00.
   await say('I spent today planting bulbs with Noor.')
   expect((await memory())[0].core).toBe(true)
@@ -454,9 +534,10 @@ test("a pass writes the day's episode, rebalances core, and Monday's pass rolls 
   expect(rollupInput).toContain(
     '2026-10-25: Rowan planted bulbs with Noor on Sunday.',
   )
-  // Retired, so rebalancing moved it out of core; it is still kept.
+  // Retired on the day being filed, so rebalancing moved it out of core;
+  // it is still kept.
   expect(await memory()).toMatchObject([
-    { id: 'f1', core: false, until: '2026-10-26' },
+    { id: 'f1', core: false, until: '2026-10-25' },
   ])
 
   let note = ''

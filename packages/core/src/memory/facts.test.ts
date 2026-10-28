@@ -217,6 +217,13 @@ test('retiring keeps the fact as past history, ending on the given day', () => {
   )
 })
 
+test('retiring before a fact began ends it the day it began', () => {
+  const memory = empty()
+  save(memory, 'Works at Lantern Museum', 4, 10, '2025-03-01')
+  retireFact(memory, 'f1', '2025-01-01')
+  expect(memory.facts.facts[0].until).toBe('2025-03-01')
+})
+
 test('past and missing facts cannot change, and nothing is touched trying', () => {
   const memory = empty()
   save(memory, 'Old job', 3)

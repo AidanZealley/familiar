@@ -2,13 +2,13 @@ import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
-  fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { testClient } from 'hono/testing'
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from './familiar.ts'
 import { createHttpApi } from './http.ts'
+import { storageWith } from './memory/testing.ts'
 
 const opened: Familiar[] = []
 afterEach(async () => {
@@ -20,23 +20,11 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
   const models = createModels()
   models.setProvider(faux.provider)
   const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
+    storage: await storageWith(['Lives in Leeds', 4], ['Likes blue pens', 1]),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
   })
   opened.push(familiar)
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', { text: 'Lives in Leeds', importance: 4 }),
-        fauxToolCall('remember', { text: 'Likes blue pens', importance: 1 }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    fauxAssistantMessage('Noted.'),
-  ])
-  await familiar.send({ author: 'aidan', text: 'Hi', requestId: 'hi' })
-  await familiar.idle()
 
   const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
   const call = (method: string, path: string, body?: unknown) =>

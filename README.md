@@ -74,7 +74,7 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | --------- | ----------------------------------------------------------------------- |
 | (none)    | Replies with headings, lists, a table and code                          |
 | `tool`    | Calls `current_time`, then replies                                      |
-| `memory`  | Calls `remember`, then replies                                          |
+| `memory`  | Calls `recall` for the morning drink, then replies with what it found   |
 | `slow`    | Writes a long reply, to try Stop and queued messages                    |
 | `compact` | Fills the context until Pi compacts it (the overflow error is expected) |
 | `error`   | Fails partway with an error message                                     |

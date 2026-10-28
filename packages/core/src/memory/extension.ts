@@ -14,7 +14,7 @@ import { memoryTools } from './tools.ts'
 
 const render = (facts: FactsState | undefined) => {
   const listed = facts ? listFacts(coreFacts(facts)) : ''
-  return `What you remember. Use it without announcing it. Save new lasting facts with remember. When one changes, use revise_memory; when it stops being true, retire it. Use recall to search what you remember beyond this.
+  return `What you remember, filed from your conversations each night. Use it without announcing it. You can't save facts yourself: when someone asks you to remember something, say you will, and it is filed tonight. Use recall to search what you remember beyond this, including earlier conversations.
 ${listed || '(nothing yet)'}`
 }
 
@@ -49,7 +49,8 @@ export type MemoryExtensionOptions = {
 
 /**
  * Long-term memory: core facts the model sees on every request, facts
- * recalled for the latest message, and tools to keep the store.
+ * recalled for the latest message, and the tools to search them. Nightly
+ * upkeep writes them.
  */
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({

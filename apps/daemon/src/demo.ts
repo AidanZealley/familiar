@@ -83,13 +83,9 @@ const scenarios: Record<string, () => AssistantMessage> = {
       { stopReason: 'toolUse' },
     ),
   memory: () =>
-    fauxAssistantMessage(
-      fauxToolCall('remember', {
-        text: 'Prefers tea to coffee',
-        importance: 3,
-      }),
-      { stopReason: 'toolUse' },
-    ),
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'morning drink' }), {
+      stopReason: 'toolUse',
+    }),
   slow: () => fauxAssistantMessage(slowReply),
   compact: () =>
     // Tool output is truncated to about 12k tokens, and Pi keeps the newest 20k.
@@ -125,8 +121,8 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
     )
   }
   return fauxAssistantMessage(
-    toolName === 'remember'
-      ? "Noted. I'll keep that in mind; you can check or correct it on the **Memory** page."
+    toolName === 'recall'
+      ? `Here's what I found:\n\n${output}`
       : `It's **${output}**.`,
   )
 }

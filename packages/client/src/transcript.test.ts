@@ -18,12 +18,7 @@ const replied = (id: number, content: object[], stopReason: string = 'stop') =>
 
 const text = (text: string) => ({ type: 'text', text })
 
-const toolResult = (
-  id: number,
-  toolCallId: string,
-  output: string,
-  details?: unknown,
-) =>
+const toolResult = (id: number, toolCallId: string, output: string) =>
   entry(id, 'pi.tool-result', {
     model: [
       {
@@ -31,7 +26,6 @@ const toolResult = (
         toolCallId,
         content: [text(output)],
         isError: false,
-        ...(details !== undefined && { details }),
       },
     ],
   })
@@ -153,29 +147,4 @@ test('history starts over when the new view leaves a gap', () => {
   })
   // Unchanged when the view's start stays put.
   expect(carryOver(loaded, view, view)).toBe(loaded)
-})
-
-test('a reply lists the facts its memory tools saved', () => {
-  const call = (id: string, name: string) => ({
-    type: 'toolCall',
-    id,
-    name,
-    arguments: {},
-  })
-  const items = toTranscript(
-    viewOf(
-      said(1, 'remember these'),
-      replied(2, [
-        call('r1', 'remember'),
-        call('r2', 'revise_memory'),
-        call('r3', 'retire'),
-        call('r4', 'remember'),
-      ]),
-      toolResult(3, 'r1', 'Saved as m4.', { saved: 'm4' }),
-      toolResult(4, 'r2', 'Saved as m5; m2 now history.', { saved: 'm5' }),
-      toolResult(5, 'r3', 'Retired m3.'),
-      toolResult(6, 'r4', 'Core is full.'),
-    ),
-  ).items
-  expect(items[1]).toMatchObject({ type: 'reply', saved: ['m4', 'm5'] })
 })

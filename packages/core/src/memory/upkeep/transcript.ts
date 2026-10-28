@@ -8,6 +8,7 @@ import {
 } from '@earendil-works/pi-durable'
 import { saidBy } from '../../conversation/message.ts'
 import { localMinute } from '../../time/index.ts'
+import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
 
 /** Paginated scans keep a long backlog out of memory. */
@@ -74,8 +75,11 @@ export async function newMessages(
       break
     }
 
-    const who = said.role === 'assistant' ? name : said.author
-    const line = `[${localMinute(said.at)}] ${who}: ${said.text}`
+    // People's lines carry their exchange ID, which facts cite as sources.
+    const line =
+      said.role === 'person'
+        ? `[${exchangeId(entry.id)} ${localMinute(said.at)}] ${said.author}: ${said.text}`
+        : `[${localMinute(said.at)}] ${name}: ${said.text}`
     const size = estimateTextTokens(line)
     if (tokens + size > budget) {
       if (!lines.length) {

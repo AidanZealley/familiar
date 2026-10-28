@@ -3,6 +3,6 @@ import type { Margin } from '../../margins'
 
 export type TranscriptItemProps = {
   item: TranscriptItem
-  /** Its time and saved facts, if it has a margin. */
+  /** Its time, if it has a margin. */
   margin?: Margin
 }

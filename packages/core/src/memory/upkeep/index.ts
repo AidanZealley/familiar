@@ -20,9 +20,10 @@ import { addEpisode, dueRollup, Episodes } from '../episodes.ts'
 import { coreFacts, Facts, openMemory, rebalanceCore } from '../facts.ts'
 import { instructions, rollupInstructions } from './prompts.ts'
 import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
+import { upkeepTools } from './tools.ts'
 import { newMessages } from './transcript.ts'
 
-type UpkeepStep =
+export type UpkeepStep =
   | { phase: 'schedule' }
   /** Selects the next batch, on waking at 04:00 or after a completed batch. */
   | { phase: 'pass' }
@@ -290,11 +291,15 @@ export function createUpkeep(options: UpkeepOptions) {
       ),
   })
 
+  // The writing tools, only for upkeep's conversation; see start().
+  const extension = defineExtension({
+    name: 'familiar.upkeep',
+    tasks: [UpkeepTask],
+    tools: upkeepTools,
+  })
+
   return {
-    extension: defineExtension({
-      name: 'familiar.upkeep',
-      tasks: [UpkeepTask],
-    }),
+    extension,
 
     /** Ensures the upkeep conversation and exactly one live upkeep task exist. */
     start: (harness: Harness, context: Context) =>
@@ -317,8 +322,13 @@ export function createUpkeep(options: UpkeepOptions) {
         // Every open, so a change of model or wording applies to the next pass.
         await configure(tx, upkeep.conversation, {
           model: options.model,
-          extensions: [options.extension],
+          extensions: [options.extension, extension],
           instructions: instructions(options.name),
+        })
+        // Every installed extension reaches the main conversation unless it
+        // is left out, and upkeep is the only writer of facts.
+        await configure(tx, ROOT_CONVERSATION_ID, {
+          extensions: { remove: [extension] },
         })
         await configure(tx, upkeep.rollups, {
           model: options.model,

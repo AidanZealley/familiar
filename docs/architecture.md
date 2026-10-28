@@ -30,14 +30,16 @@ packages/core/src
                      beyond the documents.
     exchanges.ts     The in-memory search index over exchanges (a message and
                      its replies), derived from the transcript.
-    tools.ts         The model's memory tools. Each calls a rule in facts.ts.
+    tools.ts         The conversation's memory tool, recall. It only reads.
     recall.ts        Search and ranking over facts and episodes.
     episodes.ts      The episode shape, the Episodes document, dates in messages,
                      and when weeks and months are due to roll up.
     extension.ts     What memory adds to a request: core facts in the prompt, and
                      the recall note added before each request.
-    upkeep/          The nightly pass: schedule.ts (when), transcript.ts (what's
-                     new), prompts.ts (what it's told), index.ts (the task).
+    upkeep/          The nightly pass, the only writer of facts: schedule.ts
+                     (when), transcript.ts (what's new), prompts.ts (what it's
+                     told), tools.ts (remember, revise_memory, retire: each
+                     calls a rule in facts.ts), index.ts (the task).
     api.ts, http.ts  The owner's corrections, and their routes.
     index.ts         createMemory(): wires the above together.
 packages/client/src
@@ -64,9 +66,9 @@ Read each test file beside its source. They run the real Harness with a scripted
 2. `http.ts` asks the host who sent it, then calls `familiar.send()` (`conversation/api.ts`), which submits it to the conversation.
 3. Pi runs a generation task. The request it builds has the system prompt from every extension's sections (the preamble, core facts) and as much recent conversation as the context budget allows; older conversation has been compacted into a summary.
 4. Memory's `beforeRequest` hook (`extension.ts`) searches facts and episodes for the latest message and adds a recall note at the end of this request only.
-5. The model may call a tool, say `remember`. `tools.ts` commits the change through `facts.ts`'s rules; the new fact and the tool's result are committed together.
+5. The model may call a tool, say `recall`, which searches facts and episodes. It can't change memory: nothing said is filed until upkeep runs that night.
 6. Each commit reaches `/api/events` as operations: the conversation's, and those of any document that changed. The client applies them, `toTranscript()` turns entries into chat items, and React renders them.
-7. At 04:00, upkeep (`upkeep/index.ts`) reviews unreviewed message text oldest first with the same memory tools. Batches stop at each 04:00 day boundary or the transcript budget, whichever comes first. Each completed batch saves an episode and its review position, so a failed later batch can resume without repeating earlier ones. Once the backlog is clear, upkeep rolls up finished weeks and months. A single message larger than the budget is truncated and reported to the host; ordinary batch overflow is left for the next batch.
+7. At 04:00, upkeep (`upkeep/index.ts`) files unreviewed message text oldest first with the writing tools only its conversation is given (`upkeep/tools.ts`), citing each person's message by its exchange ID. Batches stop at each 04:00 day boundary or the transcript budget, whichever comes first. Each completed batch saves an episode and its review position, so a failed later batch can resume without repeating earlier ones. Once the backlog is clear, upkeep rolls up finished weeks and months. A single message larger than the budget is truncated and reported to the host; ordinary batch overflow is left for the next batch.
 
 ## Where new things go
 

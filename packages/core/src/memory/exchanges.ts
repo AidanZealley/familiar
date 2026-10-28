@@ -1,3 +1,4 @@
+import type { EntryId } from '@earendil-works/pi-durable'
 import MiniSearch from 'minisearch'
 import { localDay } from '../time/index.ts'
 import { dateFit, type DateRange } from './episodes.ts'
@@ -8,6 +9,13 @@ import { RANKING, TERMS } from './recall.ts'
  * piece of the transcript worth finding. They are never stored. The index is
  * a view of the transcript, so losing it loses nothing: it is rebuilt.
  */
+
+/** An exchange's ID: `x` and its person message's entry ID. */
+export const exchangeId = (entry: EntryId) => `x${entry}`
+
+/** The person message an exchange ID names, or undefined if it isn't one. */
+export const entryOf = (id: string) =>
+  /^x\d+$/.test(id) ? (Number(id.slice(1)) as EntryId) : undefined
 
 export type Exchange = {
   /** `x` and the person message's entry ID. */

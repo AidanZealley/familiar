@@ -10,7 +10,7 @@ import type {
   InboxState,
   LiveState,
 } from '@earendil-works/pi-durable'
-import type { MessageData, SavedDetails } from '@familiar/core/http'
+import type { MessageData } from '@familiar/core/http'
 
 import { MESSAGE_KIND } from './conversation/message.ts'
 
@@ -20,8 +20,6 @@ export type ToolCall = {
   arguments: ModelToolCall['arguments']
   status: 'running' | 'done' | 'error'
   output: string
-  /** The fact this call saved, when it was a memory tool that saved one. */
-  saved?: string
 }
 
 /** Item IDs are unique across the transcript and stable across updates: use them as keys. */
@@ -42,8 +40,6 @@ export type TranscriptItem =
       text: string
       thinking: string
       toolCalls: ToolCall[]
-      /** IDs of the facts its tool calls saved, new or revised. */
-      saved: string[]
       /** When it was generated, in ms since the epoch. */
       at: number
       /** Still being generated. */
@@ -127,19 +123,8 @@ export function toTranscript(
     })
   }
 
-  // Tool results arrive after their call, so what a reply saved is known
-  // only once every entry has been read.
-  for (const item of items) {
-    if (item.type === 'reply') {
-      item.saved = savedBy(item.toolCalls)
-    }
-  }
-
   return { items, busy: live?.run !== undefined }
 }
-
-const savedBy = (calls: ToolCall[]) =>
-  calls.flatMap((call) => (call.saved ? [call.saved] : []))
 
 function toItem(
   entry: EntryRecord,
@@ -178,10 +163,6 @@ function toItem(
       if (call) {
         call.status = result.isError ? 'error' : 'done'
         call.output = textOf(result.content)
-        const details = result.details as Partial<SavedDetails> | undefined
-        if (typeof details?.saved === 'string') {
-          call.saved = details.saved
-        }
       }
       return undefined
     }
@@ -221,7 +202,6 @@ function toReply(
     text,
     thinking,
     toolCalls,
-    saved: [],
     at: message.timestamp,
     streaming: false,
     stopped: message.stopReason === 'aborted',
