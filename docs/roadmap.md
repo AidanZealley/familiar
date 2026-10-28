@@ -22,8 +22,11 @@ Pick these up in order unless the owner says otherwise. Each spec is complete en
    - **Steps 2–4** are on this branch: facts with importance, core, history and pins; recall of facts and episodes before each request and through the `recall` tool; day episodes with weekly and monthly rollups; core rebalanced in code. Each step was reviewed and its findings fixed; the last fixes (`437f0e6`) haven't been reviewed again.
    - **Step 5**, the Memory page, is on `feat/memory-page` (from this branch): the owner chose layout F from the prototypes on `feat/memory-page-variants`. Facts, History and Episodes are routes under `/memory`; episodes now stream to clients; the chat's margin shows the facts each reply saved. Showing the facts each reply _used_ (recall) is left for later: core works them out per request but doesn't record them where clients can see.
    - **Merged to `main`**, with a consolidation pass for readability: a folder per capability (`time` split from `persona`), memory's tools, extension and upkeep in smaller files, documents streamed generically by name, one clock, and saved facts read from tool result details. [architecture.md](architecture.md) is the reading guide.
-   - **Next**: save the v3 baseline when the eval's usage allows; restart the owner's service onto `main`, backing up `~/.local/share/familiar` first (it migrates the memory document); use Familiar day to day. Step 6 runs later, in the background, when the eval's cost suits: the baseline took most of a week's ChatGPT usage.
+   - **v3 baseline** saved: 41 of 50 (`eval/results/2026-10-27-be415fd.json`).
+   - **The owner's service** runs `main` since 2026-10-28, with the data directory backed up first to `~/.local/share/familiar-backup-20261028-065558`.
+   - **Next**: use Familiar day to day. Step 6 runs later, in the background, when the eval's cost suits: the baseline took most of a week's ChatGPT usage.
 2. [Reminders and push](specs/reminders-and-push.md): a `remind` tool and Web Push notifications to the home-screen app.
+3. [Easy install](specs/easy-install.md): one command that installs, signs in and starts Familiar on Linux, macOS, Windows or a VPS, and export and import to move it between machines.
 
 ## Later
 
