@@ -22,7 +22,7 @@ apps/daemon       The Node host: SQLite storage, ChatGPT login, serves the API
 apps/web          Optional chat UI: Vite, TanStack Router, shadcn (Base UI).
 ```
 
-The daemon keeps everything it stores in `~/.local/share/familiar`, outside the repo: the ChatGPT login (`auth.json`), the conversation (`familiar.sqlite`) and this installation's ID. The directory is private to your user. Treat it like a password: it holds a token for your subscription and everything you've told Familiar.
+The daemon keeps everything it stores in `~/.local/share/familiar`, outside the repo: the ChatGPT login (`auth.json`), the conversation (`familiar.sqlite`), this installation's ID, and Web Push's keys (`vapid.json`) and subscribed browsers (`push.json`). The directory is private to your user. Treat it like a password: it holds a token for your subscription and everything you've told Familiar.
 
 ### Rules
 
@@ -78,20 +78,22 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | (none)    | Replies with headings, lists, a table and code                          |
 | `tool`    | Calls `current_time`, then replies                                      |
 | `memory`  | Calls `recall` for the morning drink, then replies with what it found   |
+| `remind`  | Schedules a reminder for the next minute, which then notifies           |
 | `slow`    | Writes a long reply, to try Stop and queued messages                    |
 | `compact` | Fills the context until Pi compacts it (the overflow error is expected) |
 | `error`   | Fails partway with an error message                                     |
 
 ### Settings
 
-| Variable            | Default                   |                                       |
-| ------------------- | ------------------------- | ------------------------------------- |
-| `FAMILIAR_MODEL`    | `gpt-6.1-sol`             | Any OpenAI model in pi-ai's catalog   |
-| `FAMILIAR_NAME`     | `Familiar`                | What the assistant calls itself       |
-| `FAMILIAR_OWNER`    | `owner`                   | The author recorded for your messages |
-| `FAMILIAR_PORT`     | `4317`                    |                                       |
-| `FAMILIAR_HOST`     | `127.0.0.1`               |                                       |
-| `FAMILIAR_DATA_DIR` | `~/.local/share/familiar` | Or `$XDG_DATA_HOME/familiar`          |
+| Variable                | Default                       |                                          |
+| ----------------------- | ----------------------------- | ---------------------------------------- |
+| `FAMILIAR_MODEL`        | `gpt-6.1-sol`                 | Any OpenAI model in pi-ai's catalog      |
+| `FAMILIAR_NAME`         | `Familiar`                    | What the assistant calls itself          |
+| `FAMILIAR_OWNER`        | `owner`                       | The author recorded for your messages    |
+| `FAMILIAR_PORT`         | `4317`                        |                                          |
+| `FAMILIAR_HOST`         | `127.0.0.1`                   |                                          |
+| `FAMILIAR_DATA_DIR`     | `~/.local/share/familiar`     | Or `$XDG_DATA_HOME/familiar`             |
+| `FAMILIAR_PUSH_CONTACT` | `mailto:familiar@example.com` | Sent to push services with notifications |
 
 The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog: their API changes without notice between releases.
 

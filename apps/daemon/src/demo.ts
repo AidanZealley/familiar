@@ -31,6 +31,7 @@ import {
   seedMemory,
   seedPinned,
 } from './demo/seed.ts'
+import { openPush } from './push.ts'
 import { serveFamiliar } from './serve.ts'
 
 const markdownReply = `## A quick tour
@@ -64,13 +65,21 @@ export function greet(name: string) {
 }
 \`\`\`
 
-> Say **tool**, **memory**, **slow**, **compact** or **error** to see the other scenarios.`
+> Say **tool**, **memory**, **remind**, **slow**, **compact** or **error** to see the other scenarios.`
 
 const slowReply = Array.from(
   { length: 30 },
   (_, i) =>
     `**Part ${i + 1}.** This is a long reply for testing Stop and queued messages. Send another message while it streams and it waits its turn; press Stop to end this one early. The text keeps going so there is plenty of time to try both.`,
 ).join('\n\n')
+
+const pad = (value: number) => String(value).padStart(2, '0')
+
+/** The next whole minute, as the schedule tool's local `YYYY-MM-DD HH:MM`. */
+function nextMinute() {
+  const at = new Date(Date.now() + 60_000)
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`
+}
 
 /** What the model does for a message, picked by a word in it. */
 const scenarios: Record<string, () => AssistantMessage> = {
@@ -86,6 +95,14 @@ const scenarios: Record<string, () => AssistantMessage> = {
     fauxAssistantMessage(fauxToolCall('recall', { query: 'morning drink' }), {
       stopReason: 'toolUse',
     }),
+  remind: () =>
+    fauxAssistantMessage(
+      fauxToolCall('schedule', {
+        prompt: 'Remind the owner to stand up and stretch',
+        at: nextMinute(),
+      }),
+      { stopReason: 'toolUse' },
+    ),
   slow: () => fauxAssistantMessage(slowReply),
   compact: () =>
     // Tool output is truncated to about 12k tokens, and Pi keeps the newest 20k.
@@ -120,6 +137,9 @@ function afterTool(toolName: string, output: string, compacted: boolean) {
       'Saved. The **Memory** pages show it all: facts, how they changed and a year of episodes.',
     )
   }
+  if (toolName === 'schedule') {
+    return fauxAssistantMessage(`I'll remind you within a minute. ${output}`)
+  }
   return fauxAssistantMessage(
     toolName === 'recall'
       ? `Here's what I found:\n\n${output}`
@@ -151,6 +171,12 @@ function reply(context: TranscriptContext) {
   const latest = textOf(
     messages.findLast((message) => message.role === 'user')?.content,
   )
+  // Checked before the words: a scheduled prompt may contain one.
+  if (latest.startsWith('[Scheduled')) {
+    return fauxAssistantMessage(
+      "**Time to stretch!** You've been sitting a while: stand up, roll your shoulders and look at something far away for a minute.",
+    )
+  }
   if (latest === SEED_MESSAGE) {
     return fauxAssistantMessage(
       [fauxToolCall('seed_memory', {}), fauxToolCall('seed_episodes', {})],
@@ -209,10 +235,18 @@ const fillContext = defineTool({
   }),
 })
 
+// Keys and subscriptions last as long as the demo, so a browser subscribes
+// again after a restart. Every notification is logged too.
+const push = openPush({ contact: 'mailto:familiar@example.com' })
+
 const familiar = await summonFamiliar({
   storage: new MemoryStorage(),
   models,
   model: { provider: 'faux', modelId: 'faux-1' },
+  notify: async (notification) => {
+    console.log('Notification:', JSON.stringify(notification))
+    await push.notify(notification)
+  },
   extensions: [
     defineExtension({
       name: 'familiar.demo',
@@ -239,4 +273,5 @@ serveFamiliar(familiar, {
   port: Number(process.env.FAMILIAR_DEMO_PORT ?? 4318),
   owner: 'demo',
   label: 'Familiar demo',
+  push: push.host,
 })

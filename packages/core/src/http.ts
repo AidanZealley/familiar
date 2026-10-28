@@ -11,6 +11,7 @@ import type { HistoryPage } from './conversation/index.ts'
 import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
+import { pushRoutes, type PushHost } from './push.ts'
 import type { SchedulesState } from './schedules/index.ts'
 import { scheduleRoutes } from './schedules/http.ts'
 
@@ -26,6 +27,7 @@ export type {
   ScheduledData,
 } from './conversation/index.ts'
 export type { Schedule, SchedulesState } from './schedules/index.ts'
+export type { PushHost, PushSubscriptionJson } from './push.ts'
 export type {
   Episode,
   EpisodesState,
@@ -75,6 +77,8 @@ export type HttpOptions = {
   authenticate: (
     request: Request,
   ) => string | undefined | Promise<string | undefined>
+  /** Web Push, if the host offers it; the push routes answer 404 without it. */
+  push?: PushHost
 }
 
 /** Entries per `GET /history` page. Clients page by `before`, so they needn't know it. */
@@ -199,5 +203,6 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       })
       .route('/memory', memoryRoutes(familiar.memory))
       .route('/schedules', scheduleRoutes(familiar.schedules))
+      .route('/push', pushRoutes(options.push))
   )
 }
