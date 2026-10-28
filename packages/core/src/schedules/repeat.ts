@@ -1,4 +1,4 @@
-// rrule ships CommonJS only, which Node's ESM loader can't name exports of.
+// rrule ships CommonJS only to Node.
 import rrule from 'rrule'
 
 /**
