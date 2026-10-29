@@ -61,7 +61,7 @@ export type FamiliarPlugin = {
   /** For the owner, on the Connections page. */
   title: string
   secrets?: PluginSecret[]
-  extension: (context: PluginContext) => Extension
+  extension: (context: PluginContext) => Omit<Extension, 'name'>
 }
 
 /** A connection as the owner sees it: never a secret's value. */

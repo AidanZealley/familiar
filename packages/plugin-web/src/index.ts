@@ -1,4 +1,3 @@
-import { defineExtension } from '@earendil-works/pi-durable'
 import { definePlugin } from '@familiar/core'
 import { BRAVE_ORIGIN, BRAVE_PATH, webSearchTool } from './brave.ts'
 
@@ -18,11 +17,7 @@ const webPlugin = definePlugin({
       },
     },
   ],
-  extension: (context) =>
-    defineExtension({
-      name: 'web',
-      tools: [webSearchTool(context)],
-    }),
+  extension: (context) => ({ tools: [webSearchTool(context)] }),
 })
 
 export default webPlugin
