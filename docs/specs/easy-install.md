@@ -18,7 +18,7 @@ Known decisions:
 
 - **One `familiar` command** replaces the pnpm scripts for people who aren't developing Familiar: `familiar` (setup, the default), `serve`, `sign-in`, `export`, `import`, `update`, `logs`, `uninstall`. Setup is idempotent, so running it again repairs an install. The pnpm scripts stay for development and call the same code.
 - **Distributed through GitHub Releases, not the npm registry.** The name `familiar` is taken on npm, and the install script installs Node anyway, so a registry adds an account without making anything simpler. CI builds a package tarball for each version tag and attaches it to the release; `npm i -g <release URL>` installs it. Publishing to npm as well, for `npx`, can come later. This needs the repo (or at least its releases) public on GitHub.
-- **The published package is bundled.** Node won't strip types from files inside `node_modules`, so the repo's run-unbuilt convention can't reach users. A release bundles the daemon, core and client into one JavaScript file with Rolldown (already in the tree through Vite 8) and ships the built web UI beside it. Development still runs unbuilt. Storage uses Node's built-in `node:sqlite`, so there's nothing native to build per platform.
+- **The published app is bundled.** Node won't strip types from files inside `node_modules`, so development's run-unbuilt convention cannot be the release format. Bundle the application with Rolldown and ship the built web UI beside it. Web fetch now also runs `page-worker.ts`: ship a JavaScript worker entry and ensure the daemon resolves it correctly in the installed package. Keep Piscina as a runtime dependency so its own worker assets resolve normally; its optional native scheduling helper is not required for correctness. Storage uses Node's built-in `node:sqlite`.
 - **Sign-in is ChatGPT's subscription login**, the Codex OAuth pi-ai already uses. OpenAI supports subscription OAuth in external tools; OpenClaw relies on it the same way. pi-ai offers "Browser login" and "Device code login (headless)"; setup picks for the user (step 3).
 - **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth (README Rules), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
 - **The conversation file is the unit of portability.** Everything a Familiar is (conversation, facts, history, episodes, durable tasks) is in `familiar.sqlite`. Export is a consistent snapshot of that file; the login stays behind (step 6).
@@ -39,11 +39,11 @@ Done when `node apps/daemon/src/cli.ts serve` runs the daemon, the pnpm scripts 
 
 ## 2. The release package
 
-1. A `bundle` script in `apps/daemon` that builds the web UI, bundles `src/cli.ts` with Rolldown into `dist/familiar.js` (Node target, `node:*` external, everything else inlined), and copies the web build to `dist/web/`.
-2. A package manifest for the bundle with `"bin": { "familiar": "familiar.js" }`, `"engines": { "node": ">=24.19" }`, and no dependencies. `npm pack` it.
-3. A GitHub Actions workflow: on a `v*` tag, run the hand-off checks, bundle, pack, and attach `familiar.tgz` to the release. The repo needs a GitHub remote first; there is none yet.
+1. A `bundle` script in `apps/daemon` that builds the web UI, bundles `src/cli.ts` with Rolldown into `dist/familiar.js` and `src/page-worker.ts` into `dist/page-worker.js` (Node target, `node:*` and Piscina external), and copies the web build to `dist/web/`. Resolve the page worker correctly in both source and installed builds.
+2. A package manifest for the bundle with `"bin": { "familiar": "familiar.js" }`, `"engines": { "node": ">=24.19" }`, and Piscina as a pinned runtime dependency. Include both application entries and the web assets, then `npm pack` it.
+3. A GitHub Actions workflow: on a `v*` tag, run the hand-off checks, bundle, pack, and attach `familiar.tgz` to the release. Use the repository's GitHub remote for release assets.
 
-Done when `npm i -g ./familiar.tgz` on a machine with only Node gives a working `familiar serve` that serves the UI.
+Done when `npm i -g ./familiar.tgz` on a machine with only Node gives a working `familiar serve` that serves the UI and can convert an HTML page through its worker.
 
 ## 3. Setup
 
@@ -95,7 +95,7 @@ Done when each script takes a fresh machine of its kind to a working URL.
 2. Refuse when the data directory already has a conversation, unless given `--replace`, which renames the old file to `familiar.sqlite.replaced-<time>` first.
 3. Stop the service if it runs, put the file in place, start it again.
 
-Durable tasks travel inside the file, so anything that fell due in transit (the nightly upkeep now, reminders later) runs when the new machine starts. Find out how the installed pi-durable treats a file written by a newer version of itself, and make import say "update Familiar first" in that case rather than fail obscurely.
+Durable tasks travel inside the file, so anything that fell due in transit (nightly upkeep and schedules) runs when the new machine starts. Find out how the installed pi-durable treats a file written by a newer version of itself, and make import say "update Familiar first" in that case rather than fail obscurely.
 
 Tests, with temporary directories:
 
