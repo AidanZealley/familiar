@@ -25,7 +25,7 @@ Write a spec before starting these.
 - **Agent-written tools and skills.** Consider Pi's code mode for saved scripts with no direct file or network access, and instruction-only skills when repeated tasks justify them. File and shell tools must not see Familiar's private data directory.
 - **MCP authentication.** OAuth and additional secret headers after the basic MCP connection flow works.
 - **Web fetch paging.** Add an offset if truncated pages become a practical problem. Add other search providers only when needed.
-- **Secret masking.** The prototype is preserved at tag `archive/secret-masking`. Reconsider it only for a concrete leak path; it is excluded from the current credential contract.
+- **Secret masking.** Reconsider masking only for a concrete leak path; it is excluded from the current credential contract.
 - **Photos.** Image input using the model's vision and Pi's image resizing.
 - **Gatherbot.** A Cloudflare host with one Familiar per household and Gather's authentication. Decide whose identity it uses for actions when nobody is present.
 - **UI improvements.** Sources and inline citations, context usage and suggestions where useful. A model switcher has been discussed but is not specified.
