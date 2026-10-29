@@ -1,3 +1,4 @@
+import { EventEmitter, once } from 'node:events'
 import {
   fauxAssistantMessage,
   fauxToolCall,
@@ -11,6 +12,96 @@ import { mcpFixture } from './testing/mcp.ts'
 const info = async (familiar: Familiar) =>
   (await familiar.connections.list())[0] as McpConnectionInfo
 const connection = { kind: 'mcp', name: 'test' } as const
+
+test('a new declaration cannot reuse an orphaned token for a different endpoint', async (test) => {
+  const fixture = mcpFixture(test)
+  const familiar = await fixture.open()
+  await fixture.secrets.set(connection, 'token', 'old-endpoint-token')
+  await familiar.mcp.add({
+    ...fixture.server,
+    transport: {
+      ...fixture.server.transport,
+      url: 'http://different.local/mcp',
+    },
+  })
+  await expect
+    .poll(async () => (await info(familiar)).status.type)
+    .toBe('needs-auth')
+  expect(await fixture.secrets.get(connection, 'token')).toBeUndefined()
+  expect(fixture.state.requests).toEqual([])
+})
+
+test('parallel expired calls do not reconnect a replacement session', async (test) => {
+  const fixture = mcpFixture(test)
+  let expiredCalls = 0
+  const familiar = await fixture.open(async (url, init) => {
+    const request = new Request(url, init)
+    const message =
+      request.method === 'POST'
+        ? ((await request.json()) as { method?: string })
+        : undefined
+    if (message?.method === 'tools/call') {
+      expiredCalls++
+      return new Response(null, { status: 404 })
+    }
+    return fixture.fetch(url, init)
+  })
+  await familiar.mcp.add(fixture.server)
+  await familiar.connections.setSecret(connection, 'token', fixture.state.token)
+  await expect
+    .poll(async () => (await info(familiar)).status.type)
+    .toBe('connected')
+  const events = new EventEmitter()
+  const blocked = once(events, 'blocked')
+  const released = once(events, 'released')
+  test.onTestFinished(() => {
+    events.emit('released')
+  })
+  const deleteSecret = fixture.secrets.delete
+  fixture.secrets.delete = async (connection, secret) => {
+    if (connection.name === 'other') {
+      events.emit('blocked')
+      await released
+    }
+    await deleteSecret(connection, secret)
+  }
+  // Keep an owner edit pending so both expiry callbacks queue before reconnect starts.
+  const adding = familiar.mcp.add({ ...fixture.server, name: 'other' })
+  await blocked
+  fixture.faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('tool_search', { query: 'echo' }), {
+      stopReason: 'toolUse',
+    }),
+    fauxAssistantMessage(
+      [
+        fauxToolCall('mcp__test__echo', {}, { id: 'first' }),
+        fauxToolCall('mcp__test__echo', {}, { id: 'second' }),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Both calls failed.'),
+  ])
+  await familiar.send({
+    author: 'owner',
+    text: 'Echo twice.',
+    requestId: 'parallel-expiry',
+  })
+  await familiar.idle()
+  expect(expiredCalls).toBe(2)
+  events.emit('released')
+  await adding
+  // This owner edit runs after the queued expiry callbacks: one automatic and one explicit reconnect.
+  await familiar.mcp.reconnect('test')
+  await expect
+    .poll(async () => (await info(familiar)).status.type)
+    .toBe('connected')
+  expect(
+    fixture.state.requests.filter(
+      (request) =>
+        request.method === 'POST' && !request.headers.has('mcp-session-id'),
+    ),
+  ).toHaveLength(3)
+})
 
 test('HTTP connections persist, keep tokens write-only, refresh tools and clean up', async (test) => {
   const fixture = mcpFixture(test)
@@ -90,17 +181,25 @@ test('HTTP connections persist, keep tokens write-only, refresh tools and clean 
   expect(await familiar.connections.list()).toEqual([])
 })
 
-test.for(['dropResponse', 'expire'] as const)(
+test.for(['dropResponse', 'expire', 'rejectCall', 'unauthorized'] as const)(
   'a failed call is not replayed after %s',
   async (failure, test) => {
     const fixture = mcpFixture(test)
     const familiar = await fixture.open()
-    await fixture.secrets.set(connection, 'token', fixture.state.token)
     await familiar.mcp.add(fixture.server)
+    await familiar.connections.setSecret(
+      connection,
+      'token',
+      fixture.state.token,
+    )
     await expect
       .poll(async () => (await info(familiar)).status.type)
       .toBe('connected')
-    fixture.state[failure] = true
+    if (failure === 'unauthorized') {
+      fixture.state.token = 'revoked'
+    } else {
+      fixture.state[failure] = true
+    }
     const requests: TranscriptContext[] = []
     fixture.faux.setResponses(
       [
@@ -123,16 +222,12 @@ test.for(['dropResponse', 'expire'] as const)(
       role: 'toolResult',
       isError: true,
     })
-    expect(fixture.state.calls).toBe(failure === 'dropResponse' ? 1 : 0)
-    if (failure === 'expire') {
-      await expect
-        .poll(async () => (await info(familiar)).status.type)
-        .toBe('connected')
-    } else {
-      await expect
-        .poll(async () => (await info(familiar)).status.type)
-        .toBe('failed')
-    }
+    expect(fixture.state.calls).toBe(
+      failure === 'dropResponse' || failure === 'rejectCall' ? 1 : 0,
+    )
+    await expect
+      .poll(async () => (await info(familiar)).status.type)
+      .toBe(failure === 'unauthorized' ? 'needs-auth' : 'connected')
   },
 )
 
@@ -170,8 +265,8 @@ test('redirects fail without sending a bearer token to a different endpoint', as
     urls.push(String(url))
     return Response.redirect('http://other.local/api/mcp')
   })
-  await fixture.secrets.set(connection, 'token', fixture.state.token)
   await familiar.mcp.add(fixture.server)
+  await familiar.connections.setSecret(connection, 'token', fixture.state.token)
   await expect
     .poll(async () => (await info(familiar)).status.type)
     .toBe('failed')

@@ -11,7 +11,7 @@ type BridgeOptions = {
   signal?: AbortSignal
   changed?(extension: Extension, tools: McpToolInfo[]): void
   failed?(error: unknown): void
-  closed?(): void
+  callFailed?(error: unknown): void
 }
 
 /** The host owns transport construction; only the daemon may spawn processes. */
@@ -47,7 +47,6 @@ export async function connectMcp(
       },
     },
   )
-  client.onclose = () => options.closed?.()
   const describe = (tools: Tool[]) => ({
     tools: tools.map((tool) => ({
       name: tool.name,
@@ -76,7 +75,7 @@ export async function connectMcp(
               )
             } catch (error) {
               if (!context.abortSignal?.aborted) {
-                options.failed?.(error)
+                options.callFailed?.(error)
               }
               throw error
             }

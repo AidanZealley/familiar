@@ -1,8 +1,9 @@
 import type { Extension, Registry } from '@earendil-works/pi-durable'
+import { SdkHttpError } from '@modelcontextprotocol/client'
 import type { SecretStore } from '../plugins/secrets.ts'
 import type { PluginFetch } from '../plugins/types.ts'
 import { connectMcp } from './index.ts'
-import { httpTransport, McpHttpError } from './http-transport.ts'
+import { httpTransport } from './http-transport.ts'
 import type { McpServer } from './servers.ts'
 import type { McpConnectionInfo, McpToolInfo } from './types.ts'
 
@@ -37,7 +38,7 @@ export function openConnection(
       info = {
         ...info,
         status:
-          error instanceof McpHttpError && error.status === 401
+          error instanceof SdkHttpError && error.status === 401
             ? { type: 'needs-auth' }
             : {
                 type: 'failed',
@@ -74,20 +75,14 @@ export function openConnection(
       const connection = await connectMcp(server.name, transport, {
         signal: abort.signal,
         changed: install,
-        failed: (error) => {
-          failed(error)
-          if (
-            !abort.signal.aborted &&
-            error instanceof McpHttpError &&
-            error.status === 404
-          ) {
-            options.expired()
-          }
-        },
-        closed: () => {
-          if (!abort.signal.aborted) {
-            registry.uninstall({ name: `familiar.mcp.${server.name}` })
-            info = { ...info, status: { type: 'disconnected' }, tools: [] }
+        failed,
+        callFailed: (error) => {
+          if (!abort.signal.aborted && error instanceof SdkHttpError) {
+            if (error.status === 401) {
+              failed(error)
+            } else if (error.status === 404) {
+              options.expired()
+            }
           }
         },
       })
