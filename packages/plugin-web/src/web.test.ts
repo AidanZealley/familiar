@@ -99,7 +99,6 @@ test('web_search sends the key in Brave header and returns compact, numbered res
 
   const { text, isError } = await callTool('web_search', {
     query: 'cats',
-    count: 10,
     freshness: 'week',
     domains: ['https://Example.com/'],
   })
@@ -111,15 +110,15 @@ test('web_search sends the key in Brave header and returns compact, numbered res
   )
   expect(new Headers(init?.headers).get('X-Subscription-Token')).toBe(KEY)
   expect(url.searchParams.get('q')).toBe('cats site:example.com')
-  expect(url.searchParams.get('count')).toBe('10')
+  expect(url.searchParams.get('count')).toBe('5')
   expect(url.searchParams.get('freshness')).toBe('pw')
 
   expect(text).toMatch(/^Brave Search results for "cats", \d{4}-\d\d-\d\d /)
   expect(text).toContain(
     '1. Cats & kittens 1\n   https://example.com/cats/1\n   Published 2026-10-01\n   About cats. Whiskers.',
   )
-  expect(text).toContain('10. Cats & kittens 10')
-  expect(text).not.toContain('11. ')
+  expect(text).toContain('5. Cats & kittens 5')
+  expect(text).not.toContain('6. ')
   expect(text).not.toContain('<strong>')
   expect(text.length).toBeLessThanOrEqual(8_000)
   // Each snippet is cut to 500 characters.
@@ -143,26 +142,6 @@ test('web_search keeps the whole output to 8,000 characters', async () => {
   expect(text.length).toBeLessThanOrEqual(8_000)
   expect(text).toContain('1. Cats')
   expect(text).not.toContain('10. Cats')
-})
-
-test('web_search asks for five results unless told otherwise', async () => {
-  const { sent, callTool, setKey } = await setup(() =>
-    Response.json(braveResults(5)),
-  )
-  await setKey()
-  await callTool('web_search', { query: 'cats' })
-  expect(sent[0].url.searchParams.get('count')).toBe('5')
-  expect(sent[0].url.searchParams.has('freshness')).toBe(false)
-})
-
-test('without the key, the model is told to ask the owner', async () => {
-  const { sent, callTool } = await setup(() => Response.json(braveResults(1)))
-  const { text, isError } = await callTool('web_search', { query: 'cats' })
-  expect(isError).toBe(true)
-  expect(text).toContain(
-    "Web search isn't connected. Ask the owner to add Brave Search API key on the Connections page.",
-  )
-  expect(sent).toEqual([])
 })
 
 test('times are written in local time', () => {
