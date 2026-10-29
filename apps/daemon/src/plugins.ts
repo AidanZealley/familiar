@@ -1,10 +1,24 @@
 import { isAbsolute } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { FamiliarPlugin } from '@familiar/core'
-import web from '@familiar/plugin-web'
+import { webPlugin } from '@familiar/plugin-web'
+import Piscina from 'piscina'
 
+// Synchronous HTML conversion must not block the daemon; Piscina owns its limits.
+const pages = new Piscina({
+  filename: new URL('./page-worker.ts', import.meta.url).href,
+  minThreads: 0,
+  maxThreads: 2,
+  maxQueue: 8,
+  resourceLimits: { maxOldGenerationSizeMb: 128 },
+})
 /** Plugins every daemon installs. */
-const firstParty: FamiliarPlugin[] = [web]
+const firstParty: FamiliarPlugin[] = [
+  webPlugin({
+    convert: (html, url, maxChars, signal) =>
+      pages.run({ html, url, maxChars }, { signal }),
+  }),
+]
 
 /**
  * The daemon's plugins: the first-party ones, then any named in

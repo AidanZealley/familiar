@@ -157,3 +157,75 @@ test('times are written in local time', () => {
     }
   }
 })
+
+const article =
+  '<nav>Menu</nav><main><h1>Purrs</h1><p>Read <a href="/more">more</a>.</p><pre><code>cat()</code></pre><table><tr><th>Cat</th></tr><tr><td>Tabby</td></tr></table></main><footer>Footer</footer>'
+
+test('web_fetch reads an article without sending the search key', async () => {
+  const { sent, callTool, setKey } = await setup(
+    () => new Response(article, { headers: { 'content-type': 'text/html' } }),
+  )
+  await setKey()
+  const { text, isError } = await callTool('web_fetch', {
+    url: 'https://cats.example/purrs',
+  })
+  expect(isError).toBe(false)
+  expect(text).toContain('# Purrs')
+  expect(text).toContain('[more](https://cats.example/more)')
+  expect(text).toContain('cat()')
+  expect(text).toContain('Tabby')
+  expect(text).not.toMatch(/Menu|Footer/)
+  expect(new Headers(sent[0].init?.headers).has('X-Subscription-Token')).toBe(
+    false,
+  )
+})
+
+test.each(['text/html', 'text/markdown', 'text/plain'])(
+  'web_fetch bounds %s output and marks truncation',
+  async (type) => {
+    const { callTool } = await setup(
+      () =>
+        new Response('a'.repeat(100), { headers: { 'content-type': type } }),
+    )
+    const { text, isError } = await callTool('web_fetch', {
+      url: 'https://cats.example',
+      maxChars: 12,
+    })
+    expect(isError).toBe(false)
+    expect(text).toContain('aaaaaaaaaaaa\n\n[Content truncated]')
+    expect(text).not.toContain('a'.repeat(13))
+  },
+)
+
+test('web_fetch refuses oversized bodies and cancels the stream', async () => {
+  let cancelled = false
+  const body = new ReadableStream({
+    pull: (controller) => controller.enqueue(new Uint8Array(1024 * 1024)),
+    cancel: () => {
+      cancelled = true
+    },
+  })
+  const { callTool } = await setup(
+    () => new Response(body, { headers: { 'content-type': 'text/plain' } }),
+  )
+  const { text, isError } = await callTool('web_fetch', {
+    url: 'https://cats.example/large',
+  })
+  expect(isError).toBe(true)
+  expect(text).toContain('larger than 3 MB')
+  expect(cancelled).toBe(true)
+})
+
+test('web_fetch refuses unsupported documents and non-web URLs', async () => {
+  const { sent, callTool } = await setup(
+    () =>
+      new Response('%PDF', { headers: { 'content-type': 'application/pdf' } }),
+  )
+  expect(
+    (await callTool('web_fetch', { url: 'file:///etc/passwd' })).isError,
+  ).toBe(true)
+  expect(sent).toHaveLength(0)
+  expect(
+    (await callTool('web_fetch', { url: 'https://cats.example/cat.pdf' })).text,
+  ).toContain('Unsupported page type')
+})

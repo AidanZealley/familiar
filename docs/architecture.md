@@ -116,4 +116,18 @@ Plugins are Pi extensions with metadata and a small context. `plugins/index.ts` 
 
 Network restrictions belong to the host. The daemon supplies `guardedFetch`, which checks each connection's destination address; other hosts supply their own fetch. Incoming authentication stays with `createHttpApi` and the host's server.
 
-Responses and tool output are not scrubbed. An upstream service that echoes a key can expose it to the plugin and conversation. The separate `feat/secret-masking` branch preserves the masking implementation for later consideration; this release has no protection hooks or masking package.
+Responses and tool output are not scrubbed. An upstream service that echoes a key can expose it to the plugin and conversation. There are no masking hooks or output scrubbers. The optional prototype is tracked as later work in the [roadmap](roadmap.md).
+
+## Web fetch
+
+`plugin-web/src/fetch-page.ts` owns the HTTP read, byte limit and deadline. `convert-html.ts` delegates extraction and Markdown conversion to mdream, then clips the returned text. That file is also exported for host-side workers. No parser or charset scanner is maintained here.
+
+The daemon's plugin list supplies a Piscina-backed converter; `page-worker.ts` calls the same portable conversion function. Piscina owns worker lifetimes, concurrency, queue limits and abort handling. A Cloudflare host can use the default converter under its platform CPU limits, without importing any daemon code.
+
+## Schedules and history
+
+A schedule is a prompt submitted to the main conversation at a local time, once or by RRULE. Its durable task survives restarts. Late repeats deliver the latest missed occurrence once and then resume normally. Cancellation removes the schedule; a task that wakes without one does nothing. Notifications use the reply, falling back to the prompt when no reply was produced. A crash between sending a push and recording completion can cause a duplicate notification.
+
+The daemon owns push subscriptions and VAPID keys. Core only calls the host's `notify`. HTTPS and device setup are described in the README.
+
+History remains in storage after compaction. The client pages older entries and combines them with the active view; the chat scroller preserves the reader's position. Markdown loads separately from the initial chat bundle. The large syntax-highlighting chunks can still trigger a build warning; lazy loading does not make those chunks smaller.
