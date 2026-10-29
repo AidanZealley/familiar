@@ -29,7 +29,7 @@ Cloudflare deployment and runtime testing, legacy HTTP+SSE fallback, MCP resourc
 
 ## Implementation decisions
 
-Research checked on 29 October 2026 against the published `@modelcontextprotocol/client` 2.4.0 package and Familiar's installed Pi types. Use the split v2 client package, not v1 examples importing `@modelcontextprotocol/sdk`. Pin the implementation dependency exactly.
+Research checked on 29 October 2026 against the published `@modelcontextprotocol/client` 2.4.0 package and Familiar's installed Pi types. Use the split v2 client package, not v1 examples importing `@modelcontextprotocol/sdk`. Pin the MCP client and test-server dependencies exactly once in the workspace catalog.
 
 ### Ownership and lifecycle
 
@@ -37,7 +37,7 @@ Research checked on 29 October 2026 against the published `@modelcontextprotocol
 - Use a discriminated connection state with an error message only on `failed`. `needs-auth` covers both a missing bearer token and HTTP 401. A 403 is a failure, not an invitation to start OAuth.
 - Familiar must return even when a server is unavailable. Start independent connection attempts without making the first model request wait for unreachable servers. Bound each initialization and discovery attempt with the SDK request options, initially 15 seconds. Close a client after a failed attempt.
 - Use one per-server lifecycle operation at a time. Remove or reconnect must finish closing the previous client before replacing it; a late connect or list-change callback must not reinstall a removed server. Keep this ownership in the manager rather than coordinating flags across routes and UI.
-- `dismiss()` closes MCP clients as well as the harness. Removal uninstalls the extension immediately, closes the client, deletes its declaration and token, and waits for cleanup before returning. Cancelling a remote operation cannot undo effects already performed.
+- `dismiss()` closes MCP clients as well as the harness. Removal uninstalls the extension immediately, closes the client, deletes its declaration and token, and waits for cleanup before returning. For stdio still initializing, the SDK may finish process termination after the close promise resolves; its own EOF and signal escalation remain responsible for cleanup. Cancelling a remote operation cannot undo effects already performed.
 - Saving or deleting a token reconnects that server through the same manager operation. The UI's add form creates the declaration, then saves its token through Connections. If token storage fails, retain the declaration in `needs-auth` so the owner can retry. Neither tokens nor session IDs belong in the document or API results.
 
 ### Endpoints and credentials
