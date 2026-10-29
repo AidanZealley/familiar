@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/main.ts",
-    "dev:demo": "node --watch src/demo.ts",
+    "dev:demo": "node --watch src/demo/main.ts",
     "start": "node src/main.ts",
     "sign-in": "node src/sign-in.ts",
     "eval:memory": "node src/memory-eval/main.ts",
