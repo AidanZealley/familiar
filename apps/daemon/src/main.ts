@@ -1,6 +1,5 @@
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar } from '@familiar/core'
-import { maskSecrets } from '@familiar/protection'
 import { config, dataPath } from './config.ts'
 import { guardedFetch } from './fetch.ts'
 import { lockDataDir } from './lock.ts'
@@ -23,7 +22,6 @@ const familiar = await summonFamiliar({
   plugins: await loadPlugins(),
   secrets: fileSecretStore(dataPath('secrets.json')),
   fetch: guardedFetch,
-  protection: maskSecrets,
 })
 
 serveFamiliar(familiar, {

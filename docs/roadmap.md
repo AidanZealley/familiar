@@ -17,7 +17,7 @@ Familiar is a personal assistant in the spirit of Grok Bot, Meta's Muse and Open
 
 Pick these up in order unless the owner says otherwise. Each spec is complete enough to implement without earlier conversation.
 
-1. [Extensions](specs/extensions.md): plugins with destination-bound credentials and optional host masking, a Connections page, web search with Brave as the first plugin, and MCP servers as deferred tools. Real-world tools build on it.
+1. [Extensions](specs/extensions.md): plugins with destination-bound credentials, a Connections page, web search with Brave as the first plugin, and MCP servers as deferred tools. Real-world tools build on it.
 2. [Easy install](specs/easy-install.md): one command that installs, signs in and starts Familiar on Linux, macOS, Windows or a VPS, and export and import to move it between machines.
 
 ## Later
