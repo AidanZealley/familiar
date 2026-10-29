@@ -1,6 +1,6 @@
-import type { Extension, ToolRegistration } from '@earendil-works/pi-durable'
+import type { Extension } from '@earendil-works/pi-durable'
 import type { Notification } from '../schedules/index.ts'
-import type { Connection, SecretStore } from './secrets.ts'
+import type { Connection } from './secrets.ts'
 
 /**
  * How plugins reach the network: the Fetch API's signature, so a host can
@@ -93,15 +93,4 @@ export type ConnectionsApi = {
   ): Promise<void>
   /** Rejects with a ConnectionError when the connection has no such secret. */
   deleteSecret(connection: Connection, secret: string): Promise<void>
-}
-
-/** A host policy applied once, when plugins are installed. */
-export type PluginProtection = (access: {
-  fetch: PluginFetch
-  secrets?: SecretStore
-  credentials: readonly { connection: Connection; secret: string }[]
-}) => {
-  fetch: PluginFetch
-  secrets?: SecretStore
-  wrapTool(tool: ToolRegistration): ToolRegistration
 }

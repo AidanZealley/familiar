@@ -3,7 +3,7 @@ import type { Notify } from '../schedules/index.ts'
 import { authorizedFetch } from './authorized-fetch.ts'
 import { createConnections } from './connections.ts'
 import type { SecretStore } from './secrets.ts'
-import type { FamiliarPlugin, PluginFetch, PluginProtection } from './types.ts'
+import type { FamiliarPlugin, PluginFetch } from './types.ts'
 
 export { ConnectionError, secretValue } from './connections.ts'
 export { memorySecrets, type Connection, type SecretStore } from './secrets.ts'
@@ -13,7 +13,6 @@ export type {
   FamiliarPlugin,
   PluginContext,
   PluginFetch,
-  PluginProtection,
   PluginSecret,
 } from './types.ts'
 
@@ -24,7 +23,6 @@ export type PluginsOptions = {
   plugins: readonly FamiliarPlugin[]
   secrets?: SecretStore
   fetch?: PluginFetch
-  protection?: PluginProtection
   notify?: Notify
   now: () => number
 }
@@ -32,23 +30,10 @@ export type PluginsOptions = {
 const unavailableFetch: PluginFetch = () =>
   Promise.reject(new Error('This Familiar has no network access for plugins.'))
 
-/** Install plugins with host-supplied network access and optional protection. */
+/** Install Pi extensions with the host's network access and credentials. */
 export function createPlugins(options: PluginsOptions) {
-  const access = {
-    fetch: options.fetch ?? unavailableFetch,
-    secrets: options.secrets,
-  }
-  const protectedAccess = options.protection?.({
-    ...access,
-    credentials: options.plugins.flatMap((plugin) =>
-      (plugin.secrets ?? []).map(({ name }) => ({
-        connection: { kind: 'plugin' as const, name: plugin.name },
-        secret: name,
-      })),
-    ),
-  })
-  const { fetch, secrets } = protectedAccess ?? access
-  const connections = createConnections(options.plugins, secrets)
+  const fetch = options.fetch ?? unavailableFetch
+  const connections = createConnections(options.plugins, options.secrets)
 
   const extensions = options.plugins.map((plugin): Extension => {
     const connection = { kind: 'plugin' as const, name: plugin.name }
@@ -68,9 +53,6 @@ export function createPlugins(options: PluginsOptions) {
     return {
       ...extension,
       name: `familiar.plugin.${plugin.name}`,
-      tools: protectedAccess
-        ? extension.tools?.map((tool) => protectedAccess.wrapTool(tool))
-        : extension.tools,
     }
   })
   return { extensions, api: connections.api }

@@ -5,10 +5,8 @@ import type { ConnectionsApi, FamiliarPlugin } from './types.ts'
 export class ConnectionError extends Error {}
 
 /**
- * A secret's value as it will be sent, or undefined if it can't be. Headers
- * trim surrounding whitespace, so the stored value must already be trimmed,
- * or redaction would look for something other than what was sent. Visible
- * ASCII only: what API keys and tokens are, and safe in any header.
+ * A secret's value as it will be sent, or undefined if it can't be. Headers trim surrounding whitespace.
+ * Visible ASCII is suitable for API keys and tokens sent in headers.
  */
 export function secretValue(value: string) {
   const trimmed = value.trim()

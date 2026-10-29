@@ -31,7 +31,6 @@ import {
   type PluginContext,
   type PluginFetch,
 } from '@familiar/core'
-import { maskSecrets } from '@familiar/protection'
 import {
   SEED_MESSAGE,
   seedEpisodes,
@@ -250,14 +249,16 @@ const fillContext = defineTool({
   }),
 })
 
-// A pretend service, answered here rather than over the network, that
-// echoes the key it was sent: the reply shows the key arrived, and that
-// redaction keeps it out of the chat.
+// A pretend service verifies that a key arrived without returning its value.
 const DEMO_SERVICE = 'https://demo.invalid'
 
 const demoFetch: PluginFetch = async (input, init) =>
   new URL(input).origin === DEMO_SERVICE
-    ? new Response(new Headers(init?.headers).get('X-Demo-Key') ?? '')
+    ? new Response(
+        new Headers(init?.headers).has('X-Demo-Key')
+          ? 'The demo key works.'
+          : 'No demo key arrived.',
+      )
     : guardedFetch(input, init)
 
 const checkDemoKey = (context: PluginContext) =>
@@ -268,13 +269,13 @@ const checkDemoKey = (context: PluginContext) =>
     execute: async () => {
       const response = await context.authorizedFetch(
         'key',
-        `${DEMO_SERVICE}/echo`,
+        `${DEMO_SERVICE}/check`,
       )
       return {
         output: [
           {
             type: 'text',
-            text: `The demo key works. The service echoed it as ${await response.text()}.`,
+            text: await response.text(),
           },
         ],
       }
@@ -288,11 +289,11 @@ const demoPlugin = definePlugin({
     {
       name: 'key',
       label: 'Demo key',
-      help: 'Any text of eight or more characters. Say "key" in chat to try it.',
+      help: 'Any non-empty visible ASCII text. Say "key" in chat to try it.',
       sendAs: {
         header: 'X-Demo-Key',
         origin: DEMO_SERVICE,
-        requests: [{ method: 'GET', path: '/echo' }],
+        requests: [{ method: 'GET', path: '/check' }],
       },
     },
   ],
@@ -318,7 +319,6 @@ const familiar = await summonFamiliar({
   plugins: [demoPlugin],
   secrets: memorySecrets(),
   fetch: demoFetch,
-  protection: maskSecrets,
 })
 
 // Start with a year of sample memory, so the Memory pages have something to

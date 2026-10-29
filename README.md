@@ -19,8 +19,6 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   requests and the Connections API.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
-packages/protection  Optional masking of known keys in responses and tool output.
-                  The daemon enables it; core and plugins do not depend on it.
 packages/plugin-web  web_search through Brave, with the owner's key.
                   First-party, so the daemon installs it.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
@@ -37,8 +35,7 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 - **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
 - **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. See [docs/architecture.md](docs/architecture.md).
 - **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
-- **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Core never passes a key to plugin code or the model. The host owns credential storage.
-- **Masking is an optional host policy.** The daemon passes `protection: maskSecrets` from `@familiar/protection`. It masks known keys in network responses, plugin output and errors, including streamed progress before Pi stores it. This is best effort, not a promise that secrets can never appear in a conversation: short or encoded values can escape masking, and plugins remain trusted code. Other hosts can omit masking without changing plugins or credential handling.
+- **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Keys are attached at the request boundary; response bodies and tool output pass through unchanged. A service that echoes a key can expose it. The host owns credential storage.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
@@ -89,16 +86,16 @@ pnpm dev:demo
 
 It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. A word in your message picks what it does:
 
-| Word      | Familiar                                                                    |
-| --------- | --------------------------------------------------------------------------- |
-| (none)    | Replies with headings, lists, a table and code                              |
-| `tool`    | Calls `current_time`, then replies                                          |
-| `memory`  | Calls `recall` for the morning drink, then replies with what it found       |
-| `remind`  | Schedules a reminder for the next minute, which then notifies               |
-| `key`     | Sends the demo key to a pretend service that echoes it, shown as `[secret]` |
-| `slow`    | Writes a long reply, to try Stop and queued messages                        |
-| `compact` | Fills the context until Pi compacts it (the overflow error is expected)     |
-| `error`   | Fails partway with an error message                                         |
+| Word      | Familiar                                                                 |
+| --------- | ------------------------------------------------------------------------ |
+| (none)    | Replies with headings, lists, a table and code                           |
+| `tool`    | Calls `current_time`, then replies                                       |
+| `memory`  | Calls `recall` for the morning drink, then replies with what it found    |
+| `remind`  | Schedules a reminder for the next minute, which then notifies            |
+| `key`     | Checks that a pretend service received the demo key without returning it |
+| `slow`    | Writes a long reply, to try Stop and queued messages                     |
+| `compact` | Fills the context until Pi compacts it (the overflow error is expected)  |
+| `error`   | Fails partway with an error message                                      |
 
 ### Settings
 

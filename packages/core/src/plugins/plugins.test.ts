@@ -1,4 +1,3 @@
-import { maskSecrets } from './index.ts'
 import { Type, type TranscriptContext } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
@@ -12,26 +11,23 @@ import {
   MemoryStorage,
 } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
-import { summonFamiliar, type Familiar } from '@familiar/core'
-import { createHttpApi } from '@familiar/core/http'
+import { summonFamiliar, type Familiar } from '../familiar.ts'
+import { createHttpApi } from '../http.ts'
 import {
   definePlugin,
   memorySecrets,
   type FamiliarPlugin,
   type PluginContext,
   type PluginFetch,
-} from '@familiar/core'
+} from './index.ts'
 
 const KEY = 'sk-test-0123456789'
 const ENDPOINT = 'https://api.test/echo'
 
-// Lets a test look at a running call, then decide how it ends.
-let release = () => {}
-
 // The plugin's context, to call authorizedFetch directly.
 let context: PluginContext
 
-// A plugin for a service that echoes its key, as some do in errors.
+// A plugin that makes an authenticated request.
 const echo = definePlugin({
   name: 'echo',
   title: 'Echo',
@@ -56,33 +52,12 @@ const echo = definePlugin({
         defineTool({
           name: 'echo_key',
           description: 'Calls the echo service.',
-          parameters: Type.Object({ fail: Type.Optional(Type.Boolean()) }),
-          execute: async ({ fail }) => {
+          parameters: Type.Object({}),
+          execute: async () => {
             const body = await echoed()
-            if (fail) {
-              throw new Error(`The service said ${body}`)
-            }
             return {
               output: [{ type: 'text', text: `The service said ${body}.` }],
-              // Keyed by it too, as results indexed by URL would be.
-              details: { body, [body]: 'indexed' },
             }
-          },
-        }),
-        defineTool({
-          name: 'report_key',
-          description:
-            'Reports what the service said while it runs, then waits.',
-          parameters: Type.Object({}),
-          execute: async (_args, api, toolContext) => {
-            const body = await echoed()
-            // Split, as streamed output may arrive.
-            api.output(`Got ${body.slice(0, 6)}`)
-            api.output(`${body.slice(6)} so far`)
-            api.diagnostic({ severity: 'info', message: `body=${body}` })
-            await api.details({ [body]: body }, toolContext)
-            await new Promise<void>((resolve) => (release = resolve))
-            return {}
           },
         }),
       ],
@@ -95,23 +70,17 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-async function setup(plugins: FamiliarPlugin[] = [echo], protectedHost = true) {
+async function setup(plugins: FamiliarPlugin[] = [echo]) {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
   const secrets = memorySecrets()
 
-  // The host's fetch: records each request and echoes the key header, in
-  // its body and a header.
+  // Records requests without using the network.
   const sent: { url: string; init?: RequestInit }[] = []
   const fetch: PluginFetch = async (input, init) => {
     sent.push({ url: String(input), init })
-    const key = new Headers(init?.headers).get('X-Key') ?? ''
-    // Everywhere a response can carry text back.
-    return new Response(key, {
-      statusText: key,
-      headers: key ? { 'X-Echo': key, [`X-${key}`]: 'name' } : {},
-    })
+    return new Response('Connected.')
   }
 
   const familiar = await summonFamiliar({
@@ -121,17 +90,16 @@ async function setup(plugins: FamiliarPlugin[] = [echo], protectedHost = true) {
     plugins,
     secrets,
     fetch,
-    protection: protectedHost ? maskSecrets : undefined,
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, { authenticate: () => 'owner' })
 
   /** Asks the model to call echo_key, and returns the result it then sees. */
   let calls = 0
-  const callTool = async (args: { fail?: boolean } = {}) => {
+  const callTool = async () => {
     let seen = ''
     faux.setResponses([
-      fauxAssistantMessage(fauxToolCall('echo_key', args), {
+      fauxAssistantMessage(fauxToolCall('echo_key', {}), {
         stopReason: 'toolUse',
       }),
       (context) => {
@@ -144,47 +112,12 @@ async function setup(plugins: FamiliarPlugin[] = [echo], protectedHost = true) {
     await familiar.idle()
     return seen
   }
-  const view = async () => {
-    const watch = await familiar.watch()
-    await watch.stop()
-    return JSON.stringify(watch.value)
-  }
-  return { faux, familiar, secrets, sent, api, callTool, view }
+  return { faux, familiar, secrets, sent, api, callTool }
 }
 
 const connection = { kind: 'plugin', name: 'echo' } as const
 
-test('a declared request carries the secret, and nothing reported shows it', async () => {
-  const { secrets, sent, callTool, view } = await setup()
-  await secrets.set(connection, 'key', KEY)
-
-  const result = await callTool()
-  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
-  expect(sent[0].init?.redirect).toBe('manual')
-  expect(result).toContain('The service said [secret].')
-  expect(result).not.toContain(KEY)
-
-  const failed = await callTool({ fail: true })
-  expect(failed).toContain('The service said [secret]')
-  expect(failed).not.toContain(KEY)
-
-  // Nor does anything stored, such as the details the UI shows.
-  expect(await view()).not.toContain(KEY)
-})
-
-test('a service that echoes the key gives plugin code only [secret]', async () => {
-  const { secrets, sent } = await setup()
-  await secrets.set(connection, 'key', KEY)
-
-  const response = await context.authorizedFetch('key', ENDPOINT)
-  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
-  expect(response.headers.get('X-Echo')).toBe('[secret]')
-  expect([...response.headers].flat().join(' ')).not.toContain(KEY)
-  expect(response.statusText).not.toContain(KEY)
-  expect(await response.text()).toBe('[secret]')
-})
-
-test('a key is stored as it will be sent, so a pasted space hides nothing', async () => {
+test('Connections normalizes pasted keys and rejects invalid header values', async () => {
   const { api, sent } = await setup()
   const put = (value: string) =>
     api.request('/connections/plugin/echo/secrets/key', {
@@ -196,7 +129,7 @@ test('a key is stored as it will be sent, so a pasted space hides nothing', asyn
   expect((await put(`  ${KEY}\n`)).status).toBe(204)
   const response = await context.authorizedFetch('key', ENDPOINT)
   expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
-  expect(await response.text()).toBe('[secret]')
+  expect(await response.text()).toBe('Connected.')
 
   expect((await put('two\nlines')).status).toBe(400)
   expect((await put('   ')).status).toBe(400)
@@ -228,27 +161,6 @@ test('authorizedFetch refuses any other request without sending it', async () =>
   expect(sent).toHaveLength(1)
 })
 
-test('progress never shows the secret, while running or once aborted', async () => {
-  const { faux, familiar, secrets, view } = await setup()
-  await secrets.set(connection, 'key', KEY)
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('report_key', {}), {
-      stopReason: 'toolUse',
-    }),
-    fauxAssistantMessage('Stopped.'),
-  ])
-
-  await familiar.send({ author: 'owner', text: 'Go', requestId: 'go' })
-  await expect.poll(view).toContain('body=[secret]')
-  expect(await view()).not.toContain(KEY)
-
-  const aborted = familiar.abort()
-  release()
-  await aborted
-  await familiar.idle()
-  expect(await view()).not.toContain(KEY)
-})
-
 test('without its secret, the model is told to ask the owner', async () => {
   const { sent, callTool } = await setup()
   expect(await callTool()).toContain(
@@ -275,7 +187,7 @@ test('the routes set and clear a secret without ever returning it', async () => 
   expect(put.status).toBe(204)
   expect(await list()).toContain('"set":true')
   expect(await list()).not.toContain(KEY)
-  expect(await callTool()).toContain('The service said [secret].')
+  expect(await callTool()).toContain('The service said')
 
   const removed = await api.request('/connections/plugin/echo/secrets/key', {
     method: 'DELETE',
@@ -319,19 +231,4 @@ test("a plugin's tools follow core's on the first request", async () => {
   expect(request.indexOf('current_time')).toBeLessThan(
     request.indexOf('echo_key'),
   )
-})
-
-test('a plain host attaches credentials without rewriting responses or tool results', async () => {
-  const { secrets, sent, callTool } = await setup([echo], false)
-  await secrets.set(connection, 'key', KEY)
-  const response = await context.authorizedFetch('key', ENDPOINT)
-  expect(response.headers.get('X-Echo')).toBe(KEY)
-  expect(await response.text()).toBe(KEY)
-  expect(await callTool()).toContain(KEY)
-  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
-  expect(sent[0].init?.redirect).toBe('manual')
-  await expect(
-    context.authorizedFetch('key', 'https://evil.test/echo'),
-  ).rejects.toThrow()
-  expect(sent).toHaveLength(2)
 })
