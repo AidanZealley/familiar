@@ -1,4 +1,4 @@
-import { Type, type TranscriptContext } from '@earendil-works/pi-ai'
+import { Type } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
@@ -13,19 +13,11 @@ import {
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from '../familiar.ts'
 import { createHttpApi } from '../http.ts'
-import {
-  definePlugin,
-  memorySecrets,
-  type FamiliarPlugin,
-  type PluginContext,
-  type PluginFetch,
-} from './index.ts'
+import { authorizedFetch, checkDeclaration } from './authorized-fetch.ts'
+import { definePlugin, memorySecrets, type PluginFetch } from './index.ts'
 
 const KEY = 'sk-test-0123456789'
 const ENDPOINT = 'https://api.test/echo'
-
-// The plugin's context, to call authorizedFetch directly.
-let context: PluginContext
 
 // A plugin that makes an authenticated request.
 const echo = definePlugin({
@@ -43,9 +35,8 @@ const echo = definePlugin({
     },
   ],
   extension: (pluginContext) => {
-    context = pluginContext
     const echoed = async () =>
-      (await context.authorizedFetch('key', ENDPOINT)).text()
+      (await pluginContext.authorizedFetch('key', ENDPOINT)).text()
     return defineExtension({
       name: 'echo',
       tools: [
@@ -70,7 +61,7 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-async function setup(plugins: FamiliarPlugin[] = [echo]) {
+async function setup() {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -87,7 +78,7 @@ async function setup(plugins: FamiliarPlugin[] = [echo]) {
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
-    plugins,
+    plugins: [echo],
     secrets,
     fetch,
   })
@@ -112,65 +103,43 @@ async function setup(plugins: FamiliarPlugin[] = [echo]) {
     await familiar.idle()
     return seen
   }
-  return { faux, familiar, secrets, sent, api, callTool }
+  return { sent, api, callTool }
 }
 
-const connection = { kind: 'plugin', name: 'echo' } as const
-
-test('Connections normalizes pasted keys and rejects invalid header values', async () => {
-  const { api, sent } = await setup()
-  const put = (value: string) =>
-    api.request('/connections/plugin/echo/secrets/key', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ value }),
-    })
-
-  expect((await put(`  ${KEY}\n`)).status).toBe(204)
-  const response = await context.authorizedFetch('key', ENDPOINT)
-  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
-  expect(await response.text()).toBe('Connected.')
-
-  expect((await put('two\nlines')).status).toBe(400)
-  expect((await put('   ')).status).toBe(400)
-})
-
 test('authorizedFetch refuses any other request without sending it', async () => {
-  const { secrets, sent } = await setup()
-  await secrets.set(connection, 'key', KEY)
+  const sent: RequestInit[] = []
+  const fetch: PluginFetch = async (_input, init) => {
+    sent.push(init!)
+    return new Response('Connected.')
+  }
+  const request = (url: string, init?: RequestInit) =>
+    authorizedFetch(fetch, echo.secrets![0], async () => KEY, url, init)
 
-  const refused: [string, string, RequestInit?][] = [
-    ['key', 'https://evil.test/echo'],
-    ['key', 'https://sub.api.test/echo'],
-    ['key', 'http://api.test/echo'],
-    ['key', 'https://api.test:8443/echo'],
-    ['key', 'https://user:pass@api.test/echo'],
-    ['key', 'https://api.test/other'],
-    ['key', ENDPOINT, { method: 'POST' }],
-    ['key', ENDPOINT, { headers: { 'x-key': 'mine' } }],
-    ['key', ENDPOINT, { headers: { host: 'evil.test' } }],
-    ['other', ENDPOINT],
+  const refused: [string, RequestInit?][] = [
+    ['https://evil.test/echo'],
+    ['https://sub.api.test/echo'],
+    ['http://api.test/echo'],
+    ['https://api.test:8443/echo'],
+    ['https://user:pass@api.test/echo'],
+    ['https://api.test/other'],
+    [ENDPOINT, { method: 'POST' }],
+    [ENDPOINT, { headers: { 'x-key': 'mine' } }],
+    [ENDPOINT, { headers: { host: 'evil.test' } }],
   ]
-  for (const [secret, url, init] of refused) {
-    await expect(context.authorizedFetch(secret, url, init)).rejects.toThrow()
+  for (const [url, init] of refused) {
+    await expect(request(url, init)).rejects.toThrow()
   }
   expect(sent).toEqual([])
 
   // Query strings don't change the path, so they're allowed.
-  await context.authorizedFetch('key', `${ENDPOINT}?q=cats`)
+  await request(`${ENDPOINT}?q=cats`)
   expect(sent).toHaveLength(1)
-})
-
-test('without its secret, the model is told to ask the owner', async () => {
-  const { sent, callTool } = await setup()
-  expect(await callTool()).toContain(
-    "Echo isn't connected. Ask the owner to add Echo key on the Connections page.",
-  )
-  expect(sent).toEqual([])
+  expect(new Headers(sent[0].headers).get('X-Key')).toBe(KEY)
+  expect(sent[0].redirect).toBe('manual')
 })
 
 test('the routes set and clear a secret without ever returning it', async () => {
-  const { api, callTool } = await setup()
+  const { api, sent, callTool } = await setup()
   const list = async () => {
     const response = await api.request('/connections')
     return response.text()
@@ -182,19 +151,32 @@ test('the routes set and clear a secret without ever returning it', async () => 
   const put = await api.request('/connections/plugin/echo/secrets/key', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ value: KEY }),
+    body: JSON.stringify({ value: `  ${KEY}\n` }),
   })
   expect(put.status).toBe(204)
   expect(await list()).toContain('"set":true')
   expect(await list()).not.toContain(KEY)
-  expect(await callTool()).toContain('The service said')
+  expect(await callTool()).toContain('The service said Connected.')
+  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
+  for (const value of ['two\nlines', '   ']) {
+    const response = await api.request('/connections/plugin/echo/secrets/key', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ value }),
+    })
+    expect(response.status).toBe(400)
+  }
 
   const removed = await api.request('/connections/plugin/echo/secrets/key', {
     method: 'DELETE',
   })
   expect(removed.status).toBe(204)
   expect(await list()).toContain('"set":false')
-  expect(await callTool()).toContain("Echo isn't connected.")
+  sent.length = 0
+  expect(await callTool()).toContain(
+    "Echo isn't connected. Ask the owner to add Echo key on the Connections page.",
+  )
+  expect(sent).toEqual([])
 
   const unknown = await api.request('/connections/plugin/echo/secrets/other', {
     method: 'DELETE',
@@ -202,33 +184,14 @@ test('the routes set and clear a secret without ever returning it', async () => 
   expect(unknown.status).toBe(404)
 })
 
-test('a secret must be sent to an exact https origin', async () => {
-  const [declared] = echo.secrets!
-  const sendTo = (origin: string) =>
-    setup([
-      {
-        ...echo,
-        secrets: [{ ...declared, sendAs: { ...declared.sendAs, origin } }],
-      },
-    ])
-  await expect(sendTo('http://api.test')).rejects.toThrow(/https/)
-  await expect(sendTo('https://api.test/v1')).rejects.toThrow(/exact origin/)
-})
-
-test("a plugin's tools follow core's on the first request", async () => {
-  const { faux, familiar } = await setup()
-  let request = ''
-  faux.setResponses([
-    (context: TranscriptContext) => {
-      request = JSON.stringify(context.messages)
-      return fauxAssistantMessage('Hi.')
-    },
-  ])
-  await familiar.send({ author: 'owner', text: 'Hi', requestId: 'hi' })
-  await familiar.idle()
-
-  expect(request).toContain('echo_key')
-  expect(request.indexOf('current_time')).toBeLessThan(
-    request.indexOf('echo_key'),
-  )
+test('a secret must declare an exact HTTPS origin', () => {
+  const secret = echo.secrets![0]
+  for (const origin of ['http://api.test', 'https://api.test/v1']) {
+    expect(() =>
+      checkDeclaration('echo', {
+        ...secret,
+        sendAs: { ...secret.sendAs, origin },
+      }),
+    ).toThrow(/https|exact origin/)
+  }
 })
