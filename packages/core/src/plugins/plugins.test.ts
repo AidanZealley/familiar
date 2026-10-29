@@ -5,11 +5,7 @@ import {
   fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import {
-  defineExtension,
-  defineTool,
-  MemoryStorage,
-} from '@earendil-works/pi-durable'
+import { defineTool, MemoryStorage } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from '../familiar.ts'
 import { createHttpApi } from '../http.ts'
@@ -37,8 +33,7 @@ const echo = definePlugin({
   extension: (pluginContext) => {
     const echoed = async () =>
       (await pluginContext.authorizedFetch('key', ENDPOINT)).text()
-    return defineExtension({
-      name: 'echo',
+    return {
       tools: [
         defineTool({
           name: 'echo_key',
@@ -52,7 +47,7 @@ const echo = definePlugin({
           },
         }),
       ],
-    })
+    }
   },
 })
 

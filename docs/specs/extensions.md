@@ -27,7 +27,7 @@ A new capability folder, `packages/core/src/plugins/`.
      name: string // 'web'; its extension is named 'familiar.plugin.web'
      title: string // 'Web search', for the Connections page
      secrets?: PluginSecret[]
-     extension: (context: PluginContext) => Extension
+     extension: (context: PluginContext) => Omit<Extension, 'name'>
    }
 
    type PluginSecret = {

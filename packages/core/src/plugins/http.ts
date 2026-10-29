@@ -1,4 +1,4 @@
-import { Hono, type Context } from 'hono'
+import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { ConnectionError, secretValue } from './connections.ts'
 import type { ConnectionsApi } from './types.ts'
@@ -28,6 +28,12 @@ const secretPath = validator('param', (params, c) => {
  */
 export const connectionRoutes = (connections: ConnectionsApi) =>
   new Hono()
+    .onError((error, c) => {
+      if (error instanceof ConnectionError) {
+        return c.json({ error: error.message }, 404)
+      }
+      throw error
+    })
     .get('/', async (c) => c.json(await connections.list(), 200))
     .put(
       '/:kind/:name/secrets/:secret',
@@ -45,32 +51,16 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
       }),
       async (c) => {
         const { kind, name, secret } = c.req.valid('param')
-        try {
-          await connections.setSecret(
-            { kind, name },
-            secret,
-            c.req.valid('json').value,
-          )
-        } catch (error) {
-          return notFound(c, error)
-        }
+        await connections.setSecret(
+          { kind, name },
+          secret,
+          c.req.valid('json').value,
+        )
         return c.body(null, 204)
       },
     )
     .delete('/:kind/:name/secrets/:secret', secretPath, async (c) => {
       const { kind, name, secret } = c.req.valid('param')
-      try {
-        await connections.deleteSecret({ kind, name }, secret)
-      } catch (error) {
-        return notFound(c, error)
-      }
+      await connections.deleteSecret({ kind, name }, secret)
       return c.body(null, 204)
     })
-
-/** A ConnectionError as a 404; anything else is a bug, so rethrown. */
-const notFound = (c: Context, error: unknown) => {
-  if (error instanceof ConnectionError) {
-    return c.json({ error: error.message }, 404)
-  }
-  throw error
-}
