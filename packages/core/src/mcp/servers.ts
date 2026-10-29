@@ -3,10 +3,28 @@ import { defineDoc } from '@earendil-works/pi-durable'
 import { ConnectionError } from '../plugins/connections.ts'
 import type { PluginSecret } from '../plugins/types.ts'
 
-export type McpServer = {
-  name: string
-  transport: { type: 'http'; url: string; auth: { type: 'none' | 'bearer' } }
-}
+const serverSchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
+  transport: z.discriminatedUnion('type', [
+    z.object({
+      type: z.literal('http'),
+      url: z.url(),
+      auth: z.object({ type: z.enum(['none', 'bearer']) }),
+    }),
+    z.object({
+      type: z.literal('stdio'),
+      command: z.string().min(1),
+      args: z.array(z.string()).default([]),
+    }),
+  ]),
+})
+
+export type McpServer = z.infer<typeof serverSchema>
+export type McpHttpTransport = Extract<McpServer['transport'], { type: 'http' }>
+export type McpStdioTransport = Extract<
+  McpServer['transport'],
+  { type: 'stdio' }
+>
 
 export const McpServers = defineDoc<{ servers: McpServer[] }>({
   kind: 'familiar.mcp',
@@ -16,15 +34,6 @@ export const McpServers = defineDoc<{ servers: McpServer[] }>({
   checkpointWhen: () => true,
 })
 
-const serverSchema = z.object({
-  name: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
-  transport: z.object({
-    type: z.literal('http'),
-    url: z.url(),
-    auth: z.object({ type: z.enum(['none', 'bearer']) }),
-  }),
-})
-
 /** Used by both the owner API and HTTP input validation. */
 export function parseServer(value: unknown): McpServer {
   const parsed = serverSchema.safeParse(value)
@@ -32,6 +41,9 @@ export function parseServer(value: unknown): McpServer {
     throw new ConnectionError(parsed.error.message)
   }
   const server = parsed.data
+  if (server.transport.type === 'stdio') {
+    return server
+  }
   const url = new URL(server.transport.url)
   if (
     !['http:', 'https:'].includes(url.protocol) ||
@@ -47,8 +59,8 @@ export function parseServer(value: unknown): McpServer {
   return { ...server, transport: { ...server.transport, url: url.href } }
 }
 
-export function tokenDeclaration(server: McpServer): PluginSecret {
-  const url = new URL(server.transport.url)
+export function tokenDeclaration(transport: McpHttpTransport): PluginSecret {
+  const url = new URL(transport.url)
   return {
     name: 'token',
     label: 'Bearer token',

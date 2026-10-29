@@ -1,11 +1,19 @@
 import type { Extension, Registry } from '@earendil-works/pi-durable'
-import { SdkHttpError } from '@modelcontextprotocol/client'
+import {
+  SdkHttpError,
+  StreamableHTTPClientTransport,
+  type Transport,
+} from '@modelcontextprotocol/client'
 import type { SecretStore } from '../plugins/secrets.ts'
 import type { PluginFetch } from '../plugins/types.ts'
 import { connectMcp } from './index.ts'
 import { httpTransport } from './http-transport.ts'
 import type { McpServer } from './servers.ts'
-import type { McpConnectionInfo, McpToolInfo } from './types.ts'
+import type {
+  McpConnectionInfo,
+  McpToolInfo,
+  McpStdioFactory,
+} from './types.ts'
 
 /** One connection owns its status, streams and registered tools until closed. */
 export function openConnection(
@@ -14,6 +22,7 @@ export function openConnection(
   options: {
     fetch?: PluginFetch
     secrets?: SecretStore
+    stdio?: McpStdioFactory
     expired(): void
   },
 ) {
@@ -48,34 +57,53 @@ export function openConnection(
     }
   }
   const ready = (async () => {
+    const config = server.transport
     const token = () =>
       options.secrets?.get({ kind: 'mcp', name: server.name }, 'token') ??
       Promise.resolve(undefined)
     try {
-      if (server.transport.auth.type === 'bearer' && !(await token())) {
+      if (
+        config.type === 'http' &&
+        config.auth.type === 'bearer' &&
+        !(await token())
+      ) {
         info = { ...info, status: { type: 'needs-auth' } }
         return
       }
       abort.signal.throwIfAborted()
-      if (!options.fetch) {
-        throw new Error('This host has no MCP HTTP transport.')
+      let transport: Transport
+      if (config.type === 'stdio') {
+        if (!options.stdio) {
+          throw new Error('This host has no MCP stdio transport.')
+        }
+        transport = options.stdio(config)
+      } else {
+        if (!options.fetch) {
+          throw new Error('This host has no MCP HTTP transport.')
+        }
+        transport = httpTransport(
+          config,
+          options.fetch,
+          async () => {
+            const value = await token()
+            if (!value) {
+              throw new Error('MCP bearer token is missing.')
+            }
+            return value
+          },
+          abort.signal,
+        )
       }
-      const transport = httpTransport(
-        server,
-        options.fetch,
-        async () => {
-          const value = await token()
-          if (!value) {
-            throw new Error('MCP bearer token is missing.')
-          }
-          return value
-        },
-        abort.signal,
-      )
       const connection = await connectMcp(server.name, transport, {
         signal: abort.signal,
         changed: install,
         failed,
+        closed: () => {
+          if (!abort.signal.aborted) {
+            registry.uninstall({ name: `familiar.mcp.${server.name}` })
+            info = { ...info, status: { type: 'disconnected' }, tools: [] }
+          }
+        },
         callFailed: (error) => {
           if (!abort.signal.aborted && error instanceof SdkHttpError) {
             if (error.status === 401) {
@@ -87,10 +115,12 @@ export function openConnection(
         },
       })
       closeClient = async () => {
-        try {
-          await transport.terminateSession()
-        } catch {
-          /* The session may already be expired or unreachable. */
+        if (transport instanceof StreamableHTTPClientTransport) {
+          try {
+            await transport.terminateSession()
+          } catch {
+            /* The session may already be expired or unreachable. */
+          }
         }
         await connection.close()
       }
