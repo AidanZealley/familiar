@@ -15,7 +15,7 @@
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
-    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/client": "catalog:",
     "hono": "catalog:",
     "minisearch": "7.2.0",
     "rrule": "2.8.1",

@@ -13,6 +13,26 @@ const info = async (familiar: Familiar) =>
   (await familiar.connections.list())[0] as McpConnectionInfo
 const connection = { kind: 'mcp', name: 'test' } as const
 
+test('a failed credential write restores the existing connection', async (test) => {
+  const fixture = mcpFixture(test)
+  const familiar = await fixture.open()
+  await familiar.mcp.add(fixture.server)
+  await familiar.connections.setSecret(connection, 'token', fixture.state.token)
+  await expect
+    .poll(async () => (await info(familiar)).status.type)
+    .toBe('connected')
+  fixture.secrets.set = async () => {
+    throw new Error('Credential store unavailable')
+  }
+  await expect(
+    familiar.connections.setSecret(connection, 'token', 'replacement'),
+  ).rejects.toThrow('Credential store unavailable')
+  await expect
+    .poll(async () => (await info(familiar)).status.type)
+    .toBe('connected')
+  expect((await info(familiar)).secrets).toMatchObject([{ set: true }])
+})
+
 test('a new declaration cannot reuse an orphaned token for a different endpoint', async (test) => {
   const fixture = mcpFixture(test)
   const familiar = await fixture.open()

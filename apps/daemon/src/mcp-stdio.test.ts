@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { EventEmitter, once } from 'node:events'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxProvider,
@@ -228,4 +229,32 @@ test('an unavailable command reports failure and can be removed', async () => {
     .toBe('failed')
   await familiar.mcp.remove('local')
   expect(await familiar.connections.list()).toEqual([])
+})
+
+test('a late process close preserves the initialization error', async () => {
+  const events = new EventEmitter()
+  const closed = once(events, 'closed')
+  const { familiar } = await setup((config) => {
+    const transport = stdioTransport(config)
+    transport.onclose = () => {
+      events.emit('closed')
+    }
+    return transport
+  })
+  await familiar.mcp.add({
+    ...server,
+    transport: {
+      ...server.transport,
+      args: [
+        fileURLToPath(
+          new URL('./testing/rejecting-stdio-server.ts', import.meta.url),
+        ),
+      ],
+    },
+  })
+  await closed
+  expect((await info(familiar)).status).toMatchObject({
+    type: 'failed',
+    error: expect.stringContaining('Initialization refused'),
+  })
 })

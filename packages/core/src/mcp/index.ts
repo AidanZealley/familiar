@@ -48,7 +48,6 @@ export async function connectMcp(
       },
     },
   )
-  client.onclose = () => options.closed?.()
   const describe = (tools: Tool[]) => ({
     tools: tools.map((tool) => ({
       name: tool.name,
@@ -92,7 +91,10 @@ export async function connectMcp(
       timeout: 15_000,
       signal: options.signal,
     })
-    return { ...describe(tools), close: () => client.close() }
+    const discovered = describe(tools)
+    // Failed startup can finish closing later; only established clients disconnect.
+    client.onclose = () => options.closed?.()
+    return { ...discovered, close: () => client.close() }
   } catch (error) {
     await client.close()
     throw error

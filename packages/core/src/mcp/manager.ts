@@ -110,8 +110,11 @@ export async function createMcp(
         )
       }
       await entry.close()
-      await write()
-      start(entry.server)
+      try {
+        await write()
+      } finally {
+        start(entry.server)
+      }
     })
   const connections: ConnectionsApi = {
     list: () =>

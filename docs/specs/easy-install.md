@@ -93,7 +93,8 @@ Done when each script takes a fresh machine of its kind to a working URL.
 
 1. Check that the file is a SQLite database with Pi's tables, without opening it as Pi storage.
 2. Refuse when the data directory already has a conversation, unless given `--replace`, which renames the old file to `familiar.sqlite.replaced-<time>` first.
-3. Stop the service if it runs, put the file in place, start it again.
+3. Show any saved stdio MCP commands and arguments before starting the imported conversation, since startup launches them as the local user. Require the owner to accept those commands before continuing; missing executables on the destination need reconfiguration. Remind the owner that arguments are part of the export and must not contain secrets.
+4. Stop the service if it runs, put the file in place, start it again.
 
 Durable tasks travel inside the file, so anything that fell due in transit (nightly upkeep and schedules) runs when the new machine starts. Find out how the installed pi-durable treats a file written by a newer version of itself, and make import say "update Familiar first" in that case rather than fail obscurely.
 
