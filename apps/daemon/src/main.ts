@@ -22,6 +22,7 @@ const familiar = await summonFamiliar({
   plugins: await loadPlugins(),
   secrets: fileSecretStore(dataPath('secrets.json')),
   fetch: guardedFetch,
+  mcpFetch: fetch,
 })
 
 serveFamiliar(familiar, {

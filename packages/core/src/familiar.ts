@@ -15,6 +15,8 @@ import {
 } from './conversation/index.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona } from './persona/index.ts'
+import { createMcp } from './mcp/manager.ts'
+import type { McpApi } from './mcp/types.ts'
 import {
   createPlugins,
   type ConnectionsApi,
@@ -32,6 +34,8 @@ import { TimeExtension } from './time/index.ts'
 // The types in Familiar's own signatures, so hosts can name them.
 export type { HistoryPage, Message } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
+export type { McpApi, McpConnectionInfo } from './mcp/types.ts'
+export type { McpServer } from './mcp/servers.ts'
 export type { Notification, SchedulesApi } from './schedules/index.ts'
 export {
   ConnectionError,
@@ -65,6 +69,8 @@ export type FamiliarOptions = {
    * Without one, plugins' fetches fail.
    */
   fetch?: PluginFetch
+  /** Owner-configured MCP endpoints, including private networks. Never used by plugins. */
+  mcpFetch?: PluginFetch
   /**
    * Roughly how many tokens each request may send, whatever the model's context
    * window; older conversation is compacted into a summary to stay under it.
@@ -91,6 +97,7 @@ export type Familiar = ConversationApi & {
   memory: MemoryApi
   schedules: SchedulesApi
   connections: ConnectionsApi
+  mcp: McpApi
   /**
    * Called after every commit. Listeners run synchronously, so keep them quick
    * and don't call back into Familiar. Returns a function that stops listening.
@@ -154,6 +161,10 @@ export async function summonFamiliar(
   const conversation = await installConversation(harness, options.model)
   const memoryActions = await memory.start()
   const scheduleActions = await schedules.start(harness)
+  const mcp = await createMcp(harness, registry, {
+    fetch: options.mcpFetch,
+    secrets: options.secrets,
+  })
 
   // finish whatever the last process left unfinished
   harness.resume()
@@ -162,9 +173,32 @@ export async function summonFamiliar(
     ...conversation,
     memory: memoryActions,
     schedules: scheduleActions,
-    connections: plugins.api,
+    mcp: mcp.api,
+    connections: {
+      list: async () => [
+        ...(await plugins.api.list()),
+        ...(await mcp.connections.list()),
+      ],
+      setSecret: (connection, name, value) =>
+        (connection.kind === 'mcp' ? mcp.connections : plugins.api).setSecret(
+          connection,
+          name,
+          value,
+        ),
+      deleteSecret: (connection, name) =>
+        (connection.kind === 'mcp'
+          ? mcp.connections
+          : plugins.api
+        ).deleteSecret(connection, name),
+    },
     onCommit: (listener) => harness.subscribeCommits(() => listener()),
     usage: () => harness.usage(context),
-    dismiss: () => harness.close(context),
+    dismiss: async () => {
+      try {
+        await harness.close(context)
+      } finally {
+        await mcp.close()
+      }
+    },
   }
 }
