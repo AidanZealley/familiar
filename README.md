@@ -17,7 +17,7 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   is the simplest), each reply sent to the host's notify.
   core/plugins    Plugin installation, credential declarations, authenticated
                   requests and the Connections API.
-  core/mcp        Saved MCP HTTP connections, tool discovery and lifecycle.
+  core/mcp        Saved MCP connections, tool discovery and lifecycle.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 packages/plugin-web  web_search through Brave and web_fetch for public pages.
@@ -160,8 +160,12 @@ Fetched text is untrusted. Network filtering prevents private-network requests, 
 
 ### MCP connections
 
-Hosts can manage HTTP MCP servers through `familiar.mcp.add({ name, transport })`, `remove(name)` and `reconnect(name)`. An HTTP transport is `{ type: 'http', url, auth: { type: 'none' | 'bearer' } }`. The equivalent owner routes live under `/api/mcp`; bearer tokens use the write-only Connections routes at `/api/connections/mcp/:name/secrets/token`. MCP controls in the web UI and local stdio servers are still planned.
+Hosts can manage MCP servers through `familiar.mcp.add({ name, transport })`, `remove(name)` and `reconnect(name)`. An HTTP transport is `{ type: 'http', url, auth: { type: 'none' | 'bearer' } }`. A local process uses `{ type: 'stdio', command, args }`, with an executable and an argument array. The equivalent owner routes live under `/api/mcp`; bearer tokens use the write-only Connections routes at `/api/connections/mcp/:name/secrets/token`. MCP controls in the web UI are still planned.
 
 Declarations persist with the conversation, while tokens stay in the host's secret store. `familiar.connections.list()` includes runtime status and discovered tools. Servers connect independently, so an unavailable server does not block chat. Tools load through Pi's `tool_search`; failed calls are never replayed automatically. Reconnect restores an expired session for subsequent calls.
 
 The host supplies `mcpFetch` separately from plugins' `fetch`. The daemon allows localhost, LAN and tailnet addresses for these owner-configured endpoints. Requests and bearer credentials are restricted to that exact endpoint, and redirects fail. Existing web search/fetch restrictions are unchanged. Core retains portable imports; Cloudflare runtime testing is deferred.
+
+The daemon also supplies `mcpStdio`, a small factory for the SDK's `StdioClientTransport`. Core never imports subprocess code. Commands run directly without a shell; relative paths use the daemon's working directory, so prefer absolute paths for scripts. The SDK inherits a limited environment such as PATH and HOME, excluding Familiar's configuration, provider-token variables and NODE_OPTIONS. It handles stdin/stdout, shutdown and process termination. Process exit removes the tools and reports `disconnected`; Reconnect starts a fresh process. Hosts without this factory report stdio servers as unsupported.
+
+Local MCP programs are trusted owner-installed code running as the daemon's user. The filtered environment is not a filesystem sandbox. Stdio servers have no bearer-token field or custom environment settings in this version.

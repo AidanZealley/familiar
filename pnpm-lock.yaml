@@ -77,6 +77,9 @@ importers:
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.13)
+      '@modelcontextprotocol/client':
+        specifier: 2.4.0
+        version: 2.4.0
       hono:
         specifier: 'catalog:'
         version: 4.13.13
@@ -93,9 +96,6 @@ importers:
         specifier: 3.6.7
         version: 3.6.7
     devDependencies:
-      '@modelcontextprotocol/client':
-        specifier: 2.4.0
-        version: 2.4.0
       '@modelcontextprotocol/server':
         specifier: 2.4.0
         version: 2.4.0

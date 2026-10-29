@@ -2,6 +2,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import { summonFamiliar } from '@familiar/core'
 import { config, dataPath } from './config.ts'
 import { guardedFetch } from './fetch.ts'
+import { stdioTransport } from './mcp-stdio.ts'
 import { lockDataDir } from './lock.ts'
 import { openModels } from './models.ts'
 import { loadPlugins } from './plugins.ts'
@@ -23,6 +24,7 @@ const familiar = await summonFamiliar({
   secrets: fileSecretStore(dataPath('secrets.json')),
   fetch: guardedFetch,
   mcpFetch: fetch,
+  mcpStdio: stdioTransport,
 })
 
 serveFamiliar(familiar, {

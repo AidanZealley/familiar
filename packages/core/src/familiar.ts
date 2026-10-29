@@ -16,7 +16,7 @@ import {
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona } from './persona/index.ts'
 import { createMcp } from './mcp/manager.ts'
-import type { McpApi } from './mcp/types.ts'
+import type { McpApi, McpStdioFactory } from './mcp/types.ts'
 import {
   createPlugins,
   type ConnectionsApi,
@@ -34,8 +34,8 @@ import { TimeExtension } from './time/index.ts'
 // The types in Familiar's own signatures, so hosts can name them.
 export type { HistoryPage, Message } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
-export type { McpApi, McpConnectionInfo } from './mcp/types.ts'
-export type { McpServer } from './mcp/servers.ts'
+export type { McpApi, McpConnectionInfo, McpStdioFactory } from './mcp/types.ts'
+export type { McpServer, McpStdioTransport } from './mcp/servers.ts'
 export type { Notification, SchedulesApi } from './schedules/index.ts'
 export {
   ConnectionError,
@@ -71,6 +71,8 @@ export type FamiliarOptions = {
   fetch?: PluginFetch
   /** Owner-configured MCP endpoints, including private networks. Never used by plugins. */
   mcpFetch?: PluginFetch
+  /** Optional host factory for owner-configured local MCP commands. */
+  mcpStdio?: McpStdioFactory
   /**
    * Roughly how many tokens each request may send, whatever the model's context
    * window; older conversation is compacted into a summary to stay under it.
@@ -163,6 +165,7 @@ export async function summonFamiliar(
   const scheduleActions = await schedules.start(harness)
   const mcp = await createMcp(harness, registry, {
     fetch: options.mcpFetch,
+    stdio: options.mcpStdio,
     secrets: options.secrets,
   })
 

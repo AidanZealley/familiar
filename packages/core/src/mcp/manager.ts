@@ -11,7 +11,7 @@ import {
   tokenDeclaration,
   type McpServer,
 } from './servers.ts'
-import type { McpApi } from './types.ts'
+import type { McpApi, McpStdioFactory } from './types.ts'
 
 /** Owns saved declarations and serializes owner edits, never network startup. */
 export async function createMcp(
@@ -20,6 +20,7 @@ export async function createMcp(
   options: {
     fetch?: PluginFetch
     secrets?: SecretStore
+    stdio?: McpStdioFactory
   },
 ) {
   const entries = new Map<string, ReturnType<typeof openConnection>>()
@@ -101,6 +102,7 @@ export async function createMcp(
       if (
         connection.kind !== 'mcp' ||
         secret !== 'token' ||
+        entry.server.transport.type !== 'http' ||
         entry.server.transport.auth.type !== 'bearer'
       ) {
         throw new ConnectionError(
@@ -116,12 +118,15 @@ export async function createMcp(
       Promise.all(
         [...entries.values()].map(async (entry) => {
           const info = entry.info()
-          if (info.transport.auth.type === 'bearer') {
+          if (
+            info.transport.type === 'http' &&
+            info.transport.auth.type === 'bearer'
+          ) {
             info.secrets = [
               {
                 name: 'token',
                 label: 'Bearer token',
-                origin: tokenDeclaration(info).sendAs.origin,
+                origin: tokenDeclaration(info.transport).sendAs.origin,
                 set: Boolean(
                   await options.secrets?.get(
                     { kind: 'mcp', name: info.name },

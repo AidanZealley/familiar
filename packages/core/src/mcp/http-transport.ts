@@ -1,21 +1,21 @@
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { authorizedFetch } from '../plugins/authorized-fetch.ts'
 import type { PluginFetch } from '../plugins/types.ts'
-import { tokenDeclaration, type McpServer } from './servers.ts'
+import { tokenDeclaration, type McpHttpTransport } from './servers.ts'
 
 /** Only this owner-chosen endpoint may use the host's private-network access. */
 export function httpTransport(
-  server: McpServer,
+  config: McpHttpTransport,
   fetch: PluginFetch,
   token: () => Promise<string>,
   signal: AbortSignal,
 ) {
-  return new StreamableHTTPClientTransport(new URL(server.transport.url), {
+  return new StreamableHTTPClientTransport(new URL(config.url), {
     requestInit: { redirect: 'error' },
     fetch: async (input, init) => {
       const request = new Request(input, init)
       if (
-        request.url !== server.transport.url ||
+        request.url !== config.url ||
         !['GET', 'POST', 'DELETE'].includes(request.method)
       ) {
         throw new Error('MCP requests must use the configured endpoint.')
@@ -30,10 +30,10 @@ export function httpTransport(
         ]),
         redirect: 'error',
       }
-      return server.transport.auth.type === 'bearer'
+      return config.auth.type === 'bearer'
         ? await authorizedFetch(
             fetch,
-            tokenDeclaration(server),
+            tokenDeclaration(config),
             token,
             request.url,
             settings,
