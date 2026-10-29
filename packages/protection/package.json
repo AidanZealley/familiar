@@ -1,0 +1,18 @@
+{
+  "name": "@familiar/protection",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@familiar/core": "workspace:*",
+    "@earendil-works/pi-durable": "catalog:"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "catalog:"
+  }
+}

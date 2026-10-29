@@ -58,6 +58,16 @@ packages/core/src
     tools.ts         schedule, list_schedules and cancel_schedule.
     index.ts         createSchedules(): the extension, its prompt section and
                      the owner's API; http.ts its route.
+  plugins/
+    types.ts         Plugin context and the host protection contract.
+    index.ts         Install extensions with credential access and optional protection.
+    connections.ts   Credential declarations, missing-key errors and the owner API.
+    authorized-fetch.ts  Attach a key only to its declared destination and request.
+    secrets.ts       Storage contract and the in-memory store for tests and demos.
+    http.ts          Write-only Connections routes.
+packages/protection/src  Optional host policy. index.ts observes credentials and wraps
+                     fetch and tools; redactor.ts matches known keys;
+                     response.ts and tool.ts adapt their respective output channels.
 packages/client/src
   store.ts           A live mirror of the conversation and every streamed document.
   transcript.ts      Turns entries into chat items: messages, replies, tool calls.
@@ -67,13 +77,14 @@ apps/web/src         The chat and Memory pages, built on @familiar/client.
 
 ## Reading order
 
-1. `core/familiar.ts`, about 100 lines. Everything else hangs off it.
+1. `core/familiar.ts`. Everything else hangs off it.
 2. `persona`, `time` and `context`: small, and they show the extension pattern plainly.
 3. `conversation/message.ts`, then `conversation/api.ts`.
 4. Memory, from the rules out (for how it works and why, read [memory.md](memory.md)): `facts.ts`, `episodes.ts`, `exchanges.ts`, `recall.ts`, `read.ts`, `tools.ts`, `extension.ts`, `upkeep/`, then `health.ts`, `api.ts`, `http.ts` and `index.ts`.
 5. Schedules, the same way: `schedules.ts`, `repeat.ts`, `task.ts`, `tools.ts`, then `index.ts`.
-6. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
-7. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
+6. Plugins: `plugins/types.ts`, `plugins/index.ts`, `plugins/connections.ts`, then `plugins/authorized-fetch.ts`. Hosts that enable masking also use `packages/protection`; plugin authors do not need to read it.
+7. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
+8. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
 
 Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep and schedules, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `schedules.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model.
 
@@ -97,3 +108,24 @@ Facts live in the session document `familiar.facts`, version 1, and recall and r
 - **State clients should see**: a document, added to the `Documents` table and the `documents` list in `http.ts`. The client mirrors it by name.
 - **Anything that varies per request**: a tool or a hook, never a prompt section. A section that changes resends the prompt and loses the provider's prompt cache.
 - **Node-only code**: `apps/daemon`. Packages stay portable.
+
+## Host protection
+
+Core has no dependency on `@familiar/protection`. A host chooses network access and masking separately:
+
+```ts
+import { summonFamiliar } from '@familiar/core'
+import { maskSecrets } from '@familiar/protection'
+
+const familiar = await summonFamiliar({
+  // storage, models, model and plugins are the host's as usual.
+  ...options,
+  secrets: secretStore,
+  fetch: hostFetch,
+  protection: maskSecrets,
+})
+```
+
+The daemon supplies its public-network-only `guardedFetch`. A cloud host supplies the network policy appropriate to its environment and can omit `protection`. Both still use core's destination checks for authenticated requests. Incoming authentication stays with `createHttpApi` and the host's server.
+
+A protection adapter is created once per Familiar. It can decorate the credential store, fetch and plugin tools. The masking adapter observes reads and writes through that store, retaining old keys for requests already running. Its known values belong to that Familiar alone. Without an adapter, responses and tools pass through unchanged. Connections routes remain write-only in both cases.

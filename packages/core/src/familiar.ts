@@ -20,6 +20,7 @@ import {
   type ConnectionsApi,
   type FamiliarPlugin,
   type PluginFetch,
+  type PluginProtection,
   type SecretStore,
 } from './plugins/index.ts'
 import {
@@ -43,6 +44,7 @@ export {
   type FamiliarPlugin,
   type PluginContext,
   type PluginFetch,
+  type PluginProtection,
   type PluginSecret,
   type SecretStore,
 } from './plugins/index.ts'
@@ -65,6 +67,8 @@ export type FamiliarOptions = {
    * Without one, plugins' fetches fail.
    */
   fetch?: PluginFetch
+  /** Optional host policy for masking responses and plugin tool output. */
+  protection?: PluginProtection
   /**
    * Roughly how many tokens each request may send, whatever the model's context
    * window; older conversation is compacted into a summary to stay under it.
@@ -134,6 +138,7 @@ export async function summonFamiliar(
     plugins: options.plugins ?? [],
     secrets: options.secrets,
     fetch: options.fetch,
+    protection: options.protection,
     notify: options.notify,
     now: options.now ?? Date.now,
   })

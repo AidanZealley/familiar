@@ -22,7 +22,8 @@
     "hono": "catalog:",
     "node-fetch": "3.3.2",
     "request-filtering-agent": "3.2.1",
-    "web-push": "3.6.7"
+    "web-push": "3.6.7",
+    "@familiar/protection": "workspace:*"
   },
   "devDependencies": {
     "@types/web-push": "3.6.4"
