@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
-import { ConnectionError, secretValue, type ConnectionsApi } from './index.ts'
+import { ConnectionError, secretValue } from './connections.ts'
+import type { ConnectionsApi } from './types.ts'
 import type { Connection } from './secrets.ts'
 
 const KINDS: readonly string[] = [

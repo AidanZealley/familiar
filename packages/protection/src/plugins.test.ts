@@ -1,3 +1,4 @@
+import { maskSecrets } from './index.ts'
 import { Type, type TranscriptContext } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
@@ -11,15 +12,15 @@ import {
   MemoryStorage,
 } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
-import { summonFamiliar, type Familiar } from '../familiar.ts'
-import { createHttpApi } from '../http.ts'
+import { summonFamiliar, type Familiar } from '@familiar/core'
+import { createHttpApi } from '@familiar/core/http'
 import {
   definePlugin,
   memorySecrets,
   type FamiliarPlugin,
   type PluginContext,
   type PluginFetch,
-} from './index.ts'
+} from '@familiar/core'
 
 const KEY = 'sk-test-0123456789'
 const ENDPOINT = 'https://api.test/echo'
@@ -94,7 +95,7 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-async function setup(plugins: FamiliarPlugin[] = [echo]) {
+async function setup(plugins: FamiliarPlugin[] = [echo], protectedHost = true) {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -120,6 +121,7 @@ async function setup(plugins: FamiliarPlugin[] = [echo]) {
     plugins,
     secrets,
     fetch,
+    protection: protectedHost ? maskSecrets : undefined,
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, { authenticate: () => 'owner' })
@@ -317,4 +319,19 @@ test("a plugin's tools follow core's on the first request", async () => {
   expect(request.indexOf('current_time')).toBeLessThan(
     request.indexOf('echo_key'),
   )
+})
+
+test('a plain host attaches credentials without rewriting responses or tool results', async () => {
+  const { secrets, sent, callTool } = await setup([echo], false)
+  await secrets.set(connection, 'key', KEY)
+  const response = await context.authorizedFetch('key', ENDPOINT)
+  expect(response.headers.get('X-Echo')).toBe(KEY)
+  expect(await response.text()).toBe(KEY)
+  expect(await callTool()).toContain(KEY)
+  expect(new Headers(sent[0].init?.headers).get('X-Key')).toBe(KEY)
+  expect(sent[0].init?.redirect).toBe('manual')
+  await expect(
+    context.authorizedFetch('key', 'https://evil.test/echo'),
+  ).rejects.toThrow()
+  expect(sent).toHaveLength(2)
 })

@@ -31,6 +31,7 @@ import {
   type PluginContext,
   type PluginFetch,
 } from '@familiar/core'
+import { maskSecrets } from '@familiar/protection'
 import {
   SEED_MESSAGE,
   seedEpisodes,
@@ -317,6 +318,7 @@ const familiar = await summonFamiliar({
   plugins: [demoPlugin],
   secrets: memorySecrets(),
   fetch: demoFetch,
+  protection: maskSecrets,
 })
 
 // Start with a year of sample memory, so the Memory pages have something to

@@ -1,4 +1,4 @@
-import type { PluginFetch, PluginSecret } from './index.ts'
+import type { PluginFetch, PluginSecret } from './types.ts'
 
 /** Why a declaration can't be used; thrown when Familiar opens. */
 export function checkDeclaration(plugin: string, secret: PluginSecret) {
