@@ -122,7 +122,13 @@ Tests, with the faux provider and a stub `fetch`:
 
 Done when the tests pass and, on the owner's own Familiar, setting the key on the Connections page lets it search. The owner does that check; agents don't message the real Familiar.
 
-Web fetch is separate follow-up work, preserved on `feat/web-fetch`. This branch includes search only.
+Web fetch is implemented with a smaller contract than the earlier `feat/web-fetch` prototype:
+
+- `web_fetch({ url, maxChars? })` uses the host's ordinary fetch, not authenticated fetch. Accept HTTP(S) URLs without embedded credentials; request Markdown first, then HTML or plain text. Reject other media types and bodies above 3 MB. The 15-second deadline covers the network, body read and conversion.
+- Convert HTML with `@mdream/js`, using its navigation filter and unsafe-link cleanup. Return its Markdown without custom rendering rules. Decode the HTTP charset with `TextDecoder`, defaulting to UTF-8; do not implement HTML meta-charset detection.
+- Return the final URL, retrieval time and at most `maxChars` characters, default 12,000 and maximum 30,000. Mark truncated output without calculating or exposing a full character count. No separate title extraction or article-scoring heuristic.
+- The portable plugin accepts an optional `convert` function for hosts that need conversion isolation. The daemon supplies a Piscina pool with two workers, eight queued tasks and 128 MB old-generation heap limits. Pass the tool's abort signal to the pool so cancellation and timeouts stop conversion.
+- Test useful extraction and links, output truncation, input-size rejection, unsupported documents, worker conversion and cancellation. Verify the complete plugin in the Workers runtime, not just by checking direct imports for `node:*`.
 
 ## 4. MCP connections
 

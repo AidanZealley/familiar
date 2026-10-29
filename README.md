@@ -19,10 +19,10 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   requests and the Connections API.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
-packages/plugin-web  web_search through Brave, with the owner's key.
+packages/plugin-web  web_search through Brave and web_fetch for public pages.
                   First-party, so the daemon installs it.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
-                  guarded fetch and plugin list;
+                  guarded fetch, bounded page-conversion workers and plugin list;
                   serves the API (and the built web UI).
 apps/web          Optional chat UI: Vite, TanStack Router, shadcn (Base UI).
 ```
@@ -146,3 +146,13 @@ After changing the judge, grade a saved run again instead of replaying it. This 
 ```sh
 pnpm eval:memory:rejudge eval/results/<file>.json
 ```
+
+### Reading web pages
+
+`web_fetch` reads public HTTP(S) pages as Markdown or plain text. It uses the host's fetch, without a service key or browser automation. Markdown is requested first; HTML is converted by `@mdream/js`, which handles parsing, links, tables and common navigation filtering. Familiar does not implement its own HTML parser, article scoring or Markdown rules. PDFs and images are unsupported.
+
+Reads stop with an error above 3 MB or after 15 seconds, including body reading and conversion. Output defaults to 12,000 characters, at most 30,000, with a truncation marker. Text uses the declared HTTP charset through `TextDecoder`, otherwise UTF-8; HTML meta-charset sniffing is deliberately omitted.
+
+The plugin uses portable JavaScript and Web APIs. Its default HTML conversion runs in the host's thread, suitable for a Worker with platform CPU limits. Hosts without an interruptible per-request CPU limit should pass `webPlugin({ convert })`. The Node daemon uses Piscina: at most two conversions run, eight may wait, worker old-generation heaps are limited to 128 MB, and the request's abort signal stops the conversion worker. These Node dependencies stay in the daemon.
+
+Fetched text is untrusted. Network filtering prevents private-network requests, but does not stop prompt injection or the model putting private information into a public URL. Pages are not made trustworthy by converting them to Markdown.

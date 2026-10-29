@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./convert-html": "./src/convert-html.ts"
   },
   "scripts": {
     "typecheck": "tsc"
@@ -11,6 +12,7 @@
   "dependencies": {
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
-    "@familiar/core": "workspace:*"
+    "@familiar/core": "workspace:*",
+    "@mdream/js": "2.0.3"
   }
 }

@@ -117,3 +117,9 @@ Plugins are Pi extensions with metadata and a small context. `plugins/index.ts` 
 Network restrictions belong to the host. The daemon supplies `guardedFetch`, which checks each connection's destination address; other hosts supply their own fetch. Incoming authentication stays with `createHttpApi` and the host's server.
 
 Responses and tool output are not scrubbed. An upstream service that echoes a key can expose it to the plugin and conversation. The separate `feat/secret-masking` branch preserves the masking implementation for later consideration; this release has no protection hooks or masking package.
+
+## Web fetch
+
+`plugin-web/src/fetch-page.ts` owns the HTTP read, byte limit and deadline. `convert-html.ts` delegates extraction and Markdown conversion to mdream, then clips the returned text. That file is also exported for host-side workers. No parser or charset scanner is maintained here.
+
+The daemon's plugin list supplies a Piscina-backed converter; `page-worker.ts` calls the same portable conversion function. Piscina owns worker lifetimes, concurrency, queue limits and abort handling. A Cloudflare host can use the default converter under its platform CPU limits, without importing any daemon code.

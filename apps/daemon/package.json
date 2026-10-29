@@ -21,6 +21,7 @@
     "@hono/node-server": "2.1.5",
     "hono": "catalog:",
     "node-fetch": "3.3.2",
+    "piscina": "5.3.2",
     "request-filtering-agent": "3.2.1",
     "web-push": "3.6.7"
   },
