@@ -68,7 +68,11 @@ packages/core/src
 packages/client/src
   store.ts           A live mirror of the conversation and every streamed document.
   transcript.ts      Turns entries into chat items: messages, replies, tool calls.
-apps/daemon/src      The Node host: storage, sign-in, serving, the demo, the eval.
+apps/daemon/src      The Node host: storage, sign-in, serving and the eval.
+  demo/main.ts       In-memory demo startup, separate from the real daemon.
+  demo/model.ts      Scripted model routing over an explicit list of scenarios.
+  demo/scenarios/    Feature-specific model responses and fake external services.
+  demo/seed.ts       Sample memory data and the tools that load it.
 apps/web/src         The chat and Memory pages, built on @familiar/client.
 ```
 

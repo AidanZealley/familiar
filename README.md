@@ -34,7 +34,7 @@ The daemon keeps everything it stores in `~/.local/share/familiar`, outside the 
 - **One Familiar has one owner and one conversation.** Hosts that serve many owners (a household app, say) open one Familiar per owner, e.g. one Durable Object each. Core never knows about tenants.
 - **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
 - **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. See [docs/architecture.md](docs/architecture.md).
-- **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
+- **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. Core assigns its extension name from the plugin name. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
 - **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Keys are attached at the request boundary; response bodies and tool output pass through unchanged. A service that echoes a key can expose it. The host owns credential storage.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
@@ -96,6 +96,8 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | `slow`    | Writes a long reply, to try Stop and queued messages                     |
 | `compact` | Fills the context until Pi compacts it (the overflow error is expected)  |
 | `error`   | Fails partway with an error message                                      |
+
+The demo lives in `apps/daemon/src/demo/`: `main.ts` starts it, `model.ts` routes scripted responses, and `scenarios/` owns each feature's demonstration. New scenarios belong beside the existing ones and are registered explicitly in `model.ts`; startup should stay wiring only. Only model responses and external services are faked. Memory, schedules, Connections and conversation storage use the real implementation, with in-memory data that disappears on restart.
 
 ### Settings
 
