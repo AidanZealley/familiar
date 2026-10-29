@@ -3,14 +3,6 @@ import { authorizedFetch } from '../plugins/authorized-fetch.ts'
 import type { PluginFetch } from '../plugins/types.ts'
 import { tokenDeclaration, type McpServer } from './servers.ts'
 
-export class McpHttpError extends Error {
-  readonly status: number
-  constructor(status: number) {
-    super(`MCP endpoint answered HTTP ${status}.`)
-    this.status = status
-  }
-}
-
 /** Only this owner-chosen endpoint may use the host's private-network access. */
 export function httpTransport(
   server: McpServer,
@@ -38,21 +30,15 @@ export function httpTransport(
         ]),
         redirect: 'error',
       }
-      const response =
-        server.transport.auth.type === 'bearer'
-          ? await authorizedFetch(
-              fetch,
-              tokenDeclaration(server),
-              token,
-              request.url,
-              settings,
-            )
-          : await fetch(request.url, settings)
-      if (!response.ok) {
-        await response.body?.cancel()
-        throw new McpHttpError(response.status)
-      }
-      return response
+      return server.transport.auth.type === 'bearer'
+        ? await authorizedFetch(
+            fetch,
+            tokenDeclaration(server),
+            token,
+            request.url,
+            settings,
+          )
+        : await fetch(request.url, settings)
     },
   })
 }

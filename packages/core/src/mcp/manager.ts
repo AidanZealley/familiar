@@ -43,15 +43,17 @@ export async function createMcp(
   }
   const start = (server: McpServer) => {
     registry.install(createToolSearchExtension())
-    entries.set(
-      server.name,
-      openConnection(server, registry, {
-        ...options,
-        expired: () => {
-          void api.reconnect(server.name).catch(() => {})
-        },
-      }),
-    )
+    const entry = openConnection(server, registry, {
+      ...options,
+      expired: () => {
+        void edit(async () => {
+          if (entries.get(server.name) === entry) {
+            await reconnect(server.name)
+          }
+        }).catch(() => {})
+      },
+    })
+    entries.set(server.name, entry)
   }
   const reconnect = async (name: string) => {
     const entry = get(name)
@@ -65,6 +67,11 @@ export async function createMcp(
         if (entries.has(server.name)) {
           throw new ConnectionError(`MCP server ${server.name} already exists.`)
         }
+        // A secret store can outlive the conversation that declared this name.
+        await options.secrets?.delete(
+          { kind: 'mcp', name: server.name },
+          'token',
+        )
         await harness.commit(async (tx) => {
           const doc = await tx.doc(McpServers)
           doc.servers.push(server)

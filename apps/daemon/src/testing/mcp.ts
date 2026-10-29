@@ -40,6 +40,7 @@ export function mcpFixture(test: TestContext) {
     calls: 0,
     dropResponse: false,
     expire: false,
+    rejectCall: false,
     requests: [] as Request[],
   }
   const fetch: PluginFetch = async (input, init) => {
@@ -65,6 +66,9 @@ export function mcpFixture(test: TestContext) {
       server.setRequestHandler('tools/list', () => ({ tools: state.tools }))
       server.setRequestHandler('tools/call', ({ params }) => {
         state.calls++
+        if (state.rejectCall) {
+          throw new Error('No such device')
+        }
         return { content: [{ type: 'text', text: JSON.stringify(params) }] }
       })
       const transport = new WebStandardStreamableHTTPServerTransport({
