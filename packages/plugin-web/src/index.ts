@@ -1,9 +1,6 @@
 import { defineExtension } from '@earendil-works/pi-durable'
 import { definePlugin } from '@familiar/core'
-import { BRAVE_ORIGIN, BRAVE_PATH, braveSearch } from './brave.ts'
-import { webSearchTool } from './search.ts'
-
-export type { SearchRequest, SearchResult, SearchService } from './search.ts'
+import { BRAVE_ORIGIN, BRAVE_PATH, webSearchTool } from './brave.ts'
 
 /** Web search through Brave, using the owner's key. */
 const webPlugin = definePlugin({
@@ -24,7 +21,7 @@ const webPlugin = definePlugin({
   extension: (context) =>
     defineExtension({
       name: 'web',
-      tools: [webSearchTool(braveSearch(context))],
+      tools: [webSearchTool(context)],
     }),
 })
 

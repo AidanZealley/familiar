@@ -13,7 +13,7 @@ import {
 } from '@familiar/core'
 import { afterEach, expect, test } from 'vitest'
 import web from './index.ts'
-import { timestamp } from './shared.ts'
+import { timestamp } from './format.ts'
 
 const KEY = 'BSA-test-0123456789'
 
