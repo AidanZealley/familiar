@@ -1,6 +1,7 @@
 import type { Extension } from '@earendil-works/pi-durable'
 import type { Notification } from '../schedules/index.ts'
 import type { Connection } from './secrets.ts'
+import type { McpConnectionInfo } from '../mcp/types.ts'
 
 /**
  * How plugins reach the network: the Fetch API's signature, so a host can
@@ -65,7 +66,7 @@ export type FamiliarPlugin = {
 }
 
 /** A connection as the owner sees it: never a secret's value. */
-export type ConnectionInfo = {
+export type PluginConnectionInfo = {
   kind: 'plugin'
   name: string
   title: string
@@ -78,6 +79,8 @@ export type ConnectionInfo = {
     set: boolean
   }[]
 }
+
+export type ConnectionInfo = PluginConnectionInfo | McpConnectionInfo
 
 export type ConnectionsApi = {
   list(): Promise<ConnectionInfo[]>

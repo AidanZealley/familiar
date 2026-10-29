@@ -17,6 +17,7 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
                   is the simplest), each reply sent to the host's notify.
   core/plugins    Plugin installation, credential declarations, authenticated
                   requests and the Connections API.
+  core/mcp        Saved MCP HTTP connections, tool discovery and lifecycle.
 packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 packages/plugin-web  web_search through Brave and web_fetch for public pages.
@@ -156,3 +157,11 @@ Reads stop with an error above 3 MB or after 15 seconds, including body reading 
 The plugin uses portable JavaScript and Web APIs. Its default HTML conversion runs in the host's thread, suitable for a Worker with platform CPU limits. Hosts without an interruptible per-request CPU limit should pass `webPlugin({ convert })`. The Node daemon uses Piscina: at most two conversions run, eight may wait, worker old-generation heaps are limited to 128 MB, and the request's abort signal stops the conversion worker. These Node dependencies stay in the daemon.
 
 Fetched text is untrusted. Network filtering prevents private-network requests, but does not stop prompt injection or the model putting private information into a public URL. Pages are not made trustworthy by converting them to Markdown.
+
+### MCP connections
+
+Hosts can manage HTTP MCP servers through `familiar.mcp.add({ name, transport })`, `remove(name)` and `reconnect(name)`. An HTTP transport is `{ type: 'http', url, auth: { type: 'none' | 'bearer' } }`. The equivalent owner routes live under `/api/mcp`; bearer tokens use the write-only Connections routes at `/api/connections/mcp/:name/secrets/token`. MCP controls in the web UI and local stdio servers are still planned.
+
+Declarations persist with the conversation, while tokens stay in the host's secret store. `familiar.connections.list()` includes runtime status and discovered tools. Servers connect independently, so an unavailable server does not block chat. Tools load through Pi's `tool_search`; failed calls are never replayed automatically. Reconnect restores an expired session for subsequent calls.
+
+The host supplies `mcpFetch` separately from plugins' `fetch`. The daemon allows localhost, LAN and tailnet addresses for these owner-configured endpoints. Requests and bearer credentials are restricted to that exact endpoint, and redirects fail. Existing web search/fetch restrictions are unchanged. Core retains portable imports; Cloudflare runtime testing is deferred.

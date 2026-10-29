@@ -12,6 +12,7 @@ import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
 import { connectionRoutes } from './plugins/http.ts'
+import { mcpRoutes } from './mcp/http.ts'
 import { pushRoutes, type PushHost } from './push.ts'
 import type { SchedulesState } from './schedules/index.ts'
 import { scheduleRoutes } from './schedules/http.ts'
@@ -29,6 +30,7 @@ export type {
 } from './conversation/index.ts'
 export type { Schedule, SchedulesState } from './schedules/index.ts'
 export type { PushHost, PushSubscriptionJson } from './push.ts'
+export type { McpConnectionInfo, McpServer } from './mcp/index.ts'
 export type {
   Connection,
   ConnectionInfo,
@@ -211,5 +213,6 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       .route('/schedules', scheduleRoutes(familiar.schedules))
       .route('/push', pushRoutes(options.push))
       .route('/connections', connectionRoutes(familiar.connections))
+      .route('/mcp', mcpRoutes(familiar.mcp))
   )
 }
