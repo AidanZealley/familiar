@@ -262,4 +262,6 @@ $definition = $service.NewTask(0); $definition.XmlText = $xml;
       },
     )
   },
+  // Starting Windows PowerShell alone can take most of Vitest's 5s default on CI.
+  30000,
 )
