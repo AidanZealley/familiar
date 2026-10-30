@@ -10,11 +10,11 @@ Familiar is a personal assistant with one durable conversation, memory, schedule
 - **Schedules and notifications.** One-off and recurring prompts, a Schedules page and Web Push delivery. Setup and device requirements are in the [README](../README.md#use-it).
 - **Plugins and Connections.** Pi extensions with a small Familiar context, write-only credential routes and a Connections UI. Authenticated requests attach credentials only to their declared destinations; the daemon owns network filtering.
 - **Web search and reading.** Brave search plus bounded public-page reads as text or Markdown. mdream owns HTML conversion; the daemon uses Piscina for interruptible conversion. No page JavaScript, PDFs or browser automation.
+- **MCP connections.** Saved HTTP and local stdio servers, deferred tools through Pi's tool search, and a searchable Connections workspace for status, credentials and server management. See [MCP ownership](architecture.md#mcp-connections) and the [setup guide](../README.md#mcp-connections).
 
 ## Next
 
-1. [MCP connections](specs/mcp.md): connect remote services, expose deferred tools through Pi's tool search and manage their status on Connections.
-2. [Easy install](specs/easy-install.md): install and sign in on Linux, macOS, Windows or a VPS, and export/import to move between machines.
+1. [Easy install](specs/easy-install.md): install and sign in on Linux, macOS, Windows or a VPS, and export/import to move between machines.
 
 ## Later
 
@@ -23,7 +23,7 @@ Write a spec before starting these.
 - **Real-world tools.** Calendar, initially read-only from a private ICS URL, then email. Plugins use the existing [credential and network boundaries](architecture.md#credential-and-network-boundaries).
 - **Action approvals.** Require approval before sensitive actions. Private data, untrusted pages and network access already coexist: destination-bound keys do not prevent private data leaking through a search query or public URL.
 - **Agent-written tools and skills.** Consider Pi's code mode for saved scripts with no direct file or network access, and instruction-only skills when repeated tasks justify them. File and shell tools must not see Familiar's private data directory.
-- **MCP authentication.** OAuth and additional secret headers after the basic MCP connection flow works.
+- **MCP authentication.** OAuth and additional secret headers when a server needs them.
 - **Web fetch paging.** Add an offset if truncated pages become a practical problem. Add other search providers only when needed.
 - **Secret masking.** Reconsider masking only for a concrete leak path; it is excluded from the current credential contract.
 - **Photos.** Image input using the model's vision and Pi's image resizing.
