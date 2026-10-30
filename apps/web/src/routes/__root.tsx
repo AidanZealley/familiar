@@ -2,7 +2,6 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import type { CSSProperties } from 'react'
 import { SiteHeader } from '@/components/site-header'
 import { ThemeProvider } from '@/components/theme-provider'
-import { ViewportDebug } from '@/components/viewport-debug'
 
 // The header's height, so pages can size and stick things below it.
 const chrome = {
@@ -17,7 +16,6 @@ export const Route = createRootRoute({
         <SiteHeader />
         <Outlet />
       </div>
-      <ViewportDebug />
     </ThemeProvider>
   ),
 })
