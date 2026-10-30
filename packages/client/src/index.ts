@@ -7,6 +7,8 @@ export type {
   EpisodesState,
   Fact,
   FactsState,
+  McpConnectionInfo,
+  McpServer,
   PushSubscriptionJson,
   Schedule,
   SchedulesState,

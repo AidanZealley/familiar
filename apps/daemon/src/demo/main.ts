@@ -8,6 +8,7 @@ import { createDemoModels } from './model.ts'
 import { seedMemory, seedEpisodes } from './seed.ts'
 import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
+import { demoMcpFetch, demoMcpStdio, seedMcp } from './scenarios/mcp.ts'
 import { seedDemo } from './scenarios/memory.ts'
 
 const demoPlugin = definePlugin({
@@ -32,8 +33,11 @@ const familiar = await summonFamiliar({
   plugins: [demoPlugin],
   secrets: memorySecrets(),
   fetch: demoFetch,
+  mcpFetch: demoMcpFetch,
+  mcpStdio: demoMcpStdio,
 })
 await seedDemo(familiar)
+await seedMcp(familiar)
 serveFamiliar(familiar, {
   host: '127.0.0.1',
   port: Number(process.env.FAMILIAR_DEMO_PORT ?? 4318),

@@ -1,59 +1,97 @@
-import { getRouteApi } from '@tanstack/react-router'
-import { PageHeading } from '@/components/page-heading'
-import { Badge } from '@/components/ui/badge'
-import { SecretField } from './components/secret-field'
+import { getRouteApi, useRouter } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
+import { AddServerForm } from './components/add-server-form'
+import { ConnectionDetail } from './components/connection-detail'
+import { ConnectionDrawer } from './components/connection-drawer'
+import { ConnectionList } from './components/connection-list'
+import { CredentialsForm } from './components/credentials-form'
+import { idOf, statusOf } from './status'
+import type { DrawerState } from './types'
 
 const route = getRouteApi('/connections')
 
+/**
+ * The list beside the selected connection. On a phone, one at a time: the
+ * selection in the URL decides which, so Back returns to the list.
+ */
 export const ConnectionsPage = () => {
+  const router = useRouter()
+  const navigate = route.useNavigate()
   const connections = route.useLoaderData()
-  // Ones that need the owner first; built-in ones have nothing to set.
+  const { id, q = '' } = route.useSearch()
+  const [drawer, setDrawer] = useState<DrawerState>()
+
   const sorted = connections.toSorted(
     (a, b) =>
-      Number(!a.secrets.length) - Number(!b.secrets.length) ||
-      a.title.localeCompare(b.title),
+      statusOf(a).rank - statusOf(b).rank || a.title.localeCompare(b.title),
   )
+  const selected =
+    sorted.find((connection) => idOf(connection) === id) ?? sorted[0]
+
+  // Fast while a server connects, so its outcome shows promptly.
+  const connecting = connections.some(
+    (connection) =>
+      connection.kind === 'mcp' && connection.status.type === 'connecting',
+  )
+  useEffect(() => {
+    const timer = setInterval(
+      () => void router.invalidate(),
+      connecting ? 1000 : 5000,
+    )
+    return () => clearInterval(timer)
+  }, [router, connecting])
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
-      <PageHeading
-        title="Connections"
-        description="Keys for the services Familiar uses. Each is sent only where it says. Stored keys are not displayed."
+    <main className="mx-auto flex w-full max-w-6xl flex-1 md:h-[calc(100svh-var(--chrome))]">
+      <ConnectionList
+        className={cn(id && 'max-md:hidden')}
+        connections={sorted}
+        selectedId={selected && idOf(selected)}
+        query={q}
+        onAdd={() => setDrawer({ type: 'add' })}
       />
-      {sorted.length ? (
-        <ul className="flex flex-col gap-3">
-          {sorted.map((connection) => (
-            <li
-              key={`${connection.kind}/${connection.name}`}
-              className="rounded-lg border bg-card p-3"
-            >
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-medium">{connection.title}</h2>
-                {!connection.secrets.length && (
-                  <Badge variant="outline">Built in</Badge>
-                )}
-              </div>
-              {connection.secrets.length > 0 && (
-                <div className="mt-3 flex flex-col gap-4">
-                  {connection.secrets.map((secret) => (
-                    <SecretField
-                      key={secret.name}
-                      connection={{
-                        kind: connection.kind,
-                        name: connection.name,
-                      }}
-                      secret={secret}
-                    />
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+      {selected ? (
+        <ConnectionDetail
+          key={idOf(selected)}
+          className={cn(!id && 'max-md:hidden')}
+          connection={selected}
+          onEdit={() => setDrawer({ type: 'edit' })}
+        />
       ) : (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Nothing to connect: this Familiar has no plugins.
+        <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground max-md:hidden">
+          Add an MCP server to give Familiar more tools.
         </p>
+      )}
+      <ConnectionDrawer
+        open={drawer?.type === 'add'}
+        onClose={() => setDrawer(undefined)}
+        title="Add an MCP server"
+        description="It connects in the background, and its tools become available to Familiar."
+      >
+        <AddServerForm
+          onAdded={async (name, tokenError) => {
+            await navigate({ search: { id: `mcp:${name}` } })
+            // A token that failed to save leaves it waiting for one: ask again.
+            setDrawer(
+              tokenError ? { type: 'edit', error: tokenError } : undefined,
+            )
+          }}
+        />
+      </ConnectionDrawer>
+      {selected && (
+        <ConnectionDrawer
+          open={drawer?.type === 'edit'}
+          onClose={() => setDrawer(undefined)}
+          title={`Edit ${selected.title}`}
+          description="Saved keys are never shown. Enter a new one to replace it."
+        >
+          <CredentialsForm
+            connection={selected}
+            error={drawer?.type === 'edit' ? drawer.error : undefined}
+            onDone={() => setDrawer(undefined)}
+          />
+        </ConnectionDrawer>
       )}
     </main>
   )

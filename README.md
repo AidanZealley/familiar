@@ -94,11 +94,14 @@ It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongsid
 | `memory`  | Calls `recall` for the morning drink, then replies with what it found    |
 | `remind`  | Schedules a reminder for the next minute, which then notifies            |
 | `key`     | Checks that a pretend service received the demo key without returning it |
+| `mcp`     | Finds an MCP `echo` tool through tool search and calls it                |
 | `slow`    | Writes a long reply, to try Stop and queued messages                     |
 | `compact` | Fills the context until Pi compacts it (the overflow error is expected)  |
 | `error`   | Fails partway with an error message                                      |
 
-The demo lives in `apps/daemon/src/demo/`: `main.ts` starts it, `model.ts` routes scripted responses, and `scenarios/` owns each feature's demonstration. New scenarios belong beside the existing ones and are registered explicitly in `model.ts`; startup should stay wiring only. Only model responses and external services are faked. Memory, schedules, Connections and conversation storage use the real implementation, with in-memory data that disappears on restart.
+The demo lives in `apps/daemon/src/demo/`: `main.ts` starts it, `model.ts` routes scripted responses, and `scenarios/` owns each feature's demonstration. The Connections page starts with pretend MCP servers in every state: connected, needing a token, failed, and a local command that exits after 20 seconds. Bearer servers accept `demo-token` and refuse anything else. Any other `*.demo.invalid` URL, or any command, serves an `echo` tool, so adding `http://echo.demo.invalid/mcp` from the page and saying `mcp` in chat tries a new server end to end. Nothing reaches the network or starts a process.
+
+New scenarios belong beside the existing ones and are registered explicitly in `model.ts`; startup should stay wiring only. Only model responses and external services are faked. Memory, schedules, Connections and conversation storage use the real implementation, with in-memory data that disappears on restart.
 
 ### Settings
 
@@ -160,7 +163,7 @@ Fetched text is untrusted. Network filtering prevents private-network requests, 
 
 ### MCP connections
 
-Hosts can manage MCP servers through `familiar.mcp.add({ name, transport })`, `remove(name)` and `reconnect(name)`. An HTTP transport is `{ type: 'http', url, auth: { type: 'none' | 'bearer' } }`. A local process uses `{ type: 'stdio', command, args }`, with an executable and an argument array. The equivalent owner routes live under `/api/mcp`; bearer tokens use the write-only Connections routes at `/api/connections/mcp/:name/secrets/token`. MCP controls in the web UI are still planned.
+Hosts can manage MCP servers through `familiar.mcp.add({ name, transport })`, `remove(name)` and `reconnect(name)`. An HTTP transport is `{ type: 'http', url, auth: { type: 'none' | 'bearer' } }`. A local process uses `{ type: 'stdio', command, args }`, with an executable and an argument array. The equivalent owner routes live under `/api/mcp`; bearer tokens use the write-only Connections routes at `/api/connections/mcp/:name/secrets/token`. The Connections page does the same: it adds, removes and reconnects servers, sets bearer tokens and shows each server's status and tools. A server's name and transport are fixed, so changing either means removing it and adding it again.
 
 Declarations persist with the conversation, while tokens stay in the host's secret store. `familiar.connections.list()` includes runtime status and discovered tools. Servers connect independently, so an unavailable server does not block chat. Tools load through Pi's `tool_search`; failed calls are never replayed automatically. Reconnect restores an expired session for subsequent calls.
 
