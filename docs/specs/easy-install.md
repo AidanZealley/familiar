@@ -103,8 +103,8 @@ Platform details:
 
 `install.sh` (Linux, macOS, WSL) and `install.ps1` (Windows) at the repo root:
 
-1. Install Node 24 if `node` is missing or older, from nodejs.org's official binaries into the user's home, with no `sudo`.
-2. `npm i -g` the latest release's `familiar.tgz`.
+1. Install Node 24 if `node` is missing or older, from nodejs.org's official binaries into the user's home, with no `sudo`. Use a fixed directory rather than one named by version: service definitions record Node's absolute path.
+2. Install the latest release's `familiar.tgz` into a prefix the user owns, so nothing needs `sudo` and the service never runs root-owned files. npm's default global prefix is often root-owned (`/usr/local` on many Macs), so `install.sh` passes `npm i -g --prefix ~/.local`, giving `~/.local/bin/familiar`, and adds `~/.local/bin` to the shell profile's `PATH` when it is missing. Windows' default prefix, `%APPDATA%\npm`, is already per-user and on `PATH`. `familiar update` reinstalls into the prefix it was installed from.
 3. Run `familiar`, passing the terminal through so sign-in can prompt. `curl … | sh` leaves stdin as the script, so read prompts from `/dev/tty`.
 
 Done when each script takes a fresh machine of its kind to a working URL.
