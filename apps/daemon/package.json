@@ -10,6 +10,7 @@
     "eval:memory": "node src/memory-eval/main.ts",
     "eval:memory:rejudge": "node src/memory-eval/rejudge.ts",
     "eval:recall": "node src/memory-eval/recall-main.ts",
+    "eval:unfiled": "node src/memory-eval/unfiled-main.ts",
     "typecheck": "tsc"
   },
   "dependencies": {

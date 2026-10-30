@@ -1,3 +1,4 @@
+import type { EntryId } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { addEpisode, type EpisodesState, type Span } from './episodes.ts'
 import { rememberFact, retireFact, reviseFact, type Memory } from './facts.ts'
@@ -292,6 +293,7 @@ test('the recall tool groups facts, episodes and exchanges, current facts first'
     id: 'x7',
     at: now - 31 * DAY,
     text: `${'Packing boxes all morning. '.repeat(20)}We finally moved to Foss Lane today and the kettle is lost. ${'Unpacking later. '.repeat(20)}`,
+    last: 7 as EntryId,
   })
   const { text, used } = recallAll(
     memory.facts,

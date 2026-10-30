@@ -6,7 +6,7 @@ Familiar is a personal assistant with one durable conversation, memory, schedule
 
 - **Core and hosts.** Portable core, an HTTP and SSE API, a client store, a Node daemon and the web UI. Each capability owns its extension and owner API; see [architecture](architecture.md).
 - **Chat.** Streamed Markdown, tool activity, stopped replies and history paging across compactions. The in-memory demo has separate startup, model routing and feature scenarios.
-- **Memory.** A bounded context, searchable exchanges, dated facts and episodes, recall and `read_memory`, nightly upkeep and fact review, and health diagnostics. See [memory](memory.md). The model-free recall eval exists; real-model evaluation is still pending.
+- **Memory.** A bounded context, searchable exchanges, dated facts and episodes, recall and `read_memory`, nightly upkeep and fact review, and health diagnostics. See [memory](memory.md). The model-free recall and unfiled evals exist; real-model evaluation is still pending.
 - **Schedules and notifications.** One-off and recurring prompts, a Schedules page and Web Push delivery. Setup and device requirements are in the [README](../README.md#use-it).
 - **Plugins and Connections.** Pi extensions with a small Familiar context, write-only credential routes and a Connections UI. Authenticated requests attach credentials only to their declared destinations; the daemon owns network filtering.
 - **Web search and reading.** Brave search plus bounded public-page reads as text or Markdown. mdream owns HTML conversion; the daemon uses Piscina for interruptible conversion. No page JavaScript, PDFs or browser automation.

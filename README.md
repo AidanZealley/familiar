@@ -120,13 +120,19 @@ The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog:
 
 ### Memory evaluation
 
-Two evals measure memory. The rot test is quick and needs no model; the replay is the real thing and takes hours.
+Three evals measure memory. The rot test and the unfiled test are quick and need no model; the replay is the real thing and takes hours.
 
 ```sh
 pnpm eval:recall
 ```
 
 The rot test asks exchange search alone `rowan-v3`'s questions, with no model: each day of the scenario becomes one exchange, then 1, 5 and 10 years of deterministic filler conversation (ten exchanges a day mentioning the same people and projects) are added after it. At each padding level it checks whether each required answer string appears in a scenario exchange among the top 5 and top 10 results, skipping the few required strings that appear nowhere in the scenario. It prints recall@5 and recall@10 by category and padding level, with index build time and median and maximum search times, and writes them to `eval/results/recall-<date>-<git-describe>.json`. It runs in seconds, so run it after any change to search or ranking; the scores should stay flat as padding grows.
+
+```sh
+pnpm eval:unfiled
+```
+
+The unfiled test measures what automatic recall shows of conversation that compaction took out of the model's view and upkeep hasn't filed yet. A scripted model replays `rowan-v3` in a 4,000-token budget with upkeep held off, so everything compacted stays unfiled, then each question is sent to a fresh copy of the replay and its recall note is checked for the required strings. It isolates retrieval: a year of unfiled conversation competes, where normally only the hours since the last 04:00 pass would, but facts and episodes are empty, so it can't show what giving exchanges part of the note costs them. It prints, by category, how many required strings the note contained, how many were still verbatim in the request, and how many only the note had, with the note's size, and writes them to `eval/results/unfiled-<date>-<git-describe>.json`. Unknown questions are scored only on their supporting details; whether the model then says it doesn't know needs the replay. It runs in seconds, so run it after any change to automatic recall.
 
 The replay plays the scenario through a real model. Sign in once with a separate ChatGPT login file, then run it:
 

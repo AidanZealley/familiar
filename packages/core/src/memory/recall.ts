@@ -9,8 +9,8 @@ import {
   type EpisodesState,
   type Span,
 } from './episodes.ts'
-import { localDay, parseDay } from '../time/index.ts'
-import type { ExchangeIndex } from './exchanges.ts'
+import { localDay, localMinute, parseDay } from '../time/index.ts'
+import type { Exchange, ExchangeIndex } from './exchanges.ts'
 import { factDays, isPast, type Fact, type FactsState } from './facts.ts'
 
 /**
@@ -254,6 +254,65 @@ export function searchMemory(
       ...core,
       ...kept.flatMap(({ item }) => ('fact' in item ? [item.fact.id] : [])),
     ],
+  }
+}
+
+/**
+ * Automatic recall's share for exchanges compacted out of the model's view
+ * that upkeep hasn't filed yet. They're taken first, so long-term memory
+ * can't crowd them out; what they don't use goes back to facts and episodes.
+ */
+export const UNFILED = { limit: 2, tokens: 250 }
+
+/** Unfiled exchanges as automatic recall shows them, and the tokens they use. */
+function describeUnfiled(exchanges: readonly Exchange[], query: string) {
+  const { kept, left } = within(
+    exchanges.map((exchange) => ({
+      line: `${exchange.id} (${localMinute(exchange.at)}): ${excerpt(exchange.text, query)}`,
+      shorten: false,
+    })),
+    UNFILED.limit,
+    UNFILED.tokens,
+  )
+  return {
+    lines: kept.map(({ line }) => line),
+    tokens: UNFILED.tokens - left,
+  }
+}
+
+export type RecallNote = {
+  /** Facts the message was about, to record as recalled. */
+  facts: string[]
+  /** What the model is shown, or null when nothing matched. */
+  note: string | null
+}
+
+/**
+ * Automatic recall's note for the latest message: unfiled exchanges within
+ * their share, then facts and episodes in what is left.
+ */
+export function recallNote(
+  memory: FactsState,
+  episodes: EpisodesState | undefined,
+  unfiled: readonly Exchange[],
+  query: string,
+  now: number,
+): RecallNote {
+  const recent = describeUnfiled(unfiled, query)
+  const { found, used } = searchMemory(memory, episodes, query, now, {
+    tokens: RECALL_TOKENS - recent.tokens,
+  })
+  const lines = [
+    ...found.map(({ line }) => line),
+    ...(recent.lines.length
+      ? ['Earlier conversation, not yet reviewed:', ...recent.lines]
+      : []),
+  ]
+  return {
+    facts: used,
+    note: lines.length
+      ? `Recalled from memory for the latest message; use it only if relevant:\n${lines.join('\n')}`
+      : null,
   }
 }
 

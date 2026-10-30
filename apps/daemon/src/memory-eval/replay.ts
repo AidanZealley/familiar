@@ -20,7 +20,7 @@ export type UpkeepResult = {
   outcome: 'advanced' | 'no-messages'
 }
 
-async function upkeepThrough(storage: Storage): Promise<number | null> {
+export async function upkeepThrough(storage: Storage): Promise<number | null> {
   const record = await storage.findDocument(
     { kind: 'familiar.upkeep', scope: { kind: 'session' } },
     'current',

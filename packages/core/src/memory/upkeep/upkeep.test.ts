@@ -761,13 +761,18 @@ test('a busy day reviews every message in ordered batches before its rollup', as
 
 test('a backlog is split at 04:00 and all days are reviewed before rollups', async () => {
   const { faux, say, setTime, episodes, passAt } = await setup()
-  faux.setResponses([
-    fauxAssistantMessage('Sunday reply.'),
-    fauxAssistantMessage('Monday reply.'),
-  ])
+  faux.setResponses([fauxAssistantMessage('Sunday reply.')])
   await say('Sunday news.')
-  // Simulate downtime in the scheduler while recording another day of chat.
+  // The first pass fails, so Sunday is still waiting when Monday's chat comes.
+  faux.setResponses([
+    fauxAssistantMessage('', {
+      stopReason: 'error',
+      errorMessage: 'insufficient_quota',
+    }),
+  ])
+  await passAt(firstPass, secondPass)
   setTime(firstPass + 60 * 60 * 1000)
+  faux.setResponses([fauxAssistantMessage('Monday reply.')])
   await say('Monday news.')
   const inputs: string[] = []
   const review = (context: TranscriptContext) => {
