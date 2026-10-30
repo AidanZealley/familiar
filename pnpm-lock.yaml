@@ -108,6 +108,9 @@ importers:
       '@types/web-push':
         specifier: 3.6.4
         version: 3.6.4
+      rolldown:
+        specifier: 1.2.15
+        version: 1.2.15
 
   apps/web:
     dependencies:

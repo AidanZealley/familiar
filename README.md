@@ -103,6 +103,15 @@ The demo lives in `apps/daemon/src/demo/`: `main.ts` starts it, `model.ts` route
 
 New scenarios belong beside the existing ones and are registered explicitly in `model.ts`; startup should stay wiring only. Only model responses and external services are faked. Memory, schedules, Connections and conversation storage use the real implementation, with in-memory data that disappears on restart.
 
+### Release packaging
+
+```sh
+pnpm bundle          # Build apps/daemon/dist/familiar.tgz
+pnpm test:release    # Install and verify it outside the repo, using temporary data
+```
+
+The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. Guided setup and the installation script are still planned.
+
 ### Settings
 
 | Variable                | Default                       |                                                           |

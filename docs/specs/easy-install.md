@@ -47,6 +47,8 @@ Step 1 is implemented. The CLI dispatches `serve` and `sign-in`; no command show
 
 Done when `npm i -g ./familiar.tgz` on a machine with only Node gives a working `familiar serve` that serves the UI and can convert an HTML page through its worker.
 
+Step 2 is implemented. `pnpm bundle` writes `apps/daemon/dist/familiar.tgz`, using `RELEASE_VERSION` or `0.0.0` for a local build. `pnpm test:release` installs that tarball into a temporary global prefix outside the workspace, then checks the CLI, HTTP API, web assets, HTML conversion worker and lazy ChatGPT sign-in module. A `v*` tag runs the checks and attaches the tested tarball to a GitHub Release. No release has been published yet.
+
 ## 3. Setup
 
 `familiar` with no subcommand. Each step checks before it acts, so a second run changes nothing that's already right:

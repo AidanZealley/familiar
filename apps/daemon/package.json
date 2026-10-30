@@ -11,7 +11,9 @@
     "eval:memory:rejudge": "node src/memory-eval/rejudge.ts",
     "eval:recall": "node src/memory-eval/recall-main.ts",
     "eval:unfiled": "node src/memory-eval/unfiled-main.ts",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "bundle": "pnpm --filter @familiar/web build && node scripts/bundle.ts",
+    "test:release": "node scripts/verify-release.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "catalog:",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "catalog:",
-    "@types/web-push": "3.6.4"
+    "@types/web-push": "3.6.4",
+    "rolldown": "1.2.15"
   }
 }
