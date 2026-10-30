@@ -87,8 +87,18 @@ export function macosService(options: MacOptions) {
   }
   const isRunning = () => ownsData() && /^\s*pid = \d+/m.test(inspect() ?? '')
   const stop = () => {
-    if (inspect() !== undefined) {
-      launchctl('bootout', target)
+    if (inspect() === undefined) {
+      return
+    }
+    launchctl('bootout', target)
+    // bootout returns while launchd is still removing the job. Starting
+    // before it is gone would kickstart the dying job instead of loading it.
+    const deadline = Date.now() + 10000
+    while (inspect() !== undefined) {
+      if (Date.now() > deadline) {
+        throw new Error('The Familiar LaunchAgent did not unload.')
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
     }
   }
   const start = () => {

@@ -15,6 +15,8 @@ import { macosService, renderAgent } from './macos.ts'
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 let temporary: string
 let loaded: boolean
+// Real launchctl keeps a job loaded briefly after bootout returns.
+let unloading: boolean
 const file = () => resolve(temporary, 'com.familiar.daemon.plist')
 const service = (dataDir = resolve(temporary, 'data')) =>
   macosService({
@@ -30,11 +32,16 @@ const calls = () =>
 beforeEach(() => {
   temporary = mkdtempSync(resolve(tmpdir(), 'familiar-launchagent-'))
   loaded = false
+  unloading = false
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.mocked(execFileSync)
     .mockReset()
     .mockImplementation((_command, args) => {
       if (args?.[0] === 'print') {
+        if (unloading) {
+          unloading = false
+          return 'state = running\n' as never
+        }
         if (!loaded) {
           throw Object.assign(new Error('missing service'), { status: 113 })
         }
@@ -42,6 +49,7 @@ beforeEach(() => {
       }
       if (args?.[0] === 'bootout') {
         loaded = false
+        unloading = true
       }
       if (args?.[0] === 'bootstrap') {
         loaded = true
@@ -93,6 +101,20 @@ test('suspension unloads KeepAlive and restores the agent after failed work', as
     }),
   ).rejects.toThrow('cancelled')
   expect(loaded).toBe(true)
+})
+
+test('restart waits for bootout to finish before loading the agent again', () => {
+  const host = service()
+  host.install()
+  vi.mocked(execFileSync).mockClear()
+  host.restart()
+  expect(loaded).toBe(true)
+  expect(
+    calls().filter((call) => / (bootout|bootstrap|kickstart) /.test(call)),
+  ).toEqual([
+    'launchctl bootout gui/501/com.familiar.daemon',
+    'launchctl bootstrap gui/501 ' + file(),
+  ])
 })
 
 test('a different data directory cannot replace or unload this agent', async () => {
