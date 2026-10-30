@@ -92,6 +92,8 @@ export function ThemeProvider({
 
       root.classList.remove('light', 'dark')
       root.classList.add(resolvedTheme)
+      // Native controls like scrollbars only follow `color-scheme`, not the class.
+      root.style.colorScheme = resolvedTheme
 
       if (restoreTransitions) {
         restoreTransitions()
