@@ -4,15 +4,13 @@ import {
   MessageScroller,
   MessageScrollerButton,
   MessageScrollerContent,
-  MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
 import { useFamiliar } from '@/lib/familiar'
 import { Composer } from './components/composer'
 import { OlderMessages } from './components/older-messages'
-import { TranscriptItem } from './components/transcript-item'
-import { turnTimes } from './times'
+import { TranscriptItems } from './components/transcript-items'
 
 export const Chat = () => {
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -35,7 +33,6 @@ export const Chat = () => {
     () => view && toTranscript(view, history),
     [view, history],
   )
-  const times = useMemo(() => turnTimes(transcript?.items ?? []), [transcript])
   const firstItemIds = useMemo(
     () => transcript?.items.slice(0, 3).map((item) => item.id) ?? [],
     [transcript],
@@ -57,21 +54,7 @@ export const Chat = () => {
               aria-busy={transcript?.busy}
               className="mx-auto w-full max-w-(--page-width) gap-4 p-4 pt-[calc(var(--chrome)+1rem)]"
             >
-              {transcript?.items.map((item) => (
-                <MessageScrollerItem
-                  key={item.id}
-                  messageId={item.id}
-                  // A message, or a scheduled prompt, starts a turn once
-                  // Familiar takes it up. A queued one would jump over the
-                  // reply still streaming above it.
-                  scrollAnchor={
-                    (item.type === 'message' || item.type === 'scheduled') &&
-                    !item.queued
-                  }
-                >
-                  <TranscriptItem item={item} time={times.get(item.id)} />
-                </MessageScrollerItem>
-              ))}
+              <TranscriptItems items={transcript?.items ?? []} />
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <OlderMessages firstItemIds={firstItemIds} />
