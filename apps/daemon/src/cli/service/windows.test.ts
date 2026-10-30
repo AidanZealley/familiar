@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import {
+  hiddenLaunch,
   renderHiddenLauncher,
   renderLauncher,
   renderTask,
@@ -204,15 +205,11 @@ test('the Windows launcher forwards logs and the daemon exit code', async () => 
   )
   const file = resolve(dataDir, 'service.cjs')
   writeFileSync(file, renderLauncher({ dataDir, cliPath, workDir: temporary }))
-  const hidden = resolve(dataDir, 'service.vbs')
-  writeFileSync(
-    hidden,
-    '\ufeff' + renderHiddenLauncher({ dataDir, cliPath }),
-    'utf16le',
-  )
+  const hidden = hiddenLaunch({ dataDir })
+  writeFileSync(hidden.path, renderHiddenLauncher({ dataDir, cliPath }))
   const result = native.spawnSync(
-    process.platform === 'win32' ? 'wscript.exe' : process.execPath,
-    [process.platform === 'win32' ? hidden : file],
+    process.platform === 'win32' ? hidden.command : process.execPath,
+    [process.platform === 'win32' ? hidden.path : file],
     {
       encoding: 'utf8',
       timeout: 10000,
