@@ -19,6 +19,10 @@ packages/core/src
                      returns the Familiar API. The one place to see the whole.
   http.ts            The HTTP + SSE API and every wire type clients use.
   diagnostics.ts     For tools around Familiar (the demo, the eval), not hosts.
+  account/           The owner's login with the models' provider, as one state:
+                     device-code sign-in and sign-out through the host's Models,
+                     and a hook that rechecks the login when a request fails.
+                     http.ts its routes; the state streams on /events.
   persona/           Who Familiar is: the prompt's preamble.
   time/              current_time, and how dates are written (local days).
   context/           How much conversation fits in a request; compaction; timeouts;

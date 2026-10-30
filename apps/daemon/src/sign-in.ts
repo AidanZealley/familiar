@@ -1,9 +1,17 @@
-// Sign in with ChatGPT once; the daemon refreshes the token from then on.
+// Sign in with ChatGPT before the daemon first runs; it refreshes the token
+// from then on, and its web UI signs in again if it ever needs to.
 // Usage: pnpm sign-in
 
 import { createInterface } from 'node:readline/promises'
-import { config, deviceId } from './config.ts'
+import { config, dataPath, deviceId } from './config.ts'
+import { lockDataDir } from './lock.ts'
 import { openModels } from './models.ts'
+
+// A running daemon keeps its login in memory and would never see this one.
+lockDataDir(
+  dataPath('daemon.lock'),
+  'Sign in from its web UI instead: sign out in Settings, then sign in above the chat.',
+)
 
 const models = openModels()
 const terminal = createInterface({

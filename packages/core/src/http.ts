@@ -7,6 +7,8 @@ import type {
 import { Hono, type TypedResponse } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { validator } from 'hono/validator'
+import type { AccountState } from './account/index.ts'
+import { accountRoutes } from './account/http.ts'
 import type { HistoryPage } from './conversation/index.ts'
 import { modelRoutes } from './conversation/http.ts'
 import type { Familiar } from './familiar.ts'
@@ -31,6 +33,7 @@ export type {
   ScheduledData,
 } from './conversation/index.ts'
 export type { AgentState } from '@earendil-works/pi-durable'
+export type { AccountState } from './account/index.ts'
 export type { Schedule, SchedulesState } from './schedules/index.ts'
 export type { PushHost, PushSubscriptionJson } from './push.ts'
 export type { McpConnectionInfo, McpServer } from './mcp/index.ts'
@@ -80,6 +83,8 @@ export type StreamEvent =
       }[DocumentName]
     }
   | { event: 'document.ops'; data: { name: DocumentName; ops: readonly Op[] } }
+  /** The owner's login, whole each time it changes. */
+  | { event: 'account'; data: AccountState }
 
 export type HttpOptions = {
   /**
@@ -148,11 +153,19 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
             await streamDocument('schedules', familiar.schedules.watch),
           ]
 
+          await send({ event: 'account', data: familiar.account.state() })
+          const stopAccount = familiar.account.onChange(
+            (state) => void send({ event: 'account', data: state }),
+          )
+
           const heartbeat = setInterval(
             () => void stream.write(': ping\n\n'),
             HEARTBEAT_MS,
           )
-          const stop = () => watches.forEach((watch) => void watch.stop())
+          const stop = () => {
+            stopAccount()
+            watches.forEach((watch) => void watch.stop())
+          }
 
           stream.onAbort(stop)
           await Promise.race(watches.map((watch) => watch.closed))
@@ -213,6 +226,7 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
         await familiar.abort()
         return c.body(null, 202)
       })
+      .route('/account', accountRoutes(familiar.account))
       .route('/model', modelRoutes(familiar))
       .route('/memory', memoryRoutes(familiar.memory))
       .route('/schedules', scheduleRoutes(familiar.schedules))
