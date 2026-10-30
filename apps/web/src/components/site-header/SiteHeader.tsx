@@ -34,7 +34,7 @@ export const SiteHeader = () => {
 
   return (
     <header className="sticky top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-      <div className="mx-auto flex h-full max-w-5xl items-center gap-4 px-4">
+      <div className="mx-auto flex h-full max-w-5xl items-center gap-2 px-3 sm:gap-4 sm:px-4">
         <h1 className="flex items-center gap-2 font-heading text-sm font-medium tracking-tight">
           <CatIcon className="size-5" />
           familiar
@@ -91,12 +91,12 @@ export const SiteHeader = () => {
             <NavigationMenuItem>
               <NavigationMenuTrigger
                 className={cn(
-                  'gap-1.5 text-muted-foreground',
+                  'gap-1.5 text-muted-foreground max-sm:[&>svg:last-child]:hidden',
                   inMemory && current,
                 )}
               >
                 <LibraryIcon className="size-4" />
-                Memory
+                <span className="max-sm:sr-only">Memory</span>
               </NavigationMenuTrigger>
               <NavigationMenuContent>
                 <ul className="flex w-[min(18rem,calc(100vw-2rem))] flex-col">

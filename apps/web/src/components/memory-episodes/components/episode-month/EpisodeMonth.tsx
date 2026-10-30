@@ -11,11 +11,7 @@ export const EpisodeMonth = ({ month }: EpisodeMonthProps) => {
   )
 
   return (
-    <section
-      id={`episodes-${month.key}`}
-      data-month={month.key}
-      className="scroll-mt-[calc(var(--chrome)+0.5rem)] pt-4 md:scroll-mt-[calc(var(--chrome)+3.5rem)]"
-    >
+    <section className="pt-4">
       <h2 className="sticky top-(--chrome) z-10 -mx-1 bg-background px-1 py-2 font-medium md:top-[calc(var(--chrome)+3rem)]">
         {month.label}
       </h2>
