@@ -14,7 +14,11 @@ import {
   powershellString as quote,
 } from '../../windows-powershell.ts'
 import type { ServiceOptions } from './types.ts'
-import { renderLauncher, renderTask } from './windows-render.ts'
+import {
+  renderHiddenLauncher,
+  renderLauncher,
+  renderTask,
+} from './windows-render.ts'
 
 type WindowsOptions = ServiceOptions & { startupDir?: string; userId?: string }
 type Action = { node: string; args: string }
@@ -33,6 +37,11 @@ export function windowsService(options: WindowsOptions) {
   }
   const name = `Familiar-${userId}`
   const launcher = resolve(options.dataDir, 'service.cjs')
+  const hiddenLauncher = resolve(options.dataDir, 'service.vbs')
+  const scriptHost = resolve(
+    process.env.SystemRoot ?? 'C:\\Windows',
+    'System32/wscript.exe',
+  )
   const taskFile = resolve(options.dataDir, 'service-task.xml')
   const shortcut = resolve(
     options.startupDir ??
@@ -44,7 +53,9 @@ export function windowsService(options: WindowsOptions) {
   )
   const args = `"${launcher}"`
   const matches = (action: Action) =>
-    action.args.toLowerCase() === args.toLowerCase()
+    [args, `"${hiddenLauncher}"`].some(
+      (expected) => action.args.toLowerCase() === expected.toLowerCase(),
+    )
   const schtasks = (...command: string[]) =>
     execFileSync('schtasks.exe', command, {
       encoding: 'utf8',
@@ -110,7 +121,7 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
     const { task, link } = registration()
     if (link) {
       powershell(
-        `Start-Process -FilePath ${quote(node)} -ArgumentList ${quote(args)} -WorkingDirectory ${quote(options.workDir ?? dirname(options.cliPath))} -WindowStyle Hidden`,
+        `Start-Process -FilePath ${quote(scriptHost)} -ArgumentList ${quote(`"${hiddenLauncher}"`)} -WorkingDirectory ${quote(options.workDir ?? dirname(options.cliPath))} -WindowStyle Hidden`,
       )
     } else if (task) {
       if (!task.enabled) {
@@ -146,10 +157,13 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
     install(forceRestart = false) {
       const current = registration()
       const source = renderLauncher(options)
+      const hiddenSource = renderHiddenLauncher(options)
       const xml = renderTask(options, userId)
       const changed =
         !existsSync(launcher) ||
         readFileSync(launcher, 'utf8') !== source ||
+        !existsSync(hiddenLauncher) ||
+        readFileSync(hiddenLauncher, 'utf16le') !== '\ufeff' + hiddenSource ||
         !existsSync(taskFile) ||
         readFileSync(taskFile, 'utf8') !== xml
       const running = isRunning()
@@ -159,6 +173,10 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
         }
         ensureDataDir(options.dataDir)
         writeFileSync(launcher, source, { mode: 0o600 })
+        writeFileSync(hiddenLauncher, '\ufeff' + hiddenSource, {
+          encoding: 'utf16le',
+          mode: 0o600,
+        })
         writeFileSync(taskFile, xml, { mode: 0o600 })
         try {
           schtasks('/Create', '/TN', name, '/XML', taskFile, '/F')
@@ -172,7 +190,7 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
           mkdirSync(dirname(shortcut), { recursive: true })
           powershell(`
 $link = (New-Object -ComObject WScript.Shell).CreateShortcut(${quote(shortcut)});
-$link.TargetPath = ${quote(node)}; $link.Arguments = ${quote(args)};
+$link.TargetPath = ${quote(scriptHost)}; $link.Arguments = ${quote(`"${hiddenLauncher}"`)};
 $link.WorkingDirectory = ${quote(options.workDir ?? dirname(options.cliPath))}; $link.WindowStyle = 7; $link.Save()
 `)
           console.log(
@@ -199,6 +217,7 @@ $link.WorkingDirectory = ${quote(options.workDir ?? dirname(options.cliPath))}; 
         rmSync(shortcut)
       }
       rmSync(launcher, { force: true })
+      rmSync(hiddenLauncher, { force: true })
       rmSync(taskFile, { force: true })
     },
     logs() {

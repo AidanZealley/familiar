@@ -10,7 +10,11 @@ import {
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { renderLauncher, renderTask } from './windows-render.ts'
+import {
+  renderHiddenLauncher,
+  renderLauncher,
+  renderTask,
+} from './windows-render.ts'
 import { windowsService } from './windows.ts'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
@@ -117,6 +121,8 @@ test('task XML runs as the owner at logon with restart limits and safe argument 
   )
   expect(xml).toContain('owner &amp; data')
   expect(xml).toContain('&quot;')
+  expect(xml).toContain('wscript.exe</Command>')
+  expect(xml).toContain('service.vbs')
 })
 
 test('install registers once and repeat setup preserves a running instance', () => {
@@ -198,10 +204,20 @@ test('the Windows launcher forwards logs and the daemon exit code', async () => 
   )
   const file = resolve(dataDir, 'service.cjs')
   writeFileSync(file, renderLauncher({ dataDir, cliPath, workDir: temporary }))
-  const result = native.spawnSync(process.execPath, [file], {
-    encoding: 'utf8',
-    timeout: 10000,
-  })
+  const hidden = resolve(dataDir, 'service.vbs')
+  writeFileSync(
+    hidden,
+    '\ufeff' + renderHiddenLauncher({ dataDir, cliPath }),
+    'utf16le',
+  )
+  const result = native.spawnSync(
+    process.platform === 'win32' ? 'wscript.exe' : process.execPath,
+    [process.platform === 'win32' ? hidden : file],
+    {
+      encoding: 'utf8',
+      timeout: 10000,
+    },
+  )
   expect(result.status).toBe(7)
   const log = readFileSync(resolve(dataDir, 'service.log'), 'utf8')
   expect(log).toContain(dataDir)
