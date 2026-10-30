@@ -18,8 +18,9 @@ Familiar is a personal assistant with one durable conversation, memory, schedule
 
 ## Later
 
-Write a spec before starting these.
+Write a spec before starting these unless one is linked below.
 
+- **Multiple Familiars and collaboration.** [Draft spec](specs/multiple-familiars.md): one host with several named assistants, separate conversations and memory, safe lifecycle management, then explicit delegation between roles. Parked for later discussion.
 - **Real-world tools.** Calendar, initially read-only from a private ICS URL, then email. Plugins use the existing [credential and network boundaries](architecture.md#credential-and-network-boundaries).
 - **Action approvals.** Require approval before sensitive actions. Private data, untrusted pages and network access already coexist: destination-bound keys do not prevent private data leaking through a search query or public URL.
 - **Agent-written tools and skills.** Consider Pi's code mode for saved scripts with no direct file or network access, and instruction-only skills when repeated tasks justify them. File and shell tools must not see Familiar's private data directory.

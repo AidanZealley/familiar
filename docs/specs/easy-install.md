@@ -21,9 +21,24 @@ Known decisions:
 - **The published app is bundled.** Node won't strip types from files inside `node_modules`, so development's run-unbuilt convention cannot be the release format. Bundle the application with Rolldown and ship the built web UI beside it. Web fetch now also runs `page-worker.ts`: ship a JavaScript worker entry and ensure the daemon resolves it correctly in the installed package. Keep Piscina as a runtime dependency so its own worker assets resolve normally; its optional native scheduling helper is not required for correctness. Storage uses Node's built-in `node:sqlite`.
 - **Sign-in is ChatGPT's subscription login**, the Codex OAuth pi-ai already uses. OpenAI supports subscription OAuth in external tools; OpenClaw relies on it the same way. The pinned pi-ai 1.4.0 offers browser login with a pasted callback URL, but no device-code flow. Desktop setup opens the browser; headless setup prints the link and explains how to paste the final redirect URL.
 - **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth (README Rules), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
-- **The conversation file is the unit of portability.** Everything a Familiar is (conversation, facts, history, episodes, durable tasks) is in `familiar.sqlite`. Export is a consistent snapshot of that file; the login stays behind (step 6).
+- **A move uses a versioned backup.** Conversation, memory and durable tasks live in SQLite; chosen settings live beside it. Export includes both, while provider login and machine-specific state stay behind. Stop the source before the final snapshot for a move (step 6).
 
 Keep each milestone in its own commit. Guided setup and Linux service management are one milestone because setup installs the service. Finish service support on Linux, macOS and Windows before the install scripts. Linux and VPS support remains available while the other hosts are added.
+
+Remaining work, in order:
+
+1. Platform service support on macOS and Windows, followed by native lifecycle checks on all three systems.
+2. Shell and PowerShell installers that hand setup to the CLI.
+3. Versioned export/import with consistent snapshots and safe replacement.
+4. Strengthened update using that backup support, compatibility checks, migrations and recovery.
+
+## Implementation boundaries
+
+Keep command parsing in `apps/daemon/src/cli.ts`, with command handlers, interactive setup, sign-in, tailnet management and platform service code under `apps/daemon/src/cli/`. Keep tests beside those files. Package construction and installed-package verification stay under `apps/daemon/scripts/`.
+
+Paths, saved settings and model credentials are shared Node-host responsibilities and stay outside the CLI directory. Serving the assistant uses those directly and must not import CLI management code. Core and client packages do not depend on installation, OS services, filesystem paths or CLI state. Add a core change only when an explicit assistant capability requires it.
+
+The daemon is still one runtime behind one stable CLI entry. Do not create a second daemon or a second configuration owner for installed packages. Preserve the old `main.ts` service entry as a compatibility boundary until existing installations no longer need it.
 
 ## 1. The `familiar` command
 
@@ -63,7 +78,7 @@ Done when setup on a fresh Linux machine ends with a working URL, and a second r
 
 ## 4. Services
 
-`src/service/` owns "run at boot". `index.ts` picks the implementation for `process.platform`; each one offers the same `install`, `uninstall`, `restart`, `isRunning` and `logs`. Each writes a unit that runs `<node> <installed familiar.js> serve` with absolute paths, and keeps the content in a pure function so tests can check it without touching the system.
+`src/cli/service/` owns "run at boot". `index.ts` picks the implementation for `process.platform`; each one offers the same `install`, `uninstall`, `restart`, `isRunning` and `logs`. Each writes a unit that runs `<node> <installed familiar.js> serve` with absolute paths, and keeps the content in a pure function so tests can check it without touching the system.
 
 - **Linux:** the systemd user unit from today's `install-service.ts`, plus `loginctl enable-linger $USER` so it runs with nobody logged in, which is what a VPS needs. Logs: `journalctl --user -u familiar`.
 - **macOS:** a LaunchAgent in `~/Library/LaunchAgents` with `RunAtLoad` and `KeepAlive`, logging to a file in the data directory. A LaunchAgent runs only while its user is logged in, so setup says to turn on automatic login for a headless Mac mini.
@@ -89,33 +104,45 @@ Done when each script takes a fresh machine of its kind to a working URL.
 
 ## 6. Export and import
 
-`src/snapshot.ts` owns both.
+`src/cli/snapshot.ts` owns the backup format and snapshot operations. Use the same operations for export/import and update recovery.
 
-**`familiar export <file>`** (or `-` for stdout):
+An export is one versioned archive containing a manifest, a consistent `familiar.sqlite` snapshot and explicit portable settings such as name, owner and chosen model. Define its exact encoding before implementing it, using an existing archive implementation. The manifest records backup format, application version and storage/document versions needed for compatibility checks.
 
-1. Write a consistent snapshot of `familiar.sqlite` with SQLite's `VACUUM INTO`, through `node:sqlite` directly, read-only. This is safe while the daemon runs: SQLite allows other readers alongside the write-ahead log, and it doesn't open Pi storage, so it doesn't break the one-owner rule. Copying the files by hand can catch a write halfway.
-2. Leave `auth.json` and `device-id` out. The login's refresh token changes on every refresh, so two machines sharing one would break each other's sign-in; the destination signs in again through the browser flow. Say that the file holds everything the owner has told Familiar and should be kept private.
-3. Then ask whether to stop this Familiar so only the new copy runs, defaulting to yes; skip the question with `--keep-running`. Two copies of one Familiar running at once diverge for good, and the data directory's lock can't see across machines.
+Exclude ChatGPT credentials, installation ID, provider tokens, locks, service definitions, executable launchers, ports and Web Push registrations. Explain which plugin credentials must be entered again on the destination. Imported MCP declarations remain visible, but machine-specific local commands require review before any startup that could execute them. An export contains private conversation and may contain secrets the owner entered into chat or command arguments.
 
-**`familiar import <file>`** (or `-` for stdin):
+**`familiar export <file>`**, or `-` for stdout:
 
-1. Check that the file is a SQLite database with Pi's tables, without opening it as Pi storage.
-2. Refuse when the data directory already has a conversation, unless given `--replace`, which renames the old file to `familiar.sqlite.replaced-<time>` first.
-3. Show any saved stdio MCP commands and arguments before starting the imported conversation, since startup launches them as the local user. Require the owner to accept those commands before continuing; missing executables on the destination need reconfiguration. Remind the owner that arguments are part of the export and must not contain secrets.
-4. Stop the service if it runs, put the file in place, start it again.
+1. Explain that this is a move by default and confirm stopping the source. Stop it before taking the final consistent snapshot so no later messages or tasks are left behind.
+2. Use SQLite's snapshot interface or `VACUUM INTO` to create the database copy, rather than copying a live main file without its write-ahead log. Open SQLite directly, without opening another Pi storage owner.
+3. Finish and validate the archive before reporting success. A failed export leaves the original data intact and offers to resume a source stopped for the move.
+4. Leave the source stopped after a successful move. An explicit `--keep-running` backup mode may snapshot a running instance; explain that starting both copies creates diverging assistants.
 
-Durable tasks travel inside the file, so anything that fell due in transit (nightly upkeep and schedules) runs when the new machine starts. Find out how the installed pi-durable treats a file written by a newer version of itself, and make import say "update Familiar first" in that case rather than fail obscurely.
+**`familiar import <file>`**, or `-` for stdin:
 
-Tests, with temporary directories:
+1. Validate the archive and compatibility before changing the destination. Reject unsafe paths and unsupported newer formats with actionable instructions. Inspect the pinned Pi version's actual checks instead of assuming a newer database is safe to open.
+2. Require explicit replacement when an existing destination conversation is present, show what will be replaced and retain a recovery copy. Setup may already have created a new conversation, so guide the owner through this case.
+3. Show saved stdio MCP commands and arguments and obtain acceptance before startup. Missing executables need reconfiguration. Sign in separately on the destination; keep the destination's machine-specific service/network settings.
+4. Stop the destination, install the validated snapshot and portable settings, then start it. On failure preserve both the old destination and the imported backup, and report recovery steps.
 
-- Exporting a Familiar on SQLite storage while it's open, after the faux model has replied and saved a fact, gives a file a new Familiar opens with the same transcript and memory.
-- Export never contains `auth.json` or `device-id` content.
-- Import refuses an existing conversation without `--replace`, and with it keeps the old file aside.
-- Import rejects a file that isn't a Familiar export.
+File transfer is separate. A USB drive, shared folder or `scp` moves the same archive. Optional SSH streaming uses stdout only for backup bytes, stderr for progress and a terminal for prompts, so piping cannot mix messages into the archive. Do not build a file-transfer service.
 
-Done when the tests pass and `ssh <vps> familiar export - | familiar import -` moves a real install, after which the old one is stopped.
+Durable tasks travel with the database. Document how overdue upkeep and schedules resume, and keep the source stopped to prevent duplicate work.
 
-## 7. Documentation
+Done when temporary-directory tests and a real move verify transcript, facts, episodes and schedules survive; settings retain explicit choices; secrets and machine state stay behind; invalid/newer files are refused before mutation; replacement is recoverable; and failed export/import does not destroy either copy. Test every supported source/destination OS pair before claiming portable moves verified.
+
+## 7. Strengthened update
+
+The existing `familiar update` downloads the latest tagged GitHub Release and resumes the service. The following safeguards are required before treating upgrades as generally safe. Pushing source commits alone does not publish an update.
+
+1. Resolve the target version and its Node, backup, storage and memory-document compatibility requirements before replacing the installation. Refuse unsupported upgrades or downgrades without opening incompatible data. Missing or unsupported memory formats must produce a clear error, never an empty replacement memory.
+2. Pause the matching running instance and create a consistent recovery backup through step 6. Retain the previous application version alongside its matching backup. Backup failure aborts the upgrade before replacing code or data.
+3. Install the target package and run explicit, ordered migrations. Use Pi's migration interfaces for its schema and Familiar-owned migrations for its document changes. Preserve transcript, memory, episodes and schedules. Default changes must not become accidental user overrides.
+4. Validate the new instance and local API before reporting success. Apply required service-definition changes without silently repeating interactive login or changing network publication. Preserve the owner's prior running/stopped state.
+5. On failure provide recovery to the previous application plus its matching data. Do not run old code against a database already migrated to an unsupported format. Preserve any post-upgrade data before recovery; never silently discard messages written after the backup.
+
+Done when saved fixtures from supported older releases upgrade with their data readable, incompatible newer fixtures are refused, and failures during download, backup, migration and startup leave a usable recovery path. Test update on Linux, macOS and Windows. A passing fresh-install test does not establish upgrade compatibility.
+
+## 8. Documentation
 
 Rewrite the README's "Use it" around the install command, setup, moving and updating, and move today's pnpm instructions under Developing.
 
