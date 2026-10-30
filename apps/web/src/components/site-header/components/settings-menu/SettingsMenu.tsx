@@ -3,16 +3,20 @@ import { useTheme } from '@/components/theme-provider'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useViewportDebug } from '@/lib/viewport-debug'
 
 export const SettingsMenu = () => {
   const { theme, setTheme } = useTheme()
+  const viewportDebug = useViewportDebug()
 
   return (
     <DropdownMenu>
@@ -45,6 +49,16 @@ export const SettingsMenu = () => {
               System
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Developer</DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={viewportDebug.on}
+            onCheckedChange={viewportDebug.setOn}
+          >
+            Viewport debug
+          </DropdownMenuCheckboxItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

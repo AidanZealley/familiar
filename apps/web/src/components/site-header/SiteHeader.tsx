@@ -36,7 +36,7 @@ export const SiteHeader = () => {
   const inMemory = path.startsWith('/memory')
 
   return (
-    <header className="sticky top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+    <header className="sticky top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-(--page-width) items-center gap-2 px-3 sm:gap-4 sm:px-4">
         <h1 className="flex items-center gap-2 font-heading text-sm font-medium tracking-tight">
           {/* In the logo's place, so the header never shifts while it reconnects. */}
