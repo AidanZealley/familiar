@@ -26,8 +26,8 @@ export const NotificationSetting = () => {
   }
 
   return (
-    <section className="flex items-center gap-3 rounded-lg border bg-card p-3">
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+    <section className="flex items-center gap-3 border bg-card p-3">
+      <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
         {on ? (
           <BellIcon className="size-[1.125rem]" />
         ) : (

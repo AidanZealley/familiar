@@ -16,6 +16,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu'
+import { Spinner } from '@/components/ui/spinner'
 import { useFamiliar } from '@/lib/familiar'
 import { memorySections } from '@/lib/memory'
 
@@ -38,14 +39,19 @@ export const SiteHeader = () => {
     <header className="sticky top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-(--page-width) items-center gap-2 px-3 sm:gap-4 sm:px-4">
         <h1 className="flex items-center gap-2 font-heading text-sm font-medium tracking-tight">
-          <CatIcon className="size-5" />
+          {/* In the logo's place, so the header never shifts while it reconnects. */}
+          {connection === 'open' ? (
+            <CatIcon className="size-5" />
+          ) : (
+            <Spinner
+              className="size-5"
+              aria-label={
+                connection === 'connecting' ? 'Connecting' : 'Reconnecting'
+              }
+            />
+          )}
           familiar
         </h1>
-        {connection !== 'open' && (
-          <span className="text-xs text-muted-foreground">
-            {connection === 'connecting' ? 'Connecting…' : 'Reconnecting…'}
-          </span>
-        )}
         <NavigationMenu align="end" className="ml-auto">
           <NavigationMenuList className="gap-1">
             <NavigationMenuItem>

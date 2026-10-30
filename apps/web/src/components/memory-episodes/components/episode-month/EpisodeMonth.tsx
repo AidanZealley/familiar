@@ -17,7 +17,7 @@ export const EpisodeMonth = ({ month }: EpisodeMonthProps) => {
       </h2>
       <p
         className={cn(
-          'mb-3 rounded-lg bg-muted/50 p-3 text-sm leading-relaxed',
+          'mb-3 bg-muted/50 p-3 text-sm leading-relaxed',
           !month.month && 'text-muted-foreground',
         )}
       >

@@ -7,6 +7,7 @@ import {
   InputGroupTextarea,
 } from '@/components/ui/input-group'
 import { familiar } from '@/lib/familiar'
+import { ModelPicker } from '../model-picker'
 import type { ComposerProps } from './types'
 
 export const Composer = ({ busy }: ComposerProps) => {
@@ -57,14 +58,15 @@ export const Composer = ({ busy }: ComposerProps) => {
           aria-label="Message Familiar"
           placeholder="Message Familiar"
           rows={1}
-          className="max-h-48 p-3 text-base md:text-base"
+          className="max-h-48 p-3 text-sm md:text-sm"
         />
-        <InputGroupAddon align="block-end">
+        <InputGroupAddon align="block-end" className="gap-1">
+          <ModelPicker />
           <InputGroupButton
             type={showStop ? 'button' : 'submit'}
             size="icon-sm"
             variant={showStop ? 'secondary' : 'default'}
-            className="ml-auto rounded-full"
+            className="ml-auto"
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
             onClick={

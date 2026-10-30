@@ -5,6 +5,7 @@ import type {
   ModelRef,
   Registry,
 } from '@earendil-works/pi-durable'
+import { modelKey, type ChatModel } from '../conversation/models.ts'
 import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
@@ -36,6 +37,7 @@ export function compactionFor(
 type HostOptions = Pick<HarnessOptions, 'now' | 'setTimer'> & {
   models: Models
   model: ModelRef
+  chatModels?: readonly ChatModel[]
 }
 
 export function harnessOptions(
@@ -43,11 +45,23 @@ export function harnessOptions(
   registry: Registry,
   budget: number,
 ): HarnessOptions {
-  // Looked up at each open, so a change of model gets its own thresholds.
-  const window = options.models.getModel(
-    options.model.provider,
-    options.model.modelId,
-  )?.contextWindow
+  // Pi measures from the top of each model's own window, so every model the
+  // conversation can switch to needs its own thresholds for the same budget.
+  // Looked up at each open, so a change of models applies on restart.
+  const compactionOf = (model: ModelRef) => {
+    const window = options.models.getModel(
+      model.provider,
+      model.modelId,
+    )?.contextWindow
+    return window ? compactionFor(window, budget) : undefined
+  }
+  const base = compactionOf(options.model)
+  const modelOverrides = Object.fromEntries(
+    (options.chatModels ?? []).flatMap(({ model }) => {
+      const compaction = compactionOf(model)
+      return compaction ? [[modelKey(model), compaction]] : []
+    }),
+  )
   return {
     models: options.models,
     registry,
@@ -60,7 +74,7 @@ export function harnessOptions(
           .installed()
           .filter((extension) => extension.name !== UPKEEP_EXTENSION)
       },
-      compaction: window ? compactionFor(window, budget) : undefined,
+      compaction: base && { ...base, modelOverrides },
       // Without a limit, a stream that goes silent waits forever and blocks
       // its conversation. Over WebSockets this is the longest silence allowed;
       // over SSE, the longest wait for headers. Long enough for slow reasoning.

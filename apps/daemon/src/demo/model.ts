@@ -1,4 +1,5 @@
 import type { TranscriptContext } from '@earendil-works/pi-ai'
+import type { ChatModel } from '@familiar/core'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
@@ -62,9 +63,21 @@ export function reply(context: TranscriptContext) {
   return matched ? matched[1].start() : fauxAssistantMessage(markdownReply)
 }
 
+/** Two scripted models that answer alike, so the model picker has a choice. */
+export const demoChatModels: ChatModel[] = [
+  { model: { provider: 'faux', modelId: 'faux-1' }, thinkingLevel: 'low' },
+  { model: { provider: 'faux', modelId: 'faux-2' }, thinkingLevel: 'medium' },
+]
+
 export function createDemoModels() {
   // Readable, but fast enough that a whole reply doesn't drag.
-  const faux = fauxProvider({ tokensPerSecond: 40 })
+  const faux = fauxProvider({
+    tokensPerSecond: 40,
+    models: [
+      { id: 'faux-1', name: 'Faux One', reasoning: true },
+      { id: 'faux-2', name: 'Faux Two', reasoning: true },
+    ],
+  })
   // The provider answers from a queue, one step per request. This step reads
   // the request and queues itself again, so the script never runs out.
   const respond: FauxResponseFactory = (context) => {

@@ -94,7 +94,7 @@ export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
         onClick={() => toggle(`${name}:${block.key}`)}
         style={{ width: `${(block.size / total) * 100}%` }}
         className={cn(
-          'min-w-1.5 rounded-[4px] transition-opacity',
+          'min-w-1.5 transition-opacity',
           block.shade,
           selected && `${name}:${block.key}` !== selected && 'opacity-25',
         )}
@@ -102,7 +102,7 @@ export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
     ))
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section className="border bg-card p-4">
       <h2 className="font-heading text-lg font-medium">Memory overview</h2>
       <div className="mt-3 flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-medium">Core</h3>
@@ -111,7 +111,7 @@ export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
           {number.format(CORE_BUDGET)} characters
         </span>
       </div>
-      <div className="mt-1.5 flex h-5 gap-[2px] rounded-md bg-muted">
+      <div className="mt-1.5 flex h-5 gap-[2px] bg-muted">
         {bar('core', coreBlocks, CORE_BUDGET)}
         <span className="ml-auto self-center pr-2 text-[0.65rem] text-muted-foreground tabular-nums">
           {number.format(Math.max(0, CORE_BUDGET - size))} left
@@ -141,7 +141,7 @@ export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3 text-xs text-muted-foreground">
         {groups.map((group) => (
           <span key={group.key} className="inline-flex items-center gap-1.5">
-            <span className={cn('size-2.5 rounded-[3px]', group.shade)} />
+            <span className={cn('size-2.5', group.shade)} />
             {group.key === 'pinned' ? 'Pinned' : group.label.slice(-1)}
           </span>
         ))}

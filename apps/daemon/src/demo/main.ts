@@ -4,7 +4,7 @@ import { MemoryStorage } from '@earendil-works/pi-durable'
 import { definePlugin, memorySecrets, summonFamiliar } from '@familiar/core'
 import { openPush } from '../push.ts'
 import { serveFamiliar } from '../serve.ts'
-import { createDemoModels } from './model.ts'
+import { createDemoModels, demoChatModels } from './model.ts'
 import { seedMemory, seedEpisodes } from './seed.ts'
 import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
@@ -25,7 +25,8 @@ const push = openPush({ contact: 'mailto:familiar@example.com' })
 const familiar = await summonFamiliar({
   storage: new MemoryStorage(),
   models: createDemoModels(),
-  model: { provider: 'faux', modelId: 'faux-1' },
+  model: demoChatModels[0].model,
+  chatModels: demoChatModels,
   notify: async (notification) => {
     console.log('Notification:', JSON.stringify(notification))
     await push.notify(notification)

@@ -40,7 +40,7 @@ export const Markdown = ({ text, streaming }: MarkdownProps) => {
       // Code blocks keep copy; the download button isn't useful in a chat.
       controls={{ code: { copy: true, download: false }, table: false }}
       lineNumbers={false}
-      className="min-w-0 text-base leading-relaxed"
+      className="min-w-0 text-sm leading-relaxed"
     >
       {text}
     </Streamdown>

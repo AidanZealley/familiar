@@ -8,6 +8,7 @@ import {
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
+import type { ChatModel } from '@familiar/core'
 
 const root = resolve(import.meta.dirname, '../../..')
 
@@ -24,10 +25,29 @@ export const config = {
   host: process.env.FAMILIAR_HOST ?? '127.0.0.1',
   port: Number(process.env.FAMILIAR_PORT ?? 4317),
   name: process.env.FAMILIAR_NAME ?? 'Familiar',
+  /**
+   * What memory upkeep runs on, and what the chat starts on until the owner
+   * picks another. Must be one of `chatModels`.
+   */
   model: {
     provider: 'openai',
     modelId: process.env.FAMILIAR_MODEL ?? 'gpt-6.1-sol',
   },
+  /**
+   * The models the chat can switch between, each with the reasoning level it
+   * starts on. Adding a model here offers it everywhere: the picker, its
+   * default level and its compaction thresholds.
+   */
+  chatModels: [
+    {
+      model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
+      thinkingLevel: 'low',
+    },
+    {
+      model: { provider: 'openai', modelId: 'gpt-6-luna' },
+      thinkingLevel: 'medium',
+    },
+  ] satisfies ChatModel[],
   /** Who the daemon's one user is. The network (Tailscale) is the auth. */
   owner: process.env.FAMILIAR_OWNER ?? 'owner',
   /**
