@@ -39,13 +39,15 @@ const viewOf = (...entries: EntryRecord[]) =>
 /** Each item as a short label, to compare order at a glance. */
 const labels = (view: ConversationView, history?: EntryRecord[]) =>
   toTranscript(view, history).items.map((item) =>
-    item.type === 'compaction'
-      ? '---'
-      : item.type === 'message'
-        ? `> ${item.text}`
-        : item.type === 'scheduled'
-          ? `(scheduled) ${item.prompt}`
-          : item.text || item.toolCalls.map((call) => call.name).join(),
+    item.type === 'waiting'
+      ? 'thinking'
+      : item.type === 'compaction'
+        ? '---'
+        : item.type === 'message'
+          ? `> ${item.text}`
+          : item.type === 'scheduled'
+            ? `(scheduled) ${item.prompt}`
+            : item.text || item.toolCalls.map((call) => call.name).join(),
   )
 
 // Two compactions: the first summarised 1-2 and kept from 3, the second
@@ -199,4 +201,66 @@ test('history starts over when the new view leaves a gap', () => {
   })
   // Unchanged when the view's start stays put.
   expect(carryOver(loaded, view, view)).toBe(loaded)
+})
+
+test('waiting feedback covers the first token and the gap after a completed tool', () => {
+  const live = (state: object) =>
+    ({
+      ...viewOf(said(1, 'hello')),
+      docs: { 'pi.live': state },
+    }) as ConversationView
+  const run = { taskId: 7, inputs: [] }
+  const waiting = { type: 'waiting', id: 'waiting:7' }
+  expect(toTranscript(live({ run })).items.at(-1)).toEqual(waiting)
+  expect(
+    toTranscript(live({ run, tools: [{ status: 'done' }] })).items.at(-1),
+  ).toEqual(waiting)
+  expect(
+    toTranscript(live({ run, tools: [{ status: 'running' }] })).items,
+  ).not.toContainEqual(waiting)
+  expect(toTranscript(live({})).items).not.toContainEqual(waiting)
+
+  for (const content of [
+    [],
+    [text('Answer')],
+    [{ type: 'thinking', thinking: 'Shared reasoning' }],
+  ]) {
+    const transcript = toTranscript(
+      live({
+        run,
+        generation: {
+          attempt: 0,
+          message: {
+            role: 'assistant',
+            content,
+            timestamp: 1234,
+            stopReason: 'stop',
+          },
+        },
+      }),
+    )
+    expect(transcript.items).not.toContainEqual(waiting)
+    expect(transcript.items.at(-1)).toMatchObject({
+      type: 'reply',
+      streaming: true,
+    })
+  }
+})
+
+test('reasoning remains available to expand after the reply completes', () => {
+  expect(
+    toTranscript(
+      viewOf(
+        replied(1, [
+          { type: 'thinking', thinking: 'Provider supplied reasoning' },
+          text('Answer'),
+        ]),
+      ),
+    ).items.at(-1),
+  ).toMatchObject({
+    type: 'reply',
+    thinking: 'Provider supplied reasoning',
+    text: 'Answer',
+    streaming: false,
+  })
 })

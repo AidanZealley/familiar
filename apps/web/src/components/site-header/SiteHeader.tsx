@@ -19,6 +19,8 @@ import {
 import { useFamiliar } from '@/lib/familiar'
 import { memorySections } from '@/lib/memory'
 
+import { SettingsMenu } from './components/settings-menu'
+
 const current = 'bg-muted text-foreground'
 
 /**
@@ -57,7 +59,7 @@ export const SiteHeader = () => {
                 )}
               >
                 <MessageSquareIcon />
-                Chat
+                <span className="max-sm:sr-only">Chat</span>
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
@@ -125,6 +127,7 @@ export const SiteHeader = () => {
             </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
+        <SettingsMenu />
       </div>
     </header>
   )

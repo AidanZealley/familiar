@@ -15,7 +15,9 @@ export const turnTimes = (items: readonly TranscriptItem[]) => {
     last = undefined
   }
   for (const item of items) {
-    if (item.type === 'reply') {
+    if (item.type === 'waiting') {
+      last = undefined
+    } else if (item.type === 'reply') {
       last = item
     } else {
       close()

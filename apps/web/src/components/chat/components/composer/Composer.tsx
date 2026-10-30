@@ -48,7 +48,7 @@ export const Composer = ({ busy }: ComposerProps) => {
       onSubmit={submit}
       className="px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <InputGroup>
+      <InputGroup className="has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-input/30">
         <InputGroupTextarea
           value={text}
           onChange={(event) => setText(event.target.value)}

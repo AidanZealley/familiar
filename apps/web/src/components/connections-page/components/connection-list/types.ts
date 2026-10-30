@@ -6,5 +6,4 @@ export type ConnectionListProps = {
   connections: ConnectionInfo[]
   selectedId?: string
   query: string
-  onAdd(): void
 }

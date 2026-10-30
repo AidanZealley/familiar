@@ -1,5 +1,7 @@
 import { getRouteApi, useRouter } from '@tanstack/react-router'
+import { PlusIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { AddServerForm } from './components/add-server-form'
 import { ConnectionDetail } from './components/connection-detail'
@@ -47,26 +49,34 @@ export const ConnectionsPage = () => {
   }, [router, connecting])
 
   return (
-    <main className="mx-auto flex w-full max-w-(--page-width) flex-1 md:fixed md:inset-x-0 md:top-(--chrome) md:bottom-0 md:min-h-0 md:overflow-hidden">
-      <ConnectionList
-        className={cn(id && 'max-md:hidden')}
-        connections={sorted}
-        selectedId={selected && idOf(selected)}
-        query={q}
-        onAdd={() => setDrawer({ type: 'add' })}
-      />
-      {selected ? (
-        <ConnectionDetail
-          key={idOf(selected)}
-          className={cn(!id && 'max-md:hidden')}
-          connection={selected}
-          onEdit={() => setDrawer({ type: 'edit', id: idOf(selected) })}
+    <main className="mx-auto flex w-full max-w-(--page-width) flex-1 flex-col md:fixed md:inset-x-0 md:top-(--chrome) md:bottom-0 md:min-h-0 md:overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-4 px-4 pt-6 pb-4">
+        <h1 className="font-heading text-2xl font-medium">Connections</h1>
+        <Button variant="outline" onClick={() => setDrawer({ type: 'add' })}>
+          <PlusIcon />
+          Add server
+        </Button>
+      </header>
+      <div className="flex min-h-0 flex-1">
+        <ConnectionList
+          className={cn(id && 'max-md:hidden')}
+          connections={sorted}
+          selectedId={selected && idOf(selected)}
+          query={q}
         />
-      ) : (
-        <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground max-md:hidden">
-          Add an MCP server to give Familiar more tools.
-        </p>
-      )}
+        {selected ? (
+          <ConnectionDetail
+            key={idOf(selected)}
+            className={cn(!id && 'max-md:hidden')}
+            connection={selected}
+            onEdit={() => setDrawer({ type: 'edit', id: idOf(selected) })}
+          />
+        ) : (
+          <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground max-md:hidden">
+            Add an MCP server to give Familiar more tools.
+          </p>
+        )}
+      </div>
       <ConnectionDrawer
         open={drawer?.type === 'add'}
         onClose={() => setDrawer(undefined)}

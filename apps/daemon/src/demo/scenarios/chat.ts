@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises'
 import {
   fauxAssistantMessage,
   fauxThinking,
@@ -66,16 +67,29 @@ const slowReply = Array.from(
 ).join('\n\n')
 
 export const tool: Scenario = {
-  start: () =>
-    fauxAssistantMessage(
+  start: async () => {
+    // Deliberate pauses exercise the real UI before the first token and after tools.
+    await setTimeout(3000)
+    return fauxAssistantMessage(
       [
-        fauxThinking('They want the time, so I should check the clock.'),
+        fauxThinking(
+          'This is scripted demo reasoning. I will check the clock in London, then use the returned time in the answer. Expand this row to inspect the text while it streams.',
+        ),
         fauxToolCall('current_time', { timeZone: 'Europe/London' }),
       ],
       { stopReason: 'toolUse' },
-    ),
+    )
+  },
   replies: {
-    current_time: (output) => fauxAssistantMessage(`It's **${output}**.`),
+    current_time: async (output) => {
+      await setTimeout(3000)
+      return fauxAssistantMessage([
+        fauxThinking(
+          'The clock has returned a result. This is another scripted reasoning step after the tool call; the final answer follows it.',
+        ),
+        fauxText(`It's **${output}**.`),
+      ])
+    },
   },
 }
 export const slow: Scenario = { start: () => fauxAssistantMessage(slowReply) }
