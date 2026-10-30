@@ -101,6 +101,56 @@ test('a stopped reply is marked', () => {
   expect(reply).toMatchObject({ type: 'reply', stopped: true })
 })
 
+test('a reply keeps its identity from streaming through completion or stopping', () => {
+  const message = {
+    role: 'assistant',
+    content: [text('Part one')],
+    timestamp: 1234,
+    stopReason: 'stop',
+  }
+  const live: ConversationView = {
+    ...viewOf(said(1, 'hello')),
+    docs: {
+      'pi.live': {
+        run: { taskId: 7, inputs: [] },
+        generation: { attempt: 0, message },
+      },
+    },
+  }
+  const streaming = toTranscript(live).items.at(-1)!
+  expect(streaming).toMatchObject({ type: 'reply', streaming: true })
+
+  for (const stopReason of ['stop', 'aborted', 'error']) {
+    const saved = entry(2, 'pi.assistant', {
+      byTaskId: 7,
+      model: [{ ...message, stopReason }],
+    })
+    const completed = toTranscript(viewOf(said(1, 'hello'), saved)).items.at(
+      -1,
+    )!
+    expect(completed).toMatchObject({ id: streaming.id, streaming: false })
+    expect(
+      toTranscript(viewOf(saved), [said(1, 'hello')]).items.at(-1)?.id,
+    ).toBe(streaming.id)
+  }
+
+  // A retry belongs to the same task, but is a separate reply.
+  const failedAttempt = entry(2, 'pi.assistant', {
+    byTaskId: 7,
+    model: [{ ...message, timestamp: 1233, stopReason: 'error' }],
+  })
+  const retrying = {
+    ...viewOf(said(1, 'hello'), failedAttempt),
+    docs: live.docs,
+  }
+  const replies = toTranscript(retrying).items.filter(
+    (item) => item.type === 'reply',
+  )
+  expect(replies).toHaveLength(2)
+  expect(replies[0]!.id).not.toBe(replies[1]!.id)
+  expect(replies[1]!.id).toBe(streaming.id)
+})
+
 test('a view starts at the entry its head marker heads', () => {
   expect(startOf(view)).toBe(8)
   expect(startOf(viewOf(said(4, 'hi'), said(5, 'there')))).toBe(4)
