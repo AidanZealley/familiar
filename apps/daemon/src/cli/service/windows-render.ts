@@ -33,7 +33,8 @@ export function renderTask(
   userId: string,
 ) {
   const launcher = resolve(dataDir, 'service.cjs')
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  // Omit a byte encoding so the XML also works as a Unicode COM string.
+  return `<?xml version="1.0"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>${xml(userId)}</UserId></LogonTrigger></Triggers>
 <Principals><Principal id="Owner"><UserId>${xml(userId)}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
