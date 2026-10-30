@@ -277,10 +277,9 @@ try {
       signal: AbortSignal.timeout(5000),
     })
     assert.equal(models.status, 200)
+    const options = (await models.json()) as { model: { modelId: string } }[]
     assert.deepEqual(
-      (await models.json()).map(
-        (option: { model: { modelId: string } }) => option.model.modelId,
-      ),
+      options.map((option) => option.model.modelId),
       ['gpt-6.1-sol', 'gpt-6-luna'],
     )
   } finally {
