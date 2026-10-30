@@ -59,6 +59,8 @@ export type TranscriptItem =
       /** Waiting for the current run to reach a boundary. */
       queued: boolean
     }
+  /** The run is active, but no reasoning, text or tool is visible yet. */
+  | { type: 'waiting'; id: string }
   /** Older messages were summarised; they stay in storage but the model sees the summary. */
   | { type: 'compaction'; id: string }
 
@@ -122,6 +124,16 @@ export function toTranscript(
       ...toReply(replyId(live?.run?.taskId, partial), partial, calls),
       streaming: true,
     })
+  }
+
+  // Cover network waits and the gap after tools, before the next partial.
+  // Once any partial arrives, the reply owns its own activity indicator.
+  if (
+    live?.run &&
+    !partial &&
+    !live.tools?.some((tool) => tool.status !== 'done')
+  ) {
+    items.push({ type: 'waiting', id: `waiting:${live.run.taskId}` })
   }
 
   for (const item of inbox?.items ?? []) {

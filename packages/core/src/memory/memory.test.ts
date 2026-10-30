@@ -144,6 +144,7 @@ test("only upkeep's conversation is given the tools that write facts", async () 
     const memory = createMemory(harness, {
       now: Date.now,
       model,
+      thinkingLevel: 'low',
       name: 'Familiar',
       transcriptTokens: 1_000,
     })

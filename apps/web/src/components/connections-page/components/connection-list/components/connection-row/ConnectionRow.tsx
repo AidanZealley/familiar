@@ -20,8 +20,8 @@ export const ConnectionRow = ({
     <Link
       to="/connections"
       search={(search) => ({ ...search, id: idOf(connection) })}
-      aria-current={selected ? 'true' : undefined}
-      className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 rounded-lg px-2 py-2 text-sm hover:bg-muted aria-[current=true]:bg-muted"
+      aria-current={selected ? 'page' : undefined}
+      className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 px-2 py-2 text-sm hover:bg-muted aria-[current=page]:bg-muted"
     >
       <StatusDot tone={status.tone} />
       <span className="truncate font-medium">{connection.title}</span>

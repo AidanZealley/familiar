@@ -1,4 +1,5 @@
 import type { Context } from '@earendil-works/chord'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import {
   AssistantEntry,
   configure,
@@ -87,6 +88,7 @@ export const UPKEEP_EXTENSION = 'familiar.upkeep'
 
 export type UpkeepOptions = {
   model: ModelRef
+  thinkingLevel: ModelThinkingLevel
   name: string
   transcriptTokens: number
   extension: Extension
@@ -444,11 +446,13 @@ export function createUpkeep(options: UpkeepOptions) {
         // Every open, so a change of model or wording applies to the next pass.
         await configure(tx, upkeep.conversation, {
           model: options.model,
+          thinkingLevel: options.thinkingLevel,
           extensions: [options.extension, extension],
           instructions: instructions(options.name),
         })
         await configure(tx, upkeep.rollups, {
           model: options.model,
+          thinkingLevel: options.thinkingLevel,
           extensions: [],
           instructions: rollupInstructions(options.name),
         })

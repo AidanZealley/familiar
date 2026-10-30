@@ -1,5 +1,4 @@
 import { CircleAlertIcon, SquareIcon } from 'lucide-react'
-import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Message, MessageContent } from '@/components/ui/message'
 import { ReplyText } from '../reply-text'
@@ -13,7 +12,7 @@ export const Reply = ({ reply }: ReplyProps) => {
     reply.streaming && !reply.text && reply.toolCalls.length === 0
 
   return (
-    <Message>
+    <Message className="text-sm">
       <MessageContent>
         {(reply.thinking || thinking) && (
           <Thinking text={reply.thinking} active={thinking} />
@@ -22,11 +21,7 @@ export const Reply = ({ reply }: ReplyProps) => {
           <ToolCall key={call.id} call={call} />
         ))}
         {reply.text && (
-          <Bubble variant="muted" className="max-w-[min(100%,42rem)]">
-            <BubbleContent className="min-w-0">
-              <ReplyText text={reply.text} streaming={reply.streaming} />
-            </BubbleContent>
-          </Bubble>
+          <ReplyText text={reply.text} streaming={reply.streaming} />
         )}
         {reply.stopped && (
           <Marker className="text-muted-foreground">

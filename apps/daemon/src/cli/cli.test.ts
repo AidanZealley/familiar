@@ -98,6 +98,11 @@ test('serve starts with saved settings and isolated SQLite storage', async () =>
     // A read-only request checks that the HTTP listener belongs to this daemon.
     const response = await fetch(`http://127.0.0.1:${port}/api/connections`)
     expect(response.ok).toBe(true)
+    const models = await fetch(`http://127.0.0.1:${port}/api/model/options`)
+    expect(await models.json()).toMatchObject([
+      { model: { modelId: 'gpt-6.1-sol' }, thinkingLevel: 'low' },
+      { model: { modelId: 'gpt-6-luna' }, thinkingLevel: 'medium' },
+    ])
   } finally {
     child.kill('SIGTERM')
     await exited

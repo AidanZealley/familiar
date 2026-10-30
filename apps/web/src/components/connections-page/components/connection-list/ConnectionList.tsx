@@ -1,6 +1,5 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { PlusIcon, SearchIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { SearchIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { idOf, needsAttention, whereOf } from '../../status'
@@ -14,7 +13,6 @@ export const ConnectionList = ({
   connections,
   selectedId,
   query,
-  onAdd,
 }: ConnectionListProps) => {
   const navigate = route.useNavigate()
   const needle = query.trim().toLowerCase()
@@ -56,24 +54,17 @@ export const ConnectionList = ({
   return (
     <div
       className={cn(
-        'flex w-full min-w-0 flex-col md:min-h-0 md:w-80 md:shrink-0 md:border-r',
+        'flex w-full min-w-0 flex-col md:min-h-0 md:w-60 md:shrink-0',
         className,
       )}
     >
-      <div className="flex shrink-0 flex-col gap-3 px-4 pt-6 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="font-heading text-2xl font-medium">Connections</h1>
-          <Button variant="outline" onClick={onAdd}>
-            <PlusIcon />
-            Add server
-          </Button>
-        </div>
+      <div className="flex shrink-0 flex-col gap-3 px-4 pt-4 pb-3 md:pr-0">
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
             aria-label="Search connections"
-            placeholder="Names, addresses or tools"
+            placeholder="Search connections"
             autoComplete="off"
             spellCheck={false}
             className="pl-8"
@@ -92,15 +83,15 @@ export const ConnectionList = ({
       </div>
       <nav
         aria-label="Connections"
-        className="flex flex-col gap-4 px-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:min-h-0 md:flex-1 md:overflow-y-auto"
+        className="flex flex-col gap-4 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:min-h-0 md:flex-1 md:overflow-y-auto md:pr-0"
       >
         {groups.map(({ title, items }) => (
           <section key={title} aria-label={title}>
-            <h2 className="flex justify-between px-2 pb-1 text-xs font-medium text-muted-foreground">
+            <h2 className="flex justify-between pb-1 text-xs font-medium text-muted-foreground">
               {title}
               <span className="tabular-nums">{items.length}</span>
             </h2>
-            <ul className="flex flex-col">
+            <ul className="flex flex-col gap-1">
               {items.map(({ connection, tools }) => (
                 <li key={idOf(connection)}>
                   <ConnectionRow

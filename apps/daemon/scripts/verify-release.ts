@@ -273,6 +273,16 @@ try {
       ).status,
       200,
     )
+    const models = await fetch(`${url}/api/model/options`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    assert.equal(models.status, 200)
+    assert.deepEqual(
+      (await models.json()).map(
+        (option: { model: { modelId: string } }) => option.model.modelId,
+      ),
+      ['gpt-6.1-sol', 'gpt-6-luna'],
+    )
   } finally {
     child.kill('SIGTERM')
     const forceStop = setTimeout(() => child.kill('SIGKILL'), 5000)

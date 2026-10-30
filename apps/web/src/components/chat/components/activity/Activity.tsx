@@ -32,7 +32,7 @@ export const Activity = ({
       <MarkerContent className={cn(active && 'shimmer')}>{label}</MarkerContent>
       <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]/activity:rotate-90" />
     </CollapsibleTrigger>
-    <CollapsibleContent className="mt-2 ml-6 space-y-2 rounded-lg border bg-muted/40 p-3 font-mono text-xs">
+    <CollapsibleContent className="mt-2 ml-6 space-y-2 border bg-muted/40 p-3 font-mono text-xs">
       {children}
     </CollapsibleContent>
   </Collapsible>

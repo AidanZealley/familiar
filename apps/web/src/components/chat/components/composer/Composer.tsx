@@ -7,6 +7,7 @@ import {
   InputGroupTextarea,
 } from '@/components/ui/input-group'
 import { familiar } from '@/lib/familiar'
+import { ModelPicker } from '../model-picker'
 import type { ComposerProps } from './types'
 
 export const Composer = ({ busy }: ComposerProps) => {
@@ -48,7 +49,7 @@ export const Composer = ({ busy }: ComposerProps) => {
       onSubmit={submit}
       className="px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <InputGroup>
+      <InputGroup className="has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-input/30">
         <InputGroupTextarea
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -57,14 +58,15 @@ export const Composer = ({ busy }: ComposerProps) => {
           aria-label="Message Familiar"
           placeholder="Message Familiar"
           rows={1}
-          className="max-h-48 p-3"
+          className="max-h-48 p-3 text-sm md:text-sm"
         />
-        <InputGroupAddon align="block-end">
+        <InputGroupAddon align="block-end" className="gap-1">
+          <ModelPicker />
           <InputGroupButton
             type={showStop ? 'button' : 'submit'}
             size="icon-sm"
             variant={showStop ? 'secondary' : 'default'}
-            className="ml-auto rounded-full"
+            className="ml-auto"
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
             onClick={
