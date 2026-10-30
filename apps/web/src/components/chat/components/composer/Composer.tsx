@@ -57,7 +57,7 @@ export const Composer = ({ busy }: ComposerProps) => {
           aria-label="Message Familiar"
           placeholder="Message Familiar"
           rows={1}
-          className="max-h-48 p-3"
+          className="max-h-48 p-3 text-base md:text-base"
         />
         <InputGroupAddon align="block-end">
           <InputGroupButton

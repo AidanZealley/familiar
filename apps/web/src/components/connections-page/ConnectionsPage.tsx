@@ -47,7 +47,7 @@ export const ConnectionsPage = () => {
   }, [router, connecting])
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 md:fixed md:inset-x-0 md:top-(--chrome) md:bottom-0 md:min-h-0 md:overflow-hidden">
+    <main className="mx-auto flex w-full max-w-(--page-width) flex-1 md:fixed md:inset-x-0 md:top-(--chrome) md:bottom-0 md:min-h-0 md:overflow-hidden">
       <ConnectionList
         className={cn(id && 'max-md:hidden')}
         connections={sorted}

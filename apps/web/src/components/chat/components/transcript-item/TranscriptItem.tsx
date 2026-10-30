@@ -38,7 +38,7 @@ export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
     <div className="flex min-w-0 flex-col gap-2">
       <Reply reply={item} />
       {time !== undefined && (
-        <p className="pl-4 font-heading text-[0.7rem] text-muted-foreground">
+        <p className="font-heading text-[0.7rem] text-muted-foreground">
           {formatTime(time)}
         </p>
       )}
