@@ -12,7 +12,7 @@ export const PersonMessage = ({ message }: PersonMessageProps) => (
         variant={message.queued ? 'outline' : 'default'}
         className="max-w-[min(80%,42rem)]"
       >
-        <BubbleContent className="whitespace-pre-wrap">
+        <BubbleContent className="text-base whitespace-pre-wrap">
           {message.text}
         </BubbleContent>
       </Bubble>

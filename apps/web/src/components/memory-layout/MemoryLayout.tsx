@@ -16,7 +16,7 @@ export const MemoryLayout = () => {
   const section = memorySections.find(({ to }) => to === path)
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <main className="mx-auto flex w-full max-w-(--page-width) flex-col gap-6 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
       {section && (
         <div className="flex flex-col gap-2">
           <Breadcrumb>
