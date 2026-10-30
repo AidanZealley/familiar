@@ -62,7 +62,7 @@ export const ConnectionDetail = ({
     <section
       aria-label={connection.title}
       className={cn(
-        'flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] md:overflow-y-auto md:px-8',
+        'flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] md:min-h-0 md:overflow-y-auto md:px-8',
         className,
       )}
     >
