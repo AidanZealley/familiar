@@ -61,7 +61,7 @@ export const SettingsMenu = () => {
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel>ChatGPT</DropdownMenuLabel>
+              <DropdownMenuLabel>Provider</DropdownMenuLabel>
               <DropdownMenuItem
                 onClick={() =>
                   void familiar
