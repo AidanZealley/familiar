@@ -1,4 +1,6 @@
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1's progress bar makes Invoke-WebRequest downloads very slow.
+$ProgressPreference = 'SilentlyContinue'
 
 # Keep this bootstrap independent of the CLI: Node, release package, then setup.
 $version = if ($env:FAMILIAR_VERSION) { $env:FAMILIAR_VERSION } else { 'latest' }
@@ -9,8 +11,10 @@ if ($version -eq 'latest') {
 } else {
     throw 'FAMILIAR_VERSION must be latest or a v-prefixed release tag.'
 }
-$architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
-$arch = switch ($architecture) { 'x64' { 'x64' } 'arm64' { 'arm64' } default { throw 'Supported architectures: x64 and arm64.' } }
+# RuntimeInformation can be missing from Windows PowerShell 5.1's .NET Framework, so read the OS's own value.
+# PROCESSOR_ARCHITEW6432 holds the real architecture when 32-bit PowerShell runs on 64-bit Windows.
+$architecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$arch = switch ($architecture) { 'AMD64' { 'x64' } 'ARM64' { 'arm64' } default { throw 'Supported architectures: x64 and arm64.' } }
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
