@@ -46,7 +46,9 @@ Ask Familiar for reminders and anything regular in chat ("remind me at 6 to call
 
 After installing a release package, run `familiar` to save settings, sign in with ChatGPT, install the background service and print its URLs. Service setup uses systemd on Linux, a LaunchAgent on macOS, and a Scheduled Task on Windows. macOS and Windows start at user login; Linux can run while logged out. Windows falls back to a Startup shortcut if task registration fails, with no automatic crash recovery in that mode. From a source checkout, build the UI with `pnpm build`, then run `node apps/daemon/src/cli.ts` for the same setup.
 
-Setup reuses existing settings and login. Desktop sign-in opens the browser; over SSH or without a display, open the printed link on another device and paste the full URL the browser redirects to. The pinned Pi version has no device-code login. If a saved login stops working, run `familiar sign-in`.
+Setup reuses existing settings and login. Desktop sign-in opens the browser; over SSH or without a display, open the printed link on another device and paste the full URL the browser redirects to. The pinned Pi version has no device-code login. If a saved login stops working, run `familiar sign-in`, or sign in again from the web UI.
+
+The web UI signs in from any device, without a restart: whenever Familiar isn't signed in, or its login stops working, the chat walks you through ChatGPT's sign-in. Its last page returns to this machine, so on another device it won't load; the chat asks you to paste that page's address. Settings signs out.
 
 - `familiar status` shows the saved name, managed service state and local and existing tailnet URLs.
 - `familiar rename` prompts for a new name; `familiar rename Willow` changes it directly. Renaming preserves other settings and restarts a running service.

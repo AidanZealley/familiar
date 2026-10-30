@@ -10,6 +10,7 @@ import {
 import { useFamiliar } from '@/lib/familiar'
 import { Composer } from './components/composer'
 import { OlderMessages } from './components/older-messages'
+import { SignIn } from './components/sign-in'
 import { TranscriptItems } from './components/transcript-items'
 
 export const Chat = () => {
@@ -63,6 +64,7 @@ export const Chat = () => {
 
         {/* Lined up with the conversation. */}
         <div className="mx-auto w-full max-w-(--page-width)">
+          <SignIn />
           <Composer busy={transcript?.busy ?? false} />
         </div>
       </div>

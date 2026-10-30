@@ -7,6 +7,8 @@ The layout and rules define the package boundaries. The sections that follow exp
 ```
 packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
+  core/account    The owner's login with the models' provider: sign-in from
+                  any device, sign-out, and noticing when the login stops working.
   core/persona    Who Familiar is: the stable start of every prompt.
   core/time       The current_time tool, and how dates are written.
   core/context    Request budget, compaction and stream settings.
@@ -64,6 +66,11 @@ packages/core/src
                      returns the Familiar API. The one place to see the whole.
   http.ts            The HTTP + SSE API and every wire type clients use.
   diagnostics.ts     For tools around Familiar (the demo, the eval), not hosts.
+  account/           The owner's login with the models' provider, as one state:
+                     sign-in (a browser page, or a device code where the
+                     provider issues one) and sign-out through the host's Models,
+                     and a hook that rechecks the login when a request fails.
+                     http.ts its routes; the state streams on /events.
   persona/           Who Familiar is: the prompt's preamble.
   time/              current_time, and how dates are written (local days).
   context/           How much conversation fits in a request; compaction; timeouts;

@@ -8,6 +8,7 @@ import {
   type Storage,
   type UsageState,
 } from '@earendil-works/pi-durable'
+import { createAccount, type AccountApi } from './account/index.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
   findChatModel,
@@ -35,6 +36,7 @@ import {
 import { TimeExtension } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
+export type { AccountApi, AccountState } from './account/index.ts'
 export {
   ModelError,
   type ChatModel,
@@ -76,6 +78,11 @@ export type FamiliarOptions = {
    */
   chatModels?: readonly ChatModel[]
   name?: string
+  /**
+   * This installation's stable ID, the same on every call. Signing in to
+   * ChatGPT needs it; OpenAI identifies the app's logins by it.
+   */
+  deviceId?: () => string
   /** Everything beyond core: tools, sections and hooks, with their secrets. */
   plugins?: readonly FamiliarPlugin[]
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
@@ -115,6 +122,8 @@ export type FamiliarOptions = {
  * A host that serves many owners (households, users) opens one Familiar each.
  */
 export type Familiar = ConversationApi & {
+  /** The owner's login with the models' provider. */
+  account: AccountApi
   memory: MemoryApi
   schedules: SchedulesApi
   connections: ConnectionsApi
@@ -166,6 +175,12 @@ export async function summonFamiliar(
 
   const schedules = createSchedules({ name, notify: options.notify })
 
+  const account = await createAccount({
+    models: options.models,
+    provider: options.model.provider,
+    login: { getDeviceId: options.deviceId, agentName: name },
+  })
+
   const plugins = createPlugins({
     plugins: options.plugins ?? [],
     secrets: options.secrets,
@@ -177,6 +192,7 @@ export async function summonFamiliar(
   // Plugins last, so core's tools and sections come first.
   const extensions = [
     createPersona(name),
+    account.extension,
     TimeExtension,
     ...memory.extensions,
     schedules.extension,
@@ -205,6 +221,7 @@ export async function summonFamiliar(
 
   return {
     ...conversation,
+    account: account.api,
     memory: memoryActions,
     schedules: scheduleActions,
     mcp: mcp.api,

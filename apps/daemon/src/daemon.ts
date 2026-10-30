@@ -1,6 +1,6 @@
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar } from '@familiar/core'
-import { config, dataPath } from './config.ts'
+import { config, dataPath, deviceId } from './config.ts'
 import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'
 import { lockDataDir } from './lock.ts'
@@ -21,6 +21,7 @@ export async function serve() {
     model: config.model,
     chatModels: config.chatModels,
     name: config.name,
+    deviceId,
     notify: push.notify,
     plugins: await loadPlugins(),
     secrets: fileSecretStore(dataPath('secrets.json')),

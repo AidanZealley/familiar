@@ -1,18 +1,28 @@
-import { MonitorIcon, MoonIcon, SettingsIcon, SunIcon } from 'lucide-react'
+import {
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
+  SettingsIcon,
+  SunIcon,
+} from 'lucide-react'
 import { useTheme } from '@/components/theme-provider'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { familiar, useFamiliar } from '@/lib/familiar'
 
 export const SettingsMenu = () => {
   const { theme, setTheme } = useTheme()
+  const signedIn = useFamiliar((state) => state.account?.status === 'signed-in')
 
   return (
     <DropdownMenu>
@@ -46,6 +56,26 @@ export const SettingsMenu = () => {
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
+        {/* Signing back in is offered above the chat while signed out. */}
+        {signedIn && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Provider</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() =>
+                  void familiar
+                    .getState()
+                    .signOut()
+                    .catch(() => {})
+                }
+              >
+                <LogOutIcon />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

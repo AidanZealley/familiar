@@ -7,6 +7,7 @@ import type {
   ModelRef,
 } from '@earendil-works/pi-durable'
 import type {
+  AccountState,
   Connection as ConnectionKey,
   ConnectionInfo,
   DocumentName,
@@ -44,6 +45,14 @@ export type MirroredDocuments = {
 
 export type FamiliarState = MirroredDocuments & {
   connection: Connection
+  /** The owner's login with the models' provider. Absent until the first frame. */
+  account: AccountState | undefined
+  /** Starts signing in; the page to open, and any code, arrive in `account`. */
+  signIn(): Promise<void>
+  /** The address the browser ended on, when `account` asks to paste it. */
+  answerSignIn(text: string): Promise<void>
+  cancelSignIn(): Promise<void>
+  signOut(): Promise<void>
   /** The server's view of the conversation, mirrored exactly. Absent until the first frame. */
   view: ConversationView | undefined
   history: History
@@ -149,6 +158,12 @@ export function createFamiliarStore(baseUrl: string) {
 
   const store = createStore<FamiliarState>()(() => ({
     connection: 'connecting',
+    account: undefined,
+    signIn: () => succeed(api.account['sign-in'].$post()),
+    answerSignIn: (text) =>
+      succeed(api.account['sign-in'].answer.$post({ json: { text } })),
+    cancelSignIn: () => succeed(api.account['sign-in'].$delete()),
+    signOut: () => succeed(api.account['sign-out'].$post()),
     view: undefined,
     history: { entries: [], status: 'more' },
     loadOlder: () =>
@@ -244,6 +259,7 @@ export function createFamiliarStore(baseUrl: string) {
       return { view, history: carryOver(state.history, state.view, view) }
     }),
   )
+  on('account', (account) => store.setState({ account }))
   on('document', ({ name, value }) => store.setState({ [name]: value }))
   on('document.ops', ({ name, ops }) =>
     store.setState((state) => ({
