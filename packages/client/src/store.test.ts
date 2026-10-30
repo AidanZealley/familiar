@@ -1,4 +1,5 @@
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
+import type { McpServer } from '@familiar/core/http'
 import { afterEach, expect, test, vi } from 'vitest'
 import { createFamiliarStore } from './store.ts'
 
@@ -53,5 +54,34 @@ test('loadOlder pages back to the start, one request per page', async () => {
   })
   expect((store.getState().view as ConversationView).entries).toEqual([
     entry(3),
+  ])
+})
+
+test("MCP edits reach their routes and reject with the server's reason", async () => {
+  const { store } = setup()
+  const sent: string[] = []
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+    sent.push(`${init.method} ${url} ${init.body ?? ''}`.trim())
+    return url.endsWith('/reconnect')
+      ? new Response(null, { status: 202 })
+      : Response.json(
+          { error: 'MCP server notes already exists.' },
+          { status: 404 },
+        )
+  })
+  const { addMcpServer, reconnectMcpServer } = store.getState()
+  const notes: McpServer = {
+    name: 'notes',
+    transport: { type: 'stdio', command: 'notes-mcp', args: [] },
+  }
+
+  await expect(addMcpServer(notes)).rejects.toThrow(
+    'MCP server notes already exists.',
+  )
+  await reconnectMcpServer('notes')
+
+  expect(sent).toEqual([
+    `POST /api/mcp ${JSON.stringify(notes)}`,
+    'POST /api/mcp/notes/reconnect',
   ])
 })

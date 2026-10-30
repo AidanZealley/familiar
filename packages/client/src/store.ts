@@ -6,6 +6,7 @@ import type {
   DocumentName,
   Documents,
   HttpApi,
+  McpServer,
   PushSubscriptionJson,
   StreamEvent,
 } from '@familiar/core/http'
@@ -61,6 +62,10 @@ export type FamiliarState = MirroredDocuments & {
     value: string,
   ): Promise<void>
   deleteSecret(connection: ConnectionKey, secret: string): Promise<void>
+  /** Saves an MCP server, which then connects in the background. */
+  addMcpServer(server: McpServer): Promise<void>
+  removeMcpServer(name: string): Promise<void>
+  reconnectMcpServer(name: string): Promise<void>
   /** Stop streaming. The store keeps its last view. */
   disconnect(): void
 }
@@ -80,7 +85,7 @@ export function createFamiliarStore(baseUrl: string) {
     const response = await request
 
     if (!response.ok) {
-      throw failed(response)
+      throw await failed(response)
     }
   }
 
@@ -102,7 +107,7 @@ export function createFamiliarStore(baseUrl: string) {
       })
 
       if (!response.ok) {
-        throw failed(response)
+        throw await failed(response)
       }
 
       const page = await response.json()
@@ -150,7 +155,7 @@ export function createFamiliarStore(baseUrl: string) {
         return undefined
       }
       if (!response.ok) {
-        throw failed(response)
+        throw await failed(response)
       }
       return (await response.json()).key
     },
@@ -161,7 +166,7 @@ export function createFamiliarStore(baseUrl: string) {
     connections: async () => {
       const response = await api.connections.$get()
       if (!response.ok) {
-        throw failed(response)
+        throw await failed(response)
       }
       return response.json()
     },
@@ -178,6 +183,11 @@ export function createFamiliarStore(baseUrl: string) {
           param: { ...connection, secret },
         }),
       ),
+    addMcpServer: (server) => succeed(api.mcp.$post({ json: server })),
+    removeMcpServer: (name) =>
+      succeed(api.mcp[':name'].$delete({ param: { name } })),
+    reconnectMcpServer: (name) =>
+      succeed(api.mcp[':name'].reconnect.$post({ param: { name } })),
     disconnect: () => events.close(),
   }))
 
@@ -218,8 +228,15 @@ export function createFamiliarStore(baseUrl: string) {
 
 export type FamiliarStore = ReturnType<typeof createFamiliarStore>
 
-const failed = (response: Response) =>
-  new Error(`${response.url} failed: ${response.status} ${response.statusText}`)
+/** The server's own message when it sends one, such as why a server was refused. */
+const failed = async (response: Response) => {
+  const body = await response.json().catch(() => undefined)
+  return new Error(
+    typeof body?.error === 'string'
+      ? body.error
+      : `${response.url} failed: ${response.status} ${response.statusText}`,
+  )
+}
 
 /**
  * The oldest entry in a view. A view opens with its head marker, such as a

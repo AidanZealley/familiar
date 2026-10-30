@@ -9,12 +9,13 @@ import { SEED_MESSAGE } from './seed.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
 import { compact } from './scenarios/compaction.ts'
 import { key } from './scenarios/connections.ts'
+import { mcp } from './scenarios/mcp.ts'
 import { memory, seed } from './scenarios/memory.ts'
 import { remind, scheduledReply } from './scenarios/schedules.ts'
 import { textOf } from './text.ts'
 import type { Scenario } from './types.ts'
 
-const scenarios = { tool, memory, remind, key, slow, compact, error }
+const scenarios = { tool, memory, remind, key, mcp, slow, compact, error }
 const replies: NonNullable<Scenario['replies']> = Object.assign(
   {},
   ...[...Object.values(scenarios), seed].map((scenario) => scenario.replies),
