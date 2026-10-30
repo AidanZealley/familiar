@@ -80,6 +80,27 @@
   --sidebar-ring: oklch(0.56 0.021 213.5);
 }
 
+/*
+ * The app's height, and the room the header leaves for the status bar. Kept
+ * below shadcn's own :root and .dark, which `shadcn apply` rewrites.
+ *
+ * In the browser, the small viewport keeps the composer above Safari's
+ * toolbars. iOS home-screen apps can report a viewport the status bar's height
+ * short of the screen but draw it from the top, leaving a gap below; there the
+ * large viewport is the whole screen. iOS also blurs a little past the status
+ * bar there, so the header starts a little lower.
+ */
+:root {
+  --app-height: 100svh;
+  --status-bar: env(safe-area-inset-top);
+}
+@media (display-mode: standalone) {
+  :root {
+    --app-height: 100lvh;
+    --status-bar: calc(env(safe-area-inset-top) + 1rem);
+  }
+}
+
 @theme inline {
   --font-sans: 'Geist Variable', sans-serif;
   --font-heading: var(--font-mono);

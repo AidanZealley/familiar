@@ -49,7 +49,7 @@ export const Chat = () => {
     >
       {/* Extend the scroller behind the glass header; content padding keeps
           the first message clear of it at the start of the conversation. */}
-      <div className="-mt-(--chrome) flex h-svh flex-col">
+      <div className="-mt-(--chrome) flex h-(--app-height) flex-col">
         <MessageScroller className="flex-1">
           <MessageScrollerViewport className="scroll-pt-(--chrome)">
             <MessageScrollerContent
