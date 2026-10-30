@@ -10,13 +10,9 @@ import { homedir, userInfo } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { resolvePaths } from '../../paths.ts'
 
-type ServiceOptions = {
-  dataDir: string
-  cliPath: string
-  workDir?: string
-  node?: string
-  unitDir?: string
-}
+import type { ServiceOptions } from './types.ts'
+
+type LinuxOptions = ServiceOptions & { unitDir?: string }
 
 // systemd expands percent specifiers in all fields. The ':' command prefix
 // disables environment expansion in ExecStart, preserving literal dollar signs.
@@ -27,6 +23,7 @@ export function renderUnit({
   cliPath,
   workDir = dirname(cliPath),
   node = process.execPath,
+  path = process.env.PATH ?? '/usr/bin:/bin',
 }: ServiceOptions) {
   if (/[\r\n]/.test(workDir)) {
     throw new Error('The service working directory cannot contain a newline.')
@@ -41,6 +38,7 @@ WorkingDirectory=${workDir.replaceAll('%', '%%')}
 ExecStart=:${quote(node)} ${quote(cliPath)} serve
 Environment=${quote(`FAMILIAR_DATA_DIR=${dataDir}`)}
 Environment=FAMILIAR_HOST=127.0.0.1
+Environment=${quote(`PATH=${dirname(node)}:${path}`)}
 Restart=on-failure
 RestartSec=5
 
@@ -49,7 +47,7 @@ WantedBy=default.target
 `
 }
 
-export function linuxService(options: ServiceOptions) {
+export function linuxService(options: LinuxOptions) {
   const unit = resolve(
     options.unitDir ??
       resolve(
@@ -70,6 +68,7 @@ export function linuxService(options: ServiceOptions) {
       ? current.split('\n').includes(dataEnvironment)
       : options.dataDir ===
           resolvePaths({
+            platform: 'linux',
             env: { ...process.env, FAMILIAR_DATA_DIR: undefined },
           }).dataDir
   }
