@@ -1,5 +1,4 @@
-import { Readable } from 'node:stream'
-import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
+import type { Readable } from 'node:stream'
 import type { PluginFetch } from '@familiar/core'
 import nodeFetch, { type RequestInit as NodeRequestInit } from 'node-fetch'
 import { useAgent } from 'request-filtering-agent'
@@ -8,6 +7,35 @@ const MAX_REDIRECTS = 5
 
 /** Statuses whose responses can't have a body. */
 const NULL_BODY = new Set([101, 204, 205, 304])
+
+/** Cancellation may race a pending read; never enqueue after the web stream closes. */
+export function responseBody(source: Readable): ReadableStream<Uint8Array> {
+  const iterator = source[Symbol.asyncIterator]()
+  let cancelled = false
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await iterator.next()
+        if (cancelled) {
+          return
+        }
+        if (done) {
+          controller.close()
+        } else {
+          controller.enqueue(value as Uint8Array)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          controller.error(error)
+        }
+      }
+    },
+    cancel() {
+      cancelled = true
+      source.destroy()
+    },
+  })
+}
 
 /**
  * The fetch plugins get. The daemon can reach the owner's LAN and tailnet, so
@@ -24,9 +52,7 @@ export const guardedFetch: PluginFetch = async (input, init) => {
   })
   const body =
     response.body && !NULL_BODY.has(response.status)
-      ? (Readable.toWeb(
-          response.body as Readable,
-        ) as NodeReadableStream<Uint8Array> as ReadableStream<Uint8Array>)
+      ? responseBody(response.body as Readable)
       : null
   const converted = new Response(body, {
     status: response.status,
