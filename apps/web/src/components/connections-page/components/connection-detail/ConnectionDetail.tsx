@@ -62,7 +62,7 @@ export const ConnectionDetail = ({
     <section
       aria-label={connection.title}
       className={cn(
-        'flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] md:min-h-0 md:overflow-y-auto md:px-8',
+        'flex min-w-0 flex-1 flex-col gap-6 px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] md:min-h-0 md:overflow-y-auto md:px-8',
         className,
       )}
     >
@@ -75,9 +75,9 @@ export const ConnectionDetail = ({
         <ChevronLeftIcon />
         Connections
       </Button>
-      <header className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate font-heading text-2xl font-medium">
+      <header className="flex flex-col gap-3">
+        <div className="min-w-0">
+          <h2 className="font-heading text-2xl font-medium wrap-break-word">
             {connection.title}
           </h2>
           <p className="text-sm text-muted-foreground">

@@ -40,7 +40,7 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger render={<Button variant="outline" />}>
+      <AlertDialogTrigger render={<Button variant="destructive" />}>
         <Trash2Icon />
         Remove
       </AlertDialogTrigger>

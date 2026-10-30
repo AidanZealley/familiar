@@ -3,6 +3,7 @@ import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { formatTime } from '@/lib/memory'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
+import { Thinking } from '../thinking'
 import type { TranscriptItemProps } from './types'
 
 /** One item, with the time a turn was answered under its answer. */
@@ -28,6 +29,10 @@ export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
         <MarkerContent>Earlier messages summarised</MarkerContent>
       </Marker>
     )
+  }
+
+  if (item.type === 'waiting') {
+    return <Thinking text="" active />
   }
 
   if (item.type === 'message') {
