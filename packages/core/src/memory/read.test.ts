@@ -43,7 +43,12 @@ test('a long history and long sources stay within the budget', () => {
   const exchanges = createExchangeIndex()
   const sources: EntryId[] = []
   for (let entry = 1; entry <= 20; entry++) {
-    exchanges.add({ id: `x${entry}`, at: entry, text: 'word '.repeat(1_000) })
+    exchanges.add({
+      id: `x${entry}`,
+      at: entry,
+      text: 'word '.repeat(1_000),
+      last: entry as EntryId,
+    })
     sources.push(entry as EntryId)
   }
   rememberFact(

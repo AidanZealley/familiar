@@ -11,7 +11,12 @@ const now = noonOf('2026-01-01')
 const indexOf = (...exchanges: [day: string, text: string][]) => {
   const index = createExchangeIndex()
   exchanges.forEach(([day, text], number) =>
-    index.add({ id: `x${number + 1}`, at: noonOf(day), text }),
+    index.add({
+      id: `x${number + 1}`,
+      at: noonOf(day),
+      text,
+      last: (number + 1) as EntryId,
+    }),
   )
   return index
 }
@@ -65,10 +70,16 @@ test('stays within the limit, adding as it goes', () => {
       id: `x${number}`,
       at: now - number * DAY,
       text: `Garden note ${number}`,
+      last: number as EntryId,
     })
   }
   expect(ids(index, 'garden', 5)).toEqual(['x1', 'x2', 'x3', 'x4', 'x5'])
-  index.add({ id: 'x21', at: now, text: 'Garden gate is 84 cm' })
+  index.add({
+    id: 'x21',
+    at: now,
+    text: 'Garden gate is 84 cm',
+    last: 21 as EntryId,
+  })
   expect(index.size).toBe(21)
   expect(ids(index, 'garden gate', 1)).toEqual(['x21'])
 })
@@ -89,4 +100,55 @@ test('opens an exchange with its neighbours, and those between two entries', () 
   expect(index.between(2 as EntryId, 3 as EntryId).map(({ id }) => id)).toEqual(
     ['x2', 'x3'],
   )
+})
+
+test('searches within a range of entries, counting exchanges a boundary splits', () => {
+  const index = createExchangeIndex()
+  // Person messages at 10, 20 and 30, each answered a few entries later.
+  for (const first of [10, 20, 30]) {
+    index.add({
+      id: `x${first}`,
+      at: now,
+      text: 'Garden gate notes.',
+      last: (first + 3) as EntryId,
+    })
+  }
+  const within = (after: number | null, before: number) =>
+    index
+      .search('garden gate', now, {
+        within: { after: after as EntryId | null, before: before as EntryId },
+      })
+      .map(({ id }) => id)
+      .sort()
+
+  expect(within(null, 30)).toEqual(['x10', 'x20'])
+  // Upkeep reviewed x10's question but not its reply.
+  expect(within(11, 30)).toEqual(['x10', 'x20'])
+  expect(within(13, 30)).toEqual(['x20'])
+  // The view starts at x20's reply, so its question is out of view.
+  expect(within(13, 22)).toEqual(['x20'])
+  expect(within(13, 20)).toEqual([])
+  // Upkeep has reviewed past the start of the view: nothing is unfiled.
+  expect(within(25, 20)).toEqual([])
+})
+
+test('applies the range before the limit', () => {
+  const index = createExchangeIndex()
+  for (let first = 1; first <= 10; first++) {
+    index.add({
+      id: `x${first * 10}`,
+      // Newest first, so without the range these would fill the limit.
+      at: now - (10 - first) * DAY,
+      text: 'Garden gate notes.',
+      last: (first * 10 + 1) as EntryId,
+    })
+  }
+  expect(
+    index
+      .search('garden gate', now, {
+        limit: 2,
+        within: { after: null, before: 25 as EntryId },
+      })
+      .map(({ id }) => id),
+  ).toEqual(['x20', 'x10'])
 })

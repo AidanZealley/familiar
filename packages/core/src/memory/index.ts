@@ -1,10 +1,13 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Harness } from '@earendil-works/pi-durable'
 import { Facts, markRecalled, MemoryUsage } from './facts.ts'
-import { Episodes } from './episodes.ts'
+import { datesIn, Episodes } from './episodes.ts'
 import { createMemoryExtension } from './extension.ts'
 import { transcriptExchanges } from './exchanges.ts'
 import { createSearchTimes } from './health.ts'
+import { recallNote, UNFILED } from './recall.ts'
+import { Upkeep } from './upkeep/schedule.ts'
+import { localDay } from '../time/index.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
@@ -28,9 +31,34 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
   const exchanges = transcriptExchanges()
   const times = createSearchTimes()
   const extension = createMemoryExtension({
-    now: options.now,
     exchanges,
     times,
+    recall: (query, unfiled) =>
+      harness.commit(async (tx) => {
+        const facts = await tx.doc(Facts)
+        const episodes = await tx.doc(Episodes)
+        // What compaction took out of the view after the last entry upkeep
+        // reviewed: nothing else would show it to the model until tonight.
+        const index = unfiled ? await exchanges.catchUp(tx) : undefined
+        const { through } = await tx.doc(Upkeep)
+        const before = exchanges.viewStart
+        const now = options.now()
+        return times.time(() =>
+          recallNote(
+            facts,
+            episodes,
+            index && before !== undefined
+              ? index.search(query, now, {
+                  limit: UNFILED.limit,
+                  ranges: datesIn(query, localDay(now)),
+                  within: { after: through, before },
+                })
+              : [],
+            query,
+            now,
+          ),
+        )
+      }, BACKGROUND_CONTEXT),
     recalled: async (ids) => {
       await harness.commit(
         async (tx) =>

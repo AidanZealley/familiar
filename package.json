@@ -14,6 +14,7 @@
     "eval:memory": "pnpm --filter @familiar/daemon eval:memory",
     "eval:memory:rejudge": "pnpm --filter @familiar/daemon eval:memory:rejudge",
     "eval:recall": "pnpm --filter @familiar/daemon eval:recall",
+    "eval:unfiled": "pnpm --filter @familiar/daemon eval:unfiled",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",

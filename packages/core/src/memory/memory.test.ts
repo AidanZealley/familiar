@@ -4,12 +4,13 @@ import {
   fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { TranscriptContext } from '@earendil-works/pi-ai'
+import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   createRegistry,
   Harness,
   MemoryStorage,
+  ROOT_CONVERSATION_ID,
 } from '@earendil-works/pi-durable'
 import {
   CORE_BUDGET,
@@ -22,12 +23,19 @@ import {
   rememberFact,
   reviseFact,
 } from './facts.ts'
-import { readStored, storageWith, withHarness } from './testing.ts'
+import {
+  readStored,
+  ReopenableStorage,
+  storageWith,
+  withHarness,
+} from './testing.ts'
+import { fakeClock } from '../testing.ts'
+import { nextUpkeep } from './upkeep/schedule.ts'
 import { addEpisode, Episodes } from './episodes.ts'
 import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../context/index.ts'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import {
   summonFamiliar,
   type Familiar,
@@ -402,22 +410,29 @@ test('a retried request recalls exactly what the first attempt did', async () =>
   expect(notes[1]).toBe(notes[0])
 })
 
-test('recall finds an exchange compaction took out of the context', async () => {
-  const { faux, familiar, say } = await setup({
-    contextWindow: 16_000,
-    contextBudget: 2_000,
-  })
-  const isSummary = (context: TranscriptContext) =>
-    JSON.stringify(context.messages[0]).includes('context summarization')
-  faux.setResponses(
-    Array.from(
-      { length: 60 },
-      () => (context: TranscriptContext) =>
-        fauxAssistantMessage(
-          isSummary(context) ? '## Goal\nThe weather.' : 'Lovely.',
-        ),
-    ),
-  )
+type Faux = Awaited<ReturnType<typeof setup>>['faux']
+type Step = (context: TranscriptContext) => AssistantMessage
+
+/**
+ * Answers compaction's summary requests itself and every other request from
+ * `steps` in turn, then 'Lovely.', so compaction never takes a scripted step.
+ */
+const script = (faux: Faux, steps: Step[] = []) => {
+  const respond = (context: TranscriptContext) => {
+    faux.appendResponses([respond])
+    if (JSON.stringify(context.messages[0]).includes('context summarization')) {
+      return fauxAssistantMessage('## Goal\nThe weather.')
+    }
+    return steps.shift()?.(context) ?? fauxAssistantMessage('Lovely.')
+  }
+  faux.setResponses([respond])
+}
+
+/** Says something worth remembering, then enough weather to compact it away. */
+const compactAway = async (
+  familiar: Familiar,
+  say: (text: string) => Promise<void>,
+) => {
   await say('My bike lock code is 7291, keep it safe.')
   for (let day = 1; day <= 20; day++) {
     await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
@@ -425,21 +440,98 @@ test('recall finds an exchange compaction took out of the context', async () => 
   const view = await familiar.watch()
   await view.stop()
   expect(JSON.stringify(view.value.entries)).not.toContain('7291')
+}
 
+const compacting = { contextWindow: 16_000, contextBudget: 2_000 }
+
+test('automatic recall and the recall tool find an exchange compaction took out of the context', async () => {
+  const { faux, familiar, say } = await setup(compacting)
+  script(faux)
+  await compactAway(familiar, say)
+
+  let note: string | undefined
   let results: string[] = []
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('recall', { query: 'bike lock code' }), {
-      stopReason: 'toolUse',
-    }),
+  script(faux, [
+    (context) => {
+      note = recalledIn(context)
+      return fauxAssistantMessage(
+        fauxToolCall('recall', { query: 'bike lock code' }),
+        { stopReason: 'toolUse' },
+      )
+    },
     (context) => {
       results = toolResultsOf(context)
       return fauxAssistantMessage('7291.')
     },
   ])
   await say('What was my bike lock code?')
+  expect(note).toMatch(
+    /Earlier conversation, not yet reviewed:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): My bike lock code is 7291/,
+  )
   expect(results.at(-1)).toMatch(
     /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): My bike lock code is 7291/,
   )
+})
+
+test('automatic recall leaves out what is still in view and what upkeep has reviewed', async () => {
+  const storage = new ReopenableStorage()
+  const first = await setup({ storage, ...compacting })
+  let note: string | undefined
+  // Before any compaction, everything is in view.
+  script(first.faux, [
+    (context) => {
+      note = recalledIn(context)
+      return fauxAssistantMessage('Noted.')
+    },
+  ])
+  await first.say('My bike lock code is 7291.')
+  await first.say('What was my bike lock code again?')
+  expect(note).toBeUndefined()
+
+  await compactAway(first.familiar, first.say)
+  await dismiss(first.familiar)
+  // As if tonight's pass had reviewed everything so far.
+  await withHarness(storage, (harness) =>
+    harness.commit(async (tx) => {
+      const { items } = await tx.scanEntries(
+        { conversationId: ROOT_CONVERSATION_ID, order: 'descending' },
+        1,
+      )
+      ;(await tx.doc(Upkeep)).through = items[0].id
+    }, BACKGROUND_CONTEXT),
+  )
+
+  const second = await setup({ storage, ...compacting })
+  note = 'unset'
+  script(second.faux, [
+    (context) => {
+      note = recalledIn(context)
+      return fauxAssistantMessage('Noted.')
+    },
+  ])
+  await second.say('What was my bike lock code?')
+  expect(note).toBeUndefined()
+})
+
+test('upkeep passes are not shown unfiled exchanges', async () => {
+  const clock = fakeClock(new Date(2026, 9, 25, 12).getTime())
+  const { faux, familiar, say } = await setup({
+    ...compacting,
+    now: clock.now,
+    setTimer: clock.setTimer,
+  })
+  script(faux)
+  await compactAway(familiar, say)
+
+  const notes: (string | undefined)[] = []
+  const review: Step = (context) => {
+    notes.push(recalledIn(context))
+    return fauxAssistantMessage('A day of weather and a bike lock.')
+  }
+  script(faux, [review, review])
+  clock.advanceTo(nextUpkeep(clock.now()))
+  await vi.waitFor(() => expect(notes.length).toBeGreaterThan(0))
+  expect(notes.join('\n')).not.toContain('Earlier conversation')
 })
 
 test('health counts facts, core, episodes, exchanges and searches', async () => {
@@ -483,7 +575,8 @@ test('health counts facts, core, episodes, exchanges and searches', async () => 
     // The newest exchange waits for the next message before it's indexed.
     exchanges: 2,
     indexBuildMs: expect.any(Number),
-    indexCatchUpMs: null,
+    // Automatic recall catches the index up for every message after the first.
+    indexCatchUpMs: expect.any(Number),
     // One automatic recall per message.
     search: {
       count: 3,

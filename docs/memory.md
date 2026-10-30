@@ -8,19 +8,19 @@ Everything said is kept in the transcript, and the transcript is the only record
 
 ## The layers
 
-| Layer      | What it holds                                                      | Who writes it      | How the model gets it                      |
-| ---------- | ------------------------------------------------------------------ | ------------------ | ------------------------------------------ |
-| Transcript | Every message and reply, verbatim, forever                         | Pi, as people chat | Recent part in context; the rest by search |
-| Core       | The facts that matter most, within 6,000 characters                | Code, from facts   | Always in the prompt                       |
-| Facts      | Every lasting fact, current and past, each at most 300 characters  | Nightly upkeep     | Automatic recall and `recall`              |
-| Episodes   | What happened each day, week and month                             | Nightly upkeep     | Automatic recall and `recall`              |
-| Exchanges  | Each message with its reply, as a search index over the transcript | Derived, in memory | `recall` and `read_memory`                 |
+| Layer      | What it holds                                                      | Who writes it      | How the model gets it                                    |
+| ---------- | ------------------------------------------------------------------ | ------------------ | -------------------------------------------------------- |
+| Transcript | Every message and reply, verbatim, forever                         | Pi, as people chat | Recent part in context; the rest by search               |
+| Core       | The facts that matter most, within 6,000 characters                | Code, from facts   | Always in the prompt                                     |
+| Facts      | Every lasting fact, current and past, each at most 300 characters  | Nightly upkeep     | Automatic recall and `recall`                            |
+| Episodes   | What happened each day, week and month                             | Nightly upkeep     | Automatic recall and `recall`                            |
+| Exchanges  | Each message with its reply, as a search index over the transcript | Derived, in memory | Automatic recall until filed; `recall` and `read_memory` |
 
 Exchanges aren't stored. They are a view of the transcript: the index is built on the first search after Familiar starts, and catches up on new messages before each search after that. Lose it and it is rebuilt; it owns no data.
 
 ## A day in its life
 
-**When a message arrives.** The prompt already holds core facts. Memory searches facts outside core and the episodes, and adds the best few (at most 8, about 1,000 tokens) after the message, for that request only. The model answers. If that isn't enough, it calls `recall`, which searches facts, episodes and the original exchanges, and `read_memory`, which opens a fact, an episode or an exchange and shows what lies behind it.
+**When a message arrives.** The prompt already holds core facts. Memory searches facts outside core and the episodes, and adds the best few (at most 8, about 1,000 tokens) after the message, for that request only. Conversation that compaction has taken out of view but upkeep hasn't filed yet is in neither, so the best two such exchanges are searched first, as short excerpts within a quarter of that budget; what they don't use goes back to facts and episodes. Without them, something said this morning and compacted at lunch would be out of reach until the model thought to search. The model answers. If that isn't enough, it calls `recall`, which searches facts, episodes and the original exchanges, and `read_memory`, which opens a fact, an episode or an exchange and shows what lies behind it.
 
 **At 04:00.** Upkeep works in three stages. Individual model requests are bounded; total nightly work depends on the backlog and due rollups, so catching up after an outage can take longer:
 

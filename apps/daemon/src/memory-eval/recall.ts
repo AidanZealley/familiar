@@ -1,3 +1,4 @@
+import type { EntryId } from '@earendil-works/pi-durable'
 import {
   createExchangeIndex,
   datesIn,
@@ -33,6 +34,7 @@ export const scenarioExchanges = (scenario: Scenario): Exchange[] =>
       id: `x${index + 1}`,
       at: middayOf(day.date),
       text: day.text!,
+      last: (index + 1) as EntryId,
     }))
 
 // The scenario's people, projects and places with everyday activity, so the
@@ -121,10 +123,28 @@ export function fillerExchanges(start: number, days: number, firstId: number) {
         id: `x${firstId + exchanges.length}`,
         at: start + day * DAY + index * 60 * 60 * 1000,
         text: pick(templates)(picks),
+        last: (firstId + exchanges.length) as EntryId,
       })
     }
   }
   return exchanges
+}
+
+/**
+ * Required strings that appear nowhere in what the person said, such as
+ * "Says no salary was ever mentioned". Only a judge can grade those, so
+ * string-matching evals skip them.
+ */
+export function unquoted(scenario: Scenario) {
+  const everything = scenarioExchanges(scenario)
+    .map((exchange) => exchange.text)
+    .join('\n')
+    .toLowerCase()
+  return scenario.questions.flatMap((question) =>
+    question.required
+      .filter((required) => !everything.includes(required.toLowerCase()))
+      .map((required) => ({ question: question.id, required })),
+  )
 }
 
 export type RecallScore = {
@@ -158,15 +178,7 @@ const median = (values: number[]) => {
 export function runRecallEval(scenario: Scenario): RecallResult {
   const real = scenarioExchanges(scenario)
   const evidence = new Map(real.map((exchange) => [exchange.id, exchange]))
-  const everything = real
-    .map((exchange) => exchange.text)
-    .join('\n')
-    .toLowerCase()
-  const skipped = scenario.questions.flatMap((question) =>
-    question.required
-      .filter((required) => !everything.includes(required.toLowerCase()))
-      .map((required) => ({ question: question.id, required })),
-  )
+  const skipped = unquoted(scenario)
   const isSkipped = (question: string, required: string) =>
     skipped.some(
       (skip) => skip.question === question && skip.required === required,

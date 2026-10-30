@@ -1,0 +1,480 @@
+{
+  "date": "2026-10-30",
+  "commit": "b841c40-dirty",
+  "scenario": "rowan-v3",
+  "compactions": 19,
+  "skipped": [
+    {
+      "question": "v3-unknown-supervisor",
+      "required": "Says no supervisor was ever mentioned"
+    },
+    {
+      "question": "v3-unknown-salary",
+      "required": "Says no salary was ever mentioned"
+    },
+    {
+      "question": "v3-unknown-partner",
+      "required": "Says no new partner was ever mentioned"
+    },
+    {
+      "question": "v3-unknown-rain-policy",
+      "required": "Says no rain-cancellation threshold was ever mentioned"
+    }
+  ],
+  "scores": [
+    {
+      "category": "old-facts",
+      "required": 21,
+      "inNote": 14,
+      "inView": 0,
+      "onlyInNote": 14
+    },
+    {
+      "category": "changed-facts",
+      "required": 22,
+      "inNote": 9,
+      "inView": 0,
+      "onlyInNote": 9
+    },
+    {
+      "category": "multi-session",
+      "required": 73,
+      "inNote": 57,
+      "inView": 0,
+      "onlyInNote": 57
+    },
+    {
+      "category": "time",
+      "required": 34,
+      "inNote": 25,
+      "inView": 1,
+      "onlyInNote": 24
+    },
+    {
+      "category": "unknown",
+      "required": 26,
+      "inNote": 19,
+      "inView": 4,
+      "onlyInNote": 15
+    }
+  ],
+  "noteTokens": {
+    "median": 218,
+    "max": 219
+  },
+  "questions": [
+    {
+      "id": "v3-pip-coat",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx26 (2025-01-06 12:00): …in a copper three-cup moka pot. My partner is Saffron; we keep separate homes. My retired greyhound Pip came home in 2019; his racing name was Silver Comet. His waterproof coat is size 66 cm, from Fell Houndwear. His vet is Dr Celia Moss at Quarry Veterinary Practice. His food is Arden Grange sensit…\nx242 (2025-11-10 12:00): …t chosen a sealant. Reed Shelter's frame is cut, but the hide is not finished. My winter gloves are waterproof Sealskinz All Weather in size medium. My head torch is a Petzl Actik Core at 450 lumens. My reflective vest is an orange Portwest C470. I carry a 700 ml Stanley Adventure flask. My site lun…",
+      "found": [
+        "66 cm",
+        "Fell Houndwear"
+      ]
+    },
+    {
+      "id": "v3-bracken-frame",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx26 (2025-01-06 12:00): …y retired greyhound Pip came home in 2019; his racing name was Silver Comet. His waterproof coat is size 66 cm, from Fell Houndwear. His vet is Dr Celia Moss at Quarry Veterinary Practice. His food is Arden Grange sensitive ocean white fish, 240 g per evening. My brother Ellis restored my green stee…\nx176 (2025-08-11 12:00): …Fittings, 10 kg, 14 mm leaf, £24; and Heron Ironwork, 16 kg, 18 mm leaf, £33. None will alter these sizes. I have not ordered hinges. Ellis visited and measured the workshop doorway before we ate soup. Ellis lives at 32 Cedar Avenue in Derby. He works as a railway signalling designer at Trent Signal…",
+      "found": []
+    },
+    {
+      "id": "v3-thimble",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx35 (2025-01-20 12:00): …tes cannot be changed. I put the papers aside and mended a pocket. Inside my old sewing tin I found Aunt Lorna's silver thimble, engraved with the initials E.W.; she left it to me in 2017. My sewing machine is a Janome HD2200. I use size 90 denim needles for canvas, Gutermann Mara 100 navy thread fo…",
+      "found": [
+        "E.W.",
+        "2017"
+      ]
+    },
+    {
+      "id": "v3-watch-repair",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx117 (2025-05-19 12:00): …the York flat. I took Pip to the park and replaced a loose shoelace. On the way home I collected my repaired watch; the repairer is Inez Cole at Second Hand Time, and she fitted a 19 mm oxblood leather strap. My watch is a hand-wound Timex Marlin from 1967. My alarm clock is a Braun BC02 in grey. I …\nx273 (2025-12-22 12:00): I repaired the concertina bellows and returned it to Ellis today, 22 December 2025. He played a tune while I washed up. My next project is a seed-library cabinet for Bell Street Library, called Seed Ledger. It is only a proposal. No timber species has been chosen, no funding has been awarded and no …",
+      "found": [
+        "Inez Cole",
+        "Second Hand Time",
+        "19 mm oxblood leather strap"
+      ]
+    },
+    {
+      "id": "v3-soup-postcard",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx230 (2025-10-27 12:00): … remains removable. Noor carried the drawings while I checked the site measurements. At home I made soup. In the kitchen drawer, the handwritten lentil-soup recipe is on a postcard from Uncle Basil, dated 2008; its unusual spice is ground fenugreek, half a teaspoon for four portions. My soup pot is …\nx148 (2025-06-30 12:00): Three fixed field-light options: Hare Lamp lasts seven hours and costs £46; Plover Light lasts four hours and costs £32; and Stoat Beam lasts eight hours and costs £65. I have not bought one. I spent the evening washing window glass. Canal Voices now has lock-gate recordings from three separate dawn…",
+      "found": [
+        "Uncle Basil",
+        "2008",
+        "ground fenugreek, half a teaspoon"
+      ]
+    },
+    {
+      "id": "v3-atlas-provenance",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx195 (2025-09-08 12:00): …Atlas's drawer stops, delivered the prototype to Cinder Hall for a trial, and patched the library's railway timetables. The cabinet's concertina door jammed in the hall's humid side room. The cabinet is not ready for sale. I need replacement drawer lining that is acid-free and no thicker than 1.5 mm…\nx106 (2025-05-05 12:00): …in blue. I keep a second copy on a 4 TB Toshiba Canvio Basics at Ellis's house. Project folders use year-month prefixes. I edit sound in Reaper with a 128 sample buffer. My reference listening level is 70 dBA. I use a K&M 210/9 microphone stand with a 3/8 inch adapter. My desk cable ties are reusabl…",
+      "found": []
+    },
+    {
+      "id": "v3-backup-location",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx176 (2025-08-11 12:00): The fixed hinge offers are Finch Hardware, 14 kg rating, 15 mm leaf, £32 per set; Kite Fittings, 10 kg, 14 mm leaf, £24; and Heron Ironwork, 16 kg, 18 mm leaf, £33. None will alter these sizes. I have not ordered hinges. Ellis visited and measured the workshop doorway before we ate soup. Ellis lives…\nx106 (2025-05-05 12:00): … date has been agreed. I want headphones that fit inside my 21 cm wide equipment drawer. My archive drive is a 2 TB Samsung T7 Shield in blue. I keep a second copy on a 4 TB Toshiba Canvio Basics at Ellis's house. Project folders use year-month prefixes. I edit sound in Reaper with a 128 sample buff…",
+      "found": [
+        "4 TB Toshiba Canvio Basics"
+      ]
+    },
+    {
+      "id": "v3-concertina",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx266 (2025-12-15 12:00): …ked. Today, 15 December 2025, I packed it away. This week, 15 to 21 December 2025, I am repairing a split bellows on Ellis's concertina and cataloguing winter photographs. Reed Shelter is unfinished, with no agreed completion date. Ellis's concertina is a 30-button Lachenal Anglo in C/G, serial 1846…\nx273 (2025-12-22 12:00): I repaired the concertina bellows and returned it to Ellis today, 22 December 2025. He played a tune while I washed up. My next project is a seed-library cabinet for Bell Street Library, called Seed Ledger. It is only a proposal. No timber species has been chosen, no funding has been awarded and no …",
+      "found": [
+        "30-button Lachenal Anglo in C/G"
+      ]
+    },
+    {
+      "id": "v3-york-recess",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx43 (2025-02-03 12:00): Today, 3 February 2025, I moved from Leeds to York, to Flat 2, 9 Foss Lane. The new rent is £860 a month. I still work at Northbank Ceramics. My regular library shift is now Saturday 10 am to noon at Wren Street Library, repairing book covers. The York flat's kitchen recess is 57 cm wide and 61 cm d…\nx273 (2025-12-22 12:00): …o funding has been awarded and no installation date has been agreed. The library's proposed cabinet recess is 104 cm wide and 39 cm deep. Seed packets should fit slots at least 11 cm tall. The librarian handling proposals is Mae Osei. My proposal reference is BSL-SL-07. I want large-print drawer lab…",
+      "found": []
+    },
+    {
+      "id": "v3-canal-track",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx164 (2025-07-28 12:00): Today, 28 July 2025, I released Canal Voices as a six-track download on my own website. The final track is called Low Gate at Dawn and lasts 4 minutes 18 seconds. No listening event has been booked. I am switching my spare-time work to a folding map cabinet called Folded Atlas. The first sketches us…\nx106 (2025-05-05 12:00): I started a sound project called Canal Voices today, 5 May 2025. It documents lock gates and boat engines, not interviews. The plan is to record at dawn twice a month. The proposed release is a six-track download; no release date has been agreed. I want headphones that fit inside my 21 cm wide equip…",
+      "found": [
+        "Low Gate at Dawn",
+        "4 minutes 18 seconds"
+      ]
+    },
+    {
+      "id": "v3-before-york",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx237 (2025-11-03 12:00): Today, 3 November 2025, I moved within Sheffield, from Rivelin Street to 6 Kelham Court. Rent is £980 monthly. I kept the archive job and my bicycle commute. The new workshop is 3.2 m long and 2.4 m wide. The landlord is Nessa Wood. The old Sheffield tenancy is closed. My new tenancy reference is KC…\nx125 (2025-06-02 12:00): Today, 2 June 2025, I moved from York to Sheffield, to 41 Rivelin Street. Rent is £910 monthly. I kept the Lantern Museum job temporarily, working in blocks with overnight stays. My Sheffield landlord is Dev Patel. My new tenancy reference is RV-618. I closed the York electricity account at a final …",
+      "found": []
+    },
+    {
+      "id": "v3-between-york-kelham",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx237 (2025-11-03 12:00): Today, 3 November 2025, I moved within Sheffield, from Rivelin Street to 6 Kelham Court. Rent is £980 monthly. I kept the archive job and my bicycle commute. The new workshop is 3.2 m long and 2.4 m wide. The landlord is Nessa Wood. The old Sheffield tenancy is closed. My new tenancy reference is KC…\nx278 (2025-12-29 12:00): …eed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting anything new. My winter reading copy of The Peregrine is the 2017 NYRB edition with an introduction by Robert Macfarlane. My…",
+      "found": []
+    },
+    {
+      "id": "v3-before-lantern",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx136 (2025-06-16 12:00): Today, 16 June 2025, I left Lantern Museum and joined Westfold Archive as a preventive conservation assistant. My manager is Ada Finch. My regular commute is now a 22 minute walk, replacing the museum bus. My new work week is Monday to Thursday, 8:30 am to 4:30 pm. The archive induction covered humi…\nx125 (2025-06-02 12:00): …2 June 2025, I moved from York to Sheffield, to 41 Rivelin Street. Rent is £910 monthly. I kept the Lantern Museum job temporarily, working in blocks with overnight stays. My Sheffield landlord is Dev Patel. My new tenancy reference is RV-618. I closed the York electricity account at a final meter r…",
+      "found": []
+    },
+    {
+      "id": "v3-first-archive-role",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx218 (2025-10-06 12:00): Today, 6 October 2025, Westfold Archive changed my role to collections environment coordinator. I am still employed there, reporting to Ada Finch. My commute remains the bicycle ride. My work hours are now Monday to Friday, 9 am to 5 pm. The job involves monthly climate reports for four stores. My r…\nx278 (2025-12-29 12:00): …s chosen, no funding awarded and no installation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting anything new. My winter reading copy of The Peregrine is the …",
+      "found": [
+        "Ada Finch"
+      ]
+    },
+    {
+      "id": "v3-drink-chain",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx249 (2025-11-17 12:00): From 17 November 2025 my usual morning drink is roasted barley tea, replacing decaffeinated Assam. I buy Hoshino mugicha bags and brew one in 400 ml water for seven minutes. The archive work and library shift are unchanged. I finished wiring the seventh Night Orchard seed pod. My bedroom duvet is wo…\nx113 (2025-05-12 12:00): From 12 May 2025 my usual morning drink is rooibos, replacing peppermint tea. I prefer the Cedar Cup loose-leaf blend, 3 g for five minutes. My Canal Voices drawer search found three headphone cases: Larch Audio is 20 cm wide at £38, Beacon Sound is 23 cm at £29, and Quiet Kit is 19 cm at £61. I can…",
+      "found": [
+        "peppermint tea",
+        "rooibos",
+        "decaffeinated Assam"
+      ]
+    },
+    {
+      "id": "v3-coffee-equipment",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx55 (2025-02-24 12:00): From today, 24 February 2025, peppermint tea replaces coffee as my usual morning drink. The moka pot goes in the cupboard. I booked the community kiln for 4 March 2025 to fire Tidal Rooms' porcelain tiles. The model is for the Riverside makers exhibition on 9 March 2025. My peppermint is loose-leaf …\nx113 (2025-05-12 12:00): From 12 May 2025 my usual morning drink is rooibos, replacing peppermint tea. I prefer the Cedar Cup loose-leaf blend, 3 g for five minutes. My Canal Voices drawer search found three headphone cases: Larch Audio is 20 cm wide at £38, Beacon Sound is 23 cm at £29, and Quiet Kit is 19 cm at £61. I can…",
+      "found": []
+    },
+    {
+      "id": "v3-library-chain",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx90 (2025-04-14 12:00): The library has changed my standing shift from Saturdays to Wednesday 5 pm to 7 pm, effective 14 April 2025. It is still at Wren Street Library. A Paper Moon lighting test made the thin puppet rods disappear as intended. My local case supplier gives three fixed options: Ash Cases, 84 cm internal wid…\nx160 (2025-07-21 12:00): The library transfer is arranged. From 21 July 2025 my regular volunteer shift is Sunday 2 pm to 4 pm at Bell Street Library in Sheffield. This replaces Wednesday evenings at Wren Street Library. I still repair books. A volunteer asked about a weekly Sunday walk from 3 pm to 5 pm; I haven't accepted…",
+      "found": [
+        "Wednesday 5 pm to 7 pm"
+      ]
+    },
+    {
+      "id": "v3-commute-chain",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx136 (2025-06-16 12:00): Today, 16 June 2025, I left Lantern Museum and joined Westfold Archive as a preventive conservation assistant. My manager is Ada Finch. My regular commute is now a 22 minute walk, replacing the museum bus. My new work week is Monday to Thursday, 8:30 am to 4:30 pm. The archive induction covered humi…\nx199 (2025-09-15 12:00): From today, 15 September 2025, my commute is a bicycle ride, replacing the 22 minute walk. I ride Bracken along the Rivelin path and allow 14 minutes. My pannier is an Ortlieb Back-Roller Classic in petrol blue. Folded Atlas's replacement lining offers are Sedge Board, acid-free, 1.2 mm, £16; Reed S…",
+      "found": [
+        "22 minute walk"
+      ]
+    },
+    {
+      "id": "v3-saffron-status",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx94 (2025-04-21 12:00): Saffron and I ended our romantic relationship on 21 April 2025. We remain friends and will still share our allotment. Neither of us moved home because of the breakup. Our allotment is plot 26B at Willow Bank; the annual plot rent is £48. We split that rent equally. The plot's shed key has a triangul…\nx90 (2025-04-14 12:00): The library has changed my standing shift from Saturdays to Wednesday 5 pm to 7 pm, effective 14 April 2025. It is still at Wren Street Library. A Paper Moon lighting test made the thin puppet rods disappear as intended. My local case supplier gives three fixed options: Ash Cases, 84 cm internal wid…",
+      "found": [
+        "ended our romantic relationship on 21 April 2025",
+        "remain friends",
+        "share our allotment"
+      ]
+    },
+    {
+      "id": "v3-folded-status",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx195 (2025-09-08 12:00): This week, 8 to 14 September 2025, I tested Folded Atlas's drawer stops, delivered the prototype to Cinder Hall for a trial, and patched the library's railway timetables. The cabinet's concertina door jammed in the hall's humid side room. The cabinet is not ready for sale. I need replacement drawer …\nx183 (2025-08-18 12:00): …ranted permission. Noor has agreed to check our drawings but is away until September. I measured my Folded Atlas prototype and wrote the dimensions in the margin. The prototype is 72 cm wide, 48 cm deep and 88 cm tall. Its six drawers each have a 58 by 36 cm interior. Drawer stops are 8 mm brass pin…",
+      "found": []
+    },
+    {
+      "id": "v3-garden-fit",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx31 (2025-01-13 12:00): Mum, June, wants an accessible garden. Her wheelchair needs at least 84 cm clear gate width, and her maximum comfortable bed height is 60 cm. Her garden budget is £2,000 including installation. No installer has been chosen. No installation start date has been agreed. June lives at 7 Orchard Close in…\nx35 (2025-01-20 12:00): Fenwick Gardens quoted £1,850 including installation for 58 cm beds and an 88 cm clear gate. Moss & Clay quoted £1,620 including installation for 72 cm beds and a 90 cm clear gate. The bed heights and gate widths in these quotes cannot be changed. I put the papers aside and mended a pocket. Inside m…",
+      "found": [
+        "Fenwick Gardens",
+        "£1,850",
+        "58 cm beds",
+        "88 cm clear gate",
+        "Moss & Clay",
+        "72 cm beds"
+      ]
+    },
+    {
+      "id": "v3-roof-fit",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx183 (2025-08-18 12:00): I got the roof-panel drawings out again. Moor Timber's quoted larch panel is still available. Reed Shelter has not restarted; the landowner still hasn't granted permission. Noor has agreed to check our drawings but is away until September. I measured my Folded Atlas prototype and wrote the dimension…\nx71 (2025-03-17 12:00): Today, 17 March 2025, Noor and I started sketching a birdwatching hide called Reed Shelter. It has a removable roof. It is for watching birds, not photography; no photographer has been hired or named. No site has been chosen. The roof's removable panel must weigh no more than 8 kg because Noor will …",
+      "found": [
+        "Moor Timber"
+      ]
+    },
+    {
+      "id": "v3-theatre-case",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx86 (2025-04-07 12:00): …d no completion date has been agreed. My current making project is a portable shadow theatre called Paper Moon. Its screen is 80 cm wide and 55 cm high. I need it to pack flat for train journeys. I need a carrying case with an internal width of at least 82 cm. My carrying-case budget is £90. For Pap…\nx90 (2025-04-14 12:00): …Saturdays to Wednesday 5 pm to 7 pm, effective 14 April 2025. It is still at Wren Street Library. A Paper Moon lighting test made the thin puppet rods disappear as intended. My local case supplier gives three fixed options: Ash Cases, 84 cm internal width at £74; Bell Trunks, 79 cm at £59; and Crate…",
+      "found": [
+        "Ash Cases",
+        "84 cm",
+        "£74",
+        "Bell Trunks",
+        "79 cm"
+      ]
+    },
+    {
+      "id": "v3-audio-case",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx113 (2025-05-12 12:00): …ooibos, replacing peppermint tea. I prefer the Cedar Cup loose-leaf blend, 3 g for five minutes. My Canal Voices drawer search found three headphone cases: Larch Audio is 20 cm wide at £38, Beacon Sound is 23 cm at £29, and Quiet Kit is 19 cm at £61. I can spend at most £45 on this case. These are e…\nx121 (2025-05-26 12:00): …d a 15 kg rating at £54. These dimensions and load ratings are fixed. I have not ordered any shelf. Canal Voices has two dawn recordings so far. My archive labels use 12 mm Brother TZe-231 tape. I store spare drives in antistatic bags with silica sachets. My socket tester is a Martindale BZ101. My s…",
+      "found": [
+        "Larch Audio",
+        "20 cm",
+        "£38",
+        "Beacon Sound",
+        "23 cm",
+        "Quiet Kit",
+        "£61"
+      ]
+    },
+    {
+      "id": "v3-drive-shelf",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx121 (2025-05-26 12:00): The shelf quotes arrived. Rowanwood offers a 25 cm deep shelf rated for 20 kg at £68. Flint Joinery offers 30 cm depth and a 25 kg rating at £63. Alder Shelving offers 26 cm depth and a 15 kg rating at £54. These dimensions and load ratings are fixed. I have not ordered any shelf. Canal Voices has t…\nx117 (2025-05-19 12:00): I need an archive shelf for the Canal Voices drives. Its maximum depth is 27 cm and its load rating must be at least 18 kg. I am still renting the York flat. I took Pip to the park and replaced a loose shoelace. On the way home I collected my repaired watch; the repairer is Inez Cole at Second Hand …",
+      "found": [
+        "Rowanwood",
+        "25 cm",
+        "20 kg",
+        "Flint Joinery",
+        "30 cm",
+        "Alder Shelving",
+        "15 kg"
+      ]
+    },
+    {
+      "id": "v3-archive-paper",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx129 (2025-06-09 12:00): I need a new archive-paper supplier with acid-free A3 sheets in packs of 25. My budget is £24 per pack including delivery. Quarry Paper offers acid-free A3, 25 sheets, delivered for £22. Fern Mill offers acid-free A4, 25 sheets, delivered for £18. I wrote the prices down but ordered nothing. I spent…\nx141 (2025-06-23 12:00): The third archive-paper quote is Bracken Press: acid-free A3, 25 sheets, delivered for £27. None of the three paper suppliers will change size or pack count at these prices. My field kit needs a rechargeable light with at least six hours of runtime. I set a £50 ceiling. Canal Voices continues alongs…",
+      "found": [
+        "Quarry Paper",
+        "acid-free A3",
+        "25 sheets",
+        "£22",
+        "Fern Mill",
+        "A4",
+        "Bracken Press",
+        "£27"
+      ]
+    },
+    {
+      "id": "v3-field-light",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx141 (2025-06-23 12:00): …vered for £27. None of the three paper suppliers will change size or pack count at these prices. My field kit needs a rechargeable light with at least six hours of runtime. I set a £50 ceiling. Canal Voices continues alongside the new job. My field-kit pencil is a Pentel GraphGear 500 with 0.7 mm 2B…\nx148 (2025-06-30 12:00): Three fixed field-light options: Hare Lamp lasts seven hours and costs £46; Plover Light lasts four hours and costs £32; and Stoat Beam lasts eight hours and costs £65. I have not bought one. I spent the evening washing window glass. Canal Voices now has lock-gate recordings from three separate dawn…",
+      "found": [
+        "Hare Lamp",
+        "seven hours",
+        "£46",
+        "Plover Light",
+        "four hours",
+        "Stoat Beam",
+        "£65"
+      ]
+    },
+    {
+      "id": "v3-listening-venue",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx152 (2025-07-07 12:00): …ng engine noise and building the sequence. Reed Shelter is still paused for permission. For a small listening event I need a venue with step-free access and capacity for at least 28 people; the hire budget is £120. My edit keyboard is a Keychron K2 with brown switches. I use a Kensington Orbit track…\nx156 (2025-07-14 12:00): The listening venues have fixed offers: Willow Room, step-free, capacity 30, £110; Copper Loft, stairs only, capacity 40, £95; and Mill Studio, step-free, capacity 35, £145. No venue has been booked. I posted Saffron a birthday card. She is still my friend and allotment co-holder. My card paper is 2…",
+      "found": [
+        "Willow Room",
+        "step-free",
+        "capacity 30",
+        "£110",
+        "Copper Loft",
+        "stairs only",
+        "Mill Studio",
+        "£145"
+      ]
+    },
+    {
+      "id": "v3-cabinet-hinge",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx171 (2025-08-04 12:00): …usual morning drink. I use Birch Tea's broken orange pekoe, 2.5 g brewed for four minutes. I need a Folded Atlas hinge that can hold at least 12 kg, with a leaf no wider than 16 mm so it fits the rebate. The hinge budget is £35 for the set. For cabinet work I prefer 12 mm Baltic birch plywood and 4 …\nx199 (2025-09-15 12:00): …the Rivelin path and allow 14 minutes. My pannier is an Ortlieb Back-Roller Classic in petrol blue. Folded Atlas's replacement lining offers are Sedge Board, acid-free, 1.2 mm, £16; Reed Sheets, acid-free, 2 mm, £12; and Rush Stock, not acid-free, 1 mm, £9. I have no price ceiling for this lining. B…",
+      "found": []
+    },
+    {
+      "id": "v3-lamp-driver",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx211 (2025-09-29 12:00): I put Night Orchard's first three seed pods on the shelf. Each needs a low-voltage lamp. I want a driver at 12 V DC with a capacity of at least 24 W, and my spending limit is £30. Reed Shelter is still paused. I watched a dull programme while cleaning brass filings out of a tray. My soldering statio…\nx222 (2025-10-13 12:00): Night Orchard's fixed driver offers: Wren Power is 12 V DC, 30 W, £28; Swift Electrics is 24 V DC, 36 W, £24; and Martin Supplies is 12 V DC, 18 W, £21. I have not bought a driver. The seed pods are for the Winter Lantern Walk on 13 December 2025. I need the driver for these lamps, not for Tidal Roo…",
+      "found": [
+        "Wren Power",
+        "12 V DC",
+        "30 W",
+        "£28",
+        "Swift Electrics",
+        "24 V DC",
+        "Martin Supplies",
+        "18 W"
+      ]
+    },
+    {
+      "id": "v3-march-week",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx59 (2025-03-03 12:00): This week, 3 to 9 March 2025, is Tidal Rooms week. I glazed the tiles today; the kiln booking is tomorrow. The exhibition model measures 60 cm long by 42 cm wide including its handles. I cut a foam cradle, checked the pump and printed a display label headed Borrowed Water. I need the transport box f…\nx66 (2025-03-10 12:00): I showed Tidal Rooms at the Riverside makers exhibition on 9 March 2025. The kiln firing on 4 March 2025 succeeded. The exhibition is over; the model is now stored in the museum's dry cupboard. This week, 10 to 16 March 2025, I am repairing the library's flood-damaged atlases, starting with the 1968…",
+      "found": [
+        "Tidal Rooms",
+        "4 March 2025",
+        "9 March 2025"
+      ]
+    },
+    {
+      "id": "v3-following-week",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx66 (2025-03-10 12:00): I showed Tidal Rooms at the Riverside makers exhibition on 9 March 2025. The kiln firing on 4 March 2025 succeeded. The exhibition is over; the model is now stored in the museum's dry cupboard. This week, 10 to 16 March 2025, I am repairing the library's flood-damaged atlases, starting with the 1968…\nx55 (2025-02-24 12:00): …oked the community kiln for 4 March 2025 to fire Tidal Rooms' porcelain tiles. The model is for the Riverside makers exhibition on 9 March 2025. My peppermint is loose-leaf Blackthorn Mint, 2 g brewed for six minutes. My tea mug is a 320 ml Denby Greenwich. For packed lunches I use a 750 ml steel Bl…",
+      "found": [
+        "repairing the library's flood-damaged atlases",
+        "10 to 16 March 2025"
+      ]
+    },
+    {
+      "id": "v3-autumn",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx86 (2025-04-07 12:00): Reed Shelter is paused from today, 7 April 2025, because the landowner has not granted permission. No site has been chosen and no completion date has been agreed. My current making project is a portable shadow theatre called Paper Moon. Its screen is 80 cm wide and 55 cm high. I need it to pack flat…\nx206 (2025-09-22 12:00): Today, 22 September 2025, I cancelled Folded Atlas as a product because the concertina door kept swelling. I am keeping the prototype for my own maps. No customer bought it. I am starting a winter project called Night Orchard, a set of illuminated seed-pod sculptures. I spent the rest of the afterno…",
+      "found": [
+        "Folded Atlas",
+        "cancelled Folded Atlas as a product",
+        "concertina door kept swelling",
+        "22 September 2025",
+        "Night Orchard"
+      ]
+    },
+    {
+      "id": "v3-september-week",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx195 (2025-09-08 12:00): This week, 8 to 14 September 2025, I tested Folded Atlas's drawer stops, delivered the prototype to Cinder Hall for a trial, and patched the library's railway timetables. The cabinet's concertina door jammed in the hall's humid side room. The cabinet is not ready for sale. I need replacement drawer …\nx176 (2025-08-11 12:00): The fixed hinge offers are Finch Hardware, 14 kg rating, 15 mm leaf, £32 per set; Kite Fittings, 10 kg, 14 mm leaf, £24; and Heron Ironwork, 16 kg, 18 mm leaf, £33. None will alter these sizes. I have not ordered hinges. Ellis visited and measured the workshop doorway before we ate soup. Ellis lives…",
+      "found": [
+        "tested Folded Atlas's drawer stops",
+        "Cinder Hall",
+        "concertina door jammed",
+        "patched the library's railway timetables"
+      ]
+    },
+    {
+      "id": "v3-hide-pause",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx226 (2025-10-20 12:00): Today, 20 October 2025, I restarted Reed Shelter after the landowner gave permission. Noor and I chose the north edge of Mere Fen as its site. We will use Moor Timber's larch roof panel. The budget is £640, but no completion date has been agreed. I can work on this alongside Night Orchard. The lando…\nx152 (2025-07-07 12:00): Today, 7 July 2025, Canal Voices moved from recording to editing. All six tracks have been recorded. I am trimming engine noise and building the sequence. Reed Shelter is still paused for permission. For a small listening event I need a venue with step-free access and capacity for at least 28 people…",
+      "found": [
+        "20 October 2025",
+        "landowner gave permission"
+      ]
+    },
+    {
+      "id": "v3-job-move-order",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx218 (2025-10-06 12:00): Today, 6 October 2025, Westfold Archive changed my role to collections environment coordinator. I am still employed there, reporting to Ada Finch. My commute remains the bicycle ride. My work hours are now Monday to Friday, 9 am to 5 pm. The job involves monthly climate reports for four stores. My r…\nx278 (2025-12-29 12:00): …tallation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting anything new. My winter reading copy of The Peregrine is the 2017 NYRB edition with an introduction …",
+      "found": []
+    },
+    {
+      "id": "v3-canal-phases",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx152 (2025-07-07 12:00): Today, 7 July 2025, Canal Voices moved from recording to editing. All six tracks have been recorded. I am trimming engine noise and building the sequence. Reed Shelter is still paused for permission. For a small listening event I need a venue with step-free access and capacity for at least 28 people…\nx106 (2025-05-05 12:00): I started a sound project called Canal Voices today, 5 May 2025. It documents lock gates and boat engines, not interviews. The plan is to record at dawn twice a month. The proposed release is a six-track download; no release date has been agreed. I want headphones that fit inside my 21 cm wide equip…",
+      "found": [
+        "5 May 2025",
+        "7 July 2025"
+      ]
+    },
+    {
+      "id": "v3-theatre-window",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx101 (2025-04-28 12:00): Paper Moon's first public performance was on 26 April 2025 at Cinder Hall, for an audience of 34. Today, 28 April 2025, I dismantled the screen and put the theatre in storage. I am making a field-recording kit next, rather than planning another performance. I washed a stack of mugs after the packing…\nx86 (2025-04-07 12:00): …wner has not granted permission. No site has been chosen and no completion date has been agreed. My current making project is a portable shadow theatre called Paper Moon. Its screen is 80 cm wide and 55 cm high. I need it to pack flat for train journeys. I need a carrying case with an internal width…",
+      "found": [
+        "26 April 2025",
+        "28 April 2025"
+      ]
+    },
+    {
+      "id": "v3-two-december-weeks",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx266 (2025-12-15 12:00): Night Orchard was displayed at the Winter Lantern Walk on 13 December 2025. All nine pods worked. Today, 15 December 2025, I packed it away. This week, 15 to 21 December 2025, I am repairing a split bellows on Ellis's concertina and cataloguing winter photographs. Reed Shelter is unfinished, with no…\nx258 (2025-12-01 12:00): This week, 1 to 7 December 2025, I tested Night Orchard outdoors in drizzle, replaced a cracked diffuser on pod seven and made route cards for the Winter Lantern Walk. Reed Shelter is still unfinished; we have cut the frame but not installed it. No completion date has been agreed for the hide. My ro…",
+      "found": [
+        "tested Night Orchard outdoors in drizzle",
+        "replaced a cracked diffuser on pod seven",
+        "repairing a split bellows on Ellis's concertina",
+        "cataloguing winter photographs"
+      ]
+    },
+    {
+      "id": "v3-move-promotion-order",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx278 (2025-12-29 12:00): …still only a proposal, with no timber species chosen, no funding awarded and no installation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting anything new. My …\nx218 (2025-10-06 12:00): Today, 6 October 2025, Westfold Archive changed my role to collections environment coordinator. I am still employed there, reporting to Ada Finch. My commute remains the bicycle ride. My work hours are now Monday to Friday, 9 am to 5 pm. The job involves monthly climate reports for four stores. My r…",
+      "found": [
+        "6 October 2025"
+      ]
+    },
+    {
+      "id": "v3-unknown-installer",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx31 (2025-01-13 12:00): Mum, June, wants an accessible garden. Her wheelchair needs at least 84 cm clear gate width, and her maximum comfortable bed height is 60 cm. Her garden budget is £2,000 including installation. No installer has been chosen. No installation start date has been agreed. June lives at 7 Orchard Close in…\nx278 (2025-12-29 12:00): Seed Ledger is still only a proposal, with no timber species chosen, no funding awarded and no installation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting an…",
+      "found": [
+        "No installer has been chosen",
+        "No installation start date has been agreed"
+      ]
+    },
+    {
+      "id": "v3-unknown-supervisor",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx43 (2025-02-03 12:00): …o Flat 2, 9 Foss Lane. The new rent is £860 a month. I still work at Northbank Ceramics. My regular library shift is now Saturday 10 am to noon at Wren Street Library, repairing book covers. The York flat's kitchen recess is 57 cm wide and 61 cm deep. The living-room curtain rail is 184 cm long. The…\nx90 (2025-04-14 12:00): The library has changed my standing shift from Saturdays to Wednesday 5 pm to 7 pm, effective 14 April 2025. It is still at Wren Street Library. A Paper Moon lighting test made the thin puppet rods disappear as intended. My local case supplier gives three fixed options: Ash Cases, 84 cm internal wid…",
+      "found": [
+        "Saturday 10 am to noon",
+        "Wren Street Library"
+      ]
+    },
+    {
+      "id": "v3-unknown-salary",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx218 (2025-10-06 12:00): Today, 6 October 2025, Westfold Archive changed my role to collections environment coordinator. I am still employed there, reporting to Ada Finch. My commute remains the bicycle ride. My work hours are now Monday to Friday, 9 am to 5 pm. The job involves monthly climate reports for four stores. My r…\nx278 (2025-12-29 12:00): …s still only a proposal, with no timber species chosen, no funding awarded and no installation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting anything new. M…",
+      "found": [
+        "collections environment coordinator",
+        "Westfold Archive"
+      ]
+    },
+    {
+      "id": "v3-unknown-partner",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx94 (2025-04-21 12:00): Saffron and I ended our romantic relationship on 21 April 2025. We remain friends and will still share our allotment. Neither of us moved home because of the breakup. Our allotment is plot 26B at Willow Bank; the annual plot rent is £48. We split that rent equally. The plot's shed key has a triangul…\nx26 (2025-01-06 12:00): …an Orton ST-1 dilatometer. My usual morning drink is coffee made in a copper three-cup moka pot. My partner is Saffron; we keep separate homes. My retired greyhound Pip came home in 2019; his racing name was Silver Comet. His waterproof coat is size 66 cm, from Fell Houndwear. His vet is Dr Celia Mo…",
+      "found": [
+        "remain friends",
+        "share our allotment"
+      ]
+    },
+    {
+      "id": "v3-unknown-customer",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx195 (2025-09-08 12:00): This week, 8 to 14 September 2025, I tested Folded Atlas's drawer stops, delivered the prototype to Cinder Hall for a trial, and patched the library's railway timetables. The cabinet's concertina door jammed in the hall's humid side room. The cabinet is not ready for sale. I need replacement drawer …\nx191 (2025-09-01 12:00): …kg, £88; and Vole Tools is 46 cm wide, rated 70 kg, £76. These specifications are fixed. I have not bought a trolley. This autumn's main project is Folded Atlas, with a six-drawer cabinet prototype. My calendar is a wall-mounted A3 planner. I mark archive work in blue, volunteering in purple and wor…",
+      "found": []
+    },
+    {
+      "id": "v3-unknown-listening-booking",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx152 (2025-07-07 12:00): Today, 7 July 2025, Canal Voices moved from recording to editing. All six tracks have been recorded. I am trimming engine noise and building the sequence. Reed Shelter is still paused for permission. For a small listening event I need a venue with step-free access and capacity for at least 28 people…\nx164 (2025-07-28 12:00): Today, 28 July 2025, I released Canal Voices as a six-track download on my own website. The final track is called Low Gate at Dawn and lasts 4 minutes 18 seconds. No listening event has been booked. I am switching my spare-time work to a folding map cabinet called Folded Atlas. The first sketches us…",
+      "found": [
+        "step-free"
+      ]
+    },
+    {
+      "id": "v3-unknown-hide-date",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx266 (2025-12-15 12:00): …mber 2025, I am repairing a split bellows on Ellis's concertina and cataloguing winter photographs. Reed Shelter is unfinished, with no agreed completion date. Ellis's concertina is a 30-button Lachenal Anglo in C/G, serial 18462. The split is in the third bellows fold on the left. My bellows leathe…\nx258 (2025-12-01 12:00): …drizzle, replaced a cracked diffuser on pod seven and made route cards for the Winter Lantern Walk. Reed Shelter is still unfinished; we have cut the frame but not installed it. No completion date has been agreed for the hide. My route cards are A6 waterproof Polyart at 170 gsm. They show a 1:2,500 …",
+      "found": [
+        "No completion date has been agreed",
+        "Reed Shelter is unfinished"
+      ]
+    },
+    {
+      "id": "v3-unknown-rain-policy",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx262 (2025-12-08 12:00): …s 154 cm internally and weighs 14.6 kg when packed. That includes the stands and all nine pods. The Winter Lantern Walk remains scheduled for 13 December 2025. The organiser is Petra Singh, and the assembly point is Birch Gate at 4 pm. My event boots are insulated Muck Arctic Sport in size 8. I carr…\nx266 (2025-12-15 12:00): Night Orchard was displayed at the Winter Lantern Walk on 13 December 2025. All nine pods worked. Today, 15 December 2025, I packed it away. This week, 15 to 21 December 2025, I am repairing a split bellows on Ellis's concertina and cataloguing winter photographs. Reed Shelter is unfinished, with no…",
+      "found": [
+        "Petra Singh",
+        "13 December 2025"
+      ]
+    },
+    {
+      "id": "v3-unknown-seed-timber",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx273 (2025-12-22 12:00): …urned it to Ellis today, 22 December 2025. He played a tune while I washed up. My next project is a seed-library cabinet for Bell Street Library, called Seed Ledger. It is only a proposal. No timber species has been chosen, no funding has been awarded and no installation date has been agreed. The li…\nx278 (2025-12-29 12:00): Seed Ledger is still only a proposal, with no timber species chosen, no funding awarded and no installation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting an…",
+      "found": [
+        "No timber species has been chosen",
+        "Seed Ledger",
+        "only a proposal"
+      ]
+    },
+    {
+      "id": "v3-unknown-seed-grant",
+      "note": "Recalled from memory for the latest message; use it only if relevant:\nEarlier conversation, not yet reviewed:\nx273 (2025-12-22 12:00): …urned it to Ellis today, 22 December 2025. He played a tune while I washed up. My next project is a seed-library cabinet for Bell Street Library, called Seed Ledger. It is only a proposal. No timber species has been chosen, no funding has been awarded and no installation date has been agreed. The li…\nx278 (2025-12-29 12:00): Seed Ledger is still only a proposal, with no timber species chosen, no funding awarded and no installation date agreed. Reed Shelter is unfinished. My job is collections environment coordinator at Westfold Archive, and I live at Kelham Court. I spent today putting tools back rather than starting an…",
+      "found": [
+        "no funding has been awarded",
+        "no installation date has been agreed",
+        "Seed Ledger"
+      ]
+    }
+  ]
+}

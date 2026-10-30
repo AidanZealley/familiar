@@ -1,0 +1,312 @@
+{
+  "date": "2026-10-30",
+  "commit": "b841c40-dirty",
+  "scenario": "rowan-v3",
+  "compactions": 14,
+  "skipped": [
+    {
+      "question": "v3-unknown-supervisor",
+      "required": "Says no supervisor was ever mentioned"
+    },
+    {
+      "question": "v3-unknown-salary",
+      "required": "Says no salary was ever mentioned"
+    },
+    {
+      "question": "v3-unknown-partner",
+      "required": "Says no new partner was ever mentioned"
+    },
+    {
+      "question": "v3-unknown-rain-policy",
+      "required": "Says no rain-cancellation threshold was ever mentioned"
+    }
+  ],
+  "scores": [
+    {
+      "category": "old-facts",
+      "required": 21,
+      "inNote": 0,
+      "inView": 0
+    },
+    {
+      "category": "changed-facts",
+      "required": 22,
+      "inNote": 0,
+      "inView": 0
+    },
+    {
+      "category": "multi-session",
+      "required": 73,
+      "inNote": 0,
+      "inView": 0
+    },
+    {
+      "category": "time",
+      "required": 34,
+      "inNote": 0,
+      "inView": 1
+    },
+    {
+      "category": "unknown",
+      "required": 26,
+      "inNote": 0,
+      "inView": 4
+    }
+  ],
+  "noteTokens": {
+    "median": 0,
+    "max": 0
+  },
+  "questions": [
+    {
+      "id": "v3-pip-coat",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-bracken-frame",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-thimble",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-watch-repair",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-soup-postcard",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-atlas-provenance",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-backup-location",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-concertina",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-york-recess",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-canal-track",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-before-york",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-between-york-kelham",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-before-lantern",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-first-archive-role",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-drink-chain",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-coffee-equipment",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-library-chain",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-commute-chain",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-saffron-status",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-folded-status",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-garden-fit",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-roof-fit",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-theatre-case",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-audio-case",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-drive-shelf",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-archive-paper",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-field-light",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-listening-venue",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-cabinet-hinge",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-lamp-driver",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-march-week",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-following-week",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-autumn",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-september-week",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-hide-pause",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-job-move-order",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-canal-phases",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-theatre-window",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-two-december-weeks",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-move-promotion-order",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-installer",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-supervisor",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-salary",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-partner",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-customer",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-listening-booking",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-hide-date",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-rain-policy",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-seed-timber",
+      "note": null,
+      "found": []
+    },
+    {
+      "id": "v3-unknown-seed-grant",
+      "note": null,
+      "found": []
+    }
+  ]
+}

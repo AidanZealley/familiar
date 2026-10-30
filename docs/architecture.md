@@ -31,11 +31,13 @@ packages/core/src
                      beyond the documents.
     exchanges.ts     The in-memory search index over exchanges (a message and
                      its replies). It catches up with the transcript at the
-                     start of each search and is rebuilt after a restart.
+                     start of each search, notes where the latest compaction
+                     starts the model's view, and is rebuilt after a restart.
     tools.ts         recall and read_memory, the tools that read memory. The
                      conversation and upkeep both have them.
-    recall.ts        Search and ranking: automatic recall over facts and
-                     episodes, and the recall tool's groups, exchanges too.
+    recall.ts        Search and ranking: automatic recall over facts,
+                     episodes and unfiled exchanges, and the recall tool's
+                     groups, exchanges too.
     read.ts          What read_memory shows behind an ID.
     health.ts        Health numbers from real data, and recent search times.
     episodes.ts      The episode shape, the Episodes document, dates in messages,
@@ -96,15 +98,15 @@ apps/web/src         Chat, Memory, Schedules and Connections, on @familiar/clien
 8. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
 9. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
 
-Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep and schedules, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `schedules.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model.
+Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep and schedules, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `schedules.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model, and `pnpm eval:unfiled` measures what automatic recall shows of conversation compacted out of view before upkeep files it.
 
 ## One message, end to end
 
 1. The composer calls `store.send()`, which posts to `/api/messages`.
 2. `http.ts` asks the host who sent it, then calls `familiar.send()` (`conversation/api.ts`), which submits it to the conversation.
 3. Pi runs a generation task. The request it builds has the system prompt from every extension's sections (the preamble, core facts) and as much recent conversation as the context budget allows; older conversation has been compacted into a summary.
-4. Memory's `beforeRequest` hook (`extension.ts`) searches facts outside core and the episodes no rollup covers yet (or any on dates the message names) and adds at most 8 as a recall note at the end of this request only, memoised so a retried request sees the same note.
-5. The model may call a tool, say `recall`, which catches the exchange index up with the transcript and searches facts, episodes and exchanges in three groups; `read_memory` opens what lies behind an ID, down to the original messages. Neither changes facts: nothing said is filed until upkeep runs that night.
+4. Memory's `beforeRequest` hook (`extension.ts`) searches facts outside core and the episodes no rollup covers yet (or any on dates the message names) and adds at most 8 as a recall note at the end of this request only, memoised so a retried request sees the same note. In the main conversation the note also gets the best two exchanges between the last entry upkeep reviewed and the start of the view, which nothing else would show until upkeep files them. Hooks can't read the transcript, so `createMemory` (`index.ts`) builds the note, in one transaction so upkeep can't file something between reads.
+5. The model may call a tool, say `recall`, which catches the exchange index up with the transcript and searches facts, episodes and exchanges in three groups; `read_memory` opens what lies behind an ID, down to the original messages. Neither changes facts: nothing said is filed until upkeep runs that night, though automatic recall finds it in the meantime once it leaves the view.
 6. Each commit reaches `/api/events` as operations: the conversation's, and those of any document that changed. The client applies them, `toTranscript()` turns entries into chat items, and React renders them.
 7. At 04:00, upkeep (`upkeep/index.ts`) files unreviewed message text oldest first with the writing tools only its conversation is given (`upkeep/tools.ts`), citing each person's message by its exchange ID. Batches stop at each 04:00 day boundary or the transcript budget, whichever comes first. Each completed batch saves an episode and its review position, so a failed later batch can resume without repeating earlier ones. Once the backlog is clear, upkeep rolls up finished weeks and months, then rechecks the 20 current facts that have gone longest without a check against the last 30 days' episodes, stamping them checked in the usage document only if that review succeeds. A single message larger than the budget is truncated and reported to the host; ordinary batch overflow is left for the next batch.
 

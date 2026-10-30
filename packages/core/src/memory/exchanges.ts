@@ -1,4 +1,5 @@
 import {
+  CompactionEntry,
   ROOT_CONVERSATION_ID,
   type EntryId,
   type Tx,
@@ -29,12 +30,19 @@ export type Exchange = {
   at: number
   /** The person's text, then the replies. */
   text: string
+  /** Its newest entry: the last reply, or the person message if none yet. */
+  last: EntryId
 }
 
 export type ExchangeSearchOptions = {
   limit?: number
   /** Days the query names; exchanges on them rank higher, as episodes do. */
   ranges?: DateRange[]
+  /**
+   * Only exchanges with entries between these two, exclusive: one a range
+   * boundary splits still counts. `after` null means from the start.
+   */
+  within?: { after: EntryId | null; before: EntryId }
 }
 
 export type ExchangeIndex = {
@@ -73,7 +81,7 @@ export function createExchangeIndex(): ExchangeIndex {
       exchanges.push({ exchange, day: localDay(exchange.at) })
     },
 
-    search(query, now, { limit = 6, ranges = [] } = {}) {
+    search(query, now, { limit = 6, ranges = [], within } = {}) {
       const scores = new Map(
         index.search(query).map(({ id, score }) => [id as string, score]),
       )
@@ -91,7 +99,21 @@ export function createExchangeIndex(): ExchangeIndex {
         }
       }
 
+      const inRange = (exchange: Exchange) => {
+        if (!within) {
+          return true
+        }
+        const { after, before } = within
+        const first = entryOf(exchange.id)
+        return (
+          first !== undefined &&
+          first < before &&
+          (after === null || (exchange.last > after && after < before))
+        )
+      }
+
       return [...scores]
+        .filter(([id]) => inRange(exchanges[positions.get(id)!].exchange))
         .map(([id, score]) => {
           const { exchange } = exchanges[positions.get(id)!]
           return {
@@ -137,12 +159,15 @@ export function createExchangeIndex(): ExchangeIndex {
  * telling about new messages. An exchange is added only once the next
  * person message exists, so every indexed text is final; the newest is
  * still in the model's context anyway. After a restart the first search
- * rebuilds it from the start of the transcript.
+ * rebuilds it from the start of the transcript. It also notes where the
+ * model's view begins, from the latest compaction, so searches can find
+ * what compaction took out of it.
  */
 export function transcriptExchanges() {
   const index = createExchangeIndex()
   let through: EntryId | undefined
   let open: Exchange | undefined
+  let viewStart: EntryId | undefined
   let buildMs: number | null = null
   let catchUpMs: number | null = null
 
@@ -158,15 +183,23 @@ export function transcriptExchanges() {
         }),
       })) {
         through = entry.id
+        if (CompactionEntry.is(entry)) {
+          viewStart = entry.head
+        }
         const said = saidBy(entry)
         // A scheduled prompt and its reply are an exchange of their own.
         if (said && said.role !== 'assistant') {
           if (open) {
             index.add(open)
           }
-          open = { id: exchangeId(entry.id), at: said.at, text: said.text }
+          open = {
+            id: exchangeId(entry.id),
+            at: said.at,
+            text: said.text,
+            last: entry.id,
+          }
         } else if (said && open) {
-          open = { ...open, text: `${open.text}\n${said.text}` }
+          open = { ...open, text: `${open.text}\n${said.text}`, last: entry.id }
         }
       }
       // Empty polls do not build anything and must not change the timings.
@@ -179,6 +212,14 @@ export function transcriptExchanges() {
         }
       }
       return index
+    },
+
+    /**
+     * The first entry the model sees verbatim, as of the last catch-up, or
+     * undefined before any compaction.
+     */
+    get viewStart() {
+      return viewStart
     },
 
     /** First nonempty build after opening Familiar, or null before one runs. */
