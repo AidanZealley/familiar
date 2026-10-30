@@ -37,6 +37,26 @@ export function greet(name: string) {
 }
 \`\`\`
 
+### Maths
+
+The area of a circle is $$\\pi r^2$$, and the roots of a quadratic are
+
+$$
+x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+$$
+
+### A diagram
+
+\`\`\`mermaid
+flowchart LR
+  Message --> Recall --> Reply
+  Reply --> Memory[(Memory)]
+\`\`\`
+
+### An image
+
+![Familiar's icon](/icon-192.png)
+
 > Say **tool**, **memory**, **remind**, **key**, **slow**, **compact** or **error** to see the other scenarios.`
 
 const slowReply = Array.from(
