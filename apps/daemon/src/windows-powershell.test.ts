@@ -16,7 +16,7 @@ test('Windows commands use encoded Unicode scripts with literal paths and no pro
   const source = Buffer.from(String(args?.at(-1)), 'base64').toString('utf16le')
   expect(source).toContain("Owner''s files & 家")
   expect(source).toContain('SetAccessRuleProtection($true, $false)')
-  expect(source).toContain('Set-Acl -LiteralPath $directory')
+  expect(source).toContain('[IO.Directory]::SetAccessControl($directory, $acl)')
 })
 
 test('log following inherits terminal output without a command timeout', () => {

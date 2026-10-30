@@ -34,12 +34,13 @@ export function powershell(script: string, follow = false) {
 export function protectWindowsDirectory(directory: string) {
   powershell(`
 $directory = ${powershellString(directory)};
-$acl = Get-Acl -LiteralPath $directory;
+# Build only the DACL: copying a full descriptor through Set-Acl can require
+# SeSecurityPrivilege to write audit information, even for the directory owner.
+$acl = [Security.AccessControl.DirectorySecurity]::new();
 $acl.SetAccessRuleProtection($true, $false);
-foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
 $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User;
 $rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow');
 $acl.AddAccessRule($rule);
-Set-Acl -LiteralPath $directory -AclObject $acl
+[IO.Directory]::SetAccessControl($directory, $acl)
 `)
 }
