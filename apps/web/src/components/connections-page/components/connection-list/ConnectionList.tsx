@@ -56,11 +56,11 @@ export const ConnectionList = ({
   return (
     <div
       className={cn(
-        'flex w-full min-w-0 flex-col md:w-80 md:shrink-0 md:border-r',
+        'flex w-full min-w-0 flex-col md:min-h-0 md:w-80 md:shrink-0 md:border-r',
         className,
       )}
     >
-      <div className="flex flex-col gap-3 px-4 pt-6 pb-3">
+      <div className="flex shrink-0 flex-col gap-3 px-4 pt-6 pb-3">
         <div className="flex items-center justify-between gap-2">
           <h1 className="font-heading text-2xl font-medium">Connections</h1>
           <Button variant="outline" onClick={onAdd}>
@@ -92,7 +92,7 @@ export const ConnectionList = ({
       </div>
       <nav
         aria-label="Connections"
-        className="flex flex-col gap-4 px-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:flex-1 md:overflow-y-auto"
+        className="flex flex-col gap-4 px-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:min-h-0 md:flex-1 md:overflow-y-auto"
       >
         {groups.map(({ title, items }) => (
           <section key={title} aria-label={title}>
