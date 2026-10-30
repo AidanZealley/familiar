@@ -1,6 +1,6 @@
 # Familiar agent guide
 
-Read the [README](README.md) first. Its Layout and Rules sections are the architecture; this file covers how to work in the repo. Planned work and its specs are in [docs/roadmap.md](docs/roadmap.md).
+Read the [README](README.md) first. The Layout and Rules sections in [docs/architecture.md](docs/architecture.md) define the architecture; this file covers how to work in the repo. Planned work and its specs are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Hard limits
 

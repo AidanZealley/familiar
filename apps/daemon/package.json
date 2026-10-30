@@ -3,15 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/main.ts",
+    "dev": "node --watch src/cli.ts serve",
     "dev:demo": "node --watch src/demo/main.ts",
-    "start": "node src/main.ts",
-    "sign-in": "node src/sign-in.ts",
+    "start": "node src/cli.ts serve",
+    "sign-in": "node src/cli.ts sign-in",
     "eval:memory": "node src/memory-eval/main.ts",
     "eval:memory:rejudge": "node src/memory-eval/rejudge.ts",
     "eval:recall": "node src/memory-eval/recall-main.ts",
     "eval:unfiled": "node src/memory-eval/unfiled-main.ts",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "bundle": "pnpm --filter @familiar/web build && node scripts/bundle.ts",
+    "test:release": "node scripts/verify-release.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "catalog:",
@@ -21,6 +23,7 @@
     "@familiar/plugin-web": "workspace:*",
     "@hono/node-server": "2.1.5",
     "@modelcontextprotocol/client": "catalog:",
+    "cross-spawn": "7.0.6",
     "hono": "catalog:",
     "node-fetch": "3.3.2",
     "piscina": "5.3.2",
@@ -29,6 +32,8 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "catalog:",
-    "@types/web-push": "3.6.4"
+    "@types/cross-spawn": "6.0.6",
+    "@types/web-push": "3.6.4",
+    "rolldown": "1.2.15"
   }
 }
