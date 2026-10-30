@@ -36,7 +36,7 @@ export const Chat = () => {
           <MessageScrollerViewport>
             <MessageScrollerContent
               aria-busy={transcript?.busy}
-              className="mx-auto w-full max-w-5xl gap-4 p-4"
+              className="mx-auto w-full max-w-3xl gap-4 p-4"
             >
               {transcript?.items.map((item) => (
                 <MessageScrollerItem
@@ -60,7 +60,7 @@ export const Chat = () => {
         </MessageScroller>
 
         {/* Lined up with the conversation. */}
-        <div className="mx-auto w-full max-w-5xl">
+        <div className="mx-auto w-full max-w-3xl">
           <Composer busy={transcript?.busy ?? false} />
         </div>
       </div>
