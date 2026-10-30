@@ -39,7 +39,7 @@ export const ToolList = ({ connection }: ToolListProps) => {
           />
         )}
       </div>
-      {status.type !== 'connected' ? (
+      {!tools.length && status.type !== 'connected' ? (
         <p className="text-sm text-muted-foreground">{absent[status.type]}</p>
       ) : shown.length ? (
         <ul className="flex flex-col divide-y rounded-lg border">
