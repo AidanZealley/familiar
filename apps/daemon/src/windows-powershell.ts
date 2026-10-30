@@ -29,17 +29,3 @@ export function powershell(script: string, follow = false) {
     },
   )
 }
-
-/** chmod cannot restrict Windows ACLs, including on an existing data directory. */
-export function protectWindowsDirectory(directory: string) {
-  powershell(`
-$directory = ${powershellString(directory)};
-$acl = Get-Acl -LiteralPath $directory;
-$acl.SetAccessRuleProtection($true, $false);
-foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
-$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User;
-$rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow');
-$acl.AddAccessRule($rule);
-Set-Acl -LiteralPath $directory -AclObject $acl
-`)
-}
