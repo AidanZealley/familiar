@@ -128,7 +128,7 @@ The package includes the CLI, web UI and HTML conversion worker. Piscina is its 
 
 CLI management code and its tests live under `apps/daemon/src/cli/`, separate from daemon serving and the portable core. Shared paths, settings, credentials and Windows directory permissions belong to the Node host.
 
-The CLI platforms workflow builds and tests on Linux, macOS and Windows. It validates native plist/task definitions without registering services, and tests installed packages using temporary storage. Linux lifecycle integration uses fake system commands. Real macOS and Windows setup, login, restart, log following, update, removal and reboot checks remain pending; the workflow has not been run for this branch yet.
+The CLI platforms workflow builds and tests on Linux, macOS and Windows. It validates native plist/task definitions without registering services, and tests installed packages using temporary storage. Linux lifecycle integration uses fake system commands. On a real Mac, setup, sign-in, repeat setup, crash recovery, rename restart, Tailscale publishing, uninstall and reinstall have been checked; macOS update and login-at-boot, and all real Windows checks, remain pending; the workflow has not been run for this branch yet.
 
 ### Settings
 
