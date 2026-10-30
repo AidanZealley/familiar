@@ -9,6 +9,7 @@ import type {
   EntryRecord,
   InboxState,
   LiveState,
+  TaskId,
 } from '@earendil-works/pi-durable'
 import type { MessageData, ScheduledData } from '@familiar/core/http'
 
@@ -117,7 +118,10 @@ export function toTranscript(
 
   const partial = live?.generation?.message as AssistantMessage | undefined
   if (partial) {
-    items.push({ ...toReply('streaming', partial, calls), streaming: true })
+    items.push({
+      ...toReply(replyId(live?.run?.taskId, partial), partial, calls),
+      streaming: true,
+    })
   }
 
   for (const item of inbox?.items ?? []) {
@@ -167,8 +171,14 @@ function toItem(
     }
     case SCHEDULED_KIND:
       return scheduled(id, entry.data as ScheduledData, false)
-    case 'pi.assistant':
-      return toReply(id, entry.model?.[0] as AssistantMessage, calls)
+    case 'pi.assistant': {
+      const message = entry.model?.[0] as AssistantMessage
+      return toReply(
+        entry.byTaskId === undefined ? id : replyId(entry.byTaskId, message),
+        message,
+        calls,
+      )
+    }
     case 'pi.tool-result': {
       const result = entry.model?.[0] as ToolResultMessage
       const call = calls.get(result.toolCallId)
@@ -188,6 +198,11 @@ const scheduled = (
   { prompt, due }: ScheduledData,
   queued: boolean,
 ): TranscriptItem => ({ type: 'scheduled', id, prompt, due, queued })
+
+// Pi preserves the task and message timestamp when it saves a streamed reply.
+// The timestamp distinguishes attempts made by the same generation task.
+const replyId = (taskId: TaskId | undefined, message: AssistantMessage) =>
+  `reply:${taskId}:${message.timestamp}`
 
 function toReply(
   id: string,
