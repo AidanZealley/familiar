@@ -122,3 +122,25 @@ export function unpublish(port: number) {
     }
   }
 }
+
+/** Inspect an existing private HTTPS route without publishing or changing it. */
+export function publishedUrl(port: number): string | undefined {
+  try {
+    const publication = JSON.parse(
+      tailscale('serve', 'status', '--json'),
+    ) as Publication
+    if (!publication.TCP?.[httpsPort]?.HTTPS) {
+      return
+    }
+    const match = Object.entries(publication.Web ?? {}).find(
+      ([host, route]) =>
+        host.endsWith(`:${httpsPort}`) &&
+        route.Handlers?.['/']?.Proxy === target(port) &&
+        !publication.AllowFunnel?.[host],
+    )
+    return match && `https://${match[0]}`
+  } catch {
+    // Status remains useful locally when Tailscale is absent or unavailable.
+    return undefined
+  }
+}

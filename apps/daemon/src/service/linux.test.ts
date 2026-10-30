@@ -130,6 +130,7 @@ test('a refused linger change prints the command needed for logged-out operation
 })
 
 test('an unavailable systemd user bus is an error rather than an inactive service', () => {
+  service().install()
   vi.mocked(execFileSync).mockImplementation(() => {
     throw Object.assign(new Error('no bus'), { status: 1 })
   })
@@ -144,6 +145,7 @@ test('login for another data directory does not stop this service', async () => 
     cliPath: '/app/familiar.js',
     unitDir: temporary,
   })
+  expect(other.isRunning()).toBe(false)
   await other.withStopped(async () => {
     expect(running).toBe(true)
   })

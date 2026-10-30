@@ -23,7 +23,7 @@ Known decisions:
 - **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth (README Rules), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
 - **The conversation file is the unit of portability.** Everything a Familiar is (conversation, facts, history, episodes, durable tasks) is in `familiar.sqlite`. Export is a consistent snapshot of that file; the login stays behind (step 6).
 
-Keep each milestone in its own commit. Guided setup and Linux service management are one milestone because setup installs the service. Steps 1–5 give a one-command install on Linux and VPSs. Validate that milestone before adding macOS and Windows service support.
+Keep each milestone in its own commit. Guided setup and Linux service management are one milestone because setup installs the service. Finish service support on Linux, macOS and Windows before the install scripts. Linux and VPS support remains available while the other hosts are added.
 
 ## 1. The `familiar` command
 
@@ -73,7 +73,9 @@ Done when setup on a fresh Linux machine ends with a working URL, and a second r
 
 Done when the unit-content tests pass and setup, a reboot, `update` and `uninstall` work on Linux and on a VPS; then on macOS; then on Windows.
 
-Guided setup and Linux service management are implemented. Default `familiar` saves settings, reuses or obtains a ChatGPT login, installs the service and prints local and tailnet URLs. `logs`, `update` and `uninstall` use the same service owner. Sign-in and updates pause this installation's running service and resume it even on failure. Setup saves the chosen name and explicit overrides, leaving model, owner and port defaults in code. Repeat setup preserves settings and an already-running service; changed settings restart it. Setup waits for the local API before printing its URLs. The unit has been validated with systemd, and packaged setup is tested with temporary storage and fake system commands. A real reboot/VPS check is still pending. macOS and Windows services remain planned.
+Guided setup and Linux service management are implemented. Default `familiar` saves settings, reuses or obtains a ChatGPT login, installs the service and prints local and tailnet URLs. `status`, `rename`, `logs`, `update` and `uninstall` use the same service owner. `status` reads the saved name, matching service state and existing URLs without changing them. `rename [name]` saves only the name and restarts a running matching service; without a name it prompts. Sign-in and updates pause this installation's running service and resume it even on failure. Setup saves the chosen name and explicit overrides, leaving model, owner and port defaults in code. Repeat setup preserves settings and an already-running service; changed settings restart it. Setup waits for the local API before printing its URLs. The unit has been validated with systemd, and packaged setup is tested with temporary storage and fake system commands. A real reboot/VPS check is still pending. macOS and Windows services remain planned.
+
+The next service milestones are macOS LaunchAgents, then Windows Scheduled Tasks and the Startup fallback. Each must cover installation, status, restart, temporary suspension for sign-in/update, logs and removal. Check platform command execution, paths with spaces and user sessions on native hosts before calling support verified. Windows also needs a safe way to invoke npm's `.cmd` launcher. The installer then delegates setup to these implementations instead of reimplementing service management.
 
 ## 5. The install scripts
 

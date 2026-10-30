@@ -22,6 +22,18 @@ test('help and invalid commands do not create private storage', () => {
     expect(() =>
       execFileSync(process.execPath, [cli, 'unknown'], { env, stdio: 'pipe' }),
     ).toThrow()
+    expect(() =>
+      execFileSync(process.execPath, [cli, 'status', 'extra'], {
+        env,
+        stdio: 'pipe',
+      }),
+    ).toThrow()
+    expect(() =>
+      execFileSync(process.execPath, [cli, 'rename', 'one', 'two'], {
+        env,
+        stdio: 'pipe',
+      }),
+    ).toThrow()
     expect(existsSync(data)).toBe(false)
   } finally {
     rmSync(temporary, { recursive: true, force: true })

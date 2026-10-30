@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { publish, unpublish } from './tailnet.ts'
+import { publish, publishedUrl, unpublish } from './tailnet.ts'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 const host = 'machine.example.ts.net:10000'
@@ -102,4 +102,17 @@ test('removal preserves other routes sharing the HTTPS port', () => {
   }
   unpublish(4317)
   expect(calls()).toEqual(['serve status --json'])
+})
+
+test('reading an existing URL never publishes a new route', () => {
+  publication = existing()
+  expect(publishedUrl(4317)).toBe(`https://${host}`)
+  expect(calls()).toEqual(['serve status --json'])
+  publication = {}
+  expect(publishedUrl(4317)).toBeUndefined()
+})
+
+test('status never reports a public Funnel route as a private tailnet URL', () => {
+  publication = { ...existing(), AllowFunnel: { [host]: true } }
+  expect(publishedUrl(4317)).toBeUndefined()
 })

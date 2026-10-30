@@ -210,6 +210,19 @@ try {
     )
     assert((await readFile(unit, 'utf8')).includes(`${installed}/familiar.js`))
 
+    assert.match(run(['status']), /Name: Release test/)
+    assert.match(run(['rename', 'Scout']), /Renamed Release test to Scout/)
+    assert.match(run(['status']), /Name: Scout/)
+    assert.equal(
+      JSON.parse(
+        await readFile(
+          resolve(env.FAMILIAR_DATA_DIR!, 'settings.json'),
+          'utf8',
+        ),
+      ).name,
+      'Scout',
+    )
+
     const url = `http://127.0.0.1:${port}`
     const page = await fetch(url, { signal: AbortSignal.timeout(5000) })
     assert.equal(page.status, 200)
@@ -243,7 +256,7 @@ try {
     true,
   )
   console.log(
-    'Release verified: installed CLI, repeat setup, service removal, sign-in and refresh modules, web assets, SQLite and HTML conversion worker.',
+    'Release verified: installed CLI, status and rename, repeat setup, service removal, sign-in and refresh modules, web assets, SQLite and HTML conversion worker.',
   )
 } finally {
   await rm(temporary, { recursive: true, force: true })

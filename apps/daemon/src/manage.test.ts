@@ -1,22 +1,36 @@
 import { execFileSync } from 'node:child_process'
+import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { signIn, uninstall, update } from './manage.ts'
-import { resolvePaths } from './paths.ts'
+import { rename, signIn, status, uninstall, update } from './manage.ts'
+import { ensureDataDir, resolvePaths } from './paths.ts'
 import { openService } from './service/index.ts'
-import { readSettings } from './settings.ts'
+import { readSettings, saveSettings } from './settings.ts'
 import { signIn as login } from './sign-in.ts'
-import { unpublish } from './tailnet.ts'
+import { publishedUrl, unpublish } from './tailnet.ts'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
-vi.mock('./paths.ts', () => ({ resolvePaths: vi.fn() }))
+vi.mock('./paths.ts', () => ({ ensureDataDir: vi.fn(), resolvePaths: vi.fn() }))
+vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
 vi.mock('./service/index.ts', () => ({ openService: vi.fn() }))
-vi.mock('./settings.ts', () => ({ readSettings: vi.fn() }))
+vi.mock('./settings.ts', () => ({
+  readSettings: vi.fn(),
+  saveSettings: vi.fn(),
+}))
 vi.mock('./sign-in.ts', () => ({ signIn: vi.fn() }))
-vi.mock('./tailnet.ts', () => ({ unpublish: vi.fn() }))
+vi.mock('./tailnet.ts', () => ({ publishedUrl: vi.fn(), unpublish: vi.fn() }))
 const remove = vi.fn()
+const isRunning = vi.fn()
+const restart = vi.fn()
+const terminal = { question: vi.fn(), close: vi.fn() }
 const withStopped = vi.fn(async (run: () => Promise<void>) => run())
 beforeEach(() => {
   vi.clearAllMocks()
+  isRunning.mockReturnValue(true)
+  vi.mocked(publishedUrl).mockReturnValue(
+    'https://machine.example.ts.net:10000',
+  )
+  terminal.question.mockResolvedValue('Scout')
+  vi.mocked(createInterface).mockReturnValue(terminal as never)
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.mocked(resolvePaths).mockReturnValue({
     cliPath: '/custom/lib/node_modules/familiar/familiar.js',
@@ -26,6 +40,8 @@ beforeEach(() => {
   })
   vi.mocked(openService).mockReturnValue({
     uninstall: remove,
+    isRunning,
+    restart,
     withStopped,
   } as never)
   vi.mocked(readSettings).mockReturnValue({
@@ -80,4 +96,58 @@ test('explicit sign-in suspends the daemon to avoid competing credential writers
   await signIn()
   expect(withStopped).toHaveBeenCalledOnce()
   expect(login).toHaveBeenCalledOnce()
+})
+
+test('status reports the saved name, matching service and existing URLs without changing anything', () => {
+  status()
+  expect(readSettings).toHaveBeenCalledWith('/private/data', {})
+  expect(console.log).toHaveBeenCalledWith('Name: Familiar')
+  expect(console.log).toHaveBeenCalledWith('Service: running')
+  expect(console.log).toHaveBeenCalledWith('Local: http://127.0.0.1:4325')
+  expect(console.log).toHaveBeenCalledWith(
+    'Tailnet: https://machine.example.ts.net:10000',
+  )
+  expect(ensureDataDir).not.toHaveBeenCalled()
+  expect(saveSettings).not.toHaveBeenCalled()
+  expect(restart).not.toHaveBeenCalled()
+})
+
+test('rename changes only the saved name and restarts a running matching service', async () => {
+  const settings = readSettings('/private/data', {})
+  settings.explicit = { name: 'Familiar', model: 'chosen-model', port: 4325 }
+  await rename('Willow')
+  expect(saveSettings).toHaveBeenCalledWith('/private/data', {
+    name: 'Willow',
+    model: 'chosen-model',
+    port: 4325,
+  })
+  expect(restart).toHaveBeenCalledOnce()
+  expect(terminal.question).not.toHaveBeenCalled()
+})
+
+test('interactive rename shows the existing name and saves the entered replacement', async () => {
+  await rename()
+  expect(terminal.question).toHaveBeenCalledWith('New name [Familiar]: ')
+  expect(terminal.close).toHaveBeenCalled()
+  expect(saveSettings).toHaveBeenCalledWith('/private/data', { name: 'Scout' })
+})
+
+test('renaming a stopped Familiar preserves its stopped state', async () => {
+  isRunning.mockReturnValue(false)
+  await rename('Willow')
+  expect(saveSettings).toHaveBeenCalledWith('/private/data', { name: 'Willow' })
+  expect(restart).not.toHaveBeenCalled()
+})
+
+test('an empty interactive response keeps the existing name without restarting', async () => {
+  terminal.question.mockResolvedValue('')
+  await rename()
+  expect(saveSettings).not.toHaveBeenCalled()
+  expect(restart).not.toHaveBeenCalled()
+})
+
+test('an explicit empty name is refused before changing settings or the service', async () => {
+  await expect(rename('  ')).rejects.toThrow('must not be empty')
+  expect(saveSettings).not.toHaveBeenCalled()
+  expect(restart).not.toHaveBeenCalled()
 })

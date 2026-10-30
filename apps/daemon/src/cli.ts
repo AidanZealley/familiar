@@ -6,6 +6,8 @@ const help = `Usage: familiar [command]
 Run familiar without a command for guided setup.
 
 Commands:
+  status    Show the name, service status and URLs
+  rename    Change Familiar's name, optionally passing the new name
   serve     Run Familiar in the foreground
   sign-in   Sign in with ChatGPT
   update    Update the installed app and restart its service
@@ -25,10 +27,18 @@ try {
     console.log(help)
   } else if (positionals.length === 0) {
     await (await import('./setup.ts')).setup()
-  } else if (positionals.length !== 1) {
-    throw new Error('Expected one command. Run familiar --help for usage.')
+  } else if (positionals.length > (positionals[0] === 'rename' ? 2 : 1)) {
+    throw new Error(
+      'Only rename accepts an optional name. Run familiar --help for usage.',
+    )
   } else {
     switch (positionals[0]) {
+      case 'status':
+        ;(await import('./manage.ts')).status()
+        break
+      case 'rename':
+        await (await import('./manage.ts')).rename(positionals[1])
+        break
       case 'logs':
         ;(await import('./manage.ts')).logs()
         break

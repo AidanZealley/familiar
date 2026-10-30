@@ -103,7 +103,7 @@ export function linuxService(options: ServiceOptions) {
     systemctl('restart', 'familiar')
   }
   return {
-    isRunning,
+    isRunning: () => ownsData() && isRunning(),
     restart,
     async withStopped<T>(run: () => Promise<T>) {
       const running = ownsData() && isRunning()

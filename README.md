@@ -78,6 +78,8 @@ After installing a release package, run `familiar` to save settings, sign in wit
 
 Setup reuses existing settings and login. Desktop sign-in opens the browser; over SSH or without a display, open the printed link on another device and paste the full URL the browser redirects to. The pinned Pi version has no device-code login. If a saved login stops working, run `familiar sign-in`.
 
+- `familiar status` shows the saved name, managed service state and local and existing tailnet URLs.
+- `familiar rename` prompts for a new name; `familiar rename Willow` changes it directly. Renaming preserves other settings and restarts a running service.
 - `familiar logs` follows the service output.
 - `familiar update` updates an installed release and resumes its service if it was running. Run `familiar` after an update to apply service configuration changes. Source checkouts use git and `pnpm service:install`.
 - `familiar uninstall` removes the service and its Tailscale publication, keeping the data directory.

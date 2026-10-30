@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process'
 import { basename, dirname, resolve } from 'node:path'
-import { resolvePaths } from './paths.ts'
+import { createInterface } from 'node:readline/promises'
+import { ensureDataDir, resolvePaths } from './paths.ts'
 import { openService } from './service/index.ts'
-import { readSettings } from './settings.ts'
-import { unpublish } from './tailnet.ts'
+import { readSettings, saveSettings } from './settings.ts'
+import { publishedUrl, unpublish } from './tailnet.ts'
 
 export function logs() {
   openService(resolvePaths()).logs()
@@ -60,4 +61,52 @@ export async function signIn() {
   } else {
     await login.signIn()
   }
+}
+
+export function status() {
+  const paths = resolvePaths()
+  const settings = readSettings(paths.dataDir, {})
+  const running = openService(paths).isRunning()
+  console.log(`Name: ${settings.name}`)
+  console.log(`Service: ${running ? 'running' : 'stopped'}`)
+  console.log(`Local: http://127.0.0.1:${settings.port}`)
+  const url = publishedUrl(settings.port)
+  if (url) {
+    console.log(`Tailnet: ${url}`)
+  }
+}
+
+export async function rename(newName?: string) {
+  const paths = resolvePaths()
+  // Rename only the saved name; unrelated environment overrides are per run.
+  const settings = readSettings(paths.dataDir, {})
+  if (newName === undefined) {
+    const terminal = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+    try {
+      newName =
+        (await terminal.question(`New name [${settings.name}]: `)).trim() ||
+        settings.name
+    } finally {
+      terminal.close()
+    }
+  }
+  const name = newName.trim()
+  if (!name) {
+    throw new Error('The name must not be empty.')
+  }
+  if (name === settings.name) {
+    console.log(`The name is already ${name}.`)
+    return
+  }
+  const service = openService(paths)
+  const running = service.isRunning()
+  ensureDataDir(paths.dataDir)
+  saveSettings(paths.dataDir, { ...settings.explicit, name })
+  if (running) {
+    service.restart()
+  }
+  console.log(`Renamed ${settings.name} to ${name}.`)
 }
