@@ -17,18 +17,31 @@ import {
 export type AccountState =
   | { status: 'signed-in' }
   | { status: 'signed-out' | 'expired'; error?: string }
-  /** `device` arrives once the provider has issued a code. */
-  | { status: 'signing-in'; device?: { code: string; url: string } }
+  | {
+      status: 'signing-in'
+      /** The provider's page to sign in on, once it has one. */
+      url?: string
+      /** A code to enter on that page, for providers that issue one. */
+      code?: string
+      /**
+       * The provider is waiting for the address the browser ended on. The
+       * page returns to this machine, so from any other device it won't load
+       * and the owner pastes its address instead.
+       */
+      paste?: boolean
+    }
 
 export type AccountApi = {
   state(): AccountState
   /** Calls `listener` with each new state. Returns a function that stops it. */
   onChange(listener: (state: AccountState) => void): () => void
   /**
-   * Starts a device-code sign-in, unless one is running. Its code arrives in
-   * the state; the owner enters it on the provider's page from any device.
+   * Starts signing in, unless it already is. The page to open, and any code
+   * to enter there, arrive in the state.
    */
   signIn(): void
+  /** The address the browser ended on, when the state asks to `paste` it. */
+  answer(text: string): void
   cancelSignIn(): void
   signOut(): Promise<void>
 }
@@ -41,7 +54,7 @@ export type AccountOptions = {
   login?: LoginOptions
 }
 
-/** pi-ai's id for the headless login that works from any device. */
+/** pi-ai's id for the login method that works from any device. */
 const DEVICE_CODE = 'device_code'
 
 /**
@@ -58,6 +71,7 @@ export async function createAccount({
   const listeners = new Set<(state: AccountState) => void>()
   let state: AccountState
   let signingIn: AbortController | undefined
+  let answer: ((text: string) => void) | undefined
 
   const set = (next: AccountState) => {
     state = next
@@ -98,6 +112,44 @@ export async function createAccount({
       const controller = new AbortController()
       signingIn = controller
       set({ status: 'signing-in' })
+
+      // Changes the sign-in's state while it's still the one running.
+      const update = (
+        change: Omit<Extract<AccountState, { status: 'signing-in' }>, 'status'>,
+      ) => {
+        if (signingIn === controller && state.status === 'signing-in') {
+          set({ ...state, ...change })
+        }
+      }
+
+      // Waits for `answer`, until the flow stops asking: it was cancelled,
+      // or the browser returned to this machine by itself.
+      const pasted = (signal?: AbortSignal) =>
+        new Promise<string>((resolve, reject) => {
+          const stopped = AbortSignal.any(
+            signal ? [controller.signal, signal] : [controller.signal],
+          )
+          const finish = () => {
+            answer = undefined
+            update({ paste: false })
+          }
+          const stop = () => {
+            finish()
+            reject(new Error('Sign-in stopped waiting.'))
+          }
+          if (stopped.aborted) {
+            stop()
+            return
+          }
+          stopped.addEventListener('abort', stop, { once: true })
+          answer = (text) => {
+            stopped.removeEventListener('abort', stop)
+            finish()
+            resolve(text)
+          }
+          update({ paste: true })
+        })
+
       models
         .login(
           provider,
@@ -105,21 +157,24 @@ export async function createAccount({
           {
             signal: controller.signal,
             prompt: async (prompt) => {
+              if (prompt.type === 'manual_code' || prompt.type === 'text') {
+                return pasted(prompt.signal)
+              }
               if (
                 prompt.type === 'select' &&
                 prompt.options.some((option) => option.id === DEVICE_CODE)
               ) {
                 return DEVICE_CODE
               }
-              // Anything else needs a terminal or a browser on this machine.
-              throw new Error(`${provider} has no device code sign-in.`)
+              throw new Error(
+                `${provider} has no sign-in that works from another device.`,
+              )
             },
             notify: (event) => {
-              if (event.type === 'device_code' && !controller.signal.aborted) {
-                set({
-                  status: 'signing-in',
-                  device: { code: event.userCode, url: event.verificationUri },
-                })
+              if (event.type === 'auth_url') {
+                update({ url: event.url })
+              } else if (event.type === 'device_code') {
+                update({ url: event.verificationUri, code: event.userCode })
               }
             },
           },
@@ -146,6 +201,7 @@ export async function createAccount({
           }
         })
     },
+    answer: (text) => answer?.(text),
     cancelSignIn: () => signingIn?.abort(),
     signOut: async () => {
       signingIn?.abort()

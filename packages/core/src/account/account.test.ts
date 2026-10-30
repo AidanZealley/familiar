@@ -116,11 +116,82 @@ test('signs in with a device code and applies the login at once', async () => {
     { status: 'signing-in' },
     {
       status: 'signing-in',
-      device: { code: 'ABCD-1234', url: 'https://example.com/device' },
+      url: 'https://example.com/device',
+      code: 'ABCD-1234',
     },
     { status: 'signed-in' },
   ])
   expect(fake.loginOptions()).toBe(login)
+})
+
+/**
+ * A browser login like ChatGPT's: it shows a page whose last step returns to
+ * this machine, and also takes that address pasted, whichever comes first.
+ */
+function browserModels() {
+  let returned: ((address: string) => void) | undefined
+  let pasted: string | undefined
+  const models = {
+    checkAuth: async () => undefined,
+    login: async (_provider: string, _type: string, next: AuthInteraction) => {
+      next.notify({ type: 'auth_url', url: 'https://example.com/authorize' })
+      const stopAsking = new AbortController()
+      const address = await Promise.race([
+        new Promise<string>((resolve) => (returned = resolve)),
+        next.prompt({
+          type: 'manual_code',
+          message: 'Paste the address',
+          signal: stopAsking.signal,
+        }),
+      ])
+      stopAsking.abort()
+      pasted = address
+      return credential
+    },
+  } as unknown as Models
+  return {
+    models,
+    returnToThisMachine: () => returned!('http://localhost:1455/?code=x'),
+    received: () => pasted,
+  }
+}
+
+test('a browser sign-in takes the address it ended on, pasted from another device', async () => {
+  const fake = browserModels()
+  const { api } = await createAccount({ models: fake.models, provider: 'p' })
+  const states = record(api)
+
+  api.signIn()
+  await settled()
+  api.answer('http://localhost:1455/?code=abc')
+  await settled()
+
+  expect(states).toEqual([
+    { status: 'signing-in' },
+    { status: 'signing-in', url: 'https://example.com/authorize' },
+    { status: 'signing-in', url: 'https://example.com/authorize', paste: true },
+    {
+      status: 'signing-in',
+      url: 'https://example.com/authorize',
+      paste: false,
+    },
+    { status: 'signed-in' },
+  ])
+  expect(fake.received()).toBe('http://localhost:1455/?code=abc')
+})
+
+test('a browser sign-in finished on this machine stops asking for the address', async () => {
+  const fake = browserModels()
+  const { api } = await createAccount({ models: fake.models, provider: 'p' })
+
+  api.signIn()
+  await settled()
+  fake.returnToThisMachine()
+  api.answer('too late')
+  await settled()
+
+  expect(api.state()).toEqual({ status: 'signed-in' })
+  expect(fake.received()).toBe('http://localhost:1455/?code=x')
 })
 
 test('a failed sign-in says why; a cancelled one says nothing', async () => {

@@ -47,8 +47,10 @@ export type FamiliarState = MirroredDocuments & {
   connection: Connection
   /** The owner's login with the models' provider. Absent until the first frame. */
   account: AccountState | undefined
-  /** Starts a device-code sign-in; its code arrives in `account`. */
+  /** Starts signing in; the page to open, and any code, arrive in `account`. */
   signIn(): Promise<void>
+  /** The address the browser ended on, when `account` asks to paste it. */
+  answerSignIn(text: string): Promise<void>
   cancelSignIn(): Promise<void>
   signOut(): Promise<void>
   /** The server's view of the conversation, mirrored exactly. Absent until the first frame. */
@@ -158,6 +160,8 @@ export function createFamiliarStore(baseUrl: string) {
     connection: 'connecting',
     account: undefined,
     signIn: () => succeed(api.account['sign-in'].$post()),
+    answerSignIn: (text) =>
+      succeed(api.account['sign-in'].answer.$post({ json: { text } })),
     cancelSignIn: () => succeed(api.account['sign-in'].$delete()),
     signOut: () => succeed(api.account['sign-out'].$post()),
     view: undefined,
