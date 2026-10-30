@@ -8,7 +8,7 @@ Familiar is a thin layer over [Pi Durable](../packages/core/node_modules/@earend
 
 - **The Harness** owns one storage and runs everything durably: a restart picks up where the last process stopped.
 - **Conversations and entries.** Familiar has one conversation. Each message, reply, tool result and compaction summary is an entry in it.
-- **Documents** (`defineDoc`) are typed JSON state stored beside the transcript and changed inside transactions (`tx.doc(...)`), so a fact and the tool result that saved it commit together. Familiar's are `Facts`, `MemoryUsage`, `Episodes`, `Upkeep` and `Schedules`.
+- **Documents** (`defineDoc`) are typed JSON state stored beside the transcript and changed inside transactions (`tx.doc(...)`), so a fact and the tool result that saved it commit together. Familiar's are `Facts`, `MemoryUsage`, `Episodes`, `Upkeep`, `Schedules` and `McpServers`.
 - **Extensions** add to what the model sees and can do: **sections** (parts of the system prompt), **tools**, **hooks** (code that runs around a request, such as adding recalled facts), and **tasks** (durable background work, such as the nightly pass).
 
 ## The map
@@ -65,6 +65,14 @@ packages/core/src
     authorized-fetch.ts  Attach a key only to its declared destination and request.
     secrets.ts       Storage contract and the in-memory store for tests and demos.
     http.ts          Write-only Connections routes.
+  mcp/
+    servers.ts       Saved server declarations in the McpServers document.
+    manager.ts       Owner edits and connection lifetimes.
+    connection.ts    One server's client, status and installed tools.
+    index.ts         SDK discovery and deferred Pi tool definitions.
+    http-transport.ts  Endpoint-restricted HTTP transport.
+    tool-result.ts   MCP result blocks mapped to Pi output.
+    http.ts          Add, remove and reconnect routes.
 packages/client/src
   store.ts           A live mirror of the conversation and every streamed document.
   transcript.ts      Turns entries into chat items: messages, replies, tool calls.
@@ -73,7 +81,7 @@ apps/daemon/src      The Node host: storage, sign-in, serving and the eval.
   demo/model.ts      Scripted model routing over an explicit list of scenarios.
   demo/scenarios/    Feature-specific model responses and fake external services.
   demo/seed.ts       Sample memory data and the tools that load it.
-apps/web/src         The chat and Memory pages, built on @familiar/client.
+apps/web/src         Chat, Memory, Schedules and Connections, on @familiar/client.
 ```
 
 ## Reading order
@@ -84,8 +92,9 @@ apps/web/src         The chat and Memory pages, built on @familiar/client.
 4. Memory, from the rules out (for how it works and why, read [memory.md](memory.md)): `facts.ts`, `episodes.ts`, `exchanges.ts`, `recall.ts`, `read.ts`, `tools.ts`, `extension.ts`, `upkeep/`, then `health.ts`, `api.ts`, `http.ts` and `index.ts`.
 5. Schedules, the same way: `schedules.ts`, `repeat.ts`, `task.ts`, `tools.ts`, then `index.ts`.
 6. Plugins: `plugins/types.ts`, `plugins/index.ts`, `plugins/connections.ts`, then `plugins/authorized-fetch.ts`.
-7. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
-8. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
+7. MCP: `mcp/servers.ts`, `manager.ts`, `connection.ts`, then `index.ts` and `http-transport.ts`.
+8. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
+9. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
 
 Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep and schedules, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `schedules.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model.
 
@@ -117,6 +126,16 @@ Plugins are Pi extensions with metadata and a small context. `plugins/index.ts` 
 Network restrictions belong to the host. The daemon supplies `guardedFetch`, which checks each connection's destination address; other hosts supply their own fetch. Incoming authentication stays with `createHttpApi` and the host's server.
 
 Responses and tool output are not scrubbed. An upstream service that echoes a key can expose it to the plugin and conversation. There are no masking hooks or output scrubbers. The optional prototype is tracked as later work in the [roadmap](roadmap.md).
+
+## MCP connections
+
+`mcp/manager.ts` owns saved declarations and serializes owner edits. Each connection in `connection.ts` owns its SDK client, runtime status and registry extension. Startup connects servers independently, so an unavailable server does not block chat. Removal aborts the connection and uninstalls its tools; late callbacks cannot reinstall them.
+
+`mcp/index.ts` discovers tools and exposes them as deferred Pi tools through `tool_search`. The SDK owns transport sessions and tool-list notifications; Pi owns tool loading and replay policy. MCP tools use `replay: 'unsafe'`. An ordinary tool error leaves connection status alone; HTTP 401 requests credentials and 404 reconnects an expired session for subsequent calls. Failed calls are never automatically repeated.
+
+Declarations live with the conversation in `McpServers`; bearer tokens stay in the host's secret store. Connections combines declarations with runtime status and discovered tools. The owner can add, remove and reconnect servers and change credentials. Names and transports are immutable, so changing an endpoint requires removing and re-adding it. Setup and API details are in the [README](../README.md#mcp-connections).
+
+The host supplies `mcpFetch` separately from plugins' guarded fetch. The daemon permits owner-configured localhost, LAN and tailnet endpoints, while the HTTP adapter restricts requests and credentials to the exact endpoint and refuses redirects. Node-only stdio transport construction lives in `apps/daemon/src/mcp-stdio.ts`; the SDK owns spawning and termination with its default filtered environment. Commands run as the daemon's user and are trusted owner-installed code. Core stays portable; Cloudflare runtime testing is deferred until a Cloudflare host is built.
 
 ## Web fetch
 
