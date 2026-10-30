@@ -49,15 +49,36 @@ The daemon sends the conversation's committed view once, then each commit's [Cho
 
 ## Use it
 
+The first tagged release will provide these installers. No release has been published yet, so the download URLs will return 404 until then.
+
+Linux, macOS and WSL:
+
 ```sh
-pnpm install
-pnpm sign-in          # Sign in with ChatGPT, once
-pnpm service:install  # build, then run as a systemd user service
+curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh
 ```
+
+Windows PowerShell:
+
+```powershell
+irm https://github.com/AidanZealley/familiar/releases/latest/download/install.ps1 | iex
+```
+
+The installer reuses Node 24.19 or newer, or downloads the official Node 24.19.0 binary for x64 or arm64 into your home directory and checks its SHA-256 checksum. It installs the release package without administrator access, saves PATH for new terminals, then starts guided setup. Setup installs the full local assistant, including its web UI and background service.
+
+To read the script first, download `install.sh` or `install.ps1` from the release, inspect it, then run `sh install.sh` or `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
+
+Set `FAMILIAR_VERSION=v1.2.3` to choose a specific release tag, and `FAMILIAR_NO_SETUP=1` to install the command without starting setup. For example, after downloading the script:
+
+```sh
+FAMILIAR_VERSION=v1.2.3 FAMILIAR_NO_SETUP=1 sh install.sh
+familiar
+```
+
+On Windows, set `$env:FAMILIAR_VERSION = 'v1.2.3'` and `$env:FAMILIAR_NO_SETUP = '1'` before running the script. If setup is interrupted, run `familiar` to resume. Only one Familiar is managed per user; an existing installation's settings and history are reused.
 
 If you sign in on a different device from this machine, the browser's redirect to `127.0.0.1:1455` won't arrive. Paste the URL it ended on into the terminal instead.
 
-The service starts at boot (with `loginctl enable-linger`), restarts if it crashes, and serves the API and web UI on `127.0.0.1:4317`. Rerun `pnpm service:install` to deploy changes; `pnpm service:logs` follows its output.
+On Linux the systemd user service can run while logged out. On macOS and Windows it starts at user login. The API and web UI listen on `127.0.0.1:4317`; setup prints the local URL and publishes a private Tailscale HTTPS URL when available.
 
 To reach it from your devices over HTTPS, which the home-screen app and notifications need, publish it on your tailnet only:
 
@@ -87,6 +108,16 @@ Setup reuses existing settings and login. Desktop sign-in opens the browser; ove
 Setup publishes through Tailscale when available. It preserves existing routes and refuses public Funnel access on Familiar's port. When permissions prevent setup or logged-out operation, it prints the command to run before repeating setup.
 
 ### Developing
+
+For a source checkout:
+
+```sh
+pnpm install
+pnpm sign-in
+pnpm service:install
+```
+
+`pnpm service:install` builds the UI and installs the platform service. Rerun it to deploy source changes. On Linux, `pnpm service:logs` follows the systemd journal; the CLI's `logs` command works on all supported platforms.
 
 Only one daemon may own the data directory; a second one refuses to start.
 
@@ -124,11 +155,13 @@ pnpm bundle          # Build apps/daemon/dist/familiar.tgz
 pnpm test:release    # Install and verify it outside the repo, using temporary data
 ```
 
-The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. Guided setup has implementations for Linux, macOS and Windows; the download-and-install scripts are still planned.
+The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. The release also includes `install.sh` and `install.ps1`, which download the package and hand setup to the CLI.
 
 CLI management code and its tests live under `apps/daemon/src/cli/`, separate from daemon serving and the portable core. Shared paths, settings, credentials and Windows directory permissions belong to the Node host.
 
-The CLI platforms workflow builds and tests on Linux, macOS and Windows. It validates native plist/task definitions without registering services, and tests installed packages using temporary storage. Linux lifecycle integration uses fake system commands. On a real Mac, setup, sign-in, repeat setup, crash recovery, rename restart, Tailscale publishing, uninstall and reinstall have been checked; macOS update and login-at-boot, and all real Windows checks, remain pending; the workflow has not been run for this branch yet.
+The CLI platforms workflow has passed on Linux, macOS and Windows. It validates native plist/task definitions without registering services, and checks installed packages using temporary storage. Linux lifecycle tests use fake system commands. Installer tests use temporary homes and fake downloads.
+
+On a real Mac, setup, sign-in, repeat setup, crash recovery, rename restart, Tailscale publishing, uninstall and reinstall have been checked. macOS update and login-at-boot, all real Windows lifecycle checks, and installation from public release URLs remain pending.
 
 ### Settings
 

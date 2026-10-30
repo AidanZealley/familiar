@@ -5,7 +5,7 @@ Anyone should be able to run Familiar on a machine they own (a Linux box, a Mac 
 The goal, from nothing:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/<owner>/familiar/main/install.sh | sh
+curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh
 ```
 
 It installs what's missing, signs in with ChatGPT, starts Familiar as a service and prints the URLs to open. Moving it:
@@ -97,7 +97,7 @@ Platform details:
 - A macOS LaunchAgent uses the logged-in GUI user domain. Unloading it pauses KeepAlive during sign-in and updates; loading it resumes the same instance. Its definition keeps Node, the CLI, data directory, working directory and log path explicit.
 - Windows uses a per-user SID task name and an interactive logon principal without elevation. A small Node launcher owns stdout/stderr files and forwards the daemon exit code for task restart-on-failure. Stopping disables scheduled restart before terminating that launcher's process tree, including child MCP processes. The Startup shortcut fallback reports that it lacks automatic crash recovery.
 - Native subprocess arguments, paths with spaces and non-ASCII characters require platform verification. npm execution uses cross-spawn rather than interpolating `.cmd` arguments into a shell. The host protects Windows data with owner ACLs, since POSIX mode bits do not enforce Windows privacy.
-- `.github/workflows/cli-platforms.yml` runs targeted tests and package checks on all three OSes. Native validation parses launchd plists and creates an in-memory Windows task definition without registering it. Service lifecycle tests mock system commands; a real login/reboot exercise remains separate and must use disposable storage and service entries. The workflow is authored but has not yet run for this branch.
+- `.github/workflows/cli-platforms.yml` runs targeted tests and package checks on all three OSes. Native validation parses launchd plists and creates an in-memory Windows task definition without registering it. Service lifecycle tests mock system commands; a real login/reboot exercise remains separate and must use disposable storage and service entries. The workflow has passed on all three platforms. Real macOS setup, crash recovery, rename restart, Tailscale publishing and removal have been checked; update and login-at-boot remain pending. Real Windows lifecycle testing is deferred.
 
 ## 5. The install scripts
 
@@ -108,6 +108,10 @@ Platform details:
 3. Run `familiar`, passing the terminal through so sign-in can prompt. `curl … | sh` leaves stdin as the script, so read prompts from `/dev/tty`.
 
 Done when each script takes a fresh machine of its kind to a working URL.
+
+The scripts are implemented at the repo root and attached to each release beside `familiar.tgz`. They reuse Node 24.19 or newer, otherwise download Node 24.19.0 x64/arm64 from nodejs.org and verify it against the published SHA-256 list. The managed runtime uses a fixed path, `~/.local/share/familiar-node` or `%APPDATA%\npm`. Windows keeps the managed Node beside the npm command shims so they use it even when an older system Node takes precedence on PATH. Each script saves PATH for new terminals and runs the installed command; the shell script reads setup input from `/dev/tty`. Without a terminal it prints how to finish setup.
+
+`FAMILIAR_VERSION` selects `latest` or a `v`-prefixed release tag. `FAMILIAR_NO_SETUP=1` installs without starting setup. No release is published yet, so end-to-end installation from the public URLs remains pending. Automated installer checks use fake downloads and temporary homes; native PowerShell coverage runs in Windows CI. Keep service and data management in the CLI.
 
 ## 6. Export and import
 
