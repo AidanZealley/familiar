@@ -49,7 +49,7 @@ export const Chat = () => {
           the first message clear of it at the start of the conversation. */}
       <div className="-mt-(--chrome) flex h-(--app-height) flex-col">
         <MessageScroller className="flex-1">
-          <MessageScrollerViewport className="scroll-pt-(--chrome)">
+          <MessageScrollerViewport className="chat-viewport scroll-pt-(--chrome)">
             <MessageScrollerContent
               ref={measureScrollMargin}
               aria-busy={transcript?.busy}
