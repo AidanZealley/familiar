@@ -1,4 +1,3 @@
-import { PageHeading } from '@/components/page-heading'
 import { useFamiliar } from '@/lib/familiar'
 import { historyChains } from '@/lib/memory'
 import { HistoryChain } from './components/history-chain'
@@ -9,10 +8,6 @@ export const MemoryHistory = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeading
-        title="History"
-        description="Things that changed, newest first. Familiar keeps old versions so it can answer “where did I live before?”"
-      />
       {facts && chains.length === 0 && (
         <p className="text-sm text-muted-foreground">
           Nothing has changed yet.
