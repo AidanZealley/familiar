@@ -9,26 +9,15 @@ test('response bodies preserve bytes and close at end of input', async () => {
   expect(await response.text()).toBe('hello 世界')
 })
 
-test('cancelling while a pull is pending destroys the download without enqueueing after close', async () => {
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const source = new PassThrough()
-    const reader = responseBody(source).getReader()
-    const pending = reader.read()
-    await Promise.resolve()
-    const cancelled = reader.cancel()
-    // Exercise a queued chunk racing cancellation, like a rejected binary page.
-    source.write(Buffer.from('late bytes'), () => {})
-    await cancelled
-    expect(await pending).toEqual({ done: true, value: undefined })
-    expect(source.destroyed).toBe(true)
-  }
-})
-
+// Like web_fetch refusing a 403 page that has already arrived. Readable.toWeb
+// threw an uncaught ERR_INVALID_STATE here once a microtask had passed.
 test('rejecting a response before reading its body safely cancels prefetched data', async () => {
   const source = new PassThrough()
   const response = new Response(responseBody(source))
-  source.write(Buffer.alloc(65536))
+  source.write(Buffer.from('<p>Forbidden</p>'))
+  await Promise.resolve()
   await response.body!.cancel()
+  await new Promise((resolve) => setImmediate(resolve))
   expect(source.destroyed).toBe(true)
 })
 

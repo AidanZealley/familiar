@@ -8,30 +8,24 @@ const MAX_REDIRECTS = 5
 /** Statuses whose responses can't have a body. */
 const NULL_BODY = new Set([101, 204, 205, 304])
 
-/** Cancellation may race a pending read; never enqueue after the web stream closes. */
+/**
+ * Readable.toWeb enqueues from stream events, so cancelling can make it throw
+ * an uncaught ERR_INVALID_STATE that takes down the daemon
+ * (https://github.com/nodejs/node/pull/62773). Pulling keeps any late
+ * enqueue or close inside the web stream, which ignores them once cancelled.
+ */
 export function responseBody(source: Readable): ReadableStream<Uint8Array> {
   const iterator = source[Symbol.asyncIterator]()
-  let cancelled = false
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      try {
-        const { done, value } = await iterator.next()
-        if (cancelled) {
-          return
-        }
-        if (done) {
-          controller.close()
-        } else {
-          controller.enqueue(value as Uint8Array)
-        }
-      } catch (error) {
-        if (!cancelled) {
-          controller.error(error)
-        }
+      const { done, value } = await iterator.next()
+      if (done) {
+        controller.close()
+      } else {
+        controller.enqueue(value as Uint8Array)
       }
     },
     cancel() {
-      cancelled = true
       source.destroy()
     },
   })
