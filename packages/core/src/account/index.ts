@@ -1,4 +1,8 @@
-import type { AssistantMessage, Models } from '@earendil-works/pi-ai'
+import type {
+  AssistantMessage,
+  LoginOptions,
+  Models,
+} from '@earendil-works/pi-ai'
 import {
   defineExtension,
   GenerationTask,
@@ -33,6 +37,8 @@ export type AccountOptions = {
   models: Pick<Models, 'checkAuth' | 'getAuth' | 'login' | 'logout'>
   /** The provider whose login this is: the one Familiar's models come from. */
   provider: string
+  /** What the host tells the provider about itself when signing in. */
+  login?: LoginOptions
 }
 
 /** pi-ai's id for the headless login that works from any device. */
@@ -44,7 +50,11 @@ const DEVICE_CODE = 'device_code'
  * Install `extension`: it notices when a request fails because the login
  * stopped working.
  */
-export async function createAccount({ models, provider }: AccountOptions) {
+export async function createAccount({
+  models,
+  provider,
+  login,
+}: AccountOptions) {
   const listeners = new Set<(state: AccountState) => void>()
   let state: AccountState
   let signingIn: AbortController | undefined
@@ -89,27 +99,32 @@ export async function createAccount({ models, provider }: AccountOptions) {
       signingIn = controller
       set({ status: 'signing-in' })
       models
-        .login(provider, 'oauth', {
-          signal: controller.signal,
-          prompt: async (prompt) => {
-            if (
-              prompt.type === 'select' &&
-              prompt.options.some((option) => option.id === DEVICE_CODE)
-            ) {
-              return DEVICE_CODE
-            }
-            // Anything else needs a terminal or a browser on this machine.
-            throw new Error(`${provider} has no device code sign-in.`)
+        .login(
+          provider,
+          'oauth',
+          {
+            signal: controller.signal,
+            prompt: async (prompt) => {
+              if (
+                prompt.type === 'select' &&
+                prompt.options.some((option) => option.id === DEVICE_CODE)
+              ) {
+                return DEVICE_CODE
+              }
+              // Anything else needs a terminal or a browser on this machine.
+              throw new Error(`${provider} has no device code sign-in.`)
+            },
+            notify: (event) => {
+              if (event.type === 'device_code' && !controller.signal.aborted) {
+                set({
+                  status: 'signing-in',
+                  device: { code: event.userCode, url: event.verificationUri },
+                })
+              }
+            },
           },
-          notify: (event) => {
-            if (event.type === 'device_code' && !controller.signal.aborted) {
-              set({
-                status: 'signing-in',
-                device: { code: event.userCode, url: event.verificationUri },
-              })
-            }
-          },
-        })
+          login,
+        )
         .then(
           () => set({ status: 'signed-in' }),
           async (error: unknown) => {

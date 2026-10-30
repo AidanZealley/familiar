@@ -78,6 +78,11 @@ export type FamiliarOptions = {
    */
   chatModels?: readonly ChatModel[]
   name?: string
+  /**
+   * This installation's stable ID, the same on every call. Signing in to
+   * ChatGPT needs it; OpenAI identifies the app's logins by it.
+   */
+  deviceId?: () => string
   /** Everything beyond core: tools, sections and hooks, with their secrets. */
   plugins?: readonly FamiliarPlugin[]
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
@@ -173,6 +178,7 @@ export async function summonFamiliar(
   const account = await createAccount({
     models: options.models,
     provider: options.model.provider,
+    login: { getDeviceId: options.deviceId, agentName: name },
   })
 
   const plugins = createPlugins({

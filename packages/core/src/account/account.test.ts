@@ -1,4 +1,9 @@
-import type { AuthInteraction, Credential, Models } from '@earendil-works/pi-ai'
+import type {
+  AuthInteraction,
+  Credential,
+  LoginOptions,
+  Models,
+} from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
@@ -15,14 +20,21 @@ const credential = { type: 'oauth' } as unknown as Credential
 function fakeModels(signedIn = false) {
   let stored = signedIn
   let interaction: AuthInteraction | undefined
+  let loginOptions: LoginOptions | undefined
   let finish: ((value: Credential) => void) | undefined
   let fail: ((error: Error) => void) | undefined
 
   const models = {
     checkAuth: async () => (stored ? { type: 'oauth' as const } : undefined),
     getAuth: vi.fn(async () => (stored ? { auth: {} } : undefined)),
-    login: async (_provider: string, _type: string, next: AuthInteraction) => {
+    login: async (
+      _provider: string,
+      _type: string,
+      next: AuthInteraction,
+      options?: LoginOptions,
+    ) => {
       interaction = next
+      loginOptions = options
       const method = await next.prompt({
         type: 'select',
         message: 'How?',
@@ -48,6 +60,7 @@ function fakeModels(signedIn = false) {
 
   return {
     models,
+    loginOptions: () => loginOptions,
     showCode: () =>
       interaction!.notify({
         type: 'device_code',
@@ -83,7 +96,13 @@ test('starts as whatever login is stored', async () => {
 
 test('signs in with a device code and applies the login at once', async () => {
   const fake = fakeModels()
-  const { api } = await createAccount({ models: fake.models, provider: 'p' })
+  // OpenAI refuses to sign in an installation that doesn't say which it is.
+  const login = { getDeviceId: () => 'device-1', agentName: 'Familiar' }
+  const { api } = await createAccount({
+    models: fake.models,
+    provider: 'p',
+    login,
+  })
   const states = record(api)
 
   api.signIn()
@@ -101,6 +120,7 @@ test('signs in with a device code and applies the login at once', async () => {
     },
     { status: 'signed-in' },
   ])
+  expect(fake.loginOptions()).toBe(login)
 })
 
 test('a failed sign-in says why; a cancelled one says nothing', async () => {
