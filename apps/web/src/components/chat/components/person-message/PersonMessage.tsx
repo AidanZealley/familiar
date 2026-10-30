@@ -7,7 +7,11 @@ export const PersonMessage = ({ message }: PersonMessageProps) => (
   <Message align="end">
     <MessageContent>
       {/* Pending until Familiar reaches it: an outline, not yet a sent bubble. */}
-      <Bubble align="end" variant={message.queued ? 'outline' : 'default'}>
+      <Bubble
+        align="end"
+        variant={message.queued ? 'outline' : 'default'}
+        className="max-w-[min(80%,42rem)]"
+      >
         <BubbleContent className="whitespace-pre-wrap">
           {message.text}
         </BubbleContent>
