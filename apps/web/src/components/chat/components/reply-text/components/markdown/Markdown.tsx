@@ -27,16 +27,35 @@ const mermaidThemes = {
   light: { config: { theme: 'default' } },
 } as const
 
+// Soften token batches without building a noticeable reveal backlog.
+const animation = {
+  animation: 'fadeIn',
+  duration: 200,
+  easing: 'ease-out',
+  sep: 'word',
+  stagger: 12,
+  maxBacklogMs: 120,
+} as const
+
+// Streamdown's animation CSS ignores reduced motion, so leave words unwrapped.
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+const watchMotion = (change: () => void) => {
+  reduceMotion.addEventListener('change', change)
+  return () => reduceMotion.removeEventListener('change', change)
+}
+
 export const Markdown = ({ text, streaming }: MarkdownProps) => {
   const dark = useSyncExternalStore(subscribe, () =>
     root.classList.contains('dark'),
   )
+  const still = useSyncExternalStore(watchMotion, () => reduceMotion.matches)
 
   return (
     <Streamdown
       plugins={plugins}
       mermaid={mermaidThemes[dark ? 'dark' : 'light']}
       isAnimating={streaming}
+      animated={still ? false : animation}
       // Code blocks keep copy; the download button isn't useful in a chat.
       controls={{ code: { copy: true, download: false }, table: false }}
       lineNumbers={false}
