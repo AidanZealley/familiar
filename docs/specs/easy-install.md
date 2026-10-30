@@ -19,11 +19,11 @@ Known decisions:
 - **One `familiar` command** replaces the pnpm scripts for people who aren't developing Familiar: `familiar` (setup, the default), `serve`, `sign-in`, `export`, `import`, `update`, `logs`, `uninstall`. Setup is idempotent, so running it again repairs an install. The pnpm scripts stay for development and call the same code.
 - **Distributed through GitHub Releases, not the npm registry.** The name `familiar` is taken on npm, and the install script installs Node anyway, so a registry adds an account without making anything simpler. CI builds a package tarball for each version tag and attaches it to the release; `npm i -g <release URL>` installs it. Publishing to npm as well, for `npx`, can come later. This needs the repo (or at least its releases) public on GitHub.
 - **The published app is bundled.** Node won't strip types from files inside `node_modules`, so development's run-unbuilt convention cannot be the release format. Bundle the application with Rolldown and ship the built web UI beside it. Web fetch now also runs `page-worker.ts`: ship a JavaScript worker entry and ensure the daemon resolves it correctly in the installed package. Keep Piscina as a runtime dependency so its own worker assets resolve normally; its optional native scheduling helper is not required for correctness. Storage uses Node's built-in `node:sqlite`.
-- **Sign-in is ChatGPT's subscription login**, the Codex OAuth pi-ai already uses. OpenAI supports subscription OAuth in external tools; OpenClaw relies on it the same way. pi-ai offers "Browser login" and "Device code login (headless)"; setup picks for the user (step 3).
+- **Sign-in is ChatGPT's subscription login**, the Codex OAuth pi-ai already uses. OpenAI supports subscription OAuth in external tools; OpenClaw relies on it the same way. The pinned pi-ai 1.4.0 offers browser login with a pasted callback URL, but no device-code flow. Desktop setup opens the browser; headless setup prints the link and explains how to paste the final redirect URL.
 - **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth (README Rules), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
 - **The conversation file is the unit of portability.** Everything a Familiar is (conversation, facts, history, episodes, durable tasks) is in `familiar.sqlite`. Export is a consistent snapshot of that file; the login stays behind (step 6).
 
-Do the steps in order and commit each separately. Steps 1–5 give a one-command install on Linux and VPSs. Validate that milestone before adding macOS and Windows service support.
+Keep each milestone in its own commit. Guided setup and Linux service management are one milestone because setup installs the service. Steps 1–5 give a one-command install on Linux and VPSs. Validate that milestone before adding macOS and Windows service support.
 
 ## 1. The `familiar` command
 
@@ -37,7 +37,7 @@ All of it lives in `apps/daemon`. Give each responsibility one owner:
 
 Done when `node apps/daemon/src/cli.ts serve` runs the daemon, the pnpm scripts call the CLI, and every existing test passes.
 
-Step 1 is implemented. The CLI dispatches `serve` and `sign-in`; no command shows help until guided setup is added in step 3. Existing service units can still run `main.ts`. Tests cover settings, platform paths and CLI startup with temporary SQLite storage.
+Step 1 is implemented. The CLI dispatches commands; `familiar` without a subcommand now starts guided setup. Existing service units can still run `main.ts`. Tests cover settings, platform paths and CLI startup with temporary SQLite storage.
 
 ## 2. The release package
 
@@ -54,7 +54,7 @@ Step 2 is implemented. `pnpm bundle` writes `apps/daemon/dist/familiar.tgz`, usi
 `familiar` with no subcommand. Each step checks before it acts, so a second run changes nothing that's already right:
 
 1. **Settings.** On first run, ask for the assistant's name (default `Familiar`) and write `settings.json`.
-2. **Sign in**, unless `auth.json` holds a working login. Answer pi-ai's login choice for the user: device code when there's no display (`SSH_CONNECTION` set, or on Linux neither `DISPLAY` nor `WAYLAND_DISPLAY`), otherwise browser login, opening the URL with `open`, `xdg-open` or `start`. Keep the paste-the-URL fallback.
+2. **Sign in**, unless Pi's `checkAuth` reports a saved OAuth login. This check does not refresh tokens, so the running daemon remains their only writer. The pinned Pi version only supports browser login: open the URL on a desktop, or explain how to open it on another device and paste the final redirect URL over SSH or without a display. An expired token is refreshed by the daemon when needed; use `familiar sign-in` to replace a rejected login.
 3. **Install the service** (step 4).
 4. **Publish** on the tailnet if `tailscale` is installed and logged in: `tailscale serve --bg --https=10000 http://127.0.0.1:<port>`, skipped when `tailscale serve status` already shows it. On Linux this needs `tailscale set --operator=$USER` once; when it fails for that reason, print the one `sudo` command to run and continue. Find the CLI on macOS inside `/Applications/Tailscale.app` when it isn't on `PATH`.
 5. **Print the URLs**: local always, the tailnet HTTPS address when published, otherwise one line on installing Tailscale to reach it from other devices.
@@ -73,6 +73,8 @@ Done when setup on a fresh Linux machine ends with a working URL, and a second r
 
 Done when the unit-content tests pass and setup, a reboot, `update` and `uninstall` work on Linux and on a VPS; then on macOS; then on Windows.
 
+Guided setup and Linux service management are implemented. Default `familiar` saves settings, reuses or obtains a ChatGPT login, installs the service and prints local and tailnet URLs. `logs`, `update` and `uninstall` use the same service owner. Sign-in and updates pause this installation's running service and resume it even on failure. Repeat setup preserves settings and an already-running service; changed settings restart it. The unit has been validated with systemd, and packaged setup is tested with temporary storage and fake system commands. A real reboot/VPS check is still pending. macOS and Windows services remain planned.
+
 ## 5. The install scripts
 
 `install.sh` (Linux, macOS, WSL) and `install.ps1` (Windows) at the repo root:
@@ -90,7 +92,7 @@ Done when each script takes a fresh machine of its kind to a working URL.
 **`familiar export <file>`** (or `-` for stdout):
 
 1. Write a consistent snapshot of `familiar.sqlite` with SQLite's `VACUUM INTO`, through `node:sqlite` directly, read-only. This is safe while the daemon runs: SQLite allows other readers alongside the write-ahead log, and it doesn't open Pi storage, so it doesn't break the one-owner rule. Copying the files by hand can catch a write halfway.
-2. Leave `auth.json` and `device-id` out. The login's refresh token changes on every refresh, so two machines sharing one would break each other's sign-in; signing in again with the device code takes seconds. Say that the file holds everything the owner has told Familiar and should be kept private.
+2. Leave `auth.json` and `device-id` out. The login's refresh token changes on every refresh, so two machines sharing one would break each other's sign-in; the destination signs in again through the browser flow. Say that the file holds everything the owner has told Familiar and should be kept private.
 3. Then ask whether to stop this Familiar so only the new copy runs, defaulting to yes; skip the question with `--keep-running`. Two copies of one Familiar running at once diverge for good, and the data directory's lock can't see across machines.
 
 **`familiar import <file>`** (or `-` for stdin):

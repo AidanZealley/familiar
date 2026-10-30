@@ -72,6 +72,18 @@ Ask Familiar for reminders and anything regular in chat ("remind me at 6 to call
 - **iPhone:** only from the home-screen app, iOS 16.4 or later.
 - **Brave on macOS:** turn on "Use Google services for push messaging" in `brave://settings/privacy`, and allow Brave in System Settings → Notifications.
 
+### Guided setup
+
+After installing a release package, run `familiar` to save settings, sign in with ChatGPT, install the background service and print its URLs. Automatic service setup currently supports Linux. From a source checkout, build the UI with `pnpm build`, then run `node apps/daemon/src/cli.ts` for the same setup.
+
+Setup reuses existing settings and login. Desktop sign-in opens the browser; over SSH or without a display, open the printed link on another device and paste the full URL the browser redirects to. The pinned Pi version has no device-code login. If a saved login stops working, run `familiar sign-in`.
+
+- `familiar logs` follows the service output.
+- `familiar update` updates an installed release and resumes its service if it was running. Source checkouts use git and `pnpm service:install`.
+- `familiar uninstall` removes the service and its Tailscale publication, keeping the data directory.
+
+Setup publishes through Tailscale when available. It preserves existing routes and refuses public Funnel access on Familiar's port. When permissions prevent setup or logged-out operation, it prints the command to run before repeating setup.
+
 ### Developing
 
 Only one daemon may own the data directory; a second one refuses to start.
@@ -110,7 +122,7 @@ pnpm bundle          # Build apps/daemon/dist/familiar.tgz
 pnpm test:release    # Install and verify it outside the repo, using temporary data
 ```
 
-The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. Guided setup and the installation script are still planned.
+The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. Guided setup is available on Linux; the download-and-install script is still planned.
 
 ### Settings
 

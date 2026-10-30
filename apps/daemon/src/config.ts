@@ -1,13 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { resolvePaths } from './paths.ts'
+import { ensureDataDir, resolvePaths } from './paths.ts'
 import { readSettings } from './settings.ts'
 
 const paths = resolvePaths()
@@ -23,8 +17,7 @@ export const config = {
 
 // Private to this user even if the directory already existed. Holds the
 // ChatGPT login and the whole conversation.
-mkdirSync(config.dataDir, { recursive: true, mode: 0o700 })
-chmodSync(config.dataDir, 0o700)
+ensureDataDir(config.dataDir)
 
 export const dataPath = (name: string) => resolve(config.dataDir, name)
 

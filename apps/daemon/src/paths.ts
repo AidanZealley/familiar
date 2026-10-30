@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, resolve } from 'node:path'
 
@@ -37,9 +37,21 @@ export function resolvePaths({
   )
   return {
     dataDir,
+    workDir:
+      basename(codeDir) === 'src' ? resolve(codeDir, '../../..') : codeDir,
+    cliPath: resolve(
+      codeDir,
+      basename(codeDir) === 'src' ? 'cli.ts' : 'familiar.js',
+    ),
     webDir:
       basename(codeDir) === 'src'
         ? resolve(codeDir, '../../web/dist')
         : resolve(codeDir, 'web'),
   }
+}
+
+/** Both setup and the daemon create private storage through this boundary. */
+export function ensureDataDir(dataDir: string) {
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 })
+  chmodSync(dataDir, 0o700)
 }

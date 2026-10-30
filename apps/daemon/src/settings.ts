@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 type Settings = {
@@ -65,4 +65,29 @@ export function readSettings(
     },
     port: validatePort(Number(env.FAMILIAR_PORT ?? saved.port ?? 4317)),
   }
+}
+
+/** Setup persists the effective values that the background service will read. */
+export function saveSettings(
+  dataDir: string,
+  settings: ReturnType<typeof readSettings>,
+) {
+  const path = resolve(dataDir, 'settings.json')
+  const content =
+    JSON.stringify(
+      validateSettings({
+        name: settings.name,
+        owner: settings.owner,
+        model: settings.model.modelId,
+        port: settings.port,
+      }),
+      null,
+      2,
+    ) + '\n'
+  if (existsSync(path) && readFileSync(path, 'utf8') === content) {
+    return false
+  }
+  writeFileSync(`${path}.tmp`, content, { mode: 0o600 })
+  renameSync(`${path}.tmp`, path)
+  return true
 }

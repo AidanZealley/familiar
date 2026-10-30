@@ -74,3 +74,14 @@ test('web assets resolve beside a bundle and in the source workspace', () => {
     resolvePaths({ home, env: {}, codeDir: join(home, 'package/dist') }).webDir,
   ).toBe(join(home, 'package/dist/web'))
 })
+
+test('source services preserve the repository working directory', () => {
+  const home = homeDirectory()
+  expect(
+    resolvePaths({ home, env: {}, codeDir: join(home, 'repo/apps/daemon/src') })
+      .workDir,
+  ).toBe(join(home, 'repo'))
+  expect(
+    resolvePaths({ home, env: {}, codeDir: join(home, 'package') }).workDir,
+  ).toBe(join(home, 'package'))
+})
