@@ -1,6 +1,6 @@
 # Easy install
 
-Anyone should be able to run Familiar on a machine they own (a Linux box, a Mac mini, a VPS or a Windows PC) with one command, and move it to another machine later without losing anything. Today it takes a clone, pnpm, `pnpm sign-in`, `pnpm service:install` and a hand-run `tailscale serve`, and it works only on Linux.
+Anyone should be able to run Familiar on a machine they own (a Linux box, a Mac mini, a VPS or a Windows PC) with one command, and move it to another machine later without losing anything. Release packages, guided setup and installers now support Linux, macOS and Windows. The remaining work is portable moves and safer updates, plus the native verification noted below.
 
 The goal, from nothing:
 
@@ -20,17 +20,18 @@ Known decisions:
 - **Distributed through GitHub Releases, not the npm registry.** The name `familiar` is taken on npm, and the install script installs Node anyway, so a registry adds an account without making anything simpler. CI builds a package tarball for each version tag and attaches it to the release; `npm i -g <release URL>` installs it. Publishing to npm as well, for `npx`, can come later. This needs the repo (or at least its releases) public on GitHub.
 - **The published app is bundled.** Node won't strip types from files inside `node_modules`, so development's run-unbuilt convention cannot be the release format. Bundle the application with Rolldown and ship the built web UI beside it. Web fetch now also runs `page-worker.ts`: ship a JavaScript worker entry and ensure the daemon resolves it correctly in the installed package. Keep Piscina as a runtime dependency so its own worker assets resolve normally; its optional native scheduling helper is not required for correctness. Storage uses Node's built-in `node:sqlite`.
 - **Sign-in is ChatGPT's subscription login**, the Codex OAuth pi-ai already uses. OpenAI supports subscription OAuth in external tools; OpenClaw relies on it the same way. The pinned pi-ai 1.4.0 offers browser login with a pasted callback URL, but no device-code flow. Desktop setup opens the browser; headless setup prints the link and explains how to paste the final redirect URL.
-- **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth (README Rules), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
+- **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth ([architecture rules](../architecture.md#rules)), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
 - **A move uses a versioned backup.** Conversation, memory and durable tasks live in SQLite; chosen settings live beside it. Export includes both, while provider login and machine-specific state stay behind. Stop the source before the final snapshot for a move (step 6).
 
 Keep each milestone in its own commit. Guided setup and Linux service management are one milestone because setup installs the service. Finish service support on Linux, macOS and Windows before the install scripts. Linux and VPS support remains available while the other hosts are added.
 
+Implemented: the CLI, release packaging, guided setup, platform service adapters, and shell/PowerShell installers. CI passes on all three platforms. Real macOS testing covers setup, sign-in, repeat setup, crash recovery, rename, Tailscale publishing, uninstall and reinstall.
+
 Remaining work, in order:
 
-1. Platform service support on macOS and Windows, followed by native lifecycle checks on all three systems.
-2. Shell and PowerShell installers that hand setup to the CLI.
-3. Versioned export/import with consistent snapshots and safe replacement.
-4. Strengthened update using that backup support, compatibility checks, migrations and recovery.
+1. Verify installation from published release assets. Real Windows lifecycle testing is deferred; Linux/VPS reboot checks and macOS update/login-at-boot checks remain pending.
+2. Versioned export/import with consistent snapshots and safe replacement.
+3. Strengthened update using that backup support, compatibility checks, migrations and recovery.
 
 ## Implementation boundaries
 
@@ -62,7 +63,7 @@ Step 1 is implemented. The CLI dispatches commands; `familiar` without a subcomm
 
 Done when `npm i -g ./familiar.tgz` on a machine with only Node gives a working `familiar serve` that serves the UI and can convert an HTML page through its worker.
 
-Step 2 is implemented. `pnpm bundle` writes `apps/daemon/dist/familiar.tgz`, using `RELEASE_VERSION` or `0.0.0` for a local build. `pnpm test:release` installs that tarball into a temporary global prefix outside the workspace, then checks the CLI, HTTP API, web assets, HTML conversion worker and lazy ChatGPT sign-in module. A `v*` tag runs the checks and attaches the tested tarball to a GitHub Release. No release has been published yet.
+Step 2 is implemented. `pnpm bundle` writes `apps/daemon/dist/familiar.tgz`, using `RELEASE_VERSION` or `0.0.0` for a local build. `pnpm test:release` installs that tarball into a temporary global prefix outside the workspace, then checks the CLI, HTTP API, web assets, HTML conversion worker and lazy ChatGPT sign-in module. A `v*` tag runs the checks and attaches the tested tarball to a GitHub Release.
 
 ## 3. Setup
 
@@ -111,7 +112,7 @@ Done when each script takes a fresh machine of its kind to a working URL.
 
 The scripts are implemented at the repo root and attached to each release beside `familiar.tgz`. They reuse Node 24.19 or newer, otherwise download Node 24.19.0 x64/arm64 from nodejs.org and verify it against the published SHA-256 list. The managed runtime uses a fixed path, `~/.local/share/familiar-node` or `%APPDATA%\npm`. Windows keeps the managed Node beside the npm command shims so they use it even when an older system Node takes precedence on PATH. Each script saves PATH for new terminals and runs the installed command; the shell script reads setup input from `/dev/tty`. Without a terminal it prints how to finish setup.
 
-`FAMILIAR_VERSION` selects `latest` or a `v`-prefixed release tag. `FAMILIAR_NO_SETUP=1` installs without starting setup. No release is published yet, so end-to-end installation from the public URLs remains pending. Automated installer checks use fake downloads and temporary homes; native PowerShell coverage runs in Windows CI. Keep service and data management in the CLI.
+`FAMILIAR_VERSION` selects `latest` or a `v`-prefixed release tag. `FAMILIAR_NO_SETUP=1` installs without starting setup. End-to-end installation from the public release URLs remains to be checked on a real machine. Automated installer checks use fake downloads and temporary homes; native PowerShell coverage runs in Windows CI. Keep service and data management in the CLI.
 
 ## 6. Export and import
 
@@ -155,7 +156,7 @@ Done when saved fixtures from supported older releases upgrade with their data r
 
 ## 8. Documentation
 
-Rewrite the README's "Use it" around the install command, setup, moving and updating, and move today's pnpm instructions under Developing.
+The README is a short introduction with install commands for all three platforms. [Usage](../usage.md) owns setup, commands and settings; [development](../development.md) owns source builds and packaging; [architecture](../architecture.md) owns the layout and rules. Update the usage guide when export/import and safer updates are implemented.
 
 ## Out of scope
 

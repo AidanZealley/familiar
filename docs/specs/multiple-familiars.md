@@ -14,7 +14,7 @@ The immediate example came from trying setup on a machine that already ran Famil
 
 Run one service hosting multiple Familiars for the same owner. Share installation, networking and provider login at the host level. Give each Familiar a stable identity and separate durable state.
 
-Start with independent assistants. Add collaboration as a later milestone, once creating, selecting and removing them works. Keep the core portable and Pi behind the existing `Familiar` API. Refer to the [architecture](../architecture.md) and [README rules](../../README.md#rules) when implementing.
+Start with independent assistants. Add collaboration as a later milestone, once creating, selecting and removing them works. Keep the core portable and Pi behind the existing `Familiar` API. Refer to the [architecture](../architecture.md) and [architecture rules](../architecture.md#rules) when implementing.
 
 ### Ownership
 

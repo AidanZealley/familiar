@@ -1,6 +1,51 @@
 # How Familiar fits together
 
-A guide for reading the code end to end. The README's Layout and Rules say what each part is for; this says how they connect and in what order to read them.
+The layout and rules define the package boundaries. The sections that follow explain how they connect and in what order to read the code.
+
+## Layout
+
+```
+packages/core     summonFamiliar(): one assistant over one storage. Portable.
+  core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
+  core/persona    Who Familiar is: the stable start of every prompt.
+  core/time       The current_time tool, and how dates are written.
+  core/context    Request budget, compaction and stream settings.
+  core/conversation Message format, sending and history paging.
+  core/memory     Facts, episodes, exchange search, recall and read_memory,
+                  health, and nightly upkeep at 04:00, the only writer of facts.
+  core/schedules  Prompts Familiar runs at a time, once or repeating (a reminder
+                  is the simplest), each reply sent to the host's notify.
+  core/plugins    Plugin installation, credential declarations, authenticated
+                  requests and the Connections API.
+  core/mcp        Saved MCP connections, tool discovery and lifecycle.
+packages/client   A live mirror of the conversation (vanilla Zustand) and
+                  toTranscript() for chat UIs. Browser-safe.
+packages/plugin-web  web_search through Brave and web_fetch for public pages.
+                  First-party, so the daemon installs it.
+apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
+                  guarded fetch, bounded page-conversion workers and plugin list;
+                  serves the API (and the built web UI).
+apps/web          Optional chat UI: Vite, TanStack Router, shadcn (Base UI).
+```
+
+The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linux, `~/Library/Application Support/Familiar` on macOS, or `%LOCALAPPDATA%\Familiar` on Windows: the ChatGPT login (`auth.json`), the conversation (`familiar.sqlite`), this installation's ID, and Web Push's keys (`vapid.json`) and subscribed browsers (`push.json`), and plugins' secrets such as API keys (`secrets.json`). The directory is private to your user. Treat it like a password: it holds a token for your subscription and everything you've told Familiar.
+
+### Rules
+
+- **One Familiar has one owner and one conversation.** Hosts that serve many owners (a household app, say) open one Familiar per owner, e.g. one Durable Object each. Core never knows about tenants.
+- **Pi stays behind `Familiar`.** Hosts never get the Harness. When a feature needs a Pi capability, `Familiar` gains a thin passthrough for it, like `onCommit` over `subscribeCommits`, so every host shares one small, deliberate API.
+- **Each capability is a folder.** It exports the Pi extension it adds (tools, prompt sections, hooks, tasks) and, if people act on it directly, an owner API and its HTTP routes. `familiar.ts` installs them; a new tool is a new folder or a file in one. The sections below describe how these pieces connect.
+- **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. Core assigns its extension name from the plugin name. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
+- **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Keys are attached at the request boundary; response bodies and tool output pass through unchanged. A service that echoes a key can expose it. The host owns credential storage.
+- **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
+- **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
+- **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
+- **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
+- **UIs depend only on `@familiar/client`.** The web app gets nothing other apps can't. pnpm's strict resolution enforces this; ESLint also limits the client to type-only imports from core and Pi.
+
+### How the UI stays live
+
+The daemon sends the conversation's committed view once, then each commit's [Chord](https://github.com/earendil-works/pi) operations. Documents such as memory and episodes travel the same way, each under its name. The client applies them with `applyImmutable`, so it mirrors the server exactly and reconnecting just means receiving a fresh view.
 
 ## Four Pi ideas first
 
@@ -135,7 +180,7 @@ Responses and tool output are not scrubbed. An upstream service that echoes a ke
 
 `mcp/index.ts` discovers tools and exposes them as deferred Pi tools through `tool_search`. The SDK owns transport sessions and tool-list notifications; Pi owns tool loading and replay policy. MCP tools use `replay: 'unsafe'`. An ordinary tool error leaves connection status alone; HTTP 401 requests credentials and 404 reconnects an expired session for subsequent calls. Failed calls are never automatically repeated.
 
-Declarations live with the conversation in `McpServers`; bearer tokens stay in the host's secret store. Connections combines declarations with runtime status and discovered tools. The owner can add, remove and reconnect servers and change credentials. Names and transports are immutable, so changing an endpoint requires removing and re-adding it. Setup and API details are in the [README](../README.md#mcp-connections).
+Declarations live with the conversation in `McpServers`; bearer tokens stay in the host's secret store. Connections combines declarations with runtime status and discovered tools. The owner can add, remove and reconnect servers and change credentials. Names and transports are immutable, so changing an endpoint requires removing and re-adding it. Setup and API details are in the [usage guide](usage.md#mcp-connections).
 
 The host supplies `mcpFetch` separately from plugins' guarded fetch. The daemon permits owner-configured localhost, LAN and tailnet endpoints, while the HTTP adapter restricts requests and credentials to the exact endpoint and refuses redirects. Node-only stdio transport construction lives in `apps/daemon/src/mcp-stdio.ts`; the SDK owns spawning and termination with its default filtered environment. Commands run as the daemon's user and are trusted owner-installed code. Core stays portable; Cloudflare runtime testing is deferred until a Cloudflare host is built.
 

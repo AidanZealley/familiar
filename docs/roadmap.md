@@ -1,20 +1,22 @@
 # Roadmap
 
-Familiar is a personal assistant with one durable conversation, memory, schedules and tools. It also stays embeddable: another app can host one Familiar per owner or household. The [README's rules](../README.md#rules) define those boundaries.
+Familiar is a personal assistant with one durable conversation, memory, schedules and tools. It also stays embeddable: another app can host one Familiar per owner or household. The [architecture rules](architecture.md#rules) define those boundaries.
 
 ## Done
 
 - **Core and hosts.** Portable core, an HTTP and SSE API, a client store, a Node daemon and the web UI. Each capability owns its extension and owner API; see [architecture](architecture.md).
-- **Chat.** Streamed Markdown, tool activity, stopped replies and history paging across compactions. The in-memory demo has separate startup, model routing and feature scenarios.
+- **Chat.** Streamed Markdown, tool activity, stopped replies, history paging across compactions, and shared model and reasoning controls. The in-memory demo has separate startup, model routing and feature scenarios.
 - **Memory.** A bounded context, searchable exchanges, dated facts and episodes, recall and `read_memory`, nightly upkeep and fact review, and health diagnostics. See [memory](memory.md). The model-free recall and unfiled evals exist; real-model evaluation is still pending.
-- **Schedules and notifications.** One-off and recurring prompts, a Schedules page and Web Push delivery. Setup and device requirements are in the [README](../README.md#use-it).
+- **Schedules and notifications.** One-off and recurring prompts, a Schedules page and Web Push delivery. Setup and device requirements are in the [usage guide](usage.md).
 - **Plugins and Connections.** Pi extensions with a small Familiar context, write-only credential routes and a Connections UI. Authenticated requests attach credentials only to their declared destinations; the daemon owns network filtering.
 - **Web search and reading.** Brave search plus bounded public-page reads as text or Markdown. mdream owns HTML conversion; the daemon uses Piscina for interruptible conversion. No page JavaScript, PDFs or browser automation.
-- **MCP connections.** Saved HTTP and local stdio servers, deferred tools through Pi's tool search, and a searchable Connections workspace for status, credentials and server management. See [MCP ownership](architecture.md#mcp-connections) and the [setup guide](../README.md#mcp-connections).
+- **MCP connections.** Saved HTTP and local stdio servers, deferred tools through Pi's tool search, and a searchable Connections workspace for status, credentials and server management. See [MCP ownership](architecture.md#mcp-connections) and the [setup guide](usage.md#mcp-connections).
+- **Installation and CLI.** Release packages and user-owned installers for Linux, macOS and Windows, guided ChatGPT sign-in, private Tailscale access, service management, status and rename. Platform CI passes on all three OSes. Real macOS lifecycle testing is partly complete; real Windows testing is deferred. See [easy install](specs/easy-install.md) for verification still outstanding.
 
 ## Next
 
-1. [Easy install](specs/easy-install.md): install and sign in on Linux, macOS, Windows or a VPS, and export/import to move between machines.
+1. **Versioned export/import.** Move conversation, memory, episodes, schedules and portable settings between machines, with consistent snapshots and recoverable replacement. Sign in separately on the destination. See [backup format and move flow](specs/easy-install.md#6-export-and-import).
+2. **Safer updates.** Build on snapshots to add compatibility checks, migrations, pre-update backups and recovery. The current update command installs the latest release without these safeguards. See [strengthened update](specs/easy-install.md#7-strengthened-update).
 
 ## Later
 
@@ -29,6 +31,6 @@ Write a spec before starting these unless one is linked below.
 - **Secret masking.** Reconsider masking only for a concrete leak path; it is excluded from the current credential contract.
 - **Photos.** Image input using the model's vision and Pi's image resizing.
 - **Gatherbot.** A Cloudflare host with one Familiar per household and Gather's authentication. Decide whose identity it uses for actions when nobody is present.
-- **UI improvements.** Sources and inline citations, context usage and suggestions where useful. A model switcher has been discussed but is not specified.
+- **UI improvements.** Sources and inline citations, context usage and suggestions where useful.
 - **Native app.** Another client of the same API, with APNs instead of Web Push.
 - **The real logo.** A cat. Replace `apps/web/public/icon.svg` and regenerate the icons.
