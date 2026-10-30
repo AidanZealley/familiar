@@ -56,34 +56,33 @@ export function readSettings(
       )
     }
   }
+  const explicit = { ...saved }
+  for (const key of ['name', 'owner', 'model'] as const) {
+    const value = env[`FAMILIAR_${key.toUpperCase()}`]
+    if (value !== undefined) {
+      explicit[key] = value
+    }
+  }
+  if (env.FAMILIAR_PORT !== undefined) {
+    explicit.port = Number(env.FAMILIAR_PORT)
+  }
+  validateSettings(explicit)
   return {
-    name: env.FAMILIAR_NAME ?? saved.name ?? 'Familiar',
-    owner: env.FAMILIAR_OWNER ?? saved.owner ?? 'owner',
+    explicit,
+    name: explicit.name ?? 'Familiar',
+    owner: explicit.owner ?? 'owner',
     model: {
       provider: 'openai',
-      modelId: env.FAMILIAR_MODEL ?? saved.model ?? 'gpt-6.1-sol',
+      modelId: explicit.model ?? 'gpt-6.1-sol',
     },
-    port: validatePort(Number(env.FAMILIAR_PORT ?? saved.port ?? 4317)),
+    port: explicit.port ?? 4317,
   }
 }
 
-/** Setup persists the effective values that the background service will read. */
-export function saveSettings(
-  dataDir: string,
-  settings: ReturnType<typeof readSettings>,
-) {
+/** Save explicit choices, allowing defaults to follow future releases. */
+export function saveSettings(dataDir: string, settings: Settings) {
   const path = resolve(dataDir, 'settings.json')
-  const content =
-    JSON.stringify(
-      validateSettings({
-        name: settings.name,
-        owner: settings.owner,
-        model: settings.model.modelId,
-        port: settings.port,
-      }),
-      null,
-      2,
-    ) + '\n'
+  const content = JSON.stringify(validateSettings(settings), null, 2) + '\n'
   if (existsSync(path) && readFileSync(path, 'utf8') === content) {
     return false
   }

@@ -15,6 +15,7 @@ import { setup } from './setup.ts'
 import { signIn } from './sign-in.ts'
 import { publish } from './tailnet.ts'
 
+vi.mock('node:timers/promises', () => ({ setTimeout: async () => {} }))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
 vi.mock('./models.ts', () => ({ openModels: vi.fn() }))
 vi.mock('./service/index.ts', () => ({ openService: vi.fn() }))
@@ -27,6 +28,10 @@ const withStopped = vi.fn(async (run: () => Promise<void>) => run())
 const terminal = { question: vi.fn(), close: vi.fn() }
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('[]')),
+  )
   temporary = mkdtempSync(resolve(tmpdir(), 'familiar-setup-'))
   vi.stubEnv('FAMILIAR_DATA_DIR', resolve(temporary, 'private'))
   vi.stubEnv('FAMILIAR_HOST', '127.0.0.1')
@@ -50,6 +55,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   rmSync(temporary, { recursive: true, force: true })
 })
 
@@ -58,9 +64,6 @@ test('first setup saves private settings, signs in, installs the service and pri
   const path = resolve(temporary, 'private/settings.json')
   expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
     name: 'Willow',
-    owner: 'owner',
-    model: 'gpt-6.1-sol',
-    port: 4317,
   })
   expect(statSync(path).mode & 0o777).toBe(0o600)
   expect(statSync(resolve(temporary, 'private')).mode & 0o777).toBe(0o700)
@@ -116,4 +119,19 @@ test('setup refuses a public bind before writing settings or installing anything
   await expect(setup()).rejects.toThrow('127.0.0.1')
   expect(existsSync(resolve(temporary, 'private'))).toBe(false)
   expect(install).not.toHaveBeenCalled()
+})
+
+test('setup waits for a starting daemon before publishing its URL', async () => {
+  vi.mocked(fetch).mockRejectedValueOnce(new Error('not listening yet'))
+  await setup()
+  expect(publish).toHaveBeenCalledOnce()
+})
+
+test('a failed daemon startup reports logs instead of claiming a working URL', async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error('not listening'))
+  await expect(setup()).rejects.toThrow('familiar logs')
+  expect(publish).not.toHaveBeenCalled()
+  expect(console.log).not.toHaveBeenCalledWith(
+    expect.stringContaining('Open Familiar:'),
+  )
 })

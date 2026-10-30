@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test } from 'vitest'
-import { readSettings } from './settings.ts'
+import { readSettings, saveSettings } from './settings.ts'
 
 const directories: string[] = []
 const directory = () => {
@@ -40,6 +40,7 @@ test('saved settings survive a new process environment and individual overrides'
     }),
   )
   expect(readSettings(path, {})).toEqual({
+    explicit: { name: 'Cat', owner: 'Aidan', model: 'saved-model', port: 4320 },
     name: 'Cat',
     owner: 'Aidan',
     model: { provider: 'openai', modelId: 'saved-model' },
@@ -53,6 +54,12 @@ test('saved settings survive a new process environment and individual overrides'
       FAMILIAR_PORT: '4321',
     }),
   ).toEqual({
+    explicit: {
+      name: 'Other',
+      owner: 'Rowan',
+      model: 'other-model',
+      port: 4321,
+    },
     name: 'Other',
     owner: 'Rowan',
     model: { provider: 'openai', modelId: 'other-model' },
@@ -86,3 +93,22 @@ test.each(['', 'NaN', '-1', '3.5', '65536'])(
     )
   },
 )
+
+test('setup saves choices without pinning defaults, and preserves saved and environment choices', () => {
+  const path = directory()
+  const initial = readSettings(path, {})
+  saveSettings(path, { ...initial.explicit, name: 'Willow' })
+  expect(JSON.parse(readFileSync(join(path, 'settings.json'), 'utf8'))).toEqual(
+    { name: 'Willow' },
+  )
+  expect(readSettings(path, {}).explicit.model).toBeUndefined()
+  writeFileSync(
+    join(path, 'settings.json'),
+    JSON.stringify({ name: 'Willow', owner: 'Aidan', model: 'chosen-model' }),
+  )
+  const chosen = readSettings(path, { FAMILIAR_PORT: '4325' })
+  saveSettings(path, chosen.explicit)
+  expect(JSON.parse(readFileSync(join(path, 'settings.json'), 'utf8'))).toEqual(
+    { name: 'Willow', owner: 'Aidan', model: 'chosen-model', port: 4325 },
+  )
+})

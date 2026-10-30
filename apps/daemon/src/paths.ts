@@ -37,6 +37,7 @@ export function resolvePaths({
   )
   return {
     dataDir,
+    // Saved stdio MCP commands inherit this directory, including relative script paths.
     workDir:
       basename(codeDir) === 'src' ? resolve(codeDir, '../../..') : codeDir,
     cliPath: resolve(

@@ -29,6 +29,7 @@ beforeEach(() => {
     withStopped,
   } as never)
   vi.mocked(readSettings).mockReturnValue({
+    explicit: {},
     name: 'Familiar',
     owner: 'owner',
     model: { provider: 'openai', modelId: 'test' },

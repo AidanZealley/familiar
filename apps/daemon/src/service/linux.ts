@@ -61,17 +61,20 @@ export function linuxService(options: ServiceOptions) {
   const dataEnvironment = `Environment=${quote(`FAMILIAR_DATA_DIR=${options.dataDir}`)}`
   const installedUnit = () =>
     existsSync(unit) ? readFileSync(unit, 'utf8') : ''
-  const checkOwnership = () => {
+  const ownsData = () => {
     const current = installedUnit()
     if (!current) {
-      return
+      return false
     }
-    const ownsData = current.includes('FAMILIAR_DATA_DIR=')
+    return current.includes('FAMILIAR_DATA_DIR=')
       ? current.split('\n').includes(dataEnvironment)
       : options.dataDir ===
-        resolvePaths({ env: { ...process.env, FAMILIAR_DATA_DIR: undefined } })
-          .dataDir
-    if (!ownsData) {
+          resolvePaths({
+            env: { ...process.env, FAMILIAR_DATA_DIR: undefined },
+          }).dataDir
+  }
+  const checkOwnership = () => {
+    if (installedUnit() && !ownsData()) {
       throw new Error(
         'The Familiar service belongs to a different data directory. Keep that installation or uninstall its service first.',
       )
@@ -103,15 +106,7 @@ export function linuxService(options: ServiceOptions) {
     isRunning,
     restart,
     async withStopped<T>(run: () => Promise<T>) {
-      const running = isRunning()
-      if (running && !installedUnit().split('\n').includes(dataEnvironment)) {
-        if (existsSync(resolve(options.dataDir, 'daemon.lock'))) {
-          throw new Error(
-            'Stop Familiar before signing in: its older service unit does not identify the data directory. Run familiar to update the unit first.',
-          )
-        }
-        return run()
-      }
+      const running = ownsData() && isRunning()
       if (running) {
         stop()
       }

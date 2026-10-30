@@ -147,7 +147,7 @@ test('login for another data directory does not stop this service', async () => 
   await other.withStopped(async () => {
     expect(running).toBe(true)
   })
-  expect(calls()).toEqual(['systemctl --user is-active --quiet familiar'])
+  expect(calls()).toEqual([])
   expect(() => other.install()).toThrow('different data directory')
   expect(() => other.uninstall()).toThrow('different data directory')
 })
@@ -159,4 +159,22 @@ test('an old service unit is not silently moved to another data directory', () =
   )
   expect(() => service().install()).toThrow('different data directory')
   expect(calls()).toEqual([])
+})
+
+test('legacy default-directory services are paused for login without requiring a setup loop', async () => {
+  writeFileSync(
+    resolve(temporary, 'familiar.service'),
+    '[Service]\nExecStart=/usr/bin/node /old/main.ts\n',
+  )
+  const host = linuxService({
+    dataDir: resolve(temporary, 'xdg/familiar'),
+    cliPath: '/app/familiar.js',
+    unitDir: temporary,
+  })
+  running = true
+  await host.withStopped(async () => {
+    expect(running).toBe(false)
+  })
+  expect(running).toBe(true)
+  expect(calls()).toContain('systemctl --user stop familiar')
 })

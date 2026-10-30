@@ -7,6 +7,8 @@ import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import type { OAuthAuth } from '@earendil-works/pi-ai'
 
 // Install outside the workspace so missing dependencies and assets cannot
 // accidentally resolve from the developer's checkout.
@@ -116,19 +118,42 @@ try {
   )
   const run = (args: string[]) =>
     execFileSync(executable, args, { cwd: temporary, env, encoding: 'utf8' })
-  assert.match(run([]), /Installed and started/)
-  assert.match(run([]), /Settings are already saved/)
-  const serviceCalls = await readFile(
-    resolve(temporary, 'service-calls'),
-    'utf8',
-  )
-  assert.equal(
-    serviceCalls.match(/--user restart familiar/g)?.length,
-    1,
-    'Repeat setup must not restart the daemon',
-  )
   const unit = resolve(env.XDG_CONFIG_HOME!, 'systemd/user/familiar.service')
-  assert((await readFile(unit, 'utf8')).includes(`${installed}/familiar.js`))
+  const realFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async (input, options) => {
+      assert.equal(
+        String(input),
+        'https://auth.openai.com/api/accounts/oauth/token',
+      )
+      assert(options?.body instanceof URLSearchParams)
+      assert.equal(options.body.get('grant_type'), 'refresh_token')
+      return Response.json({
+        access_token: 'new-test-access',
+        refresh_token: 'new-test-refresh',
+        expires_in: 3600,
+        scope: 'chatgpt.tokens.use.direct',
+      })
+    }
+    const { openaiChatGPTOAuth }: { openaiChatGPTOAuth: OAuthAuth } =
+      await import(pathToFileURL(resolve(installed, 'openai-chatgpt.js')).href)
+    const refreshed = await openaiChatGPTOAuth.refresh(
+      {
+        type: 'oauth',
+        access: 'old',
+        refresh: 'old',
+        expires: 0,
+        clientId: 'test-only',
+      },
+      new AbortController().signal,
+    )
+    assert.equal(refreshed.refresh, 'new-test-refresh')
+    assert.deepEqual(await openaiChatGPTOAuth.toAuth(refreshed), {
+      apiKey: 'new-test-access',
+    })
+  } finally {
+    globalThis.fetch = realFetch
+  }
 
   const InstalledPiscina: typeof import('piscina').default = createRequire(
     resolve(installed, 'package.json'),
@@ -171,6 +196,20 @@ try {
       String(output),
       new RegExp(`Release test on http://127.0.0.1:${port}`),
     )
+    env.FAMILIAR_PORT = String(port)
+    assert.match(run([]), /Installed and started/)
+    assert.match(run([]), /Settings are already saved/)
+    const serviceCalls = await readFile(
+      resolve(temporary, 'service-calls'),
+      'utf8',
+    )
+    assert.equal(
+      serviceCalls.match(/--user restart familiar/g)?.length,
+      1,
+      'Repeat setup must not restart the daemon',
+    )
+    assert((await readFile(unit, 'utf8')).includes(`${installed}/familiar.js`))
+
     const url = `http://127.0.0.1:${port}`
     const page = await fetch(url, { signal: AbortSignal.timeout(5000) })
     assert.equal(page.status, 200)
@@ -204,7 +243,7 @@ try {
     true,
   )
   console.log(
-    'Release verified: installed CLI, repeat setup, service removal, sign-in module, web assets, SQLite and HTML conversion worker.',
+    'Release verified: installed CLI, repeat setup, service removal, sign-in and refresh modules, web assets, SQLite and HTML conversion worker.',
   )
 } finally {
   await rm(temporary, { recursive: true, force: true })

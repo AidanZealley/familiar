@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
+import { setTimeout } from 'node:timers/promises'
 import { ensureDataDir, resolvePaths } from './paths.ts'
 import { openService } from './service/index.ts'
 import { readSettings, saveSettings } from './settings.ts'
@@ -30,7 +31,10 @@ export async function setup() {
     }
   }
   ensureDataDir(paths.dataDir)
-  const changed = saveSettings(paths.dataDir, settings)
+  const changed = saveSettings(paths.dataDir, {
+    ...settings.explicit,
+    name: settings.name,
+  })
   console.log(changed ? 'Saved settings.' : 'Settings are already saved.')
 
   // Pi's presence check does not rotate tokens. Only the running daemon
@@ -45,9 +49,30 @@ export async function setup() {
     await service.withStopped(() => signIn())
   }
   service.install(changed)
+  await waitForService(settings.port)
   console.log(`Open Familiar: http://127.0.0.1:${settings.port}`)
   const url = publish(settings.port)
   if (url) {
     console.log(`On your tailnet: ${url}`)
   }
+}
+
+async function waitForService(port: number) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/connections`, {
+        signal: AbortSignal.timeout(500),
+      })
+      await response.body?.cancel()
+      if (response.ok) {
+        return
+      }
+    } catch {
+      // systemd starts Node before the daemon has opened its HTTP listener.
+    }
+    await setTimeout(250)
+  }
+  throw new Error(
+    'Familiar did not answer after starting. Run familiar logs to inspect the service.',
+  )
 }

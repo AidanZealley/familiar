@@ -31,7 +31,7 @@ All of it lives in `apps/daemon`. Give each responsibility one owner:
 
 - `src/cli.ts`: the `familiar` entry point. Parses the subcommand and calls one function; holds no logic of its own.
 - `src/paths.ts`: where things live on this platform, the only place that decides. Data directory: `$FAMILIAR_DATA_DIR`, else `$XDG_DATA_HOME/familiar` or `~/.local/share/familiar` on Linux, `~/Library/Application Support/Familiar` on macOS, `%LOCALAPPDATA%\Familiar` on Windows. Keep an existing installation in its earlier XDG location on macOS or Windows unless the owner explicitly sets `FAMILIAR_DATA_DIR`. The web UI directory is relative to the running code, so it works both unbuilt in the repo and bundled.
-- `src/settings.ts`: reads `settings.json` in the data directory (name, owner, model, port), which setup writes. Environment variables override it, so the demo, the eval and development keep working unchanged. This replaces `config.ts`'s environment-only settings, which the service never sees.
+- `src/settings.ts`: reads `settings.json` in the data directory (name, owner, model, port), which setup writes only for explicit choices. Defaults remain in code so they can change with later releases. Environment variables override it, so the demo, the eval and development keep working unchanged. This replaces `config.ts`'s environment-only settings, which the service never sees.
 
 `main.ts` becomes `familiar serve`; `sign-in.ts` becomes `familiar sign-in`.
 
@@ -73,7 +73,7 @@ Done when setup on a fresh Linux machine ends with a working URL, and a second r
 
 Done when the unit-content tests pass and setup, a reboot, `update` and `uninstall` work on Linux and on a VPS; then on macOS; then on Windows.
 
-Guided setup and Linux service management are implemented. Default `familiar` saves settings, reuses or obtains a ChatGPT login, installs the service and prints local and tailnet URLs. `logs`, `update` and `uninstall` use the same service owner. Sign-in and updates pause this installation's running service and resume it even on failure. Repeat setup preserves settings and an already-running service; changed settings restart it. The unit has been validated with systemd, and packaged setup is tested with temporary storage and fake system commands. A real reboot/VPS check is still pending. macOS and Windows services remain planned.
+Guided setup and Linux service management are implemented. Default `familiar` saves settings, reuses or obtains a ChatGPT login, installs the service and prints local and tailnet URLs. `logs`, `update` and `uninstall` use the same service owner. Sign-in and updates pause this installation's running service and resume it even on failure. Setup saves the chosen name and explicit overrides, leaving model, owner and port defaults in code. Repeat setup preserves settings and an already-running service; changed settings restart it. Setup waits for the local API before printing its URLs. The unit has been validated with systemd, and packaged setup is tested with temporary storage and fake system commands. A real reboot/VPS check is still pending. macOS and Windows services remain planned.
 
 ## 5. The install scripts
 

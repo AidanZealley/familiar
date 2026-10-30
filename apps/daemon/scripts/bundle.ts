@@ -27,8 +27,9 @@ await build({
   input: {
     familiar: resolve(daemon, 'src/cli.ts'),
     'page-worker': resolve(daemon, 'src/page-worker.ts'),
-    // Pi deliberately hides this Node-only module from bundlers. Its lazy
-    // loader expects this filename beside the provider's bundled code.
+    // This depends on the pinned Pi version's internal layout. Its opaque
+    // loader expects this filename beside the provider's bundled code. Keep
+    // the entry in sync with Pi upgrades; test:release checks both login and refresh.
     'openai-chatgpt': fileURLToPath(
       new URL(
         '../auth/oauth/openai-chatgpt.js',
