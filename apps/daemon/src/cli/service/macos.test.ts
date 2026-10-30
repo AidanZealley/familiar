@@ -118,3 +118,21 @@ test('uninstall removes only the agent definition and preserves stored files', (
   expect(existsSync(file())).toBe(false)
   expect(readFileSync(data, 'utf8')).toBe('conversation fixture')
 })
+
+test.skipIf(process.platform !== 'darwin')(
+  'native plutil accepts the generated LaunchAgent',
+  async () => {
+    const native =
+      await vi.importActual<typeof import('node:child_process')>(
+        'node:child_process',
+      )
+    writeFileSync(
+      file(),
+      renderAgent({
+        dataDir: resolve(temporary, 'Owner & files'),
+        cliPath: '/app with spaces/familiar.js',
+      }),
+    )
+    native.execFileSync('plutil', ['-lint', file()], { stdio: 'pipe' })
+  },
+)

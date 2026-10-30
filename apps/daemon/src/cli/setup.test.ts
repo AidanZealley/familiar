@@ -65,8 +65,11 @@ test('first setup saves private settings, signs in, installs the service and pri
   expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
     name: 'Willow',
   })
-  expect(statSync(path).mode & 0o777).toBe(0o600)
-  expect(statSync(resolve(temporary, 'private')).mode & 0o777).toBe(0o700)
+  // Windows protects the directory through ACLs rather than POSIX mode bits.
+  if (process.platform !== 'win32') {
+    expect(statSync(path).mode & 0o777).toBe(0o600)
+    expect(statSync(resolve(temporary, 'private')).mode & 0o777).toBe(0o700)
+  }
   expect(signIn).toHaveBeenCalledOnce()
   expect(withStopped).toHaveBeenCalledOnce()
   expect(install).toHaveBeenCalledWith(true)

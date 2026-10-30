@@ -1,14 +1,14 @@
-import { execFileSync } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { rename, signIn, status, uninstall, update } from './manage.ts'
 import { ensureDataDir, resolvePaths } from '../paths.ts'
+import { runNpm } from './npm.ts'
 import { openService } from './service/index.ts'
 import { readSettings, saveSettings } from '../settings.ts'
 import { signIn as login } from './sign-in.ts'
 import { publishedUrl, unpublish } from './tailnet.ts'
 
-vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
+vi.mock('./npm.ts', () => ({ runNpm: vi.fn() }))
 vi.mock('../paths.ts', () => ({
   ensureDataDir: vi.fn(),
   resolvePaths: vi.fn(),
@@ -62,8 +62,7 @@ afterEach(() => {
 test('update targets this installation prefix while the service is suspended', async () => {
   await update()
   expect(withStopped).toHaveBeenCalledOnce()
-  expect(execFileSync).toHaveBeenCalledWith(
-    'npm',
+  expect(runNpm).toHaveBeenCalledWith(
     [
       'install',
       '--global',
@@ -83,7 +82,7 @@ test('source checkouts cannot accidentally install a second copy through update'
     workDir: '/app',
   })
   await expect(update()).rejects.toThrow('source checkout')
-  expect(execFileSync).not.toHaveBeenCalled()
+  expect(runNpm).not.toHaveBeenCalled()
 })
 
 test('uninstall removes the service and matching publication while preserving data', () => {

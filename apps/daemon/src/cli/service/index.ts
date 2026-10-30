@@ -1,10 +1,19 @@
 import { linuxService } from './linux.ts'
+import { macosService } from './macos.ts'
+import { windowsService } from './windows.ts'
+import type { ServiceOptions } from './types.ts'
 
-export function openService(options: Parameters<typeof linuxService>[0]) {
-  if (process.platform !== 'linux') {
-    throw new Error(
-      'Automatic service setup currently supports Linux only. Use familiar sign-in and familiar serve on this platform.',
-    )
+export function openService(options: ServiceOptions) {
+  switch (process.platform) {
+    case 'linux':
+      return linuxService(options)
+    case 'darwin':
+      return macosService(options)
+    case 'win32':
+      return windowsService(options)
+    default:
+      throw new Error(
+        'Automatic service setup supports Linux, macOS and Windows. Use familiar sign-in and familiar serve on this platform.',
+      )
   }
-  return linuxService(options)
 }

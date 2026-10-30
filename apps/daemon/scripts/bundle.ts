@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import {
   chmod,
   cp,
@@ -11,6 +10,7 @@ import {
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'rolldown'
+import { runNpm } from '../src/cli/npm.ts'
 
 const daemon = resolve(import.meta.dirname, '..')
 const dist = resolve(daemon, 'dist')
@@ -71,9 +71,8 @@ await writeFile(
 )
 
 const packed = JSON.parse(
-  execFileSync('npm', ['pack', '--json'], {
+  runNpm(['pack', '--json'], {
     cwd: dist,
-    encoding: 'utf8',
   }),
 )
 await rename(resolve(dist, packed[0].filename), resolve(dist, 'familiar.tgz'))

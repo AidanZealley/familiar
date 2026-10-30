@@ -74,7 +74,7 @@ Ask Familiar for reminders and anything regular in chat ("remind me at 6 to call
 
 ### Guided setup
 
-After installing a release package, run `familiar` to save settings, sign in with ChatGPT, install the background service and print its URLs. Automatic service setup currently supports Linux. From a source checkout, build the UI with `pnpm build`, then run `node apps/daemon/src/cli.ts` for the same setup.
+After installing a release package, run `familiar` to save settings, sign in with ChatGPT, install the background service and print its URLs. Service setup uses systemd on Linux, a LaunchAgent on macOS, and a Scheduled Task on Windows. macOS and Windows start at user login; Linux can run while logged out. Windows falls back to a Startup shortcut if task registration fails, with no automatic crash recovery in that mode. From a source checkout, build the UI with `pnpm build`, then run `node apps/daemon/src/cli.ts` for the same setup.
 
 Setup reuses existing settings and login. Desktop sign-in opens the browser; over SSH or without a display, open the printed link on another device and paste the full URL the browser redirects to. The pinned Pi version has no device-code login. If a saved login stops working, run `familiar sign-in`.
 
@@ -124,7 +124,11 @@ pnpm bundle          # Build apps/daemon/dist/familiar.tgz
 pnpm test:release    # Install and verify it outside the repo, using temporary data
 ```
 
-The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. Guided setup is available on Linux; the download-and-install script is still planned.
+The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. Guided setup has implementations for Linux, macOS and Windows; the download-and-install scripts are still planned.
+
+CLI management code and its tests live under `apps/daemon/src/cli/`, separate from daemon serving and the portable core. Shared paths, settings, credentials and Windows directory permissions belong to the Node host.
+
+The CLI platforms workflow builds and tests on Linux, macOS and Windows. It validates native plist/task definitions without registering services, and tests installed packages using temporary storage. Linux lifecycle integration uses fake system commands. Real macOS and Windows setup, login, restart, log following, update, removal and reboot checks remain pending; the workflow has not been run for this branch yet.
 
 ### Settings
 

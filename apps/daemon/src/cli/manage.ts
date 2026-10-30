@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process'
 import { basename, dirname, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { ensureDataDir, resolvePaths } from '../paths.ts'
 import { openService } from './service/index.ts'
 import { readSettings, saveSettings } from '../settings.ts'
+import { runNpm } from './npm.ts'
 import { publishedUrl, unpublish } from './tailnet.ts'
 
 export function logs() {
@@ -39,8 +39,7 @@ export async function update() {
     process.platform === 'win32' ? '../..' : '../../..',
   )
   await service.withStopped(async () => {
-    execFileSync(
-      'npm',
+    runNpm(
       [
         'install',
         '--global',
@@ -56,7 +55,7 @@ export async function update() {
 
 export async function signIn() {
   const login = await import('./sign-in.ts')
-  if (process.platform === 'linux') {
+  if (['linux', 'darwin', 'win32'].includes(process.platform)) {
     await openService(resolvePaths()).withStopped(() => login.signIn())
   } else {
     await login.signIn()

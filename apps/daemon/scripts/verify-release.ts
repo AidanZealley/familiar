@@ -6,19 +6,21 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { resolve } from 'node:path'
+import { delimiter, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { OAuthAuth } from '@earendil-works/pi-ai'
+import { runNpm } from '../src/cli/npm.ts'
 
 // Install outside the workspace so missing dependencies and assets cannot
 // accidentally resolve from the developer's checkout.
 const temporary = await mkdtemp(resolve(tmpdir(), 'familiar-release-'))
-const prefix = resolve(temporary, 'install')
+const prefix = resolve(temporary, 'install with spaces & symbols')
 const bin = resolve(temporary, 'bin')
 await mkdir(bin)
-await writeFile(
-  resolve(bin, 'systemctl'),
-  `#!/bin/sh
+if (process.platform === 'linux') {
+  await writeFile(
+    resolve(bin, 'systemctl'),
+    `#!/bin/sh
 printf '%s\\n' "$*" >> "$FAMILIAR_RELEASE_TEST_DIR/service-calls"
 case "$2" in
   is-active) test -f "$FAMILIAR_RELEASE_TEST_DIR/running" || exit 3 ;;
@@ -28,18 +30,19 @@ case "$2" in
   *) exit 99 ;;
 esac
 `,
-  { mode: 0o755 },
-)
-await writeFile(resolve(bin, 'loginctl'), '#!/bin/sh\necho yes\n', {
-  mode: 0o755,
-})
-await writeFile(
-  resolve(bin, 'tailscale'),
-  `#!/bin/sh
+    { mode: 0o755 },
+  )
+  await writeFile(resolve(bin, 'loginctl'), '#!/bin/sh\necho yes\n', {
+    mode: 0o755,
+  })
+  await writeFile(
+    resolve(bin, 'tailscale'),
+    `#!/bin/sh
 echo '{"BackendState":"NeedsLogin"}'
 `,
-  { mode: 0o755 },
-)
+    { mode: 0o755 },
+  )
+}
 const env: NodeJS.ProcessEnv = {
   ...process.env,
   FAMILIAR_DATA_DIR: resolve(temporary, 'data'),
@@ -48,13 +51,12 @@ const env: NodeJS.ProcessEnv = {
   FAMILIAR_PLUGINS: '',
   NODE_PATH: '',
   FAMILIAR_RELEASE_TEST_DIR: temporary,
-  PATH: `${bin}:${process.env.PATH}`,
+  PATH: `${bin}${delimiter}${process.env.PATH}`,
   XDG_CONFIG_HOME: resolve(temporary, 'config'),
 }
 
 try {
-  execFileSync(
-    'npm',
+  runNpm(
     [
       'install',
       '--global',
@@ -68,10 +70,28 @@ try {
     ],
     { cwd: temporary, env, stdio: 'inherit' },
   )
-  const installed = resolve(prefix, 'lib/node_modules/familiar')
-  const executable = resolve(prefix, 'bin/familiar')
+  const installed = resolve(
+    prefix,
+    process.platform === 'win32'
+      ? 'node_modules/familiar'
+      : 'lib/node_modules/familiar',
+  )
+  const executable =
+    process.platform === 'win32'
+      ? process.execPath
+      : resolve(prefix, 'bin/familiar')
+  const entryArgs =
+    process.platform === 'win32' ? [resolve(installed, 'familiar.js')] : []
+  assert(
+    existsSync(
+      resolve(
+        prefix,
+        process.platform === 'win32' ? 'familiar.cmd' : 'bin/familiar',
+      ),
+    ),
+  )
   assert.match(
-    execFileSync(executable, ['--help'], {
+    execFileSync(executable, [...entryArgs, '--help'], {
       cwd: temporary,
       env,
       encoding: 'utf8',
@@ -87,18 +107,20 @@ try {
   // An invalid installation ID stops Pi after its lazy OAuth import and
   // before it opens a callback server or sends any authentication request.
   await mkdir(env.FAMILIAR_DATA_DIR!, { recursive: true })
-  const deviceId = resolve(env.FAMILIAR_DATA_DIR!, 'device-id')
-  await writeFile(deviceId, 'invalid-test-id')
-  const signIn = spawnSync(executable, ['sign-in'], {
-    cwd: temporary,
-    env,
-    input: '',
-    encoding: 'utf8',
-    timeout: 10000,
-  })
-  assert.equal(signIn.status, 1)
-  assert.match(signIn.stderr, /requires a device ID/)
-  await rm(deviceId)
+  if (process.platform === 'linux') {
+    const deviceId = resolve(env.FAMILIAR_DATA_DIR!, 'device-id')
+    await writeFile(deviceId, 'invalid-test-id')
+    const signIn = spawnSync(executable, ['sign-in'], {
+      cwd: temporary,
+      env,
+      input: '',
+      encoding: 'utf8',
+      timeout: 10000,
+    })
+    assert.equal(signIn.status, 1)
+    assert.match(signIn.stderr, /requires a device ID/)
+    await rm(deviceId)
+  }
 
   await writeFile(
     resolve(env.FAMILIAR_DATA_DIR!, 'auth.json'),
@@ -117,7 +139,11 @@ try {
     JSON.stringify({ name: 'Release test' }),
   )
   const run = (args: string[]) =>
-    execFileSync(executable, args, { cwd: temporary, env, encoding: 'utf8' })
+    execFileSync(executable, [...entryArgs, ...args], {
+      cwd: temporary,
+      env,
+      encoding: 'utf8',
+    })
   const unit = resolve(env.XDG_CONFIG_HOME!, 'systemd/user/familiar.service')
   const realFetch = globalThis.fetch
   try {
@@ -181,7 +207,7 @@ try {
   assert(address && typeof address !== 'string')
   const port = address.port
   await new Promise<void>((done) => reservation.close(() => done()))
-  const child = spawn(executable, ['serve'], {
+  const child = spawn(executable, [...entryArgs, 'serve'], {
     cwd: temporary,
     env: { ...env, FAMILIAR_PORT: String(port) },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -196,33 +222,37 @@ try {
       String(output),
       new RegExp(`Release test on http://127.0.0.1:${port}`),
     )
-    env.FAMILIAR_PORT = String(port)
-    assert.match(run([]), /Installed and started/)
-    assert.match(run([]), /Settings are already saved/)
-    const serviceCalls = await readFile(
-      resolve(temporary, 'service-calls'),
-      'utf8',
-    )
-    assert.equal(
-      serviceCalls.match(/--user restart familiar/g)?.length,
-      1,
-      'Repeat setup must not restart the daemon',
-    )
-    assert((await readFile(unit, 'utf8')).includes(`${installed}/familiar.js`))
+    // Only Linux has fake OS commands here; other hosts run portable checks only.
+    if (process.platform === 'linux') {
+      env.FAMILIAR_PORT = String(port)
+      assert.match(run([]), /Installed and started/)
+      assert.match(run([]), /Settings are already saved/)
+      const serviceCalls = await readFile(
+        resolve(temporary, 'service-calls'),
+        'utf8',
+      )
+      assert.equal(
+        serviceCalls.match(/--user restart familiar/g)?.length,
+        1,
+        'Repeat setup must not restart the daemon',
+      )
+      assert(
+        (await readFile(unit, 'utf8')).includes(`${installed}/familiar.js`),
+      )
 
-    assert.match(run(['status']), /Name: Release test/)
-    assert.match(run(['rename', 'Scout']), /Renamed Release test to Scout/)
-    assert.match(run(['status']), /Name: Scout/)
-    assert.equal(
-      JSON.parse(
-        await readFile(
-          resolve(env.FAMILIAR_DATA_DIR!, 'settings.json'),
-          'utf8',
-        ),
-      ).name,
-      'Scout',
-    )
-
+      assert.match(run(['status']), /Name: Release test/)
+      assert.match(run(['rename', 'Scout']), /Renamed Release test to Scout/)
+      assert.match(run(['status']), /Name: Scout/)
+      assert.equal(
+        JSON.parse(
+          await readFile(
+            resolve(env.FAMILIAR_DATA_DIR!, 'settings.json'),
+            'utf8',
+          ),
+        ).name,
+        'Scout',
+      )
+    }
     const url = `http://127.0.0.1:${port}`
     const page = await fetch(url, { signal: AbortSignal.timeout(5000) })
     assert.equal(page.status, 200)
@@ -249,14 +279,16 @@ try {
     await exited
     clearTimeout(forceStop)
   }
-  assert.match(run(['uninstall']), /Your data remains/)
-  assert.equal(existsSync(unit), false)
-  assert.equal(
-    existsSync(resolve(env.FAMILIAR_DATA_DIR!, 'familiar.sqlite')),
-    true,
-  )
+  if (process.platform === 'linux') {
+    assert.match(run(['uninstall']), /Your data remains/)
+    assert.equal(existsSync(unit), false)
+    assert.equal(
+      existsSync(resolve(env.FAMILIAR_DATA_DIR!, 'familiar.sqlite')),
+      true,
+    )
+  }
   console.log(
-    'Release verified: installed CLI, status and rename, repeat setup, service removal, sign-in and refresh modules, web assets, SQLite and HTML conversion worker.',
+    `Release verified on ${process.platform}: installed CLI, OAuth refresh module, web assets, SQLite and HTML worker. ${process.platform === 'linux' ? 'Fake-service lifecycle checks also passed.' : 'Native service lifecycle remains a separate check.'}`,
   )
 } finally {
   await rm(temporary, { recursive: true, force: true })
