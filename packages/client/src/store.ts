@@ -7,6 +7,7 @@ import type {
   Documents,
   HttpApi,
   McpServer,
+  MemoryHealth,
   PushSubscriptionJson,
   StreamEvent,
 } from '@familiar/core/http'
@@ -56,6 +57,8 @@ export type FamiliarState = MirroredDocuments & {
   unsubscribePush(subscription: PushSubscriptionJson): Promise<void>
   /** Every connection and whether each secret is set. Never values. */
   connections(): Promise<ConnectionInfo[]>
+  /** Memory's health numbers, measured when asked. */
+  memoryHealth(): Promise<MemoryHealth>
   setSecret(
     connection: ConnectionKey,
     secret: string,
@@ -165,6 +168,13 @@ export function createFamiliarStore(baseUrl: string) {
       succeed(api.push.subscriptions.$delete({ json: subscription })),
     connections: async () => {
       const response = await api.connections.$get()
+      if (!response.ok) {
+        throw await failed(response)
+      }
+      return response.json()
+    },
+    memoryHealth: async () => {
+      const response = await api.memory.health.$get()
       if (!response.ok) {
         throw await failed(response)
       }

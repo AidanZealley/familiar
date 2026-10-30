@@ -1,5 +1,6 @@
 import type { Episode, Fact } from '@familiar/client'
 import {
+  ActivityIcon,
   CalendarDaysIcon,
   HistoryIcon,
   ListIcon,
@@ -111,7 +112,7 @@ export const episodeMonths = (episodes: readonly Episode[]): EpisodeMonth[] => {
 
 /** The Memory pages, for every nav that links to them. */
 export const memorySections: {
-  to: '/memory' | '/memory/history' | '/memory/episodes'
+  to: '/memory' | '/memory/history' | '/memory/episodes' | '/memory/health'
   label: string
   icon: LucideIcon
   description: string
@@ -133,6 +134,12 @@ export const memorySections: {
     label: 'Episodes',
     icon: CalendarDaysIcon,
     description: 'What happened, by day, week and month.',
+  },
+  {
+    to: '/memory/health',
+    label: 'Health',
+    icon: ActivityIcon,
+    description: 'Whether memory is keeping up, and how fast search is.',
   },
 ]
 

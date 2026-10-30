@@ -41,6 +41,7 @@ export type {
   EpisodesState,
   Fact,
   FactsState,
+  MemoryHealth,
 } from './memory/index.ts'
 
 /** Every route, for Hono's typed client: `hc<HttpApi>(baseUrl)`. */

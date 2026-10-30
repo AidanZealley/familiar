@@ -80,7 +80,7 @@ Two things check this rather than assume it:
 - **The rot test** (`pnpm eval:recall`) asks rowan-v3's questions against its year of exchanges, then again with years of extra conversation added after it. No model is involved, so it runs in seconds. The line should stay flat.
 - **Health numbers** (`GET /api/memory/health`) report from real data: fact counts, how full core is, facts unchecked for six months, episodes, exchanges indexed, and search times.
 
-The health API reports `indexBuildMs` for the first nonempty index build after Familiar opens and `indexCatchUpMs` for the latest nonempty update after that build. Each stays `null` until that work occurs; empty polls leave both unchanged. These are individual durations, not cumulative totals, and reset when Familiar restarts. Search statistics cover the latest 200 searches. The endpoint is diagnostic data; there is no health dashboard.
+The health API reports `indexBuildMs` for the first nonempty index build after Familiar opens and `indexCatchUpMs` for the latest nonempty update after that build. Each stays `null` until that work occurs; empty polls leave both unchanged. These are individual durations, not cumulative totals, and reset when Familiar restarts. Search statistics cover the latest 200 searches. The Memory section's Health page shows them, marking what needs attention: core over 90% full, any fact unchecked for six months, an index build over a second, or a median search over 50 ms.
 
 ## Search performance finding
 

@@ -9,6 +9,7 @@ export type {
   FactsState,
   McpConnectionInfo,
   McpServer,
+  MemoryHealth,
   PushSubscriptionJson,
   Schedule,
   SchedulesState,
