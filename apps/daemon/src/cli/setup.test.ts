@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { openModels } from './models.ts'
+import { openModels } from '../models.ts'
 import { openService } from './service/index.ts'
 import { setup } from './setup.ts'
 import { signIn } from './sign-in.ts'
@@ -17,7 +17,7 @@ import { publish } from './tailnet.ts'
 
 vi.mock('node:timers/promises', () => ({ setTimeout: async () => {} }))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
-vi.mock('./models.ts', () => ({ openModels: vi.fn() }))
+vi.mock('../models.ts', () => ({ openModels: vi.fn() }))
 vi.mock('./service/index.ts', () => ({ openService: vi.fn() }))
 vi.mock('./sign-in.ts', () => ({ signIn: vi.fn() }))
 vi.mock('./tailnet.ts', () => ({ publish: vi.fn() }))

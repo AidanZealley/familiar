@@ -2,17 +2,20 @@ import { execFileSync } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { rename, signIn, status, uninstall, update } from './manage.ts'
-import { ensureDataDir, resolvePaths } from './paths.ts'
+import { ensureDataDir, resolvePaths } from '../paths.ts'
 import { openService } from './service/index.ts'
-import { readSettings, saveSettings } from './settings.ts'
+import { readSettings, saveSettings } from '../settings.ts'
 import { signIn as login } from './sign-in.ts'
 import { publishedUrl, unpublish } from './tailnet.ts'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
-vi.mock('./paths.ts', () => ({ ensureDataDir: vi.fn(), resolvePaths: vi.fn() }))
+vi.mock('../paths.ts', () => ({
+  ensureDataDir: vi.fn(),
+  resolvePaths: vi.fn(),
+}))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
 vi.mock('./service/index.ts', () => ({ openService: vi.fn() }))
-vi.mock('./settings.ts', () => ({
+vi.mock('../settings.ts', () => ({
   readSettings: vi.fn(),
   saveSettings: vi.fn(),
 }))

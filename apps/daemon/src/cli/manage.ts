@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { basename, dirname, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
-import { ensureDataDir, resolvePaths } from './paths.ts'
+import { ensureDataDir, resolvePaths } from '../paths.ts'
 import { openService } from './service/index.ts'
-import { readSettings, saveSettings } from './settings.ts'
+import { readSettings, saveSettings } from '../settings.ts'
 import { publishedUrl, unpublish } from './tailnet.ts'
 
 export function logs() {

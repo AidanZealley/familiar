@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-const cli = join(import.meta.dirname, 'cli.ts')
+const cli = join(import.meta.dirname, '../cli.ts')
 
 test('help and invalid commands do not create private storage', () => {
   const temporary = mkdtempSync(join(tmpdir(), 'familiar-cli-'))

@@ -8,7 +8,7 @@ import {
 } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { dirname, resolve } from 'node:path'
-import { resolvePaths } from '../paths.ts'
+import { resolvePaths } from '../../paths.ts'
 
 type ServiceOptions = {
   dataDir: string

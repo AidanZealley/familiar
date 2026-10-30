@@ -2,16 +2,16 @@ import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
 import type { AuthInteraction } from '@earendil-works/pi-ai'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { openModels } from './models.ts'
+import { openModels } from '../models.ts'
 import { signIn } from './sign-in.ts'
 
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
-vi.mock('./config.ts', () => ({
+vi.mock('../config.ts', () => ({
   config: { name: 'Familiar', model: { provider: 'openai', modelId: 'test' } },
   deviceId: vi.fn(),
 }))
-vi.mock('./models.ts', () => ({ openModels: vi.fn() }))
+vi.mock('../models.ts', () => ({ openModels: vi.fn() }))
 const terminal = { question: vi.fn(), close: vi.fn() }
 const login = vi.fn(
   async (_provider: string, _type: string, interaction: AuthInteraction) => {

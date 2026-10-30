@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { setTimeout } from 'node:timers/promises'
-import { ensureDataDir, resolvePaths } from './paths.ts'
+import { ensureDataDir, resolvePaths } from '../paths.ts'
 import { openService } from './service/index.ts'
-import { readSettings, saveSettings } from './settings.ts'
+import { readSettings, saveSettings } from '../settings.ts'
 import { publish } from './tailnet.ts'
 
 export async function setup() {
@@ -39,7 +39,7 @@ export async function setup() {
 
   // Pi's presence check does not rotate tokens. Only the running daemon
   // refreshes them, so setup cannot race its in-memory credential store.
-  const { openModels } = await import('./models.ts')
+  const { openModels } = await import('../models.ts')
   if ((await openModels().checkAuth('openai'))?.type === 'oauth') {
     console.log(
       'ChatGPT login is already saved. Familiar refreshes it when needed.',

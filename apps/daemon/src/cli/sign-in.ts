@@ -3,8 +3,8 @@
 
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
-import { config, deviceId } from './config.ts'
-import { openModels } from './models.ts'
+import { config, deviceId } from '../config.ts'
+import { openModels } from '../models.ts'
 
 export async function signIn() {
   const models = openModels()

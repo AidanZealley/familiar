@@ -26,7 +26,7 @@ try {
   if (values.help) {
     console.log(help)
   } else if (positionals.length === 0) {
-    await (await import('./setup.ts')).setup()
+    await (await import('./cli/setup.ts')).setup()
   } else if (positionals.length > (positionals[0] === 'rename' ? 2 : 1)) {
     throw new Error(
       'Only rename accepts an optional name. Run familiar --help for usage.',
@@ -34,25 +34,25 @@ try {
   } else {
     switch (positionals[0]) {
       case 'status':
-        ;(await import('./manage.ts')).status()
+        ;(await import('./cli/manage.ts')).status()
         break
       case 'rename':
-        await (await import('./manage.ts')).rename(positionals[1])
+        await (await import('./cli/manage.ts')).rename(positionals[1])
         break
       case 'logs':
-        ;(await import('./manage.ts')).logs()
+        ;(await import('./cli/manage.ts')).logs()
         break
       case 'update':
-        await (await import('./manage.ts')).update()
+        await (await import('./cli/manage.ts')).update()
         break
       case 'uninstall':
-        ;(await import('./manage.ts')).uninstall()
+        ;(await import('./cli/manage.ts')).uninstall()
         break
       case 'serve':
         await (await import('./daemon.ts')).serve()
         break
       case 'sign-in':
-        await (await import('./manage.ts')).signIn()
+        await (await import('./cli/manage.ts')).signIn()
         break
       default:
         throw new Error(
