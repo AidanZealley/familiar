@@ -1,7 +1,6 @@
 import { chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, resolve } from 'node:path'
-import { protectWindowsDirectory } from './windows-powershell.ts'
 
 type PathOptions = {
   env?: NodeJS.ProcessEnv
@@ -55,9 +54,7 @@ export function resolvePaths({
 /** Both setup and the daemon create private storage through this boundary. */
 export function ensureDataDir(dataDir: string) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
-  if (process.platform === 'win32') {
-    protectWindowsDirectory(dataDir)
-  } else {
-    chmodSync(dataDir, 0o700)
-  }
+  // Windows ignores mode bits. The default location inherits the user profile's
+  // permissions, and rewriting them can need privileges a normal user lacks.
+  chmodSync(dataDir, 0o700)
 }
