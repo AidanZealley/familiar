@@ -6,34 +6,17 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
 import { resolve } from 'node:path'
+import { resolvePaths } from './paths.ts'
+import { readSettings } from './settings.ts'
 
-const root = resolve(import.meta.dirname, '../../..')
-
-// Outside the repo, so nothing private can be committed, and deleting or
-// re-cloning the code never loses the assistant. The XDG default on Linux.
-const defaultDataDir = resolve(
-  process.env.XDG_DATA_HOME ?? resolve(homedir(), '.local/share'),
-  'familiar',
-)
+const paths = resolvePaths()
 
 export const config = {
-  dataDir: resolve(process.env.FAMILIAR_DATA_DIR ?? defaultDataDir),
-  webDir: resolve(root, 'apps/web/dist'),
+  ...paths,
+  ...readSettings(paths.dataDir),
   host: process.env.FAMILIAR_HOST ?? '127.0.0.1',
-  port: Number(process.env.FAMILIAR_PORT ?? 4317),
-  name: process.env.FAMILIAR_NAME ?? 'Familiar',
-  model: {
-    provider: 'openai',
-    modelId: process.env.FAMILIAR_MODEL ?? 'gpt-6.1-sol',
-  },
-  /** Who the daemon's one user is. The network (Tailscale) is the auth. */
-  owner: process.env.FAMILIAR_OWNER ?? 'owner',
-  /**
-   * Sent to push services (Apple, Google, Mozilla) with each notification, so
-   * they can reach whoever runs this sender. A mailto: or https: URL.
-   */
+  /** Sent to push services so they can contact the installation's owner. */
   pushContact:
     process.env.FAMILIAR_PUSH_CONTACT ?? 'mailto:familiar@example.com',
 }

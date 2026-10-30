@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/main.ts",
+    "dev": "node --watch src/cli.ts serve",
     "dev:demo": "node --watch src/demo/main.ts",
-    "start": "node src/main.ts",
-    "sign-in": "node src/sign-in.ts",
+    "start": "node src/cli.ts serve",
+    "sign-in": "node src/cli.ts sign-in",
     "eval:memory": "node src/memory-eval/main.ts",
     "eval:memory:rejudge": "node src/memory-eval/rejudge.ts",
     "eval:recall": "node src/memory-eval/recall-main.ts",

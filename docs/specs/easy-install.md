@@ -23,19 +23,21 @@ Known decisions:
 - **Remote access is Tailscale or nothing.** The daemon has no auth of its own: the network is the auth (README Rules), so it only ever listens on `127.0.0.1`. Setup publishes it with `tailscale serve` when Tailscale is installed, which also gives the HTTPS the home-screen app and push need. Setup never binds a public address. Built-in auth is out of scope.
 - **The conversation file is the unit of portability.** Everything a Familiar is (conversation, facts, history, episodes, durable tasks) is in `familiar.sqlite`. Export is a consistent snapshot of that file; the login stays behind (step 6).
 
-Do the steps in order and commit each separately. Steps 1–4 alone give a one-command install on Linux and VPSs.
+Do the steps in order and commit each separately. Steps 1–5 give a one-command install on Linux and VPSs. Validate that milestone before adding macOS and Windows service support.
 
 ## 1. The `familiar` command
 
 All of it lives in `apps/daemon`. Give each responsibility one owner:
 
 - `src/cli.ts`: the `familiar` entry point. Parses the subcommand and calls one function; holds no logic of its own.
-- `src/paths.ts`: where things live on this platform, the only place that decides. Data directory: `$FAMILIAR_DATA_DIR`, else `$XDG_DATA_HOME/familiar` or `~/.local/share/familiar` on Linux, `~/Library/Application Support/Familiar` on macOS, `%LOCALAPPDATA%\Familiar` on Windows. The web UI directory, relative to the running code, so it works both unbuilt in the repo and bundled.
+- `src/paths.ts`: where things live on this platform, the only place that decides. Data directory: `$FAMILIAR_DATA_DIR`, else `$XDG_DATA_HOME/familiar` or `~/.local/share/familiar` on Linux, `~/Library/Application Support/Familiar` on macOS, `%LOCALAPPDATA%\Familiar` on Windows. Keep an existing installation in its earlier XDG location on macOS or Windows unless the owner explicitly sets `FAMILIAR_DATA_DIR`. The web UI directory is relative to the running code, so it works both unbuilt in the repo and bundled.
 - `src/settings.ts`: reads `settings.json` in the data directory (name, owner, model, port), which setup writes. Environment variables override it, so the demo, the eval and development keep working unchanged. This replaces `config.ts`'s environment-only settings, which the service never sees.
 
 `main.ts` becomes `familiar serve`; `sign-in.ts` becomes `familiar sign-in`.
 
 Done when `node apps/daemon/src/cli.ts serve` runs the daemon, the pnpm scripts call the CLI, and every existing test passes.
+
+Step 1 is implemented. The CLI dispatches `serve` and `sign-in`; no command shows help until guided setup is added in step 3. Existing service units can still run `main.ts`. Tests cover settings, platform paths and CLI startup with temporary SQLite storage.
 
 ## 2. The release package
 
