@@ -11,20 +11,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* The shared scroller hides its thumb while auto-scrolling. Keep chat's
-   scrollbar steady between streaming updates, using native browser styling. */
-.chat-viewport[data-slot='message-scroller-viewport'] {
-  overflow-y: scroll;
-  scrollbar-gutter: stable;
-  scrollbar-width: auto;
-  scrollbar-color: auto;
-  color-scheme: light;
-}
-
-.dark .chat-viewport {
-  color-scheme: dark;
-}
-
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
