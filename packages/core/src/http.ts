@@ -8,6 +8,7 @@ import { Hono, type TypedResponse } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { validator } from 'hono/validator'
 import type { HistoryPage } from './conversation/index.ts'
+import { modelRoutes } from './conversation/http.ts'
 import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
@@ -25,9 +26,11 @@ import { scheduleRoutes } from './schedules/http.ts'
 export type {
   MESSAGE_KIND,
   MessageData,
+  ModelOption,
   SCHEDULED_KIND,
   ScheduledData,
 } from './conversation/index.ts'
+export type { AgentState } from '@earendil-works/pi-durable'
 export type { Schedule, SchedulesState } from './schedules/index.ts'
 export type { PushHost, PushSubscriptionJson } from './push.ts'
 export type { McpConnectionInfo, McpServer } from './mcp/index.ts'
@@ -210,6 +213,7 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
         await familiar.abort()
         return c.body(null, 202)
       })
+      .route('/model', modelRoutes(familiar))
       .route('/memory', memoryRoutes(familiar.memory))
       .route('/schedules', scheduleRoutes(familiar.schedules))
       .route('/push', pushRoutes(options.push))

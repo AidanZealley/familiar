@@ -10,7 +10,10 @@ import {
 } from '@earendil-works/pi-durable'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
+  findChatModel,
   installConversation,
+  modelKey,
+  type ChatModel,
   type ConversationApi,
 } from './conversation/index.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
@@ -32,7 +35,13 @@ import {
 import { TimeExtension } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
-export type { HistoryPage, Message } from './conversation/index.ts'
+export {
+  ModelError,
+  type ChatModel,
+  type HistoryPage,
+  type Message,
+  type ModelOption,
+} from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
 export type { McpApi, McpConnectionInfo, McpStdioFactory } from './mcp/types.ts'
 export type { McpServer, McpStdioTransport } from './mcp/servers.ts'
@@ -55,7 +64,17 @@ export type { UsageState as Usage } from '@earendil-works/pi-durable'
 export type FamiliarOptions = {
   storage: Storage
   models: Models
+  /**
+   * What memory upkeep runs on, at its level in `chatModels`, and what the
+   * conversation starts on until the owner picks another.
+   */
   model: ModelRef
+  /**
+   * The models the owner may switch the conversation between, each with the
+   * level it starts on. Must include `model`. Default: only `model`, at
+   * medium.
+   */
+  chatModels?: readonly ChatModel[]
   name?: string
   /** Everything beyond core: tools, sections and hooks, with their secrets. */
   plugins?: readonly FamiliarPlugin[]
@@ -119,13 +138,20 @@ export async function summonFamiliar(
   const context = BACKGROUND_CONTEXT
   const name = options.name ?? 'Familiar'
   const budget = options.contextBudget ?? DEFAULT_CONTEXT_BUDGET
+  const chatModels = options.chatModels ?? [
+    { model: options.model, thinkingLevel: 'medium' },
+  ]
+  const model = findChatModel(chatModels, options.model)
+  if (!model) {
+    throw new Error(`${modelKey(options.model)} must be one of chatModels.`)
+  }
 
   // Extensions can be installed after opening: nothing runs until resume().
   const registry = createRegistry()
 
   const harness = await Harness.open(
     options.storage,
-    harnessOptions(options, registry, budget),
+    harnessOptions({ ...options, chatModels }, registry, budget),
     context,
   )
 
@@ -133,6 +159,7 @@ export async function summonFamiliar(
   const memory = createMemory(harness, {
     now: options.now ?? Date.now,
     model: options.model,
+    thinkingLevel: model.thinkingLevel,
     name,
     transcriptTokens: Math.floor(budget / 2),
   })
@@ -160,7 +187,11 @@ export async function summonFamiliar(
     registry.install(extension)
   }
 
-  const conversation = await installConversation(harness, options.model)
+  const conversation = await installConversation(harness, {
+    models: options.models,
+    model: options.model,
+    chatModels,
+  })
   const memoryActions = await memory.start()
   const scheduleActions = await schedules.start(harness)
   const mcp = await createMcp(harness, registry, {

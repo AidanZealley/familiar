@@ -13,7 +13,7 @@ export const ReplyText = (props: ReplyTextProps) => (
   <Suspense
     // Until then, the text as written: readable, and close to its final shape.
     fallback={
-      <p className="min-w-0 text-base leading-relaxed whitespace-pre-wrap">
+      <p className="min-w-0 text-sm leading-relaxed whitespace-pre-wrap">
         {props.text}
       </p>
     }

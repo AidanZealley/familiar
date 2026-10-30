@@ -123,7 +123,7 @@ export const ConnectionDetail = ({
           {status.label}
         </p>
         {connection.kind === 'mcp' && connection.status.type === 'failed' && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 font-mono text-xs break-words text-destructive">
+          <p className="bg-destructive/10 px-3 py-2 font-mono text-xs break-words text-destructive">
             {connection.status.error}
           </p>
         )}

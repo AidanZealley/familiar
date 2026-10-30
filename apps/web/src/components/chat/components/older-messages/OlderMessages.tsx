@@ -38,7 +38,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         role="status"
         className={cn(
           floating,
-          'flex items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-muted-foreground',
+          'flex items-center gap-1.5 border bg-background px-3 py-1 text-muted-foreground',
         )}
       >
         <LoaderCircleIcon className="size-3.5 animate-spin" />

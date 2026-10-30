@@ -10,7 +10,10 @@ export type {
   McpConnectionInfo,
   McpServer,
   MemoryHealth,
+  ModelOption,
   PushSubscriptionJson,
   Schedule,
   SchedulesState,
 } from '@familiar/core/http'
+export type { ModelThinkingLevel } from '@earendil-works/pi-ai'
+export type { ModelRef } from '@earendil-works/pi-durable'

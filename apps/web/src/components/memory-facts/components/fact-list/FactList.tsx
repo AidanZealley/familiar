@@ -19,7 +19,7 @@ export const FactList = ({
           </h2>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
           <Icon className="size-[1.125rem]" />
         </span>
       </header>

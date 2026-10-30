@@ -1,5 +1,11 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
-import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
+import type {
+  AgentState,
+  ConversationView,
+  EntryRecord,
+  ModelRef,
+} from '@earendil-works/pi-durable'
 import type {
   Connection as ConnectionKey,
   ConnectionInfo,
@@ -8,6 +14,7 @@ import type {
   HttpApi,
   McpServer,
   MemoryHealth,
+  ModelOption,
   PushSubscriptionJson,
   StreamEvent,
 } from '@familiar/core/http'
@@ -47,6 +54,11 @@ export type FamiliarState = MirroredDocuments & {
   loadOlder(): Promise<boolean>
   send(text: string): Promise<void>
   abort(): Promise<void>
+  /** The models the conversation may switch to; `agentOf` says which it's on. */
+  modelOptions(): Promise<ModelOption[]>
+  setModel(model: ModelRef): Promise<void>
+  /** Changes the current model's level, remembered for that model. */
+  setThinkingLevel(level: ModelThinkingLevel): Promise<void>
   reviseFact(id: string, text: string): Promise<void>
   retireFact(id: string): Promise<void>
   setFactPinned(id: string, pinned: boolean): Promise<void>
@@ -144,6 +156,16 @@ export function createFamiliarStore(baseUrl: string) {
     send: (text) =>
       succeed(api.messages.$post({ json: { text, requestId: randomId() } })),
     abort: () => succeed(api.abort.$post()),
+    modelOptions: async () => {
+      const response = await api.model.options.$get()
+      if (!response.ok) {
+        throw await failed(response)
+      }
+      return response.json()
+    },
+    setModel: (model) => succeed(api.model.$put({ json: model })),
+    setThinkingLevel: (level) =>
+      succeed(api.model['thinking-level'].$put({ json: { level } })),
     reviseFact: (id, text) =>
       succeed(api.memory[':id'].$put({ param: { id }, json: { text } })),
     retireFact: (id) =>
@@ -247,6 +269,10 @@ const failed = async (response: Response) => {
       : `${response.url} failed: ${response.status} ${response.statusText}`,
   )
 }
+
+/** The conversation's model and reasoning level, as Pi stores them. */
+export const agentOf = (view: ConversationView | undefined) =>
+  view?.docs['pi.agent'] as AgentState | undefined
 
 /**
  * The oldest entry in a view. A view opens with its head marker, such as a

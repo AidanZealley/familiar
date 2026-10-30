@@ -1,13 +1,26 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import type {
-  ConversationWatch,
-  Cursor,
-  EntryId,
-  EntryRecord,
-  Harness,
-  ModelRef,
+import type { Models, ModelThinkingLevel } from '@earendil-works/pi-ai'
+import {
+  AgentDoc,
+  configure,
+  type ConversationWatch,
+  type Cursor,
+  type EntryId,
+  type EntryRecord,
+  type Harness,
+  type ModelRef,
 } from '@earendil-works/pi-durable'
 import { MESSAGE_KIND } from './message.ts'
+import {
+  findChatModel,
+  ModelError,
+  modelKey,
+  modelOptions,
+  ThinkingLevels,
+  type ChatModel,
+  type ModelOption,
+  type ThinkingLevelsState,
+} from './models.ts'
 
 /** One message from a person. Hosts authenticate; Familiar only records who spoke. */
 export type Message = {
@@ -33,17 +46,61 @@ export type ConversationApi = {
    * older ones exist.
    */
   history(before: EntryId, limit: number): Promise<HistoryPage>
+  /**
+   * The models the conversation may switch to. Which it's on, and at what
+   * level, is the view's `pi.agent` document.
+   */
+  models(): ModelOption[]
+  /**
+   * Switch to one of `models()`, on the level last picked for it, else its
+   * default. Throws a ModelError for any other model.
+   */
+  setModel(model: ModelRef): Promise<void>
+  /**
+   * Change the current model's reasoning level, remembered for that model.
+   * Throws a ModelError for a level it doesn't support.
+   */
+  setThinkingLevel(level: ModelThinkingLevel): Promise<void>
+}
+
+export type ConversationOptions = {
+  models: Models
+  /** What a new conversation starts on, and what it falls back to. */
+  model: ModelRef
+  chatModels: readonly ChatModel[]
 }
 
 const context = BACKGROUND_CONTEXT
 
+/** `chatModel`'s level: the one last picked for it, else its default. */
+const levelOf = (levels: ThinkingLevelsState, chatModel: ChatModel) =>
+  levels[modelKey(chatModel.model)] ?? chatModel.thinkingLevel
+
 export async function installConversation(
   harness: Harness,
-  model: ModelRef,
+  { models, model, chatModels }: ConversationOptions,
 ): Promise<ConversationApi> {
-  const conversation = await harness.root(context, { agent: { model } })
-  // A configured model wins over the one the conversation was created with.
-  await conversation.configure({ model }, context)
+  // Every chat model resolved once, so a catalog missing one fails at startup.
+  const options = modelOptions(models, chatModels)
+  const fallback = findChatModel(options, model)
+  if (!fallback) {
+    throw new Error(`${modelKey(model)} must be one of the chat models.`)
+  }
+
+  const conversation = await harness.root(context)
+  // The conversation owns its model and level. A new one, or one whose model
+  // is no longer offered, starts on the fallback.
+  await conversation.commit(async (tx) => {
+    const agent = await tx.doc(AgentDoc, conversation.id)
+    const levels = await tx.doc(ThinkingLevels)
+    const kept = findChatModel(options, agent.model)
+    const chosen = kept ?? fallback
+    await configure(tx, conversation.id, {
+      model: chosen.model,
+      thinkingLevel: (kept && agent.thinkingLevel) ?? levelOf(levels, chosen),
+    })
+  }, context)
+
   return {
     send: async ({ author, text, requestId }) => {
       await conversation.submit(
@@ -84,6 +141,34 @@ export async function installConversation(
         entries: entries.slice(0, limit),
         more: entries.length > limit,
       }
+    },
+    models: () => options,
+    setModel: async (model) => {
+      const chosen = findChatModel(options, model)
+      if (!chosen) {
+        throw new ModelError(`${modelKey(model)} is not a chat model.`)
+      }
+      await conversation.commit(async (tx) => {
+        const levels = await tx.doc(ThinkingLevels)
+        await configure(tx, conversation.id, {
+          model: chosen.model,
+          thinkingLevel: levelOf(levels, chosen),
+        })
+      }, context)
+    },
+    setThinkingLevel: async (level) => {
+      await conversation.commit(async (tx) => {
+        // Reads before writes: a transaction cannot read tables after writing.
+        const agent = await tx.doc(AgentDoc, conversation.id)
+        const levels = await tx.doc(ThinkingLevels)
+        // Startup always leaves the conversation on a chat model.
+        const current = findChatModel(options, agent.model)!
+        if (!current.thinkingLevels.includes(level)) {
+          throw new ModelError(`${current.name} has no ${level} reasoning.`)
+        }
+        levels[modelKey(current.model)] = level
+        await configure(tx, conversation.id, { thinkingLevel: level })
+      }, context)
     },
   }
 }

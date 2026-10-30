@@ -85,7 +85,7 @@ Both use your real conversation and memory. For UI work that shouldn't, use the 
 pnpm dev:demo
 ```
 
-It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. A word in your message picks what it does:
+It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. Its two scripted models answer alike, so the model picker has a choice. A word in your message picks what it does:
 
 | Word      | Familiar                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------- |
@@ -107,7 +107,7 @@ New scenarios belong beside the existing ones and are registered explicitly in `
 
 | Variable                | Default                       |                                                           |
 | ----------------------- | ----------------------------- | --------------------------------------------------------- |
-| `FAMILIAR_MODEL`        | `gpt-6.1-sol`                 | Any OpenAI model in pi-ai's catalog                       |
+| `FAMILIAR_MODEL`        | `gpt-6.1-sol`                 | Memory upkeep's model, and the chat's first; see below    |
 | `FAMILIAR_NAME`         | `Familiar`                    | What the assistant calls itself                           |
 | `FAMILIAR_OWNER`        | `owner`                       | The author recorded for your messages                     |
 | `FAMILIAR_PORT`         | `4317`                        |                                                           |
@@ -115,6 +115,8 @@ New scenarios belong beside the existing ones and are registered explicitly in `
 | `FAMILIAR_DATA_DIR`     | `~/.local/share/familiar`     | Or `$XDG_DATA_HOME/familiar`                              |
 | `FAMILIAR_PUSH_CONTACT` | `mailto:familiar@example.com` | Sent to push services with notifications                  |
 | `FAMILIAR_PLUGINS`      | (none)                        | Extra plugins, comma-separated packages or absolute paths |
+
+The chat's model and reasoning level are picked in the composer, saved with the conversation and shared by every device. The models offered, and the level each starts on, are `chatModels` in `apps/daemon/src/config.ts`; `FAMILIAR_MODEL` must be one of them. It sets the chat's model only until one is picked, and the level a model was last set to is kept for when you switch back. Memory upkeep always runs on `FAMILIAR_MODEL` at its default level.
 
 The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog: their API changes without notice between releases.
 

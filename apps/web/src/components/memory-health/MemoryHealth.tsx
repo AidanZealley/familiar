@@ -20,7 +20,7 @@ export const MemoryHealth = ({ health }: MemoryHealthProps) => {
       </HealthTile>
       <HealthTile label="Core" value={`${Math.round(share * 100)}%`}>
         <div
-          className="h-2 rounded-full bg-primary/15"
+          className="h-2 bg-primary/15"
           role="meter"
           aria-valuemin={0}
           aria-valuemax={CORE_BUDGET}
@@ -30,8 +30,8 @@ export const MemoryHealth = ({ health }: MemoryHealthProps) => {
           <div
             className={
               status.core === 'warning'
-                ? 'h-full rounded-full bg-amber-500'
-                : 'h-full rounded-full bg-primary'
+                ? 'h-full bg-amber-500'
+                : 'h-full bg-primary'
             }
             style={{ width: `${share * 100}%` }}
           />

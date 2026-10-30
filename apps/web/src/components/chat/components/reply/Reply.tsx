@@ -12,7 +12,7 @@ export const Reply = ({ reply }: ReplyProps) => {
     reply.streaming && !reply.text && reply.toolCalls.length === 0
 
   return (
-    <Message className="text-base">
+    <Message className="text-sm">
       <MessageContent>
         {(reply.thinking || thinking) && (
           <Thinking text={reply.thinking} active={thinking} />

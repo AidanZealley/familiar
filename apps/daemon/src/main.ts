@@ -18,6 +18,7 @@ const familiar = await summonFamiliar({
   storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),
   models: openModels(),
   model: config.model,
+  chatModels: config.chatModels,
   name: config.name,
   notify: push.notify,
   plugins: await loadPlugins(),
