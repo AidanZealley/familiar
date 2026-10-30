@@ -37,9 +37,9 @@ function read(
       : {
           type,
           command: text('command'),
-          args: text('args')
-            .split('\n')
-            .flatMap((arg) => arg.trim() || []),
+          args: String(form.get('args') ?? '')
+            .split(/\r?\n/)
+            .filter((arg) => arg !== ''),
         }
   const errors: Errors = {}
   if (!/^[a-z][a-z0-9-]{0,31}$/.test(name)) {

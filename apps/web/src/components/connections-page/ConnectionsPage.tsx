@@ -21,6 +21,10 @@ export const ConnectionsPage = () => {
   const connections = route.useLoaderData()
   const { id, q = '' } = route.useSearch()
   const [drawer, setDrawer] = useState<DrawerState>()
+  const editing =
+    drawer?.type === 'edit'
+      ? connections.find((connection) => idOf(connection) === drawer.id)
+      : undefined
 
   const sorted = connections.toSorted(
     (a, b) =>
@@ -56,7 +60,7 @@ export const ConnectionsPage = () => {
           key={idOf(selected)}
           className={cn(!id && 'max-md:hidden')}
           connection={selected}
-          onEdit={() => setDrawer({ type: 'edit' })}
+          onEdit={() => setDrawer({ type: 'edit', id: idOf(selected) })}
         />
       ) : (
         <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground max-md:hidden">
@@ -74,20 +78,23 @@ export const ConnectionsPage = () => {
             await navigate({ search: { id: `mcp:${name}` } })
             // A token that failed to save leaves it waiting for one: ask again.
             setDrawer(
-              tokenError ? { type: 'edit', error: tokenError } : undefined,
+              tokenError
+                ? { type: 'edit', id: `mcp:${name}`, error: tokenError }
+                : undefined,
             )
           }}
         />
       </ConnectionDrawer>
-      {selected && (
+      {editing && (
         <ConnectionDrawer
+          key={idOf(editing)}
           open={drawer?.type === 'edit'}
           onClose={() => setDrawer(undefined)}
-          title={`Edit ${selected.title}`}
+          title={`Edit ${editing.title}`}
           description="Saved keys are never shown. Enter a new one to replace it."
         >
           <CredentialsForm
-            connection={selected}
+            connection={editing}
             error={drawer?.type === 'edit' ? drawer.error : undefined}
             onDone={() => setDrawer(undefined)}
           />
