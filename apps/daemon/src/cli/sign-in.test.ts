@@ -47,13 +47,26 @@ test('headless sign-in prints browser instructions without launching one', async
   expect(terminal.close).toHaveBeenCalled()
 })
 
-test('desktop sign-in opens the browser and keeps the manual prompt available', async () => {
-  vi.stubEnv('DISPLAY', ':0')
-  await signIn()
-  expect(spawn).toHaveBeenCalledWith(
-    'xdg-open',
-    ['https://example.com/login'],
-    { detached: true, stdio: 'ignore' },
-  )
-  expect(terminal.question).toHaveBeenCalled()
-})
+test.each([
+  ['linux', 'xdg-open', ['https://example.com/login']],
+  ['darwin', 'open', ['https://example.com/login']],
+  [
+    'win32',
+    'rundll32.exe',
+    ['url.dll,FileProtocolHandler', 'https://example.com/login'],
+  ],
+])(
+  'desktop sign-in opens the %s browser and keeps the manual prompt available',
+  async (platform, command, args) => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue(
+      platform as NodeJS.Platform,
+    )
+    vi.stubEnv('DISPLAY', ':0')
+    await signIn()
+    expect(spawn).toHaveBeenCalledWith(command, args, {
+      detached: true,
+      stdio: 'ignore',
+    })
+    expect(terminal.question).toHaveBeenCalled()
+  },
+)

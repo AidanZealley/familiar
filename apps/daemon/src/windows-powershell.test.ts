@@ -5,6 +5,7 @@ import { powershell, protectWindowsDirectory } from './windows-powershell.ts'
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn(() => '') }))
 afterEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllEnvs()
 })
 
 test('Windows commands use encoded Unicode scripts with literal paths and no profiles', () => {
@@ -24,4 +25,13 @@ test('log following inherits terminal output without a command timeout', () => {
     stdio: 'inherit',
     timeout: undefined,
   })
+})
+
+test('Windows PowerShell does not inherit incompatible PowerShell 7 module paths', () => {
+  vi.stubEnv('PSModulePath', 'C:\\Program Files\\PowerShell\\7\\Modules')
+  vi.stubEnv('FAMILIAR_TEST_ENV', 'preserved')
+  powershell('Get-Acl .')
+  const options = vi.mocked(execFileSync).mock.calls[0][2]
+  expect(options?.env).not.toHaveProperty('PSModulePath')
+  expect(options?.env).toHaveProperty('FAMILIAR_TEST_ENV', 'preserved')
 })

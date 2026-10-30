@@ -239,15 +239,27 @@ $xml = $xml.Replace('${userId}', [Security.Principal.WindowsIdentity]::GetCurren
 $service = New-Object -ComObject Schedule.Service; $service.Connect();
 $definition = $service.NewTask(0); $definition.XmlText = $xml;
 `
+    const file = resolve(temporary, 'validate.ps1')
+    writeFileSync(file, '\ufeff' + source)
     native.execFileSync(
       'powershell.exe',
       [
         '-NoProfile',
         '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(source, 'utf16le').toString('base64'),
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        file,
       ],
-      { stdio: 'pipe', timeout: 15000 },
+      {
+        stdio: 'pipe',
+        timeout: 15000,
+        env: Object.fromEntries(
+          Object.entries(process.env).filter(
+            ([key]) => key.toLowerCase() !== 'psmodulepath',
+          ),
+        ),
+      },
     )
   },
 )

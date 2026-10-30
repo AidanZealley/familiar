@@ -16,6 +16,12 @@ export function powershell(script: string, follow = false) {
       Buffer.from(command, 'utf16le').toString('base64'),
     ],
     {
+      // PowerShell 7 module paths can break Windows PowerShell's built-in modules.
+      env: Object.fromEntries(
+        Object.entries(process.env).filter(
+          ([key]) => key.toLowerCase() !== 'psmodulepath',
+        ),
+      ),
       encoding: 'utf8',
       windowsHide: true,
       timeout: follow ? undefined : 15000,

@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { rename, signIn, status, uninstall, update } from './manage.ts'
@@ -36,7 +37,12 @@ beforeEach(() => {
   vi.mocked(createInterface).mockReturnValue(terminal as never)
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.mocked(resolvePaths).mockReturnValue({
-    cliPath: '/custom/lib/node_modules/familiar/familiar.js',
+    cliPath: resolve(
+      '/custom',
+      process.platform === 'win32'
+        ? 'node_modules/familiar/familiar.js'
+        : 'lib/node_modules/familiar/familiar.js',
+    ),
     dataDir: '/private/data',
     webDir: '/web',
     workDir: '/app',
@@ -67,7 +73,7 @@ test('update targets this installation prefix while the service is suspended', a
       'install',
       '--global',
       '--prefix',
-      '/custom',
+      resolve('/custom'),
       'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
     ],
     { stdio: 'inherit' },

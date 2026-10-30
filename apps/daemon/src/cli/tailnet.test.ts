@@ -69,15 +69,25 @@ test('missing Tailscale gives installation guidance without breaking local setup
   )
 })
 
-test('permissions produce the operator command and leave local setup usable', () => {
-  vi.mocked(execFileSync).mockImplementation(() => {
-    throw new Error('access denied')
-  })
-  expect(publish(4317)).toBeUndefined()
-  expect(console.log).toHaveBeenCalledWith(
-    expect.stringContaining('sudo tailscale set --operator='),
-  )
-})
+test.each(['linux', 'darwin', 'win32'] as const)(
+  'permissions leave local setup usable on %s',
+  (platform) => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+    vi.mocked(execFileSync).mockImplementation(() => {
+      throw new Error('access denied')
+    })
+    expect(publish(4317)).toBeUndefined()
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Tailscale setup skipped: access denied'),
+    )
+    const operator = expect.stringContaining('sudo tailscale set --operator=')
+    if (platform === 'linux') {
+      expect(console.log).toHaveBeenCalledWith(operator)
+    } else {
+      expect(console.log).not.toHaveBeenCalledWith(operator)
+    }
+  },
+)
 
 test('removal targets only the matching publication, never resets all Serve routes', () => {
   publication = existing()
