@@ -37,6 +37,15 @@ export const Markdown = ({ text, streaming }: MarkdownProps) => {
       plugins={plugins}
       mermaid={mermaidThemes[dark ? 'dark' : 'light']}
       isAnimating={streaming}
+      // Soften token batches without building a noticeable reveal backlog.
+      animated={{
+        animation: 'fadeIn',
+        duration: 200,
+        easing: 'ease-out',
+        sep: 'word',
+        stagger: 12,
+        maxBacklogMs: 120,
+      }}
       // Code blocks keep copy; the download button isn't useful in a chat.
       controls={{ code: { copy: true, download: false }, table: false }}
       lineNumbers={false}
