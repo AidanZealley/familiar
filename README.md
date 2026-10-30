@@ -7,8 +7,8 @@ A personal assistant built on [Pi Durable](https://github.com/earendil-works/pi/
 ```
 packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
-  core/account    The owner's login with the models' provider: device-code
-                  sign-in, sign-out, and noticing when the login stops working.
+  core/account    The owner's login with the models' provider: sign-in from
+                  any device, sign-out, and noticing when the login stops working.
   core/persona    Who Familiar is: the stable start of every prompt.
   core/time       The current_time tool, and how dates are written.
   core/context    Request budget, compaction and stream settings.
@@ -59,7 +59,7 @@ pnpm service:install  # build, then run as a systemd user service
 
 If you sign in on a different device from this machine, the browser's redirect to `127.0.0.1:1455` won't arrive. Paste the URL it ended on into the terminal instead.
 
-Once the service runs, sign in from the web UI instead: whenever Familiar isn't signed in, or its login stops working, the chat offers a device code to enter on ChatGPT from any device, and the new login applies without a restart. Settings signs out. `pnpm sign-in` refuses while the service runs, since the running daemon wouldn't see its login.
+Once the service runs, sign in from the web UI instead: whenever Familiar isn't signed in, or its login stops working, the chat walks you through signing in on ChatGPT from any device, and the new login applies without a restart. ChatGPT's sign-in ends by returning to this machine, so on another device its last page won't load: the chat asks you to paste that page's address, as `pnpm sign-in` does. Settings signs out. `pnpm sign-in` refuses while the service runs, since the running daemon wouldn't see its login.
 
 The service starts at boot (with `loginctl enable-linger`), restarts if it crashes, and serves the API and web UI on `127.0.0.1:4317`. Rerun `pnpm service:install` to deploy changes; `pnpm service:logs` follows its output.
 

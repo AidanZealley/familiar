@@ -20,7 +20,8 @@ packages/core/src
   http.ts            The HTTP + SSE API and every wire type clients use.
   diagnostics.ts     For tools around Familiar (the demo, the eval), not hosts.
   account/           The owner's login with the models' provider, as one state:
-                     device-code sign-in and sign-out through the host's Models,
+                     sign-in (a browser page, or a device code where the
+                     provider issues one) and sign-out through the host's Models,
                      and a hook that rechecks the login when a request fails.
                      http.ts its routes; the state streams on /events.
   persona/           Who Familiar is: the prompt's preamble.
