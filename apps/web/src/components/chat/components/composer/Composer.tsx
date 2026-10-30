@@ -1,16 +1,21 @@
 import { ArrowUpIcon, SquareIcon } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from '@/components/ui/input-group'
 import { familiar } from '@/lib/familiar'
 import type { ComposerProps } from './types'
 
 export const Composer = ({ busy }: ComposerProps) => {
   const [text, setText] = useState('')
   const [error, setError] = useState<string>()
+  const showStop = busy && !text.trim()
 
-  const submit = async (event?: FormEvent) => {
-    event?.preventDefault()
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
     const message = text.trim()
     if (!message) {
       return
@@ -30,10 +35,11 @@ export const Composer = ({ busy }: ComposerProps) => {
     if (
       event.key === 'Enter' &&
       !event.shiftKey &&
-      !event.nativeEvent.isComposing
+      !event.nativeEvent.isComposing &&
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches
     ) {
       event.preventDefault()
-      void submit()
+      event.currentTarget.form?.requestSubmit()
     }
   }
 
@@ -42,36 +48,33 @@ export const Composer = ({ busy }: ComposerProps) => {
       onSubmit={submit}
       className="px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-end gap-2 rounded-xl border bg-card p-2">
-        <Textarea
+      <InputGroup>
+        <InputGroupTextarea
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={onKeyDown}
+          enterKeyHint="enter"
+          aria-label="Message Familiar"
           placeholder="Message Familiar"
           rows={1}
-          className="max-h-48 min-h-9 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+          className="max-h-48 p-3"
         />
-        {busy && !text.trim() ? (
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            aria-label="Stop"
-            onClick={() => void familiar.getState().abort()}
+        <InputGroupAddon align="block-end">
+          <InputGroupButton
+            type={showStop ? 'button' : 'submit'}
+            size="icon-sm"
+            variant={showStop ? 'secondary' : 'default'}
+            className="ml-auto rounded-full"
+            aria-label={showStop ? 'Stop' : 'Send'}
+            disabled={!showStop && !text.trim()}
+            onClick={
+              showStop ? () => void familiar.getState().abort() : undefined
+            }
           >
-            <SquareIcon />
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            size="icon"
-            aria-label="Send"
-            disabled={!text.trim()}
-          >
-            <ArrowUpIcon />
-          </Button>
-        )}
-      </div>
+            {showStop ? <SquareIcon /> : <ArrowUpIcon />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
     </form>
   )
