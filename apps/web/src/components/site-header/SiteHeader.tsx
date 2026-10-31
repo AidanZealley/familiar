@@ -3,6 +3,7 @@ import { cn } from 'cn'
 import {
   AlarmClockIcon,
   CatIcon,
+  CircleAlertIcon,
   LibraryIcon,
   MessageSquareIcon,
   PlugIcon,
@@ -42,11 +43,22 @@ export const SiteHeader = () => {
           {/* In the logo's place, so the header never shifts while it reconnects. */}
           {connection === 'open' ? (
             <CatIcon className="size-5" />
-          ) : (
+          ) : connection === 'connecting' || connection === 'reconnecting' ? (
             <Spinner
               className="size-5"
               aria-label={
                 connection === 'connecting' ? 'Connecting' : 'Reconnecting'
+              }
+            />
+          ) : (
+            // The stream has stopped retrying; reloading starts a new one.
+            <CircleAlertIcon
+              role="img"
+              className="size-5 text-destructive"
+              aria-label={
+                connection === 'unauthorized'
+                  ? 'Not authorised. Reload to try again.'
+                  : 'Connection failed. Reload to try again.'
               }
             />
           )}
