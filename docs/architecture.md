@@ -9,7 +9,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
   core/account    Optional sign-in to the models' provider: sign-in from any
                   device, sign-out, and noticing when the login stops working.
-  core/persona    Who Familiar is: the stable start of every prompt.
+  core/persona    Who Familiar is: the host's persona or a default, at the
+                  stable start of every prompt.
   core/time       The owner's time zone: current_time, and every conversion
                   between an instant and a calendar day or minute.
   core/context    Request budget, compaction and stream settings.
@@ -29,7 +30,8 @@ packages/cloudflare  DurableFamiliar: one Familiar in one SQLite Durable Object,
                   with its alarm and termination. Workers only.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
                   guarded fetch, bounded page-conversion workers and plugin list;
-                  serves the API (and the built web UI).
+                  serves the API (and the built web UI, with a persona that
+                  says what it renders).
 apps/web          Optional chat UI: Vite, TanStack Router, shadcn (Base UI).
 apps/cloudflare   Development Worker: named bots on a scripted model, behind a
                   token, with tests that run it in workerd.
@@ -46,6 +48,7 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 - **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Keys are attached at the request boundary; response bodies and tool output pass through unchanged. A service that echoes a key can expose it. The host owns credential storage.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
 - **Hosts own model credentials.** The host's `Models` holds them and authenticates every request. A host that wants owners to sign in creates an account with `createAccount` and passes it to `summonFamiliar`. Without one, the host keeps the credentials working. See [Model credentials](#model-credentials).
+- **Hosts own the persona.** A host may pass `persona`, the text that says who Familiar is, and it replaces the default completely. Core adds what its own features need after it. See [Persona](#persona).
 - **Hosts own the time zone.** `summonFamiliar` requires `timeZone`, an IANA name. Core reads every calendar in it and never in the process's zone, so one process can run Familiars in different zones. See [Time zones](#time-zones).
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. Workers-only code lives in `packages/cloudflare`, the one package that may import `cloudflare:*` or Pi's Cloudflare modules. ESLint enforces both.
@@ -109,13 +112,15 @@ packages/core/src
                      host's Models, and a hook that rechecks the login when a
                      request fails. http.ts its routes; the state streams on
                      /events.
-  persona/           Who Familiar is: the prompt's preamble.
+  persona/           Who Familiar is: the prompt's preamble, and the default
+                     persona for hosts that don't give one.
   time/              current_time, and every conversion between instants and
                      the owner's calendar, in the host's time zone.
   context/           How much conversation fits in a request; compaction; timeouts;
                      which extensions a conversation gets by default.
-  conversation/      The message format (message.ts) and sending, watching and
-                     paging the conversation (api.ts).
+  conversation/      The message format (message.ts), sending, watching and
+                     paging the conversation (api.ts), and how it works, for
+                     the prompt (extension.ts).
   memory/
     facts.ts         The fact shape, the Facts and MemoryUsage documents and
                      every rule for changing facts. Pure: no model, no Pi
@@ -195,7 +200,7 @@ Read each test file beside its source. They run the real Harness with a scripted
 
 1. The composer calls `store.send()`, which posts to `/api/messages`.
 2. `http.ts` asks the host who sent it, then calls `familiar.send()` (`conversation/api.ts`), which submits it to the conversation.
-3. Pi runs a generation task. The request it builds has the system prompt from every extension's sections (the preamble, core facts) and as much recent conversation as the context budget allows; older conversation has been compacted into a summary.
+3. Pi runs a generation task. The request it builds has the system prompt from every extension's sections (the persona, how the conversation works, core facts) and as much recent conversation as the context budget allows; older conversation has been compacted into a summary.
 4. Memory's `beforeRequest` hook (`extension.ts`) searches facts outside core and the episodes no rollup covers yet (or any on dates the message names) and adds at most 8 as a recall note at the end of this request only, memoised so a retried request sees the same note. In the main conversation the note also gets the best two exchanges between the last entry upkeep reviewed and the start of the view, which nothing else would show until upkeep files them. Hooks can't read the transcript, so `createMemory` (`index.ts`) builds the note, in one transaction so upkeep can't file something between reads.
 5. The model may call a tool, say `recall`, which catches the exchange index up with the transcript and searches facts, episodes and exchanges in three groups; `read_memory` opens what lies behind an ID, down to the original messages. Neither changes facts: nothing said is filed until upkeep runs that night, though automatic recall finds it in the meantime once it leaves the view.
 6. Each commit reaches `/api/events` as operations: the conversation's, and those of any document that changed. The client applies them, `toTranscript()` turns entries into chat items, and React renders them.
@@ -286,6 +291,29 @@ Three rules keep the two in step:
 - Familiar installs the account's response hook itself, so hosts never handle Pi hooks. It marks the login expired when a request fails and the provider rejects the stored token.
 - An account can attach to only one Familiar and cannot attach after closing. Ownership transfers when `summonFamiliar` succeeds. If startup fails, the host keeps the account and can retry or close it.
 - Once attached, the Familiar owns the account. `dismiss()` closes it. That cancels an unfinished sign-in but keeps the stored login, and a login that finishes afterwards changes no state.
+
+## Persona
+
+The persona is the start of every prompt: who Familiar is and how it talks. A host passes it to `summonFamiliar` as one string, used exactly as given. Gatherbot, say, would replace it outright:
+
+```ts
+const familiar = await summonFamiliar({
+  storage,
+  models,
+  model,
+  timeZone,
+  name: 'Gatherbot',
+  persona: `You are Gatherbot, the assistant for one household in Gather. You help them plan meals, chores and events. Be friendly and keep replies short.`,
+})
+```
+
+Leave `persona` out and Familiar uses `defaultPersona(name)`, exported from `@familiar/core`: "You are <name>, a personal assistant", and a tone. It promises nothing about how replies look, because only the host knows what its UI draws. The daemon serves the web UI, which draws KaTeX, Mermaid and images, so it passes `webPersona(name)` from `apps/daemon/src/persona.ts`: the default with a paragraph about those added. The demo does the same. The Cloudflare development Worker serves no UI and passes nothing.
+
+`name` is a separate thing. It titles notifications and tells memory upkeep whose memory it keeps, and core never puts it in a host's persona. A persona that should know its name says it, like Gatherbot's.
+
+Core adds its own instructions after the persona, whatever it says: how the one conversation works, what memory holds and how to search it, what a scheduled prompt is, and every tool. A host's persona doesn't repeat them.
+
+The persona is read once when the Familiar opens. A section that changed between requests would resend the prompt and lose the provider's cache, so changing it means reopening.
 
 ## Time zones
 

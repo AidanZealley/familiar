@@ -17,6 +17,7 @@ import {
 } from './account/index.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
+  conversationExtension,
   findChatModel,
   installConversation,
   modelKey,
@@ -24,7 +25,7 @@ import {
   type ConversationApi,
 } from './conversation/index.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
-import { createPersona } from './persona/index.ts'
+import { createPersona, defaultPersona } from './persona/index.ts'
 import { createMcp } from './mcp/manager.ts'
 import type { McpApi, McpStdioFactory } from './mcp/types.ts'
 import {
@@ -57,6 +58,7 @@ export {
   type ModelOption,
 } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
+export { defaultPersona } from './persona/index.ts'
 export type { McpApi, McpConnectionInfo, McpStdioFactory } from './mcp/types.ts'
 export type { McpServer, McpStdioTransport } from './mcp/servers.ts'
 export type { Notification, SchedulesApi } from './schedules/index.ts'
@@ -98,7 +100,21 @@ export type FamiliarOptions = {
    * medium.
    */
   chatModels?: readonly ChatModel[]
+  /**
+   * What this Familiar is called outside the conversation: the title of its
+   * notifications, and the assistant memory upkeep's prompts name. Default
+   * `Familiar`.
+   */
   name?: string
+  /**
+   * Who Familiar is in conversation: its identity, tone and anything the
+   * host's UI can show, such as how replies render. It replaces the default,
+   * `defaultPersona(name)`, completely and is used exactly as given, so
+   * include the name if the model should know it. Core still adds what its
+   * own features need: how the conversation, memory, schedules and tools
+   * work. Read once when the Familiar opens, so the prompt stays cached.
+   */
+  persona?: string
   /**
    * Lets the owner sign in and out of `model`'s provider, and notices when
    * the login stops working. Create it with `createAccount` over these same
@@ -244,7 +260,8 @@ export async function summonFamiliar(
 
     // Plugins last, so core's tools and sections come first.
     const extensions = [
-      createPersona(name),
+      createPersona(options.persona ?? defaultPersona(name)),
+      conversationExtension,
       ...(accountAttachment ? [accountAttachment.extension] : []),
       createTime(options.timeZone),
       ...memory.extensions,
