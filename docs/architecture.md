@@ -57,6 +57,35 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 
 The daemon sends the conversation's committed view once, then each commit's [Chord](https://github.com/earendil-works/pi) operations. Documents such as memory and episodes travel the same way, each under its name. The client applies them with `applyImmutable`, so it mirrors the server exactly and reconnecting just means receiving a fresh view.
 
+### Connecting from another host
+
+`createFamiliarStore(baseUrl, { fetch })` sends every request through the host's `fetch`: API calls, the event stream and each reconnect. The [`eventsource`](https://github.com/EventSource/eventsource) package reads the stream and reconnects. It calls `fetch` again for every attempt, so the host can attach a current credential each time. Without the option, the store uses the platform's `fetch`, and same-origin cookies work as they did with the browser's `EventSource`. `baseUrl` can be relative, like `/api`, or a full URL.
+
+A host that authenticates with a bearer token wraps its own fetch:
+
+```ts
+const familiar = createFamiliarStore('https://familiar.example/api', {
+  fetch: async (input, init) => {
+    // Keeps the method, body, headers and abort signal of the store's request.
+    const request = new Request(input, init)
+    request.headers.set('Authorization', `Bearer ${await getCurrentToken()}`)
+    return fetch(request)
+  },
+})
+```
+
+`getCurrentToken` stands in for the host's own code that returns a valid token, refreshing it first if needed. The store never holds credentials.
+
+`connection` says what the stream is doing:
+
+- `connecting`, then `open` once a full view arrives.
+- `reconnecting` after a network error, a stream that ends, or a 5xx or 429 answer. It retries after the server's `retry` delay, 3 seconds by default. The server sends the view and documents whole again, and history carries over as after compaction.
+- `unauthorized` when the stream is answered 401 or 403, and `failed` for any other answer it can't use, such as a 404. Both stop retrying, so a refused stream doesn't keep hitting the server.
+
+An open stream keeps the credential it started with. A new token takes effect on the next reconnect. When the owner signs out or switches household, or the stream stops as `unauthorized`, the host calls `disconnect()` and creates a new store. `disconnect()` closes the stream and cancels any pending reconnect. If the host's `fetch` is still waiting for a token, its response is thrown away. The store keeps its last state, so a UI can keep showing it until the new store connects.
+
+Commands reject with the server's reason and are never sent again by the store. Retrying a command is up to its caller. A host's `fetch` that refreshes a token and repeats a refused request repeats writes too, such as a sent message. Commands already sent when `disconnect()` runs still settle with their callers.
+
 ## Four Pi ideas first
 
 Familiar is a thin layer over [Pi Durable](../packages/core/node_modules/@earendil-works/pi-durable/README.md). Most of the code is Familiar using these four things, so read their sections of Pi's README before Familiar's code:

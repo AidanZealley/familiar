@@ -19,10 +19,31 @@ import type {
   PushSubscriptionJson,
   StreamEvent,
 } from '@familiar/core/http'
+import { EventSource, type FetchLike } from 'eventsource'
 import { hc } from 'hono/client'
 import { createStore } from 'zustand/vanilla'
 
-export type Connection = 'connecting' | 'open' | 'reconnecting'
+/**
+ * The event stream's state. It goes `open` when a full view arrives.
+ * `reconnecting` follows a network error, a stream that ended, or a 5xx or
+ * 429 answer, and retries after the server's `retry` delay (3 seconds unless
+ * it sets one). Two states stop retrying: `unauthorized` when the stream is
+ * answered 401 or 403, and `failed` for any other answer it can't use, such
+ * as a 404 or a page that isn't an event stream. To recover from either,
+ * disconnect and create a new store.
+ */
+export type Connection =
+  'connecting' | 'open' | 'reconnecting' | 'unauthorized' | 'failed'
+
+export type FamiliarStoreOptions = {
+  /**
+   * Makes every request: each API call, the event stream, and each of the
+   * stream's reconnects, so a host can attach a fresh credential each time.
+   * It gets the URL and an init with the method, body, headers and abort
+   * signal to pass on. Defaults to the platform's `fetch`.
+   */
+  fetch?: typeof fetch
+}
 
 /** The conversation before the view, as far back as it has been loaded. */
 export type History = {
@@ -94,7 +115,11 @@ export type FamiliarState = MirroredDocuments & {
   addMcpServer(server: McpServer): Promise<void>
   removeMcpServer(name: string): Promise<void>
   reconnectMcpServer(name: string): Promise<void>
-  /** Stop streaming. The store keeps its last view. */
+  /**
+   * Closes the stream and cancels any reconnect, including one waiting on the
+   * host's fetch. The store keeps its last state. Commands already sent still
+   * settle with their callers.
+   */
   disconnect(): void
 }
 
@@ -102,11 +127,23 @@ export type FamiliarState = MirroredDocuments & {
  * A live mirror of one Familiar's conversation. Framework-free: use it with
  * `useStore` from zustand in React, or `subscribe` anywhere else.
  *
- * @param baseUrl Where the HTTP API is mounted, e.g. `/api`.
+ * A command that fails rejects with the server's reason and is never sent
+ * again. Only the stream retries, and only by reconnecting.
+ *
+ * @param baseUrl Where the HTTP API is mounted: `/api`, or a full URL.
  */
-export function createFamiliarStore(baseUrl: string) {
-  const api = hc<HttpApi>(baseUrl)
-  const events = new EventSource(`${baseUrl}/events`)
+export function createFamiliarStore(
+  baseUrl: string,
+  options: FamiliarStoreOptions = {},
+) {
+  // Looks the global up on each call, so a later polyfill or stub counts.
+  const fetch: typeof globalThis.fetch =
+    options.fetch ?? ((input, init) => globalThis.fetch(input, init))
+  const listeners = new AbortController()
+  const api = hc<HttpApi>(baseUrl, { fetch })
+  const events = new EventSource(`${baseUrl}/events`, {
+    fetch: (url, init) => connect(fetch, url, init),
+  })
 
   /** Rejects on an error status, which fetch doesn't. */
   const succeed = async (request: Promise<Response>) => {
@@ -239,15 +276,20 @@ export function createFamiliarStore(baseUrl: string) {
       succeed(api.mcp[':name'].$delete({ param: { name } })),
     reconnectMcpServer: (name) =>
       succeed(api.mcp[':name'].reconnect.$post({ param: { name } })),
-    disconnect: () => events.close(),
+    disconnect: () => {
+      listeners.abort()
+      events.close()
+    },
   }))
 
   const on = <E extends StreamEvent['event']>(
     event: E,
     handle: (data: Extract<StreamEvent, { event: E }>['data']) => void,
   ) =>
-    events.addEventListener(event, (message) =>
-      handle(JSON.parse((message as MessageEvent<string>).data)),
+    events.addEventListener(
+      event,
+      (message) => handle(JSON.parse(message.data)),
+      { signal: listeners.signal },
     )
 
   on('view', (view) =>
@@ -270,15 +312,66 @@ export function createFamiliarStore(baseUrl: string) {
       [name]: applyImmutable(state[name] ?? undefined, ops),
     })),
   )
-  // EventSource reconnects by itself; the server answers with a fresh view.
-  events.addEventListener('error', () =>
-    store.setState({ connection: 'reconnecting' }),
+  // EventSource reconnects by itself unless it has closed, and the server
+  // answers each reconnect with a fresh view and documents.
+  events.addEventListener(
+    'error',
+    ({ code }) =>
+      store.setState({
+        connection:
+          events.readyState !== EventSource.CLOSED
+            ? 'reconnecting'
+            : code === 401 || code === 403
+              ? 'unauthorized'
+              : 'failed',
+      }),
+    { signal: listeners.signal },
   )
 
   return store
 }
 
 export type FamiliarStore = ReturnType<typeof createFamiliarStore>
+
+/**
+ * Opens the event stream through the host's fetch. EventSource gives up on
+ * any status but 200, as the spec says, so server errors and rate limits
+ * throw here and it retries them like a dropped connection instead.
+ *
+ * A response that arrives after `disconnect` is dropped here, in case the
+ * host's fetch didn't pass the abort signal on. Piping the returned body
+ * with that signal also cancels its producer if disconnect happens during
+ * the handoff to EventSource or while it is reading.
+ */
+const connect = async (
+  fetch: typeof globalThis.fetch,
+  ...[url, init]: Parameters<FetchLike>
+) => {
+  const response = await fetch(url, init)
+
+  if (init.signal?.aborted) {
+    void response.body?.cancel().catch(() => {})
+    throw init.signal.reason
+  }
+
+  if (response.status >= 500 || response.status === 429) {
+    void response.body?.cancel().catch(() => {})
+    throw new Error(`${url} failed: ${response.status}`)
+  }
+
+  // FetchLike needs only these fields. Preserve redirect metadata while the
+  // platform pipe owns cancellation, even after EventSource locks its reader.
+  return {
+    url: response.url,
+    status: response.status,
+    redirected: response.redirected,
+    headers: response.headers,
+    body:
+      response.body?.pipeThrough(new TransformStream(), {
+        signal: init.signal,
+      }) ?? null,
+  }
+}
 
 /** The server's own message when it sends one, such as why a server was refused. */
 const failed = async (response: Response) => {
