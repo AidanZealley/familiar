@@ -7,8 +7,8 @@ The layout and rules define the package boundaries. The sections that follow exp
 ```
 packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/http       The HTTP + SSE API as a fetch handler. Owns the wire types.
-  core/account    The owner's login with the models' provider: sign-in from
-                  any device, sign-out, and noticing when the login stops working.
+  core/account    Optional sign-in to the models' provider: sign-in from any
+                  device, sign-out, and noticing when the login stops working.
   core/persona    Who Familiar is: the stable start of every prompt.
   core/time       The owner's time zone: current_time, and every conversion
                   between an instant and a calendar day or minute.
@@ -41,6 +41,7 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 - **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. Core assigns its extension name from the plugin name. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
 - **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Keys are attached at the request boundary; response bodies and tool output pass through unchanged. A service that echoes a key can expose it. The host owns credential storage.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
+- **Hosts own model credentials.** The host's `Models` holds them and authenticates every request. A host that wants owners to sign in creates an account with `createAccount` and passes it to `summonFamiliar`. Without one, the host keeps the credentials working. See [Model credentials](#model-credentials).
 - **Hosts own the time zone.** `summonFamiliar` requires `timeZone`, an IANA name. Core reads every calendar in it and never in the process's zone, so one process can run Familiars in different zones. See [Time zones](#time-zones).
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
@@ -68,11 +69,12 @@ packages/core/src
                      returns the Familiar API. The one place to see the whole.
   http.ts            The HTTP + SSE API and every wire type clients use.
   diagnostics.ts     For tools around Familiar (the demo, the eval), not hosts.
-  account/           The owner's login with the models' provider, as one state:
-                     sign-in (a browser page, or a device code where the
-                     provider issues one) and sign-out through the host's Models,
-                     and a hook that rechecks the login when a request fails.
-                     http.ts its routes; the state streams on /events.
+  account/           createAccount(): the owner's login with the models' provider,
+                     as one state: sign-in (a browser page, or a device code
+                     where the provider issues one) and sign-out through the
+                     host's Models, and a hook that rechecks the login when a
+                     request fails. http.ts its routes; the state streams on
+                     /events.
   persona/           Who Familiar is: the prompt's preamble.
   time/              current_time, and every conversion between instants and
                      the owner's calendar, in the host's time zone.
@@ -207,6 +209,49 @@ A schedule is a prompt submitted to the main conversation at a time in Familiar'
 The daemon owns push subscriptions and VAPID keys. Core only calls the host's `notify`. HTTPS and device setup are described in the README.
 
 History remains in storage after compaction. The client pages older entries and combines them with the active view; the chat scroller preserves the reader's position. Markdown loads separately from the initial chat bundle. The large syntax-highlighting chunks can still trigger a build warning; lazy loading does not make those chunks smaller.
+
+## Model credentials
+
+Pi's `Models` is the one place credentials live. It reads them from the host's credential store and attaches them to every model request. Familiar never sees a token.
+
+A host chooses whether owners can manage the login. These examples use the workspace's own imports; the packages aren't published. The daemon attaches an account, so the web UI walks the owner through ChatGPT's sign-in:
+
+```ts
+import { createAccount, summonFamiliar } from '@familiar/core'
+
+const models = createModels({ credentials: fileCredentialStore(path) })
+models.setProvider(openaiProvider())
+
+const account = await createAccount({
+  models,
+  provider: 'openai',
+  login: { getDeviceId: deviceId, agentName: 'Familiar' },
+})
+const familiar = await summonFamiliar({
+  storage,
+  models,
+  model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
+  timeZone,
+  account,
+})
+```
+
+A host that supplies credentials itself, from an API key or its own login, leaves `account` out:
+
+```ts
+const familiar = await summonFamiliar({ storage, models, model, timeZone })
+```
+
+Then `familiar.account` is undefined, the `/account` routes answer 404 and `/events` sends `account` as `null`. The client keeps `account` undefined until that first event, so a UI can tell "not known yet" from "not offered" and shows no sign-in controls for `null`. Chat, upkeep and schedules work the same either way. A request whose credentials fail ends in an error reply, like any other model failure; nothing else tracks credential health.
+
+An account works on its own too, say for a setup screen that signs in before the host opens Familiar. Its `api` has the state, sign-in and sign-out; `close()` cancels an unfinished sign-in and drops its listeners.
+
+Three rules keep the two in step:
+
+- `summonFamiliar` refuses an account made for a different `Models` instance or for another provider than `model`'s. Otherwise the account would report on a login the requests don't use.
+- Familiar installs the account's response hook itself, so hosts never handle Pi hooks. It marks the login expired when a request fails and the provider rejects the stored token.
+- An account can attach to only one Familiar and cannot attach after closing. Ownership transfers when `summonFamiliar` succeeds. If startup fails, the host keeps the account and can retry or close it.
+- Once attached, the Familiar owns the account. `dismiss()` closes it. That cancels an unfinished sign-in but keeps the stored login, and a login that finishes afterwards changes no state.
 
 ## Time zones
 

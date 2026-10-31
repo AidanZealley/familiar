@@ -28,11 +28,24 @@ function setup() {
   const store = createFamiliarStore('/api')
   const view = { conversation: {}, entries: [entry(3)], docs: {} }
   listeners.get('view')!({ data: JSON.stringify(view) } as MessageEvent)
-  return { store, requests }
+  const emit = (type: string, data: unknown) =>
+    listeners.get(type)!({ data: JSON.stringify(data) } as MessageEvent)
+  return { store, requests, emit }
 }
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+test('account is undefined until the server says, and null when it offers no sign-in', () => {
+  const { store, emit } = setup()
+  expect(store.getState().account).toBeUndefined()
+
+  emit('account', null)
+  expect(store.getState().account).toBeNull()
+
+  emit('account', { status: 'signed-in' })
+  expect(store.getState().account).toEqual({ status: 'signed-in' })
 })
 
 test('loadOlder pages back to the start, one request per page', async () => {

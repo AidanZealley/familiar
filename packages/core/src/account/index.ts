@@ -7,6 +7,7 @@ import {
   defineExtension,
   GenerationTask,
   hook,
+  type Extension,
 } from '@earendil-works/pi-durable'
 
 /**
@@ -47,12 +48,44 @@ export type AccountApi = {
 }
 
 export type AccountOptions = {
+  /** The same `Models` the host passes to `summonFamiliar`. */
   models: Pick<Models, 'checkAuth' | 'getAuth' | 'login' | 'logout'>
-  /** The provider whose login this is: the one Familiar's models come from. */
+  /** The provider whose login this is: the one Familiar's `model` comes from. */
   provider: string
-  /** What the host tells the provider about itself when signing in. */
+  /**
+   * What the host tells the provider about itself when signing in. ChatGPT
+   * needs `getDeviceId`: OpenAI identifies the app's logins by it.
+   */
   login?: LoginOptions
 }
+
+/**
+ * Interactive sign-in and sign-out for one provider's login. Use it on its
+ * own, or pass it to `summonFamiliar` as `account`: that Familiar then owns
+ * it, offers `api` to owners and closes it on dismiss.
+ */
+export type Account = {
+  api: AccountApi
+  /**
+   * Stops any unfinished sign-in and every listener. The stored login stays;
+   * signing out is `api.signOut()`. Later calls do nothing.
+   */
+  close(): void
+}
+
+/**
+ * What only Familiar sees of an account: which login it is, and what it
+ * does with each response. Kept here so hosts never handle a Pi hook.
+ */
+const attachments = new WeakMap<
+  Account,
+  {
+    models: AccountOptions['models']
+    provider: string
+    lifetime: { state: 'available' | 'attached' | 'closed' }
+    noteResponse(message: AssistantMessage): Promise<void>
+  }
+>()
 
 /** pi-ai's id for the login method that works from any device. */
 const DEVICE_CODE = 'device_code'
@@ -60,20 +93,27 @@ const DEVICE_CODE = 'device_code'
 /**
  * The owner's login with the models' provider. It signs in through the same
  * `Models` every request uses, so a new login applies without a restart.
- * Install `extension`: it notices when a request fails because the login
- * stopped working.
+ * Attached to a Familiar, it also notices when a request fails because the
+ * login stopped working.
  */
 export async function createAccount({
   models,
   provider,
   login,
-}: AccountOptions) {
+}: AccountOptions): Promise<Account> {
   const listeners = new Set<(state: AccountState) => void>()
   let state: AccountState
   let signingIn: AbortController | undefined
   let answer: ((text: string) => void) | undefined
+  const lifetime: { state: 'available' | 'attached' | 'closed' } = {
+    state: 'available',
+  }
 
+  // After close, a login or check still finishing changes nothing.
   const set = (next: AccountState) => {
+    if (lifetime.state === 'closed') {
+      return
+    }
     state = next
     listeners.forEach((listener) => listener(next))
   }
@@ -102,11 +142,14 @@ export async function createAccount({
   const api: AccountApi = {
     state: () => state,
     onChange: (listener) => {
+      if (lifetime.state === 'closed') {
+        return () => {}
+      }
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     signIn: () => {
-      if (signingIn) {
+      if (signingIn || lifetime.state === 'closed') {
         return
       }
       const controller = new AbortController()
@@ -183,6 +226,9 @@ export async function createAccount({
         .then(
           () => set({ status: 'signed-in' }),
           async (error: unknown) => {
+            if (lifetime.state === 'closed') {
+              return
+            }
             const after = await stored()
             set(
               controller.signal.aborted || after.status === 'signed-in'
@@ -204,6 +250,9 @@ export async function createAccount({
     answer: (text) => answer?.(text),
     cancelSignIn: () => signingIn?.abort(),
     signOut: async () => {
+      if (lifetime.state === 'closed') {
+        return
+      }
       signingIn?.abort()
       await models.logout(provider)
       set({ status: 'signed-out' })
@@ -215,7 +264,11 @@ export async function createAccount({
    * working, so check it; any success means it works.
    */
   const noteResponse = async (message: AssistantMessage) => {
-    if (message.provider !== provider || state.status === 'signing-in') {
+    if (
+      lifetime.state === 'closed' ||
+      message.provider !== provider ||
+      state.status === 'signing-in'
+    ) {
       return
     }
     if (message.stopReason !== 'error') {
@@ -232,15 +285,61 @@ export async function createAccount({
     }
   }
 
+  const account: Account = {
+    api,
+    close: () => {
+      lifetime.state = 'closed'
+      signingIn?.abort()
+      listeners.clear()
+    },
+  }
+  attachments.set(account, { models, provider, lifetime, noteResponse })
+  return account
+}
+
+/**
+ * The Pi extension that lets `account` notice when its login stops working.
+ * Refuses an account made for other `Models` or another provider: its state
+ * would describe a login the requests don't use.
+ */
+export function attachAccount(
+  account: Account,
+  models: AccountOptions['models'],
+  provider: string,
+): { extension: Extension; release(): void } {
+  const attachment = attachments.get(account)
+  if (!attachment) {
+    throw new Error('account must come from createAccount().')
+  }
+  if (attachment.models !== models) {
+    throw new Error(
+      "account must be created with the same Models as summonFamiliar's.",
+    )
+  }
+  if (attachment.provider !== provider) {
+    throw new Error(
+      `account is for ${attachment.provider}, but the model is from ${provider}.`,
+    )
+  }
+  if (attachment.lifetime.state !== 'available') {
+    throw new Error(`account is already ${attachment.lifetime.state}.`)
+  }
+  attachment.lifetime.state = 'attached'
   const extension = defineExtension({
     name: 'familiar.account',
     hooks: [
       hook(GenerationTask, {
         // Not awaited: a token refresh shouldn't hold up the run.
-        afterResponse: (message) => void noteResponse(message),
+        afterResponse: (message) => void attachment.noteResponse(message),
       }),
     ],
   })
-
-  return { api, extension, noteResponse }
+  return {
+    extension,
+    release: () => {
+      if (attachment.lifetime.state === 'attached') {
+        attachment.lifetime.state = 'available'
+      }
+    },
+  }
 }

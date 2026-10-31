@@ -45,8 +45,12 @@ export type MirroredDocuments = {
 
 export type FamiliarState = MirroredDocuments & {
   connection: Connection
-  /** The owner's login with the models' provider. Absent until the first frame. */
-  account: AccountState | undefined
+  /**
+   * The owner's login with the models' provider: null when the server offers
+   * no sign-in because its host manages credentials, undefined until the
+   * first frame.
+   */
+  account: AccountState | null | undefined
   /** Starts signing in; the page to open, and any code, arrive in `account`. */
   signIn(): Promise<void>
   /** The address the browser ended on, when `account` asks to paste it. */
