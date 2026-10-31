@@ -50,7 +50,7 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 - **Hosts own model credentials.** The host's `Models` holds them and authenticates every request. A host that wants owners to sign in creates an account with `createAccount` and passes it to `summonFamiliar`. Without one, the host keeps the credentials working. See [Model credentials](#model-credentials).
 - **Hosts own the persona.** A host may pass `persona`, the text that says who Familiar is, and it replaces the default completely. Core adds what its own features need after it. See [Persona](#persona).
 - **Hosts own the time zone.** `summonFamiliar` requires `timeZone`, an IANA name. Core reads every calendar in it and never in the process's zone, so one process can run Familiars in different zones. See [Time zones](#time-zones).
-- **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
+- **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author and shows it to the model. See [Authors](#authors). The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. Workers-only code lives in `packages/cloudflare`, the one package that may import `cloudflare:*` or Pi's Cloudflare modules. ESLint enforces both.
 - **Evictable hosts wake Familiar themselves.** A host that passes `onWake` gets no in-process timer for sleeping work. It arms its own wakeup from `wake()` and calls `resume()` when it fires. See [Familiar on Cloudflare](cloudflare.md).
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
@@ -199,9 +199,9 @@ Read each test file beside its source. They run the real Harness with a scripted
 ## One message, end to end
 
 1. The composer calls `store.send()`, which posts to `/api/messages`.
-2. `http.ts` asks the host who sent it, then calls `familiar.send()` (`conversation/api.ts`), which submits it to the conversation.
+2. `http.ts` asks the host who sent it, then calls `familiar.send()` (`conversation/api.ts`), which submits it to the conversation. The entry's data keeps the author and words apart; the model's copy puts a line naming the author above the words.
 3. Pi runs a generation task. The request it builds has the system prompt from every extension's sections (the persona, how the conversation works, core facts) and as much recent conversation as the context budget allows; older conversation has been compacted into a summary.
-4. Memory's `beforeRequest` hook (`extension.ts`) searches facts outside core and the episodes no rollup covers yet (or any on dates the message names) and adds at most 8 as a recall note at the end of this request only, memoised so a retried request sees the same note. In the main conversation the note also gets the best two exchanges between the last entry upkeep reviewed and the start of the view, which nothing else would show until upkeep files them. Hooks can't read the transcript, so `createMemory` (`index.ts`) builds the note, in one transaction so upkeep can't file something between reads.
+4. Memory's `beforeRequest` hook (`extension.ts`) searches facts outside core and the episodes no rollup covers yet (or any on dates the message names) for the person's words without the author line, and adds at most 8 as a recall note at the end of this request only, memoised so a retried request sees the same note. In the main conversation the note also gets the best two exchanges between the last entry upkeep reviewed and the start of the view, which nothing else would show until upkeep files them. Hooks can't read the transcript, so `createMemory` (`index.ts`) builds the note, in one transaction so upkeep can't file something between reads.
 5. The model may call a tool, say `recall`, which catches the exchange index up with the transcript and searches facts, episodes and exchanges in three groups; `read_memory` opens what lies behind an ID, down to the original messages. Neither changes facts: nothing said is filed until upkeep runs that night, though automatic recall finds it in the meantime once it leaves the view.
 6. Each commit reaches `/api/events` as operations: the conversation's, and those of any document that changed. The client applies them, `toTranscript()` turns entries into chat items, and React renders them.
 7. At 04:00, upkeep (`upkeep/index.ts`) files unreviewed message text oldest first with the writing tools only its conversation is given (`upkeep/tools.ts`), citing each person's message by its exchange ID. Batches stop at each 04:00 day boundary or the transcript budget, whichever comes first. Each completed batch saves an episode and its review position, so a failed later batch can resume without repeating earlier ones. Once the backlog is clear, upkeep rolls up finished weeks and months, then rechecks the 20 current facts that have gone longest without a check against the last 30 days' episodes, stamping them checked in the usage document only if that review succeeds. A single message larger than the budget is truncated and reported to the host; ordinary batch overflow is left for the next batch.
@@ -314,6 +314,25 @@ Leave `persona` out and Familiar uses `defaultPersona(name)`, exported from `@fa
 Core adds its own instructions after the persona, whatever it says: how the one conversation works, what memory holds and how to search it, what a scheduled prompt is, and every tool. A host's persona doesn't repeat them.
 
 The persona is read once when the Familiar opens. A section that changed between requests would resend the prompt and lose the provider's cache, so changing it means reopening.
+
+## Authors
+
+Several people can share one conversation, so the model needs to know who said what. The author is whatever the host's `authenticate` returns for the request. The daemon returns `FAMILIAR_OWNER`; a household app would return the signed-in person's name. Core doesn't look names up, so the host should return a label the model can address, such as a first name.
+
+The entry's data, `{ author, text }`, is the record. `formatMessage` in `conversation/message.ts` writes the model's copy from it: one line naming the author, then the words unchanged.
+
+```
+[Message from "Sam"]
+Can you move dinner to 7?
+```
+
+The name is a JSON string with Unicode line breaks escaped too, so it can't end the line early. Formatting only goes one way, and nothing parses the model's copy back. The transcript, exchange search, `read_memory` and upkeep read the data through `saidBy`.
+
+Automatic recall searches the person's words as well, so an author's name can't match facts about them. `answeredMessage` reads the generation task's checkpoint for the newest entry its request includes, then scans back to the latest input. It skips a compaction summary, which is stored after the entries it kept but read before them, and stops at the start of the view. When that input is a person's message, recall searches its `text`. A scheduled prompt or an upkeep pass is searched as the model sees it.
+
+Pi stores the model's copy in the entry when the message is placed, so later requests and compaction's summary requests show the same line, and the prompt doesn't change with who's speaking. Messages stored before authors were shown keep their bare words as the model's copy. Their data still has the author.
+
+Core's conversation guidance tells the model that only the first line names the sender, and that `[Scheduled for …]` prompts come from no one. The line says who wrote a message; it isn't access control. Someone can type words that claim to be another person, and the model may believe them. What a person may do is the host's decision.
 
 ## Time zones
 

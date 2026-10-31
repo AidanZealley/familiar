@@ -51,6 +51,8 @@ export function reply(context: TranscriptContext) {
   const latest = textOf(
     messages.findLast((message) => message.role === 'user')?.content,
   )
+    // Only the person's words, after the line naming them.
+    .replace(/^\[Message from .*\n/, '')
   if (latest.startsWith('[Scheduled')) {
     return scheduledReply()
   }

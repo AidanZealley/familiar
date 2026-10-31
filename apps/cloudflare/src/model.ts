@@ -52,6 +52,8 @@ function reply(context: TranscriptContext) {
         !textOf(message.content).startsWith('Recalled from memory'),
     )?.content,
   )
+    // Only the person's words, after the line naming them.
+    .replace(/^\[Message from .*\n/, '')
   if (latest.startsWith('[Scheduled')) {
     return fauxAssistantMessage(`Reminder: ${latest.replace(/^\[.*?\] /, '')}`)
   }

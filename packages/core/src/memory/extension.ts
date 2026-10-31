@@ -5,6 +5,7 @@ import {
   hook,
   ROOT_CONVERSATION_ID,
   section,
+  type TaskId,
 } from '@earendil-works/pi-durable'
 import { textOf } from '../conversation/message.ts'
 import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
@@ -25,12 +26,18 @@ export type MemoryExtensionOptions = {
   /** The exchange index the tools search. */
   exchanges: TranscriptExchanges
   /**
-   * Automatic recall's note for `query`, read in one transaction so upkeep
-   * can't file something between reads and leave it in neither. `unfiled`
-   * adds exchanges compacted out of the view that upkeep hasn't filed.
-   * Hooks can't read the transcript, so the owner of the Harness does.
+   * Automatic recall's note for the input `request` answers, read in one
+   * transaction so upkeep can't file something between reads and leave it in
+   * neither. `query` is the model's copy of that input, searched when no
+   * person sent it. `unfiled` adds exchanges compacted out of the view that
+   * upkeep hasn't filed. Hooks can't read the transcript, so the owner of
+   * the Harness does.
    */
-  recall: (query: string, unfiled: boolean) => Promise<RecallNote>
+  recall: (
+    query: string,
+    request: TaskId,
+    unfiled: boolean,
+  ) => Promise<RecallNote>
   /** Where every search's time is recorded, for health. */
   times: SearchTimes
   /** The IANA zone the tools read dates in. */
@@ -78,6 +85,7 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
               'familiar.recall',
               await options.recall(
                 textOf(latest),
+                api.taskId,
                 // Only the main conversation's own past: upkeep's passes
                 // review a batch and must not be shown other messages.
                 api.conversationId === ROOT_CONVERSATION_ID,

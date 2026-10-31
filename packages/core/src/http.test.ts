@@ -148,5 +148,7 @@ test('messages and history validate what clients send', async () => {
     'pi.system',
     'familiar.message',
   ])
+  // The author is whoever the host authenticates.
+  expect(page.entries[2].data).toEqual({ author: 'aidan', text: 'Hi' })
   expect(page.more).toBe(false)
 })
