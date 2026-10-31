@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "familiar-dev",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-23",
+  "durable_objects": {
+    "bindings": [
+      { "name": "BOTS", "class_name": "Bot" },
+      { "name": "OUTBOX", "class_name": "Outbox" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Bot", "Outbox"] }],
+  "vars": { "TIME_ZONE": "Europe/London" },
+  // Set with `wrangler secret put`, or in .dev.vars for `wrangler dev`.
+  "secrets": { "required": ["FAMILIAR_DEV_TOKEN"] },
+}

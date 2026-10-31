@@ -18,6 +18,8 @@ jobs:
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
+      - run: pnpm test:cloudflare
+      - run: pnpm --filter @familiar/cloudflare-dev build
       - run: pnpm bundle
         env:
           RELEASE_VERSION: ${{ github.ref_name }}

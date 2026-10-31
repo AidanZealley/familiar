@@ -1,6 +1,10 @@
-// rrule ships CommonJS only to Node.
-import rrule from 'rrule'
+import * as rruleModule from 'rrule'
 import { wallClock, zonedTime } from '../time/index.ts'
+
+// Node loads rrule's CommonJS build, whose exports arrive only as the default;
+// bundlers such as Wrangler's load its ES build, which has no default.
+const rrule: typeof rruleModule =
+  Reflect.get(rruleModule, 'default') ?? rruleModule
 
 /**
  * Repeats are RFC 5545 RRULEs, read in Familiar's time zone. rrule computes

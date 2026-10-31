@@ -33,4 +33,5 @@ Familiar currently manages one assistant per user. Linux and macOS have had real
 - [Setup, CLI commands and settings](docs/usage.md)
 - [Development and release packaging](docs/development.md)
 - [Architecture and rules](docs/architecture.md)
+- [Familiar on Cloudflare](docs/cloudflare.md)
 - [Roadmap](docs/roadmap.md)
