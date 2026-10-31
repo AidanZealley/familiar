@@ -33,6 +33,8 @@ export type MemoryExtensionOptions = {
   recall: (query: string, unfiled: boolean) => Promise<RecallNote>
   /** Where every search's time is recorded, for health. */
   times: SearchTimes
+  /** The IANA zone the tools read dates in. */
+  timeZone: string
 }
 
 /**
@@ -43,7 +45,11 @@ export type MemoryExtensionOptions = {
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: createMemoryTools(options.exchanges, options.times),
+    tools: createMemoryTools(
+      options.exchanges,
+      options.times,
+      options.timeZone,
+    ),
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>

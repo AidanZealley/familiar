@@ -65,7 +65,8 @@ export type ExchangeIndex = {
 }
 
 /** An empty in-memory index of exchanges, searched with recall's term processing. */
-export function createExchangeIndex(): ExchangeIndex {
+/** `timeZone` dates each exchange, for searches that name days. */
+export function createExchangeIndex(timeZone: string): ExchangeIndex {
   const index = new MiniSearch<{ id: string; text: string }>({
     fields: ['text'],
     ...TERMS,
@@ -78,7 +79,7 @@ export function createExchangeIndex(): ExchangeIndex {
     add(exchange) {
       index.add({ id: exchange.id, text: exchange.text })
       positions.set(exchange.id, exchanges.length)
-      exchanges.push({ exchange, day: localDay(exchange.at) })
+      exchanges.push({ exchange, day: localDay(exchange.at, timeZone) })
     },
 
     search(query, now, { limit = 6, ranges = [], within } = {}) {
@@ -163,8 +164,8 @@ export function createExchangeIndex(): ExchangeIndex {
  * model's view begins, from the latest compaction, so searches can find
  * what compaction took out of it.
  */
-export function transcriptExchanges() {
-  const index = createExchangeIndex()
+export function transcriptExchanges(timeZone: string) {
+  const index = createExchangeIndex(timeZone)
   let through: EntryId | undefined
   let open: Exchange | undefined
   let viewStart: EntryId | undefined

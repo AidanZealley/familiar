@@ -1,5 +1,11 @@
 import type { SetTimer } from '@earendil-works/pi-durable'
 
+/**
+ * The eval's days are this machine's, as they are for the daemon, so the
+ * scenario's local noons and Familiar's calendar agree.
+ */
+export const EVAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+
 /** Only the simulated clock owns time; real model latency never advances it. */
 export function createClock(start: number) {
   let now = start

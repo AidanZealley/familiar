@@ -20,6 +20,8 @@ export async function serve() {
     models: openModels(),
     model: config.model,
     chatModels: config.chatModels,
+    // The machine's zone, so the owner's calendar is the one their clock shows.
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     name: config.name,
     deviceId,
     notify: push.notify,

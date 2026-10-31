@@ -160,7 +160,7 @@ const textOf = (value: string) => {
   return text
 }
 
-/** A real local day, `YYYY-MM-DD`. */
+/** A real calendar day, `YYYY-MM-DD`. */
 export const dayOf = (value: string) => {
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(value) ||

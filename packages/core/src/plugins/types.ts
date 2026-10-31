@@ -18,6 +18,8 @@ export type PluginFetch = (
  */
 export type PluginContext = {
   now(): number
+  /** The owner's IANA time zone. Write times with `localMinute`, as Familiar does. */
+  timeZone: string
   notify(notification: Notification): Promise<void>
   /** The host's fetch, which keeps plugins off its private networks. */
   fetch: PluginFetch

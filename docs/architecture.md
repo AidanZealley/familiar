@@ -10,7 +10,8 @@ packages/core     summonFamiliar(): one assistant over one storage. Portable.
   core/account    The owner's login with the models' provider: sign-in from
                   any device, sign-out, and noticing when the login stops working.
   core/persona    Who Familiar is: the stable start of every prompt.
-  core/time       The current_time tool, and how dates are written.
+  core/time       The owner's time zone: current_time, and every conversion
+                  between an instant and a calendar day or minute.
   core/context    Request budget, compaction and stream settings.
   core/conversation Message format, sending and history paging.
   core/memory     Facts, episodes, exchange search, recall and read_memory,
@@ -40,6 +41,7 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 - **Everything beyond core is a plugin.** A plugin is a named factory for a Pi extension, given the clock, `notify`, the host's `fetch` and `authorizedFetch`. Core assigns its extension name from the plugin name. First-party extras use the same interface as anyone else's. The daemon installs its own plus any named in `FAMILIAR_PLUGINS`; other hosts choose theirs. Code plugins run in the host's process, so only the owner installs them.
 - **Credentials enter through Connections.** The owner sets keys through write-only routes. Plugins receive `authorizedFetch`, which attaches a key only to its declared HTTPS origin, method and path, with redirects unfollowed. Keys are attached at the request boundary; response bodies and tool output pass through unchanged. A service that echoes a key can expose it. The host owns credential storage.
 - **Plugins' fetch is the host's.** A model can be talked into fetching any URL, so a host that can reach private, loopback or tailnet addresses must pass a `fetch` that refuses them. The daemon's checks each connection's actual address; a Cloudflare Worker can't reach them and passes its own.
+- **Hosts own the time zone.** `summonFamiliar` requires `timeZone`, an IANA name. Core reads every calendar in it and never in the process's zone, so one process can run Familiars in different zones. See [Time zones](#time-zones).
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
@@ -72,7 +74,8 @@ packages/core/src
                      and a hook that rechecks the login when a request fails.
                      http.ts its routes; the state streams on /events.
   persona/           Who Familiar is: the prompt's preamble.
-  time/              current_time, and how dates are written (local days).
+  time/              current_time, and every conversion between instants and
+                     the owner's calendar, in the host's time zone.
   context/           How much conversation fits in a request; compaction; timeouts;
                      which extensions a conversation gets by default.
   conversation/      The message format (message.ts) and sending, watching and
@@ -106,7 +109,7 @@ packages/core/src
   schedules/
     schedules.ts     The Schedules document and its rules: adding, cancelling,
                      what's due and what's next. Pure, like facts.ts.
-    repeat.ts        RRULE repeats in local time, through rrule.
+    repeat.ts        RRULE repeats in Familiar's time zone, through rrule.
     task.ts          One task per schedule: sleeps until due, submits the prompt
                      to the main conversation, notifies the host with the reply.
     tools.ts         schedule, list_schedules and cancel_schedule.
@@ -199,8 +202,26 @@ The daemon's plugin list supplies a Piscina-backed converter; `page-worker.ts` c
 
 ## Schedules and history
 
-A schedule is a prompt submitted to the main conversation at a local time, once or by RRULE. Its durable task survives restarts. Late repeats deliver the latest missed occurrence once and then resume normally. Cancellation removes the schedule; a task that wakes without one does nothing. Notifications use the reply, falling back to the prompt when no reply was produced. A crash between sending a push and recording completion can cause a duplicate notification.
+A schedule is a prompt submitted to the main conversation at a time in Familiar's zone, once or by RRULE. Its durable task survives restarts. Late repeats deliver the latest missed occurrence once and then resume normally. Cancellation removes the schedule; a task that wakes without one does nothing. Notifications use the reply, falling back to the prompt when no reply was produced. A crash between sending a push and recording completion can cause a duplicate notification.
 
 The daemon owns push subscriptions and VAPID keys. Core only calls the host's `notify`. HTTPS and device setup are described in the README.
 
 History remains in storage after compaction. The client pages older entries and combines them with the active view; the chat scroller preserves the reader's position. Markdown loads separately from the initial chat bundle. The large syntax-highlighting chunks can still trigger a build warning; lazy loading does not make those chunks smaller.
+
+## Time zones
+
+The host passes `timeZone` to `summonFamiliar`: an IANA name such as `Europe/London`. It is required. A name the runtime's `Intl` doesn't know throws a `RangeError` before storage opens. The daemon passes the machine's zone. Tests, the demo and other hosts pass their own.
+
+`time/index.ts` is the only code that turns an instant into a calendar day or minute, or a wall-clock time back into an instant. It uses `Intl.DateTimeFormat`, which every runtime Familiar targets has. Everything zoned goes through it: current_time's default, schedules' times and RRULEs, the days on facts, episodes and exchanges, dates named in searches, the times upkeep is shown, and upkeep's 04:00. Plugins get the zone in their context and write times with core's `localMinute`. Instants (`now()`, every stored `at`) are milliseconds since the epoch and ignore the zone. Arithmetic on `YYYY-MM-DD` days, such as weeks, months and the review's 30 days, needs no zone.
+
+Clock changes follow Temporal's `compatible` rule. A wall time that happens twice, when the clocks go back, means the first. A wall time the clocks skip moves forward by the gap: a daily 01:30 repeat runs at 02:30 on London's spring-forward night, and an hourly repeat runs once during the repeated hour. A one-off for a skipped minute is refused, as before. Upkeep runs at 04:00 on the wall clock, so an upkeep day with a clock change lasts 23 or 25 hours.
+
+### Changing zone
+
+Reopening the same storage with another zone needs no migration. The new zone applies from that open, with these exceptions:
+
+- A one-off schedule is stored as an instant, so it keeps its absolute time. A reminder set for 09:00 in London fires at 04:00 in New York.
+- A repeat keeps its RRULE and follows the new zone from its next delivery. The occurrence already stored in `next` keeps its time.
+- Upkeep's sleeping task wakes at the instant it was given, so the first pass runs at the old 04:00. Later passes run at 04:00 in the new zone.
+- Stored days are not reinterpreted: facts' `since` and `until`, and episodes' `start` and `end`. They are zone-free `YYYY-MM-DD` strings, and nothing records the zone they were written in, so around a move one can be a day off compared with the new zone. Exchange days are worked out from timestamps whenever the index is built, so they follow the new zone.
+- Text already in the conversation, such as `[Scheduled for 2026-10-22 07:00]` or a tool result, keeps the times it was written with.

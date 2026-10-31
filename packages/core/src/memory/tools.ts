@@ -20,6 +20,7 @@ const text = (text: string) => ({
 export function createMemoryTools(
   exchanges: TranscriptExchanges,
   times: SearchTimes,
+  timeZone: string,
 ) {
   const recall = defineTool({
     name: 'recall',
@@ -34,7 +35,7 @@ export function createMemoryTools(
           const usage = await tx.doc(MemoryUsage)
           const episodes = await tx.doc(Episodes)
           const found = times.time(() =>
-            recallAll(facts, episodes, index, args.query, api.now()),
+            recallAll(facts, episodes, index, args.query, api.now(), timeZone),
           )
           // Only conversation counts as use; upkeep's searches are housekeeping.
           if (api.conversationId === ROOT_CONVERSATION_ID) {
@@ -59,6 +60,7 @@ export function createMemoryTools(
             await tx.doc(Facts),
             await tx.doc(Episodes),
             index,
+            timeZone,
           )
         }, context)
         .then(text),

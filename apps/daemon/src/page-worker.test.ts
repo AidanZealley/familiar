@@ -11,6 +11,7 @@ const tool = async (html: string) => {
   return web
     .extension({
       now: Date.now,
+      timeZone: 'UTC',
       notify: async () => {},
       fetch: async () =>
         new Response(html, { headers: { 'content-type': 'text/html' } }),

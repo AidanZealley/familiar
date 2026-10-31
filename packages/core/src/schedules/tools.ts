@@ -14,16 +14,18 @@ const text = (value: string) => ({
   output: [{ type: 'text' as const, text: value }],
 })
 
-/** A schedule as the model reads it: what, and when, in local time. */
-function describe(schedule: Schedule) {
-  const when = upcoming(schedule, 3).map(weekdayMinute).join(', ')
+/** A schedule as the model reads it: what, and when, in Familiar's time zone. */
+function describe(schedule: Schedule, timeZone: string) {
+  const when = upcoming(schedule, 3, timeZone)
+    .map((at) => weekdayMinute(at, timeZone))
+    .join(', ')
   return schedule.repeat === undefined
     ? `${schedule.id}: at ${when}: ${schedule.prompt}`
     : `${schedule.id}: ${schedule.repeat}, next ${when}: ${schedule.prompt}`
 }
 
 /** schedule, list_schedules and cancel_schedule. */
-export function scheduleTools(task: ScheduleTask) {
+export function scheduleTools(task: ScheduleTask, timeZone: string) {
   const schedule = defineTool({
     name: 'schedule',
     description:
@@ -53,7 +55,12 @@ export function scheduleTools(task: ScheduleTask) {
         if (schedules[id]) {
           return schedules[id]
         }
-        const added = addSchedule(schedules, { id, ...args }, api.now())
+        const added = addSchedule(
+          schedules,
+          { id, ...args },
+          api.now(),
+          timeZone,
+        )
         // Background, so it never keeps the conversation busy while it sleeps.
         await tx.createTask(
           task,
@@ -66,7 +73,7 @@ export function scheduleTools(task: ScheduleTask) {
         )
         return added
       }, context)
-      return text(`Scheduled ${describe(created)}`)
+      return text(`Scheduled ${describe(created, timeZone)}`)
     },
   })
 
@@ -85,7 +92,7 @@ export function scheduleTools(task: ScheduleTask) {
         schedules.length
           ? schedules
               .sort((a, b) => a.next - b.next)
-              .map(describe)
+              .map((schedule) => describe(schedule, timeZone))
               .join('\n')
           : 'No schedules.',
       )

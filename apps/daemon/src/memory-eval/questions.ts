@@ -3,7 +3,7 @@ import type { Models } from '@earendil-works/pi-ai'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar, type Familiar } from '@familiar/core'
 import { nextUpkeep, saidBy } from '@familiar/core/diagnostics'
-import { createClock } from './clock.ts'
+import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { judgeAnswer, transcriptOf, type Verdict } from './judge.ts'
 import {
   categories,
@@ -66,7 +66,12 @@ export async function askQuestions({
   onAnswer?: (result: QuestionResult) => void
   now: number
 }): Promise<QuestionResult[]> {
-  const options = { models, model, contextBudget: 4_000 }
+  const options = {
+    models,
+    model,
+    contextBudget: 4_000,
+    timeZone: EVAL_TIME_ZONE,
+  }
   const transcript = transcriptOf(scenario)
   const results = new Array<QuestionResult>(scenario.questions.length)
   let next = 0
@@ -110,7 +115,7 @@ export async function askQuestions({
             await waitForIdle(
               reopened,
               questionClock,
-              nextUpkeep(questionClock.now()),
+              nextUpkeep(questionClock.now(), EVAL_TIME_ZONE),
               `Question ${question.id}`,
             )
             const entries = await entriesAfter(questionStorage, prior)

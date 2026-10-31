@@ -46,6 +46,7 @@ async function open(storage: Storage, chatModels = both) {
     storage,
     models,
     model: sol,
+    timeZone: 'UTC',
     chatModels,
   })
   opened.push(familiar)

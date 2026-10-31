@@ -33,7 +33,7 @@ import {
   type Notify,
   type SchedulesApi,
 } from './schedules/index.ts'
-import { TimeExtension } from './time/index.ts'
+import { checkTimeZone, createTime } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
 export type { AccountApi, AccountState } from './account/index.ts'
@@ -61,6 +61,7 @@ export {
   type PluginSecret,
   type SecretStore,
 } from './plugins/index.ts'
+export { localMinute } from './time/index.ts'
 export type { UsageState as Usage } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
@@ -71,6 +72,14 @@ export type FamiliarOptions = {
    * conversation starts on until the owner picks another.
    */
   model: ModelRef
+  /**
+   * The owner's IANA time zone, such as `Europe/London`. Familiar reads every
+   * calendar in it: dates in memory, the days upkeep files and its 04:00
+   * pass, schedules' times and repeats, and current_time's answer. Instants
+   * (`now`) don't depend on it. Pass the same zone on every open; see
+   * docs/architecture.md for what changes when it differs.
+   */
+  timeZone: string
   /**
    * The models the owner may switch the conversation between, each with the
    * level it starts on. Must include `model`. Default: only `model`, at
@@ -150,6 +159,7 @@ export async function summonFamiliar(
   const chatModels = options.chatModels ?? [
     { model: options.model, thinkingLevel: 'medium' },
   ]
+  checkTimeZone(options.timeZone)
   const model = findChatModel(chatModels, options.model)
   if (!model) {
     throw new Error(`${modelKey(options.model)} must be one of chatModels.`)
@@ -171,9 +181,14 @@ export async function summonFamiliar(
     thinkingLevel: model.thinkingLevel,
     name,
     transcriptTokens: Math.floor(budget / 2),
+    timeZone: options.timeZone,
   })
 
-  const schedules = createSchedules({ name, notify: options.notify })
+  const schedules = createSchedules({
+    name,
+    notify: options.notify,
+    timeZone: options.timeZone,
+  })
 
   const account = await createAccount({
     models: options.models,
@@ -187,13 +202,14 @@ export async function summonFamiliar(
     fetch: options.fetch,
     notify: options.notify,
     now: options.now ?? Date.now,
+    timeZone: options.timeZone,
   })
 
   // Plugins last, so core's tools and sections come first.
   const extensions = [
     createPersona(name),
     account.extension,
-    TimeExtension,
+    createTime(options.timeZone),
     ...memory.extensions,
     schedules.extension,
     ...plugins.extensions,

@@ -28,11 +28,12 @@ export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
 export function createMemory(harness: Harness, options: MemoryOptions) {
   // Both in memory for as long as Familiar runs: the index is rebuilt from
   // the transcript, and search times are only for health.
-  const exchanges = transcriptExchanges()
+  const exchanges = transcriptExchanges(options.timeZone)
   const times = createSearchTimes()
   const extension = createMemoryExtension({
     exchanges,
     times,
+    timeZone: options.timeZone,
     recall: (query, unfiled) =>
       harness.commit(async (tx) => {
         const facts = await tx.doc(Facts)
@@ -50,12 +51,13 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
             index && before !== undefined
               ? index.search(query, now, {
                   limit: UNFILED.limit,
-                  ranges: datesIn(query, localDay(now)),
+                  ranges: datesIn(query, localDay(now, options.timeZone)),
                   within: { after: through, before },
                 })
               : [],
             query,
             now,
+            options.timeZone,
           ),
         )
       }, BACKGROUND_CONTEXT),
@@ -81,7 +83,7 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
       }, BACKGROUND_CONTEXT)
       await upkeep.start(harness, BACKGROUND_CONTEXT)
 
-      return memoryApi(harness, options.now, exchanges, times)
+      return memoryApi(harness, options.now, exchanges, times, options.timeZone)
     },
   }
 }

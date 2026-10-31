@@ -75,6 +75,8 @@ Familiar reads `settings.json` from its data directory. Saved `name`, `owner`, `
 
 The chat's model and reasoning level are picked in the composer, saved with the conversation and shared by every device. The models offered, and the level each starts on, are `chatModels` in `apps/daemon/src/config.ts`; `FAMILIAR_MODEL` must be one of them. It sets the chat's model only until one is picked, and the level a model was last set to is kept for when you switch back. Memory upkeep always runs on `FAMILIAR_MODEL` at its default level.
 
+Dates, reminders and the 04:00 memory pass follow the machine's time zone, read once when the daemon starts. Node honours `TZ`, so a service can be given another zone with `TZ=America/New_York`. Restart after travelling or changing the zone; [how Familiar handles a change](architecture.md#changing-zone) explains what moves and what stays.
+
 The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog: their API changes without notice between releases.
 
 ## Reading web pages

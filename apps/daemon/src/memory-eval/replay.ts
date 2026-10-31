@@ -6,7 +6,7 @@ import {
   saidBy,
   type UpkeepState,
 } from '@familiar/core/diagnostics'
-import { createClock } from './clock.ts'
+import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import type { Scenario } from './scenario.ts'
 import { entriesAfter, tasksIn } from './storage.ts'
 import { WAIT_MS, waitForIdle, waitForUpkeep, waitWithClock } from './wait.ts'
@@ -94,11 +94,16 @@ export async function replayScenario(
     await waitForIdle(
       familiar,
       clock,
-      nextUpkeep(clock.now()),
+      nextUpkeep(clock.now(), EVAL_TIME_ZONE),
       'Resumed replay to settle',
     )
   }
-  await waitForUpkeep(familiar, storage, clock, nextUpkeep(clock.now()))
+  await waitForUpkeep(
+    familiar,
+    storage,
+    clock,
+    nextUpkeep(clock.now(), EVAL_TIME_ZONE),
+  )
   for (const [index, day] of scenario.days.entries()) {
     if (index < fromDay) {
       continue
@@ -118,12 +123,12 @@ export async function replayScenario(
       await waitForIdle(
         familiar,
         clock,
-        nextUpkeep(noon),
+        nextUpkeep(noon, EVAL_TIME_ZONE),
         `Day ${day.date} reply`,
       )
       progress(`Day ${index + 1}/${scenario.days.length}: ${day.date}`)
     }
-    const pass = nextUpkeep(noon)
+    const pass = nextUpkeep(noon, EVAL_TIME_ZONE)
     clock.advanceTo(pass)
     const followingNoon = new Date(noon)
     followingNoon.setDate(followingNoon.getDate() + 1)
@@ -131,8 +136,8 @@ export async function replayScenario(
       familiar,
       storage,
       clock,
-      nextUpkeep(pass),
-      Math.min(nextUpkeep(pass), followingNoon.getTime()),
+      nextUpkeep(pass, EVAL_TIME_ZONE),
+      Math.min(nextUpkeep(pass, EVAL_TIME_ZONE), followingNoon.getTime()),
     )
     const after = await upkeepThrough(storage)
     if (day.text && (after === null || (before !== null && after <= before))) {
@@ -150,7 +155,7 @@ export async function replayScenario(
   }
   await waitWithClock(
     clock,
-    nextUpkeep(clock.now()),
+    nextUpkeep(clock.now(), EVAL_TIME_ZONE),
     'Replay tasks to settle before copying',
     async () => {
       const live = (await tasksIn(storage)).filter(

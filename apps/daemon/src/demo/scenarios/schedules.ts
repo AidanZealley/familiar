@@ -2,15 +2,12 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
+import { localMinute } from '@familiar/core'
 import type { Scenario } from '../types.ts'
+import { DEMO_TIME_ZONE } from '../zone.ts'
 
-const pad = (value: number) => String(value).padStart(2, '0')
-
-/** The next whole minute, as the schedule tool's local `YYYY-MM-DD HH:MM`. */
-function nextMinute() {
-  const at = new Date(Date.now() + 60_000)
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`
-}
+/** The next whole minute, as the schedule tool's `YYYY-MM-DD HH:MM`. */
+const nextMinute = () => localMinute(Date.now() + 60_000, DEMO_TIME_ZONE)
 
 export const remind: Scenario = {
   start: () =>

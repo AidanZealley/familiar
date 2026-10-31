@@ -23,6 +23,7 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     storage: await storageWith(['Lives in Leeds', 4], ['Likes blue pens', 1]),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
   })
   opened.push(familiar)
 
@@ -81,6 +82,7 @@ test('the event stream sends the view and every document whole first', async () 
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
@@ -111,6 +113,7 @@ test('messages and history validate what clients send', async () => {
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
   })
   opened.push(familiar)
   faux.setResponses([fauxAssistantMessage('Hello.')])

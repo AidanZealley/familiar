@@ -1,8 +1,7 @@
 import { Type } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
-import type { PluginFetch } from '@familiar/core'
+import { localMinute, type PluginFetch } from '@familiar/core'
 import type { ConvertHtml } from './convert-html.ts'
-import { timestamp } from './format.ts'
 
 const MAX_BYTES = 3 * 1024 * 1024
 
@@ -42,7 +41,11 @@ async function readText(response: Response, signal: AbortSignal) {
   }
 }
 
-export const webFetchTool = (fetch: PluginFetch, convert: ConvertHtml) =>
+export const webFetchTool = (
+  fetch: PluginFetch,
+  convert: ConvertHtml,
+  timeZone: string,
+) =>
   defineTool({
     name: 'web_fetch',
     description:
@@ -110,7 +113,7 @@ export const webFetchTool = (fetch: PluginFetch, convert: ConvertHtml) =>
           output: [
             {
               type: 'text',
-              text: `URL: ${finalUrl}\nRetrieved: ${timestamp(api.now())}\n\n${page.text || '(The page has no text.)'}${page.truncated ? '\n\n[Content truncated]' : ''}`,
+              text: `URL: ${finalUrl}\nRetrieved: ${localMinute(api.now(), timeZone)}\n\n${page.text || '(The page has no text.)'}${page.truncated ? '\n\n[Content truncated]' : ''}`,
             },
           ],
           details: { url: finalUrl },

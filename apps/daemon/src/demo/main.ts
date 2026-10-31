@@ -10,6 +10,7 @@ import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
 import { demoMcpFetch, demoMcpStdio, seedMcp } from './scenarios/mcp.ts'
 import { seedDemo } from './scenarios/memory.ts'
+import { DEMO_TIME_ZONE } from './zone.ts'
 
 const demoPlugin = definePlugin({
   name: 'demo',
@@ -27,6 +28,7 @@ const familiar = await summonFamiliar({
   models: createDemoModels(),
   model: demoChatModels[0].model,
   chatModels: demoChatModels,
+  timeZone: DEMO_TIME_ZONE,
   notify: async (notification) => {
     console.log('Notification:', JSON.stringify(notification))
     await push.notify(notification)

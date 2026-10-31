@@ -24,7 +24,7 @@ import {
   type EpisodesState,
 } from '../episodes.ts'
 import { describeEpisode } from '../recall.ts'
-import { formatDay, parseDay } from '../../time/index.ts'
+import { addDays } from '../../time/index.ts'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import {
   coreFacts,
@@ -91,6 +91,8 @@ export type UpkeepOptions = {
   thinkingLevel: ModelThinkingLevel
   name: string
   transcriptTokens: number
+  /** The IANA zone that sets upkeep's 04:00 and the days it files. */
+  timeZone: string
   extension: Extension
 }
 
@@ -102,9 +104,7 @@ const REVIEW_DAYS = 30
  * when they pass `budget`, shown oldest first.
  */
 function recentDays(episodes: EpisodesState, today: string, budget: number) {
-  const from = parseDay(today)
-  from.setDate(from.getDate() - REVIEW_DAYS)
-  const since = formatDay(from)
+  const since = addDays(today, -REVIEW_DAYS)
   const lines: string[] = []
   let tokens = 0
   for (const day of episodes.episodes
@@ -132,7 +132,7 @@ export function createUpkeep(options: UpkeepOptions) {
   const sleep = (now: number) =>
     ({
       status: 'sleeping',
-      until: nextUpkeep(now),
+      until: nextUpkeep(now, options.timeZone),
       checkpoint: { phase: 'pass' },
     }) as const
 
@@ -202,6 +202,7 @@ export function createUpkeep(options: UpkeepOptions) {
             upkeep.through,
             options.transcriptTokens,
             options.name,
+            options.timeZone,
           )
           // Rollups wait until every pending batch has been reviewed.
           if (!found) {
@@ -298,7 +299,7 @@ export function createUpkeep(options: UpkeepOptions) {
           const upkeep = await tx.doc(Upkeep)
           const due = dueRollup(
             await tx.doc(Episodes),
-            upkeepDay(runtime.now()),
+            upkeepDay(runtime.now(), options.timeZone),
           )
           if (upkeep.rollups === null) {
             return sleep(runtime.now())
@@ -371,7 +372,7 @@ export function createUpkeep(options: UpkeepOptions) {
             .join('\n')
           const days = recentDays(
             await tx.doc(Episodes),
-            upkeepDay(runtime.now()),
+            upkeepDay(runtime.now(), options.timeZone),
             options.transcriptTokens,
           )
           const input = `Check these facts against what happened recently:\n${facts}\n\nThe days of the last ${REVIEW_DAYS}, oldest first:\n${days || '(none recorded)'}`
@@ -419,7 +420,7 @@ export function createUpkeep(options: UpkeepOptions) {
   const extension = defineExtension({
     name: UPKEEP_EXTENSION,
     tasks: [UpkeepTask],
-    tools: upkeepTools,
+    tools: upkeepTools(options.timeZone),
   })
 
   return {

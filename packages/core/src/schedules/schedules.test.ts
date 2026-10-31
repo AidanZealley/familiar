@@ -16,15 +16,16 @@ import {
   type Notification,
 } from '../familiar.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
-import { fakeClock } from '../testing.ts'
-import { occurrenceAfter } from './repeat.ts'
+import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
+import { parseMinute } from '../time/index.ts'
+import { occurrenceAfter, occurrenceBy, occurrencesAfter } from './repeat.ts'
 import { addSchedule } from './schedules.ts'
 
-// Times are local, so pin a zone with a daylight saving change: 2026-10-25.
-process.env.TZ = 'Europe/London'
+const pad = (value: number) => String(value).padStart(2, '0')
 
+/** A time in October 2026 in TEST_ZONE, where the clocks go back on the 25th. */
 const at = (day: number, hour: number, minute = 0) =>
-  new Date(2026, 9, day, hour, minute).getTime()
+  timeAt(`2026-10-${pad(day)} ${pad(hour)}:${pad(minute)}`)
 
 /** Wednesday 21 October 2026, local noon. */
 const start = at(21, 12)
@@ -59,6 +60,7 @@ async function setup() {
   const models = createModels()
   models.setProvider(faux.provider)
   const clock = fakeClock(start)
+  let timeZone = TEST_ZONE
   const notifications: Notification[] = []
 
   // Scheduled inputs take the next answer in turn, and the owner's messages
@@ -86,6 +88,7 @@ async function setup() {
       storage,
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone,
       now: clock.now,
       setTimer: clock.setTimer,
       notify: async (notification) => {
@@ -161,13 +164,14 @@ async function setup() {
     await sleepingUntil(next)
   }
 
-  /** Closes Familiar and opens it again, at `time` if given. */
-  const reopen = async (time?: number) => {
+  /** Closes Familiar and opens it again, at `time` and in `zone` if given. */
+  const reopen = async (time?: number, zone?: string) => {
     opened.splice(opened.indexOf(familiar), 1)
     await familiar.dismiss()
     if (time !== undefined) {
       clock.setTime(time)
     }
+    timeZone = zone ?? timeZone
     familiar = await open()
   }
 
@@ -311,7 +315,7 @@ test('a repeat keeps its local time across a daylight saving change', async () =
   // The clocks go back at 02:00 on Sunday 25 October, so that day is 25 hours.
   expect(at(25, 7) - at(24, 7)).toBe(25 * 60 * 60 * 1000)
   const daily = 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0'
-  expect(occurrenceAfter(daily, start, at(24, 8))).toBe(at(25, 7))
+  expect(occurrenceAfter(daily, start, at(24, 8), TEST_ZONE)).toBe(at(25, 7))
 
   const f = await setup()
   await f.schedule({ repeat: daily })
@@ -333,6 +337,117 @@ test('a one-off at a minute that does not exist is refused', () => {
       {},
       { id: 's1', prompt: 'Stretch', at: '2026-02-30 09:00' },
       start,
+      TEST_ZONE,
     ),
   ).toThrow('that exists')
+})
+
+test('a minute the clock skips is refused, and one it shows twice is the first', () => {
+  // London's clocks go forward from 01:00 to 02:00 on 29 March 2026.
+  expect(parseMinute('2026-03-29 01:30', TEST_ZONE)).toBeUndefined()
+  expect(() =>
+    addSchedule(
+      {},
+      { id: 's1', prompt: 'Stretch', at: '2026-03-29 01:30' },
+      Date.UTC(2026, 2, 1),
+      TEST_ZONE,
+    ),
+  ).toThrow('that exists in Europe/London')
+  // They go back from 02:00 to 01:00 on 25 October, so 01:30 happens twice.
+  expect(parseMinute('2026-10-25 01:30', TEST_ZONE)).toBe(
+    Date.UTC(2026, 9, 25, 0, 30),
+  )
+  expect(parseMinute('2026-10-25 01:30', 'Asia/Tokyo')).toBe(
+    Date.UTC(2026, 9, 24, 16, 30),
+  )
+  expect(parseMinute('2026-10-25 1:30', TEST_ZONE)).toBeUndefined()
+})
+
+test('a repeat at a time the clock skips moves forward by the skipped hour', () => {
+  const daily = 'FREQ=DAILY;BYHOUR=1;BYMINUTE=30'
+  const created = timeAt('2026-03-27 12:00')
+  expect(occurrencesAfter(daily, created, created, 3, TEST_ZONE)).toEqual([
+    timeAt('2026-03-28 01:30'),
+    timeAt('2026-03-29 02:30'),
+    timeAt('2026-03-30 01:30'),
+  ])
+  // Woken after the gap but before the moved occurrence, it's still next.
+  expect(
+    occurrenceAfter(daily, created, timeAt('2026-03-29 02:10'), TEST_ZONE),
+  ).toBe(timeAt('2026-03-29 02:30'))
+  expect(
+    occurrenceBy(daily, created, timeAt('2026-03-29 02:10'), TEST_ZONE),
+  ).toBe(timeAt('2026-03-28 01:30'))
+})
+
+test('repeat candidates stay in instant order when gap adjustment reverses wall-clock order', () => {
+  const repeat = 'FREQ=DAILY;BYHOUR=1,2;BYMINUTE=0,30;BYSETPOS=2,3'
+  const start = Date.parse('2026-03-28T00:00:00Z')
+  expect(
+    occurrenceAfter(
+      repeat,
+      start,
+      Date.parse('2026-03-29T00:59:00Z'),
+      TEST_ZONE,
+    ),
+  ).toBe(Date.parse('2026-03-29T01:00:00Z'))
+  expect(
+    occurrenceBy(repeat, start, Date.parse('2026-03-29T01:35:00Z'), TEST_ZONE),
+  ).toBe(Date.parse('2026-03-29T01:30:00Z'))
+})
+
+test('an hourly repeat runs once an hour, in order, as the clocks go back', () => {
+  const hourly = 'FREQ=HOURLY;BYMINUTE=30'
+  const created = Date.UTC(2026, 9, 24, 22)
+  const times = occurrencesAfter(hourly, created, created, 5, TEST_ZONE)
+  // 01:30 is shown twice that night; the repeat runs at the first only.
+  expect(times.map((time) => new Date(time).toISOString())).toEqual([
+    '2026-10-24T22:30:00.000Z',
+    '2026-10-24T23:30:00.000Z',
+    '2026-10-25T00:30:00.000Z',
+    '2026-10-25T02:30:00.000Z',
+    '2026-10-25T03:30:00.000Z',
+  ])
+  // Woken during the repeated hour, it neither runs 01:30 again nor waits
+  // past 02:30.
+  const repeated = Date.UTC(2026, 9, 25, 1, 40)
+  expect(occurrenceAfter(hourly, created, repeated, TEST_ZONE)).toBe(
+    Date.UTC(2026, 9, 25, 2, 30),
+  )
+  expect(occurrenceBy(hourly, created, repeated, TEST_ZONE)).toBe(
+    Date.UTC(2026, 9, 25, 0, 30),
+  )
+})
+
+test("one repeat runs at 07:00 in each Familiar's own zone", () => {
+  const daily = 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0'
+  const now = Date.UTC(2026, 5, 1, 12)
+  expect(occurrenceAfter(daily, now, now, 'Asia/Tokyo')).toBe(
+    Date.UTC(2026, 5, 1, 22),
+  )
+  expect(occurrenceAfter(daily, now, now, 'America/New_York')).toBe(
+    Date.UTC(2026, 5, 2, 11),
+  )
+})
+
+test('reopened in another zone, a one-off keeps its time and a repeat follows the new zone', async () => {
+  const f = await setup()
+  const once = await f.schedule({ at: '2026-10-22 09:00' })
+  f.clock.advanceTo(at(21, 12, 1))
+  const daily = await f.schedule({ repeat: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0' })
+  expect((await f.schedules())[daily].next).toBe(at(22, 7))
+
+  // The owner moves to New York, five hours behind London that week.
+  await f.reopen(at(21, 13), 'America/New_York')
+  const stored = await f.schedules()
+  expect(stored[once].next).toBe(at(22, 9))
+  // The occurrence already set keeps its time; the next follows New York.
+  expect(stored[daily].next).toBe(at(22, 7))
+  f.clock.advanceTo(at(22, 7))
+  await vi.waitFor(async () =>
+    expect((await f.schedules())[daily].next).toBe(Date.UTC(2026, 9, 22, 11)),
+  )
+  expect(f.inputs).toEqual([
+    '[Scheduled for 2026-10-22 02:00] Remind Aidan to call Mum',
+  ])
 })
