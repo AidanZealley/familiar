@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
+import { TEST_ZONE, timeAt } from '../testing.ts'
 import { localDay } from '../time/index.ts'
-import { upkeepDay } from './upkeep/schedule.ts'
+import { nextUpkeep, upkeepDay } from './upkeep/schedule.ts'
 import {
   addEpisode,
   datesIn,
@@ -76,7 +77,7 @@ test('missed passes are caught up oldest first', () => {
 
 test('days with no conversation need no rollup', () => {
   expect(due(stateOf(), '2025-03-10')).toBeUndefined()
-  expect(localDay(new Date(2025, 2, 9, 23, 59).getTime())).toBe('2025-03-09')
+  expect(localDay(timeAt('2025-03-09 23:59'), TEST_ZONE)).toBe('2025-03-09')
 })
 
 test('an episode spanning a new week or month counts towards both', () => {
@@ -130,8 +131,34 @@ test('a message names dates only explicitly, and past ones without a year', () =
 })
 
 test('a message at 1am belongs to the day before', () => {
-  expect(upkeepDay(new Date(2026, 1, 10, 1, 0).getTime())).toBe('2026-02-09')
-  expect(upkeepDay(new Date(2026, 1, 10, 4, 0).getTime())).toBe('2026-02-10')
+  expect(upkeepDay(timeAt('2026-02-10 01:00'), TEST_ZONE)).toBe('2026-02-09')
+  expect(upkeepDay(timeAt('2026-02-10 04:00'), TEST_ZONE)).toBe('2026-02-10')
+})
+
+test('upkeep days run from 04:00 on the wall clock across a clock change', () => {
+  const HOUR = 60 * 60 * 1000
+  // Clocks go forward an hour at 01:00 on 29 March 2026 in London, and back
+  // at 02:00 on 25 October, so those upkeep days are 23 and 25 hours long.
+  const spring = timeAt('2026-03-29 04:00')
+  expect(nextUpkeep(timeAt('2026-03-28 04:00'), TEST_ZONE)).toBe(spring)
+  expect(spring - timeAt('2026-03-28 04:00')).toBe(23 * HOUR)
+  expect(upkeepDay(spring - 1, TEST_ZONE)).toBe('2026-03-28')
+  expect(upkeepDay(timeAt('2026-03-29 04:30'), TEST_ZONE)).toBe('2026-03-29')
+
+  const autumn = timeAt('2026-10-25 04:00')
+  expect(nextUpkeep(timeAt('2026-10-24 04:00'), TEST_ZONE)).toBe(autumn)
+  expect(autumn - timeAt('2026-10-24 04:00')).toBe(25 * HOUR)
+  expect(upkeepDay(autumn - 1, TEST_ZONE)).toBe('2026-10-24')
+  expect(upkeepDay(autumn, TEST_ZONE)).toBe('2026-10-25')
+})
+
+test("upkeep runs at 04:00 in each Familiar's own zone", () => {
+  const now = Date.UTC(2026, 5, 1, 12)
+  expect(nextUpkeep(now, 'Europe/London')).toBe(Date.UTC(2026, 5, 2, 3))
+  expect(nextUpkeep(now, 'America/New_York')).toBe(Date.UTC(2026, 5, 2, 8))
+  // 12:00 UTC is already evening in Tokyo, and midnight in Auckland.
+  expect(nextUpkeep(now, 'Asia/Tokyo')).toBe(Date.UTC(2026, 5, 1, 19))
+  expect(nextUpkeep(now, 'Pacific/Auckland')).toBe(Date.UTC(2026, 5, 1, 16))
 })
 
 test('an episode spanning several weeks counts towards each of them', () => {

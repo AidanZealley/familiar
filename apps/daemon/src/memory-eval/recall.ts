@@ -5,6 +5,7 @@ import {
   localDay,
   type Exchange,
 } from '@familiar/core/diagnostics'
+import { EVAL_TIME_ZONE } from './clock.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
 
 /**
@@ -184,7 +185,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
       (skip) => skip.question === question && skip.required === required,
     )
 
-  const index = createExchangeIndex()
+  const index = createExchangeIndex(EVAL_TIME_ZONE)
   const end = middayOf(scenario.days.at(-1)!.date)
   const result: RecallResult = {
     scenario: scenario.id,
@@ -231,7 +232,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
       const searchStarted = performance.now()
       const found = index.search(question.text, now, {
         limit: 10,
-        ranges: datesIn(question.text, localDay(now)),
+        ranges: datesIn(question.text, localDay(now, EVAL_TIME_ZONE)),
       })
       times.push(performance.now() - searchStarted)
       const texts = found.map((exchange) =>

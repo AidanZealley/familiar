@@ -64,6 +64,7 @@ async function setup(factory: typeof stdioTransport | null = stdioTransport) {
     secrets: memorySecrets(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
     mcpStdio: factory
       ? (config) => {
           const child = factory(config)

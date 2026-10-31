@@ -16,14 +16,14 @@ import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
 import { MemoryUsage } from '../facts.ts'
-import { fakeClock } from '../../testing.ts'
+import { fakeClock, TEST_ZONE, timeAt } from '../../testing.ts'
 import { readStored, ReopenableStorage, storageWith } from '../testing.ts'
 
 const context = BACKGROUND_CONTEXT
 
-const start = new Date(2026, 9, 25, 12).getTime() // local noon
-const firstPass = nextUpkeep(start)
-const secondPass = nextUpkeep(firstPass)
+const start = timeAt('2026-10-25 12:00')
+const firstPass = nextUpkeep(start, TEST_ZONE)
+const secondPass = nextUpkeep(firstPass, TEST_ZONE)
 
 async function setup(storage: Storage = new ReopenableStorage()) {
   const faux = fauxProvider()
@@ -36,6 +36,7 @@ async function setup(storage: Storage = new ReopenableStorage()) {
       storage,
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: TEST_ZONE,
       now: clock.now,
       setTimer: clock.setTimer,
     })
@@ -305,7 +306,7 @@ test('a fact cited from several messages is true from the earliest', async () =>
       ),
     fauxAssistantMessage('Cello practice.'),
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect(await memory()).toMatchObject([
     {
       since: '2026-10-25',
@@ -383,7 +384,7 @@ test('a pass sees only messages since the previous one', async () => {
 
   faux.setResponses([fauxAssistantMessage('Welcome back.'), upkeepReply])
   await say('We are back from Porto.')
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
 
   expect(inputs).toHaveLength(2)
   expect(inputs[0]).toContain('Lisbon')
@@ -402,11 +403,11 @@ test('no pass runs when nothing new was said', async () => {
     fauxAssistantMessage('Nothing to change.'),
   ])
   await say('Hi.')
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect(faux.state.callCount).toBe(2)
 
-  const third = nextUpkeep(secondPass)
-  await passAt(third, nextUpkeep(third))
+  const third = nextUpkeep(secondPass, TEST_ZONE)
+  await passAt(third, nextUpkeep(third, TEST_ZONE))
   expect(faux.state.callCount).toBe(2)
 })
 
@@ -661,7 +662,7 @@ test('a pass that still writes no episode moves on rather than repeat itself', a
       return fauxAssistantMessage('Rowan tidied the shed.')
     },
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   // The next night reviews only what's new.
   expect(input).toContain('tidied the shed')
   expect(input).not.toContain('planting bulbs')
@@ -755,7 +756,7 @@ test('a busy day reviews every message in ordered batches before its rollup', as
   ])
   await reopen()
   const calls = faux.state.callCount
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect(faux.state.callCount).toBe(calls)
 })
 
@@ -788,7 +789,7 @@ test('a backlog is split at 04:00 and all days are reviewed before rollups', asy
       return fauxAssistantMessage('Sunday week.')
     },
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect(inputs).toHaveLength(2)
   expect(inputs[0]).toContain('Sunday news.')
   expect(inputs[0]).not.toContain('Monday news.')
@@ -840,7 +841,7 @@ test('a failed later batch keeps earlier progress across a restart and delays ro
       return fauxAssistantMessage('Both batches.')
     },
   ])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect(input).toContain(messages[1])
   expect(input).not.toContain('end-first')
   expect(rollupInput).toContain('First batch episode.')
@@ -962,14 +963,14 @@ test('a failed review stamps nothing and runs again the next night, then sleeps'
   expect(reviews).toHaveLength(1)
 
   faux.setResponses([review(() => fauxAssistantMessage('Checked.'))])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect(reviews).toHaveLength(2)
   expect(reviews[1]).toBe(reviews[0])
 
   // Both are checked now, so the next night has nothing to review.
   const calls = faux.state.callCount
-  const third = nextUpkeep(secondPass)
-  await passAt(third, nextUpkeep(third))
+  const third = nextUpkeep(secondPass, TEST_ZONE)
+  await passAt(third, nextUpkeep(third, TEST_ZONE))
   expect(faux.state.callCount).toBe(calls)
 
   await dismiss(familiar())
@@ -1051,6 +1052,6 @@ test('a failed rollup still lets the review run, and is tried again the next nig
   expect((await episodes()).map(({ span }) => span)).toEqual(['day'])
 
   faux.setResponses([fauxAssistantMessage('A week of greetings.')])
-  await passAt(secondPass, nextUpkeep(secondPass))
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
 })

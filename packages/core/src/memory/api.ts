@@ -37,6 +37,7 @@ export function memoryApi(
   now: () => number,
   exchanges: TranscriptExchanges,
   times: SearchTimes,
+  timeZone: string,
 ): MemoryApi {
   const editMemory = (edit: (memory: Memory) => void) =>
     harness.commit(async (tx) => edit(await openMemory(tx)), context)
@@ -47,10 +48,15 @@ export function memoryApi(
     watchEpisodes: async () => (await harness.watchDoc(Episodes, context))!,
     revise: (id, text) =>
       editMemory((memory) =>
-        reviseFact(memory, id, { text, since: localDay(now()) }, now()),
+        reviseFact(
+          memory,
+          id,
+          { text, since: localDay(now(), timeZone) },
+          now(),
+        ),
       ),
     retire: (id) =>
-      editMemory((memory) => retireFact(memory, id, localDay(now()))),
+      editMemory((memory) => retireFact(memory, id, localDay(now(), timeZone))),
     setPinned: (id, pinned) =>
       editMemory((memory) => setPinned(memory, id, pinned)),
     // Catches the exchange index up first, so its count is the transcript's.

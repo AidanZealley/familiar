@@ -15,6 +15,7 @@ import {
   type Familiar,
   type FamiliarOptions,
 } from './familiar.ts'
+import { TEST_ZONE } from './testing.ts'
 
 type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
   contextWindow?: number
@@ -30,6 +31,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: TEST_ZONE,
     ...options,
   })
   opened.push(familiar)
@@ -166,6 +168,47 @@ test('current_time reads the Harness clock', async () => {
   await say('What time is it?')
   expect(toolResult).toContain('Wednesday, 4 March 2026')
   expect(toolResult).toContain('12:34')
+})
+
+test("current_time answers in the Familiar's own time zone", async () => {
+  const at = Date.UTC(2026, 2, 4, 23, 30)
+  const answer = async (timeZone: string) => {
+    const { faux, say } = await setup({ now: () => at, timeZone })
+    let toolResult = ''
+    faux.setResponses([
+      fauxAssistantMessage(fauxToolCall('current_time', {}), {
+        stopReason: 'toolUse',
+      }),
+      (context) => {
+        toolResult = JSON.stringify(context.messages.at(-1))
+        return fauxAssistantMessage('Noted.')
+      },
+    ])
+    await say('What time is it?')
+    return toolResult
+  }
+
+  // Two Familiars in one process, neither reading the process's zone.
+  const [tokyo, newYork] = await Promise.all([
+    answer('Asia/Tokyo'),
+    answer('America/New_York'),
+  ])
+  expect(tokyo).toContain('Thursday, 5 March 2026')
+  expect(tokyo).toContain('08:30')
+  expect(newYork).toContain('Wednesday, 4 March 2026')
+  expect(newYork).toContain('18:30')
+})
+
+test('a Familiar refuses a time zone it does not know', async () => {
+  await expect(setup({ timeZone: 'Mars/Olympus_Mons' })).rejects.toThrow(
+    'Mars/Olympus_Mons is not a known IANA time zone.',
+  )
+  await expect(setup({ timeZone: '' })).rejects.toThrow(RangeError)
+  for (const timeZone of ['+05:30', '-04:00', '+0530', '+05']) {
+    await expect(setup({ timeZone })).rejects.toThrow(
+      `${timeZone} is not a known IANA time zone.`,
+    )
+  }
 })
 
 test('usage totals the model spend of every reply', async () => {

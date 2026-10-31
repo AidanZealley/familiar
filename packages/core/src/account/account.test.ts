@@ -231,6 +231,7 @@ test('a reply failing on a login that stopped working marks it expired, and a wo
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
   })
   const say = async (text: string) => {
     await familiar.send({ author: 'aidan', text, requestId: text })

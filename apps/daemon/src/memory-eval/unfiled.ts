@@ -12,7 +12,7 @@ import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar, type FamiliarOptions } from '@familiar/core'
 import { nextUpkeep } from '@familiar/core/diagnostics'
-import { createClock } from './clock.ts'
+import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { unquoted } from './recall.ts'
 import { upkeepThrough } from './replay.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
@@ -109,6 +109,7 @@ export async function runUnfiledEval(
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     contextBudget: CONTEXT_BUDGET,
+    timeZone: EVAL_TIME_ZONE,
   } satisfies Partial<FamiliarOptions>
   const replayPath = join(directory, 'replay.sqlite')
 
@@ -125,7 +126,12 @@ export async function runUnfiledEval(
     setTimer: holding.setTimer,
   })
   try {
-    await waitForUpkeep(holder, held, holding, nextUpkeep(asked))
+    await waitForUpkeep(
+      holder,
+      held,
+      holding,
+      nextUpkeep(asked, EVAL_TIME_ZONE),
+    )
   } finally {
     await holder.dismiss()
   }

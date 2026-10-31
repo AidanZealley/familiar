@@ -1,5 +1,6 @@
 import type { EntryId } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
+import { TEST_ZONE } from '../testing.ts'
 import { parseDay } from '../time/index.ts'
 import { datesIn } from './episodes.ts'
 import { createExchangeIndex } from './exchanges.ts'
@@ -9,7 +10,7 @@ const noonOf = (day: string) => parseDay(day).getTime() + DAY / 2
 const now = noonOf('2026-01-01')
 
 const indexOf = (...exchanges: [day: string, text: string][]) => {
-  const index = createExchangeIndex()
+  const index = createExchangeIndex(TEST_ZONE)
   exchanges.forEach(([day, text], number) =>
     index.add({
       id: `x${number + 1}`,
@@ -64,7 +65,7 @@ test('finds exchanges on the days a query names, even without its words', () => 
 })
 
 test('stays within the limit, adding as it goes', () => {
-  const index = createExchangeIndex()
+  const index = createExchangeIndex(TEST_ZONE)
   for (let number = 1; number <= 20; number++) {
     index.add({
       id: `x${number}`,
@@ -103,7 +104,7 @@ test('opens an exchange with its neighbours, and those between two entries', () 
 })
 
 test('searches within a range of entries, counting exchanges a boundary splits', () => {
-  const index = createExchangeIndex()
+  const index = createExchangeIndex(TEST_ZONE)
   // Person messages at 10, 20 and 30, each answered a few entries later.
   for (const first of [10, 20, 30]) {
     index.add({
@@ -133,7 +134,7 @@ test('searches within a range of entries, counting exchanges a boundary splits',
 })
 
 test('applies the range before the limit', () => {
-  const index = createExchangeIndex()
+  const index = createExchangeIndex(TEST_ZONE)
   for (let first = 1; first <= 10; first++) {
     index.add({
       id: `x${first * 10}`,

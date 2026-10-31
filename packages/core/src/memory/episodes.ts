@@ -1,5 +1,5 @@
 import { defineDoc, type EntryId } from '@earendil-works/pi-durable'
-import { formatDay, parseDay } from '../time/index.ts'
+import { addDays, formatDay, parseDay } from '../time/index.ts'
 
 /**
  * Episodes: what happened, as summaries. Upkeep writes one per pass over a
@@ -13,7 +13,7 @@ export type Episode = {
   /** `e1`, `e2`, …: never reused. */
   id: string
   span: Span
-  /** Local dates, `YYYY-MM-DD`, inclusive. */
+  /** Days in Familiar's time zone, `YYYY-MM-DD`, inclusive. */
   start: string
   end: string
   text: string
@@ -64,15 +64,15 @@ export function datesIn(text: string, today: string): DateRange[] {
       return Number(given)
     }
 
-    const thisYear = new Date(now.getFullYear(), month, date)
-    return thisYear > now ? now.getFullYear() - 1 : now.getFullYear()
+    const thisYear = new Date(Date.UTC(now.getUTCFullYear(), month, date))
+    return thisYear > now ? now.getUTCFullYear() - 1 : now.getUTCFullYear()
   }
 
   const addDay = (year: number, month: number, date: number) => {
-    const at = new Date(year, month, date)
+    const at = new Date(Date.UTC(year, month, date))
 
     // Rejects dates like 31 February rather than rolling them over.
-    if (at.getMonth() !== month) {
+    if (at.getUTCMonth() !== month) {
       return
     }
 
@@ -81,8 +81,8 @@ export function datesIn(text: string, today: string): DateRange[] {
 
   const addMonth = (year: number, month: number) =>
     ranges.push({
-      start: formatDay(new Date(year, month, 1)),
-      end: formatDay(new Date(year, month + 1, 0)),
+      start: formatDay(new Date(Date.UTC(year, month, 1))),
+      end: formatDay(new Date(Date.UTC(year, month + 1, 0))),
     })
 
   // 2025-03-04
@@ -168,28 +168,23 @@ export function addEpisode(
 /** The Monday-to-Sunday week and the calendar month a day falls in. */
 function periodsOf(day: string) {
   const date = parseDay(day)
-  const monday = new Date(date)
-  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7))
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const first = new Date(date.getFullYear(), date.getMonth(), 1)
-  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+  const monday = addDays(day, -((date.getUTCDay() + 6) % 7))
+  const [year, month] = [date.getUTCFullYear(), date.getUTCMonth()]
   return [
-    { span: 'week' as const, start: formatDay(monday), end: formatDay(sunday) },
-    { span: 'month' as const, start: formatDay(first), end: formatDay(last) },
+    { span: 'week' as const, start: monday, end: addDays(monday, 6) },
+    {
+      span: 'month' as const,
+      start: formatDay(new Date(Date.UTC(year, month, 1))),
+      end: formatDay(new Date(Date.UTC(year, month + 1, 0))),
+    },
   ]
 }
 
 /** Every day an episode covers. */
 export function daysOf(episode: DateRange) {
   const days: string[] = []
-  const last = parseDay(episode.end)
-  for (
-    let date = parseDay(episode.start);
-    date <= last;
-    date = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-  ) {
-    days.push(formatDay(date))
+  for (let day = episode.start; day <= episode.end; day = addDays(day, 1)) {
+    days.push(day)
   }
   return days
 }

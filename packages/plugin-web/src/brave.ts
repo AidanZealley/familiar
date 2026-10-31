@@ -1,7 +1,7 @@
 import { Type, type Static } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
-import type { PluginContext } from '@familiar/core'
-import { cut, timestamp } from './format.ts'
+import { localMinute, type PluginContext } from '@familiar/core'
+import { cut } from './format.ts'
 
 export const BRAVE_ORIGIN = 'https://api.search.brave.com'
 export const BRAVE_PATH = '/res/v1/web/search'
@@ -149,7 +149,7 @@ export const webSearchTool = (context: PluginContext) =>
         throw error
       }
       const found = (body.web?.results ?? []).filter((result) => result.url)
-      const header = `Brave Search results for "${query}", ${timestamp(api.now())}:`
+      const header = `Brave Search results for "${query}", ${localMinute(api.now(), context.timeZone)}:`
       let text = found.length ? header : `${header}\n\nNo results.`
       const results: Static<typeof Result>[] = []
       for (const result of found.slice(0, count)) {

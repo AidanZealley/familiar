@@ -1,4 +1,5 @@
 import type { SetTimer } from '@earendil-works/pi-durable'
+import { parseMinute } from './time/index.ts'
 
 /** Test helpers; not part of Familiar. */
 
@@ -32,4 +33,16 @@ export function fakeClock(start: number) {
       now = time
     },
   }
+}
+
+/** The zone tests read calendars in unless they test another. Clocks go back on 2026-10-25. */
+export const TEST_ZONE = 'Europe/London'
+
+/** The time of `YYYY-MM-DD HH:MM` in `timeZone`. */
+export function timeAt(minute: string, timeZone = TEST_ZONE) {
+  const at = parseMinute(minute, timeZone)
+  if (at === undefined) {
+    throw new Error(`${minute} doesn't exist in ${timeZone}.`)
+  }
+  return at
 }

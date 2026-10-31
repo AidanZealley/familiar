@@ -2,6 +2,7 @@ import type { EntryId } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { addEpisode, type EpisodesState, type Span } from './episodes.ts'
 import { rememberFact, retireFact, reviseFact, type Memory } from './facts.ts'
+import { TEST_ZONE } from '../testing.ts'
 import { localDay } from '../time/index.ts'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { createExchangeIndex } from './exchanges.ts'
@@ -22,7 +23,7 @@ const now = Date.UTC(2026, 0, 1)
 const save = (memory: Memory, text: string, importance: number, at: number) =>
   rememberFact(
     memory,
-    { text, importance, since: localDay(at), sources: [] },
+    { text, importance, since: localDay(at, TEST_ZONE), sources: [] },
     at,
   )
 
@@ -38,8 +39,8 @@ const memoryOf = (...facts: [text: string, importance: number][]) => {
 }
 
 const ids = (memory: Memory, query: string) =>
-  searchMemory(memory.facts, undefined, query, now).found.map(({ item }) =>
-    'fact' in item ? item.fact.id : item.episode.id,
+  searchMemory(memory.facts, undefined, query, now, TEST_ZONE).found.map(
+    ({ item }) => ('fact' in item ? item.fact.id : item.episode.id),
   )
 
 test('finds matching facts outside core and leaves out core', () => {
@@ -78,8 +79,8 @@ test('importance and recency rank equally relevant facts', () => {
   const aged = memoryOf()
   save(aged, 'Shed key was under the pot', 2, now - 4 * 365 * DAY)
   save(aged, 'Shed key was on the hook', 2, now - 60 * DAY)
-  retireFact(aged, 'f1', localDay(now - 3 * 365 * DAY))
-  retireFact(aged, 'f2', localDay(now - 30 * DAY))
+  retireFact(aged, 'f1', localDay(now - 3 * 365 * DAY, TEST_ZONE))
+  retireFact(aged, 'f2', localDay(now - 30 * DAY, TEST_ZONE))
   expect(ids(aged, 'shed key')).toEqual(['f2', 'f1'])
 })
 
@@ -88,7 +89,10 @@ test('past facts are found, ranked below current ones and labelled', () => {
   reviseFact(
     memory,
     'f1',
-    { text: 'Lives at 9 Foss Lane in York', since: localDay(now - 10 * DAY) },
+    {
+      text: 'Lives at 9 Foss Lane in York',
+      since: localDay(now - 10 * DAY, TEST_ZONE),
+    },
     now - 10 * DAY,
   )
   memory.facts.facts[1].core = false
@@ -99,7 +103,7 @@ test('past facts are found, ranked below current ones and labelled', () => {
   expect(describe(memory.facts, { fact: memory.facts.facts[1] })).toBe(
     'f2 (since 2025-12-22): Lives at 9 Foss Lane in York',
   )
-  retireFact(memory, 'f2', localDay(now))
+  retireFact(memory, 'f2', localDay(now, TEST_ZONE))
   expect(describe(memory.facts, { fact: memory.facts.facts[1] })).toContain(
     'to 2026-01-01, no longer current): ',
   )
@@ -121,7 +125,7 @@ test('stays within the limit and the token budget', () => {
     ['Garden gate is 84 cm', 2],
   )
   expect(
-    searchMemory(long.facts, undefined, 'garden', now, {
+    searchMemory(long.facts, undefined, 'garden', now, TEST_ZONE, {
       tokens: 40,
     }).found.map(({ item }) => ('fact' in item ? item.fact.id : '')),
   ).toEqual(['f2'])
@@ -137,6 +141,7 @@ test('stays within the limit and the token budget', () => {
     ]),
     'garden',
     now,
+    TEST_ZONE,
   )
   expect(found).toHaveLength(1)
   expect(found[0].line).toMatch(/^e1 .*…$/)
@@ -164,8 +169,8 @@ const episodesOf = (
 }
 
 const found = (memory: Memory, episodes: EpisodesState, query: string) =>
-  searchMemory(memory.facts, episodes, query, now).found.map(({ item }) =>
-    'fact' in item ? item.fact.id : item.episode.id,
+  searchMemory(memory.facts, episodes, query, now, TEST_ZONE).found.map(
+    ({ item }) => ('fact' in item ? item.fact.id : item.episode.id),
   )
 
 test('episodes are found by when they happened, not only by their words', () => {
@@ -242,6 +247,7 @@ test('core facts a message matches count as used without being shown', () => {
     undefined,
     'Is Pip a greyhound?',
     now,
+    TEST_ZONE,
   )
   expect(search.found).toEqual([])
   expect(search.used).toEqual(['f1'])
@@ -288,7 +294,7 @@ test('the recall tool groups facts, episodes and exchanges, current facts first'
     '2025-12-01',
     'Moved house to Foss Lane in York.',
   ])
-  const exchanges = createExchangeIndex()
+  const exchanges = createExchangeIndex(TEST_ZONE)
   exchanges.add({
     id: 'x7',
     at: now - 31 * DAY,
@@ -301,6 +307,7 @@ test('the recall tool groups facts, episodes and exchanges, current facts first'
     exchanges,
     'Where do I live now, Foss Lane?',
     now,
+    TEST_ZONE,
   )
   const lines = text.split('\n')
   expect(lines[0]).toBe('Facts:')
@@ -314,9 +321,9 @@ test('the recall tool groups facts, episodes and exchanges, current facts first'
   expect(lines[6].length).toBeLessThan(340)
   expect(used).toEqual(['f2', 'f1'])
   expect(estimateTextTokens(text)).toBeLessThanOrEqual(RECALL_TOOL_TOKENS)
-  expect(recallAll(memory.facts, episodes, exchanges, 'zebra', now).text).toBe(
-    'Nothing found.',
-  )
+  expect(
+    recallAll(memory.facts, episodes, exchanges, 'zebra', now, TEST_ZONE).text,
+  ).toBe('Nothing found.')
 })
 
 test('an excerpt is the whole text when short, and starts at the match when long', () => {

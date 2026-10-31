@@ -29,7 +29,7 @@ import {
   storageWith,
   withHarness,
 } from './testing.ts'
-import { fakeClock } from '../testing.ts'
+import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
 import { nextUpkeep } from './upkeep/schedule.ts'
 import { addEpisode, Episodes } from './episodes.ts'
 import { createMemory } from './index.ts'
@@ -56,6 +56,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: TEST_ZONE,
     ...options,
   })
   opened.push(familiar)
@@ -147,6 +148,7 @@ test("only upkeep's conversation is given the tools that write facts", async () 
       thinkingLevel: 'low',
       name: 'Familiar',
       transcriptTokens: 1_000,
+      timeZone: TEST_ZONE,
     })
     for (const extension of memory.extensions) {
       registry.install(extension)
@@ -515,7 +517,7 @@ test('automatic recall leaves out what is still in view and what upkeep has revi
 })
 
 test('upkeep passes are not shown unfiled exchanges', async () => {
-  const clock = fakeClock(new Date(2026, 9, 25, 12).getTime())
+  const clock = fakeClock(timeAt('2026-10-25 12:00'))
   const { faux, familiar, say } = await setup({
     ...compacting,
     now: clock.now,
@@ -530,7 +532,7 @@ test('upkeep passes are not shown unfiled exchanges', async () => {
     return fauxAssistantMessage('A day of weather and a bike lock.')
   }
   script(faux, [review, review])
-  clock.advanceTo(nextUpkeep(clock.now()))
+  clock.advanceTo(nextUpkeep(clock.now(), TEST_ZONE))
   await vi.waitFor(() => expect(notes.length).toBeGreaterThan(0))
   expect(notes.join('\n')).not.toContain('Earlier conversation')
 })

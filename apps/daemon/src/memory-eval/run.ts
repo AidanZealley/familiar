@@ -1,7 +1,7 @@
 import type { Models } from '@earendil-works/pi-ai'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar } from '@familiar/core'
-import { createClock } from './clock.ts'
+import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { askQuestions, type QuestionResult } from './questions.ts'
 import { replayScenario, resumePoint, type UpkeepResult } from './replay.ts'
 import type { Scenario } from './scenario.ts'
@@ -80,6 +80,7 @@ export async function runMemoryEval({
     models,
     model,
     contextBudget: 4_000,
+    timeZone: EVAL_TIME_ZONE,
     now: clock.now,
     setTimer: clock.setTimer,
   })

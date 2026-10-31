@@ -2,6 +2,7 @@ import type { EntryId } from '@earendil-works/pi-durable'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { expect, test } from 'vitest'
 import { addEpisode, type EpisodesState } from './episodes.ts'
+import { TEST_ZONE } from '../testing.ts'
 import { createExchangeIndex } from './exchanges.ts'
 import { rememberFact, reviseFact, type Memory } from './facts.ts'
 import { READ_TOKENS, readMemory } from './read.ts'
@@ -32,7 +33,8 @@ test('a fact read from before a merge shows everything the merge folded in', () 
     'f1',
     memory.facts,
     noEpisodes(),
-    createExchangeIndex(),
+    createExchangeIndex(TEST_ZONE),
+    TEST_ZONE,
   )
   const changed = read.split('How it changed, oldest first:\n')[1]
   expect(changed).toMatch(/^f1 .*\nf2 .*\nf3 .*Has a cat called Miso/)
@@ -40,7 +42,7 @@ test('a fact read from before a merge shows everything the merge folded in', () 
 
 test('a long history and long sources stay within the budget', () => {
   const memory = empty()
-  const exchanges = createExchangeIndex()
+  const exchanges = createExchangeIndex(TEST_ZONE)
   const sources: EntryId[] = []
   for (let entry = 1; entry <= 20; entry++) {
     exchanges.add({
@@ -67,7 +69,13 @@ test('a long history and long sources stay within the budget', () => {
       version,
     )
   }
-  const read = readMemory('f100', memory.facts, noEpisodes(), exchanges)
+  const read = readMemory(
+    'f100',
+    memory.facts,
+    noEpisodes(),
+    exchanges,
+    TEST_ZONE,
+  )
   expect(estimateTextTokens(read)).toBeLessThanOrEqual(READ_TOKENS)
   expect(read).toMatch(/Not shown: f\d+, /)
   expect(read).toContain('From:\nx1 ')
@@ -91,12 +99,24 @@ test('a month lists a day episode that crosses into it', () => {
     at,
   })
   expect(
-    readMemory('e2', empty().facts, episodes, createExchangeIndex()),
+    readMemory(
+      'e2',
+      empty().facts,
+      episodes,
+      createExchangeIndex(TEST_ZONE),
+      TEST_ZONE,
+    ),
   ).toContain('e1 (day of 2025-01-31 to 2025-02-01): A late night')
 })
 
 test('an unknown ID says what IDs look like', () => {
   expect(
-    readMemory('m4', empty().facts, noEpisodes(), createExchangeIndex()),
+    readMemory(
+      'm4',
+      empty().facts,
+      noEpisodes(),
+      createExchangeIndex(TEST_ZONE),
+      TEST_ZONE,
+    ),
   ).toContain('Facts start with f')
 })

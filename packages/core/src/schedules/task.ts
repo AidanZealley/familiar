@@ -56,7 +56,11 @@ export function notificationBody(text: string) {
  * that wakes to find its schedule gone finishes without doing anything:
  * cancelling is removing the schedule.
  */
-export function createScheduleTask(name: string, notify: Notify | undefined) {
+export function createScheduleTask(
+  name: string,
+  notify: Notify | undefined,
+  timeZone: string,
+) {
   return defineTask<{ id: string }, ScheduleStep, null>({
     name: 'familiar.schedule',
     version: 1,
@@ -79,7 +83,7 @@ export function createScheduleTask(name: string, notify: Notify | undefined) {
               checkpoint: { phase: 'wait' },
             }
           }
-          const due = dueAt(schedule, now)
+          const due = dueAt(schedule, now, timeZone)
           return {
             status: 'running',
             checkpoint: {
@@ -100,8 +104,8 @@ export function createScheduleTask(name: string, notify: Notify | undefined) {
         )
         const when =
           late === undefined
-            ? localMinute(due)
-            : `${localMinute(due)}, delivered ${localMinute(late)}`
+            ? localMinute(due, timeZone)
+            : `${localMinute(due, timeZone)}, delivered ${localMinute(late, timeZone)}`
         // Queues like any message if the conversation is busy.
         const submission = await conversation!.submit(
           {
@@ -138,7 +142,12 @@ export function createScheduleTask(name: string, notify: Notify | undefined) {
         }
 
         await runtime.commit(async (tx) => {
-          const schedule = advance(await tx.doc(Schedules), id, runtime.now())
+          const schedule = advance(
+            await tx.doc(Schedules),
+            id,
+            runtime.now(),
+            timeZone,
+          )
           return schedule
             ? {
                 status: 'sleeping',

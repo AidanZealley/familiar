@@ -109,6 +109,7 @@ export function mcpFixture(test: TestContext) {
       secrets,
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
       mcpFetch,
     })
     opened.add(familiar)

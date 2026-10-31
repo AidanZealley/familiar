@@ -17,7 +17,7 @@ export type Schedule = {
   prompt: string
   /** A one-off's time. Exactly one of `at` and `repeat` is set. */
   at?: number
-  /** An RFC 5545 RRULE in local time, starting at `created`. */
+  /** An RFC 5545 RRULE in Familiar's time zone, starting at `created`. */
   repeat?: string
   /** When it is next due. */
   next: number
@@ -41,7 +41,7 @@ export class ScheduleError extends Error {}
 export type NewSchedule = {
   id: string
   prompt: string
-  /** Local `YYYY-MM-DD HH:MM`. */
+  /** `YYYY-MM-DD HH:MM` in Familiar's time zone. */
   at?: string
   repeat?: string
 }
@@ -51,6 +51,7 @@ export function addSchedule(
   schedules: SchedulesState,
   { id, prompt, at, repeat }: NewSchedule,
   now: number,
+  timeZone: string,
 ): Schedule {
   if (!prompt.trim()) {
     throw new ScheduleError('Give the prompt to run.')
@@ -62,10 +63,10 @@ export function addSchedule(
   const base = { id, prompt: prompt.trim(), created: now }
   let schedule: Schedule
   if (at !== undefined) {
-    const time = parseMinute(at)
+    const time = parseMinute(at, timeZone)
     if (time === undefined) {
       throw new ScheduleError(
-        `${at} is not a local time as YYYY-MM-DD HH:MM that exists.`,
+        `${at} is not a time as YYYY-MM-DD HH:MM that exists in ${timeZone}.`,
       )
     }
     if (time <= now) {
@@ -78,7 +79,7 @@ export function addSchedule(
     if (problem) {
       throw new ScheduleError(problem)
     }
-    const next = occurrenceAfter(rule, now, now)
+    const next = occurrenceAfter(rule, now, now, timeZone)
     if (next === undefined) {
       throw new ScheduleError('That repeat never happens after now.')
     }
@@ -100,24 +101,29 @@ export function cancelSchedule(schedules: SchedulesState, id: string) {
  * The occurrence to deliver on waking at `now`: a repeat that missed several
  * delivers only the latest, so there is never a backlog.
  */
-export const dueAt = (schedule: Schedule, now: number) =>
+export const dueAt = (schedule: Schedule, now: number, timeZone: string) =>
   schedule.repeat === undefined
     ? schedule.next
     : Math.max(
         schedule.next,
-        occurrenceBy(schedule.repeat, schedule.created, now) ?? 0,
+        occurrenceBy(schedule.repeat, schedule.created, now, timeZone) ?? 0,
       )
 
 /**
  * After a delivery at `now`: removes a one-off or a finished repeat, or moves
  * a repeat to its next occurrence. Returns the schedule if it continues.
  */
-export function advance(schedules: SchedulesState, id: string, now: number) {
+export function advance(
+  schedules: SchedulesState,
+  id: string,
+  now: number,
+  timeZone: string,
+) {
   const schedule = schedules[id]
   const next =
     schedule?.repeat === undefined
       ? undefined
-      : occurrenceAfter(schedule.repeat, schedule.created, now)
+      : occurrenceAfter(schedule.repeat, schedule.created, now, timeZone)
   if (next === undefined) {
     delete schedules[id]
     return undefined
@@ -127,7 +133,11 @@ export function advance(schedules: SchedulesState, id: string, now: number) {
 }
 
 /** The next few times a schedule is due, from `next`. */
-export const upcoming = (schedule: Schedule, count: number) =>
+export const upcoming = (
+  schedule: Schedule,
+  count: number,
+  timeZone: string,
+) =>
   schedule.repeat === undefined
     ? [schedule.next]
     : [
@@ -137,5 +147,6 @@ export const upcoming = (schedule: Schedule, count: number) =>
           schedule.created,
           schedule.next,
           count - 1,
+          timeZone,
         ),
       ]

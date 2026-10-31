@@ -25,6 +25,7 @@ export type PluginsOptions = {
   fetch?: PluginFetch
   notify?: Notify
   now: () => number
+  timeZone: string
 }
 
 const unavailableFetch: PluginFetch = () =>
@@ -39,6 +40,7 @@ export function createPlugins(options: PluginsOptions) {
     const connection = { kind: 'plugin' as const, name: plugin.name }
     const extension = plugin.extension({
       now: options.now,
+      timeZone: options.timeZone,
       notify: options.notify ?? (async () => {}),
       fetch,
       authorizedFetch: async (name, input, init) =>

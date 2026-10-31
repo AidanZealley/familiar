@@ -9,7 +9,7 @@ import {
   type EpisodesState,
   type Span,
 } from './episodes.ts'
-import { localDay, localMinute, parseDay } from '../time/index.ts'
+import { hourOn, localDay, localMinute } from '../time/index.ts'
 import type { Exchange, ExchangeIndex } from './exchanges.ts'
 import { factDays, isPast, type Fact, type FactsState } from './facts.ts'
 
@@ -109,6 +109,7 @@ function rank(
   episodes: readonly Episode[],
   query: string,
   now: number,
+  timeZone: string,
 ) {
   const facts = new Map(memory.facts.map((fact) => [fact.id, fact]))
   const relevance = new Map(
@@ -116,7 +117,7 @@ function rank(
       .search(query)
       .map(({ id, score }) => [id, score]),
   )
-  const ranges = datesIn(query, localDay(now))
+  const ranges = datesIn(query, localDay(now, timeZone))
   const core: string[] = []
   const ranked: Ranked[] = []
   for (const [id, score] of relevance) {
@@ -129,7 +130,7 @@ function rank(
       continue
     }
     // World time, not when it was saved: a fact filed late isn't fresher.
-    const age = fact.until ? now - parseDay(fact.until).getTime() : 0
+    const age = fact.until ? now - hourOn(fact.until, 0, timeZone) : 0
     ranked.push({
       item: { fact },
       score:
@@ -232,13 +233,14 @@ export function searchMemory(
   episodes: EpisodesState | undefined,
   query: string,
   now: number,
+  timeZone: string,
   { limit = RECALL_LIMIT, tokens = RECALL_TOKENS } = {},
 ): Search {
   const candidates = recallCandidates(
     episodes?.episodes ?? [],
-    datesIn(query, localDay(now)),
+    datesIn(query, localDay(now, timeZone)),
   )
-  const { ranked, core } = rank(memory, candidates, query, now)
+  const { ranked, core } = rank(memory, candidates, query, now, timeZone)
   const { kept } = within(
     ranked.map(({ item }) => ({
       item,
@@ -265,10 +267,14 @@ export function searchMemory(
 export const UNFILED = { limit: 2, tokens: 250 }
 
 /** Unfiled exchanges as automatic recall shows them, and the tokens they use. */
-function describeUnfiled(exchanges: readonly Exchange[], query: string) {
+function describeUnfiled(
+  exchanges: readonly Exchange[],
+  query: string,
+  timeZone: string,
+) {
   const { kept, left } = within(
     exchanges.map((exchange) => ({
-      line: `${exchange.id} (${localMinute(exchange.at)}): ${excerpt(exchange.text, query)}`,
+      line: `${exchange.id} (${localMinute(exchange.at, timeZone)}): ${excerpt(exchange.text, query)}`,
       shorten: false,
     })),
     UNFILED.limit,
@@ -297,9 +303,10 @@ export function recallNote(
   unfiled: readonly Exchange[],
   query: string,
   now: number,
+  timeZone: string,
 ): RecallNote {
-  const recent = describeUnfiled(unfiled, query)
-  const { found, used } = searchMemory(memory, episodes, query, now, {
+  const recent = describeUnfiled(unfiled, query, timeZone)
+  const { found, used } = searchMemory(memory, episodes, query, now, timeZone, {
     tokens: RECALL_TOKENS - recent.tokens,
   })
   const lines = [
@@ -357,8 +364,9 @@ export function recallAll(
   exchanges: ExchangeIndex,
   query: string,
   now: number,
+  timeZone: string,
 ) {
-  const { ranked, core } = rank(memory, episodes.episodes, query, now)
+  const { ranked, core } = rank(memory, episodes.episodes, query, now, timeZone)
   const facts = ranked.flatMap(({ item }) => ('fact' in item ? [item] : []))
   const found = within(
     [
@@ -383,11 +391,11 @@ export function recallAll(
     exchanges
       .search(query, now, {
         limit: RECALL_TOOL.exchanges,
-        ranges: datesIn(query, localDay(now)),
+        ranges: datesIn(query, localDay(now, timeZone)),
       })
       .map((exchange) => ({
         item: exchange,
-        line: `${exchange.id} (${localDay(exchange.at)}): ${excerpt(exchange.text, query)}`,
+        line: `${exchange.id} (${localDay(exchange.at, timeZone)}): ${excerpt(exchange.text, query)}`,
         shorten: false,
       })),
     RECALL_TOOL.exchanges,

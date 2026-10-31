@@ -4,26 +4,26 @@ import {
   type EntryId,
   type TaskId,
 } from '@earendil-works/pi-durable'
-import { localDay } from '../../time/index.ts'
+import { addDays, hourOn, localDay } from '../../time/index.ts'
 
-/** Passes run daily at this hour, in the host's time zone. */
+/** Passes run daily at this hour, in Familiar's time zone. */
 const UPKEEP_HOUR = 4
 
 /**
- * The day a time belongs to. Upkeep days run from 04:00 to 04:00, so a chat
- * at 1am counts as the night before, as people think of it.
+ * The day a time belongs to. Upkeep days run from 04:00 to 04:00 on the
+ * wall clock, so a chat at 1am counts as the night before, as people think
+ * of it, and a day with a clock change is 23 or 25 hours long.
  */
-export const upkeepDay = (at: number) =>
-  localDay(at - UPKEEP_HOUR * 60 * 60 * 1000)
+export function upkeepDay(at: number, timeZone: string) {
+  const day = localDay(at, timeZone)
+  return at < hourOn(day, UPKEEP_HOUR, timeZone) ? addDays(day, -1) : day
+}
 
 /** The first upkeep time after `now`. */
-export function nextUpkeep(now: number) {
-  const next = new Date(now)
-  next.setHours(UPKEEP_HOUR, 0, 0, 0)
-  if (next.getTime() <= now) {
-    next.setDate(next.getDate() + 1)
-  }
-  return next.getTime()
+export function nextUpkeep(now: number, timeZone: string) {
+  const today = localDay(now, timeZone)
+  const next = hourOn(today, UPKEEP_HOUR, timeZone)
+  return next > now ? next : hourOn(addDays(today, 1), UPKEEP_HOUR, timeZone)
 }
 
 export type UpkeepState = {

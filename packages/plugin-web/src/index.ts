@@ -22,7 +22,10 @@ export const webPlugin = ({
     },
   ],
   extension: (context) => ({
-    tools: [webSearchTool(context), webFetchTool(context.fetch, convert)],
+    tools: [
+      webSearchTool(context),
+      webFetchTool(context.fetch, convert, context.timeZone),
+    ],
   }),
 })
 

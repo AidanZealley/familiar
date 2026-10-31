@@ -96,6 +96,7 @@ async function setup(
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
     plugins: [
       {
         name: 'mcp-test',

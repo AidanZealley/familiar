@@ -13,7 +13,6 @@ import {
 } from '@familiar/core'
 import { afterEach, expect, test } from 'vitest'
 import web from './index.ts'
-import { timestamp } from './format.ts'
 
 const KEY = 'BSA-test-0123456789'
 
@@ -23,7 +22,10 @@ afterEach(async () => {
 })
 
 /** Answers each request with whatever `respond` returns for it. */
-async function setup(respond: (url: URL, init?: RequestInit) => Response) {
+async function setup(
+  respond: (url: URL, init?: RequestInit) => Response,
+  now?: () => number,
+) {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -40,9 +42,11 @@ async function setup(respond: (url: URL, init?: RequestInit) => Response) {
     storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'Asia/Kolkata',
     plugins: [web],
     secrets,
     fetch,
+    now,
   })
   opened.push(familiar)
 
@@ -144,18 +148,15 @@ test('web_search keeps the whole output to 8,000 characters', async () => {
   expect(text).not.toContain('10. Cats')
 })
 
-test('times are written in local time', () => {
-  const zone = process.env.TZ
-  process.env.TZ = 'Asia/Kolkata'
-  try {
-    expect(timestamp(Date.UTC(2026, 9, 28, 14, 5))).toBe('2026-10-28 19:35')
-  } finally {
-    if (zone === undefined) {
-      delete process.env.TZ
-    } else {
-      process.env.TZ = zone
-    }
-  }
+test("times are written in Familiar's time zone", async () => {
+  const { callTool, setKey } = await setup(
+    () => Response.json(braveResults(1)),
+    () => Date.UTC(2026, 9, 28, 14, 5),
+  )
+  await setKey()
+
+  const { text } = await callTool('web_search', { query: 'cats' })
+  expect(text).toMatch(/^Brave Search results for "cats", 2026-10-28 19:35:/)
 })
 
 const article =

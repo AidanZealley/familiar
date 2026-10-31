@@ -26,7 +26,7 @@ import {
  */
 
 /** Checks that every ID names a person's message in the conversation. */
-async function sourcesOf(tx: Tx, ids: string[]) {
+async function sourcesOf(tx: Tx, ids: string[], timeZone: string) {
   const sources = new Map<string, { entry: EntryId; day: string }>()
   for (const id of ids) {
     const entry = entryOf(id)
@@ -40,7 +40,7 @@ async function sourcesOf(tx: Tx, ids: string[]) {
         `${id} is not a message from a person. Cite the [x…] IDs of the conversation's messages.`,
       )
     }
-    sources.set(id, { entry, day: localDay(said.at) })
+    sources.set(id, { entry, day: localDay(said.at, timeZone) })
   }
   return sources
 }
@@ -72,12 +72,13 @@ const entries = (sources: Sources) =>
 const change = (
   api: ToolExecutionApi,
   context: Context,
+  timeZone: string,
   ids: string[],
   edit: (memory: Memory, sources: Sources) => string,
 ) =>
   api
     .commit(async (tx) => {
-      const sources = await sourcesOf(tx, ids)
+      const sources = await sourcesOf(tx, ids, timeZone)
       return edit(await openMemory(tx), sources)
     }, context)
     .then((text) => ({ output: [{ type: 'text' as const, text }] }))
@@ -85,111 +86,114 @@ const change = (
 const SOURCES =
   'The [x…] IDs of the messages it came from, as shown in the conversation.'
 
-const remember = defineTool({
-  name: 'remember',
-  description:
-    'Save a lasting fact about the person or people the assistant helps: a preference, a decision, something about their life or plans. One statement of at most 300 characters, written so it makes sense on its own months from now.',
-  parameters: Type.Object({
-    text: Type.String(),
-    importance: Type.Integer({
-      minimum: 1,
-      maximum: 5,
-      description:
-        '5: identity, close people, health, standing commitments, and anything they asked to be remembered. 3: ordinary lasting facts. 1: minor preferences and details.',
-    }),
-    sources: Type.Array(Type.String(), { minItems: 1, description: SOURCES }),
-    since: Type.Optional(
-      Type.String({
+/** The writing tools, dating sources in `timeZone`. */
+export function upkeepTools(timeZone: string) {
+  const remember = defineTool({
+    name: 'remember',
+    description:
+      'Save a lasting fact about the person or people the assistant helps: a preference, a decision, something about their life or plans. One statement of at most 300 characters, written so it makes sense on its own months from now.',
+    parameters: Type.Object({
+      text: Type.String(),
+      importance: Type.Integer({
+        minimum: 1,
+        maximum: 5,
         description:
-          'The day it became true, YYYY-MM-DD, when the conversation says so. Defaults to the day of its earliest source.',
+          '5: identity, close people, health, standing commitments, and anything they asked to be remembered. 3: ordinary lasting facts. 1: minor preferences and details.',
       }),
-    ),
-  }),
-  execute: (args, api, context) =>
-    change(api, context, args.sources, (memory, sources) => {
-      if (!sources.size) {
-        throw new FactError('Cite at least one message the fact came from.')
-      }
-      const fact = rememberFact(
-        memory,
-        {
-          text: args.text,
-          importance: args.importance,
-          since: dayFrom(args.since, sources, 'since'),
-          sources: entries(sources),
-        },
-        api.now(),
-      )
-      return `Saved as ${fact.id}${fact.core ? ', in core' : ''}.`
+      sources: Type.Array(Type.String(), { minItems: 1, description: SOURCES }),
+      since: Type.Optional(
+        Type.String({
+          description:
+            'The day it became true, YYYY-MM-DD, when the conversation says so. Defaults to the day of its earliest source.',
+        }),
+      ),
     }),
-})
+    execute: (args, api, context) =>
+      change(api, context, timeZone, args.sources, (memory, sources) => {
+        if (!sources.size) {
+          throw new FactError('Cite at least one message the fact came from.')
+        }
+        const fact = rememberFact(
+          memory,
+          {
+            text: args.text,
+            importance: args.importance,
+            since: dayFrom(args.since, sources, 'since'),
+            sources: entries(sources),
+          },
+          api.now(),
+        )
+        return `Saved as ${fact.id}${fact.core ? ', in core' : ''}.`
+      }),
+  })
 
-const revise = defineTool({
-  name: 'revise_memory',
-  description:
-    'Save a new version of a fact that has changed or was wrong; the old version becomes past, ending the day the new one begins. To merge facts that say the same thing, revise one and list the others in merge.',
-  parameters: Type.Object({
-    id: Type.String(),
-    text: Type.String(),
-    sources: Type.Optional(
-      Type.Array(Type.String(), {
-        description: `${SOURCES} The old versions' sources are kept too.`,
-      }),
-    ),
-    importance: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
-    since: Type.Optional(
-      Type.String({
-        description:
-          'The day the new version became true, YYYY-MM-DD. Defaults to the day of its earliest source; needed without sources.',
-      }),
-    ),
-    merge: Type.Optional(
-      Type.Array(Type.String(), {
-        description: 'Other facts the new text also covers.',
-      }),
-    ),
-  }),
-  execute: (args, api, context) =>
-    change(api, context, args.sources ?? [], (memory, sources) => {
-      const fact = reviseFact(
-        memory,
-        args.id,
-        {
-          text: args.text,
-          since: dayFrom(args.since, sources, 'since'),
-          sources: entries(sources),
-          importance: args.importance,
-          merge: args.merge,
-        },
-        api.now(),
-      )
-      return `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now past.`
+  const revise = defineTool({
+    name: 'revise_memory',
+    description:
+      'Save a new version of a fact that has changed or was wrong; the old version becomes past, ending the day the new one begins. To merge facts that say the same thing, revise one and list the others in merge.',
+    parameters: Type.Object({
+      id: Type.String(),
+      text: Type.String(),
+      sources: Type.Optional(
+        Type.Array(Type.String(), {
+          description: `${SOURCES} The old versions' sources are kept too.`,
+        }),
+      ),
+      importance: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
+      since: Type.Optional(
+        Type.String({
+          description:
+            'The day the new version became true, YYYY-MM-DD. Defaults to the day of its earliest source; needed without sources.',
+        }),
+      ),
+      merge: Type.Optional(
+        Type.Array(Type.String(), {
+          description: 'Other facts the new text also covers.',
+        }),
+      ),
     }),
-})
+    execute: (args, api, context) =>
+      change(api, context, timeZone, args.sources ?? [], (memory, sources) => {
+        const fact = reviseFact(
+          memory,
+          args.id,
+          {
+            text: args.text,
+            since: dayFrom(args.since, sources, 'since'),
+            sources: entries(sources),
+            importance: args.importance,
+            merge: args.merge,
+          },
+          api.now(),
+        )
+        return `Saved as ${fact.id}; ${fact.replaces!.join(', ')} now past.`
+      }),
+  })
 
-const retire = defineTool({
-  name: 'retire',
-  description:
-    'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history. Not for duplicates: merge those with revise_memory.',
-  parameters: Type.Object({
-    id: Type.String(),
-    sources: Type.Optional(
-      Type.Array(Type.String(), {
-        description: `${SOURCES} Those that show it stopped being true.`,
-      }),
-    ),
-    until: Type.Optional(
-      Type.String({
-        description:
-          'The day it stopped being true, YYYY-MM-DD. Defaults to the day of its earliest source; needed without sources.',
-      }),
-    ),
-  }),
-  execute: (args, api, context) =>
-    change(api, context, args.sources ?? [], (memory, sources) => {
-      retireFact(memory, args.id, dayFrom(args.until, sources, 'until'))
-      return `Retired ${args.id}.`
+  const retire = defineTool({
+    name: 'retire',
+    description:
+      'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history. Not for duplicates: merge those with revise_memory.',
+    parameters: Type.Object({
+      id: Type.String(),
+      sources: Type.Optional(
+        Type.Array(Type.String(), {
+          description: `${SOURCES} Those that show it stopped being true.`,
+        }),
+      ),
+      until: Type.Optional(
+        Type.String({
+          description:
+            'The day it stopped being true, YYYY-MM-DD. Defaults to the day of its earliest source; needed without sources.',
+        }),
+      ),
     }),
-})
+    execute: (args, api, context) =>
+      change(api, context, timeZone, args.sources ?? [], (memory, sources) => {
+        retireFact(memory, args.id, dayFrom(args.until, sources, 'until'))
+        return `Retired ${args.id}.`
+      }),
+  })
 
-export const upkeepTools = [remember, revise, retire]
+  return [remember, revise, retire]
+}

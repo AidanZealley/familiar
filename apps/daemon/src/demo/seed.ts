@@ -10,8 +10,12 @@ import {
   type Episode,
   type Fact,
 } from '@familiar/core/diagnostics'
+import { DEMO_TIME_ZONE } from './zone.ts'
 
-const dayOf = (date: Date) => localDay(date.getTime())
+// Calendar arithmetic on UTC dates, from today's day in the demo's zone.
+const dayOf = (date: Date) => date.toISOString().slice(0, 10)
+const todayAt = (at: number) =>
+  new Date(`${localDay(at, DEMO_TIME_ZONE)}T00:00:00Z`)
 
 /** The message the demo sends itself on start; the scripted model answers by calling both seed tools. */
 export const SEED_MESSAGE =
@@ -166,7 +170,7 @@ export const seedPinned = [
  */
 function factsAsOf(now: Date) {
   const monthsAgo = (count: number) =>
-    new Date(now.getFullYear(), now.getMonth() - count, 10)
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - count, 10))
   const saved: Fact[] = []
   const save = (text: string, importance: number, since: Date) => {
     const fact: Fact = {
@@ -207,7 +211,7 @@ export const seedMemory = defineTool({
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
       const memory = await tx.doc(Facts)
-      memory.facts = factsAsOf(new Date(api.now()))
+      memory.facts = factsAsOf(todayAt(api.now()))
       memory.next = memory.facts.length + 1
       return { output: [{ type: 'text', text: 'Memory written.' }] }
     }, context),
@@ -238,7 +242,13 @@ const days = [
 ]
 
 const daysBefore = (date: Date, count: number) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate() - count)
+  new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate() - count,
+    ),
+  )
 
 /** A year of episodes ending yesterday, as nightly upkeep would have written them. */
 function episodesUntil(today: Date): Omit<Episode, 'id'>[] {
@@ -246,8 +256,9 @@ function episodesUntil(today: Date): Omit<Episode, 'id'>[] {
   const at = today.getTime()
   months.forEach((text, index) => {
     const ago = months.length - index
-    const start = new Date(today.getFullYear(), today.getMonth() - ago, 1)
-    const end = new Date(today.getFullYear(), today.getMonth() - ago + 1, 0)
+    const [year, month] = [today.getUTCFullYear(), today.getUTCMonth()]
+    const start = new Date(Date.UTC(year, month - ago, 1))
+    const end = new Date(Date.UTC(year, month - ago + 1, 0))
     episodes.push({
       span: 'month',
       start: dayOf(start),
@@ -257,7 +268,7 @@ function episodesUntil(today: Date): Omit<Episode, 'id'>[] {
     })
   })
   // The last full weeks, Monday to Sunday.
-  const sunday = daysBefore(today, today.getDay() || 7)
+  const sunday = daysBefore(today, today.getUTCDay() || 7)
   weeks.forEach((text, index) => {
     const end = daysBefore(sunday, (weeks.length - 1 - index) * 7)
     const start = daysBefore(end, 6)
@@ -283,7 +294,7 @@ export const seedEpisodes = defineTool({
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
       const state = await tx.doc(Episodes)
-      for (const episode of episodesUntil(new Date(api.now()))) {
+      for (const episode of episodesUntil(todayAt(api.now()))) {
         state.episodes.push({ id: `e${state.next++}`, ...episode })
       }
       return { output: [{ type: 'text', text: 'Episodes written.' }] }

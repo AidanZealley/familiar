@@ -28,20 +28,23 @@ function clip(text: string, tokens: number) {
   return `${text.slice(0, Math.max(0, Math.floor((text.length * tokens) / size) - 1))}…`
 }
 
-const showExchange = ({ id, at, text }: Exchange, tokens: number) =>
-  `${id} (${localMinute(at)}):\n${clip(text, tokens)}`
+const showExchange = (
+  { id, at, text }: Exchange,
+  tokens: number,
+  timeZone: string,
+) => `${id} (${localMinute(at, timeZone)}):\n${clip(text, tokens)}`
 
 /** The exchange with the one before and after it, the middle one given most room. */
-function readExchange(exchanges: ExchangeIndex, id: string) {
+function readExchange(exchanges: ExchangeIndex, id: string, timeZone: string) {
   const found = exchanges.around(id)
   if (!found) {
     return `No exchange ${id}. The latest message isn't searchable yet: you can already see it.`
   }
   const { before, exchange, after } = found
   return [
-    before && `Before:\n${showExchange(before, READ_TOKENS / 6)}`,
-    showExchange(exchange, (READ_TOKENS * 2) / 3),
-    after && `After:\n${showExchange(after, READ_TOKENS / 6)}`,
+    before && `Before:\n${showExchange(before, READ_TOKENS / 6, timeZone)}`,
+    showExchange(exchange, (READ_TOKENS * 2) / 3, timeZone),
+    after && `After:\n${showExchange(after, READ_TOKENS / 6, timeZone)}`,
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -98,7 +101,12 @@ function upTo(
 }
 
 /** The fact, how it changed, and the messages it came from, all within the budget. */
-function readFact(facts: FactsState, exchanges: ExchangeIndex, fact: Fact) {
+function readFact(
+  facts: FactsState,
+  exchanges: ExchangeIndex,
+  fact: Fact,
+  timeZone: string,
+) {
   const head = describe(facts, { fact })
   const parts = [head]
   let left = READ_TOKENS - estimateTextTokens(head)
@@ -126,7 +134,7 @@ function readFact(facts: FactsState, exchanges: ExchangeIndex, fact: Fact) {
       sources.map((source) => ({
         id: source.id,
         // Each gets an equal share, so one long message can't hide the rest.
-        text: showExchange(source, left / sources.length - 20),
+        text: showExchange(source, left / sources.length - 20, timeZone),
       })),
       left,
       (ids) => `Not shown: ${ids.join(', ')}.`,
@@ -156,6 +164,7 @@ function readEpisode(
   episodes: EpisodesState,
   exchanges: ExchangeIndex,
   episode: Episode,
+  timeZone: string,
 ) {
   const head = describeEpisode(episode)
   if (episode.span !== 'day') {
@@ -201,7 +210,7 @@ function readEpisode(
     ...upTo(
       said.map((exchange) => ({
         id: exchange.id,
-        text: showExchange(exchange, READ_TOKENS),
+        text: showExchange(exchange, READ_TOKENS, timeZone),
       })),
       READ_TOKENS - estimateTextTokens(head),
       ([id]) => `Left out from ${id} onwards: read_memory ${id} to read on.`,
@@ -215,17 +224,18 @@ export function readMemory(
   facts: FactsState,
   episodes: EpisodesState,
   exchanges: ExchangeIndex,
+  timeZone: string,
 ) {
   if (entryOf(id) !== undefined) {
-    return readExchange(exchanges, id)
+    return readExchange(exchanges, id, timeZone)
   }
   const fact = facts.facts.find((fact) => fact.id === id)
   if (fact) {
-    return readFact(facts, exchanges, fact)
+    return readFact(facts, exchanges, fact, timeZone)
   }
   const episode = episodes.episodes.find((episode) => episode.id === id)
   if (episode) {
-    return readEpisode(episodes, exchanges, episode)
+    return readEpisode(episodes, exchanges, episode, timeZone)
   }
   return `Nothing has the ID ${id}. Facts start with f, episodes with e and exchanges with x.`
 }

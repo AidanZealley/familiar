@@ -10,7 +10,7 @@ import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
 
 /** A reply belongs to the person's turn, even when a batch splits that turn. */
-async function precedingDay(tx: Tx, through: EntryId | null) {
+async function precedingDay(tx: Tx, through: EntryId | null, timeZone: string) {
   if (through === null) {
     return undefined
   }
@@ -21,7 +21,7 @@ async function precedingDay(tx: Tx, through: EntryId | null) {
   })) {
     const said = saidBy(entry)
     if (said && said.role !== 'assistant') {
-      return upkeepDay(said.at)
+      return upkeepDay(said.at, timeZone)
     }
   }
   return undefined
@@ -33,6 +33,7 @@ export async function newMessages(
   through: EntryId | null,
   budget: number,
   name: string,
+  timeZone: string,
 ) {
   const lines: string[] = []
   let oldest: EntryId | undefined
@@ -55,11 +56,11 @@ export async function newMessages(
     // Model replies use wall-clock timestamps, while people's messages use
     // Familiar's clock. Keep replies with their turn rather than redating it.
     if (said.role !== 'assistant') {
-      turnDay = upkeepDay(said.at)
+      turnDay = upkeepDay(said.at, timeZone)
     } else if (day === undefined) {
-      turnDay = await precedingDay(tx, through)
+      turnDay = await precedingDay(tx, through, timeZone)
     }
-    const messageDay = turnDay ?? upkeepDay(said.at)
+    const messageDay = turnDay ?? upkeepDay(said.at, timeZone)
     if (day !== undefined && messageDay !== day) {
       break
     }
@@ -68,10 +69,10 @@ export async function newMessages(
     // Scheduled prompts are Familiar's own earlier words, so they can't be.
     const line =
       said.role === 'person'
-        ? `[${exchangeId(entry.id)} ${localMinute(said.at)}] ${said.author}: ${said.text}`
+        ? `[${exchangeId(entry.id)} ${localMinute(said.at, timeZone)}] ${said.author}: ${said.text}`
         : said.role === 'scheduled'
-          ? `[${localMinute(said.at)}] (scheduled) ${said.text}`
-          : `[${localMinute(said.at)}] ${name}: ${said.text}`
+          ? `[${localMinute(said.at, timeZone)}] (scheduled) ${said.text}`
+          : `[${localMinute(said.at, timeZone)}] ${name}: ${said.text}`
     const size = estimateTextTokens(line)
     if (tokens + size > budget) {
       if (!lines.length) {

@@ -30,12 +30,20 @@ const context = BACKGROUND_CONTEXT
  * or repeating, notifying the host with each reply. Install `extension`,
  * then call `start` once the Harness is open.
  */
-export function createSchedules(options: { name: string; notify?: Notify }) {
-  const task = createScheduleTask(options.name, options.notify)
+export function createSchedules(options: {
+  name: string
+  notify?: Notify
+  timeZone: string
+}) {
+  const task = createScheduleTask(
+    options.name,
+    options.notify,
+    options.timeZone,
+  )
   const extension = defineExtension({
     name: 'familiar.schedules',
     tasks: [task],
-    tools: scheduleTools(task),
+    tools: scheduleTools(task, options.timeZone),
     sections: [section('schedules', () => guidance)],
   })
 
