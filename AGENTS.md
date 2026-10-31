@@ -7,6 +7,7 @@ Read the [README](README.md) first. The Layout and Rules sections in [docs/archi
 - Leave `~/.local/share/familiar` alone. It holds the owner's ChatGPT login and real conversation. Tests and demos use their own storage.
 - Leave the running service alone: don't run `pnpm service:install`, stop it, or restart it unless the task says to. Only one daemon may own the data directory.
 - Don't send messages to the owner's real Familiar (port 4317 or the tailnet address). Use `pnpm dev:demo` where it exists, or tests.
+- Don't deploy to Cloudflare or use Cloudflare credentials unless the task says to. `pnpm test:cloudflare` and the Worker's dry-run build need neither.
 
 ## Before handing off
 
@@ -15,6 +16,8 @@ Run these from the repo root and fix every failure:
 ```sh
 pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
 ```
+
+After changing core, `packages/cloudflare` or `apps/cloudflare`, also run `pnpm test:cloudflare`.
 
 ## Working with Pi
 

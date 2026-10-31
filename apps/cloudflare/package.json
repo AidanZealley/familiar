@@ -1,0 +1,22 @@
+{
+  "name": "@familiar/cloudflare-dev",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "catalog:",
+    "@familiar/cloudflare": "workspace:*",
+    "@familiar/core": "workspace:*",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261023.1",
+    "wrangler": "4.156.0",
+    "vitest": "^5.0.5"
+  }
+}

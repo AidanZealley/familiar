@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
 
 // The packages are what other apps embed, so they must run anywhere a host can
 // (Node, Cloudflare Workers, browsers). Node-only code belongs in apps/daemon.
-const portable = [
+const nodeOnly = [
   {
     group: ['node:*'],
     message: 'Packages must stay portable; Node-only code goes in apps/daemon.',
@@ -15,6 +15,22 @@ const portable = [
   {
     regex: '^@earendil-works/[^/]+/(.+/)?node$',
     message: 'Packages must stay portable; Node-only code goes in apps/daemon.',
+  },
+]
+
+// Workers-only code belongs in packages/cloudflare, the one package that
+// targets a single runtime.
+const portable = [
+  ...nodeOnly,
+  {
+    group: ['cloudflare:*', '@familiar/cloudflare'],
+    message:
+      'Packages must stay portable; Workers-only code goes in packages/cloudflare.',
+  },
+  {
+    regex: '^@earendil-works/[^/]+/(.+/)?cloudflare$',
+    message:
+      'Packages must stay portable; Workers-only code goes in packages/cloudflare.',
   },
 ]
 
@@ -44,6 +60,7 @@ const typesOnlyFromCore = [
 export default defineConfig([
   globalIgnores([
     '**/dist',
+    '**/.wrangler',
     'data',
     '.claude',
     'apps/web/src/routeTree.gen.ts',
@@ -63,6 +80,15 @@ export default defineConfig([
       '@typescript-eslint/no-restricted-imports': [
         'error',
         { patterns: portable },
+      ],
+    },
+  },
+  {
+    files: ['packages/cloudflare/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { patterns: nodeOnly },
       ],
     },
   },

@@ -6,7 +6,9 @@ import {
   type HarnessOptions,
   type ModelRef,
   type Storage,
+  type SessionEnd,
   type UsageState,
+  type Wake,
 } from '@earendil-works/pi-durable'
 import {
   attachAccount,
@@ -72,7 +74,7 @@ export {
   type SecretStore,
 } from './plugins/index.ts'
 export { localMinute } from './time/index.ts'
-export type { UsageState as Usage } from '@earendil-works/pi-durable'
+export type { UsageState as Usage, Wake } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
   storage: Storage
@@ -137,13 +139,28 @@ export type FamiliarOptions = {
   notify?: Notify
   now?: HarnessOptions['now']
   setTimer?: HarnessOptions['setTimer']
+  /**
+   * For hosts whose process can be evicted between requests, such as a
+   * Durable Object. With it, Familiar arms no timer for sleeping work
+   * (schedules, upkeep, retries); it calls this after opening and whenever
+   * `wake()` changes, and the host keeps its own wakeup armed and calls
+   * `resume()` when it fires. Called after the commit that changed the value,
+   * so arm a recovery wakeup before summoning and before each call that can
+   * start work. Must not block. Without it, an in-process timer resumes
+   * sleeping work, as in the daemon.
+   */
+  onWake?: (wake: Wake) => void
 }
 
 /**
  * A Familiar is one assistant with one owner and one never-ending conversation.
  * A host that serves many owners (households, users) opens one Familiar each.
  */
+export type { SessionEnd as FamiliarEnd } from '@earendil-works/pi-durable'
+
 export type Familiar = ConversationApi & {
+  /** Settles on dismissal or a storage failure. Failed instances must be reopened. */
+  readonly closed: Promise<SessionEnd>
   /** The owner's login with the models' provider, if the host attached one. */
   account?: AccountApi
   memory: MemoryApi
@@ -156,6 +173,14 @@ export type Familiar = ConversationApi & {
    */
   onCommit(listener: () => void): () => void
   usage(): Promise<UsageState>
+  /**
+   * When this Familiar next needs a running process: `active` while work can
+   * run now or is running, `at` for the earliest sleep. For hosts that pass
+   * `onWake`.
+   */
+  wake(): Wake
+  /** Runs work that is due or that a lost process left. A host's wakeup calls it. */
+  resume(): void
   dismiss(): Promise<void>
 }
 
@@ -272,6 +297,9 @@ export async function summonFamiliar(
       },
       onCommit: (listener) => harness.subscribeCommits(() => listener()),
       usage: () => harness.usage(context),
+      closed: harness.closed,
+      wake: () => harness.wake(),
+      resume: () => harness.resume(),
       dismiss: async () => {
         options.account?.close()
         try {

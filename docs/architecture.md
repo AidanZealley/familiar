@@ -25,10 +25,14 @@ packages/client   A live mirror of the conversation (vanilla Zustand) and
                   toTranscript() for chat UIs. Browser-safe.
 packages/plugin-web  web_search through Brave and web_fetch for public pages.
                   First-party, so the daemon installs it.
+packages/cloudflare  DurableFamiliar: one Familiar in one SQLite Durable Object,
+                  with its alarm and termination. Workers only.
 apps/daemon       The Node host: SQLite storage, ChatGPT login, secrets, the
                   guarded fetch, bounded page-conversion workers and plugin list;
                   serves the API (and the built web UI).
 apps/web          Optional chat UI: Vite, TanStack Router, shadcn (Base UI).
+apps/cloudflare   Development Worker: named bots on a scripted model, behind a
+                  token, with tests that run it in workerd.
 ```
 
 The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linux, `~/Library/Application Support/Familiar` on macOS, or `%LOCALAPPDATA%\Familiar` on Windows: the ChatGPT login (`auth.json`), the conversation (`familiar.sqlite`), this installation's ID, and Web Push's keys (`vapid.json`) and subscribed browsers (`push.json`), and plugins' secrets such as API keys (`secrets.json`). The directory is private to your user. Treat it like a password: it holds a token for your subscription and everything you've told Familiar.
@@ -44,7 +48,8 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 - **Hosts own model credentials.** The host's `Models` holds them and authenticates every request. A host that wants owners to sign in creates an account with `createAccount` and passes it to `summonFamiliar`. Without one, the host keeps the credentials working. See [Model credentials](#model-credentials).
 - **Hosts own the time zone.** `summonFamiliar` requires `timeZone`, an IANA name. Core reads every calendar in it and never in the process's zone, so one process can run Familiars in different zones. See [Time zones](#time-zones).
 - **Hosts own auth.** `createHttpApi` asks the host who sent each request; core only records the author. The daemon trusts its network, so it also refuses requests whose `Host` isn't an IP address, `localhost` or a `*.ts.net` name: a web page that rebinds its own domain to this machine would otherwise reach the whole API.
-- **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. ESLint enforces this.
+- **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. Workers-only code lives in `packages/cloudflare`, the one package that may import `cloudflare:*` or Pi's Cloudflare modules. ESLint enforces both.
+- **Evictable hosts wake Familiar themselves.** A host that passes `onWake` gets no in-process timer for sleeping work. It arms its own wakeup from `wake()` and calls `resume()` when it fires. See [Familiar on Cloudflare](cloudflare.md).
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
 - **UIs depend only on `@familiar/client`.** The web app gets nothing other apps can't. pnpm's strict resolution enforces this; ESLint also limits the client to type-only imports from core and Pi.
 
@@ -194,7 +199,7 @@ Responses and tool output are not scrubbed. An upstream service that echoes a ke
 
 Declarations live with the conversation in `McpServers`; bearer tokens stay in the host's secret store. Connections combines declarations with runtime status and discovered tools. The owner can add, remove and reconnect servers and change credentials. Names and transports are immutable, so changing an endpoint requires removing and re-adding it. Setup and API details are in the [usage guide](usage.md#mcp-connections).
 
-The host supplies `mcpFetch` separately from plugins' guarded fetch. The daemon permits owner-configured localhost, LAN and tailnet endpoints, while the HTTP adapter restricts requests and credentials to the exact endpoint and refuses redirects. Node-only stdio transport construction lives in `apps/daemon/src/mcp-stdio.ts`; the SDK owns spawning and termination with its default filtered environment. Commands run as the daemon's user and are trusted owner-installed code. Core stays portable; Cloudflare runtime testing is deferred until a Cloudflare host is built.
+The host supplies `mcpFetch` separately from plugins' guarded fetch. The daemon permits owner-configured localhost, LAN and tailnet endpoints, while the HTTP adapter restricts requests and credentials to the exact endpoint and refuses redirects. Node-only stdio transport construction lives in `apps/daemon/src/mcp-stdio.ts`; the SDK owns spawning and termination with its default filtered environment. Commands run as the daemon's user and are trusted owner-installed code. Core stays portable; MCP on Workers is still untested.
 
 ## Web fetch
 

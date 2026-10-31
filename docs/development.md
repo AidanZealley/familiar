@@ -39,6 +39,10 @@ The demo lives in `apps/daemon/src/demo/`: `main.ts` starts it, `model.ts` route
 
 New scenarios belong beside the existing ones and are registered explicitly in `model.ts`; startup should stay wiring only. Only model responses and external services are faked. Memory, schedules, Connections and conversation storage use the real implementation, with in-memory data that disappears on restart.
 
+## Cloudflare
+
+`pnpm test:cloudflare` runs the development Worker in workerd. [Familiar on Cloudflare](cloudflare.md) covers the adapter, the Worker and deploying it.
+
 ## Release packaging
 
 ```sh

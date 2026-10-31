@@ -7,7 +7,7 @@ import {
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { compactionFor } from './context/index.ts'
 import { MESSAGE_KIND, type MessageData } from './conversation/index.ts'
 import {
@@ -224,4 +224,23 @@ test('usage totals the model spend of every reply', async () => {
   expect(once.input).toBeGreaterThan(0)
   expect(twice.input).toBeGreaterThan(once.input)
   expect(twice.output).toBeGreaterThan(once.output)
+})
+
+test('closed reports a storage failure so the host can reopen persisted state', async () => {
+  const storage = new MemoryStorage()
+  // This fake durable store survives closing one session, like a database on disk.
+  vi.spyOn(storage, 'close').mockResolvedValue()
+  const { faux, familiar, say } = await setup({ storage })
+  faux.setResponses([fauxAssistantMessage('Saved before failure.')])
+  await say('hello')
+  const failure = new Error('storage unavailable')
+  vi.spyOn(storage, 'commit').mockRejectedValueOnce(failure)
+  await expect(
+    familiar.send({ author: 'aidan', text: 'fail', requestId: 'fail' }),
+  ).rejects.toThrow()
+  expect(await familiar.closed).toEqual({ reason: 'failed', error: failure })
+  const { familiar: reopened } = await setup({ storage })
+  const view = await reopened.watch()
+  expect(JSON.stringify(view.value)).toContain('Saved before failure.')
+  await view.stop()
 })

@@ -1,0 +1,35 @@
+name: Cloudflare host
+
+on:
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'apps/cloudflare/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'vitest.config.ts'
+      - 'eslint.config.js'
+      - '.github/workflows/cloudflare.yml'
+      - '.github/workflows/release.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cloudflare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.19.0'
+      - uses: pnpm/action-setup@v6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test:cloudflare
+      - run: pnpm --filter @familiar/cloudflare-dev build

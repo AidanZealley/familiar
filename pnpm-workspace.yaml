@@ -3,6 +3,7 @@ packages:
   - packages/core
   - packages/client
   - packages/plugin-web
+  - packages/cloudflare
 
 # Versions packages must share exactly. Pi's API changes between releases, and
 # the client's Hono types the server's routes. MCP transports cross the
@@ -20,3 +21,5 @@ allowBuilds:
   '@google/genai': false
   protobufjs: false
   esbuild: true
+  # Its script only fetches a platform binary when pnpm didn't install one.
+  workerd: false

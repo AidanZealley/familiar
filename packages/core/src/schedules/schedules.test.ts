@@ -7,7 +7,7 @@ import {
   type FauxResponseFactory,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
-import type { InboxState } from '@earendil-works/pi-durable'
+import type { InboxState, Wake } from '@earendil-works/pi-durable'
 import { afterEach, expect, test, vi } from 'vitest'
 import { SCHEDULED_KIND } from '../conversation/index.ts'
 import {
@@ -54,7 +54,7 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-async function setup() {
+async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
   const storage = new ReopenableStorage()
   const faux = fauxProvider()
   const models = createModels()
@@ -94,6 +94,7 @@ async function setup() {
       notify: async (notification) => {
         notifications.push(notification)
       },
+      onWake: options.onWake,
     })
     opened.push(familiar)
     return familiar
@@ -216,6 +217,34 @@ test('a one-off reminder runs at its time, notifies with the reply, and is remov
   expect((await f.scheduledEntries()).map((entry) => entry.data)).toEqual([
     { scheduleId: id, prompt: 'Remind Aidan to call Mum', due: at(21, 18) },
   ])
+})
+
+test('with onWake, a reminder arms no timer and runs when the host resumes', async () => {
+  const wakes: Wake[] = []
+  const f = await setup({ onWake: (wake) => wakes.push(wake) })
+  // Told once open, before any work, so the host can arm its wakeup.
+  expect(wakes.length).toBeGreaterThan(0)
+  await f.schedule({ at: '2026-10-21 18:00' })
+  await vi.waitFor(() =>
+    expect(wakes.at(-1)).toEqual({ active: false, at: at(21, 18) }),
+  )
+  expect(f.familiar().wake()).toEqual({ active: false, at: at(21, 18) })
+
+  f.answer('**Time to call Mum!**')
+  f.clock.advanceTo(at(21, 18))
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  await f.sleepingUntil(at(21, 18))
+  expect(f.notifications).toEqual([])
+
+  f.familiar().resume()
+  await f.sleepingUntil('done')
+  await vi.waitFor(() =>
+    expect(bodies(f.notifications)).toEqual(['Time to call Mum!']),
+  )
+  // Next is upkeep's 04:00 pass.
+  await vi.waitFor(() =>
+    expect(f.familiar().wake()).toEqual({ active: false, at: at(22, 4) }),
+  )
 })
 
 test('a failed run notifies with the prompt', async () => {

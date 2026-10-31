@@ -34,7 +34,7 @@ export function compactionFor(
   }
 }
 
-type HostOptions = Pick<HarnessOptions, 'now' | 'setTimer'> & {
+type HostOptions = Pick<HarnessOptions, 'now' | 'setTimer' | 'onWake'> & {
   models: Models
   model: ModelRef
   chatModels?: readonly ChatModel[]
@@ -86,5 +86,7 @@ export function harnessOptions(
     // Pi falls back to Date.now and setTimeout when these are undefined.
     now: options.now,
     setTimer: options.setTimer,
+    // With it, Pi arms no timer for sleeping tasks and the host wakes it.
+    onWake: options.onWake,
   }
 }

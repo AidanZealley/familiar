@@ -7,5 +7,9 @@ dist/
 # Familiar stores its data outside the repo; this catches FAMILIAR_DATA_DIR=data.
 data/
 
+# Wrangler's local state and the Worker's local secrets.
+.wrangler/
+.dev.vars*
+
 # Agent worktrees
 .claude/worktrees/
