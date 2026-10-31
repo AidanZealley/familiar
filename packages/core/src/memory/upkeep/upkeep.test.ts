@@ -179,6 +179,8 @@ test('a pass at 04:00 files facts with their sources and days', async () => {
     /\[x\d+ 2026-10-25 12:00\] aidan: I have a cat called Miso/,
   )
   expect(input).toContain('Familiar: Noted.')
+  // Upkeep reads the stored words, not the model's copy with its author line.
+  expect(input).not.toContain('[Message from')
   const source = Number(exchangeIn(input, 'vegetarian').slice(1))
   // Merged duplicates stay as history; only current facts are believed.
   expect(
@@ -365,6 +367,7 @@ test("read_memory opens a day episode's exchanges and a fact's sources", async (
   expect(day).toMatch(
     /x\d+ \(2026-10-25 12:00\):\nI adopted a cat called Miso today\.\nWelcome home, Miso\./,
   )
+  expect(day).not.toContain('[Message from')
   expect(fact).toMatch(/^f1 \(since 2026-10-25\): Has a cat called Miso/)
   expect(fact).toContain('From:')
   expect(fact).toContain('I adopted a cat called Miso today.')

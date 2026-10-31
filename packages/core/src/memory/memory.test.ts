@@ -334,6 +334,49 @@ test('a relevant fact outside core reaches the model, and the prompt stays the s
   })
 })
 
+test("recall searches a person's words, not the line naming them", async () => {
+  const storage = await storageWith(['Aidan keeps bees in the garden', 2])
+  const { faux, say } = await setup({ storage })
+  const notes: (string | undefined)[] = []
+  const capture = (context: TranscriptContext) => {
+    notes.push(recalledIn(context))
+    return fauxAssistantMessage('Noted.')
+  }
+  faux.setResponses([capture, capture])
+  // Sent by aidan, but says nothing about Aidan or bees.
+  await say('Good morning!')
+  await say('How are the bees?')
+  expect(notes[0]).toBeUndefined()
+  expect(notes[1]).toContain('Aidan keeps bees')
+})
+
+test('messages queued behind a reply are each recalled for in their own run', async () => {
+  const storage = await storageWith(['Keeps bees in the garden', 2])
+  const { faux, familiar } = await setup({ storage })
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const notes: (string | undefined)[] = []
+  const capture = async (context: TranscriptContext) => {
+    notes.push(recalledIn(context))
+    await held
+    return fauxAssistantMessage('Noted.')
+  }
+  faux.setResponses([capture, capture, capture])
+  const send = (author: string, text: string) =>
+    familiar.send({ author, text, requestId: text })
+  await send('ann', 'How are the bees?')
+  await vi.waitFor(() => expect(notes).toHaveLength(1))
+  await send('bob', 'Thanks')
+  await send('carol', 'And the bees now?')
+  release()
+  await familiar.idle()
+  expect(notes.map((note) => note?.includes('Keeps bees'))).toEqual([
+    true,
+    undefined,
+    true,
+  ])
+})
+
 test('the recall tool finds past facts, labelled as past', async () => {
   const storage = await storageWith(['Lives in Leeds', 4])
   const { faux, familiar, say } = await setup({ storage })
@@ -474,6 +517,34 @@ test('automatic recall and the recall tool find an exchange compaction took out 
   expect(results.at(-1)).toMatch(
     /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): My bike lock code is 7291/,
   )
+})
+
+test("a compaction's summary, stored after the message it kept, doesn't hide that message from recall", async () => {
+  const { faux, familiar, say } = await setup({
+    storage: await storageWith(['Aidan keeps bees in the garden', 2]),
+    ...compacting,
+  })
+  const notes: (string | undefined)[] = []
+  const step: Step = (context) => {
+    notes.push(recalledIn(context))
+    return fauxAssistantMessage('Lovely.')
+  }
+  script(
+    faux,
+    Array.from({ length: 20 }, () => step),
+  )
+  for (let day = 1; day <= 20; day++) {
+    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
+  }
+
+  const view = await familiar.watch()
+  await view.stop()
+  const [summary] = view.value.entries
+  expect(summary.kind).toBe('pi.compaction')
+  expect(summary.id).toBeGreaterThan(view.value.entries[1].id)
+  // Recall searched each day's words, never the summary or aidan's name.
+  expect(notes).toHaveLength(20)
+  expect(notes.join('\n')).not.toContain('bees')
 })
 
 test('automatic recall leaves out what is still in view and what upkeep has reviewed', async () => {

@@ -70,7 +70,8 @@ async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
   const answers: Answer[] = []
   const ownerAnswers = new Map<string, Answer>()
   const respond: FauxResponseFactory = (context, options) => {
-    const input = inputOf(context)
+    // Owners' messages by their words, without the line naming them.
+    const input = inputOf(context).replace(/^\[Message from .*\n/, '')
     let next: Answer
     if (input.startsWith('[Scheduled')) {
       inputs.push(input)

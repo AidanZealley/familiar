@@ -8,6 +8,7 @@ import { createSearchTimes } from './health.ts'
 import { recallNote, UNFILED } from './recall.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { localDay } from '../time/index.ts'
+import { answeredMessage } from '../conversation/message.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 
@@ -34,8 +35,11 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
     exchanges,
     times,
     timeZone: options.timeZone,
-    recall: (query, unfiled) =>
+    recall: (model, request, unfiled) =>
       harness.commit(async (tx) => {
+        // A person's words as sent, so their name on the model's copy
+        // matches nothing.
+        const query = (await answeredMessage(tx, request))?.text ?? model
         const facts = await tx.doc(Facts)
         const episodes = await tx.doc(Episodes)
         // What compaction took out of the view after the last entry upkeep

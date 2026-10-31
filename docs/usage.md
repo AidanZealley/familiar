@@ -66,7 +66,7 @@ Familiar reads `settings.json` from its data directory. Saved `name`, `owner`, `
 | ----------------------- | ----------------------------- | --------------------------------------------------------- |
 | `FAMILIAR_MODEL`        | `gpt-6.1-sol`                 | Memory upkeep's model, and the chat's first; see below    |
 | `FAMILIAR_NAME`         | `Familiar`                    | What the assistant calls itself                           |
-| `FAMILIAR_OWNER`        | `owner`                       | The author recorded for your messages                     |
+| `FAMILIAR_OWNER`        | `owner`                       | The author the model sees on your messages                |
 | `FAMILIAR_PORT`         | `4317`                        |                                                           |
 | `FAMILIAR_HOST`         | `127.0.0.1`                   |                                                           |
 | `FAMILIAR_DATA_DIR`     | `~/.local/share/familiar`     | Or `$XDG_DATA_HOME/familiar`                              |

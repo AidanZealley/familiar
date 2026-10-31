@@ -92,7 +92,8 @@ export type StreamEvent =
 export type HttpOptions = {
   /**
    * Who is making this request, or undefined to refuse it. Hosts own auth:
-   * the daemon trusts its network, an app checks its own session.
+   * the daemon trusts its network, an app checks its own session. The answer
+   * is the author of any message the request sends, which the model sees.
    */
   authenticate: (
     request: Request,
