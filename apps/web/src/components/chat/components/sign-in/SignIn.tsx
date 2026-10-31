@@ -7,7 +7,8 @@ import { SignInPrompt } from './components/sign-in-prompt'
 
 /**
  * Signing in to ChatGPT, shown above the composer whenever Familiar can't
- * reach its models. It works from any device, so this one will do.
+ * reach its models. It works from any device, so this one will do. Hosts that
+ * manage credentials themselves send no account, so it never shows.
  */
 export const SignIn = () => {
   const account = useFamiliar((state) => state.account)

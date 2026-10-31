@@ -9,15 +9,19 @@ import {
   fauxAssistantMessage,
   fauxProvider,
 } from '@earendil-works/pi-ai/providers/faux'
-import { MemoryStorage } from '@earendil-works/pi-durable'
+import { Harness, MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
 import { summonFamiliar } from '../familiar.ts'
-import { createAccount, type AccountState } from './index.ts'
+import { createAccount, type Account, type AccountState } from './index.ts'
 
 const credential = { type: 'oauth' } as unknown as Credential
 
-/** A provider login that pauses at each step until the test moves it on. */
-function fakeModels(signedIn = false) {
+/**
+ * A provider login that pauses at each step until the test moves it on.
+ * `ignoreAbort` finishes it only when the test says, as a provider that has
+ * already sent its token might.
+ */
+function fakeModels(signedIn = false, { ignoreAbort = false } = {}) {
   let stored = signedIn
   let interaction: AuthInteraction | undefined
   let loginOptions: LoginOptions | undefined
@@ -44,7 +48,11 @@ function fakeModels(signedIn = false) {
         ],
       })
       expect(method).toBe('device_code')
-      next.signal?.addEventListener('abort', () => fail?.(new Error('aborted')))
+      if (!ignoreAbort) {
+        next.signal?.addEventListener('abort', () =>
+          fail?.(new Error('aborted')),
+        )
+      }
       return new Promise<Credential>((resolve, reject) => {
         finish = (value) => {
           stored = true
@@ -53,13 +61,14 @@ function fakeModels(signedIn = false) {
         fail = reject
       })
     },
-    logout: async () => {
+    logout: vi.fn(async () => {
       stored = false
-    },
+    }),
   } as unknown as Models
 
   return {
     models,
+    stored: () => stored,
     loginOptions: () => loginOptions,
     showCode: () =>
       interaction!.notify({
@@ -223,15 +232,135 @@ test('signing out forgets the login', async () => {
   expect(api.state()).toEqual({ status: 'signed-out' })
 })
 
-test('a reply failing on a login that stopped working marks it expired, and a working one recovers', async () => {
+test('closing stops an unfinished sign-in but keeps the stored login', async () => {
+  const fake = fakeModels(true)
+  const account = await createAccount({ models: fake.models, provider: 'p' })
+  const states = record(account.api)
+
+  account.api.signIn()
+  await settled()
+  fake.showCode()
+  account.close()
+  await settled()
+
+  expect(states).toEqual([
+    { status: 'signing-in' },
+    {
+      status: 'signing-in',
+      url: 'https://example.com/device',
+      code: 'ABCD-1234',
+    },
+  ])
+  expect(fake.models.logout).not.toHaveBeenCalled()
+  expect(fake.stored()).toBe(true)
+
+  // A closed account starts nothing new.
+  account.api.signIn()
+  await account.api.signOut()
+  await settled()
+  expect(fake.models.logout).not.toHaveBeenCalled()
+  expect(fake.stored()).toBe(true)
+  expect(states).toHaveLength(2)
+})
+
+test('a sign-in finishing after close changes nothing', async () => {
+  const fake = fakeModels(false, { ignoreAbort: true })
+  const account = await createAccount({ models: fake.models, provider: 'p' })
+  const states = record(account.api)
+
+  account.api.signIn()
+  await settled()
+  account.close()
+  fake.approve()
+  await settled()
+
+  expect(states).toEqual([{ status: 'signing-in' }])
+  expect(account.api.state()).toEqual({ status: 'signing-in' })
+  // The provider's login still reached the host's Models.
+  expect(fake.stored()).toBe(true)
+})
+
+/** Real Models over the faux provider, as a host would build them. */
+function fauxModels() {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
+  return { faux, models }
+}
+
+const model = { provider: 'faux', modelId: 'faux-1' }
+
+test('a Familiar refuses an account for other Models or another provider', async () => {
+  const { models } = fauxModels()
+  const elsewhere = await createAccount({
+    models: fauxModels().models,
+    provider: 'faux',
+  })
+  const otherProvider = await createAccount({ models, provider: 'openai' })
+  const open = (account: Account) =>
+    summonFamiliar({
+      storage: new MemoryStorage(),
+      models,
+      model,
+      timeZone: 'UTC',
+      account,
+    })
+
+  await expect(open(elsewhere)).rejects.toThrow('the same Models')
+  await expect(open(otherProvider)).rejects.toThrow(
+    'account is for openai, but the model is from faux.',
+  )
+})
+
+test('an account has one Familiar owner and cannot attach after dismissal', async () => {
+  const { models } = fauxModels()
+  const account = await createAccount({ models, provider: 'faux' })
+  const open = () =>
+    summonFamiliar({
+      storage: new MemoryStorage(),
+      models,
+      model,
+      timeZone: 'UTC',
+      account,
+    })
+  const familiar = await open()
+  try {
+    await expect(open()).rejects.toThrow('account is already attached')
+  } finally {
+    await familiar.dismiss()
+  }
+  await expect(open()).rejects.toThrow('account is already closed')
+})
+
+test('failed startup leaves the account available for retry', async () => {
+  const { models } = fauxModels()
+  const account = await createAccount({ models, provider: 'faux' })
+  const storage = new MemoryStorage()
+  vi.spyOn(Harness, 'open').mockRejectedValueOnce(
+    new Error('storage unavailable'),
+  )
+  await expect(
+    summonFamiliar({ storage, models, model, timeZone: 'UTC', account }),
+  ).rejects.toThrow('storage unavailable')
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models,
-    model: { provider: 'faux', modelId: 'faux-1' },
+    model,
     timeZone: 'UTC',
+    account,
+  })
+  await familiar.dismiss()
+})
+
+test('a reply failing on a login that stopped working marks it expired, and a working one recovers', async () => {
+  const { faux, models } = fauxModels()
+  const account = await createAccount({ models, provider: 'faux' })
+  const familiar = await summonFamiliar({
+    storage: new MemoryStorage(),
+    models,
+    model,
+    timeZone: 'UTC',
+    account,
   })
   const say = async (text: string) => {
     await familiar.send({ author: 'aidan', text, requestId: text })
@@ -240,19 +369,19 @@ test('a reply failing on a login that stopped working marks it expired, and a wo
   }
 
   try {
-    expect(familiar.account.state()).toEqual({ status: 'signed-in' })
+    expect(familiar.account?.state()).toEqual({ status: 'signed-in' })
 
     // As when the provider refuses to refresh the token: every request fails.
     const getAuth = vi
       .spyOn(models, 'getAuth')
       .mockRejectedValue(new Error('refresh refused'))
     await say('hello')
-    expect(familiar.account.state()).toEqual({ status: 'expired' })
+    expect(familiar.account?.state()).toEqual({ status: 'expired' })
 
     getAuth.mockRestore()
     faux.setResponses([fauxAssistantMessage('Hi!')])
     await say('hello again')
-    expect(familiar.account.state()).toEqual({ status: 'signed-in' })
+    expect(familiar.account?.state()).toEqual({ status: 'signed-in' })
   } finally {
     await familiar.dismiss()
   }

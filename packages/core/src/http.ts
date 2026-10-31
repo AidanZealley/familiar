@@ -83,8 +83,11 @@ export type StreamEvent =
       }[DocumentName]
     }
   | { event: 'document.ops'; data: { name: DocumentName; ops: readonly Op[] } }
-  /** The owner's login, whole each time it changes. */
-  | { event: 'account'; data: AccountState }
+  /**
+   * The owner's login, whole each time it changes; null once when the host
+   * manages credentials itself and offers no sign-in.
+   */
+  | { event: 'account'; data: AccountState | null }
 
 export type HttpOptions = {
   /**
@@ -153,8 +156,9 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
             await streamDocument('schedules', familiar.schedules.watch),
           ]
 
-          await send({ event: 'account', data: familiar.account.state() })
-          const stopAccount = familiar.account.onChange(
+          const account = familiar.account
+          await send({ event: 'account', data: account?.state() ?? null })
+          const stopAccount = account?.onChange(
             (state) => void send({ event: 'account', data: state }),
           )
 
@@ -163,7 +167,7 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
             HEARTBEAT_MS,
           )
           const stop = () => {
-            stopAccount()
+            stopAccount?.()
             watches.forEach((watch) => void watch.stop())
           }
 

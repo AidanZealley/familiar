@@ -8,7 +8,11 @@ import {
   type Storage,
   type UsageState,
 } from '@earendil-works/pi-durable'
-import { createAccount, type AccountApi } from './account/index.ts'
+import {
+  attachAccount,
+  type Account,
+  type AccountApi,
+} from './account/index.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
   findChatModel,
@@ -36,7 +40,13 @@ import {
 import { checkTimeZone, createTime } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
-export type { AccountApi, AccountState } from './account/index.ts'
+export {
+  createAccount,
+  type Account,
+  type AccountApi,
+  type AccountOptions,
+  type AccountState,
+} from './account/index.ts'
 export {
   ModelError,
   type ChatModel,
@@ -88,10 +98,13 @@ export type FamiliarOptions = {
   chatModels?: readonly ChatModel[]
   name?: string
   /**
-   * This installation's stable ID, the same on every call. Signing in to
-   * ChatGPT needs it; OpenAI identifies the app's logins by it.
+   * Lets the owner sign in and out of `model`'s provider, and notices when
+   * the login stops working. Create it with `createAccount` over these same
+   * `models`; Familiar refuses one for other `Models` or another provider,
+   * and closes it on dismiss. Without it, the host keeps `models`' credentials
+   * working itself, and a request they fail fails like any other.
    */
-  deviceId?: () => string
+  account?: Account
   /** Everything beyond core: tools, sections and hooks, with their secrets. */
   plugins?: readonly FamiliarPlugin[]
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
@@ -131,8 +144,8 @@ export type FamiliarOptions = {
  * A host that serves many owners (households, users) opens one Familiar each.
  */
 export type Familiar = ConversationApi & {
-  /** The owner's login with the models' provider. */
-  account: AccountApi
+  /** The owner's login with the models' provider, if the host attached one. */
+  account?: AccountApi
   memory: MemoryApi
   schedules: SchedulesApi
   connections: ConnectionsApi
@@ -164,108 +177,112 @@ export async function summonFamiliar(
   if (!model) {
     throw new Error(`${modelKey(options.model)} must be one of chatModels.`)
   }
+  // Checked before storage opens, like the zone.
+  const accountAttachment =
+    options.account &&
+    attachAccount(options.account, options.models, options.model.provider)
 
-  // Extensions can be installed after opening: nothing runs until resume().
-  const registry = createRegistry()
+  try {
+    // Extensions can be installed after opening: nothing runs until resume().
+    const registry = createRegistry()
 
-  const harness = await Harness.open(
-    options.storage,
-    harnessOptions({ ...options, chatModels }, registry, budget),
-    context,
-  )
+    const harness = await Harness.open(
+      options.storage,
+      harnessOptions({ ...options, chatModels }, registry, budget),
+      context,
+    )
 
-  // Half the budget leaves room for the prompt, memory and the pass's tool calls.
-  const memory = createMemory(harness, {
-    now: options.now ?? Date.now,
-    model: options.model,
-    thinkingLevel: model.thinkingLevel,
-    name,
-    transcriptTokens: Math.floor(budget / 2),
-    timeZone: options.timeZone,
-  })
+    // Half the budget leaves room for the prompt, memory and the pass's tool calls.
+    const memory = createMemory(harness, {
+      now: options.now ?? Date.now,
+      model: options.model,
+      thinkingLevel: model.thinkingLevel,
+      name,
+      transcriptTokens: Math.floor(budget / 2),
+      timeZone: options.timeZone,
+    })
 
-  const schedules = createSchedules({
-    name,
-    notify: options.notify,
-    timeZone: options.timeZone,
-  })
+    const schedules = createSchedules({
+      name,
+      notify: options.notify,
+      timeZone: options.timeZone,
+    })
 
-  const account = await createAccount({
-    models: options.models,
-    provider: options.model.provider,
-    login: { getDeviceId: options.deviceId, agentName: name },
-  })
+    const plugins = createPlugins({
+      plugins: options.plugins ?? [],
+      secrets: options.secrets,
+      fetch: options.fetch,
+      notify: options.notify,
+      now: options.now ?? Date.now,
+      timeZone: options.timeZone,
+    })
 
-  const plugins = createPlugins({
-    plugins: options.plugins ?? [],
-    secrets: options.secrets,
-    fetch: options.fetch,
-    notify: options.notify,
-    now: options.now ?? Date.now,
-    timeZone: options.timeZone,
-  })
+    // Plugins last, so core's tools and sections come first.
+    const extensions = [
+      createPersona(name),
+      ...(accountAttachment ? [accountAttachment.extension] : []),
+      createTime(options.timeZone),
+      ...memory.extensions,
+      schedules.extension,
+      ...plugins.extensions,
+    ]
 
-  // Plugins last, so core's tools and sections come first.
-  const extensions = [
-    createPersona(name),
-    account.extension,
-    createTime(options.timeZone),
-    ...memory.extensions,
-    schedules.extension,
-    ...plugins.extensions,
-  ]
+    for (const extension of extensions) {
+      registry.install(extension)
+    }
 
-  for (const extension of extensions) {
-    registry.install(extension)
-  }
+    const conversation = await installConversation(harness, {
+      models: options.models,
+      model: options.model,
+      chatModels,
+    })
+    const memoryActions = await memory.start()
+    const scheduleActions = await schedules.start(harness)
+    const mcp = await createMcp(harness, registry, {
+      fetch: options.mcpFetch,
+      stdio: options.mcpStdio,
+      secrets: options.secrets,
+    })
 
-  const conversation = await installConversation(harness, {
-    models: options.models,
-    model: options.model,
-    chatModels,
-  })
-  const memoryActions = await memory.start()
-  const scheduleActions = await schedules.start(harness)
-  const mcp = await createMcp(harness, registry, {
-    fetch: options.mcpFetch,
-    stdio: options.mcpStdio,
-    secrets: options.secrets,
-  })
+    // finish whatever the last process left unfinished
+    harness.resume()
 
-  // finish whatever the last process left unfinished
-  harness.resume()
-
-  return {
-    ...conversation,
-    account: account.api,
-    memory: memoryActions,
-    schedules: scheduleActions,
-    mcp: mcp.api,
-    connections: {
-      list: async () => [
-        ...(await plugins.api.list()),
-        ...(await mcp.connections.list()),
-      ],
-      setSecret: (connection, name, value) =>
-        (connection.kind === 'mcp' ? mcp.connections : plugins.api).setSecret(
-          connection,
-          name,
-          value,
-        ),
-      deleteSecret: (connection, name) =>
-        (connection.kind === 'mcp'
-          ? mcp.connections
-          : plugins.api
-        ).deleteSecret(connection, name),
-    },
-    onCommit: (listener) => harness.subscribeCommits(() => listener()),
-    usage: () => harness.usage(context),
-    dismiss: async () => {
-      try {
-        await harness.close(context)
-      } finally {
-        await mcp.close()
-      }
-    },
+    return {
+      ...conversation,
+      account: options.account?.api,
+      memory: memoryActions,
+      schedules: scheduleActions,
+      mcp: mcp.api,
+      connections: {
+        list: async () => [
+          ...(await plugins.api.list()),
+          ...(await mcp.connections.list()),
+        ],
+        setSecret: (connection, name, value) =>
+          (connection.kind === 'mcp' ? mcp.connections : plugins.api).setSecret(
+            connection,
+            name,
+            value,
+          ),
+        deleteSecret: (connection, name) =>
+          (connection.kind === 'mcp'
+            ? mcp.connections
+            : plugins.api
+          ).deleteSecret(connection, name),
+      },
+      onCommit: (listener) => harness.subscribeCommits(() => listener()),
+      usage: () => harness.usage(context),
+      dismiss: async () => {
+        options.account?.close()
+        try {
+          await harness.close(context)
+        } finally {
+          await mcp.close()
+        }
+      },
+    }
+  } catch (error) {
+    accountAttachment?.release()
+    throw error
   }
 }
