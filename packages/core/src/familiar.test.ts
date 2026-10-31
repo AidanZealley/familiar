@@ -15,6 +15,7 @@ import {
   type Familiar,
   type FamiliarOptions,
 } from './familiar.ts'
+import { defaultPersona } from './index.ts'
 import { TEST_ZONE } from './testing.ts'
 
 type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
@@ -150,6 +151,62 @@ test('the default budget compacts gpt-6.1-sol well before its window', () => {
     keepRecentTokens: 21_333,
     backgroundTokens: 16_000,
   })
+})
+
+/** The first request's prompt sections and tool names, after saying hello. */
+async function firstRequest(options: SetupOptions = {}) {
+  const { faux, say } = await setup(options)
+  let request: TranscriptContext | undefined
+  faux.setResponses([
+    (context) => {
+      request = context
+      return fauxAssistantMessage('Hello.')
+    },
+  ])
+  await say('Hello')
+  const system = request!.messages.flatMap((message) =>
+    message.role === 'system' ? [message] : [],
+  )
+  return {
+    sections: Object.assign({}, ...system.map((message) => message.sections)),
+    tools: system.flatMap((message) =>
+      (message.toolsAdded ?? []).map((tool) => tool.name),
+    ),
+  } as { sections: Record<string, string>; tools: string[] }
+}
+
+test('without a persona, Familiar introduces itself by name and promises no renderer', async () => {
+  const { sections } = await firstRequest({ name: 'Wren' })
+  expect(sections.preamble).toBe(defaultPersona('Wren'))
+  expect(sections.preamble).toContain('You are Wren, a personal assistant.')
+  // What replies render as belongs to the host that draws them.
+  const prompt = Object.values(sections).join('\n')
+  expect(prompt).not.toMatch(/KaTeX|Mermaid|render/i)
+})
+
+test("a host's persona replaces the default and keeps core's instructions", async () => {
+  const persona = 'You are Gatherbot. Answer in one short sentence.'
+  const custom = await firstRequest({ name: 'Wren', persona })
+  const standard = await firstRequest({ name: 'Wren' })
+
+  expect(custom.sections.preamble).toBe(persona)
+  const prompt = Object.values(custom.sections).join('\n')
+  expect(prompt).not.toContain('Wren')
+  expect(prompt).not.toContain(defaultPersona('Wren'))
+
+  // Everything after the persona is core's and unchanged by it.
+  const after = (sections: Record<string, string>) =>
+    Object.entries(sections).filter(([key]) => key !== 'preamble')
+  expect(after(custom.sections)).toEqual(after(standard.sections))
+  expect(custom.sections.conversation).toContain(
+    'one long-running conversation',
+  )
+  expect(custom.sections.memory).toContain('What you remember')
+  expect(custom.sections.schedules).toContain('[Scheduled for')
+  expect(custom.tools).toEqual(standard.tools)
+  expect(custom.tools).toEqual(
+    expect.arrayContaining(['recall', 'read_memory', 'schedule']),
+  )
 })
 
 test('current_time reads the Harness clock', async () => {

@@ -6,6 +6,7 @@ import { stdioTransport } from './mcp-stdio.ts'
 import { lockDataDir } from './lock.ts'
 import { openModels } from './models.ts'
 import { loadPlugins } from './plugins.ts'
+import { webPersona } from './persona.ts'
 import { openPush } from './push.ts'
 import { fileSecretStore } from './secrets.ts'
 import { serveFamiliar } from './serve.ts'
@@ -30,6 +31,7 @@ export async function serve() {
     // The machine's zone, so the owner's calendar is the one their clock shows.
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     name: config.name,
+    persona: webPersona(config.name),
     account,
     notify: push.notify,
     plugins: await loadPlugins(),
