@@ -1,11 +1,7 @@
 import type { HttpApi } from '@familiar-ai/core/http'
-import { hc, type InferResponseType } from 'hono/client'
+import { hc } from 'hono/client'
 import type { FamiliarState } from './store.ts'
-
-type HistoryPage = InferResponseType<
-  ReturnType<typeof hc<HttpApi>>['history']['$get'],
-  200
->
+import type { FetchHistory } from './conversation.ts'
 
 export const createCommands = (
   baseUrl: string,
@@ -120,7 +116,7 @@ export const createCommands = (
     | 'removeMcpServer'
     | 'reconnectMcpServer'
   >
-  const history = async (before: number): Promise<HistoryPage> => {
+  const history: FetchHistory = async (before) => {
     const response = await api.history.$get({
       query: { before: String(before) },
     })

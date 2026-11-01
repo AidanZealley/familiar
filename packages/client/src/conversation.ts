@@ -4,7 +4,10 @@ import type { ConversationView } from '@earendil-works/pi-durable'
 import type { StoreApi } from 'zustand/vanilla'
 import type { FamiliarState, History } from './store.ts'
 import { toTranscript } from './transcript.ts'
-import type { createCommands } from './commands.ts'
+
+export type FetchHistory = (
+  before: number,
+) => Promise<{ entries: History['entries']; more: boolean }>
 
 type ConversationState = Pick<FamiliarState, 'view' | 'history' | 'transcript'>
 
@@ -24,7 +27,7 @@ const transition = (
 export const createConversation = (
   set: StoreApi<FamiliarState>['setState'],
   get: StoreApi<FamiliarState>['getState'],
-  historyPage: ReturnType<typeof createCommands>['history'],
+  historyPage: FetchHistory,
 ) => {
   let loading: Promise<boolean> | undefined
   const loadOlder = async () => {
