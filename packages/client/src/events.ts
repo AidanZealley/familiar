@@ -8,16 +8,57 @@ export const openEvents = (
   connection: (value: Connection) => void,
 ) => {
   const listeners = new AbortController()
+  let accepted = false
+  const outdated = () => {
+    listeners.abort()
+    events.close()
+    connection('outdated')
+  }
   const events = new EventSource(`${baseUrl}/events`, {
     fetch: (url, init) => connect(fetch, url, init),
   })
-  const on = <E extends StreamEvent['event']>(
+  // EventSource fires open before reading each response, including reconnects.
+  events.addEventListener(
+    'open',
+    () => {
+      accepted = false
+    },
+    { signal: listeners.signal },
+  )
+  events.addEventListener(
+    'protocol',
+    (message) => {
+      try {
+        const data: unknown = JSON.parse(message.data)
+        if (
+          typeof data !== 'object' ||
+          data === null ||
+          !('version' in data) ||
+          data.version !== 1
+        ) {
+          outdated()
+          return
+        }
+        accepted = true
+      } catch {
+        outdated()
+      }
+    },
+    { signal: listeners.signal },
+  )
+  const on = <E extends Exclude<StreamEvent['event'], 'protocol'>>(
     event: E,
     handle: (data: Extract<StreamEvent, { event: E }>['data']) => void,
   ) =>
     events.addEventListener(
       event,
-      (message) => handle(JSON.parse(message.data)),
+      (message) => {
+        if (!accepted) {
+          outdated()
+          return
+        }
+        handle(JSON.parse(message.data))
+      },
       { signal: listeners.signal },
     )
 

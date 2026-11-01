@@ -87,7 +87,31 @@ The returned store exposes `getState()`, `getInitialState()` and `subscribe()` f
 
 - `connecting`, then `open` once a full view arrives.
 - `reconnecting` after a network error, a stream that ends, or a 5xx or 429 answer. It retries after the server's `retry` delay, 3 seconds by default. The server sends the view and documents whole again, and history carries over as after compaction.
+- `outdated` when the stream has an unsupported, malformed or missing protocol handshake. It closes the stream and stops retrying. The host decides when to reload or create a compatible client; the library never reloads the browser.
 - `unauthorized` when the stream is answered 401 or 403, and `failed` for any other answer it can't use, such as a 404. Both stop retrying, so a refused stream doesn't keep hitting the server.
+
+Core sends `protocol` with `{ "version": 1 }` as the first event on every
+`/events` connection, before opening any watches. This wire version is independent
+of package releases. Core owns the advertised version in its HTTP adapter; the
+browser-safe client keeps its supported version literal in its events lifecycle.
+Update both deliberately when changing compatibility. Sharing a runtime constant
+would hide a stale client's supported contract in tests.
+
+The client checks `protocol` through EventSource's event listeners before accepting
+any known state event, and resets acceptance on every connection. A legacy server
+sending a view first is rejected without applying that view. Silent streams stay
+connecting or reconnecting without a deadline. Handshake acceptance alone does not
+mean `open`; a full view must arrive. Existing state stays visible on incompatibility.
+HTTP commands keep their existing behavior. The host decides when to reload.
+
+The `protocol` event name and JSON `{ "version": number }` framing are a stable
+compatibility contract, including across incompatible versions. EventSource has no
+wildcard event listener, so unknown event names are ignored, not classified as
+incompatible. Future servers must preserve this handshake to announce incompatibility.
+Clients predating this handshake cannot retroactively detect an incompatible server:
+they ignore the unknown protocol event. This protection starts with clients that
+implement the handshake. Reloading may still need a newer server when the server
+is the older side.
 
 An open stream keeps the credential it started with. A new token takes effect on the next reconnect. When the owner signs out or switches household, or the stream stops as `unauthorized`, the host calls `disconnect()` and creates a new store. `disconnect()` closes the stream and cancels any pending reconnect. If the host's `fetch` is still waiting for a token, its response is thrown away. The store keeps its last state, so a UI can keep showing it until the new store connects.
 

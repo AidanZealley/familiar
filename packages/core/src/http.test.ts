@@ -96,9 +96,15 @@ test('the event stream sends the view and every document whole first', async () 
   await reader.cancel()
 
   const events = [...text.matchAll(/^event: (.+)\ndata: (.+)$/gm)].map(
-    ([, event, data]) => (event === 'document' ? JSON.parse(data) : { event }),
+    ([, event, data]) =>
+      event === 'document'
+        ? JSON.parse(data)
+        : event === 'protocol'
+          ? { event, data: JSON.parse(data) }
+          : { event },
   )
   expect(events).toEqual([
+    { event: 'protocol', data: { version: 1 } },
     { event: 'view' },
     { name: 'memory', value: { facts: [], next: 1 } },
     { name: 'episodes', value: { episodes: [], next: 1 } },
