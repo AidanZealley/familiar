@@ -348,7 +348,7 @@ A host that supplies credentials itself, from an API key or its own login, leave
 const familiar = await summonFamiliar({ storage, models, model, timeZone })
 ```
 
-Then `familiar.account` is undefined, the `/account` routes answer 404 and `/events` sends `account` as `null`. The client keeps `account` undefined until that first event, so a UI can tell "not known yet" from "not offered" and shows no sign-in controls for `null`. Chat, upkeep and schedules work the same either way. A request whose credentials fail ends in an error reply, like any other model failure; nothing else tracks credential health.
+Then `familiar.account` is undefined, the `/account` routes answer 404 and `/events` sends `account` as `null`. The client always has an `account` feature object. Its `account.state` starts undefined and becomes `null` when sign-in is unavailable, so a UI can tell "not known yet" from "not offered" and shows no sign-in controls for `null`. Chat, upkeep and schedules work the same either way. A request whose credentials fail ends in an error reply, like any other model failure; nothing else tracks credential health.
 
 An account works on its own too, say for a setup screen that signs in before the host opens Familiar. Its `api` has the state, sign-in and sign-out; `close()` cancels an unfinished sign-in and drops its listeners.
 

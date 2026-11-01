@@ -1,10 +1,11 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { familiar } from '@/lib/familiar'
 import type { FactEditorProps } from './types'
 
 export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
+  const revise = useFamiliar((state) => state.memory.revise)
   const [draft, setDraft] = useState(fact.text)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
@@ -17,7 +18,7 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
     setSaving(true)
     setError(undefined)
     try {
-      await familiar.getState().memory.revise(fact.id, text)
+      await revise(fact.id, text)
       onDone()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))

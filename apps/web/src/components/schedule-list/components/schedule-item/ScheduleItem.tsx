@@ -1,8 +1,8 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { repeatText } from '@familiar-ai/client'
 import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { familiar } from '@/lib/familiar'
 import type { ScheduleItemProps } from './types'
 
 const nextFormat = new Intl.DateTimeFormat(undefined, {
@@ -14,6 +14,7 @@ const nextFormat = new Intl.DateTimeFormat(undefined, {
 })
 
 export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
+  const cancelSchedule = useFamiliar((state) => state.schedules.cancel)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -22,7 +23,7 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
     setError(undefined)
     try {
       // The mirrored document drops it, which removes this item.
-      await familiar.getState().schedules.cancel(schedule.id)
+      await cancelSchedule(schedule.id)
     } catch (failure) {
       setError((failure as Error).message)
       setCancelling(false)

@@ -19,9 +19,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useFamiliar } from '@familiar-ai/client/react'
-import { familiar } from '@/lib/familiar'
 
 export const SettingsMenu = () => {
+  const signOut = useFamiliar((state) => state.account.signOut)
   const { theme, setTheme } = useTheme()
   const signedIn = useFamiliar(
     (state) => state.account.state?.status === 'signed-in',
@@ -65,14 +65,7 @@ export const SettingsMenu = () => {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuLabel>Provider</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() =>
-                  void familiar
-                    .getState()
-                    .account.signOut()
-                    .catch(() => {})
-                }
-              >
+              <DropdownMenuItem onClick={() => void signOut().catch(() => {})}>
                 <LogOutIcon />
                 Sign out
               </DropdownMenuItem>

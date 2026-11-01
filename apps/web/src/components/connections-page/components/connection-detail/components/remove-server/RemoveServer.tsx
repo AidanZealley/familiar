@@ -1,3 +1,4 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { getRouteApi, useRouter } from '@tanstack/react-router'
 import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
@@ -13,12 +14,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { familiar } from '@/lib/familiar'
 import type { RemoveServerProps } from './types'
 
 const route = getRouteApi('/connections')
 
 export const RemoveServer = ({ connection }: RemoveServerProps) => {
+  const removeServer = useFamiliar((state) => state.mcp.remove)
   const router = useRouter()
   const navigate = route.useNavigate()
   const [busy, setBusy] = useState(false)
@@ -29,7 +30,7 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
     setBusy(true)
     setError(undefined)
     try {
-      await familiar.getState().mcp.remove(name)
+      await removeServer(name)
       await navigate({ search: ({ q }) => ({ q }) })
       await router.invalidate()
     } catch (failure) {

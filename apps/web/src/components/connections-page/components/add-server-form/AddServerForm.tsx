@@ -1,3 +1,4 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import type { McpServer } from '@familiar-ai/client'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
@@ -15,7 +16,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
-import { familiar } from '@/lib/familiar'
 import type { AddServerFormProps } from './types'
 
 type Errors = Partial<Record<'name' | 'url' | 'command' | 'form', string>>
@@ -59,13 +59,14 @@ function read(
 }
 
 export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
+  const addServer = useFamiliar((state) => state.mcp.add)
+  const setSecret = useFamiliar((state) => state.connections.setSecret)
   const router = useRouter()
   const id = useId()
   const [transport, setTransport] = useState<'http' | 'stdio'>('http')
   const [auth, setAuth] = useState<'none' | 'bearer'>('none')
   const [errors, setErrors] = useState<Errors>({})
   const [busy, setBusy] = useState(false)
-  const { mcp, connections } = familiar.getState()
 
   const add = async (form: FormData) => {
     const result = read(form, transport, auth)
@@ -77,7 +78,7 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
     setErrors({})
     setBusy(true)
     try {
-      await mcp.add(server)
+      await addServer(server)
     } catch (failure) {
       setErrors({ form: (failure as Error).message })
       setBusy(false)
@@ -88,11 +89,7 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
     let tokenError: string | undefined
     if (token) {
       try {
-        await connections.setSecret(
-          { kind: 'mcp', name: server.name },
-          'token',
-          token,
-        )
+        await setSecret({ kind: 'mcp', name: server.name }, 'token', token)
       } catch (failure) {
         tokenError = `${server.name} was added, but its token wasn't saved: ${(failure as Error).message}`
       }
