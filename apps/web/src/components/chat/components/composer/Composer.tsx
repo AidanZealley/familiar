@@ -1,3 +1,4 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { ArrowUpIcon, SquareIcon } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
@@ -6,11 +7,12 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { familiar } from '@/lib/familiar'
 import { ModelPicker } from '../model-picker'
 import type { ComposerProps } from './types'
 
 export const Composer = ({ busy }: ComposerProps) => {
+  const send = useFamiliar((state) => state.conversation.send)
+  const abort = useFamiliar((state) => state.conversation.abort)
   const [text, setText] = useState('')
   const [error, setError] = useState<string>()
   const showStop = busy && !text.trim()
@@ -25,7 +27,7 @@ export const Composer = ({ busy }: ComposerProps) => {
     setError(undefined)
     try {
       // While busy this queues; Familiar answers it after the current reply.
-      await familiar.getState().send(message)
+      await send(message)
     } catch (cause) {
       setText(message)
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -69,9 +71,7 @@ export const Composer = ({ busy }: ComposerProps) => {
             className="ml-auto"
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
-            onClick={
-              showStop ? () => void familiar.getState().abort() : undefined
-            }
+            onClick={showStop ? () => void abort() : undefined}
           >
             {showStop ? <SquareIcon /> : <ArrowUpIcon />}
           </InputGroupButton>

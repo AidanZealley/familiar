@@ -36,6 +36,12 @@ test('selectors update only for their selection; transcript is the store-owned v
     renders++
     return createElement('span', null, status)
   }
+  let featureRenders = 0
+  const Memory = () => {
+    useFamiliar((state) => state.memory)
+    featureRenders++
+    return null
+  }
   let selected: ReturnType<typeof useTranscript>
   const Transcript = () => {
     selected = useTranscript()
@@ -47,6 +53,7 @@ test('selectors update only for their selection; transcript is the store-owned v
         FamiliarProvider,
         { store },
         createElement(Status),
+        createElement(Memory),
         createElement(Transcript),
       ),
     ),
@@ -54,10 +61,11 @@ test('selectors update only for their selection; transcript is the store-owned v
   expect(container.textContent).toBe('connecting')
   expect(selected).toBeUndefined()
   const initialRenders = renders
+  const initialFeatureRenders = featureRenders
   await act(async () => {
     await expect.poll(server.connections).toBe(1)
     server.send(frame('account', null))
-    await expect.poll(() => store.getState().account).toBeNull()
+    await expect.poll(() => store.getState().account.state).toBeNull()
   })
   expect(renders).toBe(initialRenders)
   await act(async () => {
@@ -68,6 +76,14 @@ test('selectors update only for their selection; transcript is the store-owned v
   expect(container.textContent).toBe('open')
   expect(selected).toBe(store.getState().transcript)
   expect(selected).toBeDefined()
+  expect(featureRenders).toBe(initialFeatureRenders)
+  await act(async () => {
+    server.send(
+      frame('document', { name: 'memory', value: { facts: [], next: 1 } }),
+    )
+    await expect.poll(() => store.getState().memory.facts?.next).toBe(1)
+  })
+  expect(featureRenders).toBe(initialFeatureRenders + 1)
 })
 
 test('nearest providers isolate stores and replacement moves the subscription without disconnecting', async () => {

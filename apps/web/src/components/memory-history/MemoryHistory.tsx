@@ -3,7 +3,7 @@ import { historyChains } from '@/lib/memory'
 import { HistoryChain } from './components/history-chain'
 
 export const MemoryHistory = () => {
-  const facts = useFamiliar((state) => state.memory?.facts)
+  const facts = useFamiliar((state) => state.memory.facts?.facts)
   const chains = facts ? historyChains(facts) : []
 
   return (

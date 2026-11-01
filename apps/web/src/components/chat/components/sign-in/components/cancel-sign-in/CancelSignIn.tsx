@@ -1,17 +1,12 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { Button } from '@/components/ui/button'
-import { familiar } from '@/lib/familiar'
 
 /** Stops the sign-in, back to the button that starts one. */
-export const CancelSignIn = () => (
-  <Button
-    variant="ghost"
-    onClick={() =>
-      void familiar
-        .getState()
-        .cancelSignIn()
-        .catch(() => {})
-    }
-  >
-    Cancel
-  </Button>
-)
+export const CancelSignIn = () => {
+  const cancelSignIn = useFamiliar((state) => state.account.cancelSignIn)
+  return (
+    <Button variant="ghost" onClick={() => void cancelSignIn().catch(() => {})}>
+      Cancel
+    </Button>
+  )
+}

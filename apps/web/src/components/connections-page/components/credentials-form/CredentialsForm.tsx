@@ -1,3 +1,4 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +13,6 @@ import {
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { familiar } from '@/lib/familiar'
 import { TransportDetails } from '../transport-details'
 import type { CredentialsFormProps } from './types'
 
@@ -25,12 +25,13 @@ export const CredentialsForm = ({
   error: initialError,
   onDone,
 }: CredentialsFormProps) => {
+  const setSecret = useFamiliar((state) => state.connections.setSecret)
+  const deleteSecret = useFamiliar((state) => state.connections.deleteSecret)
   const router = useRouter()
   const id = useId()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initialError)
-  const { setSecret, deleteSecret } = familiar.getState()
   const changed = connection.secrets.filter((secret) =>
     drafts[secret.name]?.trim(),
   )

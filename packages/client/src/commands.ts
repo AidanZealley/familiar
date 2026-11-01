@@ -1,6 +1,15 @@
-import type { HttpApi } from '@familiar-ai/core/http'
 import { hc } from 'hono/client'
-import type { FamiliarState } from './store.ts'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
+import type { ModelRef } from '@earendil-works/pi-durable'
+import type {
+  HttpApi,
+  Connection as ConnectionKey,
+  ConnectionInfo,
+  MemoryHealth,
+  ModelOption,
+  McpServer,
+  PushSubscriptionJson,
+} from '@familiar-ai/core/http'
 import type { FetchHistory } from './conversation.ts'
 
 export const createCommands = (
@@ -18,104 +27,95 @@ export const createCommands = (
   }
 
   const commands = {
-    signIn: () => succeed(api.account['sign-in'].$post()),
-    answerSignIn: (text) =>
-      succeed(api.account['sign-in'].answer.$post({ json: { text } })),
-    cancelSignIn: () => succeed(api.account['sign-in'].$delete()),
-    signOut: () => succeed(api.account['sign-out'].$post()),
-    send: (text) =>
-      succeed(api.messages.$post({ json: { text, requestId: randomId() } })),
-    abort: () => succeed(api.abort.$post()),
-    modelOptions: async () => {
-      const response = await api.model.options.$get()
-      if (!response.ok) {
-        throw await failed(response)
-      }
-      return response.json()
+    account: {
+      signIn: () => succeed(api.account['sign-in'].$post()),
+      answerSignIn: (text: string) =>
+        succeed(api.account['sign-in'].answer.$post({ json: { text } })),
+      cancelSignIn: () => succeed(api.account['sign-in'].$delete()),
+      signOut: () => succeed(api.account['sign-out'].$post()),
     },
-    setModel: (model) => succeed(api.model.$put({ json: model })),
-    setThinkingLevel: (level) =>
-      succeed(api.model['thinking-level'].$put({ json: { level } })),
-    reviseFact: (id, text) =>
-      succeed(api.memory[':id'].$put({ param: { id }, json: { text } })),
-    retireFact: (id) =>
-      succeed(api.memory[':id'].retire.$post({ param: { id } })),
-    setFactPinned: (id, pinned) =>
-      succeed(api.memory[':id'].pin.$put({ param: { id }, json: { pinned } })),
-    cancelSchedule: (id) =>
-      succeed(api.schedules[':id'].$delete({ param: { id } })),
-    pushKey: async () => {
-      const response = await api.push.key.$get()
-      if (response.status === 404) {
-        return undefined
-      }
-      if (!response.ok) {
-        throw await failed(response)
-      }
-      return (await response.json()).key
+    conversation: {
+      send: (text: string) =>
+        succeed(api.messages.$post({ json: { text, requestId: randomId() } })),
+      abort: () => succeed(api.abort.$post()),
+      modelOptions: async (): Promise<ModelOption[]> => {
+        const response = await api.model.options.$get()
+        if (!response.ok) {
+          throw await failed(response)
+        }
+        return response.json()
+      },
+      setModel: (model: ModelRef) => succeed(api.model.$put({ json: model })),
+      setThinkingLevel: (level: ModelThinkingLevel) =>
+        succeed(api.model['thinking-level'].$put({ json: { level } })),
     },
-    subscribePush: (subscription) =>
-      succeed(api.push.subscriptions.$post({ json: subscription })),
-    unsubscribePush: (subscription) =>
-      succeed(api.push.subscriptions.$delete({ json: subscription })),
-    connections: async () => {
-      const response = await api.connections.$get()
-      if (!response.ok) {
-        throw await failed(response)
-      }
-      return response.json()
+    memory: {
+      revise: (id: string, text: string) =>
+        succeed(api.memory[':id'].$put({ param: { id }, json: { text } })),
+      retire: (id: string) =>
+        succeed(api.memory[':id'].retire.$post({ param: { id } })),
+      setPinned: (id: string, pinned: boolean) =>
+        succeed(
+          api.memory[':id'].pin.$put({ param: { id }, json: { pinned } }),
+        ),
+      health: async (): Promise<MemoryHealth> => {
+        const response = await api.memory.health.$get()
+        if (!response.ok) {
+          throw await failed(response)
+        }
+        return response.json()
+      },
     },
-    memoryHealth: async () => {
-      const response = await api.memory.health.$get()
-      if (!response.ok) {
-        throw await failed(response)
-      }
-      return response.json()
+    schedules: {
+      cancel: (id: string) =>
+        succeed(api.schedules[':id'].$delete({ param: { id } })),
     },
-    setSecret: (connection, secret, value) =>
-      succeed(
-        api.connections[':kind'][':name'].secrets[':secret'].$put({
-          param: { ...connection, secret },
-          json: { value },
-        }),
-      ),
-    deleteSecret: (connection, secret) =>
-      succeed(
-        api.connections[':kind'][':name'].secrets[':secret'].$delete({
-          param: { ...connection, secret },
-        }),
-      ),
-    addMcpServer: (server) => succeed(api.mcp.$post({ json: server })),
-    removeMcpServer: (name) =>
-      succeed(api.mcp[':name'].$delete({ param: { name } })),
-    reconnectMcpServer: (name) =>
-      succeed(api.mcp[':name'].reconnect.$post({ param: { name } })),
-  } satisfies Pick<
-    FamiliarState,
-    | 'signIn'
-    | 'answerSignIn'
-    | 'cancelSignIn'
-    | 'signOut'
-    | 'send'
-    | 'abort'
-    | 'modelOptions'
-    | 'setModel'
-    | 'setThinkingLevel'
-    | 'reviseFact'
-    | 'retireFact'
-    | 'setFactPinned'
-    | 'cancelSchedule'
-    | 'pushKey'
-    | 'subscribePush'
-    | 'unsubscribePush'
-    | 'connections'
-    | 'memoryHealth'
-    | 'setSecret'
-    | 'deleteSecret'
-    | 'addMcpServer'
-    | 'removeMcpServer'
-    | 'reconnectMcpServer'
-  >
+    push: {
+      key: async () => {
+        const response = await api.push.key.$get()
+        if (response.status === 404) {
+          return undefined
+        }
+        if (!response.ok) {
+          throw await failed(response)
+        }
+        return (await response.json()).key
+      },
+      subscribe: (subscription: PushSubscriptionJson) =>
+        succeed(api.push.subscriptions.$post({ json: subscription })),
+      unsubscribe: (subscription: PushSubscriptionJson) =>
+        succeed(api.push.subscriptions.$delete({ json: subscription })),
+    },
+    connections: {
+      list: async (): Promise<ConnectionInfo[]> => {
+        const response = await api.connections.$get()
+        if (!response.ok) {
+          throw await failed(response)
+        }
+        return response.json()
+      },
+      setSecret: (connection: ConnectionKey, secret: string, value: string) =>
+        succeed(
+          api.connections[':kind'][':name'].secrets[':secret'].$put({
+            param: { ...connection, secret },
+            json: { value },
+          }),
+        ),
+      deleteSecret: (connection: ConnectionKey, secret: string) =>
+        succeed(
+          api.connections[':kind'][':name'].secrets[':secret'].$delete({
+            param: { ...connection, secret },
+          }),
+        ),
+    },
+    mcp: {
+      add: (server: McpServer) => succeed(api.mcp.$post({ json: server })),
+      remove: (name: string) =>
+        succeed(api.mcp[':name'].$delete({ param: { name } })),
+      reconnect: (name: string) =>
+        succeed(api.mcp[':name'].reconnect.$post({ param: { name } })),
+    },
+  }
   const history: FetchHistory = async (before) => {
     const response = await api.history.$get({
       query: { before: String(before) },
@@ -144,3 +144,5 @@ const randomId = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('')
+
+export type Commands = ReturnType<typeof createCommands>['commands']

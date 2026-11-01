@@ -1,9 +1,9 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { familiar } from '@/lib/familiar'
 import { CancelSignIn } from '../cancel-sign-in'
 import type { BrowserSignInProps } from './types'
 
@@ -13,6 +13,7 @@ import type { BrowserSignInProps } from './types'
  * so the owner brings that last address back here.
  */
 export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
+  const answerSignIn = useFamiliar((state) => state.account.answerSignIn)
   const [step, setStep] = useState<'open' | 'paste' | 'sent'>('open')
   const [address, setAddress] = useState('')
 
@@ -63,10 +64,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
       return
     }
     setStep('sent')
-    void familiar
-      .getState()
-      .answerSignIn(text)
-      .catch(() => setStep('paste'))
+    void answerSignIn(text).catch(() => setStep('paste'))
   }
 
   return (

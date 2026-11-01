@@ -37,7 +37,7 @@ const HealthPage = () => <MemoryHealth health={Route.useLoaderData()} />
 // Fetched, not mirrored: the numbers are measured when asked, so each visit
 // shows them as they are then.
 export const Route = createFileRoute('/memory/health')({
-  loader: () => familiar.getState().memoryHealth(),
+  loader: () => familiar.getState().memory.health(),
   // Timings change with every search, so never show a cached visit.
   staleTime: 0,
   component: HealthPage,

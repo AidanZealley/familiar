@@ -3,15 +3,8 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
 import { useFamiliar } from '@familiar-ai/client/react'
-import { familiar } from '@/lib/familiar'
 import { cn } from '@/lib/utils'
 import type { OlderMessagesProps } from './types'
-
-const loadOlder = () =>
-  void familiar
-    .getState()
-    .loadOlder()
-    .catch(() => {})
 
 /**
  * Loads older messages as the reader nears the top of the chat, and says so
@@ -20,7 +13,8 @@ const loadOlder = () =>
  * first child was an item.
  */
 export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
-  const status = useFamiliar((state) => state.history.status)
+  const loadOlder = useFamiliar((state) => state.conversation.loadOlder)
+  const status = useFamiliar((state) => state.conversation.history.status)
   const { visibleMessageIds } = useMessageScrollerVisibility()
   const nearTop = firstItemIds.some((id) => visibleMessageIds.includes(id))
 
@@ -28,9 +22,9 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
   // the next. A failure waits for Retry rather than looping.
   useEffect(() => {
     if (nearTop && status === 'more') {
-      loadOlder()
+      void loadOlder().catch(() => {})
     }
-  }, [nearTop, status])
+  }, [loadOlder, nearTop, status])
 
   const floating = 'absolute top-3 left-1/2 -translate-x-1/2 text-xs shadow-sm'
   if (status === 'loading') {
@@ -53,7 +47,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         variant="secondary"
         size="sm"
         className={cn(floating, 'border')}
-        onClick={loadOlder}
+        onClick={() => void loadOlder().catch(() => {})}
       >
         Couldn't load earlier messages. Retry
       </Button>

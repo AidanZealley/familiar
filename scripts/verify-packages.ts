@@ -267,7 +267,31 @@ precise.execute({ query: 'value' })
 import type { FamiliarStore } from '@familiar-ai/client'
 import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
 declare const store: FamiliarStore
-store.getState()
+const state = store.getState()
+state.conversation.send('Hello')
+state.conversation.setModel({ provider: 'test', modelId: 'test' })
+state.conversation.setThinkingLevel('high')
+state.conversation.loadOlder()
+state.memory.revise('fact-1', 'Corrected')
+state.memory.setPinned('fact-1', true)
+state.memory.health()
+state.account.signIn()
+state.account.state?.status
+state.memory.facts?.facts
+state.memory.episodes?.episodes
+state.schedules.items
+state.schedules.cancel('schedule-1')
+state.push.key()
+state.connections.list()
+state.mcp.add({ name: 'notes', transport: { type: 'stdio', command: 'notes', args: [] } })
+state.transcript?.items
+state.disconnect()
+// @ts-expect-error old flat commands were removed
+state.send('Hello')
+// @ts-expect-error grouped command parameters remain typed
+state.memory.revise(1, 'Corrected')
+// @ts-expect-error grouped model commands retain Pi types
+state.conversation.setThinkingLevel('unsupported')
 store.getInitialState()
 store.subscribe(state => state.connection)
 // @ts-expect-error public stores do not expose arbitrary writes

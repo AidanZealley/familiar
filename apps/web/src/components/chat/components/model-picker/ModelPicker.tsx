@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { InputGroupButton } from '@/components/ui/input-group'
 import { useFamiliar } from '@familiar-ai/client/react'
-import { familiar } from '@/lib/familiar'
 
 const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
   off: 'Off',
@@ -32,13 +31,26 @@ const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
 const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
 
 export const ModelPicker = () => {
-  // Fixed for the daemon's lifetime, so fetched once rather than mirrored.
+  const modelOptions = useFamiliar((state) => state.conversation.modelOptions)
+  const setModel = useFamiliar((state) => state.conversation.setModel)
+  const setThinkingLevel = useFamiliar(
+    (state) => state.conversation.setThinkingLevel,
+  )
+  // Fixed for each store's daemon lifetime, so fetched rather than mirrored.
   const [options, setOptions] = useState<ModelOption[]>()
   useEffect(() => {
-    void familiar.getState().modelOptions().then(setOptions)
-  }, [])
+    let active = true
+    void modelOptions().then((options) => {
+      if (active) {
+        setOptions(options)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [modelOptions])
   // Live from the conversation, so a change on another device shows here.
-  const agent = useFamiliar((state) => agentOf(state.view))
+  const agent = useFamiliar((state) => agentOf(state.conversation.view))
   const current =
     agent?.model &&
     options?.find((option) => keyOf(option.model) === keyOf(agent.model!))
@@ -64,7 +76,7 @@ export const ModelPicker = () => {
                   (option) => keyOf(option.model) === value,
                 )
                 if (chosen) {
-                  void familiar.getState().setModel(chosen.model)
+                  void setModel(chosen.model)
                 }
               }}
             >
@@ -93,7 +105,7 @@ export const ModelPicker = () => {
             <DropdownMenuRadioGroup
               value={agent.thinkingLevel}
               onValueChange={(level: ModelThinkingLevel) =>
-                void familiar.getState().setThinkingLevel(level)
+                void setThinkingLevel(level)
               }
             >
               {current.thinkingLevels.map((level) => (

@@ -1,3 +1,4 @@
+import { useFamiliar } from '@familiar-ai/client/react'
 import {
   ArchiveIcon,
   EllipsisIcon,
@@ -12,17 +13,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { familiar } from '@/lib/familiar'
 import { isPast } from '@/lib/memory'
 import type { FactMenuProps } from './types'
 
 /** A current fact's actions. Past facts are history, so they have none. */
 export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
+  const setPinned = useFamiliar((state) => state.memory.setPinned)
+  const retire = useFamiliar((state) => state.memory.retire)
   const run = (action: Promise<void>) =>
     action.catch((cause) =>
       onError(cause instanceof Error ? cause.message : String(cause)),
     )
-  const store = familiar.getState()
 
   if (isPast(fact)) {
     return null
@@ -44,13 +45,11 @@ export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
             Edit
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem
-          onClick={() => run(store.setFactPinned(fact.id, !fact.pinned))}
-        >
+        <DropdownMenuItem onClick={() => run(setPinned(fact.id, !fact.pinned))}>
           {fact.pinned ? <PinOffIcon /> : <PinIcon />}
           {fact.pinned ? 'Unpin from core' : 'Pin to core'}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => run(store.retireFact(fact.id))}>
+        <DropdownMenuItem onClick={() => run(retire(fact.id))}>
           <ArchiveIcon />
           No longer true
         </DropdownMenuItem>
