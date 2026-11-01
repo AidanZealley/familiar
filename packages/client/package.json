@@ -27,29 +27,24 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@earendil-works/chord": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "@familiar-ai/core": "workspace:*",
     "eventsource": "5.1.4",
+    "hono": "catalog:",
     "rrule": "2.8.1",
     "zustand": "5.0.16"
   },
   "peerDependencies": {
-    "@earendil-works/chord": "catalog:",
-    "@earendil-works/pi-ai": "catalog:",
-    "@earendil-works/pi-durable": "catalog:",
-    "@familiar-ai/core": "workspace:*",
-    "hono": "catalog:",
     "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
-    "@earendil-works/chord": "catalog:",
-    "@earendil-works/pi-ai": "catalog:",
-    "@earendil-works/pi-durable": "catalog:",
-    "@familiar-ai/core": "workspace:*",
-    "hono": "catalog:",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "jsdom": "^29"
+    "jsdom": "^29",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "peerDependenciesMeta": {
     "react": {

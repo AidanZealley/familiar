@@ -4,7 +4,7 @@ import {
   fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import { MemoryStorage } from '@earendil-works/pi-durable'
+import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import {
   memorySecrets,
   summonFamiliar,

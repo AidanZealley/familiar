@@ -10,6 +10,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
 
 // Installs the packed libraries outside the workspace, as a consumer would,
 // so a file missing from `files`, a wrong export or a dependency that only
@@ -81,6 +82,7 @@ try {
     '@familiar-ai/core/extensions',
     '@familiar-ai/core/diagnostics',
     '@familiar-ai/core/mcp',
+    '@familiar-ai/core/storage/memory',
     '@familiar-ai/client',
     '@familiar-ai/plugin-web',
     '@familiar-ai/plugin-web/convert-html',
@@ -152,10 +154,17 @@ if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value 
 import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
 import { localDay } from '@familiar-ai/core/diagnostics'
 import { connectMcp } from '@familiar-ai/core/mcp'
-import { repeatText, type Schedule } from '@familiar-ai/client'
+import { repeatText, type Schedule, type ModelRef, type ModelThinkingLevel, type ConversationView, type EntryRecord } from '@familiar-ai/client'
+const model: ModelRef = { provider: 'packed', modelId: 'packed' }
+const thinking: ModelThinkingLevel = 'medium'
+// @ts-expect-error model selections remain typed
+const invalidModel: ModelRef = { provider: 1 }
+// @ts-expect-error full advanced history types remain typed
+const entry: EntryRecord = 1
+// @ts-expect-error advanced view stays typed
+const view: ConversationView = 1
 import { webPlugin } from '@familiar-ai/plugin-web'
 import { convertHtml } from '@familiar-ai/plugin-web/convert-html'
-import { hc } from 'hono/client'
 
 // Assignable to every parameter, so each misuse below tests one parameter.
 declare const ok: never
@@ -169,7 +178,7 @@ createHttpApi(1, ok)
 // @ts-expect-error
 createHttpApi(ok, 1)
 // @ts-expect-error
-hc<HttpApi>('http://localhost').notARoute
+export const api: HttpApi = 1
 // @ts-expect-error
 localDay('now', 'UTC')
 // @ts-expect-error
@@ -288,6 +297,88 @@ new DurableFamiliar(1, ok)
 new DurableFamiliar(ok, 1)
 `,
   )
+  // Resolve the packed client in a browser build, with no workspace aliases.
+  // Any server/React runtime import here is a packaging regression.
+  const requireWeb = createRequire(resolve(root, 'apps/web/package.json'))
+  const { build } = await import(requireWeb.resolve('vite'))
+  await writeFile(
+    resolve(consumer, 'browser.js'),
+    `export * from '@familiar-ai/client'`,
+  )
+  await build({
+    configFile: false,
+    root: consumer,
+    plugins: [
+      {
+        name: 'check-client-runtime',
+        moduleParsed(module) {
+          assert.doesNotMatch(
+            module.id,
+            /node_modules\/(?:@familiar-ai\/core|@earendil-works\/pi-(?:ai|durable)|react)\//,
+          )
+        },
+      },
+    ],
+    build: {
+      write: false,
+      lib: { entry: resolve(consumer, 'browser.js'), formats: ['es'] },
+    },
+  })
+  // Hosts deliberately configure providers directly. Install the owned version,
+  // then exercise a real Familiar with that Models instance.
+  const coreManifest = JSON.parse(
+    await readFile(
+      resolve(consumer, 'node_modules/@familiar-ai/core/package.json'),
+      'utf8',
+    ),
+  )
+  run(
+    'npm',
+    [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      `@earendil-works/pi-ai@${coreManifest.dependencies['@earendil-works/pi-ai']}`,
+    ],
+    consumer,
+  )
+  await writeFile(
+    resolve(consumer, 'host.js'),
+    `
+import assert from 'node:assert/strict'
+import { createModels } from '@earendil-works/pi-ai/models'
+import { Type as HostType } from '@earendil-works/pi-ai'
+import { fauxProvider, fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux'
+import { summonFamiliar, Type } from '@familiar-ai/core'
+import { MemoryStorage } from '@familiar-ai/core/storage/memory'
+import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
+const coreUrl = import.meta.resolve('@familiar-ai/core')
+const durableUrl = import.meta.resolve('@earendil-works/pi-durable', coreUrl)
+const durable = await import(durableUrl)
+assert.equal(import.meta.resolve('@earendil-works/pi-ai/models'), import.meta.resolve('@earendil-works/pi-ai/models', coreUrl))
+assert.equal(import.meta.resolve('@earendil-works/pi-ai/models'), import.meta.resolve('@earendil-works/pi-ai/models', durableUrl))
+assert.equal(Type, HostType)
+assert.equal(GenerationTask, durable.GenerationTask)
+const chord = await import(import.meta.resolve('@earendil-works/chord/context', coreUrl))
+assert.equal(createContextKey, chord.createContextKey)
+const models = createModels()
+const faux = fauxProvider({ models: [{ id: 'packed' }] })
+models.setProvider(faux.provider)
+faux.setResponses([fauxAssistantMessage('Packed host works')])
+const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+try {
+  await familiar.send({ author: 'Consumer', text: 'Hello', requestId: 'packed' })
+  await familiar.idle()
+  const view = await familiar.watch()
+  assert.match(JSON.stringify(view.value), /Packed host works/)
+  await view.stop()
+} finally {
+  await familiar.dismiss()
+}
+`,
+  )
+  run('node', ['--experimental-import-meta-resolve', 'host.js'], consumer)
+
   console.log('Packages install, load and type-check outside the workspace.')
 } finally {
   await rm(temporary, { recursive: true, force: true })

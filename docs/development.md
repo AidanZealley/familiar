@@ -107,3 +107,34 @@ After changing the judge, grade a saved run again instead of replaying it. This 
 ```sh
 pnpm eval:memory:rejudge eval/results/<file>.json
 ```
+
+### Dependency ownership for embedded consumers
+
+Plugin authors install `@familiar-ai/core` and import tools from its main entry
+point, or full Pi extension contracts from `@familiar-ai/core/extensions`.
+These are reexports of the pinned Pi contracts, including tasks, hooks,
+documents, environments and nested tool execution. Familiar does not provide an
+independent compatibility layer over Pi. Advanced extensions and conversation
+views remain semantically coupled to that Pi version.
+
+Frontends install `@familiar-ai/client`, plus React when using `/react`. The
+client exports model selection and conversation types. Its core dependency
+supplies wire declarations without requiring the app to declare a server peer;
+core and Pi runtime code are absent from the browser bundle. React remains an
+optional peer and is absent from vanilla imports.
+
+Familiar owns exact Pi and Chord dependency versions through the workspace
+catalog. Hosts still install `@earendil-works/pi-ai` directly to configure Models
+and providers. Use the catalog's exact version, currently `1.4.0`, so the host,
+Familiar and Pi Durable resolve the same runtime classes and identity tokens.
+Installing a different host version can produce multiple incompatible instances;
+ordinary dependencies cannot prevent a host from doing that. MCP and Hono are
+also ordinary core dependencies, rather than installation work for plugin authors.
+
+Memory storage is available from `@familiar-ai/core/storage/memory`. Workers can
+use `DurableFamiliar` or the SQLite exports of `@familiar-ai/cloudflare`. Node
+hosts still import `openNodeSqliteStorage` directly from
+`@earendil-works/pi-durable/storage/sqlite/node` at the same pinned version.
+A Familiar Node storage entry point is deferred because Node code belongs in
+`apps/daemon` under the current package rules; adding a platform package just for
+that reexport would expand this cleanup.
