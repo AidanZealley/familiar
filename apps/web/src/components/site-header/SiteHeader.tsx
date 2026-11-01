@@ -2,8 +2,6 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from 'cn'
 import {
   AlarmClockIcon,
-  CatIcon,
-  CircleAlertIcon,
   LibraryIcon,
   MessageSquareIcon,
   PlugIcon,
@@ -17,11 +15,10 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu'
-import { Spinner } from '@/components/ui/spinner'
-import { useFamiliar } from '@familiar-ai/client/react'
 import { memorySections } from '@/lib/memory'
 
 import { SettingsMenu } from './components/settings-menu'
+import { ConnectionStatus } from './components/connection-status'
 
 const current = 'bg-muted text-foreground'
 
@@ -33,7 +30,6 @@ const current = 'bg-muted text-foreground'
  */
 export const SiteHeader = () => {
   const path = useRouterState({ select: (state) => state.location.pathname })
-  const connection = useFamiliar((state) => state.connection)
   const inMemory = path.startsWith('/memory')
 
   return (
@@ -41,29 +37,7 @@ export const SiteHeader = () => {
       <div className="mx-auto flex h-full max-w-(--page-width) items-center gap-2 px-3 sm:gap-4 sm:px-4">
         <h1 className="flex items-center gap-2 font-heading text-sm font-medium tracking-tight">
           {/* In the logo's place, so the header never shifts while it reconnects. */}
-          {connection === 'open' ? (
-            <CatIcon className="size-5" />
-          ) : connection === 'connecting' || connection === 'reconnecting' ? (
-            <Spinner
-              className="size-5"
-              aria-label={
-                connection === 'connecting' ? 'Connecting' : 'Reconnecting'
-              }
-            />
-          ) : (
-            // The stream has stopped retrying; reloading starts a new one.
-            <CircleAlertIcon
-              role="img"
-              className="size-5 text-destructive"
-              aria-label={
-                connection === 'outdated'
-                  ? 'Client is outdated. Reload to update.'
-                  : connection === 'unauthorized'
-                    ? 'Not authorised. Reload to try again.'
-                    : 'Connection failed. Reload to try again.'
-              }
-            />
-          )}
+          <ConnectionStatus />
           familiar
         </h1>
         <NavigationMenu align="end" className="ml-auto">
