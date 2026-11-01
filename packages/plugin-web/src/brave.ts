@@ -1,5 +1,4 @@
-import { Type, type Static } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
+import { Type, defineTool, type Static } from '@familiar-ai/core'
 import { localMinute, type PluginContext } from '@familiar-ai/core'
 import { cut } from './format.ts'
 

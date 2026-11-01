@@ -7,7 +7,7 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { createToolSearchExtension } from '@earendil-works/pi-durable/tool-search'
+import { createToolSearchExtension } from '@familiar-ai/core/extensions'
 import { summonFamiliar } from '@familiar-ai/core'
 import { connectMcp } from '@familiar-ai/core/mcp'
 import { serve } from '@hono/node-server'

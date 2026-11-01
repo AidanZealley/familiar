@@ -53,8 +53,11 @@ export type PluginSecret = {
   }
 }
 
+/** Familiar supplies the installed name; every Pi extension capability is retained. */
+export type PluginExtension = Omit<Extension, 'name'>
+
 /**
- * Everything that isn't core arrives as a plugin: a Pi extension, built with
+ * Everything that isn't core arrives as a plugin: an extension, built with
  * what Familiar provides around it. Core names the extension
  * `familiar.plugin.<name>`.
  */
@@ -64,7 +67,7 @@ export type FamiliarPlugin = {
   /** For the owner, on the Connections page. */
   title: string
   secrets?: PluginSecret[]
-  extension: (context: PluginContext) => Omit<Extension, 'name'>
+  extension: (context: PluginContext) => PluginExtension
 }
 
 /** A connection as the owner sees it: never a secret's value. */

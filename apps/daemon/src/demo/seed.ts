@@ -1,8 +1,7 @@
 // Sample memory for the demo, so the Memory pages have something to show:
 // Rowan, from the memory eval's rowan-v3 scenario, a year in.
 
-import { Type } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
+import { Type, defineTool } from '@familiar-ai/core'
 import {
   Episodes,
   Facts,

@@ -12,6 +12,7 @@ export type {
   ConnectionsApi,
   FamiliarPlugin,
   PluginContext,
+  PluginExtension,
   PluginFetch,
   PluginSecret,
 } from './types.ts'

@@ -78,6 +78,7 @@ try {
   const runtime = [
     '@familiar-ai/core',
     '@familiar-ai/core/http',
+    '@familiar-ai/core/extensions',
     '@familiar-ai/core/diagnostics',
     '@familiar-ai/core/mcp',
     '@familiar-ai/client',
@@ -189,6 +190,64 @@ export const plugin: number = webPlugin()
 convertHtml(1, 'https://example.com', 100)
 // @ts-expect-error
 export const page: number = convertHtml('', 'https://example.com', 100)
+`,
+  )
+  await typeCheck(
+    'plugin',
+    ['ES2023', 'DOM'],
+    [],
+    `import { definePlugin, defineTool, Type, type Static, type ToolContext, type ToolResult } from '@familiar-ai/core'
+import { defineExtension, defineDoc, defineDocFamily, defineTask, section, hook, wrapTool, wrapSection, ToolTask, GenerationTask, configure, withCancel, createToolSearchExtension, createCodemodeExtension, createCodingTools, type ToolExecutionApi, type Extension, type Tx, type TaskRuntime } from '@familiar-ai/core/extensions'
+const State = defineDoc({ kind: 'packed.state', version: 1, scope: 'session', initial: () => ({ value: 0 }), checkpointWhen: () => true })
+const Task = defineTask<{ value: number }, { phase: 'run' }, number>({
+  name: 'packed.task', version: 1, initial: () => ({ phase: 'run' }),
+  phases: { run: (task, runtime, context) => runtime.commit(async tx => {
+    (await tx.doc(State)).value = task.input.value
+    return { status: 'terminal', outcome: { status: 'completed', result: task.input.value } }
+  }, context) },
+  abort: (_task, runtime, context) => runtime.commit(() => ({ status: 'terminal', outcome: { status: 'aborted' } }), context),
+})
+const search: Extension = createToolSearchExtension()
+const coding: Extension = createCodingTools()
+const extension: Extension = defineExtension({ name: 'packed', tasks: [Task], sections: [section('packed', () => 'Packed')], hooks: [hook(ToolTask, { beforeTool: call => {
+  // @ts-expect-error hook inference must survive packing
+  const invalid: number = call.name
+} })], wraps: [wrapSection('packed', original => original)] })
+const Parameters = Type.Object({ query: Type.String() })
+type Args = Static<typeof Parameters>
+const execute = async (args: Args, api: ToolExecutionApi, context: ToolContext): Promise<ToolResult> => {
+  context.abortSignal?.throwIfAborted()
+  await api.details({ source: args.query }, context)
+  const derived = withCancel(context)
+  derived.cancel()
+  await api.commit(async tx => { (await tx.doc(State)).value = 1 }, context)
+  await api.executeTool('other', { query: args.query }, context, { key: 'nested' })
+  return { output: [{ type: 'text', text: args.query }], details: { count: 1 } }
+}
+export default definePlugin({
+  name: 'packed', title: 'Packed plugin',
+  extension: () => ({ ...extension, tools: [defineTool({ name: 'search', description: 'Search', parameters: Parameters, execute })] }),
+})
+defineTool({ name: 'typed', description: 'Typed', parameters: Parameters, execute: async args => {
+  // @ts-expect-error schema inference must survive packing
+  const invalid: number = args.query
+  // @ts-expect-error no unsupported argument
+  args.missing
+  return { output: [{ type: 'text', text: args.query }] }
+} })
+declare const transaction: ToolExecutionApi['commit']
+const precise = defineTool<typeof Parameters, { count: number }>({
+  name: 'precise', description: 'Precise details', parameters: Parameters,
+  execute: async (args, api, context) => {
+    await api.details({ count: args.query.length }, context)
+    // @ts-expect-error details type must survive packing
+    await api.details({ count: 'wrong' }, context)
+    return { details: { count: 1 } }
+  },
+})
+const wrapped = wrapTool(precise, original => ({ ...original, execute: (args, api, context) => original.execute(args, api, context) }))
+// @ts-expect-error tool execute retains all three required arguments
+precise.execute({ query: 'value' })
 `,
   )
   await typeCheck(

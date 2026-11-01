@@ -1,8 +1,8 @@
 import {
   BACKGROUND_CONTEXT,
   withAbortSignal,
-} from '@earendil-works/chord/context'
-import type { ToolExecutionApi } from '@earendil-works/pi-durable'
+} from '@familiar-ai/core/extensions'
+import type { ToolExecutionApi } from '@familiar-ai/core/extensions'
 import { expect, test } from 'vitest'
 import { loadPlugins } from './plugins.ts'
 

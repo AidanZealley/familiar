@@ -1,5 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
+import { Type, defineTool } from '@familiar-ai/core'
 import { localMinute, type PluginFetch } from '@familiar-ai/core'
 import type { ConvertHtml } from './convert-html.ts'
 
