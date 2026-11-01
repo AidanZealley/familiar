@@ -1,16 +1,10 @@
+import { eventRoutes } from './http-events.ts'
 import type { Op } from '@earendil-works/chord/delta'
-import type {
-  ConversationView,
-  DocumentWatch,
-  EntryId,
-} from '@earendil-works/pi-durable'
-import { Hono, type TypedResponse } from 'hono'
-import { streamSSE } from 'hono/streaming'
-import { validator } from 'hono/validator'
+import type { ConversationView } from '@earendil-works/pi-durable'
+import { Hono } from 'hono'
 import type { AccountState } from './account/index.ts'
 import { accountRoutes } from './account/http.ts'
-import type { HistoryPage } from './conversation/index.ts'
-import { modelRoutes } from './conversation/http.ts'
+import { conversationRoutes, modelRoutes } from './conversation/http.ts'
 import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
@@ -103,144 +97,50 @@ export type HttpOptions = {
   push?: PushHost
 }
 
-/** Entries per `GET /history` page. Clients page by `before`, so they needn't know it. */
-const HISTORY_PAGE = 50
-
-/** Proxies close streams that look idle. */
-const HEARTBEAT_MS = 15_000
-
 /** The Familiar HTTP API as a fetch handler. Mount it under any path. */
 export function createHttpApi(familiar: Familiar, options: HttpOptions) {
-  return (
-    new Hono<{ Variables: { author: string } }>()
-      .use(async (c, next) => {
-        const author = await options.authenticate(c.req.raw)
+  return new Hono<{ Variables: { author: string } }>()
+    .use(async (c, next) => {
+      const author = await options.authenticate(c.req.raw)
 
-        if (author === undefined) {
-          return c.json({ error: 'unauthorized' }, 401)
-        }
+      if (author === undefined) {
+        return c.json({ error: 'unauthorized' }, 401)
+      }
 
-        c.set('author', author)
-        await next()
-      })
-      .get('/events', (c) =>
-        streamSSE(c, async (stream) => {
-          const send = (message: StreamEvent) =>
-            stream.writeSSE({
-              event: message.event,
-              data: JSON.stringify(message.data),
-            })
-
-          const streamDocument = async <Name extends DocumentName>(
-            name: Name,
-            open: () => Promise<DocumentWatch<Documents[Name]>>,
-          ) => {
-            const document = await open()
-            // TypeScript can't match a generic name to its value in the union.
-            await send({
-              event: 'document',
-              data: { name, value: document.value },
-            } as StreamEvent)
-            document.start((_value, ops) =>
-              send({ event: 'document.ops', data: { name, ops } }),
-            )
-            return document
-          }
-
-          // Wire version, independent of package releases. Send before opening watches.
-          await send({ event: 'protocol', data: { version: 1 } })
-
-          const conversation = await familiar.watch()
-          await send({ event: 'view', data: conversation.value })
-          conversation.start((_view, ops) => send({ event: 'ops', data: ops }))
-
-          const watches = [
-            conversation,
-            await streamDocument('memory', familiar.memory.watch),
-            await streamDocument('episodes', familiar.memory.watchEpisodes),
-            await streamDocument('schedules', familiar.schedules.watch),
-          ]
-
-          const account = familiar.account
-          await send({ event: 'account', data: account?.state() ?? null })
-          const stopAccount = account?.onChange(
-            (state) => void send({ event: 'account', data: state }),
-          )
-
-          const heartbeat = setInterval(
-            () => void stream.write(': ping\n\n'),
-            HEARTBEAT_MS,
-          )
-          const stop = () => {
-            stopAccount?.()
-            watches.forEach((watch) => void watch.stop())
-          }
-
-          stream.onAbort(stop)
-          await Promise.race(watches.map((watch) => watch.closed))
-          stop()
-          clearInterval(heartbeat)
-        }),
-      )
-      // A page of entries older than `before`, newest first.
-      .get(
-        '/history',
-        validator('query', (query, c) => {
-          const before = Number(query.before)
-
-          if (!Number.isSafeInteger(before)) {
-            return c.json({ error: 'before must be an entry ID' }, 400)
-          }
-
-          return { before: before as EntryId }
-        }),
-        async (c) => {
-          const { before } = c.req.valid('query')
-          const page = await familiar.history(before, HISTORY_PAGE)
-
-          // Pi's entries are already JSON, but their recursive types are too
-          // deep for Hono to convert, so the client gets the page's own type.
-          return c.json(page) as unknown as TypedResponse<
-            HistoryPage,
-            200,
-            'json'
-          >
-        },
-      )
-      .post(
-        '/messages',
-        validator('json', (body, c) => {
-          if (typeof body?.text !== 'string' || !body.text.trim()) {
-            return c.json({ error: 'text is required' }, 400)
-          }
-
-          if (typeof body.requestId !== 'string' || !body.requestId) {
-            return c.json({ error: 'requestId is required' }, 400)
-          }
-
-          return {
-            text: body.text as string,
-            requestId: body.requestId as string,
-          }
-        }),
-        async (c) => {
-          await familiar.send({
-            author: c.get('author'),
-            ...c.req.valid('json'),
-          })
-          return c.body(null, 202)
-        },
-      )
-      .post('/abort', async (c) => {
-        await familiar.abort()
-        return c.body(null, 202)
-      })
-      .route('/account', accountRoutes(familiar.account))
-      .route('/model', modelRoutes(familiar))
-      .route('/memory', memoryRoutes(familiar.memory))
-      .route('/schedules', scheduleRoutes(familiar.schedules))
-      .route('/push', pushRoutes(options.push))
-      .route('/connections', connectionRoutes(familiar.connections))
-      .route('/mcp', mcpRoutes(familiar.mcp))
-  )
+      c.set('author', author)
+      await next()
+    })
+    .route(
+      '/',
+      eventRoutes({
+        conversation: familiar.watch,
+        memory: familiar.memory.watch,
+        episodes: familiar.memory.watchEpisodes,
+        schedules: familiar.schedules.watch,
+        account: familiar.account ?? null,
+      }),
+    )
+    .route(
+      '/',
+      conversationRoutes(familiar, (c) => c.get('author')),
+    )
+    .route('/account', accountRoutes(familiar.account))
+    .route('/model', modelRoutes(familiar))
+    .route('/memory', memoryRoutes(familiar.memory))
+    .route('/schedules', scheduleRoutes(familiar.schedules))
+    .route('/push', pushRoutes(options.push))
+    .route('/connections', connectionRoutes(familiar.connections))
+    .route('/mcp', mcpRoutes(familiar.mcp))
 }
+
+export {
+  accountRoutes,
+  conversationRoutes,
+  modelRoutes,
+  memoryRoutes,
+  scheduleRoutes,
+  pushRoutes,
+  connectionRoutes,
+  mcpRoutes,
+}
+export { eventRoutes, type EventSources } from './http-events.ts'

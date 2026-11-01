@@ -1,7 +1,8 @@
+import type { EntryId } from '@earendil-works/pi-durable'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import { Hono, type Context } from 'hono'
+import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
-import type { ConversationApi } from './api.ts'
+import type { ConversationApi, HistoryPage } from './api.ts'
 import { ModelError } from './models.ts'
 
 /** Answers 204, or 400 when the chat models refuse the change. */
@@ -59,3 +60,63 @@ export const modelRoutes = (conversation: ConversationApi) =>
           conversation.setThinkingLevel(c.req.valid('json').level),
         ),
     )
+
+/** Message attribution comes only from the host, never the request body. */
+export const conversationRoutes = (
+  conversation: Pick<ConversationApi, 'send' | 'history' | 'abort'>,
+  author: (context: Context) => string | Promise<string>,
+) =>
+  new Hono()
+    // A page of entries older than `before`, newest first.
+    .get(
+      '/history',
+      validator('query', (query, c) => {
+        const before = Number(query.before)
+
+        if (!Number.isSafeInteger(before)) {
+          return c.json({ error: 'before must be an entry ID' }, 400)
+        }
+
+        return { before: before as EntryId }
+      }),
+      async (c) => {
+        const { before } = c.req.valid('query')
+        const page = await conversation.history(before, 50)
+
+        // Pi's entries are already JSON, but their recursive types are too
+        // deep for Hono to convert, so the client gets the page's own type.
+        return c.json(page) as unknown as TypedResponse<
+          HistoryPage,
+          200,
+          'json'
+        >
+      },
+    )
+    .post(
+      '/messages',
+      validator('json', (body, c) => {
+        if (typeof body?.text !== 'string' || !body.text.trim()) {
+          return c.json({ error: 'text is required' }, 400)
+        }
+
+        if (typeof body.requestId !== 'string' || !body.requestId) {
+          return c.json({ error: 'requestId is required' }, 400)
+        }
+
+        return {
+          text: body.text as string,
+          requestId: body.requestId as string,
+        }
+      }),
+      async (c) => {
+        await conversation.send({
+          author: await author(c),
+          ...c.req.valid('json'),
+        })
+        return c.body(null, 202)
+      },
+    )
+    .post('/abort', async (c) => {
+      await conversation.abort()
+      return c.body(null, 202)
+    })
