@@ -77,6 +77,10 @@ const familiar = createFamiliarStore('https://familiar.example/api', {
 })
 ```
 
+The returned store exposes `getState()`, `getInitialState()` and `subscribe()` for reads and subscriptions, including Zustand's React adapter. Call explicit commands such as `store.getState().send(text)` to make changes. It does not expose `setState`. The caller owns its lifecycle and calls `store.getState().disconnect()` when finished.
+
+`conversation.ts` owns view, history paging, compaction carryover and transcript derivation. Each conversation transition publishes those values together before notifying subscribers. Transcript references stay stable while the view and history entry references are unchanged. `commands.ts` owns typed HTTP calls and server errors; `events.ts` owns EventSource reconnect and disconnect behavior. `store.ts` assembles them and mirrors other streamed documents.
+
 `getCurrentToken` stands in for the host's own code that returns a valid token, refreshing it first if needed. The store never holds credentials.
 
 `connection` says what the stream is doing:
