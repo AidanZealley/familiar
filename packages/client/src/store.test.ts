@@ -149,3 +149,141 @@ test('without a fetch option the store uses the global fetch for the stream and 
     'http://familiar.test/api/messages',
   ])
 })
+
+const message = (id: number) => ({
+  ...entry(id),
+  kind: 'familiar.message',
+  data: { author: 'Sam', text: `Message ${id}` },
+})
+
+const conversation = (...ids: number[]) => ({
+  ...view(),
+  entries: ids.map(message),
+})
+
+const itemIds = (store: FamiliarStore) =>
+  store.getState().transcript?.items.map((item) => item.id)
+
+test('transcript arrives atomically with views and operations and retains streamed activity', async () => {
+  const server = testServer()
+  const store = open('/api', { fetch: server.fetch })
+  expect(store.getState().transcript).toBeUndefined()
+  const observed: (string[] | undefined)[] = []
+  store.subscribe(() => observed.push(itemIds(store)))
+  await expect.poll(server.connections).toBe(1)
+  server.send(frame('view', conversation(1)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:1'])
+  const initial = store.getState().transcript
+
+  server.send(
+    frame('ops', [['s', ['docs', 'pi.live'], { run: { taskId: 'run-1' } }]]),
+  )
+  await expect.poll(() => store.getState().transcript?.busy).toBe(true)
+  expect(itemIds(store)).toEqual(['entry:1', 'waiting:run-1'])
+  expect(store.getState().transcript).not.toBe(initial)
+  server.send(frame('ops', [['d', ['docs', 'pi.live']]]))
+  await expect.poll(() => store.getState().transcript?.busy).toBe(false)
+  expect(observed).toEqual([
+    ['entry:1'],
+    ['entry:1', 'waiting:run-1'],
+    ['entry:1'],
+  ])
+})
+
+test('transcript reference survives unrelated updates and history loading or failure', async () => {
+  let fail = true
+  const server = testServer(() =>
+    fail
+      ? Response.json({ error: 'Try again' }, { status: 500 })
+      : Response.json({ entries: [message(1)], more: false }),
+  )
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send(frame('view', conversation(2)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:2'])
+  const initial = store.getState().transcript
+  server.send(frame('account', null))
+  server.send(frame('document', { name: 'memory', value: { facts: [] } }))
+  await expect.poll(() => store.getState().memory).toEqual({ facts: [] })
+  expect(store.getState().transcript).toBe(initial)
+
+  const load = store.getState().loadOlder()
+  expect(store.getState().history.status).toBe('loading')
+  expect(store.getState().transcript).toBe(initial)
+  await expect(load).rejects.toThrow('Try again')
+  expect(store.getState().history.status).toBe('failed')
+  expect(store.getState().transcript).toBe(initial)
+  fail = false
+  await store.getState().loadOlder()
+  expect(itemIds(store)).toEqual(['entry:1', 'entry:2'])
+  expect(store.getState().transcript).not.toBe(initial)
+  const loaded = store.getState().transcript
+  await store.getState().loadOlder()
+  store.getState().disconnect()
+  expect(store.getState().transcript).toBe(loaded)
+})
+
+test('transcript carries compacted entries into history and drops history across reconnect gaps', async () => {
+  const server = testServer(() =>
+    Response.json({ entries: [message(1)], more: false }),
+  )
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send('retry: 5\n\n' + frame('view', conversation(2, 3)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:2', 'entry:3'])
+  await store.getState().loadOlder()
+  const compacted = {
+    ...conversation(3),
+    entries: [{ ...entry(4), kind: 'pi.compaction', head: 3 }, message(3)],
+  }
+  server.send(frame('ops', [['s', ['entries'], compacted.entries]]))
+  await expect
+    .poll(() => itemIds(store))
+    .toEqual(['entry:1', 'entry:2', 'entry:4', 'entry:3'])
+  const beforeReconnect = store.getState().transcript
+  server.drop()
+  await expect.poll(() => store.getState().connection).toBe('reconnecting')
+  expect(store.getState().transcript).toBe(beforeReconnect)
+  await expect.poll(server.connections).toBe(2)
+  server.send(frame('view', conversation(9)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:9'])
+  expect(store.getState().history.entries).toEqual([])
+})
+
+test('a history page arriving after a reconnect gap cannot restore stale transcript items', async () => {
+  let respond!: (response: Response) => void
+  const server = testServer(
+    () => new Promise<Response>((resolve) => (respond = resolve)),
+  )
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send(frame('view', conversation(3)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:3'])
+  const load = store.getState().loadOlder()
+  server.send(frame('view', conversation(9)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:9'])
+  const fresh = store.getState().transcript
+  respond(Response.json({ entries: [message(2)], more: false }))
+  await load
+  expect(itemIds(store)).toEqual(['entry:9'])
+  expect(store.getState().transcript).toBe(fresh)
+})
+
+test('public state updates derive transcript before subscribers run and preserve no-op updates', () => {
+  const store = open('/api', { fetch: testServer().fetch })
+  const observed: (string[] | undefined)[] = []
+  store.subscribe(() => observed.push(itemIds(store)))
+  store.setState({ view: conversation(1) })
+  const initial = store.getState().transcript
+  store.setState((state) => state)
+  expect(observed).toEqual([['entry:1']])
+  store.setState((state) => ({
+    history: { ...state.history, status: 'failed' },
+  }))
+  expect(store.getState().transcript).toBe(initial)
+  store.setState((state) => ({ ...state, view: conversation(2) }), true)
+  expect(itemIds(store)).toEqual(['entry:2'])
+  store.setState({ view: undefined })
+  expect(store.getState().transcript).toBeUndefined()
+  expect(observed).toEqual([['entry:1'], ['entry:1'], ['entry:2'], undefined])
+})

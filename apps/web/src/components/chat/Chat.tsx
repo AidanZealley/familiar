@@ -1,4 +1,3 @@
-import { toTranscript } from '@familiar-ai/client'
 import { useCallback, useMemo, useState } from 'react'
 import {
   MessageScroller,
@@ -28,12 +27,7 @@ export const Chat = () => {
     observer.observe(content)
     return () => observer.disconnect()
   }, [])
-  const view = useFamiliar((state) => state.view)
-  const history = useFamiliar((state) => state.history.entries)
-  const transcript = useMemo(
-    () => view && toTranscript(view, history),
-    [view, history],
-  )
+  const transcript = useFamiliar((state) => state.transcript)
   const firstItemIds = useMemo(
     () => transcript?.items.slice(0, 3).map((item) => item.id) ?? [],
     [transcript],

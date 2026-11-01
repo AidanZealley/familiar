@@ -22,6 +22,7 @@ import type {
 import { EventSource, type FetchLike } from 'eventsource'
 import { hc } from 'hono/client'
 import { createStore } from 'zustand/vanilla'
+import { toTranscript, type Transcript } from './transcript.ts'
 
 /**
  * The event stream's state. It goes `open` when a full view arrives.
@@ -81,6 +82,11 @@ export type FamiliarState = MirroredDocuments & {
   /** The server's view of the conversation, mirrored exactly. Absent until the first frame. */
   view: ConversationView | undefined
   history: History
+  /**
+   * Chat items and activity, absent until the first view. Keeps its reference
+   * while the view and loaded history entries are unchanged.
+   */
+  transcript: Transcript | undefined
   /**
    * Load the page of entries before the oldest the store has. Resolves to
    * whether older ones remain; a call while one is loading shares its result.
@@ -207,6 +213,7 @@ export function createFamiliarStore(
     signOut: () => succeed(api.account['sign-out'].$post()),
     view: undefined,
     history: { entries: [], status: 'more' },
+    transcript: undefined,
     loadOlder: () =>
       (loading ??= loadOlder().finally(() => (loading = undefined))),
     send: (text) =>
@@ -281,6 +288,26 @@ export function createFamiliarStore(
       events.close()
     },
   }))
+
+  // Derive before notifying subscribers, including for callers of setState.
+  // History status and unrelated documents keep the same transcript reference.
+  const setState = store.setState
+  store.setState = (partial, replace) => {
+    const previous = store.getState()
+    const update = typeof partial === 'function' ? partial(previous) : partial
+    if (Object.is(update, previous)) {
+      return
+    }
+    const next = (
+      replace ? update : { ...previous, ...update }
+    ) as FamiliarState
+    const transcript =
+      next.view === previous.view &&
+      next.history.entries === previous.history.entries
+        ? previous.transcript
+        : next.view && toTranscript(next.view, next.history.entries)
+    setState({ ...next, transcript }, true)
+  }
 
   const on = <E extends StreamEvent['event']>(
     event: E,
