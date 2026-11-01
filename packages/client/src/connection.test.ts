@@ -321,6 +321,24 @@ test.each([
   },
 )
 
+test.each(['Text/Event-Stream', 'TEXT/EVENT-STREAM; charset=utf-8'])(
+  'an incompatible handshake is rejected with content type %s',
+  async (contentType) => {
+    const store = open('/api', {
+      fetch: async () =>
+        new Response(
+          frame('protocol', { version: 2 }) + frame('view', view(99)),
+          {
+            headers: { 'Content-Type': contentType },
+          },
+        ),
+    })
+    await expect.poll(() => store.getState().connection).toBe('outdated')
+    expect(store.getState().view).toBeUndefined()
+    expect(store.getState().transcript).toBeUndefined()
+  },
+)
+
 test('each reconnect requires its own compatible handshake and retains the last view on mismatch', async () => {
   const server = testServer(undefined, false)
   const store = open('/api', { fetch: server.fetch })

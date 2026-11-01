@@ -81,7 +81,9 @@ const connect = async (
   let body = response.body
   if (
     response.ok &&
-    response.headers.get('content-type')?.startsWith('text/event-stream') &&
+    /^[\t\n\r ]*text\/event-stream[\t\n\r ]*(?:;|$)/i.test(
+      response.headers.get('content-type') ?? '',
+    ) &&
     body
   ) {
     // Each fetch owns its own acceptance and deadline, including reconnects.
