@@ -13,7 +13,8 @@
     "./http": "./src/http.ts",
     "./extensions": "./src/extensions.ts",
     "./diagnostics": "./src/diagnostics.ts",
-    "./mcp": "./src/mcp/index.ts"
+    "./mcp": "./src/mcp/index.ts",
+    "./storage/memory": "./src/storage/memory.ts"
   },
   "files": [
     "dist"
@@ -25,7 +26,8 @@
       "./http": "./dist/http.js",
       "./extensions": "./dist/extensions.js",
       "./diagnostics": "./dist/diagnostics.js",
-      "./mcp": "./dist/mcp/index.js"
+      "./mcp": "./dist/mcp/index.js",
+      "./storage/memory": "./dist/storage/memory.js"
     }
   },
   "scripts": {
@@ -33,22 +35,13 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@earendil-works/chord": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "@modelcontextprotocol/client": "catalog:",
+    "hono": "catalog:",
     "minisearch": "7.2.0",
     "rrule": "2.8.1",
     "zod": "4.6.7"
-  },
-  "peerDependencies": {
-    "@earendil-works/chord": "catalog:",
-    "@earendil-works/pi-ai": "catalog:",
-    "@earendil-works/pi-durable": "catalog:",
-    "@modelcontextprotocol/client": "catalog:",
-    "hono": "catalog:"
-  },
-  "devDependencies": {
-    "@earendil-works/chord": "catalog:",
-    "@earendil-works/pi-ai": "catalog:",
-    "@earendil-works/pi-durable": "catalog:",
-    "@modelcontextprotocol/client": "catalog:",
-    "hono": "catalog:"
   }
 }
