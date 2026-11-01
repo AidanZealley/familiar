@@ -1,8 +1,4 @@
-import {
-  BACKGROUND_CONTEXT,
-  withAbortSignal,
-} from '@earendil-works/chord/context'
-import type { ToolExecutionApi } from '@earendil-works/pi-durable'
+import type { ToolContext } from '@familiar-ai/core'
 import { expect, test } from 'vitest'
 import { loadPlugins } from './plugins.ts'
 
@@ -21,17 +17,17 @@ const tool = async (html: string) => {
     })
     .tools!.find((tool) => tool.name === 'web_fetch')!
 }
-const api = { now: Date.now } as ToolExecutionApi
+const api: ToolContext = {
+  now: Date.now,
+  output: () => {},
+  details: async () => {},
+}
 
 test('the daemon converts pages in its configured worker pool', async () => {
   const fetch = await tool(
     '<main><h1>Hello</h1><p>See <a href="/more">more</a>.</p></main>',
   )
-  const result = await fetch.execute(
-    { url: 'https://example.com/' },
-    api,
-    BACKGROUND_CONTEXT,
-  )
+  const result = await fetch.execute({ url: 'https://example.com/' }, api)
   expect(JSON.stringify(result.output)).toContain(
     '[more](https://example.com/more)',
   )
@@ -45,8 +41,7 @@ test('cancellation interrupts a conversion and a later page can still be read', 
     await expect(
       fetch.execute(
         { url: 'https://example.com/' },
-        api,
-        withAbortSignal(controller.signal, BACKGROUND_CONTEXT),
+        { ...api, abortSignal: controller.signal },
       ),
     ).rejects.toThrow(/abort/i)
   } finally {
@@ -55,13 +50,7 @@ test('cancellation interrupts a conversion and a later page can still be read', 
   const next = await tool('<p>Still working</p>')
   expect(
     JSON.stringify(
-      (
-        await next.execute(
-          { url: 'https://example.com/' },
-          api,
-          BACKGROUND_CONTEXT,
-        )
-      ).output,
+      (await next.execute({ url: 'https://example.com/' }, api)).output,
     ),
   ).toContain('Still working')
 })

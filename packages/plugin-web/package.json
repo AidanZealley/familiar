@@ -30,8 +30,6 @@
     "@mdream/js": "2.0.3"
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": "catalog:",
-    "@earendil-works/pi-durable": "catalog:",
     "@familiar-ai/core": "workspace:*"
   },
   "devDependencies": {

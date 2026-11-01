@@ -1,11 +1,11 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type, defineTool } from '../index.ts'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import { defineTool, MemoryStorage } from '@earendil-works/pi-durable'
+import { MemoryStorage } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
 import { summonFamiliar, type Familiar } from '../familiar.ts'
 import { createHttpApi } from '../http.ts'

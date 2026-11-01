@@ -6,7 +6,7 @@ import { webPersona } from '../persona.ts'
 import { openPush } from '../push.ts'
 import { serveFamiliar } from '../serve.ts'
 import { createDemoModels, demoChatModels } from './model.ts'
-import { seedMemory, seedEpisodes } from './seed.ts'
+import { seedMemory, seedEpisodes, prepareDemoMemory } from './seed.ts'
 import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
 import { demoMcpFetch, demoMcpStdio, seedMcp } from './scenarios/mcp.ts'
@@ -25,8 +25,14 @@ const demoPlugin = definePlugin({
 // Keys and subscriptions last only until the demo restarts.
 const push = openPush({ contact: 'mailto:familiar@example.com' })
 const name = 'Familiar'
+// Seeding and the demo reopen the same in-memory state.
+class DemoStorage extends MemoryStorage {
+  override async close() {}
+}
+const storage = new DemoStorage()
+await prepareDemoMemory(storage)
 const familiar = await summonFamiliar({
-  storage: new MemoryStorage(),
+  storage,
   models: createDemoModels(),
   model: demoChatModels[0].model,
   chatModels: demoChatModels,

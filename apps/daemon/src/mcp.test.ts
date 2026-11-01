@@ -7,11 +7,8 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { createToolSearchExtension } from '@earendil-works/pi-durable/tool-search'
 import { summonFamiliar } from '@familiar-ai/core'
-import { connectMcp } from '@familiar-ai/core/mcp'
 import { serve } from '@hono/node-server'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import {
   Server,
   WebStandardStreamableHTTPServerTransport,
@@ -82,13 +79,6 @@ async function setup(
   if (!address || typeof address === 'string') {
     throw new Error('Expected an HTTP port.')
   }
-  const connection = await connectMcp(
-    'test',
-    new StreamableHTTPClientTransport(
-      new URL(`http://127.0.0.1:${address.port}/mcp`),
-    ),
-  )
-  test.onTestFinished(() => connection.close())
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -97,20 +87,26 @@ async function setup(
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    plugins: [
-      {
-        name: 'mcp-test',
-        title: 'Test MCP',
-        extension: () => connection.extension,
-      },
-      {
-        name: 'tool-search',
-        title: 'Tool search',
-        extension: createToolSearchExtension,
-      },
-    ],
+    mcpFetch: async (input, init) => fetch(input, init),
   })
   test.onTestFinished(() => familiar.dismiss())
+  await familiar.mcp.add({
+    name: 'test',
+    transport: {
+      type: 'http',
+      auth: { type: 'none' },
+      url: `http://127.0.0.1:${address.port}/mcp`,
+    },
+  })
+  await expect
+    .poll(async () => {
+      const connections = await familiar.connections.list()
+      const connection = connections.find(
+        (connection) => connection.kind === 'mcp' && connection.name === 'test',
+      )
+      return connection?.kind === 'mcp' ? connection.status.type : undefined
+    })
+    .toBe('connected')
   return { familiar, faux, pages }
 }
 

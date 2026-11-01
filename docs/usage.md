@@ -102,3 +102,47 @@ The daemon also supplies `mcpStdio`, a small factory for the SDK's `StdioClientT
 Local MCP programs are trusted owner-installed code running as the daemon's user. The filtered environment is not a filesystem sandbox. Stdio servers have no bearer-token field or custom environment settings in this version.
 
 Access to the daemon's owner API includes permission to launch stdio commands as its user. Keep that API on trusted devices and networks. Commands and arguments are saved with the conversation and returned by Connections, so keep secrets in the MCP program's own configuration or a wrapper script, not in arguments.
+
+## Writing a plugin
+
+Import authoring helpers and types from `@familiar-ai/core`. A plugin needs no direct Pi imports.
+
+```ts
+import { definePlugin, defineTool, Type } from '@familiar-ai/core'
+
+export default definePlugin({
+  name: 'example',
+  title: 'Example',
+  extension: ({ fetch }) => ({
+    tools: [
+      defineTool({
+        name: 'read_status',
+        description: 'Read the public service status.',
+        parameters: Type.Object({}),
+        replay: 'safe',
+        execute: async (_args, context) => {
+          const response = await fetch('https://example.com/status', {
+            signal: context.abortSignal,
+          })
+          if (!response.ok)
+            throw new Error(`Status service answered ${response.status}`)
+          return {
+            output: [{ type: 'text', text: await response.text() }],
+            details: { url: response.url },
+          }
+        },
+      }),
+    ],
+  }),
+})
+```
+
+`Type` builds argument schemas. `defineTool` infers arguments from `parameters`; `Static` is exported for separately named argument types. `FamiliarTool`, `ToolContext` and `ToolResult` describe the public contract. Execution now takes two arguments, the validated parameters and a Familiar context, replacing Pi's three-argument callback. Move `call.abortSignal` to `context.abortSignal` and keep using `context.now()` for the host clock.
+
+Return text or image blocks in `output`. Text remains the fallback for every client. Optional JSON-safe `details` travels with the persisted tool result to the client's `ToolCall.details`, where the host must narrow the unknown value before rendering. `context.details(value)` replaces running details; its last value becomes the result's details unless the return value supplies `details`. `context.output(text)` appends running text and supplies the final output when the result omits it. Details are stored beside model output, not appended to the text.
+
+`structuredOutputSchema` and `structuredOutput` describe program output, separate from UI details. Pi validates structured output against that schema. Tools may select `executionMode` and `outputLimits`. Throwing produces a tool error through Pi; returning `isError: true` supplies an explicit error result.
+
+Replay defaults to `unsafe`. A call interrupted by restart is not rerun. Use `safe` only when repeating the operation is safe, including any external side effects. Forward the abort signal to network or other cancellable work. Cancellation cannot undo an external effect. The adapter adds no retries or undo mechanism.
+
+`PluginExtension` currently supports tools only. Pi hooks, tasks, wrappers, transactions and harness access are no longer part of the plugin contract. Existing first-party plugins need none of them. Demo memory is seeded offline before Familiar opens its demo storage; its scripted seed calls acknowledge that prepared data.

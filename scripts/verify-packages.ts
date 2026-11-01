@@ -192,6 +192,33 @@ export const page: number = convertHtml('', 'https://example.com', 100)
 `,
   )
   await typeCheck(
+    'plugin',
+    ['ES2023', 'DOM'],
+    [],
+    `import { definePlugin, defineTool, Type, type Static, type ToolContext, type ToolResult } from '@familiar-ai/core'
+const Parameters = Type.Object({ query: Type.String() })
+type Args = Static<typeof Parameters>
+const execute = async (args: Args, context: ToolContext): Promise<ToolResult> => {
+  context.abortSignal?.throwIfAborted()
+  await context.details({ source: args.query })
+  return { output: [{ type: 'text', text: args.query }], details: { count: 1 } }
+}
+export default definePlugin({
+  name: 'packed', title: 'Packed plugin',
+  extension: () => ({ tools: [defineTool({ name: 'search', description: 'Search', parameters: Parameters, execute })] }),
+})
+defineTool({ name: 'typed', description: 'Typed', parameters: Parameters, execute: async args => {
+  // @ts-expect-error schema inference must survive packing
+  const invalid: number = args.query
+  // @ts-expect-error no unsupported argument
+  args.missing
+  return { output: [{ type: 'text', text: args.query }] }
+} })
+// @ts-expect-error no transactions exposed to authoring tools
+declare const transaction: ToolContext['commit']
+`,
+  )
+  await typeCheck(
     'react',
     ['ES2023', 'DOM'],
     [],

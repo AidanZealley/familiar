@@ -21,6 +21,8 @@ export type ToolCall = {
   arguments: ModelToolCall['arguments']
   status: 'running' | 'done' | 'error'
   output: string
+  /** Persisted tool data. Hosts narrow it before rendering. */
+  details?: unknown
 }
 
 /** Item IDs are unique across the transcript and stable across updates: use them as keys. */
@@ -115,6 +117,7 @@ export function toTranscript(
     if (call && slot.status !== 'done') {
       call.status = 'running'
       call.output = slot.output ?? ''
+      call.details = slot.details
     }
   }
 
@@ -197,6 +200,7 @@ function toItem(
       if (call) {
         call.status = result.isError ? 'error' : 'done'
         call.output = textOf(result.content)
+        call.details = result.details
       }
       return undefined
     }

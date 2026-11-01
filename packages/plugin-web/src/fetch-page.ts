@@ -1,6 +1,9 @@
-import { Type } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
-import { localMinute, type PluginFetch } from '@familiar-ai/core'
+import {
+  Type,
+  defineTool,
+  localMinute,
+  type PluginFetch,
+} from '@familiar-ai/core'
 import type { ConvertHtml } from './convert-html.ts'
 
 const MAX_BYTES = 3 * 1024 * 1024
@@ -61,7 +64,7 @@ export const webFetchTool = (
       ),
     }),
     replay: 'safe',
-    execute: async ({ url, maxChars = 12_000 }, api, context) => {
+    execute: async ({ url, maxChars = 12_000 }, context) => {
       const requested = new URL(url)
       if (
         !['http:', 'https:'].includes(requested.protocol) ||
@@ -113,7 +116,7 @@ export const webFetchTool = (
           output: [
             {
               type: 'text',
-              text: `URL: ${finalUrl}\nRetrieved: ${localMinute(api.now(), timeZone)}\n\n${page.text || '(The page has no text.)'}${page.truncated ? '\n\n[Content truncated]' : ''}`,
+              text: `URL: ${finalUrl}\nRetrieved: ${localMinute(context.now(), timeZone)}\n\n${page.text || '(The page has no text.)'}${page.truncated ? '\n\n[Content truncated]' : ''}`,
             },
           ],
           details: { url: finalUrl },

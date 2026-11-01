@@ -1,11 +1,9 @@
 // Sample memory for the demo, so the Memory pages have something to show:
 // Rowan, from the memory eval's rowan-v3 scenario, a year in.
 
-import { Type } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
+import { Type, defineTool } from '@familiar-ai/core'
 import {
-  Episodes,
-  Facts,
+  seedSampleMemory,
   localDay,
   type Episode,
   type Fact,
@@ -206,15 +204,11 @@ function factsAsOf(now: Date) {
 
 export const seedMemory = defineTool({
   name: 'seed_memory',
-  description: 'Demo only: fills memory with a sample year of facts.',
+  description: 'Demo only: acknowledges the prepared sample facts.',
   parameters: Type.Object({}),
-  execute: (_args, api, context) =>
-    api.commit(async (tx) => {
-      const memory = await tx.doc(Facts)
-      memory.facts = factsAsOf(todayAt(api.now()))
-      memory.next = memory.facts.length + 1
-      return { output: [{ type: 'text', text: 'Memory written.' }] }
-    }, context),
+  execute: async () => ({
+    output: [{ type: 'text', text: 'Memory written.' }],
+  }),
 })
 
 const months = [
@@ -289,14 +283,20 @@ function episodesUntil(today: Date): Omit<Episode, 'id'>[] {
 
 export const seedEpisodes = defineTool({
   name: 'seed_episodes',
-  description: 'Demo only: fills the episodes with a sample year.',
+  description: 'Demo only: acknowledges the prepared sample episodes.',
   parameters: Type.Object({}),
-  execute: (_args, api, context) =>
-    api.commit(async (tx) => {
-      const state = await tx.doc(Episodes)
-      for (const episode of episodesUntil(todayAt(api.now()))) {
-        state.episodes.push({ id: `e${state.next++}`, ...episode })
-      }
-      return { output: [{ type: 'text', text: 'Episodes written.' }] }
-    }, context),
+  execute: async () => ({
+    output: [{ type: 'text', text: 'Episodes written.' }],
+  }),
 })
+
+/** Seed before opening Familiar, while no daemon owns this demo storage. */
+export const prepareDemoMemory = (
+  storage: Parameters<typeof seedSampleMemory>[0],
+  now = Date.now(),
+) =>
+  seedSampleMemory(
+    storage,
+    factsAsOf(todayAt(now)),
+    episodesUntil(todayAt(now)),
+  )
