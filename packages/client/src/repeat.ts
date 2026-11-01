@@ -1,5 +1,9 @@
-// rrule's ES module build has no default export.
-import { rrulestr } from 'rrule'
+import * as rruleModule from 'rrule'
+
+// Node loads rrule's CommonJS build, whose exports arrive only as the default;
+// bundlers such as Vite load its ES build, which has no default.
+const { rrulestr }: typeof rruleModule =
+  Reflect.get(rruleModule, 'default') ?? rruleModule
 
 /**
  * A repeat's pattern in words, such as "Every weekday", without its time:

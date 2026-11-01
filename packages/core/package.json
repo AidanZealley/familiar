@@ -1,24 +1,52 @@
 {
-  "name": "@familiar/core",
-  "private": true,
+  "name": "@familiar-ai/core",
+  "version": "0.0.0",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AidanZealley/familiar.git",
+    "directory": "packages/core"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./http": "./src/http.ts",
     "./diagnostics": "./src/diagnostics.ts",
     "./mcp": "./src/mcp/index.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js",
+      "./http": "./dist/http.js",
+      "./diagnostics": "./dist/diagnostics.js",
+      "./mcp": "./dist/mcp/index.js"
+    }
+  },
   "scripts": {
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "minisearch": "7.2.0",
+    "rrule": "2.8.1",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
     "@modelcontextprotocol/client": "catalog:",
-    "hono": "catalog:",
-    "minisearch": "7.2.0",
-    "rrule": "2.8.1",
-    "zod": "4.6.7"
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@earendil-works/chord": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "@modelcontextprotocol/client": "catalog:",
+    "hono": "catalog:"
   }
 }

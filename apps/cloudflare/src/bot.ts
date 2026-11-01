@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
-import { DurableFamiliar, FamiliarTerminated } from '@familiar/cloudflare'
-import { createHttpApi } from '@familiar/core/http'
+import { DurableFamiliar, FamiliarTerminated } from '@familiar-ai/cloudflare'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { DEV_MODEL, devModels } from './model.ts'
 import type { Env } from './env.ts'
 

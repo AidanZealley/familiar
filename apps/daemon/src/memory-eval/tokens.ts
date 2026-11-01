@@ -1,5 +1,5 @@
 import type { Usage as ModelUsage } from '@earendil-works/pi-ai'
-import type { Usage } from '@familiar/core'
+import type { Usage } from '@familiar-ai/core'
 
 /** Token counts only: catalog prices say little about subscription use. */
 export type Tokens = {

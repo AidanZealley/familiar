@@ -4,7 +4,7 @@ import {
   datesIn,
   localDay,
   type Exchange,
-} from '@familiar/core/diagnostics'
+} from '@familiar-ai/core/diagnostics'
 import { EVAL_TIME_ZONE } from './clock.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
 

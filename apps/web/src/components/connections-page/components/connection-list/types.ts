@@ -1,4 +1,4 @@
-import type { ConnectionInfo } from '@familiar/client'
+import type { ConnectionInfo } from '@familiar-ai/client'
 
 export type ConnectionListProps = {
   className?: string

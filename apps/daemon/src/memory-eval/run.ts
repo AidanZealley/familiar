@@ -1,6 +1,6 @@
 import type { Models } from '@earendil-works/pi-ai'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
-import { summonFamiliar } from '@familiar/core'
+import { summonFamiliar } from '@familiar-ai/core'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { askQuestions, type QuestionResult } from './questions.ts'
 import { replayScenario, resumePoint, type UpkeepResult } from './replay.ts'

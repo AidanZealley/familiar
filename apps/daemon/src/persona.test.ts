@@ -4,7 +4,7 @@ import {
   fauxProvider,
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { defaultPersona, summonFamiliar } from '@familiar/core'
+import { defaultPersona, summonFamiliar } from '@familiar-ai/core'
 import { expect, test } from 'vitest'
 import { webPersona } from './persona.ts'
 

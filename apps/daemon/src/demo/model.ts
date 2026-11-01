@@ -1,5 +1,5 @@
 import type { TranscriptContext } from '@earendil-works/pi-ai'
-import type { ChatModel } from '@familiar/core'
+import type { ChatModel } from '@familiar-ai/core'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,

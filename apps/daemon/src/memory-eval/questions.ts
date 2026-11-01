@@ -1,8 +1,8 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
-import { summonFamiliar, type Familiar } from '@familiar/core'
-import { nextUpkeep, saidBy } from '@familiar/core/diagnostics'
+import { summonFamiliar, type Familiar } from '@familiar-ai/core'
+import { nextUpkeep, saidBy } from '@familiar-ai/core/diagnostics'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { judgeAnswer, transcriptOf, type Verdict } from './judge.ts'
 import {

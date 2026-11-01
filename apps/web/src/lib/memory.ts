@@ -1,4 +1,4 @@
-import type { Episode, Fact } from '@familiar/client'
+import type { Episode, Fact } from '@familiar-ai/client'
 import {
   ActivityIcon,
   CalendarDaysIcon,

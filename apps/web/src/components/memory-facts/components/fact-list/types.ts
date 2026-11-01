@@ -1,4 +1,4 @@
-import type { Fact } from '@familiar/client'
+import type { Fact } from '@familiar-ai/client'
 import type { LucideIcon } from 'lucide-react'
 
 export type FactListProps = {

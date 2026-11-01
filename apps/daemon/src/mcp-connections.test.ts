@@ -4,8 +4,8 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
-import type { Familiar, McpConnectionInfo } from '@familiar/core'
-import { createHttpApi } from '@familiar/core/http'
+import type { Familiar, McpConnectionInfo } from '@familiar-ai/core'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'
 import { mcpFixture } from './testing/mcp.ts'
 

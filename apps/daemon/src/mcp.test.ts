@@ -8,8 +8,8 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { createToolSearchExtension } from '@earendil-works/pi-durable/tool-search'
-import { summonFamiliar } from '@familiar/core'
-import { connectMcp } from '@familiar/core/mcp'
+import { summonFamiliar } from '@familiar-ai/core'
+import { connectMcp } from '@familiar-ai/core/mcp'
 import { serve } from '@hono/node-server'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import {

@@ -11,7 +11,7 @@ import type {
   LiveState,
   TaskId,
 } from '@earendil-works/pi-durable'
-import type { MessageData, ScheduledData } from '@familiar/core/http'
+import type { MessageData, ScheduledData } from '@familiar-ai/core/http'
 
 import { MESSAGE_KIND, SCHEDULED_KIND } from './conversation/message.ts'
 

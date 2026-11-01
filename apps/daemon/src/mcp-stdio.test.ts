@@ -14,8 +14,8 @@ import {
   type Familiar,
   type McpConnectionInfo,
   type McpServer,
-} from '@familiar/core'
-import { createHttpApi } from '@familiar/core/http'
+} from '@familiar-ai/core'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { afterEach, expect, test, vi } from 'vitest'
 import { stdioTransport } from './mcp-stdio.ts'
 

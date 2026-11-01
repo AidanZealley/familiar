@@ -6,7 +6,7 @@ import {
   fauxToolCall,
   type FauxResponseFactory,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { ChatModel } from '@familiar/core'
+import type { ChatModel } from '@familiar-ai/core'
 
 export const DEV_MODEL: ChatModel = {
   model: { provider: 'faux', modelId: 'faux-1' },

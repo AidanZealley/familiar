@@ -1,8 +1,12 @@
-import { summonFamiliar, type Familiar, type FamiliarEnd } from '@familiar/core'
+import {
+  summonFamiliar,
+  type Familiar,
+  type FamiliarEnd,
+} from '@familiar-ai/core'
 import { expect, test, vi } from 'vitest'
 import { DurableFamiliar } from './durable-familiar.ts'
 
-vi.mock('@familiar/core', () => ({ summonFamiliar: vi.fn() }))
+vi.mock('@familiar-ai/core', () => ({ summonFamiliar: vi.fn() }))
 vi.mock('@earendil-works/pi-durable/storage/sqlite', () => ({
   SqliteStorage: { open: async () => ({}) },
 }))

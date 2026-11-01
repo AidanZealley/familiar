@@ -1,18 +1,42 @@
 {
-  "name": "@familiar/plugin-web",
-  "private": true,
+  "name": "@familiar-ai/plugin-web",
+  "version": "0.0.0",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AidanZealley/familiar.git",
+    "directory": "packages/plugin-web"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./convert-html": "./src/convert-html.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js",
+      "./convert-html": "./dist/convert-html.js"
+    }
+  },
   "scripts": {
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@mdream/js": "2.0.3"
+  },
+  "peerDependencies": {
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
-    "@familiar/core": "workspace:*",
-    "@mdream/js": "2.0.3"
+    "@familiar-ai/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "@familiar-ai/core": "workspace:*"
   }
 }

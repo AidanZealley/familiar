@@ -15,8 +15,8 @@ import {
   summonFamiliar,
   type Account,
   type Familiar,
-} from '@familiar/core'
-import { createHttpApi } from '@familiar/core/http'
+} from '@familiar-ai/core'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { afterEach, expect, test, vi } from 'vitest'
 
 // The two ways a host composes Familiar, through the packages' public

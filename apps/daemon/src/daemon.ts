@@ -1,5 +1,5 @@
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { createAccount, summonFamiliar } from '@familiar/core'
+import { createAccount, summonFamiliar } from '@familiar-ai/core'
 import { config, dataPath, deviceId } from './config.ts'
 import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'

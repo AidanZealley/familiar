@@ -1,3 +1,3 @@
-import type { Schedule } from '@familiar/client'
+import type { Schedule } from '@familiar-ai/client'
 
 export type ScheduleItemProps = { schedule: Schedule }

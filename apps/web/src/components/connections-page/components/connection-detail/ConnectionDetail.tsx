@@ -1,4 +1,4 @@
-import type { ConnectionInfo } from '@familiar/client'
+import type { ConnectionInfo } from '@familiar-ai/client'
 import { Link, useRouter } from '@tanstack/react-router'
 import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'
 import { useState } from 'react'

@@ -1,21 +1,46 @@
 {
-  "name": "@familiar/client",
-  "private": true,
+  "name": "@familiar-ai/client",
+  "version": "0.0.0",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AidanZealley/familiar.git",
+    "directory": "packages/client"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "eventsource": "5.1.4",
+    "rrule": "2.8.1",
+    "zustand": "5.0.16"
+  },
+  "peerDependencies": {
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
-    "@familiar/core": "workspace:*",
-    "eventsource": "5.1.4",
-    "hono": "catalog:",
-    "rrule": "2.8.1",
-    "zustand": "5.0.16"
+    "@familiar-ai/core": "workspace:*",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@earendil-works/chord": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "@familiar-ai/core": "workspace:*",
+    "hono": "catalog:"
   }
 }

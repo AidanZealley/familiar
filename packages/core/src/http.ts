@@ -20,7 +20,7 @@ import { pushRoutes, type PushHost } from './push.ts'
 import type { SchedulesState } from './schedules/index.ts'
 import { scheduleRoutes } from './schedules/http.ts'
 
-// The wire contract every client speaks. Owned here; @familiar/client imports
+// The wire contract every client speaks. Owned here; @familiar-ai/client imports
 // these types, so a change to the API is a type error on both sides. Routes
 // are typed by `HttpApi`; the event stream, which Hono's client can't type,
 // by `StreamEvent`. The conversation is Pi's view as it is, so clients type

@@ -1,7 +1,7 @@
 import { isAbsolute } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { FamiliarPlugin } from '@familiar/core'
-import { webPlugin } from '@familiar/plugin-web'
+import type { FamiliarPlugin } from '@familiar-ai/core'
+import { webPlugin } from '@familiar-ai/plugin-web'
 import Piscina from 'piscina'
 
 // Synchronous HTML conversion must not block the daemon; Piscina owns its limits.

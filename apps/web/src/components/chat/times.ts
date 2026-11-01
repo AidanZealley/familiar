@@ -1,4 +1,4 @@
-import type { TranscriptItem } from '@familiar/client'
+import type { TranscriptItem } from '@familiar-ai/client'
 
 /**
  * When each turn was answered, by its last reply's ID. A turn often takes

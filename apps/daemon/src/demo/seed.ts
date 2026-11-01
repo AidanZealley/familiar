@@ -9,7 +9,7 @@ import {
   localDay,
   type Episode,
   type Fact,
-} from '@familiar/core/diagnostics'
+} from '@familiar-ai/core/diagnostics'
 import { DEMO_TIME_ZONE } from './zone.ts'
 
 // Calendar arithmetic on UTC dates, from today's day in the demo's zone.

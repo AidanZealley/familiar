@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import type { SecretStore } from '@familiar/core'
+import type { SecretStore } from '@familiar-ai/core'
 
 type SecretsFile = Record<string, Record<string, Record<string, string>>>
 

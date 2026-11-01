@@ -417,7 +417,7 @@ export function createUpkeep(options: UpkeepOptions) {
 
   // The writing tools: selected by upkeep's conversation, and left out of
   // every other's default (see summonFamiliar).
-  const extension = defineExtension({
+  const extension: Extension = defineExtension({
     name: UPKEEP_EXTENSION,
     tasks: [UpkeepTask],
     tools: upkeepTools(options.timeZone),

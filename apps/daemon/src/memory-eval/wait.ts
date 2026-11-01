@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Storage } from '@earendil-works/pi-durable'
-import type { Familiar } from '@familiar/core'
+import type { Familiar } from '@familiar-ai/core'
 import { clearTimeout, setTimeout as armTimeout } from 'node:timers'
 import { setTimeout } from 'node:timers/promises'
 import { createClock } from './clock.ts'

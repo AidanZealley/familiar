@@ -68,10 +68,10 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 'catalog:'
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
-      '@familiar/cloudflare':
+      '@familiar-ai/cloudflare':
         specifier: workspace:*
         version: link:../../packages/cloudflare
-      '@familiar/core':
+      '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
       hono:
@@ -99,10 +99,10 @@ importers:
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
-      '@familiar/core':
+      '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@familiar/plugin-web':
+      '@familiar-ai/plugin-web':
         specifier: workspace:*
         version: link:../../packages/plugin-web
       '@hono/node-server':
@@ -148,7 +148,7 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@familiar/client':
+      '@familiar-ai/client':
         specifier: workspace:*
         version: link:../../packages/client
       '@fontsource-variable/geist':
@@ -227,6 +227,16 @@ importers:
 
   packages/client:
     dependencies:
+      eventsource:
+        specifier: 5.1.4
+        version: 5.1.4
+      rrule:
+        specifier: 2.8.1
+        version: 2.8.1
+      zustand:
+        specifier: 5.0.16
+        version: 5.0.16(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
+    devDependencies:
       '@earendil-works/chord':
         specifier: 'catalog:'
         version: 1.4.0
@@ -236,37 +246,37 @@ importers:
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
-      '@familiar/core':
+      '@familiar-ai/core':
         specifier: workspace:*
         version: link:../core
-      eventsource:
-        specifier: 5.1.4
-        version: 5.1.4
       hono:
         specifier: 'catalog:'
         version: 4.13.13
-      rrule:
-        specifier: 2.8.1
-        version: 2.8.1
-      zustand:
-        specifier: 5.0.16
-        version: 5.0.16(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
 
   packages/cloudflare:
-    dependencies:
-      '@earendil-works/pi-durable':
-        specifier: 'catalog:'
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
-      '@familiar/core':
-        specifier: workspace:*
-        version: link:../core
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 5.20261023.1
         version: 5.20261023.1
+      '@earendil-works/pi-durable':
+        specifier: 'catalog:'
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
+      '@familiar-ai/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/core:
     dependencies:
+      minisearch:
+        specifier: 7.2.0
+        version: 7.2.0
+      rrule:
+        specifier: 2.8.1
+        version: 2.8.1
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
       '@earendil-works/chord':
         specifier: 'catalog:'
         version: 1.4.0
@@ -282,30 +292,22 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.13
-      minisearch:
-        specifier: 7.2.0
-        version: 7.2.0
-      rrule:
-        specifier: 2.8.1
-        version: 2.8.1
-      zod:
-        specifier: 4.6.7
-        version: 4.6.7
 
   packages/plugin-web:
     dependencies:
+      '@mdream/js':
+        specifier: 2.0.3
+        version: 2.0.3
+    devDependencies:
       '@earendil-works/pi-ai':
         specifier: 'catalog:'
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@7.30.1)(ws@8.22.0)(zod@4.6.7)
-      '@familiar/core':
+      '@familiar-ai/core':
         specifier: workspace:*
         version: link:../core
-      '@mdream/js':
-        specifier: 2.0.3
-        version: 2.0.3
 
 packages:
 

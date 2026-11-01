@@ -17,7 +17,7 @@ Run these from the repo root and fix every failure:
 pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
 ```
 
-After changing core, `packages/cloudflare` or `apps/cloudflare`, also run `pnpm test:cloudflare`.
+After changing core, `packages/cloudflare` or `apps/cloudflare`, also run `pnpm test:cloudflare`. After changing a package's exports or dependencies, also run `pnpm test:packages`.
 
 ## Working with Pi
 

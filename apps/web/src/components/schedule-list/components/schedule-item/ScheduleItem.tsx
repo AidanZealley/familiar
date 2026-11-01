@@ -1,4 +1,4 @@
-import { repeatText } from '@familiar/client'
+import { repeatText } from '@familiar-ai/client'
 import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'

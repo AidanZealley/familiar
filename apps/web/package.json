@@ -1,5 +1,5 @@
 {
-  "name": "@familiar/web",
+  "name": "@familiar-ai/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
-    "@familiar/client": "workspace:*",
+    "@familiar-ai/client": "workspace:*",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@shadcn/react": "^0.3.1",

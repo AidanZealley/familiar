@@ -1,3 +1,3 @@
-import type { McpConnectionInfo } from '@familiar/client'
+import type { McpConnectionInfo } from '@familiar-ai/client'
 
 export type RemoveServerProps = { connection: McpConnectionInfo }

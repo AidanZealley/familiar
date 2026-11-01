@@ -1,5 +1,5 @@
 import type { Readable } from 'node:stream'
-import type { PluginFetch } from '@familiar/core'
+import type { PluginFetch } from '@familiar-ai/core'
 import nodeFetch, { type RequestInit as NodeRequestInit } from 'node-fetch'
 import { useAgent } from 'request-filtering-agent'
 
