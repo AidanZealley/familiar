@@ -13,6 +13,7 @@ import {
   eventRoutes,
   createHttpApi,
   type FactsState,
+  type EpisodesState,
 } from './http.ts'
 import { storageWith } from './memory/testing.ts'
 
@@ -309,11 +310,12 @@ test('selected watch closure ends the stream and clears heartbeat and account li
   })
   const stop = vi.fn(async () => ({ reason: 'stopped' as const }))
   const stopAccount = vi.fn()
+  const onChange = vi.fn(() => stopAccount)
   const app = eventRoutes({
     memory: async () => ({ value: null, start: vi.fn(), stop, closed }),
     account: {
       state: () => ({ status: 'signed-out' }),
-      onChange: () => stopAccount,
+      onChange,
     },
   })
   const response = await app.request('/events')
@@ -324,6 +326,7 @@ test('selected watch closure ends the stream and clears heartbeat and account li
     expect(chunk.done).toBe(false)
     text += chunk.value
   }
+  await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1))
   close()
   while (!(await reader.read()).done) {
     /* Drain until the selected watch closes the response. */
@@ -332,6 +335,42 @@ test('selected watch closure ends the stream and clears heartbeat and account li
   expect(stopAccount).toHaveBeenCalledTimes(1)
   expect(clear).toHaveBeenCalledWith(expect.anything())
   clear.mockRestore()
+})
+
+test('watch closure ends setup while another source is opening and disposes its late watch', async () => {
+  let close!: () => void
+  const closed = new Promise<{ reason: 'stopped' }>((resolve) => {
+    close = () => resolve({ reason: 'stopped' })
+  })
+  let acquired!: (watch: DocumentWatch<EpisodesState>) => void
+  const opening = new Promise<DocumentWatch<EpisodesState>>((resolve) => {
+    acquired = resolve
+  })
+  const openEpisodes = vi.fn(() => opening)
+  const stop = vi.fn(async () => ({ reason: 'stopped' as const }))
+  const app = eventRoutes({
+    memory: async () => ({ value: null, start: vi.fn(), stop, closed }),
+    episodes: openEpisodes,
+  })
+  const response = await app.request('/events')
+  const reader = response.body!.getReader()
+  await reader.read()
+  await vi.waitFor(() => expect(openEpisodes).toHaveBeenCalledTimes(1))
+  close()
+  await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
+  while (!(await reader.read()).done) {
+    /* The response must end before the pending source resolves. */
+  }
+  const stopLate = vi.fn(async () => ({ reason: 'stopped' as const }))
+  const startLate = vi.fn()
+  acquired({
+    value: null,
+    start: startLate,
+    stop: stopLate,
+    closed: new Promise(() => {}),
+  })
+  await vi.waitFor(() => expect(stopLate).toHaveBeenCalledTimes(1))
+  expect(startLate).not.toHaveBeenCalled()
 })
 
 test('disconnect during watch opening stops the late watch without starting it', async () => {

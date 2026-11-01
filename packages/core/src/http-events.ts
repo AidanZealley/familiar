@@ -51,6 +51,7 @@ export const eventRoutes = (sources: EventSources) =>
           return false
         }
         watches.push(watch)
+        void watch.closed.then(stop, stop)
         return true
       }
       const document = async <Name extends DocumentName>(
@@ -72,7 +73,7 @@ export const eventRoutes = (sources: EventSources) =>
           )
         }
       }
-      try {
+      const setup = async () => {
         await send({ event: 'protocol', data: { version: 1 } })
         if (sources.conversation && !stopped) {
           const watch = await sources.conversation()
@@ -102,8 +103,11 @@ export const eventRoutes = (sources: EventSources) =>
         }
         if (!stopped) {
           heartbeat = setInterval(() => void stream.write(': ping\n\n'), 15_000)
-          await Promise.race([aborted, ...watches.map((watch) => watch.closed)])
+          await aborted
         }
+      }
+      try {
+        await Promise.race([setup(), aborted])
       } finally {
         stop()
       }
