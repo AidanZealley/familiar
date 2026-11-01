@@ -1,3 +1,4 @@
+import { strict as assert } from 'node:assert'
 import { execFileSync } from 'node:child_process'
 import {
   mkdir,
@@ -66,6 +67,12 @@ try {
   )
   run('npm', ['install', '--no-audit', '--no-fund'], consumer)
 
+  // Optional React must neither be installed nor loaded by vanilla consumers.
+  assert.equal(
+    (await readdir(resolve(consumer, 'node_modules'))).includes('react'),
+    false,
+  )
+
   // Node can't load Workers-only modules, so the Cloudflare package is only
   // type-checked.
   const runtime = [
@@ -82,6 +89,31 @@ try {
     runtime.map((name) => `import '${name}'\n`).join(''),
   )
   run('node', ['runtime.js'], consumer)
+
+  const clientManifest = JSON.parse(
+    await readFile(resolve(root, 'packages/client/package.json'), 'utf8'),
+  )
+  run(
+    'npm',
+    [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      `react@${clientManifest.devDependencies.react}`,
+      `@types/react@${clientManifest.devDependencies['@types/react']}`,
+    ],
+    consumer,
+  )
+  await writeFile(
+    resolve(consumer, 'react.js'),
+    `
+import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
+if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value === 'function')) {
+  throw new Error('React bindings missing from the packed client')
+}
+`,
+  )
+  run('node', ['react.js'], consumer)
 
   // skipLibCheck, as most projects and Wrangler's templates set it: Pi's
   // dependencies bring Node and DOM globals that clash with Workers types.
@@ -157,6 +189,30 @@ export const plugin: number = webPlugin()
 convertHtml(1, 'https://example.com', 100)
 // @ts-expect-error
 export const page: number = convertHtml('', 'https://example.com', 100)
+`,
+  )
+  await typeCheck(
+    'react',
+    ['ES2023', 'DOM'],
+    [],
+    `import { createElement } from 'react'
+import type { FamiliarStore } from '@familiar-ai/client'
+import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
+declare const store: FamiliarStore
+store.getState()
+store.getInitialState()
+store.subscribe(state => state.connection)
+// @ts-expect-error public stores do not expose arbitrary writes
+type UnsupportedSetter = FamiliarStore['setState']
+createElement(FamiliarProvider, { store })
+// @ts-expect-error provider requires an explicit store
+createElement(FamiliarProvider, {})
+// @ts-expect-error selector state is typed
+useFamiliar(state => state.notAField)
+// @ts-expect-error selection preserves the return type
+const count: number = useFamiliar(state => state.connection)
+// @ts-expect-error transcript is typed
+const transcript: number = useTranscript()
 `,
   )
   await typeCheck(

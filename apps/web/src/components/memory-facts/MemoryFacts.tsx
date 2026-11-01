@@ -1,5 +1,5 @@
 import { BrainIcon, LayersIcon, PinIcon } from 'lucide-react'
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { coreFacts, reserveFacts } from '@/lib/memory'
 import { FactList } from './components/fact-list'
 import { MemoryOverview } from './components/memory-overview'

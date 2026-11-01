@@ -18,7 +18,7 @@ import {
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu'
 import { Spinner } from '@/components/ui/spinner'
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { memorySections } from '@/lib/memory'
 
 import { SettingsMenu } from './components/settings-menu'

@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { historyChains } from '@/lib/memory'
 import { HistoryChain } from './components/history-chain'
 

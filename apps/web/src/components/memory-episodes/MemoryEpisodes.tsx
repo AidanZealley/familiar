@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { episodeMonths } from '@/lib/memory'
 import { EpisodeMonth } from './components/episode-month'
 

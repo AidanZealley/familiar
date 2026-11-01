@@ -16,7 +16,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { InputGroupButton } from '@/components/ui/input-group'
-import { familiar, useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
+import { familiar } from '@/lib/familiar'
 
 const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
   off: 'Off',

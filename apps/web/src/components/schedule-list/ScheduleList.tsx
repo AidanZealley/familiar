@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { ScheduleItem } from './components/schedule-item'
 
 /** Every schedule, soonest first. Familiar adds them when asked in chat. */
