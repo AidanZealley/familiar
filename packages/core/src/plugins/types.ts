@@ -1,4 +1,4 @@
-import type { FamiliarTool } from './tools.ts'
+import type { Extension } from '@earendil-works/pi-durable'
 import type { Notification } from '../schedules/index.ts'
 import type { Connection } from './secrets.ts'
 import type { McpConnectionInfo } from '../mcp/types.ts'
@@ -53,13 +53,11 @@ export type PluginSecret = {
   }
 }
 
-/** Supported plugin capabilities. Core adapts these to its execution engine. */
-export type PluginExtension = {
-  tools?: FamiliarTool[]
-}
+/** Familiar supplies the installed name; every Pi extension capability is retained. */
+export type PluginExtension = Omit<Extension, 'name'>
 
 /**
- * Everything that isn't core arrives as a plugin: tools, built with
+ * Everything that isn't core arrives as a plugin: an extension, built with
  * what Familiar provides around it. Core names the extension
  * `familiar.plugin.<name>`.
  */

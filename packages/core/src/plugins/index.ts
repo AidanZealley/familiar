@@ -1,4 +1,3 @@
-import { toPiTool } from './tools.ts'
 import type { Extension } from '@earendil-works/pi-durable'
 import type { Notify } from '../schedules/index.ts'
 import { authorizedFetch } from './authorized-fetch.ts'
@@ -55,7 +54,7 @@ export function createPlugins(options: PluginsOptions) {
         ),
     })
     return {
-      tools: extension.tools?.map(toPiTool),
+      ...extension,
       name: `familiar.plugin.${plugin.name}`,
     }
   })

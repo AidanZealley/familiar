@@ -11,6 +11,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./http": "./src/http.ts",
+    "./extensions": "./src/extensions.ts",
     "./diagnostics": "./src/diagnostics.ts",
     "./mcp": "./src/mcp/index.ts"
   },
@@ -22,6 +23,7 @@
     "exports": {
       ".": "./dist/index.js",
       "./http": "./dist/http.js",
+      "./extensions": "./dist/extensions.js",
       "./diagnostics": "./dist/diagnostics.js",
       "./mcp": "./dist/mcp/index.js"
     }

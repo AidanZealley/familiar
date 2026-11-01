@@ -3,7 +3,8 @@
 
 import { Type, defineTool } from '@familiar-ai/core'
 import {
-  seedSampleMemory,
+  Episodes,
+  Facts,
   localDay,
   type Episode,
   type Fact,
@@ -204,11 +205,15 @@ function factsAsOf(now: Date) {
 
 export const seedMemory = defineTool({
   name: 'seed_memory',
-  description: 'Demo only: acknowledges the prepared sample facts.',
+  description: 'Demo only: fills memory with a sample year of facts.',
   parameters: Type.Object({}),
-  execute: async () => ({
-    output: [{ type: 'text', text: 'Memory written.' }],
-  }),
+  execute: (_args, api, context) =>
+    api.commit(async (tx) => {
+      const memory = await tx.doc(Facts)
+      memory.facts = factsAsOf(todayAt(api.now()))
+      memory.next = memory.facts.length + 1
+      return { output: [{ type: 'text', text: 'Memory written.' }] }
+    }, context),
 })
 
 const months = [
@@ -283,20 +288,14 @@ function episodesUntil(today: Date): Omit<Episode, 'id'>[] {
 
 export const seedEpisodes = defineTool({
   name: 'seed_episodes',
-  description: 'Demo only: acknowledges the prepared sample episodes.',
+  description: 'Demo only: fills the episodes with a sample year.',
   parameters: Type.Object({}),
-  execute: async () => ({
-    output: [{ type: 'text', text: 'Episodes written.' }],
-  }),
+  execute: (_args, api, context) =>
+    api.commit(async (tx) => {
+      const state = await tx.doc(Episodes)
+      for (const episode of episodesUntil(todayAt(api.now()))) {
+        state.episodes.push({ id: `e${state.next++}`, ...episode })
+      }
+      return { output: [{ type: 'text', text: 'Episodes written.' }] }
+    }, context),
 })
-
-/** Seed before opening Familiar, while no daemon owns this demo storage. */
-export const prepareDemoMemory = (
-  storage: Parameters<typeof seedSampleMemory>[0],
-  now = Date.now(),
-) =>
-  seedSampleMemory(
-    storage,
-    factsAsOf(todayAt(now)),
-    episodesUntil(todayAt(now)),
-  )

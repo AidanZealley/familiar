@@ -1,10 +1,5 @@
-import {
-  Type,
-  defineTool,
-  localMinute,
-  type Static,
-  type PluginContext,
-} from '@familiar-ai/core'
+import { Type, defineTool, type Static } from '@familiar-ai/core'
+import { localMinute, type PluginContext } from '@familiar-ai/core'
 import { cut } from './format.ts'
 
 export const BRAVE_ORIGIN = 'https://api.search.brave.com'
@@ -110,7 +105,11 @@ export const webSearchTool = (context: PluginContext) =>
     }),
     structuredOutputSchema: Type.Object({ results: Type.Array(Result) }),
     replay: 'safe',
-    execute: async ({ query, count = 5, freshness, domains = [] }, api) => {
+    execute: async (
+      { query, count = 5, freshness, domains = [] },
+      api,
+      call,
+    ) => {
       const sites = domains
         .map(siteOf)
         .map((domain) => `site:${domain}`)
@@ -134,8 +133,8 @@ export const webSearchTool = (context: PluginContext) =>
       try {
         const response = await context.authorizedFetch('braveApiKey', url, {
           headers: { accept: 'application/json' },
-          signal: api.abortSignal
-            ? AbortSignal.any([api.abortSignal, timeout])
+          signal: call.abortSignal
+            ? AbortSignal.any([call.abortSignal, timeout])
             : timeout,
         })
         if (!response.ok) {

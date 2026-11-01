@@ -14,6 +14,17 @@ import {
   summonFamiliar,
   type ToolContext,
 } from '@familiar-ai/core'
+import {
+  defineDoc,
+  defineTask,
+  defineExtension,
+  section,
+  hook,
+  wrapTool,
+  wrapSection,
+  ToolTask,
+  GenerationTask,
+} from '@familiar-ai/core/extensions'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { createFamiliarStore } from '../../../packages/client/src/store.ts'
 import { toTranscript } from '../../../packages/client/src/transcript.ts'
@@ -38,15 +49,9 @@ test('plugin results and last reported details survive reopen and reach the tran
           parameters: Type.Object({ value: Type.String() }),
           structuredOutputSchema: Type.Object({ value: Type.String() }),
           replay: 'safe',
-          execute: async ({ value }, context) => {
-            expect(Object.keys(context).sort()).toEqual([
-              'abortSignal',
-              'details',
-              'now',
-              'output',
-            ])
-            context.output('Text fallback')
-            await context.details({ source: value })
+          execute: async ({ value }, api, context) => {
+            api.output('Text fallback')
+            await api.details({ source: value }, context)
             return { structuredOutput: { value } }
           },
         }),
@@ -54,8 +59,8 @@ test('plugin results and last reported details survive reopen and reach the tran
           name: 'override',
           description: 'Return final details.',
           parameters: Type.Object({}),
-          execute: async (_, context) => {
-            await context.details({ stale: true })
+          execute: async (_, api, context) => {
+            await api.details({ stale: true }, context)
             return {
               output: [{ type: 'text', text: 'Final text' }],
               details: { final: true },
@@ -134,7 +139,7 @@ test('plugin results and last reported details survive reopen and reach the tran
   }
 })
 
-test('the adapter forwards cancellation', async () => {
+test('tool execution retains cancellation', async () => {
   const faux = fauxProvider({ models: [{ id: 'test' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -157,7 +162,7 @@ test('the adapter forwards cancellation', async () => {
               name: 'wait',
               description: 'Wait for cancellation.',
               parameters: Type.Object({}),
-              execute: async (_, context) => {
+              execute: async (_, _api, context) => {
                 markStarted(context)
                 await new Promise<void>((resolve) =>
                   context.abortSignal?.addEventListener(
@@ -189,26 +194,155 @@ test('the adapter forwards cancellation', async () => {
   }
 })
 
-test('demo sample memory is prepared before Familiar opens', async () => {
-  const { prepareDemoMemory } = await import('./demo/seed.ts')
-  const storage = new ReopenableStorage()
-  await prepareDemoMemory(storage, Date.UTC(2026, 10, 1))
+test('Familiar imports retain sections, hooks, wrappers, tasks and transactional nested execution', async () => {
+  const Counter = defineDoc({
+    kind: 'plugin.counter',
+    version: 1,
+    scope: 'session',
+    initial: () => ({ value: 0 }),
+    checkpointWhen: () => true,
+  })
+  const Increment = defineTask<{ amount: number }, { phase: 'run' }, number>({
+    name: 'plugin.increment',
+    version: 1,
+    initial: () => ({ phase: 'run' }),
+    phases: {
+      run: (task, runtime, context) =>
+        runtime.commit(async (tx) => {
+          const state = await tx.doc(Counter)
+          state.value += task.input.amount
+          return {
+            status: 'terminal',
+            outcome: { status: 'completed', result: state.value },
+          }
+        }, context),
+    },
+    abort: (_task, runtime, context) =>
+      runtime.commit(
+        () => ({ status: 'terminal', outcome: { status: 'aborted' } }),
+        context,
+      ),
+  })
+  const events: string[] = []
+  const read = defineTool({
+    name: 'read_counter',
+    description: 'Read the plugin counter.',
+    parameters: Type.Object({}),
+    callers: ['tools'],
+    structuredOutputSchema: Type.Object({ value: Type.Number() }),
+    execute: async (_args, api, context) => {
+      const state = await api.snapshot(Counter, context)
+      return { structuredOutput: { value: state?.value ?? 0 } }
+    },
+  })
+  const increment = defineTool({
+    name: 'increment',
+    description: 'Increment and read back.',
+    parameters: Type.Object({ amount: Type.Number() }),
+    replay: 'safe',
+    prepareArguments: (args) => ({
+      amount: Number((args as { amount: unknown }).amount),
+    }),
+    execute: async ({ amount }, api, context) => {
+      await api.commit(async (tx) => {
+        ;(await tx.doc(Counter)).value = 10
+      }, context)
+      const task = await api.createTask(
+        Increment,
+        { amount },
+        { ownership: { kind: 'task', taskId: api.taskId } },
+        context,
+      )
+      const settled = await api.waitForTask(task, context)
+      expect(settled.state.outcome).toEqual({ status: 'completed', result: 12 })
+      await api.memo('saved', { amount }, context)
+      expect(await api.memo('saved', context)).toEqual({ amount })
+      const nested = await api.executeTool(read.name, {}, context, {
+        key: 'read',
+      })
+      expect(nested.structuredOutput).toEqual({ value: 12 })
+      return {
+        output: [{ type: 'text', text: 'Committed 12' }],
+        details: { value: 12 },
+      }
+    },
+  })
   const faux = fauxProvider({ models: [{ id: 'test' }] })
   const models = createModels()
   models.setProvider(faux.provider)
   const familiar = await summonFamiliar({
-    storage,
+    storage: new MemoryStorage(),
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
+    plugins: [
+      definePlugin({
+        name: 'full',
+        title: 'Full extension',
+        extension: () =>
+          defineExtension({
+            name: 'replaced-by-familiar',
+            tools: [read, increment],
+            tasks: [Increment],
+            sections: [section('plugin_test', () => 'Original section')],
+            wraps: [
+              wrapSection('plugin_test', (original) => ({
+                ...original,
+                render: () => 'Wrapped section',
+              })),
+              wrapTool(increment, (original) => ({
+                ...original,
+                execute: async (args, api, context) => {
+                  events.push('wrapper')
+                  return original.execute(args, api, context)
+                },
+              })),
+            ],
+            hooks: [
+              hook(GenerationTask, {
+                beforeRequest: (request) => {
+                  expect(JSON.stringify(request.messages)).toContain(
+                    'Wrapped section',
+                  )
+                  events.push('request')
+                },
+              }),
+              hook(ToolTask, {
+                beforeTool: (call) => {
+                  events.push(call.parent ? 'nested' : 'tool')
+                },
+              }),
+            ],
+          }),
+      }),
+    ],
   })
   try {
-    const memory = await familiar.memory.watch()
-    await memory.stop()
-    expect(memory.value?.facts.length).toBeGreaterThan(20)
-    const episodes = await familiar.memory.watchEpisodes()
-    await episodes.stop()
-    expect(episodes.value?.episodes.length).toBeGreaterThan(10)
+    faux.setResponses([
+      fauxAssistantMessage(fauxToolCall('increment', { amount: '2' }), {
+        stopReason: 'toolUse',
+      }),
+      (context) => {
+        expect(JSON.stringify(context.messages)).toContain('Committed 12')
+        return fauxAssistantMessage('Done.')
+      },
+    ])
+    await familiar.send({ author: 'test', text: 'Go', requestId: 'full' })
+    await familiar.idle()
+    expect(events).toEqual(['request', 'tool', 'wrapper', 'nested', 'request'])
+    const watch = await familiar.watch()
+    await watch.stop()
+    const calls = toTranscript(watch.value).items.flatMap((item) =>
+      item.type === 'reply' ? item.toolCalls : [],
+    )
+    expect(calls).toMatchObject([
+      {
+        name: 'increment',
+        status: 'done',
+        output: 'Committed 12',
+        details: { value: 12 },
+      },
+    ])
   } finally {
     await familiar.dismiss()
   }

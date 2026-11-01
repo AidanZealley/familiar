@@ -120,7 +120,7 @@ export default definePlugin({
         description: 'Read the public service status.',
         parameters: Type.Object({}),
         replay: 'safe',
-        execute: async (_args, context) => {
+        execute: async (_args, _api, context) => {
           const response = await fetch('https://example.com/status', {
             signal: context.abortSignal,
           })
@@ -137,12 +137,16 @@ export default definePlugin({
 })
 ```
 
-`Type` builds argument schemas. `defineTool` infers arguments from `parameters`; `Static` is exported for separately named argument types. `FamiliarTool`, `ToolContext` and `ToolResult` describe the public contract. Execution now takes two arguments, the validated parameters and a Familiar context, replacing Pi's three-argument callback. Move `call.abortSignal` to `context.abortSignal` and keep using `context.now()` for the host clock.
+`Type` builds argument schemas. `defineTool` is Pi's helper, reexported unchanged: it infers arguments from `parameters` and the details type. `Static` and `TSchema` are available for named schema types. `FamiliarTool`, `ToolContext` and `ToolResult` are thin aliases for Pi's complete tool registration, Chord context and execution result. The callback keeps its established `execute(args, api, context)` signature.
 
-Return text or image blocks in `output`. Text remains the fallback for every client. Optional JSON-safe `details` travels with the persisted tool result to the client's `ToolCall.details`, where the host must narrow the unknown value before rendering. `context.details(value)` replaces running details; its last value becomes the result's details unless the return value supplies `details`. `context.output(text)` appends running text and supplies the final output when the result omits it. Details are stored beside model output, not appended to the text.
+Return text or image blocks in `output`. Text remains the fallback for every client. Optional JSON-safe `details` travels with the persisted tool result to the client's `ToolCall.details`, where the host must narrow the unknown value before rendering. `api.details(value, context)` replaces running details; its last value becomes the result's details unless the return value supplies `details`. `api.output(text)` appends running text and supplies the final output when the result omits it. Details are stored beside model output, not appended to the text.
 
-`structuredOutputSchema` and `structuredOutput` describe program output, separate from UI details. Pi validates structured output against that schema. Tools may select `executionMode` and `outputLimits`. Throwing produces a tool error through Pi; returning `isError: true` supplies an explicit error result.
+`structuredOutputSchema` and `structuredOutput` describe program output, separate from UI details. Pi validates structured output against that schema. Tools retain argument preparation, caller restrictions, deferred discovery, execution mode, output limits, diagnostics, usage and control results.
 
-Replay defaults to `unsafe`. A call interrupted by restart is not rerun. Use `safe` only when repeating the operation is safe, including any external side effects. Forward the abort signal to network or other cancellable work. Cancellation cannot undo an external effect. The adapter adds no retries or undo mechanism.
+Replay defaults to `unsafe`. A call interrupted by restart is not rerun. Use `safe` only when repeating the operation is safe, including any external side effects. Forward `context.abortSignal` to cancellable work. Cancellation cannot undo an external effect. Familiar adds no retries or undo mechanism.
 
-`PluginExtension` currently supports tools only. Pi hooks, tasks, wrappers, transactions and harness access are no longer part of the plugin contract. Existing first-party plugins need none of them. Demo memory is seeded offline before Familiar opens its demo storage; its scripted seed calls acknowledge that prepared data.
+For advanced extensions, import from `@familiar-ai/core/extensions`. It reexports Pi's `defineExtension`, `section`, `hook`, `wrapTool`, `wrapSection`, `defineTask`, `defineDoc`, `defineDocFamily` and `defineEntry`, the built-in task definitions and document tokens, `configure`, registry helpers, and public durable types. Portable environment helpers, coding-tool factories, tool-search and code-mode extension constructors, and Chord context derivation helpers are available there too. Reexporting these constructors does not install their extensions or supply an execution environment. `PluginExtension` retains every field of Pi's `Extension` except the installed name, which Familiar assigns. Sections, hooks, wrappers and durable tasks run through Pi unchanged.
+
+The execution API retains document reads and watches, transactions, memos, child tasks, conversation handles, nested tool calls, registry resolution, models, environments and progress reporting. Pass the invocation context to operations that require it. Transactions, task ownership, restart recovery and cancellation follow the pinned Pi 1.4.0 contracts. The demo's sample-memory tools use the same transaction API.
+
+These imports decouple plugin source from Pi package paths; they do not promise semantic independence from Pi. Advanced types and stored definitions remain Pi-shaped, and future Pi upgrades may require compatibility changes in Familiar or plugins. Familiar does not expose its running Harness instance. Node-only environments, storage adapters and image processors remain host concerns and are not reexported by this portable authoring entry.

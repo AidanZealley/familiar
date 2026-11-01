@@ -3,6 +3,7 @@ export {
   defineTool,
   Type,
   type Static,
+  type TSchema,
   type FamiliarTool,
   type ToolContext,
   type ToolResult,
