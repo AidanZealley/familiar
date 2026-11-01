@@ -75,10 +75,12 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
     },
   })
 
-  await expect.poll(() => store.getState().view).toEqual(view(2))
+  await expect.poll(() => store.getState().conversation.view).toEqual(view(2))
   expect(store.getState().connection).toBe('open')
-  await store.getState().send('Hello')
-  await expect(store.getState().send('Again')).rejects.toThrow('unauthorized')
+  await store.getState().conversation.send('Hello')
+  await expect(store.getState().conversation.send('Again')).rejects.toThrow(
+    'unauthorized',
+  )
 
   expect(sent).toEqual(['Hello'])
   expect(seen).toEqual([
@@ -103,9 +105,9 @@ test('the parser joins frames split across chunks, multiline data and split UTF-
   // A data field over several lines arrives joined by newlines.
   server.send('event: account\ndata: {"status":\ndata: "signed-in"}\n\n')
 
-  await expect.poll(() => store.getState().memory).toEqual(facts)
+  await expect.poll(() => store.getState().memory.facts).toEqual(facts)
   await expect
-    .poll(() => store.getState().account)
+    .poll(() => store.getState().account.state)
     .toEqual({ status: 'signed-in' })
 })
 
@@ -118,7 +120,7 @@ test('a dropped or ended stream reconnects and the fresh view replaces the old',
   await expect.poll(server.connections).toBe(1)
   server.send(retrySoon + frame('view', view(3, 4)))
   await expect.poll(() => store.getState().connection).toBe('open')
-  await store.getState().loadOlder()
+  await store.getState().conversation.loadOlder()
 
   server.drop()
   await expect.poll(() => store.getState().connection).toBe('reconnecting')
@@ -126,16 +128,22 @@ test('a dropped or ended stream reconnects and the fresh view replaces the old',
   // Compaction moved the start to 4 meanwhile, so 3 joins loaded history.
   server.send(frame('view', view(4, 5)))
   await expect.poll(() => store.getState().connection).toBe('open')
-  expect(store.getState().view).toEqual(view(4, 5))
-  expect(store.getState().history.entries).toEqual([entry(2), entry(3)])
+  expect(store.getState().conversation.view).toEqual(view(4, 5))
+  expect(store.getState().conversation.history.entries).toEqual([
+    entry(2),
+    entry(3),
+  ])
 
   server.end()
   await expect.poll(() => store.getState().connection).toBe('reconnecting')
   await expect.poll(server.connections).toBe(3)
   // A view the old one never reached leaves a gap, so history starts over.
   server.send(frame('view', view(9)))
-  await expect.poll(() => store.getState().view).toEqual(view(9))
-  expect(store.getState().history).toEqual({ entries: [], status: 'more' })
+  await expect.poll(() => store.getState().conversation.view).toEqual(view(9))
+  expect(store.getState().conversation.history).toEqual({
+    entries: [],
+    status: 'more',
+  })
 })
 
 test.each([
@@ -168,7 +176,7 @@ test('a refused reconnect stops retrying too', async () => {
   await tick()
   expect(server.connections()).toBe(2)
   // The last view stays for the host to show while it signs back in.
-  expect(store.getState().view).toEqual(view(1))
+  expect(store.getState().conversation.view).toEqual(view(1))
 })
 
 test('server errors and network failures retry after the default delay', async () => {
@@ -234,8 +242,8 @@ test('disconnect while reading ignores late frames', async () => {
   expect(server.cancellations()).toBe(1)
   expect(() => server.send(frame('view', view(2)))).toThrow()
 
-  expect(store.getState().view).toEqual(view(1))
-  expect(store.getState().account).toBeUndefined()
+  expect(store.getState().conversation.view).toEqual(view(1))
+  expect(store.getState().account.state).toBeUndefined()
   expect(server.connections()).toBe(1)
 })
 
@@ -261,7 +269,7 @@ test('disconnect while waiting to retry cancels the reconnect', async () => {
 test('an absolute base URL reaches another origin', async () => {
   const server = testServer()
   const store = open('https://familiar.example/api', { fetch: server.fetch })
-  await store.getState().abort()
+  await store.getState().conversation.abort()
 
   expect(server.requests.map((request) => request.url)).toEqual([
     'https://familiar.example/api/events',
@@ -312,7 +320,7 @@ test.each([
     await expect.poll(server.connections).toBe(1)
     server.send(first + frame('view', view(1)))
     await expect.poll(() => store.getState().connection).toBe('outdated')
-    expect(store.getState().view).toBeUndefined()
+    expect(store.getState().conversation.view).toBeUndefined()
     await tick()
     expect(server.connections()).toBe(1)
     expect(server.requests).toHaveLength(1)
@@ -332,7 +340,7 @@ test.each(['Text/Event-Stream', 'TEXT/EVENT-STREAM; charset=utf-8'])(
         ),
     })
     await expect.poll(() => store.getState().connection).toBe('outdated')
-    expect(store.getState().view).toBeUndefined()
+    expect(store.getState().conversation.view).toBeUndefined()
     expect(store.getState().transcript).toBeUndefined()
   },
 )
@@ -353,7 +361,7 @@ test('each reconnect requires its own compatible handshake and retains the last 
   await expect.poll(server.connections).toBe(2)
   server.send(frame('protocol', { version: 2 }) + frame('view', view(2)))
   await expect.poll(() => store.getState().connection).toBe('outdated')
-  expect(store.getState().view).toEqual(view(1))
+  expect(store.getState().conversation.view).toEqual(view(1))
   await tick()
   expect(server.connections()).toBe(2)
 })
@@ -392,8 +400,10 @@ test('outdated stops stream retries and leaves HTTP commands unchanged', async (
   server.send(frame('protocol', { version: 99 }))
   await vi.waitFor(() => expect(store.getState().connection).toBe('outdated'))
   await vi.advanceTimersByTimeAsync(30_000)
-  await expect(store.getState().modelOptions()).resolves.toEqual([])
-  await expect(store.getState().signOut()).resolves.toBeUndefined()
+  await expect(store.getState().conversation.modelOptions()).resolves.toEqual(
+    [],
+  )
+  await expect(store.getState().account.signOut()).resolves.toBeUndefined()
   expect(server.connections()).toBe(1)
   expect(server.requests.map((request) => request.method)).toEqual([
     'GET',
@@ -408,7 +418,7 @@ test('a compatible handshake and view in one chunk opens the connection', async 
   await expect.poll(server.connections).toBe(1)
   server.send(frame('protocol', { version: 1 }) + frame('view', view(1)))
   await expect.poll(() => store.getState().connection).toBe('open')
-  expect(store.getState().view).toEqual(view(1))
+  expect(store.getState().conversation.view).toEqual(view(1))
 })
 
 test('a reconnect cannot reuse the previous connection handshake', async () => {
@@ -423,7 +433,7 @@ test('a reconnect cannot reuse the previous connection handshake', async () => {
   await expect.poll(server.connections).toBe(2)
   server.send(frame('view', view(2)))
   await expect.poll(() => store.getState().connection).toBe('outdated')
-  expect(store.getState().view).toEqual(view(1))
+  expect(store.getState().conversation.view).toEqual(view(1))
 })
 
 test('disconnect during a view notification prevents later state from the same chunk', async () => {
@@ -431,7 +441,7 @@ test('disconnect during a view notification prevents later state from the same c
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
   store.subscribe(() => {
-    if (store.getState().view) {
+    if (store.getState().conversation.view) {
       store.getState().disconnect()
     }
   })
@@ -440,7 +450,7 @@ test('disconnect during a view notification prevents later state from the same c
       frame('view', view(1)) +
       frame('view', view(2)),
   )
-  await expect.poll(() => store.getState().view).toEqual(view(1))
+  await expect.poll(() => store.getState().conversation.view).toEqual(view(1))
   await tick()
-  expect(store.getState().view).toEqual(view(1))
+  expect(store.getState().conversation.view).toEqual(view(1))
 })

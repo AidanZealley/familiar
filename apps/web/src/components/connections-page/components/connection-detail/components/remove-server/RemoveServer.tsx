@@ -29,7 +29,7 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
     setBusy(true)
     setError(undefined)
     try {
-      await familiar.getState().removeMcpServer(name)
+      await familiar.getState().mcp.remove(name)
       await navigate({ search: ({ q }) => ({ q }) })
       await router.invalidate()
     } catch (failure) {

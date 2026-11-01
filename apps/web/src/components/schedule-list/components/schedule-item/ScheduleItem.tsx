@@ -22,7 +22,7 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
     setError(undefined)
     try {
       // The mirrored document drops it, which removes this item.
-      await familiar.getState().cancelSchedule(schedule.id)
+      await familiar.getState().schedules.cancel(schedule.id)
     } catch (failure) {
       setError((failure as Error).message)
       setCancelling(false)

@@ -22,7 +22,7 @@ export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
     action.catch((cause) =>
       onError(cause instanceof Error ? cause.message : String(cause)),
     )
-  const store = familiar.getState()
+  const { memory } = familiar.getState()
 
   if (isPast(fact)) {
     return null
@@ -45,12 +45,12 @@ export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
-          onClick={() => run(store.setFactPinned(fact.id, !fact.pinned))}
+          onClick={() => run(memory.setPinned(fact.id, !fact.pinned))}
         >
           {fact.pinned ? <PinOffIcon /> : <PinIcon />}
           {fact.pinned ? 'Unpin from core' : 'Pin to core'}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => run(store.retireFact(fact.id))}>
+        <DropdownMenuItem onClick={() => run(memory.retire(fact.id))}>
           <ArchiveIcon />
           No longer true
         </DropdownMenuItem>

@@ -65,7 +65,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
     setStep('sent')
     void familiar
       .getState()
-      .answerSignIn(text)
+      .account.answerSignIn(text)
       .catch(() => setStep('paste'))
   }
 

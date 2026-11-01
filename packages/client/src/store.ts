@@ -1,25 +1,13 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
-import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type {
   AgentState,
   ConversationView,
   EntryRecord,
-  ModelRef,
 } from '@earendil-works/pi-durable'
-import type {
-  AccountState,
-  Connection as ConnectionKey,
-  ConnectionInfo,
-  DocumentName,
-  Documents,
-  McpServer,
-  MemoryHealth,
-  ModelOption,
-  PushSubscriptionJson,
-} from '@familiar-ai/core/http'
+import type { AccountState, Documents } from '@familiar-ai/core/http'
 import { createStore } from 'zustand/vanilla'
 import type { Transcript } from './transcript.ts'
-import { createCommands } from './commands.ts'
+import { createCommands, type Commands } from './commands.ts'
 import { createConversation } from './conversation.ts'
 import { openEvents } from './events.ts'
 export { carryOver, startOf } from './conversation.ts'
@@ -64,75 +52,32 @@ export type History = {
   status: 'more' | 'loading' | 'failed' | 'start'
 }
 
-/**
- * Every document the server streams, such as `memory` and `episodes`,
- * mirrored like the view under its own name. Undefined until it arrives.
- */
-export type MirroredDocuments = {
-  [Name in DocumentName]?: Readonly<Documents[Name]> | null
-}
-
-export type FamiliarState = MirroredDocuments & {
+export type FamiliarState = {
   connection: Connection
-  /**
-   * The owner's login with the models' provider: null when the server offers
-   * no sign-in because its host manages credentials, undefined until the
-   * first frame.
-   */
-  account: AccountState | null | undefined
-  /** Starts signing in; the page to open, and any code, arrive in `account`. */
-  signIn(): Promise<void>
-  /** The address the browser ended on, when `account` asks to paste it. */
-  answerSignIn(text: string): Promise<void>
-  cancelSignIn(): Promise<void>
-  signOut(): Promise<void>
-  /** The server's view of the conversation, mirrored exactly. Absent until the first frame. */
-  view: ConversationView | undefined
-  history: History
-  /**
-   * Chat items and activity, absent until the first view. Keeps its reference
-   * while the view and loaded history entries are unchanged.
-   */
+  account: Commands['account'] & {
+    /** Undefined until the first frame; null when the host manages credentials. */
+    state: AccountState | null | undefined
+  }
+  conversation: Commands['conversation'] & {
+    view: ConversationView | undefined
+    history: History
+    /** Concurrent callers share the current page request. */
+    loadOlder(): Promise<boolean>
+  }
+  memory: Commands['memory'] & {
+    /** Streamed documents, undefined until received. */
+    facts: Readonly<Documents['memory']> | null | undefined
+    episodes: Readonly<Documents['episodes']> | null | undefined
+  }
+  schedules: Commands['schedules'] & {
+    items: Readonly<Documents['schedules']> | null | undefined
+  }
+  push: Commands['push']
+  connections: Commands['connections']
+  mcp: Commands['mcp']
+  /** Cached atomically with the conversation; unchanged by unrelated updates. */
   transcript: Transcript | undefined
-  /**
-   * Load the page of entries before the oldest the store has. Resolves to
-   * whether older ones remain; a call while one is loading shares its result.
-   */
-  loadOlder(): Promise<boolean>
-  send(text: string): Promise<void>
-  abort(): Promise<void>
-  /** The models the conversation may switch to; `agentOf` says which it's on. */
-  modelOptions(): Promise<ModelOption[]>
-  setModel(model: ModelRef): Promise<void>
-  /** Changes the current model's level, remembered for that model. */
-  setThinkingLevel(level: ModelThinkingLevel): Promise<void>
-  reviseFact(id: string, text: string): Promise<void>
-  retireFact(id: string): Promise<void>
-  setFactPinned(id: string, pinned: boolean): Promise<void>
-  cancelSchedule(id: string): Promise<void>
-  /** The key to subscribe to push with, or undefined if the server has no push. */
-  pushKey(): Promise<string | undefined>
-  subscribePush(subscription: PushSubscriptionJson): Promise<void>
-  unsubscribePush(subscription: PushSubscriptionJson): Promise<void>
-  /** Every connection and whether each secret is set. Never values. */
-  connections(): Promise<ConnectionInfo[]>
-  /** Memory's health numbers, measured when asked. */
-  memoryHealth(): Promise<MemoryHealth>
-  setSecret(
-    connection: ConnectionKey,
-    secret: string,
-    value: string,
-  ): Promise<void>
-  deleteSecret(connection: ConnectionKey, secret: string): Promise<void>
-  /** Saves an MCP server, which then connects in the background. */
-  addMcpServer(server: McpServer): Promise<void>
-  removeMcpServer(name: string): Promise<void>
-  reconnectMcpServer(name: string): Promise<void>
-  /**
-   * Closes the stream and cancels any reconnect, including one waiting on the
-   * host's fetch. The store keeps its last state. Commands already sent still
-   * settle with their callers.
-   */
+  /** Closes the stream and pending reconnects, retaining the last state. */
   disconnect(): void
 }
 
@@ -162,21 +107,65 @@ export function createFamiliarStore(
       set({ ...conversation.receive(view), connection: 'open' }),
     )
     events.on('ops', (ops) => set(conversation.apply(ops)))
-    events.on('account', (account) => set({ account }))
-    events.on('document', ({ name, value }) => set({ [name]: value }))
-    events.on('document.ops', ({ name, ops }) =>
-      set((state) => ({
-        [name]: applyImmutable(state[name] ?? undefined, ops),
-      })),
+    events.on('account', (state) =>
+      set(({ account }) => ({ account: { ...account, state } })),
     )
+    events.on('document', ({ name, value }) => {
+      switch (name) {
+        case 'memory':
+          set(({ memory }) => ({ memory: { ...memory, facts: value } }))
+          break
+        case 'episodes':
+          set(({ memory }) => ({ memory: { ...memory, episodes: value } }))
+          break
+        case 'schedules':
+          set(({ schedules }) => ({
+            schedules: { ...schedules, items: value },
+          }))
+          break
+      }
+    })
+    events.on('document.ops', ({ name, ops }) => {
+      switch (name) {
+        case 'memory':
+          set(({ memory }) => ({
+            memory: {
+              ...memory,
+              facts: applyImmutable(memory.facts ?? undefined, ops),
+            },
+          }))
+          break
+        case 'episodes':
+          set(({ memory }) => ({
+            memory: {
+              ...memory,
+              episodes: applyImmutable(memory.episodes ?? undefined, ops),
+            },
+          }))
+          break
+        case 'schedules':
+          set(({ schedules }) => ({
+            schedules: {
+              ...schedules,
+              items: applyImmutable(schedules.items ?? undefined, ops),
+            },
+          }))
+          break
+      }
+    })
     return {
       connection: 'connecting',
-      account: undefined,
-      view: undefined,
-      history: { entries: [], status: 'more' },
-      transcript: undefined,
       ...commands,
-      loadOlder: conversation.loadOlder,
+      account: { ...commands.account, state: undefined },
+      conversation: {
+        ...commands.conversation,
+        view: undefined,
+        history: { entries: [], status: 'more' },
+        loadOlder: conversation.loadOlder,
+      },
+      memory: { ...commands.memory, facts: undefined, episodes: undefined },
+      schedules: { ...commands.schedules, items: undefined },
+      transcript: undefined,
       disconnect: events.disconnect,
     }
   })

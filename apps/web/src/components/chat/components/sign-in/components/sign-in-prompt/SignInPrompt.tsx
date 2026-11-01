@@ -26,7 +26,7 @@ export const SignInPrompt = ({ account }: SignInPromptProps) => (
       onClick={() =>
         void familiar
           .getState()
-          .signIn()
+          .account.signIn()
           .catch(() => {})
       }
     >

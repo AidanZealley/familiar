@@ -17,7 +17,7 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
     setSaving(true)
     setError(undefined)
     try {
-      await familiar.getState().reviseFact(fact.id, text)
+      await familiar.getState().memory.revise(fact.id, text)
       onDone()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))

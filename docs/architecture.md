@@ -77,7 +77,7 @@ const familiar = createFamiliarStore('https://familiar.example/api', {
 })
 ```
 
-The returned store exposes `getState()`, `getInitialState()` and `subscribe()` for reads and subscriptions, including Zustand's React adapter. Call explicit commands such as `store.getState().send(text)` to make changes. It does not expose `setState`. The caller owns its lifecycle and calls `store.getState().disconnect()` when finished.
+The returned store exposes `getState()`, `getInitialState()` and `subscribe()` for reads and subscriptions, including Zustand's React adapter. Call explicit commands such as `store.getState().conversation.send(text)` to make changes. It does not expose `setState`. The caller owns its lifecycle and calls `store.getState().disconnect()` when finished.
 
 `conversation.ts` owns view, history paging, compaction carryover and transcript derivation. Each conversation transition publishes those values together before notifying subscribers. Transcript references stay stable while the view and history entry references are unchanged. `commands.ts` owns typed HTTP calls and server errors; `events.ts` owns EventSource reconnect and disconnect behavior. `store.ts` assembles them and mirrors other streamed documents.
 
@@ -116,6 +116,45 @@ is the older side.
 An open stream keeps the credential it started with. A new token takes effect on the next reconnect. When the owner signs out or switches household, or the stream stops as `unauthorized`, the host calls `disconnect()` and creates a new store. `disconnect()` closes the stream and cancels any pending reconnect. If the host's `fetch` is still waiting for a token, its response is thrown away. The store keeps its last state, so a UI can keep showing it until the new store connects.
 
 Commands reject with the server's reason and are never sent again by the store. Retrying a command is up to its caller. A host's `fetch` that refreshes a token and repeats a refused request repeats writes too, such as a sent message. Commands already sent when `disconnect()` runs still settle with their callers.
+
+### Client feature APIs
+
+The client groups data and commands under `conversation`, `account`, `memory`,
+`schedules`, `push`, `connections` and `mcp`. This is a breaking client API
+cleanup. The old flat commands, document fields and `MirroredDocuments` type
+have been removed. `FamiliarState` describes the grouped layout.
+HTTP routes, stream documents and the protocol version are unchanged.
+
+| Before                                                                                        | After                                                                                                 |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `state.send(text)`, `state.abort()`                                                           | `state.conversation.send(text)`, `state.conversation.abort()`                                         |
+| `state.view`, `state.history`, `state.loadOlder()`                                            | `state.conversation.view`, `state.conversation.history`, `state.conversation.loadOlder()`             |
+| `state.modelOptions()`, `state.setModel(model)`, `state.setThinkingLevel(level)`              | The same methods under `state.conversation`                                                           |
+| `state.account`                                                                               | `state.account.state`                                                                                 |
+| `state.signIn()`, `state.answerSignIn(text)`, `state.cancelSignIn()`, `state.signOut()`       | The same methods under `state.account`                                                                |
+| `state.memory`, `state.episodes`                                                              | `state.memory.facts`, `state.memory.episodes`                                                         |
+| `state.reviseFact(id, text)`, `state.retireFact(id)`, `state.setFactPinned(id, pinned)`       | `state.memory.revise(id, text)`, `state.memory.retire(id)`, `state.memory.setPinned(id, pinned)`      |
+| `state.memoryHealth()`                                                                        | `state.memory.health()`                                                                               |
+| `state.schedules`, `state.cancelSchedule(id)`                                                 | `state.schedules.items`, `state.schedules.cancel(id)`                                                 |
+| `state.pushKey()`, `state.subscribePush(subscription)`, `state.unsubscribePush(subscription)` | `state.push.key()`, `state.push.subscribe(subscription)`, `state.push.unsubscribe(subscription)`      |
+| `state.connections()`, `state.setSecret(...)`, `state.deleteSecret(...)`                      | `state.connections.list()`, `state.connections.setSecret(...)`, `state.connections.deleteSecret(...)` |
+| `state.addMcpServer(server)`, `state.removeMcpServer(name)`, `state.reconnectMcpServer(name)` | `state.mcp.add(server)`, `state.mcp.remove(name)`, `state.mcp.reconnect(name)`                        |
+
+The memory fields hold complete streamed documents, including their counters.
+For example, select `state.memory.facts?.facts` for the fact array and
+`state.memory.episodes?.episodes` for the episode array. Document data stays
+undefined until received and may be null. `account.state` keeps the same
+undefined, null and signed-in/sign-in state distinction as the former `account`.
+
+Each feature holds its data once, beside stable command functions. Zustand
+shallowly merges the root; document handlers explicitly retain the affected
+feature's other fields. Unrelated updates retain feature object references, so
+selecting `state.memory` does not rerender on conversation activity. Command
+types come from their HTTP implementations rather than a second command list.
+The conversation transition remains the only owner of view, history and the
+cached transcript, publishing them in one update. `state.transcript`,
+`useTranscript()`, `state.connection`, `state.disconnect()` and the store's
+read and subscription methods keep their existing locations.
 
 ## Four Pi ideas first
 

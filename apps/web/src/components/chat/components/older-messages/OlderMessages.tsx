@@ -10,7 +10,7 @@ import type { OlderMessagesProps } from './types'
 const loadOlder = () =>
   void familiar
     .getState()
-    .loadOlder()
+    .conversation.loadOlder()
     .catch(() => {})
 
 /**
@@ -20,7 +20,7 @@ const loadOlder = () =>
  * first child was an item.
  */
 export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
-  const status = useFamiliar((state) => state.history.status)
+  const status = useFamiliar((state) => state.conversation.history.status)
   const { visibleMessageIds } = useMessageScrollerVisibility()
   const nearTop = firstItemIds.some((id) => visibleMessageIds.includes(id))
 

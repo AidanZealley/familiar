@@ -50,7 +50,7 @@ export const ConnectionDetail = ({
     setReconnecting(true)
     setError(undefined)
     try {
-      await familiar.getState().reconnectMcpServer(connection.name)
+      await familiar.getState().mcp.reconnect(connection.name)
       await router.invalidate()
     } catch (failure) {
       setError((failure as Error).message)

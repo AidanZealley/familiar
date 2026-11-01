@@ -5,7 +5,7 @@ import { FactList } from './components/fact-list'
 import { MemoryOverview } from './components/memory-overview'
 
 export const MemoryFacts = () => {
-  const facts = useFamiliar((state) => state.memory?.facts)
+  const facts = useFamiliar((state) => state.memory.facts?.facts)
   if (!facts) {
     return null
   }

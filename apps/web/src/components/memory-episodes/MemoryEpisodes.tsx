@@ -3,7 +3,7 @@ import { episodeMonths } from '@/lib/memory'
 import { EpisodeMonth } from './components/episode-month'
 
 export const MemoryEpisodes = () => {
-  const episodes = useFamiliar((state) => state.episodes?.episodes)
+  const episodes = useFamiliar((state) => state.memory.episodes?.episodes)
   const months = episodes ? episodeMonths(episodes) : []
 
   if (episodes && months.length === 0) {

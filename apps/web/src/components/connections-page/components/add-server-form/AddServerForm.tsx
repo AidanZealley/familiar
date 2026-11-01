@@ -65,7 +65,7 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
   const [auth, setAuth] = useState<'none' | 'bearer'>('none')
   const [errors, setErrors] = useState<Errors>({})
   const [busy, setBusy] = useState(false)
-  const { addMcpServer, setSecret } = familiar.getState()
+  const { mcp, connections } = familiar.getState()
 
   const add = async (form: FormData) => {
     const result = read(form, transport, auth)
@@ -77,7 +77,7 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
     setErrors({})
     setBusy(true)
     try {
-      await addMcpServer(server)
+      await mcp.add(server)
     } catch (failure) {
       setErrors({ form: (failure as Error).message })
       setBusy(false)
@@ -88,7 +88,11 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
     let tokenError: string | undefined
     if (token) {
       try {
-        await setSecret({ kind: 'mcp', name: server.name }, 'token', token)
+        await connections.setSecret(
+          { kind: 'mcp', name: server.name },
+          'token',
+          token,
+        )
       } catch (failure) {
         tokenError = `${server.name} was added, but its token wasn't saved: ${(failure as Error).message}`
       }

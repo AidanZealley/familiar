@@ -48,7 +48,7 @@ export const Route = createFileRoute('/connections')({
     id: text(search.id),
     q: text(search.q),
   }),
-  loader: () => familiar.getState().connections(),
+  loader: () => familiar.getState().connections.list(),
   component: ConnectionsPage,
   pendingComponent: () => (
     <Empty>

@@ -8,7 +8,7 @@ export const CancelSignIn = () => (
     onClick={() =>
       void familiar
         .getState()
-        .cancelSignIn()
+        .account.cancelSignIn()
         .catch(() => {})
     }
   >

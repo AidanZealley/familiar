@@ -3,7 +3,7 @@ import { ScheduleItem } from './components/schedule-item'
 
 /** Every schedule, soonest first. Familiar adds them when asked in chat. */
 export const ScheduleList = () => {
-  const schedules = useFamiliar((state) => state.schedules)
+  const schedules = useFamiliar((state) => state.schedules.items)
   if (schedules === undefined) {
     return null
   }

@@ -9,17 +9,21 @@ export type FetchHistory = (
   before: number,
 ) => Promise<{ entries: History['entries']; more: boolean }>
 
-type ConversationState = Pick<FamiliarState, 'view' | 'history' | 'transcript'>
+type ConversationState = Pick<FamiliarState, 'conversation' | 'transcript'>
 
 const transition = (
   previous: ConversationState,
   view: ConversationView | undefined,
   history: History,
 ): ConversationState => ({
-  view,
-  history,
+  conversation:
+    view === previous.conversation.view &&
+    history === previous.conversation.history
+      ? previous.conversation
+      : { ...previous.conversation, view, history },
   transcript:
-    view === previous.view && history.entries === previous.history.entries
+    view === previous.conversation.view &&
+    history.entries === previous.conversation.history.entries
       ? previous.transcript
       : view && toTranscript(view, history.entries),
 })
@@ -32,7 +36,7 @@ export const createConversation = (
   let loading: Promise<boolean> | undefined
   const loadOlder = async () => {
     const state = get()
-    const { history } = state
+    const { history } = state.conversation
     if (history.status === 'start') {
       return false
     }
@@ -40,25 +44,41 @@ export const createConversation = (
     if (before === undefined) {
       return true
     }
-    set({ history: { ...history, status: 'loading' } })
+    set({
+      conversation: {
+        ...state.conversation,
+        history: { ...history, status: 'loading' },
+      },
+    })
     try {
       const page = await historyPage(before)
       const current = get()
       // A reconnect left a gap, so history starts again from the new view.
       if (oldestOf(current) !== before) {
-        set({ history: { ...current.history, status: 'more' } })
+        set({
+          conversation: {
+            ...current.conversation,
+            history: { ...current.conversation.history, status: 'more' },
+          },
+        })
         return true
       }
       set(
-        transition(current, current.view, {
-          entries: [...page.entries.toReversed(), ...current.history.entries],
+        transition(current, current.conversation.view, {
+          entries: [
+            ...page.entries.toReversed(),
+            ...current.conversation.history.entries,
+          ],
           status: page.more ? 'more' : 'start',
         }),
       )
       return page.more
     } catch (error) {
-      set(({ history }) => ({
-        history: { ...history, status: 'failed' },
+      set(({ conversation }) => ({
+        conversation: {
+          ...conversation,
+          history: { ...conversation.history, status: 'failed' },
+        },
       }))
       throw error
     }
@@ -66,14 +86,18 @@ export const createConversation = (
 
   const receive = (view: ConversationView | undefined) => {
     const state = get()
-    return transition(state, view, carryOver(state.history, state.view, view))
+    return transition(
+      state,
+      view,
+      carryOver(state.conversation.history, state.conversation.view, view),
+    )
   }
   return {
     loadOlder: () =>
       (loading ??= loadOlder().finally(() => (loading = undefined))),
     receive,
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>
-      receive(applyImmutable(get().view, ops)),
+      receive(applyImmutable(get().conversation.view, ops)),
   }
 }
 
@@ -84,7 +108,9 @@ export const createConversation = (
 export const startOf = (view: ConversationView) =>
   view.entries[0] && (view.entries[0].head ?? view.entries[0].id)
 
-const oldestOf = ({ view, history }: Pick<FamiliarState, 'view' | 'history'>) =>
+const oldestOf = ({
+  conversation: { view, history },
+}: Pick<FamiliarState, 'conversation'>) =>
   history.entries[0]?.id ?? (view && startOf(view))
 
 /**

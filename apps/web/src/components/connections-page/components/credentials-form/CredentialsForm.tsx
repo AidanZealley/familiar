@@ -30,7 +30,9 @@ export const CredentialsForm = ({
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initialError)
-  const { setSecret, deleteSecret } = familiar.getState()
+  const {
+    connections: { setSecret, deleteSecret },
+  } = familiar.getState()
   const changed = connection.secrets.filter((secret) =>
     drafts[secret.name]?.trim(),
   )

@@ -111,7 +111,7 @@ test('plugin results and last reported details survive reopen and reach the tran
     })
     try {
       await expect.poll(() => client.getState().connection).toBe('open')
-      const view = client.getState().view
+      const view = client.getState().conversation.view
       expect(view).toEqual(watch.value)
     } finally {
       client.getState().disconnect()

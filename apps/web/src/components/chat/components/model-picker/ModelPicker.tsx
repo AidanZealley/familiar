@@ -35,10 +35,10 @@ export const ModelPicker = () => {
   // Fixed for the daemon's lifetime, so fetched once rather than mirrored.
   const [options, setOptions] = useState<ModelOption[]>()
   useEffect(() => {
-    void familiar.getState().modelOptions().then(setOptions)
+    void familiar.getState().conversation.modelOptions().then(setOptions)
   }, [])
   // Live from the conversation, so a change on another device shows here.
-  const agent = useFamiliar((state) => agentOf(state.view))
+  const agent = useFamiliar((state) => agentOf(state.conversation.view))
   const current =
     agent?.model &&
     options?.find((option) => keyOf(option.model) === keyOf(agent.model!))
@@ -64,7 +64,7 @@ export const ModelPicker = () => {
                   (option) => keyOf(option.model) === value,
                 )
                 if (chosen) {
-                  void familiar.getState().setModel(chosen.model)
+                  void familiar.getState().conversation.setModel(chosen.model)
                 }
               }}
             >
@@ -93,7 +93,7 @@ export const ModelPicker = () => {
             <DropdownMenuRadioGroup
               value={agent.thinkingLevel}
               onValueChange={(level: ModelThinkingLevel) =>
-                void familiar.getState().setThinkingLevel(level)
+                void familiar.getState().conversation.setThinkingLevel(level)
               }
             >
               {current.thinkingLevels.map((level) => (

@@ -25,7 +25,7 @@ export const Composer = ({ busy }: ComposerProps) => {
     setError(undefined)
     try {
       // While busy this queues; Familiar answers it after the current reply.
-      await familiar.getState().send(message)
+      await familiar.getState().conversation.send(message)
     } catch (cause) {
       setText(message)
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -70,7 +70,9 @@ export const Composer = ({ busy }: ComposerProps) => {
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
             onClick={
-              showStop ? () => void familiar.getState().abort() : undefined
+              showStop
+                ? () => void familiar.getState().conversation.abort()
+                : undefined
             }
           >
             {showStop ? <SquareIcon /> : <ArrowUpIcon />}

@@ -23,7 +23,9 @@ import { familiar } from '@/lib/familiar'
 
 export const SettingsMenu = () => {
   const { theme, setTheme } = useTheme()
-  const signedIn = useFamiliar((state) => state.account?.status === 'signed-in')
+  const signedIn = useFamiliar(
+    (state) => state.account.state?.status === 'signed-in',
+  )
 
   return (
     <DropdownMenu>
@@ -67,7 +69,7 @@ export const SettingsMenu = () => {
                 onClick={() =>
                   void familiar
                     .getState()
-                    .signOut()
+                    .account.signOut()
                     .catch(() => {})
                 }
               >
