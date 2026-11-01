@@ -71,6 +71,7 @@ export type DocumentName = keyof Documents
  * then as each commit's changes, to apply in order to the last value.
  */
 export type StreamEvent =
+  | { event: 'protocol'; data: { version: number } }
   | { event: 'view'; data: ConversationView }
   | { event: 'ops'; data: readonly Op[] }
   | {
@@ -145,6 +146,9 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
             )
             return document
           }
+
+          // Wire version, independent of package releases. Send before opening watches.
+          await send({ event: 'protocol', data: { version: 1 } })
 
           const conversation = await familiar.watch()
           await send({ event: 'view', data: conversation.value })

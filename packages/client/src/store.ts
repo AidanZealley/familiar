@@ -28,13 +28,20 @@ export { carryOver, startOf } from './conversation.ts'
  * The event stream's state. It goes `open` when a full view arrives.
  * `reconnecting` follows a network error, a stream that ended, or a 5xx or
  * 429 answer, and retries after the server's `retry` delay (3 seconds unless
- * it sets one). Two states stop retrying: `unauthorized` when the stream is
+ * it sets one). `outdated` stops retrying on an incompatible or missing
+ * protocol handshake, and rejects new writes. The host decides when to reload.
+ * Other terminal states are: `unauthorized` when the stream is
  * answered 401 or 403, and `failed` for any other answer it can't use, such
  * as a 404 or a page that isn't an event stream. To recover from either,
  * disconnect and create a new store.
  */
 export type Connection =
-  'connecting' | 'open' | 'reconnecting' | 'unauthorized' | 'failed'
+  | 'connecting'
+  | 'open'
+  | 'reconnecting'
+  | 'unauthorized'
+  | 'failed'
+  | 'outdated'
 
 export type FamiliarStoreOptions = {
   /**
@@ -145,8 +152,22 @@ export function createFamiliarStore(
   // Looks the global up on each call, so a later polyfill or stub counts.
   const fetch: typeof globalThis.fetch =
     options.fetch ?? ((input, init) => globalThis.fetch(input, init))
-  const { commands, history } = createCommands(baseUrl, fetch)
   const store = createStore<FamiliarState>()((set, get) => {
+    const { commands, history } = createCommands(
+      baseUrl,
+      async (input, init) => {
+        if (
+          get().connection === 'outdated' &&
+          init?.method &&
+          !['GET', 'HEAD'].includes(init.method.toUpperCase())
+        ) {
+          throw new Error(
+            'Client protocol is outdated. Create a compatible client before sending commands.',
+          )
+        }
+        return fetch(input, init)
+      },
+    )
     const conversation = createConversation(set, get, history)
     const events = openEvents(baseUrl, fetch, (connection) =>
       set({ connection }),

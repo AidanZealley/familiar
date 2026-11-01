@@ -23,6 +23,7 @@ export const frame = (event: string, data: unknown) =>
 export function testServer(
   answer: (request: Request) => Response | Promise<Response> = () =>
     new Response(null, { status: 204 }),
+  handshake = true,
 ) {
   const requests: Request[] = []
   const streams: ReadableStreamDefaultController<Uint8Array>[] = []
@@ -48,6 +49,11 @@ export function testServer(
       },
       start: (controller) => {
         streams.push(controller)
+        if (handshake) {
+          controller.enqueue(
+            new TextEncoder().encode(frame('protocol', { version: 1 })),
+          )
+        }
         request.signal.addEventListener('abort', () =>
           controller.error(request.signal.reason),
         )

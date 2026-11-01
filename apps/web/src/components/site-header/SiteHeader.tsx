@@ -56,9 +56,11 @@ export const SiteHeader = () => {
               role="img"
               className="size-5 text-destructive"
               aria-label={
-                connection === 'unauthorized'
-                  ? 'Not authorised. Reload to try again.'
-                  : 'Connection failed. Reload to try again.'
+                connection === 'outdated'
+                  ? 'Client is outdated. Reload to update.'
+                  : connection === 'unauthorized'
+                    ? 'Not authorised. Reload to try again.'
+                    : 'Connection failed. Reload to try again.'
               }
             />
           )}
