@@ -304,7 +304,6 @@ test.each([
   'event: protocol\ndata: {broken\n\n',
   frame('protocol', {}),
   frame('view', view(99)),
-  frame('unknown', {}),
 ])(
   'an incompatible first event stops without applying state: %s',
   async (first) => {
@@ -314,7 +313,6 @@ test.each([
     server.send(first + frame('view', view(1)))
     await expect.poll(() => store.getState().connection).toBe('outdated')
     expect(store.getState().view).toBeUndefined()
-    await expect(store.getState().send('Hello')).rejects.toThrow('outdated')
     await tick()
     expect(server.connections()).toBe(1)
     expect(server.requests).toHaveLength(1)
@@ -360,45 +358,33 @@ test('each reconnect requires its own compatible handshake and retains the last 
   expect(server.connections()).toBe(2)
 })
 
-test('an empty stream ending without a handshake is outdated', async () => {
-  const server = testServer(undefined, false)
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.end()
-  await expect.poll(() => store.getState().connection).toBe('outdated')
-})
-
-test.each([false, true])(
-  'the handshake deadline is bounded and disconnect cancels it: %s',
-  async (disconnect) => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const server = testServer(undefined, false)
-    const store = open('/api', { fetch: server.fetch })
-    await vi.waitFor(() => expect(server.connections()).toBe(1))
-    if (disconnect) {
-      store.getState().disconnect()
-    }
-    await vi.advanceTimersByTimeAsync(10_000)
-    expect(store.getState().connection).toBe(
-      disconnect ? 'connecting' : 'outdated',
-    )
-    expect(server.connections()).toBe(1)
-  },
-)
-
-test('handshake acceptance alone stays connecting and clears the deadline', async () => {
+test('silent streams keep connecting and retry when they end', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   const server = testServer(undefined, false)
   const store = open('/api', { fetch: server.fetch })
   await vi.waitFor(() => expect(server.connections()).toBe(1))
-  server.send(frame('protocol', { version: 1 }))
-  await vi.advanceTimersByTimeAsync(11_000)
+  await vi.advanceTimersByTimeAsync(30_000)
   expect(store.getState().connection).toBe('connecting')
-  server.send(frame('view', view(1)))
-  await vi.waitFor(() => expect(store.getState().connection).toBe('open'))
+  server.end()
+  await vi.waitFor(() =>
+    expect(store.getState().connection).toBe('reconnecting'),
+  )
+  await vi.advanceTimersByTimeAsync(3_000)
+  expect(server.connections()).toBe(2)
 })
 
-test('outdated stays terminal beyond retry delay while reads remain available', async () => {
+test('handshake acceptance waits for a view', async () => {
+  const server = testServer(undefined, false)
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send(frame('protocol', { version: 1 }))
+  await tick()
+  expect(store.getState().connection).toBe('connecting')
+  server.send(frame('view', view(1)))
+  await expect.poll(() => store.getState().connection).toBe('open')
+})
+
+test('outdated stops stream retries and leaves HTTP commands unchanged', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   const server = testServer(() => Response.json([]), false)
   const store = open('/api', { fetch: server.fetch })
@@ -407,10 +393,54 @@ test('outdated stays terminal beyond retry delay while reads remain available', 
   await vi.waitFor(() => expect(store.getState().connection).toBe('outdated'))
   await vi.advanceTimersByTimeAsync(30_000)
   await expect(store.getState().modelOptions()).resolves.toEqual([])
-  await expect(store.getState().signOut()).rejects.toThrow('outdated')
+  await expect(store.getState().signOut()).resolves.toBeUndefined()
   expect(server.connections()).toBe(1)
   expect(server.requests.map((request) => request.method)).toEqual([
     'GET',
     'GET',
+    'POST',
   ])
+})
+
+test('a compatible handshake and view in one chunk opens the connection', async () => {
+  const server = testServer(undefined, false)
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send(frame('protocol', { version: 1 }) + frame('view', view(1)))
+  await expect.poll(() => store.getState().connection).toBe('open')
+  expect(store.getState().view).toEqual(view(1))
+})
+
+test('a reconnect cannot reuse the previous connection handshake', async () => {
+  const server = testServer(undefined, false)
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send(
+    retrySoon + frame('protocol', { version: 1 }) + frame('view', view(1)),
+  )
+  await expect.poll(() => store.getState().connection).toBe('open')
+  server.end()
+  await expect.poll(server.connections).toBe(2)
+  server.send(frame('view', view(2)))
+  await expect.poll(() => store.getState().connection).toBe('outdated')
+  expect(store.getState().view).toEqual(view(1))
+})
+
+test('disconnect during a view notification prevents later state from the same chunk', async () => {
+  const server = testServer(undefined, false)
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  store.subscribe(() => {
+    if (store.getState().view) {
+      store.getState().disconnect()
+    }
+  })
+  server.send(
+    frame('protocol', { version: 1 }) +
+      frame('view', view(1)) +
+      frame('view', view(2)),
+  )
+  await expect.poll(() => store.getState().view).toEqual(view(1))
+  await tick()
+  expect(store.getState().view).toEqual(view(1))
 })

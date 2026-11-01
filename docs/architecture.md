@@ -97,22 +97,21 @@ browser-safe client keeps its supported version literal in its events lifecycle.
 Update both deliberately when changing compatibility. Sharing a runtime constant
 would hide a stale client's supported contract in tests.
 
-The client validates the first event before state reaches the store, and resets
-acceptance on every reconnect. A legacy server sending a view first is rejected
-without applying that view. An empty stream that ends normally is also rejected;
-a stream that stays empty or sends only comments has 10 seconds after a successful
-SSE response to deliver the handshake. One deadline belongs to that stream and is
-cleared on acceptance, termination or disconnect. Network failures still retry,
-as they do before a response arrives. Handshake acceptance alone does not mean
-`open`; a full view must arrive. Existing state stays visible on incompatibility.
+The client checks `protocol` through EventSource's event listeners before accepting
+any known state event, and resets acceptance on every connection. A legacy server
+sending a view first is rejected without applying that view. Silent streams stay
+connecting or reconnecting without a deadline. Handshake acceptance alone does not
+mean `open`; a full view must arrive. Existing state stays visible on incompatibility.
+HTTP commands keep their existing behavior. The host decides when to reload.
 
-Once `outdated` is known, new mutating HTTP commands reject locally. Reads remain
-available, and commands already sent still settle. Commands before the handshake
-keep their existing behavior; this is a compatibility guard, not server access
-control. Clients predating this handshake cannot retroactively detect an
-incompatible server: they ignore the unknown event. This protection starts with
-clients that implement the handshake. Reloading may still need a newer server
-when the server is the older side.
+The `protocol` event name and JSON `{ "version": number }` framing are a stable
+compatibility contract, including across incompatible versions. EventSource has no
+wildcard event listener, so unknown event names are ignored, not classified as
+incompatible. Future servers must preserve this handshake to announce incompatibility.
+Clients predating this handshake cannot retroactively detect an incompatible server:
+they ignore the unknown protocol event. This protection starts with clients that
+implement the handshake. Reloading may still need a newer server when the server
+is the older side.
 
 An open stream keeps the credential it started with. A new token takes effect on the next reconnect. When the owner signs out or switches household, or the stream stops as `unauthorized`, the host calls `disconnect()` and creates a new store. `disconnect()` closes the stream and cancels any pending reconnect. If the host's `fetch` is still waiting for a token, its response is thrown away. The store keeps its last state, so a UI can keep showing it until the new store connects.
 

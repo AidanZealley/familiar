@@ -1,5 +1,4 @@
 import { EventSource, type FetchLike } from 'eventsource'
-import { createParser } from 'eventsource-parser'
 import type { StreamEvent } from '@familiar-ai/core/http'
 import type { Connection } from './store.ts'
 
@@ -9,21 +8,57 @@ export const openEvents = (
   connection: (value: Connection) => void,
 ) => {
   const listeners = new AbortController()
+  let accepted = false
   const outdated = () => {
     listeners.abort()
     events.close()
     connection('outdated')
   }
   const events = new EventSource(`${baseUrl}/events`, {
-    fetch: (url, init) => connect(fetch, outdated, url, init),
+    fetch: (url, init) => connect(fetch, url, init),
   })
-  const on = <E extends StreamEvent['event']>(
+  // EventSource fires open before reading each response, including reconnects.
+  events.addEventListener(
+    'open',
+    () => {
+      accepted = false
+    },
+    { signal: listeners.signal },
+  )
+  events.addEventListener(
+    'protocol',
+    (message) => {
+      try {
+        const data: unknown = JSON.parse(message.data)
+        if (
+          typeof data !== 'object' ||
+          data === null ||
+          !('version' in data) ||
+          data.version !== 1
+        ) {
+          outdated()
+          return
+        }
+        accepted = true
+      } catch {
+        outdated()
+      }
+    },
+    { signal: listeners.signal },
+  )
+  const on = <E extends Exclude<StreamEvent['event'], 'protocol'>>(
     event: E,
     handle: (data: Extract<StreamEvent, { event: E }>['data']) => void,
   ) =>
     events.addEventListener(
       event,
-      (message) => handle(JSON.parse(message.data)),
+      (message) => {
+        if (!accepted) {
+          outdated()
+          return
+        }
+        handle(JSON.parse(message.data))
+      },
       { signal: listeners.signal },
     )
 
@@ -63,7 +98,6 @@ export const openEvents = (
  */
 const connect = async (
   fetch: typeof globalThis.fetch,
-  outdated: () => void,
   ...[url, init]: Parameters<FetchLike>
 ) => {
   const response = await fetch(url, init)
@@ -78,79 +112,6 @@ const connect = async (
     throw new Error(`${url} failed: ${response.status}`)
   }
 
-  let body = response.body
-  if (
-    response.ok &&
-    /^[\t\n\r ]*text\/event-stream[\t\n\r ]*(?:;|$)/i.test(
-      response.headers.get('content-type') ?? '',
-    ) &&
-    body
-  ) {
-    // Each fetch owns its own acceptance and deadline, including reconnects.
-    let accepted = false
-    const reject = () => {
-      if (!init.signal?.aborted) {
-        outdated()
-      }
-    }
-    const deadline = setTimeout(reject, 10_000)
-    const clear = () => clearTimeout(deadline)
-    init.signal?.addEventListener('abort', clear, { once: true })
-    const decoder = new TextDecoder()
-    const parser = createParser({
-      onEvent: (event) => {
-        if (accepted) {
-          return
-        }
-        try {
-          const data: unknown = JSON.parse(event.data)
-          if (
-            event.event !== 'protocol' ||
-            typeof data !== 'object' ||
-            data === null ||
-            !('version' in data) ||
-            data.version !== 1
-          ) {
-            reject()
-            return
-          }
-          accepted = true
-          clear()
-        } catch {
-          reject()
-        }
-      },
-    })
-    const gate = new TransformStream<
-      Uint8Array<ArrayBuffer>,
-      Uint8Array<ArrayBuffer>
-    >({
-      transform(chunk, controller) {
-        // Validate before EventSource can dispatch any complete state frame.
-        if (!accepted) {
-          parser.feed(decoder.decode(chunk, { stream: true }))
-        }
-        if (!init.signal?.aborted) {
-          controller.enqueue(chunk)
-        }
-      },
-      flush() {
-        clear()
-        if (!accepted) {
-          reject()
-        }
-      },
-    })
-    void body
-      .pipeTo(gate.writable, { signal: init.signal })
-      .catch(() => {})
-      .finally(() => {
-        clear()
-        init.signal?.removeEventListener('abort', clear)
-      })
-    body = gate.readable
-  }
-
   // FetchLike needs only these fields. Preserve redirect metadata while the
   // platform pipe owns cancellation, even after EventSource locks its reader.
   return {
@@ -159,7 +120,7 @@ const connect = async (
     redirected: response.redirected,
     headers: response.headers,
     body:
-      body?.pipeThrough(new TransformStream(), {
+      response.body?.pipeThrough(new TransformStream(), {
         signal: init.signal,
       }) ?? null,
   }
