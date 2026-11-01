@@ -18,7 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { familiar, useFamiliar } from '@/lib/familiar'
+import { useFamiliar } from '@familiar-ai/client/react'
+import { familiar } from '@/lib/familiar'
 
 export const SettingsMenu = () => {
   const { theme, setTheme } = useTheme()

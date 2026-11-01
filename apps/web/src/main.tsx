@@ -1,7 +1,9 @@
+import { FamiliarProvider } from '@familiar-ai/client/react'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import { familiar } from './lib/familiar'
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({ routeTree })
@@ -19,6 +21,8 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <FamiliarProvider store={familiar}>
+      <RouterProvider router={router} />
+    </FamiliarProvider>
   </StrictMode>,
 )

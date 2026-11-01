@@ -355,3 +355,46 @@ Reopening the same storage with another zone needs no migration. The new zone ap
 - Upkeep's sleeping task wakes at the instant it was given, so the first pass runs at the old 04:00. Later passes run at 04:00 in the new zone.
 - Stored days are not reinterpreted: facts' `since` and `until`, and episodes' `start` and `end`. They are zone-free `YYYY-MM-DD` strings, and nothing records the zone they were written in, so around a move one can be a day off compared with the new zone. Exchange days are worked out from timestamps whenever the index is built, so they follow the new zone.
 - Text already in the conversation, such as `[Scheduled for 2026-10-22 07:00]` or a tool result, keeps the times it was written with.
+
+## React clients
+
+React 18 and 19 apps can use the optional `@familiar-ai/client/react` entry.
+React is an optional peer dependency; the main client entry has no React imports.
+The app supplies its existing React installation.
+
+```tsx
+import { createFamiliarStore } from '@familiar-ai/client'
+import {
+  FamiliarProvider,
+  useFamiliar,
+  useTranscript,
+} from '@familiar-ai/client/react'
+
+// Create once in the host's connection lifecycle, outside render.
+const store = createFamiliarStore('/api')
+
+const Chat = () => {
+  const connection = useFamiliar((state) => state.connection)
+  const transcript = useTranscript()
+  return (
+    <p>
+      {connection}: {transcript?.items.length ?? 0} items
+    </p>
+  )
+}
+
+const App = () => (
+  <FamiliarProvider store={store}>
+    <Chat />
+  </FamiliarProvider>
+)
+```
+
+The caller owns the store and calls `store.getState().disconnect()` when its
+connection is no longer needed. Mounting, replacing or unmounting a provider
+never opens or closes a connection. Each hook reads the nearest provider, so
+independent or nested providers can use different stores. Hooks throw without a
+provider. `useTranscript()` selects `state.transcript`, including `undefined`
+before the first view. `useFamiliar(selector)` uses Zustand's React adapter with
+the store's read and subscription methods. Selections use `Object.is` comparison;
+selectors should return stable values when their inputs have not changed.
