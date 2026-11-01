@@ -214,7 +214,11 @@ test('transcript reference survives unrelated updates and history loading or fai
   expect(store.getState().history.status).toBe('failed')
   expect(store.getState().transcript).toBe(initial)
   fail = false
+  const published: (string[] | undefined)[] = []
+  const unsubscribe = store.subscribe(() => published.push(itemIds(store)))
   await store.getState().loadOlder()
+  unsubscribe()
+  expect(published).toEqual([['entry:2'], ['entry:1', 'entry:2']])
   expect(itemIds(store)).toEqual(['entry:1', 'entry:2'])
   expect(store.getState().transcript).not.toBe(initial)
   const loaded = store.getState().transcript
@@ -269,21 +273,24 @@ test('a history page arriving after a reconnect gap cannot restore stale transcr
   expect(store.getState().transcript).toBe(fresh)
 })
 
-test('public state updates derive transcript before subscribers run and preserve no-op updates', () => {
+test('public store exposes only read and subscription methods', () => {
   const store = open('/api', { fetch: testServer().fetch })
-  const observed: (string[] | undefined)[] = []
-  store.subscribe(() => observed.push(itemIds(store)))
-  store.setState({ view: conversation(1) })
+  expect(Object.keys(store).sort()).toEqual([
+    'getInitialState',
+    'getState',
+    'subscribe',
+  ])
+})
+
+test('operations that leave view references unchanged retain the transcript', async () => {
+  const server = testServer()
+  const store = open('/api', { fetch: server.fetch })
+  await expect.poll(server.connections).toBe(1)
+  server.send(frame('view', conversation(1)))
+  await expect.poll(() => itemIds(store)).toEqual(['entry:1'])
   const initial = store.getState().transcript
-  store.setState((state) => state)
-  expect(observed).toEqual([['entry:1']])
-  store.setState((state) => ({
-    history: { ...state.history, status: 'failed' },
-  }))
+  server.send(frame('ops', []))
+  server.send(frame('account', null))
+  await expect.poll(() => store.getState().account).toBeNull()
   expect(store.getState().transcript).toBe(initial)
-  store.setState((state) => ({ ...state, view: conversation(2) }), true)
-  expect(itemIds(store)).toEqual(['entry:2'])
-  store.setState({ view: undefined })
-  expect(store.getState().transcript).toBeUndefined()
-  expect(observed).toEqual([['entry:1'], ['entry:1'], ['entry:2'], undefined])
 })
