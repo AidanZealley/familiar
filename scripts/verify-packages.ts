@@ -151,7 +151,29 @@ if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value 
     ['ES2023', 'DOM'],
     [],
     `import { summonFamiliar } from '@familiar-ai/core'
-import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
+import { createHttpApi, conversationRoutes, memoryRoutes, eventRoutes, type HttpApi } from '@familiar-ai/core/http'
+import { Hono } from 'hono'
+import { hc, type InferResponseType } from 'hono/client'
+declare const hostFamiliar: Awaited<ReturnType<typeof summonFamiliar>>
+const composed = new Hono()
+  .route('/chat', conversationRoutes(hostFamiliar, () => 'Sam'))
+  .route('/memory', memoryRoutes(hostFamiliar.memory))
+  .route('/', eventRoutes({ conversation: hostFamiliar.watch }))
+const custom = hc<typeof composed>('https://example.com')
+custom.chat.messages.$post({ json: { text: 'Hello', requestId: 'one' } })
+// @ts-expect-error composed input remains typed
+custom.chat.messages.$post({ json: { text: 1, requestId: 'one' } })
+// @ts-expect-error omitted groups stay absent
+custom.account.$post()
+type Page = InferResponseType<typeof custom.chat.history.$get, 200>
+declare const historyPage: Page
+const more: boolean = historyPage.more
+// @ts-expect-error composed response remains typed
+const invalidMore: number = historyPage.more
+const standard = hc<HttpApi>('https://example.com')
+standard.messages.$post({ json: { text: 'Hello', requestId: 'two' } })
+// @ts-expect-error standard input remains typed
+standard.messages.$post({ json: { text: 1, requestId: 'two' } })
 import { localDay } from '@familiar-ai/core/diagnostics'
 import { connectMcp } from '@familiar-ai/core/mcp'
 import { repeatText, type Schedule, type ModelRef, type ModelThinkingLevel, type ConversationView, type EntryRecord } from '@familiar-ai/client'

@@ -156,6 +156,83 @@ cached transcript, publishing them in one update. `state.transcript`,
 `useTranscript()`, `state.connection`, `state.disconnect()` and the store's
 read and subscription methods keep their existing locations.
 
+### Composing HTTP routes in a host
+
+`createHttpApi(familiar, options)` retains the standard API, including authentication
+on every route and all event sources. Its `HttpApi` type still works with
+`hc<HttpApi>`. Hosts that need different access rules compose the exported Hono
+route factories from `@familiar-ai/core/http` instead. Keep the chained return
+value so `hc<typeof app>` retains request and response types.
+
+```ts
+import { Hono } from 'hono'
+import { hc } from 'hono/client'
+import {
+  conversationRoutes,
+  eventRoutes,
+  memoryRoutes,
+  scheduleRoutes,
+  accountRoutes,
+  modelRoutes,
+  pushRoutes,
+  connectionRoutes,
+  mcpRoutes,
+} from '@familiar-ai/core/http'
+
+// These are the host's session and membership middleware. requireMember
+// authenticates the request and checks membership for this Familiar.
+// requireAdmin additionally checks the host's administrative policy.
+const members = new Hono()
+  .use('*', requireMember)
+  .route(
+    '/',
+    conversationRoutes(familiar, (c) => authenticatedName(c.req.raw)),
+  )
+  .route('/', eventRoutes({ conversation: familiar.watch }))
+
+const admin = new Hono()
+  .use('*', requireAdmin)
+  .route('/memory', memoryRoutes(familiar.memory))
+  .route('/schedules', scheduleRoutes(familiar.schedules))
+  .route('/account', accountRoutes(familiar.account))
+  .route('/model', modelRoutes(familiar))
+  .route('/push', pushRoutes(push))
+  .route('/connections', connectionRoutes(familiar.connections))
+  .route('/mcp', mcpRoutes(familiar.mcp))
+  .route(
+    '/',
+    eventRoutes({
+      memory: familiar.memory.watch,
+      episodes: familiar.memory.watchEpisodes,
+      schedules: familiar.schedules.watch,
+      account: familiar.account ?? null,
+    }),
+  )
+
+const app = new Hono().route('/chat', members).route('/admin', admin)
+const client = hc<typeof app>('/api')
+```
+
+`authenticatedName` reads the host's authenticated session. The conversation
+factory calls it for messages and records its result as the author. Request JSON
+cannot supply the author. A host can also read its own Hono context variables in
+this callback. Familiar defines no roles or permission checks. The host decides
+access by path and method before mounting or invoking a handler.
+
+`eventRoutes(sources)` takes only explicit watch callbacks and an optional account
+with `state` and `onChange`. It never receives a Familiar. Omitted sources produce
+no frames and open no watches or listeners. `account: null` explicitly sends a
+null account frame, as the standard API does without sign-in. Each connection
+starts with protocol version 1, then fresh snapshots of selected sources. Any
+selected watch closing ends the stream and stops all its subscriptions. Empty
+and account-only streams remain open with heartbeats until the client disconnects.
+Disconnects and setup failures stop subscriptions too.
+
+Restricting HTTP routes and streams does not make conversation memory private.
+The conversation and its tools can still read memory and use other installed
+capabilities. Hosts must handle tool authorization separately. Participant
+attribution and tool authorization changes are deferred.
+
 ## Four Pi ideas first
 
 Familiar is a thin layer over [Pi Durable](../packages/core/node_modules/@earendil-works/pi-durable/README.md). Most of the code is Familiar using these four things, so read their sections of Pi's README before Familiar's code:
