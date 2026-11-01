@@ -1,4 +1,4 @@
-import type { McpStdioTransport } from '@familiar/core'
+import type { McpStdioTransport } from '@familiar-ai/core'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 
 /** The SDK filters inherited environment variables and owns process cleanup. */

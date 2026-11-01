@@ -1,4 +1,4 @@
-import type { PushSubscriptionJson } from '@familiar/client'
+import type { PushSubscriptionJson } from '@familiar-ai/client'
 import { useCallback, useEffect, useState } from 'react'
 import { familiar } from '@/lib/familiar'
 

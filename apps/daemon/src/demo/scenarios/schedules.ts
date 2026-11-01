@@ -2,7 +2,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import { localMinute } from '@familiar/core'
+import { localMinute } from '@familiar-ai/core'
 import type { Scenario } from '../types.ts'
 import { DEMO_TIME_ZONE } from '../zone.ts'
 

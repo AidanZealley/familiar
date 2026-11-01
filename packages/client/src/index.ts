@@ -15,6 +15,6 @@ export type {
   PushSubscriptionJson,
   Schedule,
   SchedulesState,
-} from '@familiar/core/http'
+} from '@familiar-ai/core/http'
 export type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 export type { ModelRef } from '@earendil-works/pi-durable'

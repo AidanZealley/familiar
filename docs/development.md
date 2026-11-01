@@ -52,6 +52,17 @@ pnpm test:release    # Install and verify it outside the repo, using temporary d
 
 The package includes the CLI, web UI and HTML conversion worker. Piscina is its only runtime package dependency. Local builds use version `0.0.0`; set `RELEASE_VERSION` to build a specific version. Pushing a `v*` tag runs the checks and publishes the tarball as a GitHub Release asset. The release also includes `install.sh` and `install.ps1`, which download the package and hand setup to the CLI.
 
+### npm packages
+
+The libraries in `packages/` are published to npm under the `@familiar-ai` scope:
+
+```sh
+pnpm build:packages  # Compile each package's src into dist, with type declarations
+pnpm test:packages   # Pack, install outside the repo, import in Node and type-check
+```
+
+In the workspace, each package's `exports` point at `src/*.ts`. The `publishConfig.exports` in each package point at `dist`; pnpm swaps them in when packing, along with real versions for `workspace:` and `catalog:`. Pi, Chord, Hono, the MCP client and `@familiar-ai/core` are peer dependencies, because hosts share their types and objects with Familiar, and a second copy would break both. The packages carry version `0.0.0`. A `v*` tag sets every package to the tag's version, checks them, and publishes them through npm trusted publishing, after the GitHub Release.
+
 CLI management code and its tests live under `apps/daemon/src/cli/`, separate from daemon serving and the portable core. Shared paths, settings, credentials and Windows directory permissions belong to the Node host.
 
 The CLI platforms workflow has passed on Linux, macOS and Windows. It validates native plist/task definitions without registering services, and checks installed packages using temporary storage. Linux lifecycle tests use fake system commands. Installer tests use temporary homes and fake downloads.

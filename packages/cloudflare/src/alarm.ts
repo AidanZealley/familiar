@@ -1,4 +1,4 @@
-import type { Wake } from '@familiar/core'
+import type { Wake } from '@familiar-ai/core'
 import type { DurableObjectSqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite/cloudflare'
 
 /**

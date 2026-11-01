@@ -1,5 +1,5 @@
 {
-  "name": "@familiar/daemon",
+  "name": "@familiar-ai/daemon",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,15 +12,15 @@
     "eval:recall": "node src/memory-eval/recall-main.ts",
     "eval:unfiled": "node src/memory-eval/unfiled-main.ts",
     "typecheck": "tsc",
-    "bundle": "pnpm --filter @familiar/web build && node scripts/bundle.ts",
+    "bundle": "pnpm --filter @familiar-ai/web build && node scripts/bundle.ts",
     "test:release": "node scripts/verify-release.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
-    "@familiar/core": "workspace:*",
-    "@familiar/plugin-web": "workspace:*",
+    "@familiar-ai/core": "workspace:*",
+    "@familiar-ai/plugin-web": "workspace:*",
     "@hono/node-server": "2.1.5",
     "@modelcontextprotocol/client": "catalog:",
     "cross-spawn": "7.0.6",

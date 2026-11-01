@@ -1,4 +1,4 @@
-import type { Fact } from '@familiar/client'
+import type { Fact } from '@familiar-ai/client'
 import { cn } from 'cn'
 import { useState } from 'react'
 import {

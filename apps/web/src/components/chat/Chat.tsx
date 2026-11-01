@@ -1,4 +1,4 @@
-import { toTranscript } from '@familiar/client'
+import { toTranscript } from '@familiar-ai/client'
 import { useCallback, useMemo, useState } from 'react'
 import {
   MessageScroller,

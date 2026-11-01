@@ -1,11 +1,11 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Storage } from '@earendil-works/pi-durable'
-import type { Familiar } from '@familiar/core'
+import type { Familiar } from '@familiar-ai/core'
 import {
   nextUpkeep,
   saidBy,
   type UpkeepState,
-} from '@familiar/core/diagnostics'
+} from '@familiar-ai/core/diagnostics'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import type { Scenario } from './scenario.ts'
 import { entriesAfter, tasksIn } from './storage.ts'

@@ -6,6 +6,9 @@ on:
 
 permissions:
   contents: write
+  # npm trusted publishing exchanges the workflow's OIDC token for a
+  # short-lived publish token, so the repo stores no npm secret.
+  id-token: write
 
 jobs:
   release:
@@ -19,13 +22,44 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
       - run: pnpm test:cloudflare
-      - run: pnpm --filter @familiar/cloudflare-dev build
+      - run: pnpm --filter @familiar-ai/cloudflare-dev build
       - run: pnpm bundle
         env:
           RELEASE_VERSION: ${{ github.ref_name }}
       - run: pnpm test:release
+      # The libraries share the release's version, set here so the checkout
+      # never carries one.
+      - run: pnpm --filter './packages/*' exec npm pkg set version="${RELEASE_VERSION#v}"
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+      - run: pnpm test:packages
+      - run: pnpm --filter './packages/*' pack --pack-destination npm-packages
+      # Each publish step skips what an earlier attempt finished, so a failed
+      # run can be rerun.
       - name: Publish release package
-        run: gh release create "$RELEASE_VERSION" apps/daemon/dist/familiar.tgz install.sh install.ps1 --verify-tag --generate-notes --repo "$GITHUB_REPOSITORY"
+        run: |
+          if gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $RELEASE_VERSION already exists"
+          else
+            gh release create "$RELEASE_VERSION" apps/daemon/dist/familiar.tgz install.sh install.ps1 --verify-tag --generate-notes --repo "$GITHUB_REPOSITORY"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ github.ref_name }}
+      # pnpm pack resolves workspace: and catalog: versions; npm publishes,
+      # because it handles trusted publishing and provenance. Prereleases go
+      # to `next`, so `latest` only ever installs a stable version.
+      - name: Publish npm packages
+        run: |
+          tag=latest
+          case "$RELEASE_VERSION" in *-*) tag=next ;; esac
+          for package in npm-packages/*.tgz; do
+            spec=$(tar -xzOf "$package" package/package.json | jq -r '.name + "@" + .version')
+            if npm view "$spec" version > /dev/null 2>&1; then
+              echo "$spec is already published"
+            else
+              npm publish "$package" --access public --tag "$tag"
+            fi
+          done
+        env:
           RELEASE_VERSION: ${{ github.ref_name }}

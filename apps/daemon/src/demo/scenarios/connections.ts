@@ -4,7 +4,11 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { PluginContext, PluginFetch, PluginSecret } from '@familiar/core'
+import type {
+  PluginContext,
+  PluginFetch,
+  PluginSecret,
+} from '@familiar-ai/core'
 import { guardedFetch } from '../../fetch.ts'
 import type { Scenario } from '../types.ts'
 

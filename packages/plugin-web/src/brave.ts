@@ -1,6 +1,6 @@
 import { Type, type Static } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
-import { localMinute, type PluginContext } from '@familiar/core'
+import { localMinute, type PluginContext } from '@familiar-ai/core'
 import { cut } from './format.ts'
 
 export const BRAVE_ORIGIN = 'https://api.search.brave.com'

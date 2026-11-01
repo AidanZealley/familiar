@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import type { ChatModel } from '@familiar/core'
+import type { ChatModel } from '@familiar-ai/core'
 import { ensureDataDir, resolvePaths } from './paths.ts'
 import { readSettings } from './settings.ts'
 

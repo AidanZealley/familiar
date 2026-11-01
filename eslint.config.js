@@ -23,7 +23,7 @@ const nodeOnly = [
 const portable = [
   ...nodeOnly,
   {
-    group: ['cloudflare:*', '@familiar/cloudflare'],
+    group: ['cloudflare:*', '@familiar-ai/cloudflare'],
     message:
       'Packages must stay portable; Workers-only code goes in packages/cloudflare.',
   },
@@ -48,9 +48,9 @@ const typesOnlyFromPi = {
 }
 
 const typesOnlyFromCore = [
-  '@familiar/core',
-  '@familiar/core/http',
-  '@familiar/core/diagnostics',
+  '@familiar-ai/core',
+  '@familiar-ai/core/http',
+  '@familiar-ai/core/diagnostics',
 ].map((name) => ({
   name,
   message: 'The client may only import types from core.',

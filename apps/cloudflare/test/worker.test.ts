@@ -1,4 +1,4 @@
-import { localMinute } from '@familiar/core'
+import { localMinute } from '@familiar-ai/core'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestHarness, type TestHarness } from 'wrangler'
 import { SLOW_REPLY } from '../src/model.ts'

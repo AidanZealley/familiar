@@ -54,7 +54,7 @@ The daemon keeps its data outside the repo, in `~/.local/share/familiar` on Linu
 - **Packages stay portable.** `packages/*` may not import `node:*` or Node-only Pi modules. Node code lives in `apps/daemon`. Workers-only code lives in `packages/cloudflare`, the one package that may import `cloudflare:*` or Pi's Cloudflare modules. ESLint enforces both.
 - **Evictable hosts wake Familiar themselves.** A host that passes `onWake` gets no in-process timer for sleeping work. It arms its own wakeup from `wake()` and calls `resume()` when it fires. See [Familiar on Cloudflare](cloudflare.md).
 - **Tools never see the data directory.** Tools run as your user, so file permissions don't stop them. When Familiar gets file or shell tools, their environment must exclude `~/.local/share/familiar`, or a prompt injection could leak the login and the conversation.
-- **UIs depend only on `@familiar/client`.** The web app gets nothing other apps can't. pnpm's strict resolution enforces this; ESLint also limits the client to type-only imports from core and Pi.
+- **UIs depend only on `@familiar-ai/client`.** The web app gets nothing other apps can't. pnpm's strict resolution enforces this; ESLint also limits the client to type-only imports from core and Pi.
 
 ### How the UI stays live
 
@@ -179,7 +179,7 @@ apps/daemon/src      The Node host: storage, sign-in, serving and the eval.
   demo/model.ts      Scripted model routing over an explicit list of scenarios.
   demo/scenarios/    Feature-specific model responses and fake external services.
   demo/seed.ts       Sample memory data and the tools that load it.
-apps/web/src         Chat, Memory, Schedules and Connections, on @familiar/client.
+apps/web/src         Chat, Memory, Schedules and Connections, on @familiar-ai/client.
 ```
 
 ## Reading order
@@ -256,7 +256,7 @@ Pi's `Models` is the one place credentials live. It reads them from the host's c
 A host chooses whether owners can manage the login. These examples use the workspace's own imports; the packages aren't published. The daemon attaches an account, so the web UI walks the owner through ChatGPT's sign-in:
 
 ```ts
-import { createAccount, summonFamiliar } from '@familiar/core'
+import { createAccount, summonFamiliar } from '@familiar-ai/core'
 
 const models = createModels({ credentials: fileCredentialStore(path) })
 models.setProvider(openaiProvider())
@@ -307,7 +307,7 @@ const familiar = await summonFamiliar({
 })
 ```
 
-Leave `persona` out and Familiar uses `defaultPersona(name)`, exported from `@familiar/core`: "You are <name>, a personal assistant", and a tone. It promises nothing about how replies look, because only the host knows what its UI draws. The daemon serves the web UI, which draws KaTeX, Mermaid and images, so it passes `webPersona(name)` from `apps/daemon/src/persona.ts`: the default with a paragraph about those added. The demo does the same. The Cloudflare development Worker serves no UI and passes nothing.
+Leave `persona` out and Familiar uses `defaultPersona(name)`, exported from `@familiar-ai/core`: "You are <name>, a personal assistant", and a tone. It promises nothing about how replies look, because only the host knows what its UI draws. The daemon serves the web UI, which draws KaTeX, Mermaid and images, so it passes `webPersona(name)` from `apps/daemon/src/persona.ts`: the default with a paragraph about those added. The demo does the same. The Cloudflare development Worker serves no UI and passes nothing.
 
 `name` is a separate thing. It titles notifications and tells memory upkeep whose memory it keeps, and core never puts it in a host's persona. A persona that should know its name says it, like Gatherbot's.
 

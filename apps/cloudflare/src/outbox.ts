@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
-import type { Notification } from '@familiar/core'
+import type { Notification } from '@familiar-ai/core'
 import type { Env } from './env.ts'
 
 export type Delivered = Notification & { at: number }

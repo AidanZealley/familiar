@@ -32,4 +32,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test:cloudflare
-      - run: pnpm --filter @familiar/cloudflare-dev build
+      - run: pnpm --filter @familiar-ai/cloudflare-dev build

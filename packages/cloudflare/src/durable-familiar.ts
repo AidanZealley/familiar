@@ -5,7 +5,7 @@ import {
   type Familiar,
   type FamiliarOptions,
   type Wake,
-} from '@familiar/core'
+} from '@familiar-ai/core'
 import { alarmTime, alarmWriter } from './alarm.ts'
 
 /**

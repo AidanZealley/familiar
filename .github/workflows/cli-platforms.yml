@@ -29,7 +29,7 @@ jobs:
           node-version: '24.19.0'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @familiar/daemon typecheck
+      - run: pnpm --filter @familiar-ai/daemon typecheck
       - run: pnpm exec vitest run apps/daemon/scripts/installers.test.ts apps/daemon/src/cli apps/daemon/src/paths.test.ts apps/daemon/src/settings.test.ts apps/daemon/src/windows-powershell.test.ts
       - run: pnpm bundle
       - run: pnpm test:release

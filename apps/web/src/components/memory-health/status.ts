@@ -1,4 +1,4 @@
-import type { MemoryHealth } from '@familiar/client'
+import type { MemoryHealth } from '@familiar-ai/client'
 import { CORE_BUDGET } from '@/lib/memory'
 
 const number = new Intl.NumberFormat()

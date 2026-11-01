@@ -1,4 +1,4 @@
-import type { FamiliarPlugin } from '@familiar/core'
+import type { FamiliarPlugin } from '@familiar-ai/core'
 import { convertHtml, type ConvertHtml } from './convert-html.ts'
 import { webFetchTool } from './fetch-page.ts'
 import { BRAVE_ORIGIN, BRAVE_PATH, webSearchTool } from './brave.ts'

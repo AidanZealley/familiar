@@ -1,4 +1,4 @@
-import { createFamiliarStore, type FamiliarState } from '@familiar/client'
+import { createFamiliarStore, type FamiliarState } from '@familiar-ai/client'
 import { useStore } from 'zustand'
 
 /** The app's one connection to the daemon, opened on first import. */

@@ -3,7 +3,7 @@ import {
   type ModelOption,
   type ModelRef,
   type ModelThinkingLevel,
-} from '@familiar/client'
+} from '@familiar-ai/client'
 import { BrainIcon, ChevronDownIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {

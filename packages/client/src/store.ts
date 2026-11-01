@@ -18,7 +18,7 @@ import type {
   ModelOption,
   PushSubscriptionJson,
   StreamEvent,
-} from '@familiar/core/http'
+} from '@familiar-ai/core/http'
 import { EventSource, type FetchLike } from 'eventsource'
 import { hc } from 'hono/client'
 import { createStore } from 'zustand/vanilla'

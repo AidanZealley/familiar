@@ -1,4 +1,4 @@
-import type { McpServer } from '@familiar/client'
+import type { McpServer } from '@familiar-ai/client'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'

@@ -2,7 +2,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { Familiar, McpStdioFactory, PluginFetch } from '@familiar/core'
+import type { Familiar, McpStdioFactory, PluginFetch } from '@familiar-ai/core'
 import {
   InMemoryTransport,
   Server,

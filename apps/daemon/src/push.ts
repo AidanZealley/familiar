@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import type { Notification } from '@familiar/core'
-import type { PushHost, PushSubscriptionJson } from '@familiar/core/http'
+import type { Notification } from '@familiar-ai/core'
+import type { PushHost, PushSubscriptionJson } from '@familiar-ai/core/http'
 import webpush from 'web-push'
 
 export type PushOptions = {

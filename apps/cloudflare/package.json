@@ -1,5 +1,5 @@
 {
-  "name": "@familiar/cloudflare-dev",
+  "name": "@familiar-ai/cloudflare-dev",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@earendil-works/pi-ai": "catalog:",
-    "@familiar/cloudflare": "workspace:*",
-    "@familiar/core": "workspace:*",
+    "@familiar-ai/cloudflare": "workspace:*",
+    "@familiar-ai/core": "workspace:*",
     "hono": "catalog:"
   },
   "devDependencies": {

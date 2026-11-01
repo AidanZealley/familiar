@@ -10,7 +10,7 @@ import {
   summonFamiliar,
   type Familiar,
   type PluginFetch,
-} from '@familiar/core'
+} from '@familiar-ai/core'
 import { afterEach, expect, test } from 'vitest'
 import web from './index.ts'
 

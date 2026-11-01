@@ -1,6 +1,6 @@
 # Familiar on Cloudflare
 
-`@familiar/cloudflare` runs one Familiar in one SQLite-backed Durable Object. `apps/cloudflare` is a development Worker that uses it, with a scripted model, so it needs no model key.
+`@familiar-ai/cloudflare` runs one Familiar in one SQLite-backed Durable Object. `apps/cloudflare` is a development Worker that uses it, with a scripted model, so it needs no model key.
 
 ## Using the adapter
 
@@ -8,8 +8,8 @@ A host writes its own Durable Object class and gives it a `DurableFamiliar`. The
 
 ```ts
 import { DurableObject } from 'cloudflare:workers'
-import { DurableFamiliar, FamiliarTerminated } from '@familiar/cloudflare'
-import { createHttpApi } from '@familiar/core/http'
+import { DurableFamiliar, FamiliarTerminated } from '@familiar-ai/cloudflare'
+import { createHttpApi } from '@familiar-ai/core/http'
 
 export class Bot extends DurableObject<Env> {
   readonly familiar = new DurableFamiliar(this.ctx, {
@@ -97,8 +97,8 @@ The scripted model echoes messages. `remind YYYY-MM-DD HH:MM <prompt>` schedules
 
 ```sh
 pnpm test:cloudflare                              # the Worker in workerd, about 90 seconds
-pnpm --filter @familiar/cloudflare-dev build      # wrangler deploy --dry-run into apps/cloudflare/dist
-pnpm --filter @familiar/cloudflare-dev dev        # wrangler dev; needs apps/cloudflare/.dev.vars
+pnpm --filter @familiar-ai/cloudflare-dev build      # wrangler deploy --dry-run into apps/cloudflare/dist
+pnpm --filter @familiar-ai/cloudflare-dev dev        # wrangler dev; needs apps/cloudflare/.dev.vars
 ```
 
 For `wrangler dev`, put a token of your own in `apps/cloudflare/.dev.vars` as `FAMILIAR_DEV_TOKEN=...`. Git ignores the file.

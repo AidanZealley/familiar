@@ -1,4 +1,4 @@
-import type { McpServer } from '@familiar/core/http'
+import type { McpServer } from '@familiar-ai/core/http'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createFamiliarStore, type FamiliarStore } from './store.ts'
 import { entry, frame, testServer, view } from './testing.ts'

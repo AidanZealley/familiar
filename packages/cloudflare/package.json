@@ -1,18 +1,36 @@
 {
-  "name": "@familiar/cloudflare",
-  "private": true,
+  "name": "@familiar-ai/cloudflare",
+  "version": "0.0.0",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AidanZealley/familiar.git",
+    "directory": "packages/cloudflare"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {
-    "typecheck": "tsc"
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js"
+    }
   },
-  "dependencies": {
+  "scripts": {
+    "typecheck": "tsc",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "peerDependencies": {
     "@earendil-works/pi-durable": "catalog:",
-    "@familiar/core": "workspace:*"
+    "@familiar-ai/core": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261023.1"
+    "@cloudflare/workers-types": "5.20261023.1",
+    "@earendil-works/pi-durable": "catalog:",
+    "@familiar-ai/core": "workspace:*"
   }
 }

@@ -2,7 +2,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { Familiar } from '@familiar/core'
+import type { Familiar } from '@familiar-ai/core'
 import { SEED_MESSAGE, seedPinned } from '../seed.ts'
 import type { Scenario } from '../types.ts'
 

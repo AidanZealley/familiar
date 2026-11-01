@@ -14,7 +14,7 @@ import {
   summonFamiliar,
   type Familiar,
   type PluginFetch,
-} from '@familiar/core'
+} from '@familiar-ai/core'
 import {
   Server,
   WebStandardStreamableHTTPServerTransport,
