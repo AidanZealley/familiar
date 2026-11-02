@@ -99,5 +99,4 @@ connection. Generic typing alone does not promise a working stream.
 
 `pnpm test:packages` packs the libraries and a generated host declaration package,
 then compiles this frontend outside the workspace and bundles it for browsers.
-The vanilla entry stays React-free. Model exports and publication follow-up are
-deferred from this change.
+The vanilla entry stays React-free. Model setup is described in the [core README](../packages/core/README.md).

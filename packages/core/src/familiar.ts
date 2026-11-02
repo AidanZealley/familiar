@@ -92,7 +92,7 @@ export type FamiliarOptions = {
    * calendar in it: dates in memory, the days upkeep files and its 04:00
    * pass, schedules' times and repeats, and current_time's answer. Instants
    * (`now`) don't depend on it. Pass the same zone on every open; see
-   * docs/architecture.md for what changes when it differs.
+   * docs/usage.md#changing-time-zone for what changes when it differs.
    */
   timeZone: string
   /**
