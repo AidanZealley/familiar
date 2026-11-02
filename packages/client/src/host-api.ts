@@ -11,9 +11,9 @@ type Group<Schema, Path extends keyof Standard, Value> =
 
 // Responses may be narrower, but the host must accept every standard input.
 type Compatible<Actual, Expected> = Actual extends Expected
-  ? Actual extends { input: infer Input }
+  ? Actual extends { input: infer Input; output: infer Output }
     ? Expected extends { input: infer StandardInput }
-      ? 0 extends 1 & Input
+      ? 0 extends 1 & (Input | Output)
         ? false
         : StandardInput extends Input
           ? never
