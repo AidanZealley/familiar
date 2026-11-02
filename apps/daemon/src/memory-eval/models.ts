@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { createModels } from '@earendil-works/pi-ai/models'
-import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
+import { createModels } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
 import { fileCredentialStore } from '../credentials.ts'
 
 // This command deliberately never imports config.ts: that module creates the

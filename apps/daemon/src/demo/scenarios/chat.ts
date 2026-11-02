@@ -4,7 +4,7 @@ import {
   fauxThinking,
   fauxToolCall,
   fauxText,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import type { Scenario } from '../types.ts'
 
 export const markdownReply = `## A quick tour

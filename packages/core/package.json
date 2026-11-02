@@ -14,7 +14,11 @@
     "./extensions": "./src/extensions.ts",
     "./diagnostics": "./src/diagnostics.ts",
     "./mcp": "./src/mcp/index.ts",
-    "./storage/memory": "./src/storage/memory.ts"
+    "./storage/memory": "./src/storage/memory.ts",
+    "./models": "./src/models/index.ts",
+    "./models/openai": "./src/models/openai.ts",
+    "./models/openrouter": "./src/models/openrouter.ts",
+    "./models/faux": "./src/models/faux.ts"
   },
   "files": [
     "dist"
@@ -27,7 +31,11 @@
       "./extensions": "./dist/extensions.js",
       "./diagnostics": "./dist/diagnostics.js",
       "./mcp": "./dist/mcp/index.js",
-      "./storage/memory": "./dist/storage/memory.js"
+      "./storage/memory": "./dist/storage/memory.js",
+      "./models": "./dist/models/index.js",
+      "./models/openai": "./dist/models/openai.js",
+      "./models/openrouter": "./dist/models/openrouter.js",
+      "./models/faux": "./dist/models/faux.js"
     }
   },
   "scripts": {

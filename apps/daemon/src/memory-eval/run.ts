@@ -1,4 +1,4 @@
-import type { Models } from '@earendil-works/pi-ai'
+import type { Models } from '@familiar-ai/core/models'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar } from '@familiar-ai/core'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'

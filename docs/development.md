@@ -124,11 +124,32 @@ core and Pi runtime code are absent from the browser bundle. React remains an
 optional peer and is absent from vanilla imports.
 
 Familiar owns exact Pi and Chord dependency versions through the workspace
-catalog. Hosts still install `@earendil-works/pi-ai` directly to configure Models
-and providers. Use the catalog's exact version, currently `1.4.0`, so the host,
-Familiar and Pi Durable resolve the same runtime classes and identity tokens.
-Installing a different host version can produce multiple incompatible instances;
-ordinary dependencies cannot prevent a host from doing that. MCP and Hono are
+catalog. Hosts install Familiar and configure models through `@familiar-ai/core/models`:
+
+```ts
+import { createModels, type CredentialStore } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
+import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
+
+const models = createModels({ credentials }) // host-owned CredentialStore
+models.setProvider(openaiProvider())
+models.setProvider(openrouterProvider())
+```
+
+Tests can import the full faux provider API from `@familiar-ai/core/models/faux`.
+Each provider path reexports its supported Pi module in full. Importing the model
+factory does not register or load provider catalogs. These factories use core's
+installed Pi instance; pass the same `models` object to `createAccount` and
+`summonFamiliar`.
+
+Familiar owns these import paths. Advanced model and extension contracts follow
+the bundled pinned Pi version, currently `1.4.0`, including full provider options
+and inferred request types. Changes to those contracts will be called out with
+the Familiar release, with compatibility aliases when straightforward. There is
+no independent stable model abstraction or version negotiation. A host that
+separately installs another Pi version can still create incompatible package
+copies; that is distinct from passing a different `models` object to an account.
+MCP and Hono are
 also ordinary core dependencies, rather than installation work for plugin authors.
 
 Memory storage is available from `@familiar-ai/core/storage/memory`. Workers can

@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import type { Models } from '@earendil-works/pi-ai'
+import type { Models } from '@familiar-ai/core/models'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
 import { summonFamiliar, type Familiar } from '@familiar-ai/core'
 import { nextUpkeep, saidBy } from '@familiar-ai/core/diagnostics'

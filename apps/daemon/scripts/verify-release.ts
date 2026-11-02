@@ -8,7 +8,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { delimiter, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { OAuthAuth } from '@earendil-works/pi-ai'
+import type { OAuthAuth } from '@familiar-ai/core/models'
 import { runNpm } from '../src/cli/npm.ts'
 
 // Install outside the workspace so missing dependencies and assets cannot

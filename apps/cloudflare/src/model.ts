@@ -1,11 +1,11 @@
-import type { TranscriptContext } from '@earendil-works/pi-ai'
-import { createModels } from '@earendil-works/pi-ai/models'
+import type { TranscriptContext } from '@familiar-ai/core/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
   type FauxResponseFactory,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import type { ChatModel } from '@familiar-ai/core'
 
 export const DEV_MODEL: ChatModel = {

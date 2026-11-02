@@ -1,11 +1,11 @@
 import { EventEmitter, once } from 'node:events'
-import type { TranscriptContext } from '@earendil-works/pi-ai'
-import { createModels } from '@earendil-works/pi-ai/models'
+import type { TranscriptContext } from '@familiar-ai/core/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { createToolSearchExtension } from '@familiar-ai/core/extensions'
 import { summonFamiliar } from '@familiar-ai/core'

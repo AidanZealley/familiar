@@ -1,8 +1,8 @@
-import { createModels } from '@earendil-works/pi-ai/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { defaultPersona, summonFamiliar } from '@familiar-ai/core'
 import { expect, test } from 'vitest'

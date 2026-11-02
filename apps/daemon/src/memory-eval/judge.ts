@@ -1,4 +1,4 @@
-import type { Models, Usage } from '@earendil-works/pi-ai'
+import type { Models, Usage } from '@familiar-ai/core/models'
 import { retryAssistantCall } from '@earendil-works/pi-ai/utils/retry'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type { Question, Scenario } from './scenario.ts'
