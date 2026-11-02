@@ -77,4 +77,4 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --c
 
 Core and Cloudflare changes also need `pnpm test:cloudflare`. For package export or dependency changes, run `pnpm test:packages`, which installs and checks tarballs outside the workspace. Workspace imports use TypeScript source; published libraries use compiled `dist` files. `pnpm build:packages` builds those libraries. Release tags publish them and the installable assistant; [the release workflow](.github/workflows/release.yml) owns that process.
 
-Use the faux provider to test the real harness without model requests. Keep Node-only code in the daemon and Workers lifecycle code in the Cloudflare package. Repository conventions and safety limits are in [AGENTS.md](AGENTS.md).
+Use the faux provider to test the real harness without model requests. Keep Node-only code in the daemon and Workers lifecycle code in the Cloudflare package. Local coding conventions are in [AGENTS.md](AGENTS.md).
