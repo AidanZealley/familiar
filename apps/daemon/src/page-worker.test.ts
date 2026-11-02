@@ -21,7 +21,11 @@ const tool = async (html: string) => {
     })
     .tools!.find((tool) => tool.name === 'web_fetch')!
 }
-const api = { now: Date.now } as ToolExecutionApi
+const api = {
+  now: Date.now,
+  // This isolated conversion test has no durable tool task or initiating person.
+  commit: async () => undefined,
+} as unknown as ToolExecutionApi
 
 test('the daemon converts pages in its configured worker pool', async () => {
   const fetch = await tool(

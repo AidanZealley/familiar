@@ -74,7 +74,7 @@ export const eventRoutes = (sources: EventSources) =>
         }
       }
       const setup = async () => {
-        await send({ event: 'protocol', data: { version: 1 } })
+        await send({ event: 'protocol', data: { version: 2 } })
         if (sources.conversation && !stopped) {
           const watch = await sources.conversation()
           if (retain(watch)) {

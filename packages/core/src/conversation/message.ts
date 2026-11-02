@@ -5,6 +5,7 @@ import type {
   EntryQuery,
   EntryRecord,
   GenerationCheckpoint,
+  ToolTaskInput,
   TaskId,
   Tx,
 } from '@earendil-works/pi-durable'
@@ -12,8 +13,39 @@ import type {
 /** The entry kind people's messages are stored as. */
 export const MESSAGE_KIND = 'familiar.message'
 
-/** A person's message as stored: the author the host recorded, and their words exactly. */
-export type MessageData = { author: string; text: string }
+/** Host-owned identity with a display name captured at send time. */
+export type Author = {
+  /** Stable host-owned identity, unchanged across devices and renames. */
+  id: string
+  /** Display name when this message was sent. */
+  name: string
+}
+
+/** A person's message as stored, without parsing the model's copy. */
+export type MessageData = { author: Author; text: string }
+
+/** Historical entries may have only a name. New sends still require an Author. */
+export type StoredMessageData = { author: Author | string; text: string }
+
+/** Reject malformed host identities rather than admitting an unattributed message. */
+export function authorSnapshot(author: Author): Author {
+  if (
+    typeof author?.id !== 'string' ||
+    !author.id.trim() ||
+    typeof author.name !== 'string' ||
+    !author.name.trim()
+  ) {
+    throw new TypeError('An author requires a non-empty id and name.')
+  }
+  return { id: author.id, name: author.name }
+}
+
+/** JSON stays on one line even when a host supplies control characters. */
+export const formatAuthor = (author: StoredMessageData['author']) =>
+  JSON.stringify(author).replace(
+    /[\u007f-\u009f\u2028\u2029]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  )
 
 /**
  * What the model sees for a person's message: a first line naming the author,
@@ -21,10 +53,7 @@ export type MessageData = { author: string; text: string }
  * breaks escaped too, so no name can end the line or the quotes early.
  */
 export const formatMessage = ({ author, text }: MessageData) =>
-  `[Message from ${JSON.stringify(author).replace(
-    /[\u007f-\u009f\u2028\u2029]/g,
-    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
-  )}]\n${text}`
+  `[Message from ${formatAuthor(author)}]\n${text}`
 
 /**
  * The person's message a generation request answers, read from its entry so
@@ -60,7 +89,7 @@ export async function answeredMessage(tx: Tx, taskId: TaskId) {
 
     if (entry.model?.some((message) => message.role === 'user')) {
       return entry.kind === MESSAGE_KIND
-        ? (entry.data as MessageData)
+        ? (entry.data as StoredMessageData)
         : undefined
     }
   }
@@ -73,6 +102,7 @@ export const SCHEDULED_KIND = 'familiar.scheduled'
 
 export type ScheduledData = {
   scheduleId: string
+  creator?: Author
   prompt: string
   /** The time it was scheduled for, in ms since the epoch. */
   due: number
@@ -91,10 +121,15 @@ export const textOf = (message: Message) => {
 }
 
 export type Said =
-  | { role: 'person'; author: string; text: string; at: number }
+  | {
+      role: 'person'
+      author: StoredMessageData['author']
+      text: string
+      at: number
+    }
   | { role: 'assistant'; text: string; at: number }
   /** A schedule's prompt, set up earlier and submitted when due. */
-  | { role: 'scheduled'; text: string; at: number }
+  | { role: 'scheduled'; creator?: Author; text: string; at: number }
 
 /** Who said what, for the entries people and the assistant wrote. */
 export function saidBy(entry: EntryRecord): Said | undefined {
@@ -104,15 +139,12 @@ export function saidBy(entry: EntryRecord): Said | undefined {
     return undefined
   }
 
-  // pi.user is input submitted without an author, such as by a host directly.
-  if (entry.kind === MESSAGE_KIND || entry.kind === 'pi.user') {
-    const data = entry.data as Partial<MessageData> | undefined
-
-    // The stored words, not the model's copy with its author line.
+  if (entry.kind === MESSAGE_KIND) {
+    const data = entry.data as StoredMessageData
     return {
       role: 'person',
-      author: data?.author || 'user',
-      text: data?.text ?? textOf(message),
+      author: data.author,
+      text: data.text,
       at: message.timestamp,
     }
   }
@@ -122,6 +154,7 @@ export function saidBy(entry: EntryRecord): Said | undefined {
 
     return {
       role: 'scheduled',
+      creator: data?.creator,
       text: data?.prompt ?? textOf(message),
       at: message.timestamp,
     }
@@ -145,4 +178,45 @@ export async function* entriesOf(tx: Tx, query: EntryQuery) {
     yield* page.items
     cursor = page.next
   } while (cursor)
+}
+
+/**
+ * Resolve a tool's author through its persisted call ancestry. The assistant
+ * entry bounds the search, so later queued or placed messages cannot steal it.
+ * Nested tools follow their parent, and scheduled runs retain their creator.
+ */
+export async function toolAuthor(
+  tx: Tx,
+  taskId: TaskId,
+): Promise<Author | undefined> {
+  const task = await tx.task(taskId)
+  if (!task || task.kind !== 'pi.tool') {
+    return undefined
+  }
+  const input = task.input as ToolTaskInput
+  if (input.kind === 'nested') {
+    return toolAuthor(tx, input.parent)
+  }
+  for await (const entry of entriesOf(tx, {
+    conversationId: task.conversationId,
+    maxEntryId: input.assistant,
+  })) {
+    if (entry.kind === MESSAGE_KIND) {
+      const { author } = entry.data as StoredMessageData
+      // A historical name cannot establish a person’s stable identity.
+      return typeof author === 'string' ? undefined : author
+    }
+    if (entry.kind === SCHEDULED_KIND) {
+      return (entry.data as ScheduledData).creator
+    }
+    // Other input, e.g. upkeep, has no person behind it. Compaction summaries
+    // are history markers, not inputs, and must not hide the original author.
+    if (
+      !entry.head &&
+      entry.model?.some((message) => message.role === 'user')
+    ) {
+      return undefined
+    }
+  }
+  return undefined
 }

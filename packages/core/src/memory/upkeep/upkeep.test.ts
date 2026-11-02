@@ -51,7 +51,11 @@ async function setup(storage: Storage = new ReopenableStorage()) {
   }
 
   const say = async (text: string) => {
-    await familiar.send({ author: 'aidan', text, requestId: text })
+    await familiar.send({
+      author: { id: 'aidan', name: 'aidan' },
+      text,
+      requestId: text,
+    })
     await familiar.idle()
   }
   const memory = async () => {
@@ -176,7 +180,7 @@ test('a pass at 04:00 files facts with their sources and days', async () => {
 
   expect(faux.getPendingResponseCount()).toBe(0)
   expect(input).toMatch(
-    /\[x\d+ 2026-10-25 12:00\] aidan: I have a cat called Miso/,
+    /\[x\d+ 2026-10-25 12:00\] \{"id":"aidan","name":"aidan"\}: I have a cat called Miso/,
   )
   expect(input).toContain('Familiar: Noted.')
   // Upkeep reads the stored words, not the model's copy with its author line.
@@ -365,7 +369,7 @@ test("read_memory opens a day episode's exchanges and a fact's sources", async (
   const [day, fact] = results.slice(-2)
   expect(day).toMatch(/^e1 \(day of 2026-10-25\): Adopted a cat, Miso\./)
   expect(day).toMatch(
-    /x\d+ \(2026-10-25 12:00\):\nI adopted a cat called Miso today\.\nWelcome home, Miso\./,
+    /x\d+ \(2026-10-25 12:00; author \{"id":"aidan","name":"aidan"\}\):\nI adopted a cat called Miso today\.\nWelcome home, Miso\./,
   )
   expect(day).not.toContain('[Message from')
   expect(fact).toMatch(/^f1 \(since 2026-10-25\): Has a cat called Miso/)
@@ -1057,4 +1061,50 @@ test('a failed rollup still lets the review run, and is tried again the next nig
   faux.setResponses([fauxAssistantMessage('A week of greetings.')])
   await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
   expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
+})
+
+test('upkeep and recalled exchanges preserve same-name IDs and rename snapshots', async () => {
+  const { faux, familiar, passAt, say } = await setup()
+  const messages = [
+    {
+      author: { id: 'sam-1', name: 'Sam' },
+      text: 'My favourite fruit is mango',
+    },
+    {
+      author: { id: 'sam-2', name: 'Sam' },
+      text: 'My favourite fruit is pear',
+    },
+    { author: { id: 'sam-1', name: 'Samuel' }, text: 'I still prefer mango' },
+  ]
+  faux.setResponses(messages.map(() => fauxAssistantMessage('Noted')))
+  for (const message of messages) {
+    await familiar().send({ ...message, requestId: message.text })
+    await familiar().idle()
+  }
+  let upkeep = ''
+  faux.setResponses([
+    (context) => {
+      upkeep = inputOf(context)
+      return fauxAssistantMessage('The two Sams discussed fruit.')
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  for (const { author, text } of messages) {
+    expect(upkeep).toContain(`${JSON.stringify(author)}: ${text}`)
+  }
+  let recalled = ''
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'fruit' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      recalled = JSON.stringify(
+        context.messages.filter((message) => message.role === 'toolResult'),
+      )
+      return fauxAssistantMessage('Mango and pear')
+    },
+  ])
+  await say('Who likes which fruit?')
+  expect(recalled).toContain('sam-1')
+  expect(recalled).toContain('sam-2')
 })

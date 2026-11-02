@@ -1,5 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
-import { defineTool, ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
+import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
+import { defineTool } from '../plugins/tools.ts'
 import { weekdayMinute } from '../time/index.ts'
 import {
   addSchedule,
@@ -57,7 +58,7 @@ export function scheduleTools(task: ScheduleTask, timeZone: string) {
         }
         const added = addSchedule(
           schedules,
-          { id, ...args },
+          { id, ...args, creator: api.author },
           api.now(),
           timeZone,
         )

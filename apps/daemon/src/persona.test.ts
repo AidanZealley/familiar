@@ -32,7 +32,11 @@ test('the web host keeps the default persona and names what its chat draws', asy
     },
   ])
   try {
-    await familiar.send({ author: 'owner', text: 'Hello', requestId: 'hello' })
+    await familiar.send({
+      author: { id: 'owner', name: 'owner' },
+      text: 'Hello',
+      requestId: 'hello',
+    })
     await familiar.idle()
   } finally {
     await familiar.dismiss()

@@ -137,7 +137,7 @@ export default definePlugin({
 })
 ```
 
-`Type` builds argument schemas. `defineTool` is Pi's helper, reexported unchanged: it infers arguments from `parameters` and the details type. `Static` and `TSchema` are available for named schema types. `FamiliarTool`, `ToolContext` and `ToolResult` are thin aliases for Pi's complete tool registration, Chord context and execution result. The callback keeps its established `execute(args, api, context)` signature.
+`Type` builds argument schemas. `defineTool` infers arguments from `parameters` and the details type, and adds `api.author` from the durable input that initiated the call. `Static` and `TSchema` are available for named schema types. `FamiliarTool` retains Pi's registration options with `FamiliarToolApi` for execution. `ToolContext` and `ToolResult` retain Chord context and Pi execution result types. The callback keeps its established `execute(args, api, context)` signature. `api.author` is `{ id, name }` for a person's request or a schedule with a creator, and `undefined` for work with no person. It records identity, not permission to act.
 
 Return text or image blocks in `output`. Text remains the fallback for every client. Optional JSON-safe `details` travels with the persisted tool result to the client's `ToolCall.details`, where the host must narrow the unknown value before rendering. `api.details(value, context)` replaces running details; its last value becomes the result's details unless the return value supplies `details`. `api.output(text)` appends running text and supplies the final output when the result omits it. Details are stored beside model output, not appended to the text.
 

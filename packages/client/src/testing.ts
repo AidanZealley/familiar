@@ -51,7 +51,7 @@ export function testServer(
         streams.push(controller)
         if (handshake) {
           controller.enqueue(
-            new TextEncoder().encode(frame('protocol', { version: 1 })),
+            new TextEncoder().encode(frame('protocol', { version: 2 })),
           )
         }
         request.signal.addEventListener('abort', () =>

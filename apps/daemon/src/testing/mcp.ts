@@ -140,7 +140,7 @@ export function mcpFixture(test: TestContext) {
         },
       ])
       await familiar.send({
-        author: 'owner',
+        author: { id: 'owner', name: 'owner' },
         text: query,
         requestId: crypto.randomUUID(),
       })

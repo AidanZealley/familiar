@@ -363,7 +363,11 @@ test('a reply failing on a login that stopped working marks it expired, and a wo
     account,
   })
   const say = async (text: string) => {
-    await familiar.send({ author: 'aidan', text, requestId: text })
+    await familiar.send({
+      author: { id: 'aidan', name: 'aidan' },
+      text,
+      requestId: text,
+    })
     await familiar.idle()
     await settled()
   }

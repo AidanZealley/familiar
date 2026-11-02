@@ -10,7 +10,12 @@ import {
   type Harness,
   type ModelRef,
 } from '@earendil-works/pi-durable'
-import { formatMessage, MESSAGE_KIND } from './message.ts'
+import {
+  authorSnapshot,
+  formatMessage,
+  MESSAGE_KIND,
+  type Author,
+} from './message.ts'
 import {
   findChatModel,
   ModelError,
@@ -25,11 +30,11 @@ import {
 /** One message from a person. Hosts authenticate; Familiar only records who spoke. */
 export type Message = {
   /**
-   * Who sent it, as the host names them. The model sees it on the message, so
-   * pick a label it can address, such as a first name. It attributes words;
+   * Who sent it, with a stable host ID and the name at send time. The model
+   * sees both; pick a name it can address, such as a first name. It attributes words;
    * it grants nothing.
    */
-  author: string
+  author: Author
   text: string
   /** Stable per logical message, so a retried send is admitted once. */
   requestId: string
@@ -107,7 +112,8 @@ export async function installConversation(
   }, context)
 
   return {
-    send: async ({ author, text, requestId }) => {
+    send: async ({ author: suppliedAuthor, text, requestId }) => {
+      const author = authorSnapshot(suppliedAuthor)
       // The model's copy names the author; the entry keeps the words as sent.
       await conversation.submit(
         {

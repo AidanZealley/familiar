@@ -21,7 +21,10 @@ export const createHostApi = (familiar: Familiar) =>
   new Hono()
     .route(
       '/',
-      conversationRoutes(familiar, () => 'Example owner'),
+      conversationRoutes(familiar, () => ({
+        id: 'owner',
+        name: 'Example owner',
+      })),
     )
     .route('/memory', memoryRoutes(familiar.memory))
     .route('/', eventRoutes({ conversation: familiar.watch }))

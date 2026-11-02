@@ -5,6 +5,7 @@ import { Hono } from 'hono'
 import type { AccountState } from './account/index.ts'
 import { accountRoutes } from './account/http.ts'
 import { conversationRoutes, modelRoutes } from './conversation/http.ts'
+import type { Author } from './conversation/message.ts'
 import type { Familiar } from './familiar.ts'
 import type { EpisodesState, FactsState } from './memory/index.ts'
 import { memoryRoutes } from './memory/http.ts'
@@ -20,8 +21,10 @@ import { scheduleRoutes } from './schedules/http.ts'
 // by `StreamEvent`. The conversation is Pi's view as it is, so clients type
 // it with Pi's own types.
 export type {
+  Author,
   MESSAGE_KIND,
   MessageData,
+  StoredMessageData,
   ModelOption,
   SCHEDULED_KIND,
   ScheduledData,
@@ -92,14 +95,14 @@ export type HttpOptions = {
    */
   authenticate: (
     request: Request,
-  ) => string | undefined | Promise<string | undefined>
+  ) => Author | undefined | Promise<Author | undefined>
   /** Web Push, if the host offers it; the push routes answer 404 without it. */
   push?: PushHost
 }
 
 /** The Familiar HTTP API as a fetch handler. Mount it under any path. */
 export function createHttpApi(familiar: Familiar, options: HttpOptions) {
-  return new Hono<{ Variables: { author: string } }>()
+  return new Hono<{ Variables: { author: Author } }>()
     .use(async (c, next) => {
       const author = await options.authenticate(c.req.raw)
 

@@ -116,7 +116,7 @@ export async function replayScenario(
     const before = await upkeepThrough(storage)
     if (day.text) {
       await familiar.send({
-        author: 'Rowan',
+        author: { id: 'Rowan', name: 'Rowan' },
         text: day.text,
         requestId: `eval:day:${index}`,
       })

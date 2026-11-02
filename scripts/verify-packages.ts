@@ -196,13 +196,17 @@ if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value 
     'portable',
     ['ES2023', 'DOM'],
     [],
-    `import { summonFamiliar } from '@familiar-ai/core'
+    `import { summonFamiliar, type Author } from '@familiar-ai/core'
 import { createHttpApi, conversationRoutes, memoryRoutes, eventRoutes, type HttpApi } from '@familiar-ai/core/http'
 import { Hono } from 'hono'
 import { hc, type InferResponseType } from 'hono/client'
 declare const hostFamiliar: Awaited<ReturnType<typeof summonFamiliar>>
+const author: Author = { id: 'sam', name: 'Sam' }
+hostFamiliar.send({ author, text: 'Hello', requestId: 'one' })
+// @ts-expect-error hosts must supply a stable author ID
+hostFamiliar.send({ author: { name: 'Sam' }, text: 'Hello', requestId: 'two' })
 const composed = new Hono()
-  .route('/chat', conversationRoutes(hostFamiliar, () => 'Sam'))
+  .route('/chat', conversationRoutes(hostFamiliar, () => ({ id: 'sam', name: 'Sam' })))
   .route('/memory', memoryRoutes(hostFamiliar.memory))
   .route('/', eventRoutes({ conversation: hostFamiliar.watch }))
 const custom = hc<typeof composed>('https://example.com')
@@ -355,6 +359,8 @@ declare const transaction: ToolExecutionApi['commit']
 const precise = defineTool<typeof Parameters, { count: number }>({
   name: 'precise', description: 'Precise details', parameters: Parameters,
   execute: async (args, api, context) => {
+    const authorId: string | undefined = api.author?.id
+    void authorId
     await api.details({ count: args.query.length }, context)
     // @ts-expect-error details type must survive packing
     await api.details({ count: 'wrong' }, context)
@@ -553,7 +559,7 @@ await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: crea
 const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
   assert.equal(familiar.account, account.api)
-  await familiar.send({ author: 'Consumer', text: 'Hello', requestId: 'packed' })
+  await familiar.send({ author: { id: 'Consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
   await familiar.idle()
   const view = await familiar.watch()
   assert.match(JSON.stringify(view.value), /Packed host works/)

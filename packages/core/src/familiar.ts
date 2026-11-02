@@ -52,6 +52,7 @@ export {
 } from './account/index.ts'
 export {
   ModelError,
+  type Author,
   type ChatModel,
   type HistoryPage,
   type Message,

@@ -11,6 +11,7 @@ export { carryOver, startOf } from './conversation.ts'
 export * from './transcript.ts'
 export * from './repeat.ts'
 export type {
+  Author,
   AccountState,
   ConnectionInfo,
   Episode,

@@ -49,7 +49,7 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
         streams += 1
         await stream.writeSSE({
           event: 'protocol',
-          data: JSON.stringify({ version: 1 }),
+          data: JSON.stringify({ version: 2 }),
         })
         await stream.writeSSE({
           event: 'view',
@@ -309,7 +309,7 @@ test.each([200, 401])(
 )
 
 test.each([
-  frame('protocol', { version: 2 }),
+  frame('protocol', { version: 1 }),
   'event: protocol\ndata: {broken\n\n',
   frame('protocol', {}),
   frame('view', view(99)),
@@ -334,7 +334,7 @@ test.each(['Text/Event-Stream', 'TEXT/EVENT-STREAM; charset=utf-8'])(
     const store = open('/api', {
       fetch: async () =>
         new Response(
-          frame('protocol', { version: 2 }) + frame('view', view(99)),
+          frame('protocol', { version: 1 }) + frame('view', view(99)),
           {
             headers: { 'Content-Type': contentType },
           },
@@ -352,7 +352,7 @@ test('each reconnect requires its own compatible handshake and retains the last 
   await expect.poll(server.connections).toBe(1)
   // Split the handshake itself, including CRLF boundaries.
   for (const byte of new TextEncoder().encode(
-    'event: protocol\r\ndata: {"version":1}\r\n\r\n',
+    'event: protocol\r\ndata: {"version":2}\r\n\r\n',
   )) {
     server.send(Uint8Array.of(byte))
   }
@@ -360,7 +360,7 @@ test('each reconnect requires its own compatible handshake and retains the last 
   await expect.poll(() => store.getState().connection).toBe('open')
   server.end()
   await expect.poll(server.connections).toBe(2)
-  server.send(frame('protocol', { version: 2 }) + frame('view', view(2)))
+  server.send(frame('protocol', { version: 1 }) + frame('view', view(2)))
   await expect.poll(() => store.getState().connection).toBe('outdated')
   expect(store.getState().conversation.view).toEqual(view(1))
   await tick()
@@ -386,7 +386,7 @@ test('handshake acceptance waits for a view', async () => {
   const server = testServer(undefined, false)
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
-  server.send(frame('protocol', { version: 1 }))
+  server.send(frame('protocol', { version: 2 }))
   await tick()
   expect(store.getState().connection).toBe('connecting')
   server.send(frame('view', view(1)))
@@ -417,7 +417,7 @@ test('a compatible handshake and view in one chunk opens the connection', async 
   const server = testServer(undefined, false)
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
-  server.send(frame('protocol', { version: 1 }) + frame('view', view(1)))
+  server.send(frame('protocol', { version: 2 }) + frame('view', view(1)))
   await expect.poll(() => store.getState().connection).toBe('open')
   expect(store.getState().conversation.view).toEqual(view(1))
 })
@@ -427,7 +427,7 @@ test('a reconnect cannot reuse the previous connection handshake', async () => {
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
   server.send(
-    retrySoon + frame('protocol', { version: 1 }) + frame('view', view(1)),
+    retrySoon + frame('protocol', { version: 2 }) + frame('view', view(1)),
   )
   await expect.poll(() => store.getState().connection).toBe('open')
   server.end()
@@ -447,7 +447,7 @@ test('disconnect during a view notification prevents later state from the same c
     }
   })
   server.send(
-    frame('protocol', { version: 1 }) +
+    frame('protocol', { version: 2 }) +
       frame('view', view(1)) +
       frame('view', view(2)),
   )

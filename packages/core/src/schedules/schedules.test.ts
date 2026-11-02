@@ -19,6 +19,7 @@ import { ReopenableStorage } from '../memory/testing.ts'
 import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
 import { parseMinute } from '../time/index.ts'
 import { occurrenceAfter, occurrenceBy, occurrencesAfter } from './repeat.ts'
+import { defineTool, Type, type Author, type FamiliarPlugin } from '../index.ts'
 import { addSchedule } from './schedules.ts'
 
 const pad = (value: number) => String(value).padStart(2, '0')
@@ -54,7 +55,9 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
+async function setup(
+  options: { onWake?: (wake: Wake) => void; plugins?: FamiliarPlugin[] } = {},
+) {
   const storage = new ReopenableStorage()
   const faux = fauxProvider()
   const models = createModels()
@@ -96,6 +99,7 @@ async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
         notifications.push(notification)
       },
       onWake: options.onWake,
+      plugins: options.plugins,
     })
     opened.push(familiar)
     return familiar
@@ -103,7 +107,10 @@ async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
   let familiar = await open()
 
   /** Asks for a reminder, as the model would, and returns its ID. */
-  const schedule = async (args: { at?: string; repeat?: string }) => {
+  const schedule = async (
+    args: { at?: string; repeat?: string },
+    author: Author = { id: 'aidan', name: 'aidan' },
+  ) => {
     let result = ''
     faux.setResponses([
       fauxAssistantMessage(
@@ -120,7 +127,7 @@ async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
       ...Array.from({ length: 100 }, () => respond),
     ])
     await familiar.send({
-      author: 'aidan',
+      author,
       text: 'Remind me to call Mum',
       requestId: `ask:${clock.now()}`,
     })
@@ -185,7 +192,11 @@ async function setup(options: { onWake?: (wake: Wake) => void } = {}) {
     /** Sends a message from the owner, which the model answers with `answer`. */
     say: (text: string, answer: Answer) => {
       ownerAnswers.set(text, answer)
-      return familiar.send({ author: 'aidan', text, requestId: text })
+      return familiar.send({
+        author: { id: 'aidan', name: 'aidan' },
+        text,
+        requestId: text,
+      })
     },
     notifications,
     schedule,
@@ -204,19 +215,28 @@ test('a one-off reminder runs at its time, notifies with the reply, and is remov
   const f = await setup()
   const id = await f.schedule({ at: '2026-10-21 18:00' })
   expect(Object.keys(await f.schedules())).toEqual([id])
+  expect((await f.schedules())[id].creator).toEqual({
+    id: 'aidan',
+    name: 'aidan',
+  })
 
   f.answer('**Time to call Mum!**')
   await f.fireAt(at(21, 18), 'done')
 
   expect(f.inputs).toEqual([
-    '[Scheduled for 2026-10-21 18:00] Remind Aidan to call Mum',
+    '[Scheduled for 2026-10-21 18:00; requested by {"id":"aidan","name":"aidan"}] Remind Aidan to call Mum',
   ])
   expect(f.notifications).toEqual([
     { title: 'Familiar', body: 'Time to call Mum!', url: '/' },
   ])
   expect(await f.schedules()).toEqual({})
   expect((await f.scheduledEntries()).map((entry) => entry.data)).toEqual([
-    { scheduleId: id, prompt: 'Remind Aidan to call Mum', due: at(21, 18) },
+    {
+      scheduleId: id,
+      prompt: 'Remind Aidan to call Mum',
+      due: at(21, 18),
+      creator: { id: 'aidan', name: 'aidan' },
+    },
   ])
 })
 
@@ -335,7 +355,7 @@ test('a daily repeat woken three days late delivers once, marked late, and conti
   await f.sleepingUntil(at(25, 18))
 
   expect(f.inputs).toEqual([
-    '[Scheduled for 2026-10-24 18:00, delivered 2026-10-24 21:14] Remind Aidan to call Mum',
+    '[Scheduled for 2026-10-24 18:00, delivered 2026-10-24 21:14; requested by {"id":"aidan","name":"aidan"}] Remind Aidan to call Mum',
   ])
   expect(f.notifications).toHaveLength(1)
   expect((await f.schedules())[id].next).toBe(at(25, 18))
@@ -355,7 +375,8 @@ test('a repeat keeps its local time across a daylight saving change', async () =
   }
   expect(f.inputs).toEqual(
     [22, 23, 24, 25, 26].map(
-      (day) => `[Scheduled for 2026-10-${day} 07:00] Remind Aidan to call Mum`,
+      (day) =>
+        `[Scheduled for 2026-10-${day} 07:00; requested by {"id":"aidan","name":"aidan"}] Remind Aidan to call Mum`,
     ),
   )
 })
@@ -478,6 +499,49 @@ test('reopened in another zone, a one-off keeps its time and a repeat follows th
     expect((await f.schedules())[daily].next).toBe(Date.UTC(2026, 9, 22, 11)),
   )
   expect(f.inputs).toEqual([
-    '[Scheduled for 2026-10-22 02:00] Remind Aidan to call Mum',
+    '[Scheduled for 2026-10-22 02:00; requested by {"id":"aidan","name":"aidan"}] Remind Aidan to call Mum',
   ])
+})
+
+test('a reopened schedule exposes its creator snapshot to tools without recipient routing', async () => {
+  const seen: (Author | undefined)[] = []
+  const f = await setup({
+    plugins: [
+      {
+        name: 'identity',
+        title: 'Identity',
+        extension: () => ({
+          tools: [
+            defineTool({
+              name: 'identify',
+              description: 'Report the creator',
+              parameters: Type.Object({}),
+              execute: async (_args, api) => {
+                seen.push(api.author)
+                return { output: [{ type: 'text', text: 'Identified' }] }
+              },
+            }),
+          ],
+        }),
+      },
+    ],
+  })
+  const author = { id: 'sam-1', name: 'Sam' }
+  const id = await f.schedule({ at: '2026-10-21 18:00' }, author)
+  author.name = 'Samuel'
+  await f.reopen()
+  expect((await f.schedules())[id].creator).toEqual({
+    id: 'sam-1',
+    name: 'Sam',
+  })
+  f.answer(
+    () =>
+      fauxAssistantMessage(fauxToolCall('identify', {}), {
+        stopReason: 'toolUse',
+      }),
+    'Time to call Mum',
+  )
+  await f.fireAt(at(21, 18), 'done')
+  expect(seen).toEqual([{ id: 'sam-1', name: 'Sam' }])
+  expect(bodies(f.notifications)).toEqual(['Time to call Mum'])
 })

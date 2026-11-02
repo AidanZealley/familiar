@@ -21,7 +21,9 @@ export class Bot extends DurableObject<Env> {
     try {
       return await this.familiar.use((familiar) =>
         // The Worker authenticated the request; only it can reach this object.
-        createHttpApi(familiar, { authenticate: () => 'owner' }).fetch(request),
+        createHttpApi(familiar, {
+          authenticate: () => ({ id: 'owner', name: 'owner' }),
+        }).fetch(request),
       )
     } catch (error) {
       if (error instanceof FamiliarTerminated) {

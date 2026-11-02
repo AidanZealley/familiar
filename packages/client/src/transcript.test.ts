@@ -10,7 +10,9 @@ const entry = (id: number, kind: string, rest: object = {}) =>
   ({ id, conversationId: 1, kind, ...rest }) as unknown as EntryRecord
 
 const said = (id: number, text: string) =>
-  entry(id, MESSAGE_KIND, { data: { author: 'aidan', text } })
+  entry(id, MESSAGE_KIND, {
+    data: { author: { id: 'aidan', name: 'aidan' }, text },
+  })
 
 const replied = (id: number, content: object[], stopReason: string = 'stop') =>
   entry(id, 'pi.assistant', {
@@ -264,4 +266,80 @@ test('reasoning remains available to expand after the reply completes', () => {
     text: 'Answer',
     streaming: false,
   })
+})
+
+test('author snapshots survive history, current entries and the queued transcript', () => {
+  const before = { id: 'sam-1', name: 'Sam' }
+  const other = { id: 'sam-2', name: 'Sam' }
+  const renamed = { id: 'sam-1', name: 'Samuel' }
+  const view = {
+    ...viewOf(entry(2, MESSAGE_KIND, { data: { author: other, text: 'Two' } })),
+    docs: {
+      'pi.inbox': {
+        items: [
+          {
+            id: 3,
+            mode: 'input',
+            entry: {
+              kind: MESSAGE_KIND,
+              data: { author: renamed, text: 'Three' },
+            },
+          },
+        ],
+      },
+    },
+  } as unknown as ConversationView
+  const transcript = toTranscript(view, [
+    entry(1, MESSAGE_KIND, { data: { author: before, text: 'One' } }),
+  ])
+  expect(
+    transcript.items.map(
+      (item) =>
+        item.type === 'message' && { author: item.author, queued: item.queued },
+    ),
+  ).toEqual([
+    { author: before, queued: false },
+    { author: other, queued: false },
+    { author: renamed, queued: true },
+  ])
+})
+
+test('name-only authors remain readable in history, current entries and queued messages', () => {
+  const view = {
+    ...viewOf(
+      entry(2, MESSAGE_KIND, {
+        data: { author: 'Sam', text: 'Old current message' },
+      }),
+    ),
+    docs: {
+      'pi.inbox': {
+        items: [
+          {
+            id: 3,
+            mode: 'input',
+            entry: {
+              kind: MESSAGE_KIND,
+              data: { author: 'Aidan', text: 'Old queued message' },
+            },
+          },
+        ],
+      },
+    },
+  } as unknown as ConversationView
+  const transcript = toTranscript(view, [
+    entry(1, MESSAGE_KIND, { data: { author: 'Sam', text: 'Old history' } }),
+  ])
+  expect(
+    transcript.items
+      .filter((item) => item.type === 'message')
+      .map((item) => ({
+        author: item.author,
+        text: item.text,
+        queued: item.queued,
+      })),
+  ).toEqual([
+    { author: 'Sam', text: 'Old history', queued: false },
+    { author: 'Sam', text: 'Old current message', queued: false },
+    { author: 'Aidan', text: 'Old queued message', queued: true },
+  ])
 })

@@ -102,7 +102,7 @@ test('parallel expired calls do not reconnect a replacement session', async (tes
     fauxAssistantMessage('Both calls failed.'),
   ])
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Echo twice.',
     requestId: 'parallel-expiry',
   })
@@ -126,7 +126,9 @@ test('parallel expired calls do not reconnect a replacement session', async (tes
 test('HTTP connections persist, keep tokens write-only, refresh tools and clean up', async (test) => {
   const fixture = mcpFixture(test)
   let familiar = await fixture.open()
-  const api = createHttpApi(familiar, { authenticate: () => 'owner' })
+  const api = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'owner', name: 'owner' }),
+  })
   const add = await api.request('/mcp', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -235,7 +237,11 @@ test.for(['dropResponse', 'expire', 'rejectCall', 'unauthorized'] as const)(
         return response
       }),
     )
-    await familiar.send({ author: 'owner', text: 'Echo.', requestId: failure })
+    await familiar.send({
+      author: { id: 'owner', name: 'owner' },
+      text: 'Echo.',
+      requestId: failure,
+    })
     await familiar.idle()
     expect(requests).toHaveLength(3)
     expect(requests[2].messages.at(-1)).toMatchObject({
@@ -269,7 +275,7 @@ test('an unavailable server neither blocks chat nor survives removal during star
   })
   fixture.faux.setResponses([fauxAssistantMessage('Still here.')])
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Hello.',
     requestId: 'unavailable',
   })
