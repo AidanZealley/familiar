@@ -2,7 +2,7 @@
 
 A personal AI assistant built on [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable), with one ongoing conversation, long-term memory, reminders and tools. Your conversation stays on your machine and resumes after restarts.
 
-[Setup and commands](docs/usage.md) · [Packages](#packages-and-hosts) · [Developing](#developing-and-embedding) · [Ideas](docs/ideas.md)
+[Features](#what-it-does) · [Packages](#packages-and-hosts) · [Developing](#developing-and-embedding)
 
 ## Install
 
@@ -28,7 +28,7 @@ The installer downloads Node if needed, asks for a name, signs you in with your 
 
 This is one personal assistant per user. The daemon assigns messages to its owner and trusts access to its network endpoint. Keep that endpoint private; it grants control over the assistant and its tools. There are no app accounts or profiles to set up.
 
-Linux and macOS have real-machine testing. Windows has automated CI coverage; real-machine testing is pending. Export/import and backup safeguards for updates are still ideas, not current protections.
+Linux and macOS have real-machine testing. Windows has automated CI coverage; real-machine testing is pending. Export/import and automatic update backups are not yet supported.
 
 ## What it does
 
@@ -38,7 +38,7 @@ Linux and macOS have real-machine testing. Windows has automated CI coverage; re
 - Searches through Brave and reads public web pages. Connections manages plugin keys and owner-configured HTTP or local MCP tools.
 - Lets you choose the chat model and reasoning level across your devices.
 
-See [usage](docs/usage.md) for settings, sign-in, notifications and CLI commands, and [memory](docs/memory.md) for how remembering works.
+The [daemon README](apps/daemon/README.md) covers installed commands, settings and notifications.
 
 ## Packages and hosts
 
@@ -65,8 +65,16 @@ pnpm install
 pnpm dev:demo
 ```
 
-The demo runs a scripted model with disposable in-memory storage, without sign-in or the installed assistant's data. See [development](docs/development.md) for scenarios, checks, packaging and memory evaluation. Leave the running service and its data alone during development. Read [AGENTS.md](AGENTS.md) for repository boundaries and required checks.
+The demo runs a scripted model with disposable in-memory storage, without sign-in or the installed assistant's data. Try `tool`, `memory`, `remind` or `slow` in chat to exercise the real features with scripted responses. Leave the running service and its data alone during development. See the [daemon README](apps/daemon/README.md#development) for other scenarios and evaluation commands.
 
 To embed Familiar, start with the [core example](packages/core/README.md#try-it-without-a-provider) and connect your UI with the [client](packages/client/README.md). Supply persistent storage and model credentials for a lasting assistant. Hosts authenticate people and authorize actions; every message has an author with a stable `id` and a display `name`. Several people can share one conversation and memory. The [typed host example](examples/typed-host/README.md) shows how a frontend can expose only the route groups its host mounts.
 
-Core uses portable APIs. A separate experiment ran source core, faux models, MemoryStorage, HTTP/SSE and the client in Chrome without a backend or shims. Published browser artifacts, real providers in a browser, other browsers and iframe embedding remain untested. Node storage and Workers lifecycle code belong in their respective hosts.
+Before submitting changes, run:
+
+```sh
+pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
+```
+
+Core and Cloudflare changes also need `pnpm test:cloudflare`. For package export or dependency changes, run `pnpm test:packages`, which installs and checks tarballs outside the workspace. Workspace imports use TypeScript source; published libraries use compiled `dist` files. `pnpm build:packages` builds those libraries. Release tags publish them and the installable assistant; [the release workflow](.github/workflows/release.yml) owns that process.
+
+Use the faux provider to test the real harness without model requests. Keep Node-only code in the daemon and Workers lifecycle code in the Cloudflare package. Repository conventions and safety limits are in [AGENTS.md](AGENTS.md).

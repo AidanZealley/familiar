@@ -70,4 +70,4 @@ export const App = () => (
 
 Create the store once in your app's connection lifecycle, outside render. The provider does not open or close it; the caller disconnects it. Selectors use `Object.is`, so return stable references. Vanilla imports do not load React or core's server runtime.
 
-For custom hosts, `createFamiliarStore<HostApi>()` and `createFamiliarBindings<HostApi>()` narrow commands to complete mounted route groups. This checks types, not permissions or streamed sources. See the [typed host guide](../../docs/typed-host-client.md) and [example](../../examples/typed-host/README.md).
+For custom hosts, `createFamiliarStore<HostApi>()` and `createFamiliarBindings<HostApi>()` narrow commands to complete mounted route groups. This checks types, not permissions or streamed sources. See the [typed host example](../../examples/typed-host/README.md).

@@ -54,4 +54,4 @@ Reach the assistant through `use()` so recovery is armed before work starts. Do 
 
 The package also exports `openDurableObjectSqliteStorage`, `DurableObjectSqliteDatabase` and `SqliteStorage` for hosts managing their own lifecycle. Prefer `DurableFamiliar` unless you need that control.
 
-[Cloudflare notes](../../docs/cloudflare.md) cover recovery, local tests and the limits of runtime validation. ChatGPT sign-in and real-model operation on Workers have not been verified.
+Local workerd tests cover reminder delivery after eviction, interrupted-reply recovery and persistent termination. ChatGPT sign-in and real-model operation on Workers have not been verified.

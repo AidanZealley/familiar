@@ -82,13 +82,13 @@ const api = createHttpApi(familiar, {
 
 `sessionAuthor` is your authentication code, returning `{ id, name }` or `undefined` to refuse access. The adapter authenticates every route. The daemon instead supplies a fixed owner and trusts its private network endpoint. Message bodies cannot choose their author. Attribution is not authorization; check permission for tool actions in host code.
 
-For separate access policies, compose the exported Hono route factories. See the [typed host guide](../../docs/typed-host-client.md). Route groups and streamed sources are separate choices.
+For separate access policies, compose the exported Hono route factories. See the [typed host example](../../examples/typed-host/README.md). Route groups and streamed sources are separate choices.
 
 ## Host responsibilities
 
 The host supplies storage, models, credentials, an IANA time zone and any notifications. `persona` replaces the default identity text completely; include the assistant's name and UI capabilities if needed. Core adds instructions for its own capabilities. `chatModels` controls available model and reasoning choices and must include `model`, which also drives memory upkeep.
 
-Plugins receive the host's `fetch` and destination-bound `authorizedFetch`. Hosts with private-network access must block private, loopback and tailnet destinations at connection time and on redirects. Secrets live in the host's `SecretStore`; authenticated responses and tool output are not scrubbed. Owner-configured MCP endpoints use a separate `mcpFetch`; local commands need a host `mcpStdio` factory. See [MCP setup](../../docs/usage.md#mcp-connections).
+Plugins receive the host's `fetch` and destination-bound `authorizedFetch`. Hosts with private-network access must block private, loopback and tailnet destinations at connection time and on redirects. Secrets live in the host's `SecretStore`; authenticated responses and tool output are not scrubbed. Owner-configured MCP endpoints use a separate `mcpFetch`; local commands need a host `mcpStdio` factory. Commands run with the host's privileges; install only trusted MCP servers.
 
 Ordinary hosts use in-process timers. Evictable hosts supply `onWake`, arm recovery before work starts and call `resume()` on wakeup. Prefer the Cloudflare adapter for Durable Objects.
 
@@ -128,4 +128,8 @@ Optional JSON-safe tool `details` reaches the client's `ToolCall.details`; clien
 
 Core contains no Node-only storage or subprocess code. Source core with faux models and MemoryStorage has run in Chrome, including HTTP/SSE and the client. That does not establish real-provider browser support or published-artifact compatibility. Workers-specific code belongs in the Cloudflare package.
 
-[Memory](../../docs/memory.md) explains recall and nightly upkeep. [Time zone changes](../../docs/usage.md#changing-time-zone) covers reopening existing storage in another zone. Public entry points also include `/http`, `/diagnostics`, `/mcp`, `/extensions`, `/models` and `/storage/memory`; see [package exports](package.json).
+Memory keeps the transcript as its record. The conversation reads facts, episodes and past exchanges through automatic recall, `recall` and `read_memory`; nightly upkeep files lasting facts and daily episodes, rolls up weeks and months, and reviews older facts. People can correct facts through `familiar.memory`. Compaction shortens model context without deleting history. Memory is shared by everyone in this conversation.
+
+When reopening storage in another time zone, one-off schedules keep their instants; repeats follow the new zone after their stored next delivery. Existing fact and episode dates stay unchanged. Later upkeep passes use 04:00 in the new zone.
+
+Public entry points also include `/http`, `/diagnostics`, `/mcp`, `/extensions`, `/models` and `/storage/memory`; see [package exports](package.json).

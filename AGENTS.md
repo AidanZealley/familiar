@@ -1,7 +1,5 @@
 # Familiar agent guide
 
-Read the [README](README.md) first. The package READMEs explain responsibilities and public APIs; this file covers how to work in the repo. Uncommitted ideas and links to draft specs are in [docs/ideas.md](docs/ideas.md).
-
 ## Hard limits
 
 - Leave `~/.local/share/familiar` alone. It holds the owner's ChatGPT login and real conversation. Tests and demos use their own storage.

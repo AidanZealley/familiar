@@ -91,8 +91,8 @@ export type FamiliarOptions = {
    * The owner's IANA time zone, such as `Europe/London`. Familiar reads every
    * calendar in it: dates in memory, the days upkeep files and its 04:00
    * pass, schedules' times and repeats, and current_time's answer. Instants
-   * (`now`) don't depend on it. Pass the same zone on every open; see
-   * docs/usage.md#changing-time-zone for what changes when it differs.
+   * (`now`) don't depend on it. Pass the same zone on every open; changing it
+   * affects future calendar calculations, not stored instants or dates.
    */
   timeZone: string
   /**

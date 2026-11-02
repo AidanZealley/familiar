@@ -6,4 +6,4 @@ From the repository root, run `pnpm dev:demo` for a scripted assistant with disp
 
 `pnpm dev:web` instead proxies to the owner's running daemon on 4317. Use it only when you intend to read and change the real conversation.
 
-Components use the folder conventions in [AGENTS.md](../../AGENTS.md). `src/components/ui/` belongs to shadcn; compose and style those components rather than editing generated files. The UI uses Base UI's `render` prop. See [development](../../docs/development.md) for scenarios and checks.
+Components use the folder conventions in [AGENTS.md](../../AGENTS.md). `src/components/ui/` belongs to shadcn; compose and style those components rather than editing generated files. The UI uses Base UI's `render` prop.
