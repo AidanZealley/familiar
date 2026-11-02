@@ -1,6 +1,6 @@
 # Familiar agent guide
 
-Read the [README](README.md) first. The Layout and Rules sections in [docs/architecture.md](docs/architecture.md) define the architecture; this file covers how to work in the repo. Planned work and its specs are in [docs/roadmap.md](docs/roadmap.md).
+Read the [README](README.md) first. The package READMEs explain responsibilities and public APIs; this file covers how to work in the repo. Uncommitted ideas and links to draft specs are in [docs/ideas.md](docs/ideas.md).
 
 ## Hard limits
 
@@ -18,6 +18,13 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --c
 ```
 
 After changing core, `packages/cloudflare` or `apps/cloudflare`, also run `pnpm test:cloudflare`. After changing a package's exports or dependencies, also run `pnpm test:packages`.
+
+## Package boundaries
+
+- Keep Pi behind Familiar's public API. Add capabilities in their own core folders, with owner APIs and HTTP routes where needed.
+- Keep Node-only code in `apps/daemon`. Only `packages/cloudflare` may import Workers-only modules. Other packages stay portable.
+- Keep UI runtime dependencies on `@familiar-ai/client`. Core owns HTTP wire types; client imports from core and Pi must be type-only.
+- Hosts own storage, model credentials, identity, authorization and network policy. One live Familiar owns each storage. Tools must not receive access to the owner's private data directory.
 
 ## Working with Pi
 

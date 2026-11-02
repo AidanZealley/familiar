@@ -1,27 +1,15 @@
 # Developing Familiar
 
-For a source checkout:
+Use Node 24.19 or newer and the pnpm version in `package.json`. Start with disposable storage:
 
 ```sh
 pnpm install
-pnpm sign-in
-pnpm service:install
-```
-
-`pnpm service:install` builds the UI and installs the platform service. Rerun it to deploy source changes. On Linux, `pnpm service:logs` follows the systemd journal; the CLI's `logs` command works on all supported platforms.
-
-Only one daemon may own the data directory; a second one refuses to start.
-
-- **UI work:** `pnpm dev:web` runs Vite on `:5173` (LAN and tailnet) against the running service.
-- **Daemon or core work:** `systemctl --user stop familiar`, then `pnpm dev` runs both with reloading. Start the service again when done.
-
-Both use your real conversation and memory. For UI work that shouldn't, use the demo:
-
-```sh
 pnpm dev:demo
 ```
 
-It runs a demo daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. Its two scripted models answer alike, so the model picker has a choice. A word in your message picks what it does:
+Leave the installed service, its data and port 4317 alone. `pnpm dev:web` connects to that real service; use it only when you intend to work with the owner's conversation. `pnpm dev` starts a real daemon too, so it needs a separate data directory and port if another instance is running. Only one daemon may own each data directory.
+
+The demo runs a daemon on `:4318` and Vite on `:5174` (LAN and tailnet), alongside the service. The demo's model is scripted and needs no sign-in, and its conversation lives in memory, so every restart starts fresh; it never opens the data directory. It starts with sample memory, a year of facts, history and episodes about Rowan from the memory eval, so the Memory pages have something to show. Its two scripted models answer alike, so the model picker has a choice. A word in your message picks what it does:
 
 | Word      | Familiar                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------- |
@@ -61,7 +49,7 @@ pnpm build:packages  # Compile each package's src into dist, with type declarati
 pnpm test:packages   # Pack, install outside the repo, import in Node and type-check
 ```
 
-In the workspace, each package's `exports` point at `src/*.ts`. The `publishConfig.exports` in each package point at `dist`; pnpm swaps them in when packing, along with real versions for `workspace:` and `catalog:`. Pi, Chord, Hono, the MCP client and `@familiar-ai/core` are peer dependencies, because hosts share their types and objects with Familiar, and a second copy would break both. The packages carry version `0.0.0`. A `v*` tag sets every package to the tag's version, checks them, and publishes them through npm trusted publishing, after the GitHub Release.
+In the workspace, each package's `exports` point at `src/*.ts`. The `publishConfig.exports` in each package point at `dist`; pnpm swaps them in when packing, along with real versions for `workspace:` and `catalog:`. Core owns ordinary dependencies on Pi, Chord, Hono and the MCP client. The client owns its core dependency; React is its optional peer. Cloudflare and plugin-web use core as a peer. The packages carry version `0.0.0`. A `v*` tag sets every package to the tag's version, checks them, and publishes them through npm trusted publishing, after the GitHub Release.
 
 CLI management code and its tests live under `apps/daemon/src/cli/`, separate from daemon serving and the portable core. Shared paths, settings, credentials and Windows directory permissions belong to the Node host.
 
@@ -108,54 +96,8 @@ After changing the judge, grade a saved run again instead of replaying it. This 
 pnpm eval:memory:rejudge eval/results/<file>.json
 ```
 
-### Dependency ownership for embedded consumers
+## Embedding
 
-Plugin authors install `@familiar-ai/core` and import tools from its main entry
-point, or full Pi extension contracts from `@familiar-ai/core/extensions`.
-These are reexports of the pinned Pi contracts, including tasks, hooks,
-documents, environments and nested tool execution. Familiar does not provide an
-independent compatibility layer over Pi. Advanced extensions and conversation
-views remain semantically coupled to that Pi version.
+The [core README](../packages/core/README.md) owns model, storage, account and plugin setup. The [client README](../packages/client/README.md) covers browser stores and React. Use the [typed host guide](typed-host-client.md) when composing a subset of HTTP routes.
 
-Frontends install `@familiar-ai/client`, plus React when using `/react`. The
-client exports model selection and conversation types. Its core dependency
-supplies wire declarations without requiring the app to declare a server peer;
-core and Pi runtime code are absent from the browser bundle. React remains an
-optional peer and is absent from vanilla imports.
-
-Familiar owns exact Pi and Chord dependency versions through the workspace
-catalog. Hosts install Familiar and configure models through `@familiar-ai/core/models`:
-
-```ts
-import { createModels, type CredentialStore } from '@familiar-ai/core/models'
-import { openaiProvider } from '@familiar-ai/core/models/openai'
-import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
-
-const models = createModels({ credentials }) // host-owned CredentialStore
-models.setProvider(openaiProvider())
-models.setProvider(openrouterProvider())
-```
-
-Tests can import the full faux provider API from `@familiar-ai/core/models/faux`.
-Each provider path reexports its supported Pi module in full. Importing the model
-factory does not register or load provider catalogs. These factories use core's
-installed Pi instance; pass the same `models` object to `createAccount` and
-`summonFamiliar`.
-
-Familiar owns these import paths. Advanced model and extension contracts follow
-the bundled pinned Pi version, currently `1.4.0`, including full provider options
-and inferred request types. Changes to those contracts will be called out with
-the Familiar release, with compatibility aliases when straightforward. There is
-no independent stable model abstraction or version negotiation. A host that
-separately installs another Pi version can still create incompatible package
-copies; that is distinct from passing a different `models` object to an account.
-MCP and Hono are
-also ordinary core dependencies, rather than installation work for plugin authors.
-
-Memory storage is available from `@familiar-ai/core/storage/memory`. Workers can
-use `DurableFamiliar` or the SQLite exports of `@familiar-ai/cloudflare`. Node
-hosts still import `openNodeSqliteStorage` directly from
-`@earendil-works/pi-durable/storage/sqlite/node` at the same pinned version.
-A Familiar Node storage entry point is deferred because Node code belongs in
-`apps/daemon` under the current package rules; adding a platform package just for
-that reexport would expand this cleanup.
+Familiar owns its public import paths and exact Pi dependencies. Advanced model and extension contracts follow the bundled Pi version; they are not an independent compatibility layer. Avoid installing a second Pi version alongside Familiar. Node storage still uses Pi's pinned Node adapter directly; Workers use the Cloudflare package.

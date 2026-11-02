@@ -75,7 +75,7 @@ Familiar reads `settings.json` from its data directory. Saved `name`, `owner`, `
 
 The chat's model and reasoning level are picked in the composer, saved with the conversation and shared by every device. The models offered, and the level each starts on, are `chatModels` in `apps/daemon/src/config.ts`; `FAMILIAR_MODEL` must be one of them. It sets the chat's model only until one is picked, and the level a model was last set to is kept for when you switch back. Memory upkeep always runs on `FAMILIAR_MODEL` at its default level.
 
-Dates, reminders and the 04:00 memory pass follow the machine's time zone, read once when the daemon starts. Node honours `TZ`, so a service can be given another zone with `TZ=America/New_York`. Restart after travelling or changing the zone; [how Familiar handles a change](architecture.md#changing-zone) explains what moves and what stays.
+Dates, reminders and the 04:00 memory pass follow the machine's time zone, read once when the daemon starts. Node honours `TZ`, so a service can be given another zone with `TZ=America/New_York`. Restart after travelling or changing the zone; [how Familiar handles a change](usage.md#changing-time-zone) explains what moves and what stays.
 
 The Pi packages are pinned to exact versions in `pnpm-workspace.yaml`'s catalog: their API changes without notice between releases.
 
@@ -150,3 +150,9 @@ For advanced extensions, import from `@familiar-ai/core/extensions`. It reexport
 The execution API retains document reads and watches, transactions, memos, child tasks, conversation handles, nested tool calls, registry resolution, models, environments and progress reporting. Pass the invocation context to operations that require it. Transactions, task ownership, restart recovery and cancellation follow the pinned Pi 1.4.0 contracts. The demo's sample-memory tools use the same transaction API.
 
 These imports decouple plugin source from Pi package paths; they do not promise semantic independence from Pi. Advanced types and stored definitions remain Pi-shaped, and future Pi upgrades may require compatibility changes in Familiar or plugins. Familiar does not expose its running Harness instance. Node-only environments, storage adapters and image processors remain host concerns and are not reexported by this portable authoring entry.
+
+## Changing time zone
+
+Reopen Familiar after changing the host's IANA time zone. One-off reminders keep their absolute instants. Repeating schedules follow the new zone after their already-stored next delivery. The first sleeping upkeep pass keeps its old instant; later passes run at 04:00 in the new zone.
+
+Stored fact and episode dates remain unchanged. Exchange dates are derived from timestamps when the index builds, so they follow the new zone. Text already written in the conversation keeps its original times.
