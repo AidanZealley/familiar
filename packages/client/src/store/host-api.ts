@@ -1,7 +1,7 @@
 import type { HttpApi, conversationRoutes } from '@familiar-ai/core/http'
 import type { ExtractSchema } from 'hono/types'
-import type { Commands } from './commands.ts'
-import type { FamiliarState } from './store.ts'
+import type { Commands } from '../commands.ts'
+import type { FamiliarState } from './types.ts'
 
 type SchemaOf<Api> = ExtractSchema<Api>
 type Standard = SchemaOf<HttpApi>

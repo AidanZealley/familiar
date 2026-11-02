@@ -83,7 +83,7 @@ const familiar = createFamiliarStore('https://familiar.example/api', {
 
 The returned store exposes `getState()`, `getInitialState()` and `subscribe()` for reads and subscriptions, including Zustand's React adapter. Call explicit commands such as `store.getState().conversation.send(text)` to make changes. It does not expose `setState`. The caller owns its lifecycle and calls `store.getState().disconnect()` when finished.
 
-`conversation.ts` owns view, history paging, compaction carryover and transcript derivation. Each conversation transition publishes those values together before notifying subscribers. Transcript references stay stable while the view and history entry references are unchanged. `commands.ts` owns typed HTTP calls and server errors; `events.ts` owns EventSource reconnect and disconnect behavior. `store.ts` assembles them and mirrors other streamed documents.
+`conversation.ts` owns view, history paging, compaction carryover and transcript derivation. Each conversation transition publishes those values together before notifying subscribers. Transcript references stay stable while the view and history entry references are unchanged. `commands.ts` owns typed HTTP calls and server errors; `events.ts` owns EventSource reconnect and disconnect behavior. `store/index.ts` assembles them. `store/documents.ts` owns streamed document replacements and patches; `store/types.ts` and `store/host-api.ts` define the shared state and host-specific command types.
 
 `getCurrentToken` stands in for the host's own code that returns a valid token, refreshing it first if needed. The store never holds credentials.
 
@@ -320,7 +320,12 @@ packages/core/src
     tool-result.ts   MCP result blocks mapped to Pi output.
     http.ts          Add, remove and reconnect routes.
 packages/client/src
-  store.ts           A live mirror of the conversation and every streamed document.
+  store/
+    index.ts         Assembles commands, conversation transitions and stream handlers.
+    types.ts         Shared state, connection, options and read-only store contracts.
+    host-api.ts      Host route compatibility and available command types.
+    documents.ts     Pure streamed document replacements and patches.
+    utils.ts         Reads the conversation's agent state.
   transcript.ts      Turns entries into chat items: messages, replies, tool calls.
 apps/daemon/src      The Node host: storage, sign-in, serving and the eval.
   demo/main.ts       In-memory demo startup, separate from the real daemon.
@@ -339,7 +344,7 @@ apps/web/src         Chat, Memory, Schedules and Connections, on @familiar-ai/cl
 5. Schedules, the same way: `schedules.ts`, `repeat.ts`, `task.ts`, `tools.ts`, then `index.ts`.
 6. Plugins: `plugins/types.ts`, `plugins/index.ts`, `plugins/connections.ts`, then `plugins/authorized-fetch.ts`.
 7. MCP: `mcp/servers.ts`, `manager.ts`, `connection.ts`, then `index.ts` and `http-transport.ts`.
-8. `http.ts`, then `packages/client/src/store.ts` and `transcript.ts`, then `apps/web`.
+8. `http.ts`, then `packages/client/src/store/index.ts` and `transcript.ts`, then `apps/web`.
 9. `apps/daemon`: `main.ts`, `serve.ts`, `config.ts`, `credentials.ts`. The demo and the eval last.
 
 Read each test file beside its source. They run the real Harness with a scripted model and, for upkeep and schedules, a fake clock, so they show what each part is meant to do: `memory.test.ts`, `upkeep/upkeep.test.ts`, `schedules.test.ts`, `recall.test.ts` and `read.test.ts` especially. `pnpm eval:recall` measures exchange search against years of extra conversation without a model, and `pnpm eval:unfiled` measures what automatic recall shows of conversation compacted out of view before upkeep files it.

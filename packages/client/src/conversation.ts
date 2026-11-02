@@ -2,7 +2,7 @@ import { applyImmutable } from '@earendil-works/chord/delta'
 import type { StreamEvent } from '@familiar-ai/core/http'
 import type { ConversationView } from '@earendil-works/pi-durable'
 import type { StoreApi } from 'zustand/vanilla'
-import type { FamiliarState, History } from './store.ts'
+import type { FamiliarState, History } from './store/types.ts'
 import { toTranscript } from './transcript.ts'
 
 export type FetchHistory = (

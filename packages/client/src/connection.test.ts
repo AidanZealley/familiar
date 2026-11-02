@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { createFamiliarStore, type FamiliarStore } from './store.ts'
+import { createFamiliarStore } from './store/index.ts'
+import type { FamiliarStore } from './store/types.ts'
 import { entry, frame, testServer, tick, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.

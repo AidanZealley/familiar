@@ -1,6 +1,7 @@
 import type { McpServer } from '@familiar-ai/core/http'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { createFamiliarStore, type FamiliarStore } from './store.ts'
+import { createFamiliarStore } from './store/index.ts'
+import type { FamiliarStore } from './store/types.ts'
 import { entry, frame, testServer, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.

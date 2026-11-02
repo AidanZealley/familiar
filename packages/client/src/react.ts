@@ -7,8 +7,8 @@ import {
 } from 'react'
 import { useStore } from 'zustand'
 import type { HttpApi } from '@familiar-ai/core/http'
-import type { FamiliarStore, FamiliarState } from './store.ts'
-import type { HostState, SupportedHostApi } from './host-api.ts'
+import type { FamiliarStore, FamiliarState } from './store/types.ts'
+import type { HostState, SupportedHostApi } from './store/host-api.ts'
 
 export type FamiliarProviderProps<Api = HttpApi> = {
   /** Caller owns the store and its connection lifecycle. */
