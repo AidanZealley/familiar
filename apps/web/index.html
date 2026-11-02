@@ -7,6 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover"
     />
     <title>Familiar</title>
+    <link rel="stylesheet" href="/loading.css" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -17,7 +18,11 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-loader" role="status" aria-label="Loading Familiar">
+        <img src="/loading.svg" width="64" height="64" alt="" />
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

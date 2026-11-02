@@ -3,10 +3,16 @@ import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import { AppError } from './components/app-error'
+import { AppLoader } from './components/app-loader'
 import { familiar } from './lib/familiar'
 import { routeTree } from './routeTree.gen'
 
-const router = createRouter({ routeTree })
+const router = createRouter({
+  routeTree,
+  defaultErrorComponent: AppError,
+  defaultPendingComponent: AppLoader,
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

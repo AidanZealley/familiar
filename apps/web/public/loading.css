@@ -1,0 +1,22 @@
+/* Shared by the initial HTML and React, before the app stylesheet is ready. */
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+}
+
+.app-loader {
+  box-sizing: border-box;
+  display: grid;
+  min-height: var(--app-height, 100svh);
+  place-items: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.app-loader img {
+  width: 64px;
+  height: 64px;
+}
