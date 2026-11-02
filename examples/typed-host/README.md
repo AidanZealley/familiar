@@ -11,4 +11,20 @@ pnpm --filter @familiar-example/host typecheck
 pnpm test:packages
 ```
 
-The package check also compiles the frontend against packed packages outside the workspace. Read the [typed host guide](../../docs/typed-host-client.md) for mounting, declaration publishing and limits.
+The package check also compiles the frontend against packed packages outside the workspace.
+
+Export the inferred Hono app type from the host through a type-only entry, then use it in the frontend:
+
+```ts
+import { createFamiliarStore } from '@familiar-ai/client'
+import { createFamiliarBindings } from '@familiar-ai/client/react'
+import type { HostApi } from './api.ts'
+
+const store = createFamiliarStore<HostApi>('/api')
+const { FamiliarProvider, useFamiliar, useTranscript } =
+  createFamiliarBindings<HostApi>()
+```
+
+Keep route paths relative to the store URL and preserve the inferred app type instead of widening it to `Hono`. Client commands require complete standard route groups. Streamed data is a separate choice: mounting memory commands does not make the event stream include memory.
+
+The type argument narrows the public TypeScript API; it does not remove runtime handlers or enforce permissions. The host must authenticate requests and authorize actions. The caller owns store creation and `disconnect()`.

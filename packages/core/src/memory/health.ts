@@ -9,8 +9,8 @@ import {
 
 /**
  * Health numbers from real data, so whether memory keeps working as it
- * grows is measured rather than assumed. Read alongside the retrieval eval;
- * docs/memory.md explains what these numbers measure and when to investigate.
+ * grows is measured rather than assumed. Read alongside the retrieval eval
+ * when investigating memory growth or recall quality.
  */
 
 export type MemoryHealth = {
