@@ -1,4 +1,5 @@
-import { Hono } from 'hono'
+import { Hono, type Env } from 'hono'
+import type { ExtractSchema } from 'hono/types'
 import { validator } from 'hono/validator'
 import {
   conversationRoutes,
@@ -55,4 +56,17 @@ export const createPartialConversationApi = () =>
   )
 export type PartialConversationApi = ReturnType<
   typeof createPartialConversationApi
+>
+
+// Simulate a host declaration that loses only one endpoint's response type.
+type HostSchema = ExtractSchema<HostApi>
+export type ErasedOutputApi = Hono<
+  Env,
+  Omit<HostSchema, '/memory/health'> & {
+    '/memory/health': {
+      $get: Omit<HostSchema['/memory/health']['$get'], 'output'> & {
+        output: ReturnType<typeof JSON.parse>
+      }
+    }
+  }
 >

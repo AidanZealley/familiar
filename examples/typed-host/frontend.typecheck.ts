@@ -1,6 +1,7 @@
 // Compile assertions only. These functions are never executed.
 import type {
   HostApi,
+  ErasedOutputApi,
   PartialApi,
   NonstandardApi,
   IncompatibleApi,
@@ -35,6 +36,8 @@ export const checkHost = (store: FamiliarStore<HostApi>) => {
 export const createChecked = () => {
   const store = createFamiliarStore<HostApi>('/api')
   checkHost(store)
+  // @ts-expect-error erased endpoint output cannot prove the response contract
+  createFamiliarStore<ErasedOutputApi>('/api')
   // @ts-expect-error rejects arbitrary non-API types
   createFamiliarStore<string>('/api')
   // @ts-expect-error rejects unknown rather than granting full commands
@@ -93,4 +96,9 @@ export const checkBindingValidation = () => {
   createFamiliarBindings<string>()
   // @ts-expect-error erased API type is rejected by bindings too
   createFamiliarBindings<ReturnType<typeof JSON.parse>>()
+}
+
+export const checkErasedOutputBindings = () => {
+  // @ts-expect-error bindings reject erased endpoint outputs too
+  createFamiliarBindings<ErasedOutputApi>()
 }
