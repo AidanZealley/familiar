@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import type { Credential, CredentialStore } from '@earendil-works/pi-ai'
+import type { Credential, CredentialStore } from '@familiar-ai/core/models'
 
 /**
  * Credentials in one JSON file (pi's auth.json shape), kept in memory and

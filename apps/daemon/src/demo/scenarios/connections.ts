@@ -2,7 +2,7 @@ import { Type, defineTool } from '@familiar-ai/core'
 import {
   fauxAssistantMessage,
   fauxToolCall,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import type {
   PluginContext,
   PluginFetch,

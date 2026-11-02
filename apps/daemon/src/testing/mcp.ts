@@ -1,13 +1,13 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createModels } from '@earendil-works/pi-ai/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxProvider,
   fauxAssistantMessage,
   fauxToolCall,
-} from '@earendil-works/pi-ai/providers/faux'
-import type { Message } from '@earendil-works/pi-ai'
+} from '@familiar-ai/core/models/faux'
+import type { Message } from '@familiar-ai/core/models'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import {
   memorySecrets,

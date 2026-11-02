@@ -1,11 +1,11 @@
 /// <reference lib="dom" />
 import { expect, test } from 'vitest'
-import { createModels } from '@earendil-works/pi-ai/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
   definePlugin,

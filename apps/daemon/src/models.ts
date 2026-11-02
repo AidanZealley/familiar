@@ -1,5 +1,5 @@
-import { createModels } from '@earendil-works/pi-ai/models'
-import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
+import { createModels } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
 import { dataPath } from './config.ts'
 import { fileCredentialStore } from './credentials.ts'
 

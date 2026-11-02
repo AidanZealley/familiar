@@ -1,12 +1,12 @@
 import { fileURLToPath } from 'node:url'
 import { EventEmitter, once } from 'node:events'
-import { createModels } from '@earendil-works/pi-ai/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxProvider,
   fauxAssistantMessage,
   fauxToolCall,
-} from '@earendil-works/pi-ai/providers/faux'
-import type { ToolResultMessage } from '@earendil-works/pi-ai'
+} from '@familiar-ai/core/models/faux'
+import type { ToolResultMessage } from '@familiar-ai/core/models'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
   summonFamiliar,

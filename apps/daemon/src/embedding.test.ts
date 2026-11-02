@@ -3,12 +3,12 @@ import type {
   AuthInteraction,
   Credential,
   Models,
-} from '@earendil-works/pi-ai'
-import { createModels } from '@earendil-works/pi-ai/models'
+} from '@familiar-ai/core/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import { MemoryStorage, type EntryId } from '@earendil-works/pi-durable'
 import {
   createAccount,

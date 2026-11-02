@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
-import type { AuthInteraction } from '@earendil-works/pi-ai'
+import type { AuthInteraction } from '@familiar-ai/core/models'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { openModels } from '../models.ts'
 import { signIn } from './sign-in.ts'

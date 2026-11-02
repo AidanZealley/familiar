@@ -406,10 +406,13 @@ History remains in storage after compaction. The client pages older entries and 
 
 Pi's `Models` is the one place credentials live. It reads them from the host's credential store and attaches them to every model request. Familiar never sees a token.
 
-A host chooses whether owners can manage the login. These examples use the workspace's own imports; the packages aren't published. The daemon attaches an account, so the web UI walks the owner through ChatGPT's sign-in:
+A host chooses whether owners can manage the login. The host supplies `fileCredentialStore`, its persistent implementation of
+`CredentialStore` from `@familiar-ai/core/models`. The daemon attaches an account, so the web UI walks the owner through ChatGPT's sign-in:
 
 ```ts
 import { createAccount, summonFamiliar } from '@familiar-ai/core'
+import { createModels } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
 
 const models = createModels({ credentials: fileCredentialStore(path) })
 models.setProvider(openaiProvider())

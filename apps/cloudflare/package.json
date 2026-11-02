@@ -9,7 +9,6 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "catalog:",
     "@familiar-ai/cloudflare": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "hono": "catalog:"

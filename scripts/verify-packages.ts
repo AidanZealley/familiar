@@ -270,6 +270,45 @@ export const page: number = convertHtml('', 'https://example.com', 100)
 `,
   )
   await typeCheck(
+    'models',
+    ['ES2023', 'DOM'],
+    [],
+    `import { createModels, createProvider, hasApi, type Models, type CreateModelsOptions, type CredentialStore, type Credential, type Provider, type AuthInteraction, type ModelsStore, type OpenAIResponsesOptions, type OpenAICompletionsOptions } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
+import { openrouterProvider, personalizeOpenRouterCatalog } from '@familiar-ai/core/models/openrouter'
+import { fauxProvider, fauxToolCall, fauxAssistantMessage, type RegisterFauxProviderOptions } from '@familiar-ai/core/models/faux'
+declare const credentials: CredentialStore
+declare const modelsStore: ModelsStore
+const options: CreateModelsOptions = { credentials, modelsStore, identity: { attribution: { name: 'consumer', url: 'https://example.com' } } }
+const models: Models = createModels(options)
+const openai = openaiProvider()
+const router = openrouterProvider()
+const openaiModel = openai.getModels()[0]!
+const responseOptions: OpenAIResponsesOptions = { temperature: 0.5, reasoningEffort: 'xhigh', reasoningSummary: 'detailed', serviceTier: 'priority', toolChoice: 'auto' }
+models.stream(openaiModel, { messages: [] }, responseOptions)
+// @ts-expect-error OpenAI API inference remains precise
+const wrongApi: 'openai-completions' = openaiModel.api
+// @ts-expect-error request options remain typed
+models.stream(openaiModel, { messages: [] }, { temperature: 'hot' })
+// @ts-expect-error credential discriminant remains typed
+const wrongCredential: Credential = { type: 'api_key', key: 42 }
+// @ts-expect-error factory options remain typed
+createModels({ credentials: 42 })
+// @ts-expect-error full faux options remain typed
+fauxProvider({ tokensPerSecond: 'fast' })
+const faux = fauxProvider({ tokensPerSecond: 100, deferred: { pendingFetches: 1 }, models: [{ id: 'test', reasoning: true }] })
+faux.setResponses([fauxAssistantMessage(fauxToolCall('tool', { value: 1 }))])
+const routerModel = router.getModels()[0]!
+const api: 'anthropic-messages' | 'openai-completions' = routerModel.api
+if (hasApi(routerModel, 'openai-completions')) {
+  const options: OpenAICompletionsOptions = { thinkingBudgets: { high: 4096 }, toolChoice: 'auto' }
+  models.stream(routerModel, { messages: [] }, options)
+  // @ts-expect-error narrowed provider request keeps advanced option inference
+  models.stream(routerModel, { messages: [] }, { reasoningEffort: 'invalid' })
+}
+`,
+  )
+  await typeCheck(
     'plugin',
     ['ES2023', 'DOM'],
     [],
@@ -414,6 +453,26 @@ new DurableFamiliar(ok, 1)
     resolve(consumer, 'browser.js'),
     `export * from '@familiar-ai/client'`,
   )
+  await writeFile(
+    resolve(consumer, 'models-only.js'),
+    `export { createModels } from '@familiar-ai/core/models'`,
+  )
+  await build({
+    configFile: false,
+    root: consumer,
+    plugins: [
+      {
+        name: 'check-model-factory-runtime',
+        moduleParsed(module) {
+          assert.doesNotMatch(module.id, /pi-ai\/dist\/providers\//)
+        },
+      },
+    ],
+    build: {
+      write: false,
+      lib: { entry: resolve(consumer, 'models-only.js'), formats: ['es'] },
+    },
+  })
   await build({
     configFile: false,
     root: consumer,
@@ -452,32 +511,21 @@ new DurableFamiliar(ok, 1)
       lib: { entry: resolve(consumer, 'typed-frontend.ts'), formats: ['es'] },
     },
   })
-  // Hosts deliberately configure providers directly. Install the owned version,
-  // then exercise a real Familiar with that Models instance.
-  const coreManifest = JSON.parse(
-    await readFile(
-      resolve(consumer, 'node_modules/@familiar-ai/core/package.json'),
-      'utf8',
-    ),
+  // The host installs Familiar only; Pi remains a transitive implementation dependency.
+  const installedManifest = JSON.parse(
+    await readFile(resolve(consumer, 'package.json'), 'utf8'),
   )
-  run(
-    'npm',
-    [
-      'install',
-      '--no-audit',
-      '--no-fund',
-      `@earendil-works/pi-ai@${coreManifest.dependencies['@earendil-works/pi-ai']}`,
-    ],
-    consumer,
+  assert.equal(
+    installedManifest.dependencies['@earendil-works/pi-ai'],
+    undefined,
   )
   await writeFile(
     resolve(consumer, 'host.js'),
     `
 import assert from 'node:assert/strict'
-import { createModels } from '@earendil-works/pi-ai/models'
-import { Type as HostType } from '@earendil-works/pi-ai'
-import { fauxProvider, fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux'
-import { summonFamiliar, Type } from '@familiar-ai/core'
+import { createModels } from '@familiar-ai/core/models'
+import { fauxProvider, fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { summonFamiliar, createAccount } from '@familiar-ai/core'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
 const coreUrl = import.meta.resolve('@familiar-ai/core')
@@ -485,7 +533,14 @@ const durableUrl = import.meta.resolve('@earendil-works/pi-durable', coreUrl)
 const durable = await import(durableUrl)
 assert.equal(import.meta.resolve('@earendil-works/pi-ai/models'), import.meta.resolve('@earendil-works/pi-ai/models', coreUrl))
 assert.equal(import.meta.resolve('@earendil-works/pi-ai/models'), import.meta.resolve('@earendil-works/pi-ai/models', durableUrl))
-assert.equal(Type, HostType)
+const piModels = await import(import.meta.resolve('@earendil-works/pi-ai/models', coreUrl))
+assert.equal(createModels, piModels.createModels)
+for (const provider of ['openai', 'openrouter', 'faux']) {
+  const familiarExports = await import('@familiar-ai/core/models/' + provider)
+  const piExports = await import(import.meta.resolve('@earendil-works/pi-ai/providers/' + provider, coreUrl))
+  assert.deepEqual(Object.keys(familiarExports), Object.keys(piExports))
+  for (const key of Object.keys(piExports)) assert.equal(familiarExports[key], piExports[key])
+}
 assert.equal(GenerationTask, durable.GenerationTask)
 const chord = await import(import.meta.resolve('@earendil-works/chord/context', coreUrl))
 assert.equal(createContextKey, chord.createContextKey)
@@ -493,8 +548,11 @@ const models = createModels()
 const faux = fauxProvider({ models: [{ id: 'packed' }] })
 models.setProvider(faux.provider)
 faux.setResponses([fauxAssistantMessage('Packed host works')])
-const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+const account = await createAccount({ models, provider: 'faux' })
+await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: createModels(), account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' }), /same Models/)
+const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
+  assert.equal(familiar.account, account.api)
   await familiar.send({ author: 'Consumer', text: 'Hello', requestId: 'packed' })
   await familiar.idle()
   const view = await familiar.watch()

@@ -2,8 +2,8 @@ import { EventEmitter, once } from 'node:events'
 import {
   fauxAssistantMessage,
   fauxToolCall,
-} from '@earendil-works/pi-ai/providers/faux'
-import type { TranscriptContext } from '@earendil-works/pi-ai'
+} from '@familiar-ai/core/models/faux'
+import type { TranscriptContext } from '@familiar-ai/core/models'
 import type { Familiar, McpConnectionInfo } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'

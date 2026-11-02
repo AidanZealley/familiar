@@ -1,11 +1,11 @@
-import type { TranscriptContext } from '@earendil-works/pi-ai'
+import type { TranscriptContext } from '@familiar-ai/core/models'
 import type { ChatModel } from '@familiar-ai/core'
-import { createModels } from '@earendil-works/pi-ai/models'
+import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
   type FauxResponseFactory,
-} from '@earendil-works/pi-ai/providers/faux'
+} from '@familiar-ai/core/models/faux'
 import { SEED_MESSAGE } from './seed.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
 import { compact } from './scenarios/compaction.ts'
