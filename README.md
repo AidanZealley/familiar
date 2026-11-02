@@ -1,6 +1,6 @@
 # Familiar
 
-A personal AI assistant with one ongoing conversation, long-term memory, reminders and tools. Your conversation stays on your machine and resumes after restarts.
+A personal AI assistant built on [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable), with one ongoing conversation, long-term memory, reminders and tools. Your conversation stays on your machine and resumes after restarts.
 
 [Setup and commands](docs/usage.md) · [Packages](#packages-and-hosts) · [Developing](#developing-and-embedding) · [Ideas](docs/ideas.md)
 
