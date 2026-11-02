@@ -24,3 +24,9 @@ allowBuilds:
   esbuild: true
   # Its script only fetches a platform binary when pnpm didn't install one.
   workerd: false
+
+# Pagefind 1.6's Linux binary crashes on older CPUs. Keep Starlight's search
+# wrapper and UI on the compatible release until that upstream issue is fixed.
+overrides:
+  '@astrojs/starlight>pagefind': 1.5.2
+  '@astrojs/starlight>@pagefind/default-ui': 1.5.2
