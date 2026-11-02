@@ -1,0 +1,79 @@
+---
+title: Connect a frontend
+description: Mirror Familiar in the browser with the client store, render its transcript and manage the connection.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import client from '../../../../snippets/client.ts?raw'
+import react from '../../../../snippets/react.tsx?raw'
+import typed from '../../../../snippets/typed-client.ts?raw'
+
+`@familiar-ai/client` connects to the HTTP API, mirrors everything the event stream sends and derives a transcript a chat UI can render. Familiar's own web app is built on it.
+
+```sh
+npm install @familiar-ai/client
+```
+
+## The store
+
+<Code code={client} lang="ts" title="client.ts" />
+
+`createFamiliarStore(url, options)` opens the event stream straight away. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
+
+The store is read-only. You read it with `getState()` and `subscribe()`, and change things only by calling commands. State is grouped:
+
+- `conversation`: the live `view`, older `history`, `loadOlder()`, and the commands `send`, `abort`, `modelOptions`, `setModel` and `setThinkingLevel`
+- `transcript`: the derived chat items and whether a run is `busy`
+- `memory`: streamed `facts` and `episodes`, with `revise`, `retire`, `setPinned` and `health`
+- `schedules`: streamed `items`, with `cancel`
+- `account`: the streamed sign-in `state` and its commands
+- `push`, `connections` and `mcp`: commands only
+
+Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
+
+`send(text)` posts a message with a fresh `requestId`. The host decides who sent it.
+
+## The transcript
+
+`state.transcript.items` is what a chat shows, in order. Each item has an `id` that stays the same across updates. Use it as the key.
+
+- `message`: a person's words, with their `author`, and `queued` while it waits for the current run
+- `reply`: Familiar's `text`, `thinking` and `toolCalls`, with `streaming`, `stopped` and any `error`
+- `scheduled`: a schedule's prompt arriving, with its `due` time and `creator`
+- `waiting`: a run has started but nothing is visible yet
+- `compaction`: older messages were summarised for the model here
+
+Each tool call has a `name`, `arguments`, `status` (`running`, `done` or `error`), text `output` and optional `details`. `details` is whatever the tool returned for UIs. Narrow it before you render it.
+
+Older entries arrive through `conversation.loadOlder()`. `conversation.history.status` is `more`, `loading`, `failed` or `start`.
+
+## The connection
+
+`state.connection` moves through these values:
+
+| Value          | Meaning                                                                        |
+| -------------- | ------------------------------------------------------------------------------ |
+| `connecting`   | The first stream request is under way                                          |
+| `open`         | A compatible protocol handshake and full view have arrived                     |
+| `reconnecting` | A network error, closed stream, 5xx or 429. The store retries with fresh state |
+| `unauthorized` | The stream was answered 401 or 403. Retries stop                               |
+| `failed`       | Any other unusable answer, such as a 404. Retries stop                         |
+| `outdated`     | The protocol handshake was missing or incompatible. Retries stop               |
+
+The store never reloads the page or signs anyone in. After a terminal state, sign-out or an identity change, call `disconnect()` and create a new store. Commands reject with the server's error and aren't retried. Commands already sent still settle after you disconnect.
+
+## React
+
+Install React 18 or 19, then use the separate `/react` entry:
+
+<Code code={react} lang="tsx" title="App.tsx" />
+
+Create the store once, outside render, where your app manages connections. The provider doesn't open or close it. `useFamiliar` compares selections with `Object.is`, so return stable values such as a single field or a command. The vanilla entry doesn't load React.
+
+## Type the client to your host
+
+If your host mounts only some route groups, give the store your host's app type. Commands then narrow to the groups it mounts:
+
+<Code code={typed} lang="ts" title="frontend.ts" />
+
+Export the host's type from a type-only module and keep it as the inferred Hono type rather than widening it to `Hono`. This narrows TypeScript only. It doesn't remove handlers or enforce permissions. The repository's [typed host example](https://github.com/AidanZealley/familiar/tree/main/examples/typed-host) is compile-checked against the packages.

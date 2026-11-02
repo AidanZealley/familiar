@@ -1,0 +1,47 @@
+/*
+ * Familiar's palette and type on Starlight's own custom properties. The
+ * neutrals are the web app's Mist values (apps/web/src/index.css); the accent
+ * keeps its violet hue, with lighter and darker steps for links and
+ * highlights. Unlayered, so it overrides Starlight's defaults.
+ */
+:root {
+  --sl-font: 'Geist Variable';
+  --sl-font-mono: 'JetBrains Mono Variable';
+
+  /* Dark */
+  --sl-color-white: oklch(0.987 0.002 197.1);
+  --sl-color-gray-1: oklch(0.963 0.002 197.1);
+  --sl-color-gray-2: oklch(0.872 0.007 219.6);
+  --sl-color-gray-3: oklch(0.723 0.014 214.4);
+  --sl-color-gray-4: oklch(0.56 0.021 213.5);
+  --sl-color-gray-5: oklch(0.378 0.015 216);
+  --sl-color-gray-6: oklch(0.218 0.008 223.9);
+  --sl-color-black: oklch(0.148 0.004 228.8);
+
+  --sl-color-accent-low: oklch(0.3 0.12 277);
+  --sl-color-accent: oklch(0.585 0.233 277.117);
+  --sl-color-accent-high: oklch(0.82 0.09 274);
+}
+
+:root[data-theme='light'] {
+  --sl-color-white: oklch(0.148 0.004 228.8);
+  --sl-color-gray-1: oklch(0.218 0.008 223.9);
+  --sl-color-gray-2: oklch(0.275 0.011 216.9);
+  --sl-color-gray-3: oklch(0.45 0.017 213.2);
+  --sl-color-gray-4: oklch(0.56 0.021 213.5);
+  --sl-color-gray-5: oklch(0.872 0.007 219.6);
+  --sl-color-gray-6: oklch(0.925 0.005 214.3);
+  --sl-color-gray-7: oklch(0.987 0.002 197.1);
+  --sl-color-black: oklch(1 0 0);
+
+  --sl-color-accent-low: oklch(0.93 0.034 272.8);
+  --sl-color-accent: oklch(0.511 0.262 276.966);
+  --sl-color-accent-high: oklch(0.457 0.24 277.023);
+}
+
+/* The app sets headings in its mono face. */
+h1,
+.sl-markdown-content :is(h2, h3, h4) {
+  font-family: var(--__sl-font-mono);
+  letter-spacing: -0.02em;
+}

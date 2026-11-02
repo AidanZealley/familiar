@@ -1,0 +1,27 @@
+{
+  "name": "@familiar-ai/docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host",
+    "build": "astro build && node scripts/check-links.ts",
+    "preview": "astro preview --host",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.42.7",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "astro": "7.4.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@familiar-ai/client": "workspace:*",
+    "@familiar-ai/core": "workspace:*",
+    "@familiar-ai/plugin-web": "workspace:*",
+    "@types/react": "^19",
+    "hono": "catalog:",
+    "react": "^19.3.1",
+    "typescript": "~6.0.3"
+  }
+}
