@@ -1,4 +1,5 @@
 packages:
+  - examples/*
   - apps/*
   - packages/core
   - packages/client

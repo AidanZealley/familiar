@@ -4,8 +4,9 @@ import type {
   ConversationView,
   EntryRecord,
 } from '@earendil-works/pi-durable'
-import type { AccountState, Documents } from '@familiar-ai/core/http'
-import { createStore } from 'zustand/vanilla'
+import type { HttpApi, AccountState, Documents } from '@familiar-ai/core/http'
+import { createStore, type StoreApi } from 'zustand/vanilla'
+import type { HostState, SupportedHostApi } from './host-api.ts'
 import type { Transcript } from './transcript.ts'
 import { createCommands, type Commands } from './commands.ts'
 import { createConversation } from './conversation.ts'
@@ -90,6 +91,14 @@ export type FamiliarState = {
  *
  * @param baseUrl Where the HTTP API is mounted: `/api`, or a full URL.
  */
+export function createFamiliarStore<Api>(
+  baseUrl: string & ([SupportedHostApi<Api>] extends [never] ? never : unknown),
+  options?: FamiliarStoreOptions,
+): FamiliarStore<Api>
+export function createFamiliarStore(
+  baseUrl: string,
+  options?: FamiliarStoreOptions,
+): FamiliarStore
 export function createFamiliarStore(
   baseUrl: string,
   options: FamiliarStoreOptions = {},
@@ -177,7 +186,13 @@ export function createFamiliarStore(
   }
 }
 
-export type FamiliarStore = ReturnType<typeof createFamiliarStore>
+declare const hostApi: unique symbol
+
+/** Read-only store. The optional type witness keeps different host APIs distinct. */
+export type FamiliarStore<Api = HttpApi> = Pick<
+  StoreApi<HostState<Api>>,
+  'getState' | 'getInitialState' | 'subscribe'
+> & { readonly [hostApi]?: (api: Api) => Api }
 
 /** The conversation's model and reasoning level, as Pi stores them. */
 export const agentOf = (view: ConversationView | undefined) =>

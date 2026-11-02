@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { FamiliarProvider, useFamiliar, useTranscript } from './react.ts'
 import { createFamiliarStore, type FamiliarStore } from './store.ts'
 import { frame, testServer, view } from './testing.ts'
+import type { HostApi, PartialApi } from '../../../examples/typed-host/api.ts'
 
 let root: Root
 let container: HTMLDivElement
@@ -150,4 +151,89 @@ test('hooks explain a missing provider', async () => {
   expect(() => act(() => root.render(createElement(Missing)))).toThrow(
     'useFamiliar must be used within a FamiliarProvider',
   )
+})
+
+test('typed bindings isolate distinct APIs and route selected actions after store replacement', async () => {
+  const { createFamiliarBindings } = await import('./react.ts')
+  const chat = createFamiliarBindings<HostApi>()
+  const partial = createFamiliarBindings<PartialApi>()
+  const firstServer = testServer()
+  const secondServer = testServer()
+  const partialServer = testServer()
+  const first = createFamiliarStore<HostApi>('/api', {
+    fetch: firstServer.fetch,
+  })
+  const second = createFamiliarStore<HostApi>('/api', {
+    fetch: secondServer.fetch,
+  })
+  const other = createFamiliarStore<PartialApi>('/api', {
+    fetch: partialServer.fetch,
+  })
+  const disconnectFirst = vi.spyOn(first.getState(), 'disconnect')
+  const Chat = () => {
+    const send = chat.useFamiliar((state) => state.conversation.send)
+    const status = chat.useFamiliar((state) => state.connection)
+    return createElement('button', { onClick: () => void send('chat') }, status)
+  }
+  const Other = () => {
+    const send = partial.useFamiliar((state) => state.conversation.send)
+    return createElement(
+      'button',
+      { onClick: () => void send('other') },
+      'other',
+    )
+  }
+  const render = (store: FamiliarStore<HostApi>) =>
+    act(() =>
+      root.render(
+        createElement(
+          chat.FamiliarProvider,
+          { store },
+          createElement(Chat),
+          createElement(
+            partial.FamiliarProvider,
+            { store: other },
+            createElement(Other),
+          ),
+        ),
+      ),
+    )
+  try {
+    await render(first)
+    await act(() => container.querySelectorAll('button')[0]!.click())
+    await act(() => container.querySelectorAll('button')[1]!.click())
+    await expect
+      .poll(
+        () => firstServer.requests.filter((r) => r.method === 'POST').length,
+      )
+      .toBe(1)
+    await expect
+      .poll(
+        () => partialServer.requests.filter((r) => r.method === 'POST').length,
+      )
+      .toBe(1)
+    await render(second)
+    await act(() => container.querySelectorAll('button')[0]!.click())
+    await expect
+      .poll(
+        () => secondServer.requests.filter((r) => r.method === 'POST').length,
+      )
+      .toBe(1)
+    expect(
+      firstServer.requests.filter((r) => r.method === 'POST'),
+    ).toHaveLength(1)
+    await act(async () => {
+      await expect.poll(firstServer.connections).toBe(1)
+      firstServer.send(frame('view', view(1)))
+      await expect.poll(() => first.getState().connection).toBe('open')
+    })
+    expect(container.querySelector('button')!.textContent).toBe('connecting')
+    expect(disconnectFirst).not.toHaveBeenCalled()
+    await act(() => root.unmount())
+    expect(disconnectFirst).not.toHaveBeenCalled()
+  } finally {
+    first.getState().disconnect()
+    second.getState().disconnect()
+    other.getState().disconnect()
+  }
 })

@@ -62,6 +62,10 @@ The daemon sends the conversation's committed view once, then each commit's [Cho
 
 ### Connecting from another host
 
+Hosts that compose only some standard route groups can [type their frontend
+from the inferred host API](typed-host-client.md). The client and optional React
+bindings then expose commands only for complete mounted groups.
+
 `createFamiliarStore(baseUrl, { fetch })` sends every request through the host's `fetch`: API calls, the event stream and each reconnect. The [`eventsource`](https://github.com/EventSource/eventsource) package reads the stream and reconnects. It calls `fetch` again for every attempt, so the host can attach a current credential each time. Without the option, the store uses the platform's `fetch`, and same-origin cookies work as they did with the browser's `EventSource`. `baseUrl` can be relative, like `/api`, or a full URL.
 
 A host that authenticates with a bearer token wraps its own fetch:

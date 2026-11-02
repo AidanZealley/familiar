@@ -118,6 +118,52 @@ if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value 
   )
   run('node', ['react.js'], consumer)
 
+  // Publish the host's inferred declaration separately. The frontend imports
+  // only its types export, never Hono or the host implementation.
+  const hostPackage = resolve(consumer, 'host-package')
+  await mkdir(hostPackage)
+  for (const file of ['host.ts', 'api.ts']) {
+    await writeFile(
+      resolve(hostPackage, file),
+      await readFile(resolve(root, 'examples/typed-host', file), 'utf8'),
+    )
+  }
+  run(
+    tsc,
+    [
+      '--declaration',
+      '--emitDeclarationOnly',
+      '--module',
+      'nodenext',
+      '--target',
+      'es2023',
+      '--skipLibCheck',
+      '--strict',
+      '--rewriteRelativeImportExtensions',
+      '--outDir',
+      'dist',
+      'host.ts',
+      'api.ts',
+    ],
+    hostPackage,
+  )
+  await writeFile(
+    resolve(hostPackage, 'package.json'),
+    JSON.stringify({
+      name: '@familiar-example/host',
+      version: '0.0.0',
+      type: 'module',
+      exports: { './api': { types: './dist/api.d.ts' } },
+      files: ['dist'],
+    }),
+  )
+  run('npm', ['pack', '--pack-destination', consumer], hostPackage)
+  run(
+    'npm',
+    ['install', '--no-audit', '--no-fund', './familiar-example-host-0.0.0.tgz'],
+    consumer,
+  )
+
   // skipLibCheck, as most projects and Wrangler's templates set it: Pi's
   // dependencies bring Node and DOM globals that clash with Workers types.
   // That would also hide our declarations degrading to \`any\`, so each
@@ -329,6 +375,23 @@ const count: number = useFamiliar(state => state.connection)
 const transcript: number = useTranscript()
 `,
   )
+  const typedFrontend = (
+    await readFile(resolve(root, 'examples/typed-host/frontend.ts'), 'utf8')
+  ).replace("'./api.ts'", "'@familiar-example/host/api'")
+  assert.doesNotMatch(typedFrontend, /from ['"](?:hono|@familiar-ai\/core)/)
+  await typeCheck('typed-frontend', ['ES2023', 'DOM'], [], typedFrontend)
+  await typeCheck(
+    'typed-assertions',
+    ['ES2023', 'DOM'],
+    [],
+    (
+      await readFile(
+        resolve(root, 'examples/typed-host/frontend.typecheck.ts'),
+        'utf8',
+      )
+    ).replace("'./api.ts'", "'@familiar-example/host/api'"),
+  )
+
   await typeCheck(
     'workers',
     ['ES2023'],
@@ -368,6 +431,25 @@ new DurableFamiliar(ok, 1)
     build: {
       write: false,
       lib: { entry: resolve(consumer, 'browser.js'), formats: ['es'] },
+    },
+  })
+  await build({
+    configFile: false,
+    root: consumer,
+    plugins: [
+      {
+        name: 'check-typed-host-runtime',
+        moduleParsed(module) {
+          assert.doesNotMatch(
+            module.id,
+            /(?:host-package|@familiar-example|@familiar-ai\/core|@earendil-works\/pi-|cloudflare)/,
+          )
+        },
+      },
+    ],
+    build: {
+      write: false,
+      lib: { entry: resolve(consumer, 'typed-frontend.ts'), formats: ['es'] },
     },
   })
   // Hosts deliberately configure providers directly. Install the owned version,
