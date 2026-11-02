@@ -17,4 +17,4 @@ Pages live in `src/content/docs/`. Code samples longer than a few lines live in 
 
 [`.github/workflows/docs.yml`](../../.github/workflows/docs.yml) builds the site on pull requests and deploys `main` to GitHub Pages. Before the first deploy, set **Settings → Pages → Source** to **GitHub Actions** in the repository.
 
-Pagefind's 1.6 binary needs a CPU with AVX2. On older machines the search index step fails, and the link check reports it. Point `PAGEFIND_EXTENDED_BINARY_PATH` at an older Pagefind binary to build locally.
+Starlight's Pagefind dependencies are pinned to 1.5.2 in the workspace configuration because the 1.6 Linux binary crashes on older CPUs. The normal build generates search without a separate binary or environment override.
