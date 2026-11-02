@@ -1,0 +1,99 @@
+---
+title: A personal AI assistant
+description: A personal AI assistant with one ongoing conversation, long-term memory, reminders and tools.
+template: splash
+hero:
+  title: Familiar
+  tagline: A personal AI assistant with one conversation that never resets. It remembers what you tell it, reminds you when you ask and uses tools on your behalf.
+  actions:
+    - text: Install Familiar
+      link: /familiar/use/install/
+      icon: right-arrow
+    - text: Build with Familiar
+      link: /familiar/build/overview/
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/AidanZealley/familiar
+      icon: github
+      variant: minimal
+---
+
+import {
+  Card,
+  CardGrid,
+  LinkCard,
+  TabItem,
+  Tabs,
+} from '@astrojs/starlight/components'
+
+Familiar runs on your own machine and keeps a single conversation going across restarts. You chat with it from any of your devices. It files away facts and daily summaries overnight, runs reminders in the same conversation and can search the web or call tools you connect. It is built on [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable), which keeps its work durable through crashes and restarts.
+
+## Install
+
+<Tabs syncKey="platform">
+<TabItem label="macOS">
+
+```sh
+curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh
+```
+
+</TabItem>
+<TabItem label="Linux">
+
+```sh
+curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+irm https://github.com/AidanZealley/familiar/releases/latest/download/install.ps1 | iex
+```
+
+</TabItem>
+</Tabs>
+
+The installer asks for a name and signs you in with your ChatGPT subscription. You don't need an API key. It then starts Familiar in the background and prints the URL to open. [Install and first chat](/familiar/use/install/) walks through each step.
+
+## Pick a path
+
+<CardGrid>
+  <Card title="Use Familiar" icon="comment">
+    Install the assistant, chat with it, manage its memory and reminders, and connect tools.
+
+    [Start with install and first chat](/familiar/use/install/)
+
+  </Card>
+  <Card title="Build with Familiar" icon="puzzle">
+    Embed Familiar in your own app with the npm packages. You provide storage, models, identity and a frontend.
+
+    [Read the overview](/familiar/build/overview/)
+
+  </Card>
+</CardGrid>
+
+## Packages
+
+<CardGrid>
+  <LinkCard
+    title="@familiar-ai/core"
+    description="The assistant, memory, schedules, plugins and HTTP routes."
+    href="https://www.npmjs.com/package/@familiar-ai/core"
+  />
+  <LinkCard
+    title="@familiar-ai/client"
+    description="A live browser store, transcript and React bindings."
+    href="https://www.npmjs.com/package/@familiar-ai/client"
+  />
+  <LinkCard
+    title="@familiar-ai/plugin-web"
+    description="Brave web search and page reading."
+    href="https://www.npmjs.com/package/@familiar-ai/plugin-web"
+  />
+  <LinkCard
+    title="@familiar-ai/cloudflare"
+    description="Runs one Familiar in a Cloudflare Durable Object."
+    href="https://www.npmjs.com/package/@familiar-ai/cloudflare"
+  />
+</CardGrid>

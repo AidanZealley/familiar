@@ -1,0 +1,57 @@
+---
+title: Customise your assistant
+description: Give Familiar a name and persona, add plugins and tools, and let a UI render tool results.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import webPlugin from '../../../../snippets/web-plugin.ts?raw'
+import plugin from '../../../../snippets/plugin.ts?raw'
+import connected from '../../../../snippets/connected-plugin.ts?raw'
+
+## Name and persona
+
+`name` is what Familiar is called outside the conversation: notification titles and memory upkeep's prompts. It defaults to `Familiar`.
+
+`persona` is who Familiar is in the conversation. It replaces the default, `defaultPersona(name)`, completely and is used as given, so include the name if the model should know it. Mention anything your UI can show, such as Markdown. Core still adds its own instructions for the conversation, memory, schedules and tools. Familiar reads the persona once when it opens, so the prompt stays cached.
+
+<Code code={webPlugin} lang="ts" title="assistant.ts" />
+
+## Plugins
+
+Everything beyond core arrives as a plugin. A plugin has a stable `name`, a `title` for the Connections page, optional `secrets` and an `extension` function that returns tools and anything else Pi extensions support.
+
+Import the helpers from `@familiar-ai/core` rather than installing your own copy of Pi:
+
+<Code code={plugin} lang="ts" title="greeting.ts" />
+
+Inside `execute`:
+
+- `api.author` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author. Familiar reads it from the stored message, never from the tool's arguments.
+- The third argument is the call's context. Pass its `abortSignal` to anything you can cancel.
+- `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.
+
+## Secrets and network access
+
+A plugin declares its secrets and where each may be sent. The owner sets the value through the Connections API. Plugin code never sees it. `authorizedFetch` attaches the secret only to a request whose origin, method and path match the declaration, and throws otherwise:
+
+<Code code={connected} lang="ts" title="tasks.ts" />
+
+Plugins reach the network only through the host's `fetch`. If your process can reach private, loopback or tailnet addresses, that `fetch` must refuse them, both when it connects and on every redirect. A model can be talked into fetching any URL. The daemon's [guarded fetch](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/fetch.ts) is a Node example. A Cloudflare Worker can't reach those addresses, so it can pass its own `fetch`.
+
+Familiar doesn't scrub authenticated responses or tool output. Whatever a tool returns, the model reads.
+
+## Tool details for UIs
+
+A tool result has two audiences. `output` is what the model reads. `details` is optional JSON a UI can render, such as a list or a card. It reaches the client as `ToolCall.details`. Clients receive it as `unknown`, so check its shape before rendering and fall back to the text output.
+
+## MCP servers
+
+The owner can add MCP servers at runtime through `familiar.mcp` or the `/mcp` routes. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available.
+
+## Data that belongs to your host
+
+Keep your app's own records in your app. Familiar's storage holds the conversation, memory, schedules and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check `api.author` for permission there.
+
+## Advanced extensions
+
+`@familiar-ai/core/extensions` exports Pi Durable's extension types and helpers: tasks, hooks, documents, tool search and code mode. They follow the bundled Pi version. Familiar doesn't wrap them in its own compatibility layer, and hosts never receive Familiar's running harness.

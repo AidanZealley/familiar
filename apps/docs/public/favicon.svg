@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Placeholder until the real cat logo. Full-bleed so iOS can round it. -->
+  <rect width="512" height="512" fill="#3b2fc9"/>
+  <path d="M124 404V196l40-92 64 70h56l64-70 40 92v208q-132 44-264 0Z" fill="#f5f3ff"/>
+  <ellipse cx="206" cy="282" rx="20" ry="26" fill="#3b2fc9"/>
+  <ellipse cx="306" cy="282" rx="20" ry="26" fill="#3b2fc9"/>
+  <path d="M242 334h28l-14 16Z" fill="#3b2fc9"/>
+</svg>

@@ -61,6 +61,7 @@ export default defineConfig([
   globalIgnores([
     '**/dist',
     '**/.wrangler',
+    '**/.astro',
     'data',
     '.claude',
     'apps/web/src/routeTree.gen.ts',

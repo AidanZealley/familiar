@@ -1,0 +1,62 @@
+---
+title: Serve the API
+description: Put Familiar behind HTTP with your own authentication, and choose which routes and streams to expose.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import serve from '../../../../snippets/serve.ts?raw'
+import compose from '../../../../snippets/compose-routes.ts?raw'
+
+`@familiar-ai/core/http` turns a Familiar into a [Hono](https://hono.dev) app: JSON commands plus one server-sent event stream at `/events`. Any runtime with the Fetch API can serve it.
+
+## The whole API
+
+`createHttpApi` mounts every route group and the full event stream behind one `authenticate` function:
+
+<Code code={serve} lang="ts" title="server.ts" />
+
+`authenticate` receives each request and returns the person making it as `{ id, name }`, or `undefined` to answer 401. The result becomes the author of any message that request sends. Request bodies can't choose their own author.
+
+Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available.
+
+## Identity is not permission
+
+Familiar records who said what and shows the model each author. It doesn't decide who may do what. Your host must:
+
+- authenticate every request, including the event stream
+- decide which people may reach which route groups
+- check permission inside tools that change things outside Familiar, using `api.author` in the tool
+
+The installed daemon is the simplest case. It authenticates every request as its owner, with the stable ID `owner`, and relies on the network for access. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
+
+## Choose route groups
+
+To expose less than everything, compose the route factories yourself. Each one is a Hono app you mount at its standard path:
+
+| Factory              | Mount at       | Commands                                    |
+| -------------------- | -------------- | ------------------------------------------- |
+| `conversationRoutes` | `/`            | send messages, abort, read history          |
+| `modelRoutes`        | `/model`       | list, switch model and reasoning level      |
+| `memoryRoutes`       | `/memory`      | revise, retire and pin facts; memory health |
+| `scheduleRoutes`     | `/schedules`   | cancel a schedule                           |
+| `accountRoutes`      | `/account`     | sign in, answer, cancel, sign out           |
+| `pushRoutes`         | `/push`        | VAPID key, subscribe, unsubscribe           |
+| `connectionRoutes`   | `/connections` | list connections, set and delete secrets    |
+| `mcpRoutes`          | `/mcp`         | add, remove and reconnect MCP servers       |
+| `eventRoutes`        | `/`            | the `/events` stream                        |
+
+`conversationRoutes` takes a function that returns the author for a request. This host exposes conversation and memory only:
+
+<Code code={compose} lang="ts" title="host.ts" />
+
+## Choose event sources
+
+The event stream is a separate choice from the commands. `eventRoutes` opens only the sources you pass:
+
+- `conversation` sends the view and each commit's changes.
+- `memory`, `episodes` and `schedules` each send a document and its changes.
+- `account` sends the sign-in state. Pass `null` to send `null` once, telling clients the host manages credentials itself.
+
+Mounting `memoryRoutes` doesn't add memory to the stream, and streaming memory doesn't allow memory commands.
+
+The [HTTP API reference](/familiar/reference/http/) lists every route and event.

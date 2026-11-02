@@ -1,0 +1,46 @@
+---
+title: Models and sign-in
+description: Register a model provider, store its credentials and offer ChatGPT sign-in.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import models from '../../../../snippets/models.ts?raw'
+
+Familiar reaches models through Pi's `Models` registry. `createModels()` starts empty. You register each provider yourself and pass a credential store the providers read and refresh.
+
+```ts
+import { createModels } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
+import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
+
+const models = createModels({ credentials })
+models.setProvider(openaiProvider())
+models.setProvider(openrouterProvider())
+```
+
+`credentials` is a `CredentialStore` your host owns. It must persist, or every restart signs out. The daemon's [file store](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/credentials.ts) is a working Node example.
+
+Keep provider credentials on the server. Never put them in frontend code.
+
+## ChatGPT sign-in
+
+ChatGPT sign-in lets a Familiar use a ChatGPT subscription instead of an API key. It's the model's access, not a login to your app. Create an account over the same `models` and attach it:
+
+<Code code={models} lang="ts" title="assistant.ts" />
+
+The `./host.ts` imports stand in for your own code. `deviceId` returns a stable ID for this installation; OpenAI identifies the app's logins by it.
+
+With an account attached:
+
+- `familiar.account` exposes `state()`, `signIn()`, `answer(text)`, `cancelSignIn()`, `signOut()` and `onChange(listener)`.
+- The state is one of `signed-in`, `signed-out`, `expired` or `signing-in`. While signing in it carries the provider's `url`, any `code` to enter and `paste: true` when the provider needs the address the browser ended on.
+- The HTTP API serves these under `/account` and streams the state, so a UI can run the whole sign-in.
+- Familiar closes the account when it's dismissed.
+
+Without an account, the host keeps credentials working itself and a failed request fails like any other.
+
+## Chat models
+
+`model` is what memory upkeep runs on and what a new conversation starts on. `chatModels` lists the models people may switch the conversation to, each with the reasoning level it starts on. It must include `model`. Leave it out and the only choice is `model` at medium.
+
+The conversation remembers its current model and level. Change them with `familiar.setModel(ref)` and `familiar.setThinkingLevel(level)`, or over HTTP. Both throw a `ModelError` for a choice that isn't on offer.

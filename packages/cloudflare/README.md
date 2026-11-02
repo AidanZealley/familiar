@@ -1,6 +1,6 @@
 # @familiar-ai/cloudflare
 
-Runs one Familiar in one SQLite-backed Cloudflare Durable Object. It owns storage, alarms and recovery after eviction. The [development Worker](../../apps/cloudflare/README.md) exercises it with scripted models.
+Runs one Familiar in one SQLite-backed Cloudflare Durable Object. It owns storage, alarms and recovery after eviction. The [development Worker](../../apps/cloudflare/README.md) exercises it with scripted models. See [Host on Cloudflare](https://aidanzealley.github.io/familiar/build/cloudflare/) (publishes once GitHub Pages deployment is enabled).
 
 ```sh
 npm install @familiar-ai/core @familiar-ai/cloudflare
@@ -50,8 +50,6 @@ export class Bot extends DurableObject {
 
 This scripted model supplies one response per object opening. A lasting host configures its own provider, credentials, notifications and network policy in the factory. Configure a SQLite Durable Object binding and migration in Wrangler; see the [working configuration](../../apps/cloudflare/wrangler.jsonc).
 
-Reach the assistant through `use()` so recovery is armed before work starts. Do not call its `dismiss()`. `terminate()` permanently refuses that object ID while keeping history; `status()` reports lifecycle and alarm state. The adapter uses a heartbeat while work is active and the assistant's next wake time while sleeping.
-
-The package also exports `openDurableObjectSqliteStorage`, `DurableObjectSqliteDatabase` and `SqliteStorage` for hosts managing their own lifecycle. Prefer `DurableFamiliar` unless you need that control.
+Reach the assistant through `use()` so recovery is armed before work starts, and don't call its `dismiss()`. `terminate()` permanently refuses that object ID while keeping history; `status()` reports lifecycle and alarm state.
 
 Local workerd tests cover reminder delivery after eviction, interrupted-reply recovery and persistent termination. ChatGPT sign-in and real-model operation on Workers have not been verified.

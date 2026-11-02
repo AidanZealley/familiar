@@ -1,0 +1,42 @@
+---
+title: Your first Familiar
+description: Run the real assistant with a scripted model and disposable storage.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import firstFamiliar from '../../../../snippets/first-familiar.ts?raw'
+
+This example runs the real assistant: its conversation, memory and tools. The model is scripted and the storage lives in memory, so you need no credentials or network.
+
+```sh
+npm install @familiar-ai/core @familiar-ai/client
+```
+
+Familiar needs Node 24.19 or newer. Save this as `first-familiar.ts` and run it with `node first-familiar.ts`:
+
+<Code code={firstFamiliar} lang="ts" title="first-familiar.ts" />
+
+It prints the conversation:
+
+```text
+Sam: Hello
+Familiar: Hello, Sam.
+```
+
+## What each part does
+
+- **`fauxProvider`** is a scripted model provider. Each `setResponses` entry answers one model request. Use it in tests to drive the real harness without model calls.
+- **`MemoryStorage`** keeps everything in memory and loses it when the process exits.
+- **`summonFamiliar`** opens the assistant over its storage, resumes any unfinished work and starts background work such as schedules and upkeep.
+- **`send`** records a message from `author`. `requestId` should stay the same if you retry the same logical message, so it's admitted once.
+- **`idle`** waits until every sent message has an answer.
+- **`watch`** returns the committed conversation view, then streams each commit's changes. Stop it when you're done.
+- **`toTranscript`** turns the view into the items a chat UI shows. It comes from the client package and is pure, so it works on the server too. Only messages stored before authors had IDs have a plain string `author`.
+- **`dismiss`** closes the assistant. Always call it, so timers and connections stop.
+
+## Make it last
+
+Two things change for a real assistant:
+
+1. **Persistent storage.** On Node, use `openNodeSqliteStorage` from `@earendil-works/pi-durable/storage/sqlite/node`. Install the exact Pi Durable version that core depends on, because Pi's storage format and types change between releases. On Workers, use [@familiar-ai/cloudflare](/familiar/build/cloudflare/).
+2. **A real model.** Register a provider and give it credentials. That's the next page, [Models and sign-in](/familiar/build/models-and-sign-in/).

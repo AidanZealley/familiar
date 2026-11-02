@@ -1,0 +1,66 @@
+---
+title: Install and first chat
+description: Install Familiar on macOS, Linux or Windows, sign in with ChatGPT and send your first message.
+---
+
+import { Steps, TabItem, Tabs } from '@astrojs/starlight/components'
+
+Familiar installs as a background service on one computer. That computer keeps the conversation and its data. Your other devices reach it through a browser.
+
+## Run the installer
+
+<Tabs syncKey="platform">
+<TabItem label="macOS">
+
+```sh
+curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh
+```
+
+</TabItem>
+<TabItem label="Linux">
+
+```sh
+curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+irm https://github.com/AidanZealley/familiar/releases/latest/download/install.ps1 | iex
+```
+
+</TabItem>
+</Tabs>
+
+It downloads Node 24 if you don't already have 24.19 or newer, installs the `familiar` command and starts guided setup.
+
+## Finish setup
+
+<Steps>
+
+1. Name your assistant. Press Enter to keep the default, `Familiar`. You can [rename it later](/familiar/use/settings-and-maintenance/#commands).
+
+2. Sign in with your ChatGPT subscription. Setup prints a sign-in link and opens it in your browser when it can. Over SSH or on a machine without a display, open the link on another device. When you finish, the browser lands on a page that won't load. Copy that page's full address and paste it into the terminal.
+
+   This login is how Familiar reaches the model. It doesn't sign you in to Familiar.
+
+3. Open the URL setup prints, `http://127.0.0.1:4317`, and say hello.
+
+</Steps>
+
+If you stop setup partway, run `familiar` again to pick up where it left off.
+
+## Reach it from your other devices
+
+If [Tailscale](https://tailscale.com/download) is installed and signed in, setup publishes Familiar at a private HTTPS address on your tailnet and prints it. Open that address on your phone or laptop. HTTPS is also what makes [notifications](/familiar/use/reminders-and-notifications/) work.
+
+Without Tailscale, Familiar listens only on `127.0.0.1`, so only the machine it runs on can reach it.
+
+## Who can use it
+
+An installed Familiar has one owner and no separate login. Anyone who can reach its address can read the conversation, change its sign-in and install tools. Tailscale access keeps it to your own devices. Don't expose it to the public internet.
+
+## Platform support
+
+macOS and Linux have been tested on real machines. Windows passes automated CI. It hasn't had real-machine testing yet.

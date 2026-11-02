@@ -1,12 +1,10 @@
 # @familiar-ai/plugin-web
 
-Brave web search and public-page reading for Familiar. The Node daemon installs this first-party plugin; embedded hosts choose whether to include it.
+Brave web search and public-page reading for Familiar. The Node daemon installs this first-party plugin; embedded hosts choose whether to include it. See [Customise your assistant](https://aidanzealley.github.io/familiar/build/customise/) (publishes once GitHub Pages deployment is enabled).
 
 ```sh
 npm install @familiar-ai/core @familiar-ai/plugin-web
 ```
-
-Add it when opening your assistant:
 
 ```ts
 import { webPlugin } from '@familiar-ai/plugin-web'
@@ -21,18 +19,8 @@ const options = {
 
 `publicOnlyFetch` and `secrets` are host-owned implementations of core's `PluginFetch` and `SecretStore`. On Node, refuse private destinations at connection time and on every redirect; see the daemon's [guarded fetch](../../apps/daemon/src/fetch.ts). Workers can use their platform fetch. The default export is an already-created plugin.
 
-Search needs a Brave Search API key. Set it through Familiar's write-only Connections API:
-
-```ts
-await familiar.connections.setSecret(
-  { kind: 'plugin', name: 'web' },
-  'braveApiKey',
-  braveApiKey,
-)
-```
-
-The key is attached only to the declared Brave search endpoint. Page reading needs no key. Authenticated responses are not scrubbed, and fetched content remains untrusted.
+Search needs a Brave Search API key, set through `familiar.connections.setSecret({ kind: 'plugin', name: 'web' }, 'braveApiKey', key)`. The key is attached only to Brave's search endpoint. Page reading needs no key.
 
 `web_fetch` reads HTTP(S) text, Markdown and HTML, converting HTML with mdream. It runs no page JavaScript and does not support PDFs or images. Reads are limited to 3 MB and 15 seconds; output defaults to 12,000 characters, at most 30,000.
 
-The default converter runs in the host thread. A Node host should isolate conversion using `webPlugin({ convert })`; the daemon uses bounded Piscina workers. The `/convert-html` entry exports `convertHtml` and `ConvertHtml` so a host worker can run the same conversion. Workers may use the default under platform CPU limits. See [daemon plugin wiring](../../apps/daemon/src/plugins.ts).
+The default converter runs in the host thread. A Node host should isolate conversion using `webPlugin({ convert })`; the `/convert-html` entry exports `convertHtml` for a worker. The daemon uses bounded Piscina workers; see [daemon plugin wiring](../../apps/daemon/src/plugins.ts).
