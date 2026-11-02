@@ -65,7 +65,7 @@ async function setup(
       },
     ])
     await familiar.send({
-      author: 'owner',
+      author: { id: 'owner', name: 'owner' },
       text: 'Go',
       requestId: `go-${++calls}`,
     })

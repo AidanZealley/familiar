@@ -5,6 +5,7 @@ export {
   type Static,
   type TSchema,
   type FamiliarTool,
+  type FamiliarToolApi,
   type ToolContext,
   type ToolResult,
   type ToolDetails,

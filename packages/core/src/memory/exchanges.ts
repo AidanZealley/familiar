@@ -5,7 +5,11 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import MiniSearch from 'minisearch'
-import { entriesOf, saidBy } from '../conversation/message.ts'
+import {
+  entriesOf,
+  saidBy,
+  type StoredMessageData,
+} from '../conversation/message.ts'
 import { localDay } from '../time/index.ts'
 import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
@@ -28,6 +32,8 @@ export type Exchange = {
   id: string
   /** When the person sent it, in ms since the epoch. */
   at: number
+  /** Author snapshot, or creator when this exchange was scheduled. */
+  author?: StoredMessageData['author']
   /** The person's text, then the replies. */
   text: string
   /** Its newest entry: the last reply, or the person message if none yet. */
@@ -196,6 +202,7 @@ export function transcriptExchanges(timeZone: string) {
           open = {
             id: exchangeId(entry.id),
             at: said.at,
+            author: said.role === 'person' ? said.author : said.creator,
             text: said.text,
             last: entry.id,
           }

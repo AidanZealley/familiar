@@ -62,7 +62,11 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
   opened.push(familiar)
 
   const say = async (text: string) => {
-    await familiar.send({ author: 'aidan', text, requestId: text })
+    await familiar.send({
+      author: { id: 'aidan', name: 'aidan' },
+      text,
+      requestId: text,
+    })
     await familiar.idle()
   }
   const memory = async () => {
@@ -363,7 +367,11 @@ test('messages queued behind a reply are each recalled for in their own run', as
   }
   faux.setResponses([capture, capture, capture])
   const send = (author: string, text: string) =>
-    familiar.send({ author, text, requestId: text })
+    familiar.send({
+      author: { id: author, name: author },
+      text,
+      requestId: text,
+    })
   await send('ann', 'How are the bees?')
   await vi.waitFor(() => expect(notes).toHaveLength(1))
   await send('bob', 'Thanks')
@@ -512,10 +520,10 @@ test('automatic recall and the recall tool find an exchange compaction took out 
   ])
   await say('What was my bike lock code?')
   expect(note).toMatch(
-    /Earlier conversation, not yet reviewed:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): My bike lock code is 7291/,
+    /Earlier conversation, not yet reviewed:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
   )
   expect(results.at(-1)).toMatch(
-    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): My bike lock code is 7291/,
+    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
   )
 })
 

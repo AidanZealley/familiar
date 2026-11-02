@@ -3,6 +3,7 @@ import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import type { ConversationApi, HistoryPage } from './api.ts'
+import type { Author } from './message.ts'
 import { ModelError } from './models.ts'
 
 /** Answers 204, or 400 when the chat models refuse the change. */
@@ -64,7 +65,7 @@ export const modelRoutes = (conversation: ConversationApi) =>
 /** Message attribution comes only from the host, never the request body. */
 export const conversationRoutes = (
   conversation: Pick<ConversationApi, 'send' | 'history' | 'abort'>,
-  author: (context: Context) => string | Promise<string>,
+  author: (context: Context) => Author | Promise<Author>,
 ) =>
   new Hono()
     // A page of entries older than `before`, newest first.

@@ -82,7 +82,9 @@ test('owner-configured stdio tools run through Familiar with filtered environmen
   vi.stubEnv('FAMILIAR_DATA_DIR', '/private-test-data')
   vi.stubEnv('NODE_OPTIONS', '--expose-internals')
   const { familiar, faux, children } = await setup()
-  const api = createHttpApi(familiar, { authenticate: () => 'owner' })
+  const api = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'owner', name: 'owner' }),
+  })
   const added = await api.request('/mcp', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -117,7 +119,7 @@ test('owner-configured stdio tools run through Familiar with filtered environmen
     },
   ])
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Echo.',
     requestId: 'stdio-echo',
   })
@@ -164,7 +166,7 @@ test('process exit removes tools, reconnect launches a fresh process, and dismis
     },
   ])
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Find echo.',
     requestId: 'stdio-exited',
   })
@@ -192,7 +194,7 @@ test('hosts without stdio report an unsupported transport without blocking chat'
     .toEqual({ type: 'failed', error: 'This host has no MCP stdio transport.' })
   faux.setResponses([fauxAssistantMessage('Still here.')])
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Hello.',
     requestId: 'stdio-unsupported',
   })

@@ -34,7 +34,7 @@ export const openEvents = (
           typeof data !== 'object' ||
           data === null ||
           !('version' in data) ||
-          data.version !== 1
+          data.version !== 2
         ) {
           outdated()
           return

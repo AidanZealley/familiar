@@ -45,7 +45,9 @@ export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
     '/api',
     createHttpApi(familiar, {
       authenticate: (request) =>
-        isAllowedHost(request.headers.get('host')) ? options.owner : undefined,
+        isAllowedHost(request.headers.get('host'))
+          ? { id: 'owner', name: options.owner }
+          : undefined,
       push: options.push,
     }),
   )

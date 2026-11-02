@@ -4,7 +4,7 @@ import {
   type EntryId,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { entriesOf, saidBy } from '../../conversation/message.ts'
+import { entriesOf, formatAuthor, saidBy } from '../../conversation/message.ts'
 import { localMinute } from '../../time/index.ts'
 import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
@@ -69,9 +69,9 @@ export async function newMessages(
     // Scheduled prompts are Familiar's own earlier words, so they can't be.
     const line =
       said.role === 'person'
-        ? `[${exchangeId(entry.id)} ${localMinute(said.at, timeZone)}] ${said.author}: ${said.text}`
+        ? `[${exchangeId(entry.id)} ${localMinute(said.at, timeZone)}] ${formatAuthor(said.author)}: ${said.text}`
         : said.role === 'scheduled'
-          ? `[${localMinute(said.at, timeZone)}] (scheduled) ${said.text}`
+          ? `[${localMinute(said.at, timeZone)}] (scheduled${said.creator ? `; requested by ${formatAuthor(said.creator)}` : ''}) ${said.text}`
           : `[${localMinute(said.at, timeZone)}] ${name}: ${said.text}`
     const size = estimateTextTokens(line)
     if (tokens + size > budget) {

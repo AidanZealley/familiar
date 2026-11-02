@@ -42,7 +42,9 @@ async function host(account?: (models: Models) => Promise<Account>) {
     account: await account?.(models),
   })
   opened.push(familiar)
-  const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
+  const api = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+  })
   return { faux, models, familiar, api }
 }
 
@@ -81,12 +83,20 @@ test('a host that manages credentials gets chat without account routes', async (
   expect(await firstAccountEvent(api)).toBeNull()
 
   faux.setResponses([fauxAssistantMessage('Hello.')])
-  await familiar.send({ author: 'aidan', text: 'Hi', requestId: 'hi' })
+  await familiar.send({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Hi',
+    requestId: 'hi',
+  })
   await familiar.idle()
 
   // A credential the host let lapse fails the request like any other error.
   vi.spyOn(models, 'getAuth').mockRejectedValue(new Error('token revoked'))
-  await familiar.send({ author: 'aidan', text: 'Again', requestId: 'again' })
+  await familiar.send({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Again',
+    requestId: 'again',
+  })
   await familiar.idle()
 
   const page = await familiar.history(Number.MAX_SAFE_INTEGER as EntryId, 50)

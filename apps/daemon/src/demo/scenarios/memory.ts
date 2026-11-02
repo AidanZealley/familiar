@@ -34,7 +34,11 @@ export const seed: Scenario = {
 export async function seedDemo(familiar: Familiar) {
   // Start with a year of sample memory, so the Memory pages have something to
   // show. Pinning goes through the owner's API, which rebalances core.
-  await familiar.send({ author: 'demo', text: SEED_MESSAGE, requestId: 'seed' })
+  await familiar.send({
+    author: { id: 'demo', name: 'demo' },
+    text: SEED_MESSAGE,
+    requestId: 'seed',
+  })
   await familiar.idle()
   const watch = await familiar.memory.watch()
   await watch.stop()

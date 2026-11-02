@@ -6,6 +6,8 @@ import {
 } from '@earendil-works/pi-durable'
 import {
   SCHEDULED_KIND,
+  formatAuthor,
+  type Author,
   saidBy,
   type ScheduledData,
 } from '../conversation/message.ts'
@@ -23,6 +25,7 @@ type ScheduleStep =
   | {
       phase: 'deliver'
       prompt: string
+      creator?: Author
       due: number
       /** When it was delivered, if late. */
       late?: number
@@ -89,6 +92,7 @@ export function createScheduleTask(
             checkpoint: {
               phase: 'deliver',
               prompt: schedule.prompt,
+              ...(schedule.creator && { creator: schedule.creator }),
               due,
               ...(now - due >= LATE_MS && { late: now }),
             },
@@ -97,7 +101,7 @@ export function createScheduleTask(
 
       deliver: async (task, runtime, context) => {
         const { id } = task.input
-        const { prompt, due, late } = task.state.checkpoint
+        const { prompt, due, late, creator } = task.state.checkpoint
         const conversation = await runtime.conversation(
           ROOT_CONVERSATION_ID,
           context,
@@ -110,11 +114,16 @@ export function createScheduleTask(
         const submission = await conversation!.submit(
           {
             type: 'input',
-            content: `[Scheduled for ${when}] ${prompt}`,
+            content: `[Scheduled for ${when}${creator ? `; requested by ${formatAuthor(creator)}` : ''}] ${prompt}`,
             requestId: `schedule:${id}:${due}`,
             entry: {
               kind: SCHEDULED_KIND,
-              data: { scheduleId: id, prompt, due } satisfies ScheduledData,
+              data: {
+                scheduleId: id,
+                prompt,
+                due,
+                ...(creator && { creator }),
+              } satisfies ScheduledData,
             },
           },
           context,

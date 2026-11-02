@@ -1,3 +1,4 @@
+import { formatAuthor } from '../conversation/message.ts'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import MiniSearch from 'minisearch'
 import {
@@ -274,7 +275,7 @@ function describeUnfiled(
 ) {
   const { kept, left } = within(
     exchanges.map((exchange) => ({
-      line: `${exchange.id} (${localMinute(exchange.at, timeZone)}): ${excerpt(exchange.text, query)}`,
+      line: `${exchange.id} (${localMinute(exchange.at, timeZone)}): ${exchange.author ? `${formatAuthor(exchange.author)}: ` : ''}${excerpt(exchange.text, query)}`,
       shorten: false,
     })),
     UNFILED.limit,
@@ -395,7 +396,7 @@ export function recallAll(
       })
       .map((exchange) => ({
         item: exchange,
-        line: `${exchange.id} (${localDay(exchange.at, timeZone)}): ${excerpt(exchange.text, query)}`,
+        line: `${exchange.id} (${localDay(exchange.at, timeZone)}): ${exchange.author ? `${formatAuthor(exchange.author)}: ` : ''}${excerpt(exchange.text, query)}`,
         shorten: false,
       })),
     RECALL_TOOL.exchanges,

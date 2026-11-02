@@ -61,7 +61,11 @@ async function open(storage: Storage, chatModels = both) {
 
   /** Sends `text` and returns the model and level that answered it. */
   const say = async (text: string) => {
-    await familiar.send({ author: 'aidan', text, requestId: text })
+    await familiar.send({
+      author: { id: 'aidan', name: 'aidan' },
+      text,
+      requestId: text,
+    })
     await familiar.idle()
     return requests.at(-1)
   }

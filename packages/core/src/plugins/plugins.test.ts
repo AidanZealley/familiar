@@ -79,7 +79,9 @@ async function setup() {
     fetch,
   })
   opened.push(familiar)
-  const api = createHttpApi(familiar, { authenticate: () => 'owner' })
+  const api = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'owner', name: 'owner' }),
+  })
 
   /** Asks the model to call echo_key, and returns the result it then sees. */
   let calls = 0
@@ -95,7 +97,11 @@ async function setup() {
       },
     ])
     const requestId = `go-${++calls}`
-    await familiar.send({ author: 'owner', text: 'Go', requestId })
+    await familiar.send({
+      author: { id: 'owner', name: 'owner' },
+      text: 'Go',
+      requestId,
+    })
     await familiar.idle()
     return seen
   }

@@ -158,7 +158,7 @@ test('without a fetch option the store uses the global fetch for the stream and 
 const message = (id: number) => ({
   ...entry(id),
   kind: 'familiar.message',
-  data: { author: 'Sam', text: `Message ${id}` },
+  data: { author: { id: 'Sam', name: 'Sam' }, text: `Message ${id}` },
 })
 
 const conversation = (...ids: number[]) => ({

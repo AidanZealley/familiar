@@ -108,7 +108,7 @@ export async function askQuestions({
             const prior = (await entriesAfter(questionStorage)).at(-1)?.id
             const replayed = tokensOf(await reopened.usage())
             await reopened.send({
-              author: 'Rowan',
+              author: { id: 'Rowan', name: 'Rowan' },
               text: question.text,
               requestId: `eval:question:${question.id}`,
             })

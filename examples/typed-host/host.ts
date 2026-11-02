@@ -12,7 +12,10 @@ export const createHostApi = (familiar: Familiar) =>
   new Hono()
     .route(
       '/',
-      conversationRoutes(familiar, () => 'Example owner'),
+      conversationRoutes(familiar, () => ({
+        id: 'owner',
+        name: 'Example owner',
+      })),
     )
     .route('/memory', memoryRoutes(familiar.memory))
     .route('/', eventRoutes({ conversation: familiar.watch }))
@@ -23,7 +26,10 @@ export const createPartialApi = (familiar: Familiar) =>
   new Hono()
     .route(
       '/',
-      conversationRoutes(familiar, () => 'Example owner'),
+      conversationRoutes(familiar, () => ({
+        id: 'owner',
+        name: 'Example owner',
+      })),
     )
     .get('/memory/health', async (c) => c.json(await familiar.memory.health()))
 
@@ -32,7 +38,10 @@ export type NonstandardApi = ReturnType<typeof createNonstandardApi>
 export const createNonstandardApi = (familiar: Familiar) =>
   new Hono().route(
     '/chat',
-    conversationRoutes(familiar, () => 'Example owner'),
+    conversationRoutes(familiar, () => ({
+      id: 'owner',
+      name: 'Example owner',
+    })),
   )
 export const createIncompatibleApi = () =>
   new Hono().post('/messages', (c) => c.json({ unsupported: true }))

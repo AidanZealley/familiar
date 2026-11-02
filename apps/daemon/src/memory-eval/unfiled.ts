@@ -147,7 +147,7 @@ export async function runUnfiledEval(
     for (const [index, day] of sent.entries()) {
       clock.advanceTo(noonOf(day.date))
       await familiar.send({
-        author: 'Rowan',
+        author: { id: 'Rowan', name: 'Rowan' },
         text: day.text!,
         requestId: `eval:day:${index}`,
       })
@@ -195,7 +195,7 @@ export async function runUnfiledEval(
     requests.length = 0
     try {
       await reopened.send({
-        author: 'Rowan',
+        author: { id: 'Rowan', name: 'Rowan' },
         text: question.text,
         requestId: `eval:question:${question.id}`,
       })

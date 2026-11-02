@@ -11,7 +11,11 @@ import type {
   LiveState,
   TaskId,
 } from '@earendil-works/pi-durable'
-import type { MessageData, ScheduledData } from '@familiar-ai/core/http'
+import type {
+  Author,
+  StoredMessageData,
+  ScheduledData,
+} from '@familiar-ai/core/http'
 
 import { MESSAGE_KIND, SCHEDULED_KIND } from './conversation/message.ts'
 
@@ -30,7 +34,8 @@ export type TranscriptItem =
   | {
       type: 'message'
       id: string
-      author: string
+      /** Old messages retain their name-only author, without an inferred ID. */
+      author: StoredMessageData['author']
       text: string
       /** When it was sent, in ms since the epoch; absent while queued. */
       at?: number
@@ -56,6 +61,7 @@ export type TranscriptItem =
       type: 'scheduled'
       id: string
       prompt: string
+      creator?: Author
       /** The time it was scheduled for, in ms since the epoch. */
       due: number
       /** Waiting for the current run to reach a boundary. */
@@ -145,7 +151,7 @@ export function toTranscript(
     }
     const id = `queued:${item.id}`
     if (item.entry?.kind === MESSAGE_KIND) {
-      const data = item.entry.data as MessageData
+      const data = item.entry.data as StoredMessageData
       items.push({ type: 'message', id, ...data, queued: true })
     } else if (item.entry?.kind === SCHEDULED_KIND) {
       items.push(scheduled(id, item.entry.data as ScheduledData, true))
@@ -162,25 +168,13 @@ function toItem(
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
-      const data = entry.data as MessageData
+      const data = entry.data as StoredMessageData
       const message = entry.model?.[0] as UserMessage | undefined
       return {
         type: 'message',
         id,
         ...data,
         at: message?.timestamp,
-        queued: false,
-      }
-    }
-    case 'pi.user': {
-      // Input submitted without an author, e.g. by a host directly.
-      const message = entry.model?.[0] as UserMessage
-      return {
-        type: 'message',
-        id,
-        author: '',
-        text: textOf(message.content),
-        at: message.timestamp,
         queued: false,
       }
     }
@@ -211,9 +205,9 @@ function toItem(
 
 const scheduled = (
   id: string,
-  { prompt, due }: ScheduledData,
+  { prompt, due, creator }: ScheduledData,
   queued: boolean,
-): TranscriptItem => ({ type: 'scheduled', id, prompt, due, queued })
+): TranscriptItem => ({ type: 'scheduled', id, prompt, due, creator, queued })
 
 // Pi preserves the task and message timestamp when it saves a streamed reply.
 // The timestamp distinguishes attempts made by the same generation task.

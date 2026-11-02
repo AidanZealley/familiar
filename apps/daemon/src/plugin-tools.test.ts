@@ -98,14 +98,20 @@ test('plugin results and last reported details survive reopen and reach the tran
         return fauxAssistantMessage('Done.')
       },
     ])
-    await familiar.send({ author: 'test', text: 'Go', requestId: 'go' })
+    await familiar.send({
+      author: { id: 'test', name: 'test' },
+      text: 'Go',
+      requestId: 'go',
+    })
     await familiar.idle()
     await familiar.dismiss()
     familiar = await summonFamiliar(options)
     const watch = await familiar.watch()
     await watch.stop()
     // JSON roundtrip mirrors persisted results sent through the HTTP view.
-    const api = createHttpApi(familiar, { authenticate: () => 'test' })
+    const api = createHttpApi(familiar, {
+      authenticate: () => ({ id: 'test', name: 'test' }),
+    })
     const client = createFamiliarStore('http://familiar.test', {
       fetch: async (input, init) => api.fetch(new Request(input, init)),
     })
@@ -184,7 +190,11 @@ test('tool execution retains cancellation', async () => {
     faux.setResponses([
       fauxAssistantMessage(fauxToolCall('wait', {}), { stopReason: 'toolUse' }),
     ])
-    await familiar.send({ author: 'test', text: 'Go', requestId: 'go' })
+    await familiar.send({
+      author: { id: 'test', name: 'test' },
+      text: 'Go',
+      requestId: 'go',
+    })
     const context = await started
     await familiar.abort()
     await familiar.idle()
@@ -327,7 +337,11 @@ test('Familiar imports retain sections, hooks, wrappers, tasks and transactional
         return fauxAssistantMessage('Done.')
       },
     ])
-    await familiar.send({ author: 'test', text: 'Go', requestId: 'full' })
+    await familiar.send({
+      author: { id: 'test', name: 'test' },
+      text: 'Go',
+      requestId: 'full',
+    })
     await familiar.idle()
     expect(events).toEqual(['request', 'tool', 'wrapper', 'nested', 'request'])
     const watch = await familiar.watch()

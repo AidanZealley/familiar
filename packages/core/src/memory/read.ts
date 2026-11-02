@@ -1,4 +1,5 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
+import { formatAuthor } from '../conversation/message.ts'
 import { localMinute } from '../time/index.ts'
 import type { Episode, EpisodesState, Span } from './episodes.ts'
 import {
@@ -29,10 +30,11 @@ function clip(text: string, tokens: number) {
 }
 
 const showExchange = (
-  { id, at, text }: Exchange,
+  { id, at, text, author }: Exchange,
   tokens: number,
   timeZone: string,
-) => `${id} (${localMinute(at, timeZone)}):\n${clip(text, tokens)}`
+) =>
+  `${id} (${localMinute(at, timeZone)}${author ? `; author ${formatAuthor(author)}` : ''}):\n${clip(text, tokens)}`
 
 /** The exchange with the one before and after it, the middle one given most room. */
 function readExchange(exchanges: ExchangeIndex, id: string, timeZone: string) {

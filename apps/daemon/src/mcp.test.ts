@@ -147,7 +147,7 @@ test('Familiar discovers deferred HTTP tools, validates nested schemas and reads
     }),
   )
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Echo my message.',
     requestId: 'echo',
   })
@@ -210,7 +210,7 @@ test('Stop cancels a remote tool without repeating its call', async (test) => {
     ),
   ])
   await familiar.send({
-    author: 'owner',
+    author: { id: 'owner', name: 'owner' },
     text: 'Wait for cancellation.',
     requestId: 'cancel',
   })

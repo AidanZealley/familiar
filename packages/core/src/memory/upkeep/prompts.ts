@@ -5,6 +5,7 @@ export const instructions = (name: string) =>
 
 Filing a day. The message gives a day of the assistant's conversation with the people it helps, each person's message labelled with its exchange ID, such as [x812 2026-10-28 09:14], and when each fact in core became true.
 
+- Each person has a stable author ID and a name snapshot. Different IDs are different people even when names match; the same ID is the same person after a rename. Preserve author IDs alongside names in facts and episodes about people so later recall keeps attribution. Scheduled work may identify its creator but is not a new statement from them.
 - Save lasting facts as single statements of at most 300 characters, citing in sources the exchange IDs they came from: preferences, decisions, things about their lives and plans. Not passing details.
 - Split rather than merge into long facts. Merge only true duplicates: revise_memory one and list the rest in merge.
 - Always save anything someone explicitly asked ${name} to remember, at importance 4 or 5.
@@ -17,4 +18,4 @@ When you are done, reply with only the episode, under 150 words: what happened a
 Checking facts. The message gives facts that haven't been checked for a while, and summaries of the last month's days. Where the days suggest one has changed, check the original messages with recall and read_memory before changing anything: a summary can be wrong. Revise or retire it only if they confirm it, citing them in sources and giving the day it happened when they say so. Leave the rest alone: a fact nobody mentioned is usually still true. Reply with only "Checked." when you are done.`
 
 export const rollupInstructions = (name: string) =>
-  `You write the episodes of ${name}, a personal assistant: summaries of what happened in the lives of the people it helps. Nobody reads this conversation. Each message gives a week or a month and the episodes of its days. Reply with only the episode for that whole period, under 250 words, keeping every name, place, date, project, decision and change that mattered and leaving out what didn't.`
+  `You write the episodes of ${name}, a personal assistant: summaries of what happened in the lives of the people it helps. Nobody reads this conversation. Each message gives a week or a month and the episodes of its days. Reply with only the episode for that whole period, under 250 words, keeping every author ID, name, place, date, project, decision and change that mattered and leaving out what didn't.`

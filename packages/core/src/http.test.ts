@@ -34,7 +34,9 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
   })
   opened.push(familiar)
 
-  const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
+  const api = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+  })
   const call = (method: string, path: string, body?: unknown) =>
     api.request(path, {
       method,
@@ -92,7 +94,9 @@ test('the event stream sends the view and every document whole first', async () 
     timeZone: 'UTC',
   })
   opened.push(familiar)
-  const api = createHttpApi(familiar, { authenticate: () => 'aidan' })
+  const api = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+  })
 
   const response = await api.request('/events')
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
@@ -113,7 +117,7 @@ test('the event stream sends the view and every document whole first', async () 
           : { event },
   )
   expect(events).toEqual([
-    { event: 'protocol', data: { version: 1 } },
+    { event: 'protocol', data: { version: 2 } },
     { event: 'view' },
     { name: 'memory', value: { facts: [], next: 1 } },
     { name: 'episodes', value: { episodes: [], next: 1 } },
@@ -135,7 +139,9 @@ test('messages and history validate what clients send', async () => {
   opened.push(familiar)
   faux.setResponses([fauxAssistantMessage('Hello.')])
   const client = testClient(
-    createHttpApi(familiar, { authenticate: () => 'aidan' }),
+    createHttpApi(familiar, {
+      authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+    }),
   )
 
   const sent = await client.messages.$post({
@@ -166,7 +172,10 @@ test('messages and history validate what clients send', async () => {
     'familiar.message',
   ])
   // The author is whoever the host authenticates.
-  expect(page.entries[2].data).toEqual({ author: 'aidan', text: 'Hi' })
+  expect(page.entries[2].data).toEqual({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Hi',
+  })
   expect(page.more).toBe(false)
 })
 
@@ -183,9 +192,16 @@ test('hosts compose groups and enforce middleware before mutations', async () =>
     })
     .route(
       '/chat',
-      conversationRoutes({ send, abort, history }, () => 'Sam'),
+      conversationRoutes({ send, abort, history }, () => ({
+        id: 'Sam',
+        name: 'Sam',
+      })),
     )
-  const body = { text: 'Hello', requestId: 'one', author: 'Spoofed' }
+  const body = {
+    text: 'Hello',
+    requestId: 'one',
+    author: { id: 'Spoofed', name: 'Spoofed' },
+  }
   const request = (authorized: boolean) =>
     app.request('/chat/messages', {
       method: 'POST',
@@ -203,7 +219,7 @@ test('hosts compose groups and enforce middleware before mutations', async () =>
   expect(abort).not.toHaveBeenCalled()
   expect((await request(true)).status).toBe(202)
   expect(send).toHaveBeenCalledWith({
-    author: 'Sam',
+    author: { id: 'Sam', name: 'Sam' },
     text: 'Hello',
     requestId: 'one',
   })

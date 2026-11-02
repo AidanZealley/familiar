@@ -1,4 +1,5 @@
 import { defineDoc } from '@earendil-works/pi-durable'
+import type { Author } from '../conversation/message.ts'
 import { parseMinute } from '../time/index.ts'
 import {
   occurrenceAfter,
@@ -13,6 +14,8 @@ import {
  */
 export type Schedule = {
   id: string
+  /** Snapshot of the person who requested it, when there is one. */
+  creator?: Author
   /** An instruction to Familiar's future self, e.g. "Remind Aidan to call Mum". */
   prompt: string
   /** A one-off's time. Exactly one of `at` and `repeat` is set. */
@@ -40,6 +43,8 @@ export class ScheduleError extends Error {}
 
 export type NewSchedule = {
   id: string
+  /** Snapshot of the person who requested it, when there is one. */
+  creator?: Author
   prompt: string
   /** `YYYY-MM-DD HH:MM` in Familiar's time zone. */
   at?: string
@@ -49,7 +54,7 @@ export type NewSchedule = {
 /** Adds a schedule, due after `now`, or throws a ScheduleError saying why not. */
 export function addSchedule(
   schedules: SchedulesState,
-  { id, prompt, at, repeat }: NewSchedule,
+  { id, prompt, at, repeat, creator }: NewSchedule,
   now: number,
   timeZone: string,
 ): Schedule {
@@ -60,7 +65,12 @@ export function addSchedule(
     throw new ScheduleError('Give either at or repeat, not both.')
   }
 
-  const base = { id, prompt: prompt.trim(), created: now }
+  const base = {
+    id,
+    prompt: prompt.trim(),
+    created: now,
+    ...(creator && { creator }),
+  }
   let schedule: Schedule
   if (at !== undefined) {
     const time = parseMinute(at, timeZone)

@@ -94,7 +94,7 @@ The returned store exposes `getState()`, `getInitialState()` and `subscribe()` f
 - `outdated` when the stream has an unsupported, malformed or missing protocol handshake. It closes the stream and stops retrying. The host decides when to reload or create a compatible client; the library never reloads the browser.
 - `unauthorized` when the stream is answered 401 or 403, and `failed` for any other answer it can't use, such as a 404. Both stop retrying, so a refused stream doesn't keep hitting the server.
 
-Core sends `protocol` with `{ "version": 1 }` as the first event on every
+Core sends `protocol` with `{ "version": 2 }` as the first event on every
 `/events` connection, before opening any watches. This wire version is independent
 of package releases. Core owns the advertised version in its HTTP adapter; the
 browser-safe client keeps its supported version literal in its events lifecycle.
@@ -127,7 +127,7 @@ The client groups data and commands under `conversation`, `account`, `memory`,
 `schedules`, `push`, `connections` and `mcp`. This is a breaking client API
 cleanup. The old flat commands, document fields and `MirroredDocuments` type
 have been removed. `FamiliarState` describes the grouped layout.
-HTTP routes, stream documents and the protocol version are unchanged.
+Grouping commands does not itself change HTTP routes or stream documents. The author format below uses protocol version 2.
 
 | Before                                                                                        | After                                                                                                 |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -190,7 +190,7 @@ const members = new Hono()
   .use('*', requireMember)
   .route(
     '/',
-    conversationRoutes(familiar, (c) => authenticatedName(c.req.raw)),
+    conversationRoutes(familiar, (c) => authenticatedAuthor(c.req.raw)),
   )
   .route('/', eventRoutes({ conversation: familiar.watch }))
 
@@ -217,7 +217,7 @@ const app = new Hono().route('/chat', members).route('/admin', admin)
 const client = hc<typeof app>('/api')
 ```
 
-`authenticatedName` reads the host's authenticated session. The conversation
+`authenticatedAuthor` reads the host's authenticated session. The conversation
 factory calls it for messages and records its result as the author. Request JSON
 cannot supply the author. A host can also read its own Hono context variables in
 this callback. Familiar defines no roles or permission checks. The host decides
@@ -227,15 +227,14 @@ access by path and method before mounting or invoking a handler.
 with `state` and `onChange`. It never receives a Familiar. Omitted sources produce
 no frames and open no watches or listeners. `account: null` explicitly sends a
 null account frame, as the standard API does without sign-in. Each connection
-starts with protocol version 1, then fresh snapshots of selected sources. Any
+starts with protocol version 2, then fresh snapshots of selected sources. Any
 selected watch closing ends the stream and stops all its subscriptions. Empty
 and account-only streams remain open with heartbeats until the client disconnects.
 Disconnects and setup failures stop subscriptions too.
 
 Restricting HTTP routes and streams does not make conversation memory private.
 The conversation and its tools can still read memory and use other installed
-capabilities. Hosts must handle tool authorization separately. Participant
-attribution and tool authorization changes are deferred.
+capabilities. Hosts must handle tool authorization separately. Author attribution does not grant permissions; tool authorization remains the host's responsibility.
 
 ## Four Pi ideas first
 
@@ -372,7 +371,7 @@ Facts live in the session document `familiar.facts`, version 1, and recall and r
 
 ## Credential and network boundaries
 
-Plugins are Pi extensions with metadata and a small context. `plugins/index.ts` installs every extension field unchanged and supplies the installed name. `plugins/tools.ts` reexports tool authoring with thin type aliases; `@familiar-ai/core/extensions` exposes advanced authoring helpers and types. Pi owns validation, transactions, task execution, progress, persistence and replay. Familiar owns the import boundary, while these advanced contracts remain compatible with the pinned Pi version. Hosts do not receive Familiar's Harness instance. `connections.ts` owns credential declarations, the store and the Connections API. `authorized-fetch.ts` checks the destination before loading and attaching a key. It never follows authenticated redirects.
+Plugins are Pi extensions with metadata and a small context. `plugins/index.ts` installs every extension field unchanged and supplies the installed name. `plugins/tools.ts` wraps tool authoring to supply the initiating author; `@familiar-ai/core/extensions` exposes advanced authoring helpers and types. Pi owns validation, transactions, task execution, progress, persistence and replay. Familiar owns the import boundary, while these advanced contracts remain compatible with the pinned Pi version. Hosts do not receive Familiar's Harness instance. `connections.ts` owns credential declarations, the store and the Connections API. `authorized-fetch.ts` checks the destination before loading and attaching a key. It never follows authenticated redirects.
 
 Network restrictions belong to the host. The daemon supplies `guardedFetch`, which checks each connection's destination address; other hosts supply their own fetch. Incoming authentication stays with `createHttpApi` and the host's server.
 
@@ -473,22 +472,24 @@ The persona is read once when the Familiar opens. A section that changed between
 
 ## Authors
 
-Several people can share one conversation, so the model needs to know who said what. The author is whatever the host's `authenticate` returns for the request. The daemon returns `FAMILIAR_OWNER`; a household app would return the signed-in person's name. Core doesn't look names up, so the host should return a label the model can address, such as a first name.
+Several people can share one conversation. Every message requires an `Author`, `{ id: string, name: string }`, supplied by the host through `authenticate` or direct `familiar.send()`. Both fields must be non-empty. The ID stays stable across sessions, devices and renames; the name is a snapshot at send time. A household host uses its member ID. The personal daemon uses the fixed ID `owner` and `FAMILIAR_OWNER` as the name. Familiar neither creates identities nor looks names up.
 
-The entry's data, `{ author, text }`, is the record. `formatMessage` in `conversation/message.ts` writes the model's copy from it: one line naming the author, then the words unchanged.
+The entry's data, `{ author, text }`, is the record. `formatMessage` writes the model's copy with an escaped JSON author on its first line, then the words unchanged:
 
 ```
-[Message from "Sam"]
+[Message from {"id":"person-123","name":"Sam"}]
 Can you move dinner to 7?
 ```
 
-The name is a JSON string with Unicode line breaks escaped too, so it can't end the line early. Formatting only goes one way, and nothing parses the model's copy back. The transcript, exchange search, `read_memory` and upkeep read the data through `saidBy`.
+Familiar snapshots the host-supplied author when sending. Later name changes do not rewrite older entries, and a repeated `requestId` retains the first admitted message. Existing name-only authors remain readable in history and memory processing. They have no inferred stable ID, and tools resuming an old message receive no author identity. Existing facts and episodes are left unchanged, so their attribution may be less precise. New sends still require both ID and name; no stored entries are migrated. The event protocol is version 2 so older clients refuse the changed author shape.
 
-Automatic recall searches the person's words as well, so an author's name can't match facts about them. `answeredMessage` reads the generation task's checkpoint for the newest entry its request includes, then scans back to the latest input. It skips a compaction summary, which is stored after the entries it kept but read before them, and stops at the start of the view. When that input is a person's message, recall searches its `text`. A scheduled prompt or an upkeep pass is searched as the model sees it.
+The transcript, exchange search, `read_memory` and upkeep preserve author IDs and name snapshots. Search still indexes the words, with author attribution attached separately to its results. Upkeep is instructed to preserve IDs alongside names in facts and episodes about people, keeping same-named people distinct and recognizing renames. Automatic recall searches the person's original words, without the author header.
 
-Pi stores the model's copy in the entry when the message is placed, so later requests and compaction's summary requests show the same line, and the prompt doesn't change with who's speaking. Messages stored before authors were shown keep their bare words as the model's copy. Their data still has the author.
+Tools defined with Familiar's `defineTool` receive `api.author`. Familiar resolves it from the tool task's persisted assistant entry, following parent links for nested calls and looking back only as far as that assistant entry. A queued message cannot change the author of work already running. This works across tool rounds and restart recovery without a mutable current-author field. A scheduled run carries its creator snapshot; other work without a person has no author. Advanced tools constructed directly with Pi do not gain this property automatically.
 
-Core's conversation guidance tells the model that only the first line names the sender, and that `[Scheduled for …]` prompts come from no one. The line says who wrote a message; it isn't access control. Someone can type words that claim to be another person, and the model may believe them. What a person may do is the host's decision.
+Schedules store the initiating author as `creator` when one exists, and preserve it in the scheduled entry and delivery checkpoint. Creator attribution is not a recipient list: reminder names remain in the prompt, delivery still goes to this one conversation, and notifications are unchanged.
+
+The first line establishes message attribution, not permissions. A message can claim to be another person in its words, and the model may believe it. Hosts authenticate senders and authorize tool actions in code. Familiar still has one conversation, one memory and one upkeep process; there is no participant registry or bot routing.
 
 ## Time zones
 
