@@ -1,4 +1,13 @@
-export * from './store.ts'
+export { createFamiliarStore } from './store/index.ts'
+export type {
+  Connection,
+  FamiliarStoreOptions,
+  History,
+  FamiliarState,
+  FamiliarStore,
+} from './store/types.ts'
+export { agentOf } from './store/utils.ts'
+export { carryOver, startOf } from './conversation.ts'
 export * from './transcript.ts'
 export * from './repeat.ts'
 export type {
@@ -32,4 +41,4 @@ export type {
   UserMessage,
   ToolResultMessage,
 } from '@earendil-works/pi-ai'
-export type { HostState } from './host-api.ts'
+export type { HostState } from './store/host-api.ts'

@@ -26,7 +26,7 @@ import {
   GenerationTask,
 } from '@familiar-ai/core/extensions'
 import { createHttpApi } from '@familiar-ai/core/http'
-import { createFamiliarStore } from '../../../packages/client/src/store.ts'
+import { createFamiliarStore } from '../../../packages/client/src/store/index.ts'
 import { toTranscript } from '../../../packages/client/src/transcript.ts'
 
 class ReopenableStorage extends MemoryStorage {
