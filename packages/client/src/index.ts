@@ -32,3 +32,4 @@ export type {
   UserMessage,
   ToolResultMessage,
 } from '@earendil-works/pi-ai'
+export type { HostState } from './host-api.ts'
