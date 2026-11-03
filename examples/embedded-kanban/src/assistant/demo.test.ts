@@ -103,6 +103,24 @@ describe('embedded kanban demo', () => {
     }
   })
 
+  it.each([
+    "Don't move T-3 to done",
+    "Don't assign T-3 to me",
+    'Move T-3 to done then delete all tasks',
+    'Delete all tasks',
+  ])('rejects unsupported input without changing tasks: %s', async (prompt) => {
+    const demo = await open()
+    try {
+      const before = demo.board.tasks()
+      const { toolCall, reply } = await ask(demo, prompt)
+      expect(toolCall).toBeUndefined()
+      expect(reply).toBe(UNSUPPORTED_REPLY)
+      expect(demo.board.tasks()).toBe(before)
+    } finally {
+      await close(demo)
+    }
+  })
+
   it('explains the scripted demo for prompts it does not know', async () => {
     const demo = await open()
     try {

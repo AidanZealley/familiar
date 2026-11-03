@@ -45,21 +45,23 @@ function plan(words: string) {
   if ((match = /^(?:add|create)(?: a)? task:?\s+(.+)$/i.exec(text))) {
     return call('create_task', { title: match[1] })
   }
-  if ((match = /\bassign (t-\d+) to me\b/i.exec(text))) {
+  if ((match = /^assign (t-\d+) to me$/i.exec(text))) {
     return call('assign_task_to_me', { taskId: match[1].toUpperCase() })
   }
-  if (
-    (match = new RegExp(`\\bmove (t-\\d+) to ${status}\\b`, 'i').exec(text))
-  ) {
+  if ((match = new RegExp(`^move (t-\\d+) to ${status}$`, 'i').exec(text))) {
     return call('move_task', {
       taskId: match[1].toUpperCase(),
       status: STATUS_WORDS[match[2].toLowerCase()],
     })
   }
-  if ((match = new RegExp(`\\bwhat'?s ${status}\\b`, 'i').exec(text))) {
+  if ((match = new RegExp(`^what'?s ${status}$`, 'i').exec(text))) {
     return call('list_tasks', { status: STATUS_WORDS[match[1].toLowerCase()] })
   }
-  if (/\b(board|tasks)\b/i.test(text)) {
+  if (
+    /^(?:what'?s on the board|(?:show|list)(?: me)?(?: all| the)? tasks)$/i.test(
+      text,
+    )
+  ) {
     return call('list_tasks', {})
   }
   return fauxAssistantMessage(UNSUPPORTED_REPLY)

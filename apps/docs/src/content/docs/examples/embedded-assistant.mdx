@@ -87,4 +87,4 @@ In the demo, `fetch` hands each request to the routes inside the page. A real ho
 
 ## Using a real model
 
-The scripted model is a faux provider registered in the page's `Models`. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve the routes as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The board, plugin and React UI stay the same.
+The scripted model is a faux provider registered in the page's `Models`. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve the routes as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The host must also provide an API and updates for its task data. Here, React and the tools share an in-page Zustand store. On a server, tools should use the host’s server-side task operations, while the React board uses the host’s API to read and change tasks. Familiar’s conversation events do not synchronise that data.

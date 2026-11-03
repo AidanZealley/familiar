@@ -23,8 +23,10 @@ Reloading the page, or pressing **Reset**, starts again from the seed tasks.
 
 Only the model is fake. `src/assistant/script.ts` registers a faux provider that recognises a few phrases, such as `Move T-3 to done`, and answers with the tool call a model might make. Familiar runs the tool, and the script's reply repeats the tool's output. Anything else gets a reply explaining the demo and listing what it understands.
 
-To use a real model, don't put provider credentials in the browser. Run the same `startDemo` setup on a server you control, swap `createScriptedModels()` for a real provider (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), authenticate each request to get its author, and give the client store your API's URL instead of the in-page `fetch`.
+To use a real model, don't put provider credentials in the browser. Run Familiar and its tools on a server you control, swap `createScriptedModels()` for a real provider (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), authenticate each request to get its author, and give the client store your API's URL instead of the in-page `fetch`.
 
 ## Components
 
 `src/components/ui` and `src/components/reui` come from the shadcn CLI (`pnpm exec shadcn add ...`) and the [ReUI Kanban](https://reui.io/components/kanban) registry. Update them through the CLI rather than by hand.
+
+The board also needs a host API and updates between the server and browser. This demo shares an in-page Zustand store directly; that store cannot cross a network. In a real app, keep tasks in the host’s server-side data store, let the tools and host API call its operations, and have the React board read and update tasks through that API. Familiar’s conversation events do not synchronise host task data.

@@ -6,7 +6,6 @@ import {
   KanbanColumn,
   KanbanColumnContent,
   KanbanItem,
-  KanbanItemHandle,
   KanbanOverlay,
 } from '@/components/reui/kanban'
 import { STATUS_LABELS, STATUSES, type Status, type Task } from '@/board/board'
@@ -59,10 +58,15 @@ export const TaskBoard = ({ author }: TaskBoardProps) => {
             {status === 'todo' && <NewTaskForm />}
             <KanbanColumnContent value={status} className="min-h-16">
               {columns[status].map((task) => (
-                <KanbanItem key={task.id} value={task.id}>
-                  <KanbanItemHandle>
-                    <TaskCard task={task} author={author} />
-                  </KanbanItemHandle>
+                <KanbanItem
+                  key={task.id}
+                  value={task.id}
+                  role="group"
+                  tabIndex={-1}
+                  aria-roledescription={undefined}
+                  aria-describedby={undefined}
+                >
+                  <TaskCard task={task} author={author} />
                 </KanbanItem>
               ))}
             </KanbanColumnContent>
