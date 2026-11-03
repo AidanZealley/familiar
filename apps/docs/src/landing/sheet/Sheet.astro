@@ -575,7 +575,7 @@ const highlightIcons = {
   .path-label {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 1rem;
     font-size: clamp(1.25rem, 2.6vw, 1.875rem);
     font-weight: 800;
@@ -590,8 +590,8 @@ const highlightIcons = {
 
   .paths :global(.arrow) {
     flex-shrink: 0;
-    font-size: 1rem;
-    color: var(--accent);
+    font-size: 1em;
+    color: inherit;
   }
 
   .paths a:hover .path-label {
