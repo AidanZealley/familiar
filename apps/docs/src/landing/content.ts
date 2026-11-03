@@ -1,0 +1,62 @@
+// Facts every landing variant shares. Each variant decides its own wording
+// around these, its markup and its styles. Delete this folder and
+// src/pages/landing/ together once a direction is chosen.
+
+export const links = {
+  docs: '/familiar/',
+  install: '/familiar/use/install/',
+  build: '/familiar/build/overview/',
+  github: 'https://github.com/AidanZealley/familiar',
+  piDurable: 'https://github.com/earendil-works/pi/tree/main/packages/durable',
+}
+
+export const headline =
+  'A personal AI assistant with one conversation that never resets.'
+
+export const pitch =
+  'Familiar runs on your computer, remembers what you tell it and picks up where you left off on any of your devices.'
+
+export const signIn =
+  'The installer signs you in with your ChatGPT subscription. No API key needed.'
+
+// Exact commands from the repository README.
+export const installers = [
+  {
+    id: 'unix',
+    os: 'macOS and Linux',
+    command:
+      'curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh',
+  },
+  {
+    id: 'windows',
+    os: 'Windows',
+    command:
+      'irm https://github.com/AidanZealley/familiar/releases/latest/download/install.ps1 | iex',
+  },
+] as const
+
+export const highlights = [
+  {
+    label: 'Yours',
+    line: 'Installed on your computer and reached at a private address.',
+  },
+  {
+    label: 'Remembers',
+    line: 'Keeps your history and files lasting facts away each night, not instantly.',
+  },
+  {
+    label: 'Learns tricks',
+    line: 'Picks up new tools through plugins and MCP servers.',
+  },
+  {
+    label: 'Travels',
+    line: 'Its portable core can be hosted on Node or Cloudflare.',
+  },
+  {
+    label: 'Moves in',
+    line: "Embed Familiar's packages to put it inside another app.",
+  },
+] as const
+
+// Browser-hosted demos are planned, not built. Variants show this as a stub.
+export const demosStub = 'Browser demos are on the way.'
