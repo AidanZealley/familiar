@@ -5,27 +5,28 @@ import Shell from '../../landing/Shell.astro'
 const variants = [
   {
     letter: 'A',
-    name: 'Ledger',
+    name: 'Sheet',
     href: '/familiar/landing/a/',
     summary:
-      'One narrow left-aligned column read like a README. Highlights sit in a numbered, ruled ledger.',
-    motion: 'A violet block steps around a 3×3 grid in the mark.',
+      'An editorial grid: a large headline with a spec column, a tabbed install panel, and the highlights as a weighted grid led by two large cells.',
+    motion: 'Section rules draw across as they scroll into view.',
   },
   {
     letter: 'B',
     name: 'Bands',
     href: '/familiar/landing/b/',
     summary:
-      'Full-width horizontal bands: a violet block with the name at display size, an install strip, then the five highlights across one ruled row.',
-    motion: 'A slow wave of font weight passes through the name.',
+      'Full-width bands: a violet headline band, an install console overlapping its edge, and the highlights as a tonal ramp from Mist into violet.',
+    motion:
+      'The install switch: its indicator slides and the chosen command settles in.',
   },
   {
     letter: 'C',
-    name: 'Axis',
+    name: 'Poster',
     href: '/familiar/landing/c/',
     summary:
-      'Everything on one centred axis with wide spacing. Install is a violet block; the highlights are a quiet stack of names.',
-    motion: 'An outline and a solid square drift into alignment and apart.',
+      'Big type: a centred opening, a full-bleed violet install slab, and the highlights as display-size names alternating sides.',
+    motion: 'The violet install slab opens out to the page edges on scroll.',
   },
 ]
 ---
@@ -34,7 +35,7 @@ const variants = [
   <main id="main" class="page">
     <h1>Landing variants</h1>
     <p class="lede">
-      Three new prototypes for Familiar's landing page. The docs homepage is
+      Three prototypes for Familiar's landing page, second round. The docs homepage is
       unchanged.
     </p>
     <ol>
