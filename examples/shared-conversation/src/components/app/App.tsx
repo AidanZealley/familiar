@@ -2,6 +2,9 @@ import { RotateCcwIcon } from 'lucide-react'
 import { startTransition, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Chat } from '@/components/chat'
+import { Composer } from '@/components/chat/components/composer'
+import { suggestedPrompts } from '@/demo/script'
+import { cn } from '@/lib/utils'
 import { PersonSwitcher } from '@/components/person-switcher'
 import { startDemo } from '@/demo/demo'
 import { PEOPLE } from '@/demo/people'
@@ -53,20 +56,34 @@ export const App = ({ initialDemo }: AppProps) => {
         <div className="grid min-h-0 flex-1 grid-rows-1">
           {demo.clients.map(({ sessionId, author, store }) => (
             <FamiliarProvider key={sessionId} store={store}>
-              <Chat
-                author={author}
-                people={PEOPLE}
-                hidden={author.id !== active}
-                switcher={
-                  <PersonSwitcher
-                    people={PEOPLE}
-                    value={active}
-                    onValueChange={setActive}
-                  />
-                }
-              />
+              <Chat author={author} hidden={author.id !== active} />
             </FamiliarProvider>
           ))}
+        </div>
+        <div className="flex shrink-0 flex-col gap-2 border-t p-3">
+          <PersonSwitcher
+            people={PEOPLE}
+            value={active}
+            onValueChange={setActive}
+          />
+          <div className="grid grid-rows-1">
+            {demo.clients.map(({ sessionId, author, store }) => (
+              <FamiliarProvider key={sessionId} store={store}>
+                <div
+                  inert={author.id !== active}
+                  className={cn(
+                    'col-start-1 row-start-1',
+                    author.id !== active && 'invisible',
+                  )}
+                >
+                  <Composer
+                    prompts={suggestedPrompts(author, PEOPLE)}
+                    name={author.name}
+                  />
+                </div>
+              </FamiliarProvider>
+            ))}
+          </div>
         </div>
       </main>
     </div>
