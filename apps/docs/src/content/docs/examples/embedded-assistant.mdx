@@ -1,0 +1,90 @@
+---
+title: Embedded assistant
+description: Familiar embedded in a task board, with tools that call the board's own operations. Runs in your browser.
+---
+
+import { LinkButton } from '@astrojs/starlight/components'
+
+A small task board with Familiar beside it. The board keeps its own tasks. Familiar gets tools that call the board's operations, so dragging a card and asking Familiar change the same data.
+
+<div class="demo-actions">
+  <LinkButton
+    href="/familiar/demos/embedded-kanban/"
+    target="_blank"
+    rel="noopener noreferrer"
+    variant="secondary"
+    icon="external"
+  >
+    Fullscreen
+  </LinkButton>
+  <LinkButton
+    href="https://github.com/AidanZealley/familiar/tree/main/examples/embedded-kanban"
+    target="_blank"
+    rel="noopener noreferrer"
+    variant="minimal"
+    icon="github"
+    iconPlacement="start"
+  >
+    View code
+  </LinkButton>
+</div>
+
+<iframe
+  class="demo-frame"
+  src="/familiar/demos/embedded-kanban/"
+  title="Task board demo with Familiar embedded"
+  loading="lazy"
+></iframe>
+
+Everything runs in this page: the real core, in-memory storage, the HTTP and SSE routes, and the client store. Only the model is scripted, so Familiar understands a few phrases. Press **Assistant** in the frame, or open it fullscreen to see the chat beside the board, and try:
+
+- What's in progress?
+- Add a task: Write the release notes
+- Assign T-3 to me
+- Move T-3 to done
+- What's on the board?
+
+Then drag a card or press **Assign to me** and ask again. Familiar reads the board as it is now. Reloading resets the demo.
+
+## One owner for the tasks
+
+The board is the only place tasks change. Its UI and Familiar's tools call the same operations, and each tool returns its result as text for the model and as `details` for a UI:
+
+```ts
+defineTool({
+  name: 'assign_task_to_me',
+  description: 'Assigns a task to the person asking.',
+  parameters: Type.Object({ taskId }),
+  execute: async ({ taskId }, api) =>
+    run(() => {
+      // The host's authenticated author, never a tool argument.
+      if (!api.author) {
+        throw new BoardError('Nobody asked, so there is no one to assign.')
+      }
+      const task = board.assign(taskId, api.author)
+      return { text: `Assigned ${describeTask(task)}.`, tasks: [task] }
+    }),
+})
+```
+
+## Only the routes it needs
+
+The host mounts the conversation routes and their event stream, nothing else. The client store is typed to them:
+
+```ts
+const createHostApi = (familiar: Familiar, author: Author) =>
+  new Hono()
+    .route(
+      '/',
+      conversationRoutes(familiar, () => author),
+    )
+    .route('/', eventRoutes({ conversation: familiar.watch }))
+
+const store = createFamiliarStore<HostApi>(url, { fetch })
+```
+
+In the demo, `fetch` hands each request to the routes inside the page. A real host serves them from its server, authenticates each request and passes the API's URL instead.
+
+## Using a real model
+
+The scripted model is a faux provider registered in the page's `Models`. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve the routes as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The board, plugin and React UI stay the same.

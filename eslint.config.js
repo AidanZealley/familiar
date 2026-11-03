@@ -64,7 +64,11 @@ export default defineConfig([
     '**/.astro',
     'data',
     '.claude',
+    'apps/docs/public/demos',
     'apps/web/src/routeTree.gen.ts',
+    // Copied in by the shadcn CLI and updated through it, like apps/web's ui.
+    'examples/embedded-kanban/src/components/ui',
+    'examples/embedded-kanban/src/components/reui',
   ]),
   {
     files: ['**/*.{ts,tsx,js}'],
@@ -103,7 +107,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/web/**/*.{ts,tsx}', 'examples/embedded-kanban/src/**/*.tsx'],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
     rules: { 'react-refresh/only-export-components': 'off' },

@@ -3,6 +3,8 @@ data/
 dist/
 .wrangler/
 apps/web/src/components/ui/
+examples/embedded-kanban/src/components/ui/
+examples/embedded-kanban/src/components/reui/
 apps/web/src/routeTree.gen.ts
 .claude/
 eval/results/

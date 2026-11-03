@@ -29,17 +29,18 @@ Type one of these words in the chat to run a scripted scenario: `tool`, `memory`
 
 ## Workspace
 
-| Path                  | What it is                                                     |
-| --------------------- | -------------------------------------------------------------- |
-| `packages/core`       | The assistant. Portable: no Node-only or Workers-only code     |
-| `packages/client`     | Browser store and React bindings. Imports only types from core |
-| `packages/plugin-web` | Web search and page reading                                    |
-| `packages/cloudflare` | Durable Object adapter. The only Workers-specific package      |
-| `apps/daemon`         | The installed Node host, CLI and demo                          |
-| `apps/web`            | The web UI                                                     |
-| `apps/cloudflare`     | Development Worker for the Cloudflare adapter                  |
-| `apps/docs`           | This site                                                      |
-| `examples/typed-host` | Compile-checked typed client example                           |
+| Path                       | What it is                                                     |
+| -------------------------- | -------------------------------------------------------------- |
+| `packages/core`            | The assistant. Portable: no Node-only or Workers-only code     |
+| `packages/client`          | Browser store and React bindings. Imports only types from core |
+| `packages/plugin-web`      | Web search and page reading                                    |
+| `packages/cloudflare`      | Durable Object adapter. The only Workers-specific package      |
+| `apps/daemon`              | The installed Node host, CLI and demo                          |
+| `apps/web`                 | The web UI                                                     |
+| `apps/cloudflare`          | Development Worker for the Cloudflare adapter                  |
+| `apps/docs`                | This site                                                      |
+| `examples/embedded-kanban` | Task board with Familiar embedded. Built into this site        |
+| `examples/typed-host`      | Compile-checked typed client example                           |
 
 Workspace packages import each other's TypeScript source. Published packages ship compiled `dist` files, which `pnpm build:packages` builds. ESLint enforces the portability rules.
 
