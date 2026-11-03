@@ -1,59 +1,63 @@
-import { useEffect, useRef } from 'react'
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 import { useFamiliar, useTranscript } from '@/demo/react'
+import { cn } from '@/lib/utils'
 import { suggestedPrompts } from '@/demo/script'
 import { Composer } from './components/composer'
-import { TranscriptItem } from './components/transcript-item'
+import { TranscriptItems } from './components/transcript-items'
 import type { ChatProps } from './types'
 
 /** One person's view of the shared conversation, through their own client. */
-export const Chat = ({ author, people }: ChatProps) => {
+export const Chat = ({ author, people, switcher, hidden }: ChatProps) => {
   const connection = useFamiliar((state) => state.connection)
   const transcript = useTranscript()
   const items = transcript?.items ?? []
-  const scroller = useRef<HTMLDivElement>(null)
-
-  // Follow the conversation as it streams. Scrolling the list itself, not
-  // scrollIntoView, keeps a page that embeds this one where it is.
-  const last = items.at(-1)
-  useEffect(() => {
-    const element = scroller.current
-    if (element) {
-      element.scrollTop = element.scrollHeight
-    }
-  }, [items.length, last])
 
   return (
+    // Hidden but still laid out, so its scroller keeps following the end
+    // while another person is chosen.
     <section
+      inert={hidden}
       aria-label={`${author.name}'s chat`}
-      className="flex h-full min-h-0 w-full flex-col"
+      className={cn(
+        'col-start-1 row-start-1 flex min-h-0 flex-col',
+        hidden && 'invisible',
+      )}
     >
-      <div
-        ref={scroller}
-        aria-live="polite"
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
-      >
-        {connection !== 'open' && (
-          <p className="text-muted-foreground">Connecting…</p>
-        )}
-        {connection === 'open' && items.length === 0 && (
-          <p className="text-muted-foreground">
-            Nobody has said anything yet. Send a message as {author.name}, then
-            switch to someone else and reply.
-          </p>
-        )}
-        {items.map((item, index) => (
-          <TranscriptItem
-            key={item.id}
-            item={item}
-            viewer={author}
-            // A tool call and the reply after it read as one turn.
-            continued={
-              item.type === 'reply' && items[index - 1]?.type === 'reply'
-            }
-          />
-        ))}
-      </div>
-      <Composer prompts={suggestedPrompts(author, people)} name={author.name} />
+      {/* The scroller moves only its own viewport, so a page embedding this
+          one stays where it is. */}
+      <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+        <MessageScroller className="flex-1">
+          <MessageScrollerViewport aria-label="Conversation">
+            <MessageScrollerContent
+              aria-busy={transcript?.busy}
+              className="gap-4 p-4"
+            >
+              {connection !== 'open' && (
+                <p className="text-muted-foreground">Connecting…</p>
+              )}
+              {connection === 'open' && items.length === 0 && (
+                <p className="text-muted-foreground">
+                  Nobody has said anything yet. Send a message as {author.name},
+                  then pick someone else and reply.
+                </p>
+              )}
+              <TranscriptItems items={items} viewer={author} />
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton />
+        </MessageScroller>
+        <Composer
+          prompts={suggestedPrompts(author, people)}
+          name={author.name}
+          switcher={switcher}
+        />
+      </MessageScrollerProvider>
     </section>
   )
 }

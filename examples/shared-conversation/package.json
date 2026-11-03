@@ -13,6 +13,7 @@
     "@familiar-ai/client": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@shadcn/react": "^0.3.1",
     "@tailwindcss/vite": "^4",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
