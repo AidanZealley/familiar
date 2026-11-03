@@ -1,6 +1,5 @@
 import { ArrowUpIcon } from 'lucide-react'
-import { useState, type KeyboardEvent } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
   InputGroup,
   InputGroupAddon,
@@ -10,17 +9,20 @@ import {
 import { useFamiliar } from '@/demo/react'
 import type { ComposerProps } from './types'
 
-export const Composer = ({ prompts, name }: ComposerProps) => {
+/** As in Familiar's web UI: a textarea with its send button below, at the end. */
+export const Composer = ({ name }: ComposerProps) => {
   // This person's own client: its session decides who the message is from.
   const send = useFamiliar((state) => state.conversation.send)
   const [text, setText] = useState('')
-  const submit = (value: string) => {
-    if (value.trim()) {
-      void send(value.trim())
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (text.trim()) {
+      void send(text.trim())
       setText('')
     }
   }
-  // Enter sends and Shift+Enter starts a new line, as in Familiar's web UI.
+  // Enter sends and Shift+Enter starts a new line.
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (
       event.key === 'Enter' &&
@@ -33,28 +35,11 @@ export const Composer = ({ prompts, name }: ComposerProps) => {
   }
 
   return (
-    <form
-      aria-label={`Message Familiar as ${name}`}
-      className="flex shrink-0 flex-col gap-2"
-      onSubmit={(event) => {
-        event.preventDefault()
-        submit(text)
-      }}
-    >
-      <div className="flex flex-wrap gap-1">
-        {prompts.map((prompt) => (
-          <Button
-            key={prompt}
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => submit(prompt)}
-          >
-            {prompt}
-          </Button>
-        ))}
-      </div>
-      <InputGroup>
+    <form aria-label={`Message Familiar as ${name}`} onSubmit={submit}>
+      {/* InputGroup dims itself while any control in it is disabled, which
+          an empty message's Send button is. As in Familiar's web UI, keep the
+          box at full contrast and let only the button show it. */}
+      <InputGroup className="has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-input/30">
         <InputGroupTextarea
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -62,14 +47,16 @@ export const Composer = ({ prompts, name }: ComposerProps) => {
           rows={1}
           placeholder={`Message as ${name}`}
           aria-label={`Message as ${name}`}
-          className="max-h-32"
+          className="max-h-32 p-3"
         />
-        <InputGroupAddon align="inline-end">
+        <InputGroupAddon align="block-end" className="gap-1">
           <InputGroupButton
             type="submit"
+            size="icon-sm"
             variant="default"
-            size="icon-xs"
+            className="ml-auto"
             aria-label="Send"
+            disabled={!text.trim()}
           >
             <ArrowUpIcon />
           </InputGroupButton>

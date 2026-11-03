@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { PersonAvatar } from '@/components/person-avatar'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { PersonSwitcherProps } from './types'
 
@@ -25,10 +25,13 @@ export const PersonSwitcher = ({
         onValueChange={([id]) => id && onValueChange(id)}
       >
         {people.map((person) => (
-          <ToggleGroupItem key={person.id} value={person.id}>
-            <Avatar size="sm" className="size-5" aria-hidden>
-              <AvatarFallback>{person.name[0]}</AvatarFallback>
-            </Avatar>
+          // Even padding around the avatar, top, bottom and start.
+          <ToggleGroupItem
+            key={person.id}
+            value={person.id}
+            className="h-auto gap-1.5 py-1.5 ps-1.5 pe-2.5"
+          >
+            <PersonAvatar author={person} />
             {person.name}
           </ToggleGroupItem>
         ))}

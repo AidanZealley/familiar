@@ -1,5 +1,4 @@
 import { ClockIcon, LoaderIcon } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import {
   Message,
@@ -8,6 +7,7 @@ import {
   MessageFooter,
   MessageHeader,
 } from '@/components/ui/message'
+import { PersonAvatar } from '@/components/person-avatar'
 import { ToolCallCard } from '../tool-call-card'
 import type { TranscriptItemProps } from './types'
 
@@ -25,15 +25,10 @@ export const TranscriptItem = ({
       return (
         <Message align={align}>
           <MessageAvatar>
-            <Avatar size="sm" aria-hidden>
-              <AvatarFallback>{author.name[0]}</AvatarFallback>
-            </Avatar>
+            <PersonAvatar author={author} />
           </MessageAvatar>
           <MessageContent>
-            <MessageHeader>
-              {author.name}
-              {align === 'end' && ' (you)'}
-            </MessageHeader>
+            <MessageHeader>{author.name}</MessageHeader>
             {/* Waiting for Familiar to reach it: an outline, not yet sent. */}
             <Bubble
               align={align}
