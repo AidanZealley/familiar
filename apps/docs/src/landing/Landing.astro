@@ -13,7 +13,7 @@ import {
 import Shell from './Shell.astro'
 import Hero from './Hero.astro'
 import {
-  demosStub,
+  demos,
   highlights,
   installers,
   links,
@@ -145,7 +145,17 @@ const highlightIcons = {
         ><GitBranch size={14} />GitHub</a
       > · MIT licensed · Built on <a href={links.piDurable}>Pi Durable</a>
     </p>
-    <p class="soon">{demosStub}</p>
+    <p class="demos">
+      Try it in your browser:{' '}
+      {
+        demos.map((demo, index) => (
+          <>
+            {index > 0 && ' · '}
+            <a href={demo.href}>{demo.label}</a>
+          </>
+        ))
+      }
+    </p>
   </footer>
 
   <script>
@@ -633,7 +643,7 @@ const highlightIcons = {
     vertical-align: bottom;
   }
 
-  .foot .soon {
+  .foot .demos {
     margin-left: auto;
   }
 </style>

@@ -72,5 +72,14 @@ export const paths = [
   },
 ] as const
 
-// Browser-hosted demos are planned, not built.
-export const demosStub = 'Browser demos are on the way.'
+// Examples that run in the browser, in the docs.
+export const demos = [
+  {
+    label: 'Embedded assistant',
+    href: '/familiar/examples/embedded-assistant/',
+  },
+  {
+    label: 'Shared conversation',
+    href: '/familiar/examples/shared-conversation/',
+  },
+] as const

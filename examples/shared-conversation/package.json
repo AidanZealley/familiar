@@ -1,0 +1,34 @@
+{
+  "name": "@familiar-example/shared-conversation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "@familiar-ai/client": "workspace:*",
+    "@familiar-ai/core": "workspace:*",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@tailwindcss/vite": "^4",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "hono": "catalog:",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "shadcn": "^4.23.0",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6",
+    "vite": "^8"
+  }
+}

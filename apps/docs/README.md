@@ -11,7 +11,7 @@ pnpm build:docs   # Static site and search index in apps/docs/dist, then a link 
 
 The homepage lives in `src/landing/`; documentation pages live in `src/content/docs/`. Code samples longer than a few lines live in `snippets/`, where `pnpm typecheck` checks them against the workspace packages; pages import them with `?raw`. `snippets/first-familiar.ts` also runs in `pnpm test`. Internal links include the `/familiar/` base path, and the build fails on any that don't resolve.
 
-The [embedded assistant](src/content/docs/examples/embedded-assistant.mdx) page embeds [`examples/embedded-kanban`](../../examples/embedded-kanban/). `pnpm dev:docs` and `pnpm build:docs` first build it into `public/demos/embedded-kanban/` with the site's base path.
+The [embedded assistant](src/content/docs/examples/embedded-assistant.mdx) and [shared conversation](src/content/docs/examples/shared-conversation.mdx) pages embed [`examples/embedded-kanban`](../../examples/embedded-kanban/) and [`examples/shared-conversation`](../../examples/shared-conversation/). `pnpm dev:docs` and `pnpm build:docs` first build each into `public/demos/<example>/` with the site's base path.
 
 `src/styles/theme.css` maps the web app's palette and fonts onto Starlight's custom properties.
 
