@@ -13,7 +13,7 @@ pnpm --filter @familiar-example/shared-conversation build   # Static files in di
 ## How it fits together
 
 - `src/demo/demo.ts` opens one Familiar over `MemoryStorage` and mounts the conversation and event routes behind a sign-in check. The host owns the sessions: each token maps to an `Author`, and that is the author of any message the request sends. Nothing in the request body can change it.
-- `signIn` gives each person a session token and their own client store, whose `fetch` sends that token with every request and opens its own event stream. Switching person in the page switches which client you're looking through. Every client mirrors the same conversation.
+- `signIn` gives each person a session token and their own client store, whose `fetch` sends that token with every request and opens its own event stream. **Send as** picks which person's chat is in front; each keeps its own client and draft, so a message always goes through the session of the person who typed it. Every client mirrors the same conversation.
 - `src/demo/plugin.ts` has two tools, `who_am_i` and `count_me_in`. Neither takes a name. Both read `api.author`, which Familiar resolves from the message that started the run, so a message sent while someone else's run is going still runs as its own sender.
 - Each message keeps the author it was sent with. If a person's name changes on the host, their earlier messages keep the old name; the `id` stays the same.
 
@@ -33,4 +33,4 @@ Anything else, including negated or combined requests, gets a reply listing what
 
 The sessions are simulated in one page. Other tabs and visitors don't join, and there is no real sign-in. In a real app, each person's browser signs in to your host, which authenticates each request and passes the author to `conversationRoutes`, as [Serve the API](https://aidanzealley.github.io/familiar/build/serve-the-api/) describes. To use a real model, run Familiar on that server and register a provider there (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), so credentials never reach the browser.
 
-`src/components/ui` comes from the shadcn CLI (`pnpm exec shadcn add ...`). Update it through the CLI rather than by hand.
+`src/components/ui` comes from the shadcn CLI (`pnpm dlx shadcn@latest add ...`), including the [chat components](https://ui.shadcn.com/docs/ai-elements/base/chat) Familiar's web UI uses. Update it through the CLI rather than by hand.

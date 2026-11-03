@@ -1,11 +1,16 @@
-import { SendIcon } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowUpIcon } from 'lucide-react'
+import { useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from '@/components/ui/input-group'
 import { useFamiliar } from '@/demo/react'
 import type { ComposerProps } from './types'
 
-export const Composer = ({ prompts, name }: ComposerProps) => {
+export const Composer = ({ prompts, name, switcher }: ComposerProps) => {
   // This person's own client: its session decides who the message is from.
   const send = useFamiliar((state) => state.conversation.send)
   const [text, setText] = useState('')
@@ -15,13 +20,33 @@ export const Composer = ({ prompts, name }: ComposerProps) => {
       setText('')
     }
   }
+  // Enter sends and Shift+Enter starts a new line, as in Familiar's web UI.
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+    }
+  }
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t p-3">
+    <form
+      aria-label={`Message Familiar as ${name}`}
+      className="flex shrink-0 flex-col gap-2 border-t p-3"
+      onSubmit={(event) => {
+        event.preventDefault()
+        submit(text)
+      }}
+    >
+      {switcher}
       <div className="flex flex-wrap gap-1">
         {prompts.map((prompt) => (
           <Button
             key={prompt}
+            type="button"
             variant="outline"
             size="xs"
             onClick={() => submit(prompt)}
@@ -30,23 +55,27 @@ export const Composer = ({ prompts, name }: ComposerProps) => {
           </Button>
         ))}
       </div>
-      <form
-        className="flex gap-1"
-        onSubmit={(event) => {
-          event.preventDefault()
-          submit(text)
-        }}
-      >
-        <Input
+      <InputGroup>
+        <InputGroupTextarea
           value={text}
           onChange={(event) => setText(event.target.value)}
+          onKeyDown={onKeyDown}
+          rows={1}
           placeholder={`Message as ${name}`}
-          aria-label={`Message Familiar as ${name}`}
+          aria-label={`Message as ${name}`}
+          className="max-h-32"
         />
-        <Button type="submit" size="icon" aria-label="Send">
-          <SendIcon />
-        </Button>
-      </form>
-    </div>
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            type="submit"
+            variant="default"
+            size="icon-xs"
+            aria-label="Send"
+          >
+            <ArrowUpIcon />
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+    </form>
   )
 }

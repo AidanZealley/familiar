@@ -1,6 +1,13 @@
-import { LoaderIcon } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { ClockIcon, LoaderIcon } from 'lucide-react'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Bubble, BubbleContent } from '@/components/ui/bubble'
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+  MessageFooter,
+  MessageHeader,
+} from '@/components/ui/message'
 import { ToolCallCard } from '../tool-call-card'
 import type { TranscriptItemProps } from './types'
 
@@ -14,40 +21,60 @@ export const TranscriptItem = ({
       // The author as the host signed them in when they sent this.
       const author =
         typeof item.author === 'string' ? { name: item.author } : item.author
-      const mine = 'id' in author && author.id === viewer.id
+      const align = 'id' in author && author.id === viewer.id ? 'end' : 'start'
       return (
-        <div
-          className={cn(
-            'flex max-w-[85%] flex-col gap-1',
-            mine ? 'items-end self-end' : 'items-start',
-          )}
-        >
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-medium text-foreground">{author.name}</span>
-            {mine && <span>(you)</span>}
-            {item.queued && <Badge variant="outline">Queued</Badge>}
-          </div>
-          <p
-            className={cn(
-              'px-3 py-2 whitespace-pre-wrap',
-              mine ? 'bg-primary text-primary-foreground' : 'bg-muted',
+        <Message align={align}>
+          <MessageAvatar>
+            <Avatar size="sm" aria-hidden>
+              <AvatarFallback>{author.name[0]}</AvatarFallback>
+            </Avatar>
+          </MessageAvatar>
+          <MessageContent>
+            <MessageHeader>
+              {author.name}
+              {align === 'end' && ' (you)'}
+            </MessageHeader>
+            {/* Waiting for Familiar to reach it: an outline, not yet sent. */}
+            <Bubble
+              align={align}
+              variant={
+                item.queued ? 'outline' : align === 'end' ? 'default' : 'muted'
+              }
+            >
+              <BubbleContent className="whitespace-pre-wrap">
+                {item.text}
+              </BubbleContent>
+            </Bubble>
+            {item.queued && (
+              <MessageFooter className="gap-1">
+                <ClockIcon className="size-3" aria-hidden />
+                Queued
+              </MessageFooter>
             )}
-          >
-            {item.text}
-          </p>
-        </div>
+          </MessageContent>
+        </Message>
       )
     }
     case 'reply':
       return (
-        <div className="flex flex-col gap-2">
-          {!continued && <span className="font-medium">Familiar</span>}
-          {item.toolCalls.map((call) => (
-            <ToolCallCard key={call.id} call={call} />
-          ))}
-          {item.text && <p className="whitespace-pre-wrap">{item.text}</p>}
-          {item.error && <p className="text-destructive">{item.error}</p>}
-        </div>
+        <Message>
+          <MessageContent>
+            {!continued && (
+              <MessageHeader className="px-0 text-foreground">
+                Familiar
+              </MessageHeader>
+            )}
+            {item.toolCalls.map((call) => (
+              <ToolCallCard key={call.id} call={call} />
+            ))}
+            {item.text && <p className="whitespace-pre-wrap">{item.text}</p>}
+            {item.error && (
+              <p role="alert" className="text-destructive">
+                {item.error}
+              </p>
+            )}
+          </MessageContent>
+        </Message>
       )
     case 'waiting':
       return (
