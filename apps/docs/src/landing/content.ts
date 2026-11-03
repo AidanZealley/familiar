@@ -37,24 +37,24 @@ export const installers = [
 
 export const highlights = [
   {
-    label: 'Yours',
-    line: 'Installed on your computer and reached at a private address.',
+    label: 'Self-hosted',
+    line: 'Run Familiar on your computer and access it over your private network.',
   },
   {
-    label: 'Remembers',
-    line: 'Keeps your history and files lasting facts away each night, not instantly.',
+    label: 'Long-term memory',
+    line: 'Stores conversation history and organises lasting facts each night.',
   },
   {
-    label: 'Learns tricks',
-    line: 'Picks up new tools through plugins and MCP servers.',
+    label: 'Tools and plugins',
+    line: 'Connect web tools, custom plugins and MCP servers.',
   },
   {
-    label: 'Travels',
-    line: 'Its portable core can be hosted on Node or Cloudflare.',
+    label: 'Portable',
+    line: 'Host the same core on Node.js or Cloudflare Workers.',
   },
   {
-    label: 'Moves in',
-    line: "Embed Familiar's packages to put it inside another app.",
+    label: 'Embeddable',
+    line: "Add an assistant to your app with Familiar's core and client packages.",
   },
 ] as const
 
