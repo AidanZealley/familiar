@@ -1,0 +1,365 @@
+---
+// Variant A, "Ledger": one narrow left-aligned column read top to bottom,
+// like a well-kept README. Motion: a violet block stepping around a 3×3 grid.
+import Shell from '../../landing/Shell.astro'
+import {
+  demosStub,
+  headline,
+  highlights,
+  installers,
+  links,
+  pitch,
+  signIn,
+} from '../../landing/content'
+---
+
+<Shell title="Familiar · Landing A">
+  <div class="page">
+    <header class="top">
+      <a class="brand" href="/familiar/landing/a/">
+        <span class="mark" aria-hidden="true">
+          {Array.from({ length: 9 }, () => <span class="dot" />)}
+          <span class="step"></span>
+        </span>
+        familiar
+      </a>
+      <nav aria-label="Primary">
+        <a href={links.docs}>Docs</a>
+        <a href={links.build}>Build</a>
+        <a href={links.github}>GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <h1>{headline}</h1>
+      <p class="lede">{pitch}</p>
+
+      <section class="block" aria-labelledby="install">
+        <h2 id="install" class="label">Install</h2>
+        <dl class="commands">
+          {
+            installers.map((installer) => (
+              <div class="command">
+                <dt>{installer.os}</dt>
+                <dd>
+                  <code>{installer.command}</code>
+                  <button type="button" data-copy={installer.command} hidden>
+                    Copy
+                  </button>
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+        <p class="note">
+          {signIn}{' '}
+          <a href={links.install}>Install guide</a>
+        </p>
+      </section>
+
+      <section class="block" aria-labelledby="what">
+        <h2 id="what" class="label">What it does</h2>
+        <ol class="ledger">
+          {
+            highlights.map((highlight, index) => (
+              <li>
+                <span class="n" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <h3>{highlight.label}</h3>
+                <p>{highlight.line}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </section>
+
+      <section class="block" aria-labelledby="next">
+        <h2 id="next" class="label">Read on</h2>
+        <ul class="next">
+          <li><a href={links.docs}>Documentation</a> for using Familiar</li>
+          <li><a href={links.build}>Build guide</a> for the npm packages</li>
+          <li><a href={links.github}>Source on GitHub</a>, MIT licensed</li>
+          <li class="soon">{demosStub}</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      Built on <a href={links.piDurable}>Pi Durable</a>.
+    </footer>
+  </div>
+</Shell>
+
+<style>
+  .page {
+    max-width: 44rem;
+    margin-inline: clamp(1rem, 14vw - 2rem, 10rem) 1rem;
+    padding-block: 2rem 4rem;
+  }
+
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: -0.01em;
+  }
+
+  nav {
+    display: flex;
+    gap: 1.25rem;
+    color: var(--muted);
+  }
+
+  nav a {
+    text-decoration: none;
+  }
+
+  nav a:hover {
+    color: var(--text);
+    text-decoration: underline;
+  }
+
+  /* The mark: nine dots and one block that steps between them. */
+  .mark {
+    --cell: 6px;
+    --gap: 3px;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, var(--cell));
+    gap: var(--gap);
+  }
+
+  .dot {
+    width: var(--cell);
+    height: var(--cell);
+    background: var(--rule-strong);
+  }
+
+  .step {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--cell);
+    height: var(--cell);
+    background: var(--accent);
+    animation: step 9.6s infinite;
+  }
+
+  /* Eight perimeter cells, clockwise; each move is quick, each hold long. */
+  @keyframes step {
+    0%,
+    9% {
+      translate: 0 0;
+    }
+    12.5%,
+    21.5% {
+      translate: 9px 0;
+    }
+    25%,
+    34% {
+      translate: 18px 0;
+    }
+    37.5%,
+    46.5% {
+      translate: 18px 9px;
+    }
+    50%,
+    59% {
+      translate: 18px 18px;
+    }
+    62.5%,
+    71.5% {
+      translate: 9px 18px;
+    }
+    75%,
+    84% {
+      translate: 0 18px;
+    }
+    87.5%,
+    96.5% {
+      translate: 0 9px;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .step {
+      animation: none;
+      translate: 9px 9px;
+    }
+  }
+
+  main {
+    padding-top: clamp(3rem, 9vw, 6rem);
+  }
+
+  h1 {
+    font-size: clamp(1.625rem, 4.4vw, 2.375rem);
+    line-height: 1.18;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .lede {
+    margin-top: 1.25rem;
+    max-width: 38rem;
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  .block {
+    margin-top: clamp(3rem, 8vw, 4.5rem);
+  }
+
+  .label {
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .commands {
+    border-top: 1px solid var(--text);
+  }
+
+  .command {
+    padding-block: 0.875rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .command dt {
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .command dd {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-top: 0.25rem;
+  }
+
+  .command code {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8125rem;
+    word-break: break-all;
+  }
+
+  .command code::before {
+    content: '$ ';
+    color: var(--accent);
+  }
+
+  button {
+    flex: none;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    background: none;
+    border: 1px solid var(--rule-strong);
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  button:hover {
+    border-color: var(--text);
+  }
+
+  .note {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+
+  .note a {
+    color: var(--text);
+  }
+
+  .ledger {
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--text);
+  }
+
+  .ledger li {
+    display: grid;
+    grid-template-columns: 2.5rem 9.5rem 1fr;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .n {
+    font-size: 0.75rem;
+    color: var(--accent);
+  }
+
+  .ledger h3 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .ledger p {
+    color: var(--muted);
+  }
+
+  @media (max-width: 40rem) {
+    .ledger li {
+      grid-template-columns: 2rem 1fr;
+    }
+
+    .ledger p {
+      grid-column: 2;
+    }
+  }
+
+  .next {
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+    color: var(--muted);
+  }
+
+  .next a {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .next li::before {
+    content: '→ ';
+    color: var(--accent);
+  }
+
+  .next .soon::before {
+    content: '· ';
+    color: var(--rule-strong);
+  }
+
+  footer {
+    margin-top: 4.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+</style>

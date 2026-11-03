@@ -1,0 +1,112 @@
+---
+// Comparison index for the landing prototypes. Not linked from the docs.
+import Shell from '../../landing/Shell.astro'
+
+const variants = [
+  {
+    letter: 'A',
+    name: 'Ledger',
+    href: '/familiar/landing/a/',
+    summary:
+      'One narrow left-aligned column read like a README. Highlights sit in a numbered, ruled ledger.',
+    motion: 'A violet block steps around a 3×3 grid in the mark.',
+  },
+  {
+    letter: 'B',
+    name: 'Bands',
+    href: '/familiar/landing/b/',
+    summary:
+      'Full-width horizontal bands: a violet block with the name at display size, an install strip, then the five highlights across one ruled row.',
+    motion: 'A slow wave of font weight passes through the name.',
+  },
+  {
+    letter: 'C',
+    name: 'Axis',
+    href: '/familiar/landing/c/',
+    summary:
+      'Everything on one centred axis with wide spacing. Install is a violet block; the highlights are a quiet stack of names.',
+    motion: 'An outline and a solid square drift into alignment and apart.',
+  },
+]
+---
+
+<Shell title="Familiar · Landing variants">
+  <main id="main" class="page">
+    <h1>Landing variants</h1>
+    <p class="lede">
+      Three new prototypes for Familiar's landing page. The docs homepage is
+      unchanged.
+    </p>
+    <ol>
+      {
+        variants.map((variant) => (
+          <li>
+            <a href={variant.href}>
+              <span class="letter">{variant.letter}</span>
+              <span class="name">{variant.name}</span>
+            </a>
+            <p>{variant.summary}</p>
+            <p class="motion">Motion: {variant.motion}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </main>
+</Shell>
+
+<style>
+  .page {
+    max-width: 44rem;
+    margin-inline: auto;
+    padding: 3rem 1rem 4rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .lede {
+    margin-top: 0.75rem;
+    color: var(--muted);
+  }
+
+  ol {
+    margin-top: 2.5rem;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--text);
+  }
+
+  li {
+    padding-block: 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  li a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .letter {
+    display: inline-grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    background: var(--block);
+    color: var(--on-block);
+    font-size: 0.9375rem;
+  }
+
+  li p {
+    margin-top: 0.5rem;
+    color: var(--muted);
+  }
+
+  .motion {
+    font-size: 0.8125rem;
+  }
+</style>

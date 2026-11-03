@@ -1,0 +1,176 @@
+---
+// The landing prototypes' own page shell: JetBrains Mono only, Familiar's
+// Mist neutrals and violet, and nothing from Starlight or its theme.
+import '@fontsource-variable/jetbrains-mono/wght.css'
+
+type Props = { title: string; description?: string }
+
+const {
+  title,
+  description = 'A personal AI assistant with one conversation that never resets.',
+} = Astro.props
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/familiar/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      // Follow a light or dark choice made on the docs site.
+      try {
+        const theme = localStorage.getItem('starlight-theme')
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.dataset.theme = theme
+        }
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <slot />
+    <script>
+      // Copy buttons stay hidden until this runs; commands are selectable text.
+      for (const button of document.querySelectorAll<HTMLButtonElement>(
+        'button[data-copy]',
+      )) {
+        button.hidden = false
+        button.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(button.dataset.copy ?? '')
+          const label = button.textContent
+          button.textContent = 'Copied'
+          setTimeout(() => (button.textContent = label), 1600)
+        })
+      }
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    color-scheme: light;
+    --bg: oklch(1 0 0);
+    --surface: oklch(0.963 0.002 197.1);
+    --rule: oklch(0.925 0.005 214.3);
+    --rule-strong: oklch(0.872 0.007 219.6);
+    --text: oklch(0.148 0.004 228.8);
+    --muted: oklch(0.45 0.017 213.2);
+    --accent: oklch(0.511 0.262 276.966);
+    --block: oklch(0.457 0.24 277.023);
+    --on-block: oklch(0.962 0.018 272.314);
+    --on-block-muted: oklch(0.86 0.06 274);
+    --on-block-rule: oklch(0.62 0.17 277);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+      --bg: oklch(0.148 0.004 228.8);
+      --surface: oklch(0.218 0.008 223.9);
+      --rule: oklch(0.275 0.011 216.9);
+      --rule-strong: oklch(0.378 0.015 216);
+      --text: oklch(0.987 0.002 197.1);
+      --muted: oklch(0.723 0.014 214.4);
+      --accent: oklch(0.82 0.09 274);
+      --block: oklch(0.398 0.195 277.366);
+      --on-block-muted: oklch(0.84 0.06 274);
+      --on-block-rule: oklch(0.55 0.16 277);
+    }
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --bg: oklch(0.148 0.004 228.8);
+    --surface: oklch(0.218 0.008 223.9);
+    --rule: oklch(0.275 0.011 216.9);
+    --rule-strong: oklch(0.378 0.015 216);
+    --text: oklch(0.987 0.002 197.1);
+    --muted: oklch(0.723 0.014 214.4);
+    --accent: oklch(0.82 0.09 274);
+    --block: oklch(0.398 0.195 277.366);
+    --on-block-muted: oklch(0.84 0.06 274);
+    --on-block-rule: oklch(0.55 0.16 277);
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+    font-size: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    font-variant-ligatures: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  p,
+  ol,
+  ul,
+  dl,
+  dd,
+  figure {
+    margin: 0;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 0.25em;
+    text-decoration-thickness: 1px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  code {
+    font-family: inherit;
+  }
+
+  .skip {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--text);
+    color: var(--bg);
+    z-index: 10;
+  }
+
+  .skip:focus {
+    top: 1rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>
