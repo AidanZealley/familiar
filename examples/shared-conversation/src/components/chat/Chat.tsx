@@ -7,13 +7,11 @@ import {
 } from '@/components/ui/message-scroller'
 import { useFamiliar, useTranscript } from '@/demo/react'
 import { cn } from '@/lib/utils'
-import { suggestedPrompts } from '@/demo/script'
-import { Composer } from './components/composer'
 import { TranscriptItems } from './components/transcript-items'
 import type { ChatProps } from './types'
 
 /** One person's view of the shared conversation, through their own client. */
-export const Chat = ({ author, people, switcher, hidden }: ChatProps) => {
+export const Chat = ({ author, hidden }: ChatProps) => {
   const connection = useFamiliar((state) => state.connection)
   const transcript = useTranscript()
   const items = transcript?.items ?? []
@@ -52,11 +50,6 @@ export const Chat = ({ author, people, switcher, hidden }: ChatProps) => {
           </MessageScrollerViewport>
           <MessageScrollerButton />
         </MessageScroller>
-        <Composer
-          prompts={suggestedPrompts(author, people)}
-          name={author.name}
-          switcher={switcher}
-        />
       </MessageScrollerProvider>
     </section>
   )

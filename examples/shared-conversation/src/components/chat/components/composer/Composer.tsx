@@ -10,7 +10,7 @@ import {
 import { useFamiliar } from '@/demo/react'
 import type { ComposerProps } from './types'
 
-export const Composer = ({ prompts, name, switcher }: ComposerProps) => {
+export const Composer = ({ prompts, name }: ComposerProps) => {
   // This person's own client: its session decides who the message is from.
   const send = useFamiliar((state) => state.conversation.send)
   const [text, setText] = useState('')
@@ -35,13 +35,12 @@ export const Composer = ({ prompts, name, switcher }: ComposerProps) => {
   return (
     <form
       aria-label={`Message Familiar as ${name}`}
-      className="flex shrink-0 flex-col gap-2 border-t p-3"
+      className="flex shrink-0 flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault()
         submit(text)
       }}
     >
-      {switcher}
       <div className="flex flex-wrap gap-1">
         {prompts.map((prompt) => (
           <Button
