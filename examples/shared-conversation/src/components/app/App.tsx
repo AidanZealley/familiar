@@ -2,13 +2,13 @@ import { RotateCcwIcon } from 'lucide-react'
 import { startTransition, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Chat } from '@/components/chat'
-import { Composer } from '@/components/chat/components/composer'
-import { suggestedPrompts } from '@/demo/script'
-import { cn } from '@/lib/utils'
+import { Composer } from '@/components/composer'
 import { PersonSwitcher } from '@/components/person-switcher'
+import { Suggestions } from '@/components/suggestions'
 import { startDemo } from '@/demo/demo'
 import { PEOPLE } from '@/demo/people'
 import { FamiliarProvider } from '@/demo/react'
+import { suggestedPrompts } from '@/demo/script'
 import type { AppProps } from './types'
 
 export const App = ({ initialDemo }: AppProps) => {
@@ -17,6 +17,8 @@ export const App = ({ initialDemo }: AppProps) => {
   const [demo, setDemo] = useState(initialDemo)
   const [active, setActive] = useState(PEOPLE[0].id)
   const [resetting, startReset] = useTransition()
+  const [reader] = demo.clients
+  const sender = demo.clients.find(({ author }) => author.id === active)!
 
   const reset = () =>
     startReset(async () => {
@@ -51,39 +53,31 @@ export const App = ({ initialDemo }: AppProps) => {
           session in this page, all talking to one Familiar in one conversation.
           Other tabs and visitors aren't joined.
         </p>
-        {/* Every person's chat stays mounted with its own client and draft;
-            only the chosen one shows. A new session remounts it on Reset. */}
-        <div className="grid min-h-0 flex-1 grid-rows-1">
-          {demo.clients.map(({ sessionId, author, store }) => (
-            <FamiliarProvider key={sessionId} store={store}>
-              <Chat author={author} hidden={author.id !== active} />
-            </FamiliarProvider>
-          ))}
-        </div>
-        <div className="flex shrink-0 flex-col gap-2 border-t p-3">
+        {/* One shared transcript, read through the first person's client.
+            Every client is connected and mirrors the same conversation; the
+            person sending only decides whose messages sit on the right. */}
+        <FamiliarProvider key={reader.sessionId} store={reader.store}>
+          <Chat viewer={sender.author} />
+        </FamiliarProvider>
+        <div className="flex shrink-0 flex-col gap-3 border-t p-3">
+          {/* Only the sender's suggestions, through the sender's client. */}
+          <FamiliarProvider key={sender.sessionId} store={sender.store}>
+            <Suggestions prompts={suggestedPrompts(sender.author, PEOPLE)} />
+          </FamiliarProvider>
           <PersonSwitcher
             people={PEOPLE}
             value={active}
             onValueChange={setActive}
           />
-          <div className="grid grid-rows-1">
-            {demo.clients.map(({ sessionId, author, store }) => (
-              <FamiliarProvider key={sessionId} store={store}>
-                <div
-                  inert={author.id !== active}
-                  className={cn(
-                    'col-start-1 row-start-1',
-                    author.id !== active && 'invisible',
-                  )}
-                >
-                  <Composer
-                    prompts={suggestedPrompts(author, PEOPLE)}
-                    name={author.name}
-                  />
-                </div>
-              </FamiliarProvider>
-            ))}
-          </div>
+          {/* Each person's message box, bound to their own client, keeps its
+              draft while hidden. A new session on Reset remounts it. */}
+          {demo.clients.map(({ sessionId, author, store }) => (
+            <FamiliarProvider key={sessionId} store={store}>
+              <div hidden={author.id !== active}>
+                <Composer name={author.name} />
+              </div>
+            </FamiliarProvider>
+          ))}
         </div>
       </main>
     </div>
