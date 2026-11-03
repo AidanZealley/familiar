@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev --host",
-    "build": "astro build && node scripts/check-links.ts",
+    "dev": "pnpm build:demo && astro dev --host",
+    "build": "pnpm build:demo && astro build && node scripts/check-links.ts",
+    "build:demo": "pnpm --filter @familiar-example/embedded-kanban build --base=/familiar/demos/embedded-kanban/ --outDir=../../apps/docs/public/demos/embedded-kanban --emptyOutDir",
     "preview": "astro preview --host",
     "typecheck": "astro check"
   },
