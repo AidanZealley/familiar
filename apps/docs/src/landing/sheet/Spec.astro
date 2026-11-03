@@ -1,0 +1,51 @@
+---
+// Baseline A's spec list (platforms, sign-in, runtime) with icons. Heroes
+// place it; the parent decides whether it reads as a column or a row by
+// setting `grid-template-columns` on `.spec`.
+import { KeyRound, Layers, Monitor } from '@lucide/astro'
+import { links } from '../content'
+---
+
+<dl class="spec">
+  <div>
+    <dt><Monitor size={14} />Runs on</dt>
+    <dd>macOS, Linux and Windows</dd>
+  </div>
+  <div>
+    <dt><KeyRound size={14} />Signs in with</dt>
+    <dd>Your ChatGPT subscription</dd>
+  </div>
+  <div>
+    <dt><Layers size={14} />Built on</dt>
+    <dd><a href={links.piDurable}>Pi Durable</a></dd>
+  </div>
+</dl>
+
+<style>
+  .spec {
+    display: grid;
+    gap: 1rem 2rem;
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  dt {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  dt :global(svg) {
+    color: var(--accent);
+  }
+
+  dd {
+    margin-top: 0.125rem;
+    font-weight: 600;
+  }
+</style>

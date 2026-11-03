@@ -155,6 +155,9 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@lucide/astro':
+        specifier: ^1.66.0
+        version: 1.66.0(astro@7.4.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
       astro:
         specifier: 7.4.4
         version: 7.4.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)
@@ -1484,6 +1487,11 @@ packages:
 
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
+
+  '@lucide/astro@1.66.0':
+    resolution: {integrity: sha512-e6HoP1W2PQm8HSQfWyo0jz4fl8rAgzbNk/to0dlMy0jpwwwmsZ8NxeX3KU8TcpISa0BL02pV9WdbjzGIsMT6LQ==}
+    peerDependencies:
+      astro: ^4 || ^5 || ^6 || ^7
 
   '@mdream/js@2.0.3':
     resolution: {integrity: sha512-n35jmVwE663LBHr9iawaIbO+zpJ5EoCFD9UpG4XRYHs//YUqIX322d/F+QuF08Yi64dpFfzz4p4/joTnVZDvJA==}
@@ -6983,6 +6991,10 @@ snapshots:
       keyv: 5.6.0
 
   '@keyv/serialize@1.1.1': {}
+
+  '@lucide/astro@1.66.0(astro@7.4.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))':
+    dependencies:
+      astro: 7.4.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)
 
   '@mdream/js@2.0.3':
     dependencies:

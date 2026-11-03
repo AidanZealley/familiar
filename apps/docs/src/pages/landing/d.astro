@@ -1,0 +1,161 @@
+---
+// Refinement D, "Margins": baseline A with an annotated headline. Three
+// phrases carry a flat violet highlighter and a footnote number; margin notes
+// with icons gloss them in the right-hand column. Motion: the highlighter
+// sweeps across each phrase once on load, in reading order.
+import { Infinity as Unending, Lock, MessageCircle } from '@lucide/astro'
+import { pitch } from '../../landing/content'
+import Sheet from '../../landing/sheet/Sheet.astro'
+import Spec from '../../landing/sheet/Spec.astro'
+
+const notes = [
+  { icon: Lock, text: 'One owner, on your own machine.' },
+  { icon: MessageCircle, text: 'The same thread from any of your devices.' },
+  { icon: Unending, text: 'Tomorrow picks up where today stopped.' },
+]
+---
+
+<Sheet title="Familiar · Landing D" home="/familiar/landing/d/">
+  <section class="sheet-wrap hero">
+    <h1>
+      A <span class="mark" style="--n: 0">personal</span><sup aria-hidden="true"
+        >1</sup
+      > AI assistant with <span class="mark" style="--n: 1"
+        >one conversation</span
+      ><sup aria-hidden="true">2</sup> that <span class="mark" style="--n: 2"
+        >never resets</span
+      ><sup aria-hidden="true">3</sup>.
+    </h1>
+    <ol class="notes" aria-label="Notes">
+      {
+        notes.map((note, index) => (
+          <li>
+            <span class="note-num" aria-hidden="true">
+              {index + 1}
+            </span>
+            <note.icon size={16} />
+            <span>{note.text}</span>
+          </li>
+        ))
+      }
+    </ol>
+    <p class="lede">{pitch}</p>
+    <div class="spec-row"><Spec /></div>
+  </section>
+</Sheet>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 1.5rem;
+    padding-block: clamp(3rem, 8vw, 6rem) 0;
+  }
+
+  h1 {
+    grid-column: 1 / span 9;
+    font-size: clamp(2.125rem, 5.6vw, 4.75rem);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  /* A flat highlighter band in the lower part of the line, drawn with a
+     single-colour background image so it can sweep and wrap across lines. */
+  .mark {
+    --ink: color-mix(in oklch, var(--accent) 24%, transparent);
+    background-image: linear-gradient(var(--ink), var(--ink));
+    background-repeat: no-repeat;
+    background-position: 0 88%;
+    background-size: 100% 0.36em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mark {
+      animation: sweep 700ms cubic-bezier(0.4, 0, 0.2, 1) both;
+      animation-delay: calc(300ms + var(--n) * 450ms);
+    }
+  }
+
+  @keyframes sweep {
+    from {
+      background-size: 0% 0.36em;
+    }
+  }
+
+  sup {
+    margin-left: 0.08em;
+    font-size: 0.32em;
+    font-weight: 700;
+    letter-spacing: 0;
+    vertical-align: super;
+    color: var(--accent);
+  }
+
+  .notes {
+    grid-column: 10 / span 3;
+    align-self: center;
+    display: grid;
+    gap: 1.25rem;
+    padding: 0 0 0 1.25rem;
+    list-style: none;
+    border-left: 2px solid var(--accent);
+    font-size: 0.875rem;
+  }
+
+  .notes li {
+    display: grid;
+    grid-template-columns: 1.25rem 1.25rem 1fr;
+    align-items: start;
+    gap: 0.5rem;
+  }
+
+  .note-num {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .notes :global(svg) {
+    margin-top: 0.125rem;
+    color: var(--accent);
+  }
+
+  .lede {
+    grid-column: 1 / span 6;
+    margin-top: 2rem;
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  .spec-row {
+    grid-column: 1 / -1;
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  .spec-row :global(.spec) {
+    grid-template-columns: repeat(3, minmax(0, 14rem));
+  }
+
+  @media (max-width: 56rem) {
+    h1,
+    .notes,
+    .lede {
+      grid-column: 1 / -1;
+    }
+
+    .notes {
+      margin-top: 2rem;
+    }
+
+    .spec-row :global(.spec) {
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    }
+  }
+</style>

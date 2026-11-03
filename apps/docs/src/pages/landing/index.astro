@@ -2,32 +2,44 @@
 // Comparison index for the landing prototypes. Not linked from the docs.
 import Shell from '../../landing/Shell.astro'
 
-const variants = [
+const current = [
   {
     letter: 'A',
-    name: 'Sheet',
+    name: 'Baseline',
     href: '/familiar/landing/a/',
     summary:
-      'An editorial grid: a large headline with a spec column, a tabbed install panel, and the highlights as a weighted grid led by two large cells.',
+      'The chosen direction, unchanged: editorial grid, spec column, tabbed install panel and weighted highlight grid.',
     motion: 'Section rules draw across as they scroll into view.',
   },
   {
-    letter: 'B',
-    name: 'Bands',
-    href: '/familiar/landing/b/',
+    letter: 'D',
+    name: 'Margins',
+    href: '/familiar/landing/d/',
     summary:
-      'Full-width bands: a violet headline band, an install console overlapping its edge, and the highlights as a tonal ramp from Mist into violet.',
-    motion:
-      'The install switch: its indicator slides and the chosen command settles in.',
+      'A with an annotated headline: three phrases highlighted and footnoted, glossed by margin notes with icons. Lucide icons through the page.',
+    motion: 'The highlighter sweeps across each phrase once, in reading order.',
   },
   {
-    letter: 'C',
-    name: 'Poster',
-    href: '/familiar/landing/c/',
+    letter: 'E',
+    name: 'Thread',
+    href: '/familiar/landing/e/',
     summary:
-      'Big type: a centred opening, a full-bleed violet install slab, and the highlights as display-size names alternating sides.',
-    motion: 'The violet install slab opens out to the page edges on scroll.',
+      'A with a week strip under the headline: one unbroken line through every day, with stops for devices, a night, a tool and home. Lucide icons through the page.',
+    motion: 'The line draws across once and each stop appears as it arrives.',
   },
+  {
+    letter: 'F',
+    name: 'Horizon',
+    href: '/familiar/landing/f/',
+    summary:
+      'A beside a flat violet day-and-night scene: home and devices on the horizon, sun and moon on one arc. Lucide icons through the page.',
+    motion: 'Scrolling turns the arc: the sun sets and the moon rises.',
+  },
+]
+
+const earlier = [
+  { letter: 'B', name: 'Bands', href: '/familiar/landing/b/' },
+  { letter: 'C', name: 'Poster', href: '/familiar/landing/c/' },
 ]
 ---
 
@@ -35,12 +47,11 @@ const variants = [
   <main id="main" class="page">
     <h1>Landing variants</h1>
     <p class="lede">
-      Three prototypes for Familiar's landing page, second round. The docs homepage is
-      unchanged.
+      Baseline A and three refinements of it. The docs homepage is unchanged.
     </p>
     <ol>
       {
-        variants.map((variant) => (
+        current.map((variant) => (
           <li>
             <a href={variant.href}>
               <span class="letter">{variant.letter}</span>
@@ -52,6 +63,16 @@ const variants = [
         ))
       }
     </ol>
+    <p class="earlier">
+      Earlier round:
+      {
+        earlier.map((variant) => (
+          <a href={variant.href}>
+            {variant.letter} · {variant.name}
+          </a>
+        ))
+      }
+    </p>
   </main>
 </Shell>
 
@@ -109,5 +130,18 @@ const variants = [
 
   .motion {
     font-size: 0.8125rem;
+  }
+
+  .earlier {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin-top: 2rem;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .earlier a {
+    color: var(--text);
   }
 </style>

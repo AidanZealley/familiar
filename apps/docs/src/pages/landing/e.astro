@@ -1,0 +1,263 @@
+---
+// Refinement E, "Thread": baseline A's hero, then a week-long strip with one
+// unbroken violet line running through every day. A few icon stops sit on it
+// (devices, a night, a tool, home): one conversation carried through ordinary
+// life, not a feature demo. Motion: the line is revealed left to right once
+// on load and each stop appears as the line reaches it.
+import {
+  House,
+  Laptop,
+  Moon,
+  Puzzle,
+  Smartphone,
+} from '@lucide/astro'
+import { headline, pitch } from '../../landing/content'
+import Sheet from '../../landing/sheet/Sheet.astro'
+import Spec from '../../landing/sheet/Spec.astro'
+
+const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+// The line passes through these points (percent of the strip). It starts and
+// ends past the edges so it reads as continuing both ways.
+const points: [number, number][] = [
+  [-4, 58],
+  [9, 46],
+  [21, 32],
+  [35, 70],
+  [50, 44],
+  [62, 60],
+  [72, 34],
+  [86, 60],
+  [104, 42],
+]
+
+const stops = [
+  { at: 2, icon: Laptop },
+  { at: 3, icon: Moon, night: true },
+  { at: 4, icon: Smartphone },
+  { at: 6, icon: Puzzle },
+  { at: 7, icon: House },
+]
+
+// Catmull-Rom through the points, as cubic Béziers.
+const path = points
+  .map(([x, y], i) => {
+    if (i === 0) return `M${x} ${y}`
+    const [x0, y0] = points[Math.max(i - 2, 0)]
+    const [x1, y1] = points[i - 1]
+    const [x3, y3] = points[Math.min(i + 1, points.length - 1)]
+    const c1 = [x1 + (x - x0) / 6, y1 + (y - y0) / 6]
+    const c2 = [x - (x3 - x1) / 6, y - (y3 - y1) / 6]
+    return `C${c1.join(' ')} ${c2.join(' ')} ${x} ${y}`
+  })
+  .join(' ')
+---
+
+<Sheet title="Familiar · Landing E" home="/familiar/landing/e/">
+  <section class="sheet-wrap hero">
+    <h1>{headline}</h1>
+    <p class="lede">{pitch}</p>
+    <div class="spec-col"><Spec /></div>
+
+    <div class="week" aria-hidden="true">
+      <ol class="days">
+        {
+          days.map((day) => (
+            <li>
+              <span class="long">{day}</span>
+              <span class="short">{day[0]}</span>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="track">
+      <svg class="thread" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path d={path} vector-effect="non-scaling-stroke"></path>
+      </svg>
+      {
+        stops.map(({ at, icon: Icon, night }) => {
+          const [x, y] = points[at]
+          return (
+            <span
+              class:list={['stop', { night }]}
+              style={`--x: ${x}%; --y: ${y}%; --t: ${x / 100}`}
+            >
+              <Icon size={16} />
+            </span>
+          )
+        })
+      }
+      </div>
+    </div>
+  </section>
+</Sheet>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 1.5rem;
+    padding-top: clamp(3rem, 8vw, 6rem);
+  }
+
+  h1 {
+    grid-column: 1 / span 9;
+    font-size: clamp(2.125rem, 5.6vw, 4.75rem);
+    line-height: 1.04;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  .lede {
+    grid-column: 1 / span 6;
+    margin-top: 2rem;
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  .spec-col {
+    grid-column: 9 / span 4;
+    align-self: end;
+    margin-top: 2rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--accent);
+  }
+
+  /* The week strip */
+  .week {
+    --dur: 2400ms;
+    grid-column: 1 / -1;
+    position: relative;
+    height: clamp(7rem, 14vw, 9.5rem);
+    margin-top: clamp(2.5rem, 5vw, 3.5rem);
+    border-block: 1px solid var(--rule-strong);
+    overflow: hidden;
+  }
+
+  .days {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .days li {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .days li + li {
+    border-left: 1px solid var(--rule);
+  }
+
+  .short {
+    display: none;
+  }
+
+  /* The line and stops sit below the day labels. */
+  .track {
+    position: absolute;
+    inset: 2rem 0 0.75rem;
+  }
+
+  .thread {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .thread path {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .stop {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    translate: -50% -50%;
+    background: var(--bg);
+    border: 1px solid var(--rule-strong);
+    color: var(--accent);
+  }
+
+  .stop.night {
+    background: var(--block);
+    border-color: var(--block);
+    color: var(--on-block);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .thread {
+      animation: draw var(--dur) linear 200ms both;
+    }
+
+    .stop {
+      animation: arrive 360ms ease-out both;
+      animation-delay: calc(200ms + var(--t) * var(--dur));
+    }
+  }
+
+  @keyframes draw {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      scale: 0.6;
+    }
+  }
+
+  @media (max-width: 56rem) {
+    h1,
+    .lede,
+    .spec-col {
+      grid-column: 1 / -1;
+    }
+
+    .spec-col :global(.spec) {
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .long {
+      display: none;
+    }
+
+    .short {
+      display: inline;
+    }
+
+    .days li {
+      padding-inline: 0.375rem;
+    }
+
+    .stop {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+  }
+</style>
