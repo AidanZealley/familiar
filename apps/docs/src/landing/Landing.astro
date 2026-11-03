@@ -22,11 +22,11 @@ import {
 } from './content'
 
 const highlightIcons = {
-  Yours: House,
-  Remembers: NotebookPen,
-  'Learns tricks': Puzzle,
-  Travels: Cloud,
-  'Moves in': PackageOpen,
+  'Self-hosted': House,
+  'Long-term memory': NotebookPen,
+  'Tools and plugins': Puzzle,
+  Portable: Cloud,
+  Embeddable: PackageOpen,
 }
 ---
 
@@ -95,8 +95,7 @@ const highlightIcons = {
 
     <section class="wrap features" aria-labelledby="features-title">
       <div class="section-head">
-        <h2 id="features-title">What you get</h2>
-        <p>Five things it does differently.</p>
+        <h2 id="features-title">Features</h2>
       </div>
       <ol class="grid">
         {
@@ -410,11 +409,6 @@ const highlightIcons = {
     letter-spacing: -0.035em;
   }
 
-  .section-head p {
-    color: var(--muted);
-    font-size: 0.875rem;
-  }
-
   .grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -466,11 +460,13 @@ const highlightIcons = {
   }
 
   .cell :global(.cell-icon) {
-    color: var(--accent);
+    color: currentColor;
+    opacity: 0.65;
   }
 
   .cell-1 :global(.cell-icon) {
     color: var(--on-block-muted);
+    opacity: 1;
   }
 
   .cell h3 {
