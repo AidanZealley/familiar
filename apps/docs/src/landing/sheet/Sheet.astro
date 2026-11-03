@@ -134,9 +134,9 @@ const highlightIcons = {
                 <a href={path.href}>
                   <span class="path-label">
                     {path.label}
+                    <span class="arrow" aria-hidden="true">→</span>
                   </span>
                   <span class="path-line">{path.line}</span>
-                  <span class="arrow" aria-hidden="true">→</span>
                 </a>
               </li>
             )
@@ -567,27 +567,30 @@ const highlightIcons = {
   }
 
   .paths a {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem 1rem;
+    display: block;
     padding: 1.75rem 0 0.5rem;
     text-decoration: none;
   }
 
   .path-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
     font-size: clamp(1.25rem, 2.6vw, 1.875rem);
     font-weight: 800;
     letter-spacing: -0.03em;
   }
 
   .path-line {
-    grid-row: 2;
+    display: block;
+    margin-top: 0.5rem;
     color: var(--muted);
   }
 
   .paths :global(.arrow) {
-    grid-row: 1 / span 2;
-    align-self: center;
+    flex-shrink: 0;
+    font-size: 1rem;
     color: var(--accent);
   }
 
