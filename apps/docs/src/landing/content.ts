@@ -24,12 +24,16 @@ export const installers = [
   {
     id: 'unix',
     os: 'macOS and Linux',
+    short: 'macOS / Linux',
+    prompt: '$',
     command:
       'curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh',
   },
   {
     id: 'windows',
     os: 'Windows',
+    short: 'Windows',
+    prompt: 'PS>',
     command:
       'irm https://github.com/AidanZealley/familiar/releases/latest/download/install.ps1 | iex',
   },
@@ -55,6 +59,20 @@ export const highlights = [
   {
     label: 'Moves in',
     line: "Embed Familiar's packages to put it inside another app.",
+  },
+] as const
+
+// The two ways in, for the closing section of each variant.
+export const paths = [
+  {
+    label: 'Use Familiar',
+    line: 'Install it, chat, and manage its memory and tools.',
+    href: links.install,
+  },
+  {
+    label: 'Build with Familiar',
+    line: 'Embed the npm packages in an app of your own.',
+    href: links.build,
   },
 ] as const
 

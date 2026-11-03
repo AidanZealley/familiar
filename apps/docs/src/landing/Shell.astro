@@ -34,15 +34,27 @@ const {
     <a class="skip" href="#main">Skip to content</a>
     <slot />
     <script>
-      // Copy buttons stay hidden until this runs; commands are selectable text.
+      // Command buttons stay hidden until this runs; the commands are plain
+      // selectable text either way. The Clipboard API needs a secure context
+      // (HTTPS or localhost), so plain-HTTP review gets "Select" instead,
+      // which selects the command for the visitor to copy themselves.
+      const canCopy = window.isSecureContext && 'clipboard' in navigator
+      const label = canCopy ? 'Copy' : 'Select'
       for (const button of document.querySelectorAll<HTMLButtonElement>(
         'button[data-copy]',
       )) {
+        const code = button.parentElement?.querySelector('code')
+        if (!code) continue
+        button.textContent = label
         button.hidden = false
         button.addEventListener('click', async () => {
-          await navigator.clipboard.writeText(button.dataset.copy ?? '')
-          const label = button.textContent
-          button.textContent = 'Copied'
+          if (canCopy) {
+            await navigator.clipboard.writeText(button.dataset.copy ?? '')
+            button.textContent = 'Copied'
+          } else {
+            getSelection()?.selectAllChildren(code)
+            button.textContent = 'Selected'
+          }
           setTimeout(() => (button.textContent = label), 1600)
         })
       }
@@ -55,6 +67,8 @@ const {
     color-scheme: light;
     --bg: oklch(1 0 0);
     --surface: oklch(0.963 0.002 197.1);
+    --surface-2: oklch(0.925 0.005 214.3);
+    --surface-3: oklch(0.872 0.007 219.6);
     --rule: oklch(0.925 0.005 214.3);
     --rule-strong: oklch(0.872 0.007 219.6);
     --text: oklch(0.148 0.004 228.8);
@@ -71,6 +85,8 @@ const {
       color-scheme: dark;
       --bg: oklch(0.148 0.004 228.8);
       --surface: oklch(0.218 0.008 223.9);
+      --surface-2: oklch(0.275 0.011 216.9);
+      --surface-3: oklch(0.378 0.015 216);
       --rule: oklch(0.275 0.011 216.9);
       --rule-strong: oklch(0.378 0.015 216);
       --text: oklch(0.987 0.002 197.1);
@@ -86,6 +102,8 @@ const {
     color-scheme: dark;
     --bg: oklch(0.148 0.004 228.8);
     --surface: oklch(0.218 0.008 223.9);
+    --surface-2: oklch(0.275 0.011 216.9);
+    --surface-3: oklch(0.378 0.015 216);
     --rule: oklch(0.275 0.011 216.9);
     --rule-strong: oklch(0.378 0.015 216);
     --text: oklch(0.987 0.002 197.1);
