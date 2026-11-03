@@ -2,7 +2,7 @@
 
 A personal AI assistant built on [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable), with one ongoing conversation, long-term memory, reminders and tools. Your conversation stays on your machine and resumes after restarts.
 
-**Documentation: [aidanzealley.github.io/familiar](https://aidanzealley.github.io/familiar/)** (publishes once GitHub Pages deployment is enabled; until then, run `pnpm dev:docs` or read [`apps/docs`](apps/docs/src/content/docs/)).
+**[Website](https://aidanzealley.github.io/familiar/) · [Documentation](https://aidanzealley.github.io/familiar/docs/)** (publishes once GitHub Pages deployment is enabled; until then, run `pnpm dev:docs` or read [`apps/docs`](apps/docs/src/content/docs/)).
 
 ## Install
 
