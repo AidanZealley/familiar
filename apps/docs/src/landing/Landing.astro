@@ -1,9 +1,4 @@
 ---
-// The landing "Sheet" layout that refinements D, E and F share: baseline A's
-// header, install panel, highlight grid, paths and footer, with restrained
-// Lucide icons sized and stroked like the web app's (16–20px, stroke 2).
-// Each variant page supplies only its hero through the default slot.
-// Baseline A (src/pages/landing/a.astro) does not use this file.
 import {
   ArrowRight,
   Cloud,
@@ -15,7 +10,8 @@ import {
   Puzzle,
   SquareTerminal,
 } from '@lucide/astro'
-import Shell from '../Shell.astro'
+import Shell from './Shell.astro'
+import Hero from './Hero.astro'
 import {
   demosStub,
   highlights,
@@ -23,11 +19,7 @@ import {
   links,
   paths,
   signIn,
-} from '../content'
-
-type Props = { title: string; home: string }
-
-const { title, home } = Astro.props
+} from './content'
 
 const highlightIcons = {
   Yours: House,
@@ -38,9 +30,9 @@ const highlightIcons = {
 }
 ---
 
-<Shell title={title}>
+<Shell title="Familiar">
   <header class="wrap top">
-    <a class="wordmark" href={home}>familiar</a>
+    <a class="wordmark" href="/familiar/">familiar</a>
     <nav aria-label="Primary">
       <a href={links.docs}>Docs</a>
       <a href={links.build}>Build</a>
@@ -53,7 +45,7 @@ const highlightIcons = {
   </header>
 
   <main id="main">
-    <slot />
+    <Hero />
 
     <section class="wrap install" id="install" aria-labelledby="install-title">
       <div class="panel">
@@ -133,8 +125,8 @@ const highlightIcons = {
               <li>
                 <a href={path.href}>
                   <span class="path-label">
-                    {path.label}
-                    <span class="arrow" aria-hidden="true">→</span>
+                    <span class="path-text">{path.label}</span>
+                    <ArrowRight class="arrow" aria-hidden="true" />
                   </span>
                   <span class="path-line">{path.line}</span>
                 </a>
@@ -169,7 +161,6 @@ const highlightIcons = {
 </Shell>
 
 <style is:global>
-  /* Shared by the variant heroes, which live in each page. */
   .sheet-wrap {
     max-width: 78rem;
     margin-inline: auto;
@@ -532,6 +523,23 @@ const highlightIcons = {
   }
 
   @media (max-width: 36rem) {
+    .features {
+      padding-inline: 0;
+    }
+
+    .section-head {
+      margin-inline: clamp(1rem, 4vw, 3rem);
+    }
+
+    nav {
+      width: 100%;
+      column-gap: 1rem;
+    }
+
+    nav .nav-install {
+      margin-left: auto;
+    }
+
     .grid {
       grid-template-columns: 1fr;
     }
@@ -590,11 +598,12 @@ const highlightIcons = {
 
   .paths :global(.arrow) {
     flex-shrink: 0;
-    font-size: 1em;
+    width: 1em;
+    height: 1em;
     color: inherit;
   }
 
-  .paths a:hover .path-label {
+  .paths a:hover .path-text {
     text-decoration: underline;
     text-decoration-thickness: 2px;
   }

@@ -1,9 +1,5 @@
-// Facts every landing variant shares. Each variant decides its own wording
-// around these, its markup and its styles. Delete this folder and
-// src/pages/landing/ together once a direction is chosen.
-
 export const links = {
-  docs: '/familiar/',
+  docs: '/familiar/docs/',
   install: '/familiar/use/install/',
   build: '/familiar/build/overview/',
   github: 'https://github.com/AidanZealley/familiar',
@@ -11,7 +7,7 @@ export const links = {
 }
 
 export const headline =
-  'A personal AI assistant with one conversation that never resets.'
+  'A portable AI assistant with memory you can run anywhere and build into your app.'
 
 export const pitch =
   'Familiar runs on your computer, remembers what you tell it and picks up where you left off on any of your devices.'
@@ -62,7 +58,7 @@ export const highlights = [
   },
 ] as const
 
-// The two ways in, for the closing section of each variant.
+// The two ways to use Familiar.
 export const paths = [
   {
     label: 'Use Familiar',
@@ -76,5 +72,5 @@ export const paths = [
   },
 ] as const
 
-// Browser-hosted demos are planned, not built. Variants show this as a stub.
+// Browser-hosted demos are planned, not built.
 export const demosStub = 'Browser demos are on the way.'
