@@ -77,7 +77,7 @@ export async function startDemo(people: Author[]) {
       },
     })
     stores.push(store)
-    return { author, store }
+    return { sessionId: token, author, store }
   }
 
   const clients = people.map(signIn)

@@ -65,8 +65,8 @@ export const App = ({ initialDemo }: AppProps) => {
             conversation. Other tabs and visitors aren't joined.
           </p>
         </div>
-        {demo.clients.map(({ author, store }) => (
-          <TabsContent key={author.id} value={author.id} className="min-h-0">
+        {demo.clients.map(({ sessionId, author, store }) => (
+          <TabsContent key={sessionId} value={author.id} className="min-h-0">
             <FamiliarProvider store={store}>
               <Chat author={author} people={PEOPLE} />
             </FamiliarProvider>
