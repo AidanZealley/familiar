@@ -36,7 +36,7 @@ The npm packages let you embed Familiar in your own app. Installing a library do
 | [Web app](apps/web/README.md)                            | Chat, memory, schedules and Connections UI                          |
 | [Development Worker](apps/cloudflare/README.md)          | Scripted Cloudflare host for runtime testing                        |
 | [Docs site](apps/docs/README.md)                         | This project's documentation                                        |
-| [Examples](examples/README.md)                           | Embedded task board demo and typed host fixture                     |
+| [Examples](examples/README.md)                           | Embedded task board, shared conversation and typed host fixture     |
 
 Start building with [Your first Familiar](https://aidanzealley.github.io/familiar/build/first-familiar/).
 

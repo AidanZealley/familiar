@@ -1,0 +1,112 @@
+---
+title: Shared conversation
+description: Three people talking to one Familiar in one conversation, each through their own signed-in client. Runs in your browser.
+---
+
+import { LinkButton } from '@astrojs/starlight/components'
+
+Ana, Ben and Chloe share one Familiar and one conversation. Each has their own session and client, so every message and every tool call belongs to the person who sent it.
+
+<div class="demo-actions">
+  <LinkButton
+    href="/familiar/demos/shared-conversation/"
+    target="_blank"
+    rel="noopener noreferrer"
+    variant="secondary"
+    icon="external"
+  >
+    Fullscreen
+  </LinkButton>
+  <LinkButton
+    href="https://github.com/AidanZealley/familiar/tree/main/examples/shared-conversation"
+    target="_blank"
+    rel="noopener noreferrer"
+    variant="minimal"
+    icon="github"
+    iconPlacement="start"
+  >
+    View code
+  </LinkButton>
+</div>
+
+<iframe
+  class="demo-frame"
+  src="/familiar/demos/shared-conversation/"
+  title="Shared conversation demo with three people and one Familiar"
+  loading="lazy"
+></iframe>
+
+Everything runs in this page: the real core, in-memory storage, the HTTP and SSE routes, and one client store per person. The three sessions are simulated in the frame, so other tabs and visitors don't join. Only the model is scripted. Pick a person, send something, then switch and try:
+
+- Note for the group: I can bring dessert
+- What did Ana say?
+- Who am I?
+- Count me in
+
+`What did Ana say?` quotes Ana's latest earlier message from the input Familiar sent the model. That shows the conversation's context reaching the model, not long-term memory. The script understands only these exact phrases. Anything else, including `Don't count me in`, gets a reply listing them. Reloading or pressing **Reset** starts over.
+
+## The host decides who is speaking
+
+The host maps each session to an `Author`, and `conversationRoutes` takes the author from the request's session, never its body:
+
+```ts
+const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
+  new Hono<{ Variables: { author: Author } }>()
+    .use(async (c, next) => {
+      const token = c.req.header('authorization')?.replace(/^Bearer /, '')
+      const author = token && sessions.get(token)
+      if (!author) {
+        return c.json({ error: 'unauthorized' }, 401)
+      }
+      c.set('author', author)
+      await next()
+    })
+    .route(
+      '/',
+      conversationRoutes(familiar, (c) => c.get('author')),
+    )
+    .route('/', eventRoutes({ conversation: familiar.watch }))
+```
+
+Each person gets their own client store, which sends their session with every request and opens its own event stream. Every store mirrors the same conversation:
+
+```ts
+const store = createFamiliarStore<HostApi>(url, {
+  fetch: async (input, init) => {
+    const request = new Request(input, init)
+    request.headers.set('authorization', `Bearer ${token}`)
+    return api.fetch(request)
+  },
+})
+```
+
+In a real app each person's browser signs in to your host and sends its own cookie or token, and you pass your API's URL. [Serve the API](/familiar/build/serve-the-api/) covers authentication and [Connect a frontend](/familiar/build/connect-a-frontend/) covers the client.
+
+## Tools act for the person who asked
+
+A tool never takes the person as an argument. It reads `api.author`, which Familiar resolves from the message that started the run. When Ben sends while Ana's run is going, Ana's tool still runs as Ana, and Ben's as Ben:
+
+```ts
+defineTool({
+  name: 'count_me_in',
+  description: 'Adds the person asking to the guest list.',
+  parameters: Type.Object({}),
+  execute: async (_args, { author }) => {
+    if (!author) {
+      return result('Nobody asked, so there is no one to add.', [], true)
+    }
+    going.set(author.id, author)
+    // ...
+  },
+})
+```
+
+Each message keeps the name its author had when they sent it. A later rename on the host changes new messages, not old ones, and the `id` stays the same.
+
+## What it doesn't show
+
+- Real sign-in, or people on other devices. The sessions are simulated in one page.
+- Long-term memory. Familiar's background memory work runs, but the script gives it a placeholder answer, and nothing outlasts the page.
+- Permissions. Familiar records who asked; your tools decide what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
+
+To use a real model, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/). Model credentials stay on that server.
