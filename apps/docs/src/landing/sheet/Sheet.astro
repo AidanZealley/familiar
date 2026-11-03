@@ -6,8 +6,6 @@
 // Baseline A (src/pages/landing/a.astro) does not use this file.
 import {
   ArrowRight,
-  BookOpen,
-  Blocks,
   Cloud,
   Download,
   GitBranch,
@@ -38,7 +36,6 @@ const highlightIcons = {
   Travels: Cloud,
   'Moves in': PackageOpen,
 }
-const pathIcons = [BookOpen, Blocks]
 ---
 
 <Shell title={title}>
@@ -115,10 +112,7 @@ const pathIcons = [BookOpen, Blocks]
             const Icon = highlightIcons[highlight.label]
             return (
               <li class={`cell cell-${index + 1}`}>
-                <span class="cell-top">
-                  <span class="num" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
+                <span class="cell-top" aria-hidden="true">
                   <Icon size={20} class="cell-icon" />
                 </span>
                 <h3>{highlight.label}</h3>
@@ -134,17 +128,15 @@ const pathIcons = [BookOpen, Blocks]
       <h2 id="paths-title" class="sr-only">Where to next</h2>
       <ul>
         {
-          paths.map((path, index) => {
-            const Icon = pathIcons[index]
+          paths.map((path) => {
             return (
               <li>
                 <a href={path.href}>
                   <span class="path-label">
-                    <Icon size={20} class="path-icon" />
                     {path.label}
                   </span>
                   <span class="path-line">{path.line}</span>
-                  <ArrowRight size={24} class="arrow" />
+                  <span class="arrow" aria-hidden="true">→</span>
                 </a>
               </li>
             )
@@ -480,17 +472,10 @@ const pathIcons = [BookOpen, Blocks]
     justify-content: space-between;
   }
 
-  .num {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--accent);
-  }
-
   .cell :global(.cell-icon) {
     color: var(--accent);
   }
 
-  .cell-1 .num,
   .cell-1 :global(.cell-icon) {
     color: var(--on-block-muted);
   }
@@ -588,16 +573,9 @@ const pathIcons = [BookOpen, Blocks]
   }
 
   .path-label {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
     font-size: clamp(1.25rem, 2.6vw, 1.875rem);
     font-weight: 800;
     letter-spacing: -0.03em;
-  }
-
-  .path-label :global(.path-icon) {
-    color: var(--accent);
   }
 
   .path-line {
