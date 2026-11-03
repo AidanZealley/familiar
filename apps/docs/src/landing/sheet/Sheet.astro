@@ -342,7 +342,9 @@ const highlightIcons = {
     }
   }
 
-  button {
+  /* Class-qualified so it outranks the shell's element-level button reset
+     whatever order the stylesheets load in. */
+  .command button {
     flex: none;
     padding: 0.375rem 0.875rem;
     font-size: 0.8125rem;

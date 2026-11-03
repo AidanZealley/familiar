@@ -1,0 +1,96 @@
+---
+// The opening shared by refinements D, E and F: the chosen sentence with three
+// static underlines, A's lede and spec, and a right-hand area for each
+// variant's moving art (the `art` slot). The art has its own grid cell, so it
+// never sits behind the headline, lede or spec. On narrow screens it becomes a
+// short strip after the spec.
+import { pitch } from '../content'
+import Spec from './Spec.astro'
+---
+
+<section class="sheet-wrap hero">
+  <h1>A <span class="mark">portable</span> AI assistant with memory you can <span class="mark">run anywhere</span> and <span class="mark">build into your app</span>.</h1>
+  <div class="art" aria-hidden="true"><slot name="art" /></div>
+  <p class="lede">{pitch}</p>
+  <div class="spec-col"><Spec /></div>
+</section>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 1.5rem;
+    padding-top: clamp(3rem, 8vw, 6rem);
+  }
+
+  h1 {
+    grid-column: 1 / span 8;
+    grid-row: 1;
+    font-size: clamp(2rem, 4.8vw, 4.25rem);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  /* A flat violet band low in the line, drawn with a single-colour image so
+     it wraps cleanly across lines. Static: the art carries the motion. */
+  .mark {
+    --ink: color-mix(in oklch, var(--accent) 24%, transparent);
+    background-image: linear-gradient(var(--ink), var(--ink));
+    background-repeat: no-repeat;
+    background-position: 0 88%;
+    background-size: 100% 0.36em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  .art {
+    grid-column: 9 / span 4;
+    grid-row: 1;
+    position: relative;
+    min-height: 16rem;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .lede {
+    grid-column: 1 / span 6;
+    grid-row: 2;
+    margin-top: 2rem;
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  .spec-col {
+    grid-column: 9 / span 4;
+    grid-row: 2;
+    align-self: end;
+    margin-top: 2rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--accent);
+  }
+
+  @media (max-width: 56rem) {
+    h1,
+    .lede,
+    .spec-col,
+    .art {
+      grid-column: 1 / -1;
+      grid-row: auto;
+    }
+
+    .spec-col :global(.spec) {
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    }
+
+    .art {
+      order: 4;
+      min-height: 0;
+      height: clamp(6rem, 22vw, 9rem);
+      margin-top: 2rem;
+    }
+  }
+</style>

@@ -1,161 +1,145 @@
 ---
-// Refinement D, "Margins": baseline A with an annotated headline. Three
-// phrases carry a flat violet highlighter and a footnote number; margin notes
-// with icons gloss them in the right-hand column. Motion: the highlighter
-// sweeps across each phrase once on load, in reading order.
-import { Infinity as Unending, Lock, MessageCircle } from '@lucide/astro'
-import { pitch } from '../../landing/content'
+// Refinement D, "Conversation": faint chat-shaped outlines on the right of the
+// header. Every few seconds the stack eases up by one bubble, so a new one
+// rises from below and the oldest leaves through the top: a conversation that
+// keeps going. The bubbles hold only blank line strokes, never words.
+import Hero from '../../landing/sheet/Hero.astro'
 import Sheet from '../../landing/sheet/Sheet.astro'
-import Spec from '../../landing/sheet/Spec.astro'
 
-const notes = [
-  { icon: Lock, text: 'One owner, on your own machine.' },
-  { icon: MessageCircle, text: 'The same thread from any of your devices.' },
-  { icon: Unending, text: 'Tomorrow picks up where today stopped.' },
+// side: who "speaks"; width: bubble width (%); lines: stroke widths (%).
+const bubbles = [
+  { side: 'them', width: 78, lines: [92, 64] },
+  { side: 'you', width: 52, lines: [80] },
+  { side: 'them', width: 86, lines: [96, 88, 40] },
+  { side: 'you', width: 64, lines: [90, 52] },
+  { side: 'them', width: 70, lines: [84] },
+  { side: 'you', width: 44, lines: [70] },
 ]
+
+// Two copies, so the loop wraps seamlessly.
+const stack = [...bubbles, ...bubbles]
 ---
 
 <Sheet title="Familiar · Landing D" home="/familiar/landing/d/">
-  <section class="sheet-wrap hero">
-    <h1>
-      A <span class="mark" style="--n: 0">personal</span><sup aria-hidden="true"
-        >1</sup
-      > AI assistant with <span class="mark" style="--n: 1"
-        >one conversation</span
-      ><sup aria-hidden="true">2</sup> that <span class="mark" style="--n: 2"
-        >never resets</span
-      ><sup aria-hidden="true">3</sup>.
-    </h1>
-    <ol class="notes" aria-label="Notes">
+  <Hero>
+    <ol class="talk" slot="art">
       {
-        notes.map((note, index) => (
-          <li>
-            <span class="note-num" aria-hidden="true">
-              {index + 1}
+        stack.map((bubble) => (
+          <li class={bubble.side} style={`--w: ${bubble.width}%`}>
+            <span class="bubble">
+              {bubble.lines.map((line) => (
+                <i style={`width: ${line}%`} />
+              ))}
             </span>
-            <note.icon size={16} />
-            <span>{note.text}</span>
           </li>
         ))
       }
     </ol>
-    <p class="lede">{pitch}</p>
-    <div class="spec-row"><Spec /></div>
-  </section>
+  </Hero>
 </Sheet>
 
 <style>
-  .hero {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    column-gap: 1.5rem;
-    padding-block: clamp(3rem, 8vw, 6rem) 0;
-  }
-
-  h1 {
-    grid-column: 1 / span 9;
-    font-size: clamp(2.125rem, 5.6vw, 4.75rem);
-    line-height: 1.08;
-    font-weight: 800;
-    letter-spacing: -0.045em;
-    text-wrap: balance;
-  }
-
-  /* A flat highlighter band in the lower part of the line, drawn with a
-     single-colour background image so it can sweep and wrap across lines. */
-  .mark {
-    --ink: color-mix(in oklch, var(--accent) 24%, transparent);
-    background-image: linear-gradient(var(--ink), var(--ink));
-    background-repeat: no-repeat;
-    background-position: 0 88%;
-    background-size: 100% 0.36em;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .mark {
-      animation: sweep 700ms cubic-bezier(0.4, 0, 0.2, 1) both;
-      animation-delay: calc(300ms + var(--n) * 450ms);
-    }
-  }
-
-  @keyframes sweep {
-    from {
-      background-size: 0% 0.36em;
-    }
-  }
-
-  sup {
-    margin-left: 0.08em;
-    font-size: 0.32em;
-    font-weight: 700;
-    letter-spacing: 0;
-    vertical-align: super;
-    color: var(--accent);
-  }
-
-  .notes {
-    grid-column: 10 / span 3;
-    align-self: center;
-    display: grid;
-    gap: 1.25rem;
-    padding: 0 0 0 1.25rem;
+  .talk {
+    --slot: 5.25rem;
+    --steps: 6;
+    position: absolute;
+    inset: 0 0 auto;
+    margin: 0;
+    padding: 0;
     list-style: none;
-    border-left: 2px solid var(--accent);
-    font-size: 0.875rem;
   }
 
-  .notes li {
+  .talk li {
+    display: flex;
+    align-items: flex-end;
+    height: var(--slot);
+    padding-bottom: 0.75rem;
+  }
+
+  .talk li.you {
+    justify-content: flex-end;
+  }
+
+  .bubble {
     display: grid;
-    grid-template-columns: 1.25rem 1.25rem 1fr;
-    align-items: start;
     gap: 0.5rem;
+    width: var(--w);
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 1rem 1rem 1rem 0.25rem;
   }
 
-  .note-num {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--accent);
+  .you .bubble {
+    border-color: transparent;
+    background: color-mix(in oklch, var(--accent) 9%, transparent);
+    border-radius: 1rem 1rem 0.25rem 1rem;
   }
 
-  .notes :global(svg) {
-    margin-top: 0.125rem;
-    color: var(--accent);
+  .bubble i {
+    display: block;
+    height: 0.375rem;
+    border-radius: 1rem;
+    background: color-mix(in oklch, var(--text) 7%, transparent);
   }
 
-  .lede {
-    grid-column: 1 / span 6;
-    margin-top: 2rem;
-    font-size: clamp(1rem, 1.5vw, 1.125rem);
-    color: var(--muted);
-    text-wrap: pretty;
+  .you .bubble i {
+    background: color-mix(in oklch, var(--accent) 18%, transparent);
   }
 
-  .spec-row {
-    grid-column: 1 / -1;
-    margin-top: 2.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--rule);
+  /* Six steps over 36s: a short ease up, then a long rest. Each step is one
+     slot, i.e. 1/12 of the doubled stack. */
+  @media (prefers-reduced-motion: no-preference) {
+    .talk {
+      animation: converse 36s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+    }
   }
 
-  .spec-row :global(.spec) {
-    grid-template-columns: repeat(3, minmax(0, 14rem));
+  @keyframes converse {
+    0%,
+    14% {
+      translate: 0 0;
+    }
+    16.667%,
+    30.667% {
+      translate: 0 calc(-1 * var(--slot));
+    }
+    33.333%,
+    47.333% {
+      translate: 0 calc(-2 * var(--slot));
+    }
+    50%,
+    64% {
+      translate: 0 calc(-3 * var(--slot));
+    }
+    66.667%,
+    80.667% {
+      translate: 0 calc(-4 * var(--slot));
+    }
+    83.333%,
+    97.333% {
+      translate: 0 calc(-5 * var(--slot));
+    }
+    100% {
+      translate: 0 calc(-6 * var(--slot));
+    }
   }
 
   @media (max-width: 56rem) {
-    h1,
-    .notes,
-    .lede {
-      grid-column: 1 / -1;
+    .talk {
+      --slot: 3.75rem;
     }
 
-    .notes {
-      margin-top: 2rem;
+    .talk li {
+      padding-bottom: 0.5rem;
     }
 
-    .spec-row :global(.spec) {
-      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    .bubble {
+      gap: 0.375rem;
+      padding: 0.625rem 0.75rem;
+    }
+
+    .talk li {
+      padding-inline: 8%;
     }
   }
 </style>
