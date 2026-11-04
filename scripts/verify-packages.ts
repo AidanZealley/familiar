@@ -224,7 +224,7 @@ standard.messages.$post({ json: { text: 'Hello', requestId: 'two' } })
 standard.messages.$post({ json: { text: 1, requestId: 'two' } })
 import { localDay } from '@familiar-ai/core/diagnostics'
 import { connectMcp } from '@familiar-ai/core/mcp'
-import { repeatText, type Schedule, type ModelRef, type ModelThinkingLevel, type ConversationView, type EntryRecord } from '@familiar-ai/client'
+import { type Schedule, type ModelRef, type ModelThinkingLevel, type ConversationView, type EntryRecord } from '@familiar-ai/client'
 const model: ModelRef = { provider: 'packed', modelId: 'packed' }
 const thinking: ModelThinkingLevel = 'medium'
 // @ts-expect-error model selections remain typed
@@ -255,8 +255,6 @@ export const day: number = localDay(0, 'UTC')
 connectMcp(1, ok)
 // @ts-expect-error
 connectMcp('name', 1)
-// @ts-expect-error
-repeatText(1)
 // @ts-expect-error
 export const schedule: Schedule = 1
 `,

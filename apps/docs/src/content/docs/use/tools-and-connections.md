@@ -20,10 +20,10 @@ Treat what these tools bring back as untrusted. A web page can contain text writ
 
 Familiar can use tools from [Model Context Protocol](https://modelcontextprotocol.io) servers. Add one under **Connections** with a short name, such as `home-assistant`, and a transport:
 
-- **HTTP**: the server's URL, with an optional bearer token. Familiar sends the token only to that server's origin and path. HTTP servers can be on your private network.
+- **HTTP**: the server's URL, with an optional bearer token. Familiar sends the token only to that server's origin and path, and only over `https://`. The one exception is a server on the same computer as Familiar (`localhost`, `127.0.0.1` or `[::1]`), for development. HTTP servers can be on your private network.
 - **Local command**: a program and its arguments, such as `uvx mcp-server-time`. Familiar starts it on the computer it runs on.
 
-Connections shows each server's status, for example **Ready**, **Needs a token** or **Failed**, and can reconnect or remove it.
+Connections shows each server's status, for example **Ready**, **Needs a token** or **Failed**, and can reconnect or remove it. **Refused** means Familiar won't connect to the server as it was saved. For example, an older version saved a bearer token for a plain `http://` URL. Remove it and add it again with `https://`.
 
 :::caution
 A local command runs with the same permissions as Familiar's own user account. Only add servers you trust. Anyone who can reach your Familiar can add one.

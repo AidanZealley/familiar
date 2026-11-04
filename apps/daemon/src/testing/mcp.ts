@@ -158,7 +158,7 @@ export function mcpFixture(test: TestContext) {
       name: 'test',
       transport: {
         type: 'http',
-        url: 'http://homeassistant.local:8123/api/mcp',
+        url: 'https://homeassistant.local:8123/api/mcp',
         auth: { type: 'bearer' },
       },
     } as const,

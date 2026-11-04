@@ -5,12 +5,22 @@ import {
   type DocumentWatch,
   type Harness,
 } from '@earendil-works/pi-durable'
-import { cancelSchedule, Schedules, type SchedulesState } from './schedules.ts'
+import {
+  cancelSchedule,
+  DEFAULT_MAX_SCHEDULES,
+  refuseIneligible,
+  Schedules,
+  type SchedulesState,
+} from './schedules.ts'
 import { createScheduleTask, type Notify } from './task.ts'
 import { scheduleTools } from './tools.ts'
 
 export type { Schedule, SchedulesState } from './schedules.ts'
-export { ScheduleError } from './schedules.ts'
+export {
+  DEFAULT_MAX_SCHEDULES,
+  SCHEDULE_LIMITS,
+  ScheduleError,
+} from './schedules.ts'
 export type { Notification, Notify } from './task.ts'
 
 export type SchedulesApi = {
@@ -21,7 +31,7 @@ export type SchedulesApi = {
 
 // Kept stable: a prompt section that changes resends the prompt and loses the
 // provider's prompt cache.
-const guidance = `Some messages start with [Scheduled for …]. They are prompts set up earlier with the schedule tool, often at the owner's request, arriving now that they're due; if a time says "delivered", it arrived late. Carry the prompt out now and speak to the owner directly: for a reminder, remind them. Your reply is sent to their devices as a notification, so put what matters first. They may answer it like any message, for example to snooze it, which is scheduling it again.`
+const guidance = `Some messages start with [Scheduled for …]. They are prompts set up earlier with the schedule tool, often at the owner's request, arriving now that they're due; if a time says "delivered", it arrived late. Carry the prompt out now and speak to the owner directly: for a reminder, remind them. Your reply is sent to their devices as a notification, so put what matters first. They may answer it like any message, for example to snooze it, which is scheduling it again. A repeat is five-field cron in local time, such as 0 7 * * 1-5 for 07:00 on weekdays, and runs at most hourly.`
 
 const context = BACKGROUND_CONTEXT
 
@@ -34,7 +44,13 @@ export function createSchedules(options: {
   name: string
   notify?: Notify
   timeZone: string
+  /** Default `DEFAULT_MAX_SCHEDULES`. */
+  maxSchedules?: number
 }) {
+  const maxSchedules = options.maxSchedules ?? DEFAULT_MAX_SCHEDULES
+  if (!Number.isSafeInteger(maxSchedules) || maxSchedules < 1) {
+    throw new Error('maxSchedules must be a positive whole number.')
+  }
   const task = createScheduleTask(
     options.name,
     options.notify,
@@ -43,16 +59,17 @@ export function createSchedules(options: {
   const extension = defineExtension({
     name: 'familiar.schedules',
     tasks: [task],
-    tools: scheduleTools(task, options.timeZone),
+    tools: scheduleTools(task, options.timeZone, maxSchedules),
     sections: [section('schedules', () => guidance)],
   })
 
   return {
     extension,
     start: async (harness: Harness): Promise<SchedulesApi> => {
-      // Watches only attach to documents that exist.
+      // Watches only attach to documents that exist. Before any schedule's
+      // task resumes, so none runs under rules it no longer meets.
       await harness.commit(async (tx) => {
-        await tx.doc(Schedules)
+        refuseIneligible(await tx.doc(Schedules), options.timeZone)
       }, context)
       return {
         watch: async () => (await harness.watchDoc(Schedules, context))!,

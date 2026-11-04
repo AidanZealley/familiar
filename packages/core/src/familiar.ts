@@ -51,6 +51,8 @@ export {
   type AccountState,
 } from './account/index.ts'
 export {
+  MESSAGE_LIMITS,
+  MessageError,
   ModelError,
   type Author,
   type ChatModel,
@@ -61,8 +63,18 @@ export {
 export type { MemoryApi } from './memory/index.ts'
 export { defaultPersona } from './persona/index.ts'
 export type { McpApi, McpConnectionInfo, McpStdioFactory } from './mcp/types.ts'
-export type { McpServer, McpStdioTransport } from './mcp/servers.ts'
-export type { Notification, SchedulesApi } from './schedules/index.ts'
+export {
+  MCP_LIMITS,
+  McpConfigError,
+  type McpServer,
+  type McpStdioTransport,
+} from './mcp/servers.ts'
+export {
+  DEFAULT_MAX_SCHEDULES,
+  SCHEDULE_LIMITS,
+  type Notification,
+  type SchedulesApi,
+} from './schedules/index.ts'
 export {
   ConnectionError,
   definePlugin,
@@ -154,6 +166,12 @@ export type FamiliarOptions = {
    * conversation. Hosts deliver it however suits them, such as Web Push.
    */
   notify?: Notify
+  /**
+   * The most schedules this Familiar keeps at once; the schedule tool refuses
+   * more until one is cancelled. A positive whole number. Default
+   * `DEFAULT_MAX_SCHEDULES`, 50.
+   */
+  maxSchedules?: number
   now?: HarnessOptions['now']
   setTimer?: HarnessOptions['setTimer']
   /**
@@ -219,6 +237,13 @@ export async function summonFamiliar(
   if (!model) {
     throw new Error(`${modelKey(options.model)} must be one of chatModels.`)
   }
+  // Checks its options, so before storage opens, like the zone.
+  const schedules = createSchedules({
+    name,
+    notify: options.notify,
+    timeZone: options.timeZone,
+    maxSchedules: options.maxSchedules,
+  })
   // Checked before storage opens, like the zone.
   const accountAttachment =
     options.account &&
@@ -241,12 +266,6 @@ export async function summonFamiliar(
       thinkingLevel: model.thinkingLevel,
       name,
       transcriptTokens: Math.floor(budget / 2),
-      timeZone: options.timeZone,
-    })
-
-    const schedules = createSchedules({
-      name,
-      notify: options.notify,
       timeZone: options.timeZone,
     })
 

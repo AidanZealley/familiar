@@ -32,6 +32,8 @@ function advice(connection: ConnectionInfo) {
         : 'The connection closed. Reconnect to try again.'
     case 'failed':
       return 'Reconnect to try again.'
+    case 'refused':
+      return 'Familiar won’t connect to it as saved. Remove it and add it again.'
   }
 }
 
@@ -123,11 +125,13 @@ export const ConnectionDetail = ({
           <StatusDot tone={status.tone} />
           {status.label}
         </p>
-        {connection.kind === 'mcp' && connection.status.type === 'failed' && (
-          <p className="bg-destructive/10 px-3 py-2 font-mono text-xs break-words text-destructive">
-            {connection.status.error}
-          </p>
-        )}
+        {connection.kind === 'mcp' &&
+          (connection.status.type === 'failed' ||
+            connection.status.type === 'refused') && (
+            <p className="bg-destructive/10 px-3 py-2 font-mono text-xs break-words text-destructive">
+              {connection.status.error}
+            </p>
+          )}
         {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
         {error && (
           <p role="alert" className="text-sm text-destructive">

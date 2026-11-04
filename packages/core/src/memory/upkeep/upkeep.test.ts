@@ -54,7 +54,8 @@ async function setup(storage: Storage = new ReopenableStorage()) {
     await familiar.send({
       author: { id: 'aidan', name: 'aidan' },
       text,
-      requestId: text,
+      // Each test message starts differently; a request ID has a bound.
+      requestId: text.slice(0, 128),
     })
     await familiar.idle()
   }

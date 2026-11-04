@@ -65,7 +65,8 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
     await familiar.send({
       author: { id: 'aidan', name: 'aidan' },
       text,
-      requestId: text,
+      // Each test message starts differently; a request ID has a bound.
+      requestId: text.slice(0, 128),
     })
     await familiar.idle()
   }
@@ -370,7 +371,8 @@ test('messages queued behind a reply are each recalled for in their own run', as
     familiar.send({
       author: { id: author, name: author },
       text,
-      requestId: text,
+      // Each test message starts differently; a request ID has a bound.
+      requestId: text.slice(0, 128),
     })
   await send('ann', 'How are the bees?')
   await vi.waitFor(() => expect(notes).toHaveLength(1))

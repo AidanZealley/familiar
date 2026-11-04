@@ -1,6 +1,5 @@
 import { useFamiliar } from '@familiar-ai/client/react'
-import { repeatText } from '@familiar-ai/client'
-import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
+import { AlarmClockIcon, PauseIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ScheduleItemProps } from './types'
@@ -35,17 +34,29 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
       <div className="min-w-0 flex-1">
         <p className="text-[0.95rem] leading-snug">{schedule.prompt}</p>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 text-foreground">
-            <AlarmClockIcon className="size-3" />
-            {nextFormat.format(schedule.next)}
-          </span>
+          {schedule.refused === undefined ? (
+            <span className="inline-flex items-center gap-1 text-foreground">
+              <AlarmClockIcon className="size-3" />
+              {nextFormat.format(schedule.next)}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-destructive">
+              <PauseIcon className="size-3" />
+              Paused
+            </span>
+          )}
           {schedule.repeat && (
             <span className="inline-flex items-center gap-1">
               <RepeatIcon className="size-3" />
-              {repeatText(schedule.repeat)}
+              Repeats
             </span>
           )}
         </p>
+        {schedule.refused !== undefined && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {schedule.refused} Cancel it and ask for it again.
+          </p>
+        )}
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>
       <Button

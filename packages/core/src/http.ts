@@ -2,6 +2,7 @@ import { eventRoutes } from './http-events.ts'
 import type { Op } from '@earendil-works/chord/delta'
 import type { ConversationView } from '@earendil-works/pi-durable'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import type { AccountState } from './account/index.ts'
 import { accountRoutes } from './account/http.ts'
 import { conversationRoutes, modelRoutes } from './conversation/http.ts'
@@ -98,7 +99,19 @@ export type HttpOptions = {
   ) => Author | undefined | Promise<Author | undefined>
   /** Web Push, if the host offers it; the push routes answer 404 without it. */
   push?: PushHost
+  /**
+   * The most bytes a request body may have; larger ones get 413 before any
+   * route reads them. Default `DEFAULT_MAX_BODY_SIZE`. Field bounds, such
+   * as `MESSAGE_LIMITS`, are enforced by Familiar itself for every caller.
+   */
+  maxBodySize?: number
 }
+
+/**
+ * Room for the largest message Familiar admits, `MESSAGE_LIMITS.text`, even
+ * if JSON escapes every character, with every other request far under it.
+ */
+export const DEFAULT_MAX_BODY_SIZE = 1024 * 1024
 
 /** The Familiar HTTP API as a fetch handler. Mount it under any path. */
 export function createHttpApi(familiar: Familiar, options: HttpOptions) {
@@ -113,6 +126,7 @@ export function createHttpApi(familiar: Familiar, options: HttpOptions) {
       c.set('author', author)
       await next()
     })
+    .use(bodyLimit({ maxSize: options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE }))
     .route(
       '/',
       eventRoutes({

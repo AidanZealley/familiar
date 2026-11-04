@@ -1,12 +1,15 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { ConnectionError } from '../plugins/connections.ts'
-import { parseServer } from './servers.ts'
+import { McpConfigError, parseServer } from './servers.ts'
 import type { McpApi } from './types.ts'
 
 export const mcpRoutes = (mcp: McpApi) =>
   new Hono()
     .onError((error, c) => {
+      if (error instanceof McpConfigError) {
+        return c.json({ error: error.message }, 400)
+      }
       if (error instanceof ConnectionError) {
         return c.json({ error: error.message }, 404)
       }

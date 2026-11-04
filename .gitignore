@@ -19,3 +19,6 @@ data/
 
 # The embedded demo, built into the docs by `pnpm build:docs`.
 apps/docs/public/demos/
+
+# Local agent workflow instructions and execution records.
+/.workflows/

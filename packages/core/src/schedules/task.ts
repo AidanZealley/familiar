@@ -12,7 +12,7 @@ import {
   type ScheduledData,
 } from '../conversation/message.ts'
 import { localMinute } from '../time/index.ts'
-import { advance, dueAt, Schedules } from './schedules.ts'
+import { advance, dueAt, Schedules, type Schedule } from './schedules.ts'
 
 /** What a host is asked to show the owner. */
 export type Notification = { title: string; body: string; url?: string }
@@ -30,6 +30,18 @@ type ScheduleStep =
       /** When it was delivered, if late. */
       late?: number
     }
+
+const finished = {
+  status: 'terminal',
+  outcome: { status: 'completed', result: null },
+} as const
+
+/**
+ * Whether a schedule's task should carry on. A cancelled schedule is gone,
+ * and a refused one stays for the owner to see but never runs.
+ */
+const runs = (schedule: Schedule | undefined): schedule is Schedule =>
+  schedule !== undefined && schedule.refused === undefined
 
 /** Woken more than this after its time, a delivery says it's late. */
 const LATE_MS = 60_000
@@ -73,11 +85,8 @@ export function createScheduleTask(
         runtime.commit(async (tx) => {
           const schedule = (await tx.doc(Schedules))[task.input.id]
           const now = runtime.now()
-          if (!schedule) {
-            return {
-              status: 'terminal',
-              outcome: { status: 'completed', result: null },
-            }
+          if (!runs(schedule)) {
+            return finished
           }
           if (now < schedule.next) {
             return {
@@ -102,6 +111,16 @@ export function createScheduleTask(
       deliver: async (task, runtime, context) => {
         const { id } = task.input
         const { prompt, due, late, creator } = task.state.checkpoint
+        // Rerun after a restart, this may come after the schedule was
+        // cancelled or refused at startup, so it checks again first.
+        let runnable = false
+        await runtime.commit(async (tx) => {
+          runnable = runs((await tx.doc(Schedules))[id])
+          return runnable ? undefined : finished
+        }, context)
+        if (!runnable) {
+          return
+        }
         const conversation = await runtime.conversation(
           ROOT_CONVERSATION_ID,
           context,
@@ -151,22 +170,20 @@ export function createScheduleTask(
         }
 
         await runtime.commit(async (tx) => {
-          const schedule = advance(
+          const next = advance(
             await tx.doc(Schedules),
             id,
+            due,
             runtime.now(),
             timeZone,
           )
-          return schedule
+          return next
             ? {
                 status: 'sleeping',
-                until: schedule.next,
+                until: next.next,
                 checkpoint: { phase: 'wait' },
               }
-            : {
-                status: 'terminal',
-                outcome: { status: 'completed', result: null },
-              }
+            : finished
         }, context)
       },
     },

@@ -17,7 +17,7 @@ import {
   type FamiliarPlugin,
 } from '../familiar.ts'
 import { ReopenableStorage, withHarness } from '../memory/testing.ts'
-import { MESSAGE_KIND } from './message.ts'
+import { MESSAGE_KIND, MESSAGE_LIMITS, MessageError } from './message.ts'
 
 const first = { id: 'person-1', name: 'Sam' }
 const second = { id: 'person-2', name: 'Sam' }
@@ -291,4 +291,67 @@ test('name-only history survives reopening, memory reads and tool execution with
       })
     }, context),
   )
+})
+
+test('request IDs are scoped to their author, so only the same author retries', async () => {
+  const { faux, open } = await setup()
+  const familiar = await open()
+  faux.setResponses(
+    Array.from({ length: 3 }, () => fauxAssistantMessage('Hello')),
+  )
+  await familiar.send({ author: first, text: 'Mine', requestId: 'same' })
+  await familiar.idle()
+  // Another author with the same ID is another message.
+  await familiar.send({ author: second, text: 'Theirs', requestId: 'same' })
+  await familiar.idle()
+  // The same author again is a retry, admitted once.
+  await familiar.send({ author: first, text: 'Mine again', requestId: 'same' })
+  // IDs that only a naive join would confuse.
+  await familiar.send({
+    author: { id: 'a:b', name: 'Ab' },
+    text: 'Joined one way',
+    requestId: 'c',
+  })
+  await familiar.idle()
+  await familiar.send({
+    author: { id: 'a', name: 'A' },
+    text: 'Joined the other',
+    requestId: 'b:c',
+  })
+  await familiar.idle()
+  const watch = await familiar.watch()
+  await watch.stop()
+  expect(
+    watch.value.entries
+      .filter((entry) => entry.kind === MESSAGE_KIND)
+      .map((entry) => (entry.data as { text: string }).text),
+  ).toEqual(['Mine', 'Theirs', 'Joined one way', 'Joined the other'])
+})
+
+test('send refuses messages outside the bounds for every caller, sending nothing', async () => {
+  const { open } = await setup()
+  const familiar = await open()
+  const valid = { author: first, text: 'Hi', requestId: 'ok' }
+  for (const invalid of [
+    { ...valid, text: ' ' },
+    { ...valid, text: 'x'.repeat(MESSAGE_LIMITS.text + 1) },
+    { ...valid, requestId: '' },
+    { ...valid, requestId: 'r'.repeat(MESSAGE_LIMITS.requestId + 1) },
+    { ...valid, requestId: 7 as unknown as string },
+    {
+      ...valid,
+      author: { id: 'i'.repeat(MESSAGE_LIMITS.authorId + 1), name: 'Sam' },
+    },
+    {
+      ...valid,
+      author: { id: 'sam', name: 'n'.repeat(MESSAGE_LIMITS.authorName + 1) },
+    },
+  ]) {
+    await expect(familiar.send(invalid)).rejects.toBeInstanceOf(MessageError)
+  }
+  const watch = await familiar.watch()
+  await watch.stop()
+  expect(
+    watch.value.entries.filter((entry) => entry.kind === MESSAGE_KIND),
+  ).toEqual([])
 })

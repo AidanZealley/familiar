@@ -2,9 +2,9 @@ import { defineDoc } from '@earendil-works/pi-durable'
 import type { Author } from '../conversation/message.ts'
 import { parseMinute } from '../time/index.ts'
 import {
-  occurrenceAfter,
-  occurrenceBy,
-  occurrencesAfter,
+  latestOccurrence,
+  nextOccurrence,
+  REPEAT_LENGTH,
   repeatProblem,
 } from './repeat.ts'
 
@@ -20,11 +20,17 @@ export type Schedule = {
   prompt: string
   /** A one-off's time. Exactly one of `at` and `repeat` is set. */
   at?: number
-  /** An RFC 5545 RRULE in Familiar's time zone, starting at `created`. */
+  /** A five-field cron expression in Familiar's time zone, e.g. `0 7 * * 1-5`. */
   repeat?: string
   /** When it is next due. */
   next: number
   created: number
+  /**
+   * Why it no longer runs: its repeat isn't one Familiar reads now. It
+   * stays, so the owner sees it and can cancel it, but never runs again.
+   * Set when Familiar opens.
+   */
+  refused?: string
 }
 
 /** Schedules by ID. The source of truth: a schedule's task does nothing once it's gone. */
@@ -41,6 +47,47 @@ export const Schedules = defineDoc<SchedulesState>({
 /** A change the rules refuse; nothing was changed. */
 export class ScheduleError extends Error {}
 
+/** Bounds on what one schedule may hold, enforced when it's added. */
+export const SCHEDULE_LIMITS = {
+  /** An instruction to Familiar's future self, not a document. */
+  prompt: 2_000,
+  repeat: REPEAT_LENGTH,
+} as const
+
+/**
+ * How many schedules a Familiar keeps unless its host says otherwise. Each is
+ * a sleeping task, and the whole document is stored on every change, so it
+ * stays small: 50 at the longest prompt is about 100 KB. A person's
+ * reminders and routines fit with room to spare; a runaway loop doesn't.
+ */
+export const DEFAULT_MAX_SCHEDULES = 50
+
+/**
+ * The least elapsed time between a repeat's occurrences. An expression can
+ * ask for more often, such as every five minutes, and a clock change can
+ * bring two times closer; either way the closer ones are skipped.
+ */
+const REPEAT_GAP_MS = 60 * 60 * 1000
+
+/**
+ * A repeat's first occurrence after `time` and at least `REPEAT_GAP_MS`
+ * after `previous`, the one before it, skipping any closer. Every next
+ * occurrence comes from here, so a repeat never runs more than hourly.
+ */
+const occurrenceFollowing = (
+  repeat: string,
+  previous: number | undefined,
+  time: number,
+  timeZone: string,
+) =>
+  nextOccurrence(
+    repeat,
+    previous === undefined
+      ? time
+      : Math.max(time, previous + REPEAT_GAP_MS - 1),
+    timeZone,
+  )
+
 export type NewSchedule = {
   id: string
   /** Snapshot of the person who requested it, when there is one. */
@@ -51,18 +98,33 @@ export type NewSchedule = {
   repeat?: string
 }
 
-/** Adds a schedule, due after `now`, or throws a ScheduleError saying why not. */
+/**
+ * Adds a schedule, due after `now`, or throws a ScheduleError saying why not:
+ * every rule a new schedule must meet is checked here, including that there
+ * are fewer than `maxSchedules` already.
+ */
 export function addSchedule(
   schedules: SchedulesState,
   { id, prompt, at, repeat, creator }: NewSchedule,
   now: number,
   timeZone: string,
+  maxSchedules: number,
 ): Schedule {
   if (!prompt.trim()) {
     throw new ScheduleError('Give the prompt to run.')
   }
+  if (prompt.length > SCHEDULE_LIMITS.prompt) {
+    throw new ScheduleError(
+      `Keep the prompt to ${SCHEDULE_LIMITS.prompt} characters.`,
+    )
+  }
   if ((at === undefined) === (repeat === undefined)) {
     throw new ScheduleError('Give either at or repeat, not both.')
+  }
+  if (Object.keys(schedules).length >= maxSchedules) {
+    throw new ScheduleError(
+      `There are already ${maxSchedules} schedules, the most this Familiar keeps. Cancel one first.`,
+    )
   }
 
   const base = {
@@ -85,11 +147,11 @@ export function addSchedule(
     schedule = { ...base, at: time, next: time }
   } else {
     const rule = repeat!.trim()
-    const problem = repeatProblem(rule)
+    const problem = repeatProblem(rule, timeZone)
     if (problem) {
       throw new ScheduleError(problem)
     }
-    const next = occurrenceAfter(rule, now, now, timeZone)
+    const next = occurrenceFollowing(rule, undefined, now, timeZone)
     if (next === undefined) {
       throw new ScheduleError('That repeat never happens after now.')
     }
@@ -98,6 +160,22 @@ export function addSchedule(
 
   schedules[id] = schedule
   return schedule
+}
+
+/**
+ * Marks each stored repeat Familiar can't read now as refused, so it never
+ * runs, yet doesn't stop Familiar opening.
+ */
+export function refuseIneligible(schedules: SchedulesState, timeZone: string) {
+  for (const schedule of Object.values(schedules)) {
+    const problem =
+      schedule.repeat === undefined
+        ? undefined
+        : repeatProblem(schedule.repeat, timeZone)
+    if (problem && schedule.refused === undefined) {
+      schedule.refused = problem
+    }
+  }
 }
 
 export function cancelSchedule(schedules: SchedulesState, id: string) {
@@ -116,24 +194,30 @@ export const dueAt = (schedule: Schedule, now: number, timeZone: string) =>
     ? schedule.next
     : Math.max(
         schedule.next,
-        occurrenceBy(schedule.repeat, schedule.created, now, timeZone) ?? 0,
+        latestOccurrence(schedule.repeat, now, timeZone) ?? 0,
       )
 
 /**
- * After a delivery at `now`: removes a one-off or a finished repeat, or moves
- * a repeat to its next occurrence. Returns the schedule if it continues.
+ * After delivering the occurrence due at `due`, at `now`: removes a one-off
+ * or a finished repeat, or moves a repeat to its next occurrence. Returns
+ * the schedule if it continues. A refused schedule stays as it is and
+ * doesn't continue.
  */
 export function advance(
   schedules: SchedulesState,
   id: string,
+  due: number,
   now: number,
   timeZone: string,
 ) {
   const schedule = schedules[id]
+  if (schedule?.refused !== undefined) {
+    return undefined
+  }
   const next =
     schedule?.repeat === undefined
       ? undefined
-      : occurrenceAfter(schedule.repeat, schedule.created, now, timeZone)
+      : occurrenceFollowing(schedule.repeat, due, now, timeZone)
   if (next === undefined) {
     delete schedules[id]
     return undefined
@@ -142,21 +226,17 @@ export function advance(
   return schedule
 }
 
-/** The next few times a schedule is due, from `next`. */
-export const upcoming = (
-  schedule: Schedule,
-  count: number,
-  timeZone: string,
-) =>
-  schedule.repeat === undefined
-    ? [schedule.next]
-    : [
-        schedule.next,
-        ...occurrencesAfter(
-          schedule.repeat,
-          schedule.created,
-          schedule.next,
-          count - 1,
-          timeZone,
-        ),
-      ]
+/** Up to `count` times a schedule is due, from `next`. Not for a refused one. */
+export function upcoming(schedule: Schedule, count: number, timeZone: string) {
+  const times = [schedule.next]
+  const { repeat } = schedule
+  while (repeat !== undefined && times.length < count) {
+    const previous = times.at(-1)!
+    const next = occurrenceFollowing(repeat, previous, previous, timeZone)
+    if (next === undefined) {
+      break
+    }
+    times.push(next)
+  }
+  return times
+}
