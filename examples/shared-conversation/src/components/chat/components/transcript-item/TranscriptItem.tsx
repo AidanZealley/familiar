@@ -19,9 +19,8 @@ export const TranscriptItem = ({
   switch (item.type) {
     case 'message': {
       // The author as the host signed them in when they sent this.
-      const author =
-        typeof item.author === 'string' ? { name: item.author } : item.author
-      const align = 'id' in author && author.id === viewer.id ? 'end' : 'start'
+      const { author } = item
+      const align = author.id === viewer.id ? 'end' : 'start'
       return (
         <Message align={align}>
           <MessageAvatar>

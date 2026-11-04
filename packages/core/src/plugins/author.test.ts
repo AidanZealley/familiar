@@ -12,7 +12,7 @@ import type { Author } from '../conversation/message.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
 import { defineTool, Type } from './tools.ts'
 
-// People, schedules, nesting, recovery and name-only history are resolved end
+// People, schedules, nesting and recovery are resolved end
 // to end in conversation/authors.test.ts and schedules/schedules.test.ts.
 // Upkeep runs only Familiar's own memory tools, so its kind of input, plain
 // text with no message entry, is checked here.

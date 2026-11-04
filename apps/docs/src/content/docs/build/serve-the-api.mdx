@@ -56,7 +56,7 @@ Familiar records who said what and shows the model each author. It doesn't decid
 - choose who receives each notification, and store and authorize push subscriptions
 - decide which MCP transports, destinations and commands it allows
 
-Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.author`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep, and for a message an older version stored with only a name.
+Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.author`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep.
 
 Nested calls, and calls rerun after a crash, keep the author of the input that started them, and a message queued while a call runs can't take its place. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 

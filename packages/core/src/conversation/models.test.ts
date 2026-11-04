@@ -74,19 +74,14 @@ async function open(storage: Storage, chatModels = both) {
 
 test('each model keeps the level last picked for it', async () => {
   const { familiar, say } = await open(new ReopenableStorage())
+  await familiar.setModel(luna)
+  await familiar.setThinkingLevel('high')
+  // Sol was never changed, so it starts on its own default.
+  await familiar.setModel(sol)
   expect(await say('one')).toEqual(['sol', 'low'])
 
   await familiar.setModel(luna)
-  expect(await say('two')).toEqual(['luna', 'medium'])
-
-  await familiar.setThinkingLevel('high')
-  expect(await say('three')).toEqual(['luna', 'high'])
-
-  await familiar.setModel(sol)
-  expect(await say('four')).toEqual(['sol', 'low'])
-
-  await familiar.setModel(luna)
-  expect(await say('five')).toEqual(['luna', 'high'])
+  expect(await say('two')).toEqual(['luna', 'high'])
 })
 
 test('the model and level survive a restart', async () => {

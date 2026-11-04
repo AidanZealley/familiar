@@ -23,8 +23,8 @@ export type FamiliarToolApi<TDetails extends JsonValue = JsonValue> =
     /**
      * The person this call runs for: the author of the message that started
      * it, or the creator of a scheduled run, read from storage, never from
-     * the tool's arguments. Undefined for other work, such as memory upkeep,
-     * or a message stored with only a name. A tool that narrows what someone
+     * the tool's arguments. Undefined for other work, such as memory upkeep.
+     * A tool that narrows what someone
      * may do with its data or actions checks it against this.
      */
     readonly author: Author | undefined

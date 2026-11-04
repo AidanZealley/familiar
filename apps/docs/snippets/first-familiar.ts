@@ -31,7 +31,7 @@ try {
   // The committed conversation, as a chat UI would show it.
   const watch = await familiar.watch()
   for (const item of toTranscript(watch.value).items) {
-    if (item.type === 'message' && typeof item.author !== 'string') {
+    if (item.type === 'message') {
       console.log(`${item.author.name}: ${item.text}`)
     } else if (item.type === 'reply') {
       console.log(`Familiar: ${item.text}`)

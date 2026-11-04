@@ -26,7 +26,7 @@ Import the helpers from `@familiar-ai/core` rather than installing your own copy
 
 Inside `execute`:
 
-- `api.author` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author, and neither does a message an older version stored with only a name. Familiar reads it from the stored message, never from the tool's arguments.
+- `api.author` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author. Familiar reads it from the stored message, never from the tool's arguments.
 - Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against `api.author`, or the app API's behind it.
 - The third argument is the call's context. Pass its `abortSignal` to anything you can cancel.
 - `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.
