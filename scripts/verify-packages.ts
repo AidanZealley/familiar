@@ -81,7 +81,6 @@ try {
     '@familiar-ai/core/http',
     '@familiar-ai/core/extensions',
     '@familiar-ai/core/diagnostics',
-    '@familiar-ai/core/mcp',
     '@familiar-ai/core/storage/memory',
     '@familiar-ai/client',
   ]
@@ -175,7 +174,6 @@ const invalidMore: number = historyPage.more
 // @ts-expect-error standard input remains typed
 standard.messages.$post({ json: { text: 1, requestId: 'two' } })
 import { localDay } from '@familiar-ai/core/diagnostics'
-import { connectMcp } from '@familiar-ai/core/mcp'
 import { type Schedule, type ModelRef, type ModelThinkingLevel, type ConversationView, type EntryRecord } from '@familiar-ai/client'
 const model: ModelRef = { provider: 'packed', modelId: 'packed' }
 const thinking: ModelThinkingLevel = 'medium'
@@ -205,10 +203,6 @@ export const api: HttpApi = 1
 localDay('now', 'UTC')
 // @ts-expect-error
 export const day: number = localDay(0, 'UTC')
-// @ts-expect-error
-connectMcp(1, ok)
-// @ts-expect-error
-connectMcp('name', 1)
 // @ts-expect-error
 export const schedule: Schedule = 1
 `,

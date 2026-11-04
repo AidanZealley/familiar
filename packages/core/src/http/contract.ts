@@ -21,7 +21,7 @@ export type { AgentState } from '@earendil-works/pi-durable'
 export type { AccountState } from '../account/index.ts'
 export type { Schedule, SchedulesState } from '../schedules/index.ts'
 export type { PushHost, PushSubscriptionJson } from './push.ts'
-export type { McpConnectionInfo, McpServer } from '../mcp/index.ts'
+export type { McpConnectionInfo, McpServer } from '../mcp/servers.ts'
 export type {
   Connection,
   ConnectionInfo,

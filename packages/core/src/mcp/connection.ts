@@ -1,21 +1,35 @@
-import type { Extension, Registry } from '@earendil-works/pi-durable'
+import { Type } from '@earendil-works/pi-ai'
 import {
+  defineTool,
+  type Extension,
+  type Registry,
+} from '@earendil-works/pi-durable'
+import {
+  Client,
   SdkHttpError,
   StreamableHTTPClientTransport,
+  type Tool,
   type Transport,
 } from '@modelcontextprotocol/client'
 import type { SecretStore } from '../plugins/secrets.ts'
 import type { PluginFetch } from '../plugins/types.ts'
-import { connectMcp } from './index.ts'
 import { httpTransport } from './http-transport.ts'
-import type { McpServer } from './servers.ts'
 import type {
   McpConnectionInfo,
-  McpToolInfo,
+  McpServer,
   McpStdioFactory,
-} from './types.ts'
+  McpStatus,
+  McpToolInfo,
+} from './servers.ts'
+import { toolResult } from './tool-result.ts'
 
-/** One connection owns its status, streams and registered tools until closed. */
+const TIMEOUT_MS = 15_000
+
+/**
+ * One server's connection: its client, its status and its tools in the
+ * registry, until closed. A closed connection changes nothing, whatever is
+ * still finishing.
+ */
 export function openConnection(
   server: McpServer,
   registry: Registry,
@@ -23,10 +37,13 @@ export function openConnection(
     fetch?: PluginFetch
     secrets?: SecretStore
     stdio?: McpStdioFactory
+    /** The server forgot its session; the owner of connections replaces this one. */
     expired(): void
   },
 ) {
-  const abort = new AbortController()
+  const extensionName = `familiar.mcp.${server.name}`
+  const closing = new AbortController()
+  const { signal } = closing
   let info: McpConnectionInfo = {
     ...server,
     kind: 'mcp',
@@ -35,108 +52,173 @@ export function openConnection(
     tools: [],
     status: { type: 'connecting' },
   }
-  let closeClient = async () => {}
-  const install = (extension: Extension, tools: McpToolInfo[]) => {
-    if (!abort.signal.aborted) {
+  const update = (status: McpStatus, tools = info.tools) => {
+    if (!signal.aborted) {
+      info = { ...info, status, tools }
+    }
+  }
+  const failed = (error: unknown) =>
+    update(
+      error instanceof SdkHttpError && error.status === 401
+        ? { type: 'needs-auth' }
+        : {
+            type: 'failed',
+            error: error instanceof Error ? error.message : String(error),
+          },
+    )
+
+  const client = new Client(
+    { name: 'familiar', version: '1.0.0' },
+    {
+      listChanged: {
+        tools: {
+          onChanged: (error, tools) => {
+            if (error) {
+              failed(error)
+              return
+            }
+            try {
+              install(tools ?? [])
+            } catch (error) {
+              failed(error)
+            }
+          },
+        },
+      },
+    },
+  )
+
+  // The server's tools as deferred Pi tools, found through tool_search.
+  const install = (tools: Tool[]) => {
+    const extension: Extension = {
+      name: extensionName,
+      tools: tools.map((tool) => {
+        const name = `mcp__${server.name}__${tool.name}`
+        if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
+          throw new Error(`Unsupported MCP tool name: ${name}`)
+        }
+        return defineTool({
+          name,
+          description: tool.description ?? tool.name,
+          parameters: Type.Unsafe<Record<string, unknown>>(tool.inputSchema),
+          deferred: true,
+          replay: 'unsafe',
+          execute: async (args, _api, context) => {
+            try {
+              return toolResult(
+                await client.callTool(
+                  { name: tool.name, arguments: args },
+                  { signal: context.abortSignal },
+                ),
+              )
+            } catch (error) {
+              if (!context.abortSignal?.aborted && !signal.aborted) {
+                if (error instanceof SdkHttpError && error.status === 401) {
+                  failed(error)
+                } else if (
+                  error instanceof SdkHttpError &&
+                  error.status === 404
+                ) {
+                  options.expired()
+                }
+              }
+              throw error
+            }
+          },
+        })
+      }),
+    }
+    if (!signal.aborted) {
       registry.install(extension)
-      info = { ...info, status: { type: 'connected' }, tools }
+      update(
+        { type: 'connected' },
+        tools.map((tool) => ({
+          name: tool.name,
+          readOnly: tool.annotations?.readOnlyHint === true,
+        })) satisfies McpToolInfo[],
+      )
     }
   }
-  const failed = (error: unknown) => {
-    if (!abort.signal.aborted) {
-      info = {
-        ...info,
-        status:
-          error instanceof SdkHttpError && error.status === 401
-            ? { type: 'needs-auth' }
-            : {
-                type: 'failed',
-                error: error instanceof Error ? error.message : String(error),
-              },
+
+  const token = () =>
+    options.secrets?.get({ kind: 'mcp', name: server.name }, 'token') ??
+    Promise.resolve(undefined)
+
+  const transportFor = (config: McpServer['transport']): Transport => {
+    if (config.type === 'stdio') {
+      if (!options.stdio) {
+        throw new Error('This host has no MCP stdio transport.')
       }
+      return options.stdio(config)
     }
+    if (!options.fetch) {
+      throw new Error('This host has no MCP HTTP transport.')
+    }
+    return httpTransport(
+      config,
+      options.fetch,
+      async () => {
+        const value = await token()
+        if (!value) {
+          throw new Error('MCP bearer token is missing.')
+        }
+        return value
+      },
+      signal,
+    )
   }
+
+  // Set once connected: only an open session is ended on close.
+  let connected: Transport | undefined
   const ready = (async () => {
     const config = server.transport
-    const token = () =>
-      options.secrets?.get({ kind: 'mcp', name: server.name }, 'token') ??
-      Promise.resolve(undefined)
     try {
       if (
         config.type === 'http' &&
         config.auth.type === 'bearer' &&
         !(await token())
       ) {
-        info = { ...info, status: { type: 'needs-auth' } }
+        update({ type: 'needs-auth' })
         return
       }
-      abort.signal.throwIfAborted()
-      let transport: Transport
-      if (config.type === 'stdio') {
-        if (!options.stdio) {
-          throw new Error('This host has no MCP stdio transport.')
-        }
-        transport = options.stdio(config)
-      } else {
-        if (!options.fetch) {
-          throw new Error('This host has no MCP HTTP transport.')
-        }
-        transport = httpTransport(
-          config,
-          options.fetch,
-          async () => {
-            const value = await token()
-            if (!value) {
-              throw new Error('MCP bearer token is missing.')
-            }
-            return value
-          },
-          abort.signal,
-        )
-      }
-      const connection = await connectMcp(server.name, transport, {
-        signal: abort.signal,
-        changed: install,
-        failed,
-        closed: () => {
-          if (!abort.signal.aborted) {
-            registry.uninstall({ name: `familiar.mcp.${server.name}` })
-            info = { ...info, status: { type: 'disconnected' }, tools: [] }
-          }
-        },
-        callFailed: (error) => {
-          if (!abort.signal.aborted && error instanceof SdkHttpError) {
-            if (error.status === 401) {
-              failed(error)
-            } else if (error.status === 404) {
-              options.expired()
-            }
-          }
-        },
+      signal.throwIfAborted()
+      const transport = transportFor(config)
+      await client.connect(transport, { timeout: TIMEOUT_MS, signal })
+      const { tools } = await client.listTools(undefined, {
+        timeout: TIMEOUT_MS,
+        signal,
       })
-      closeClient = async () => {
-        if (transport instanceof StreamableHTTPClientTransport) {
-          try {
-            await transport.terminateSession()
-          } catch {
-            /* The session may already be expired or unreachable. */
-          }
+      connected = transport
+      install(tools)
+      // Only an established client reports closing; a failed start may
+      // finish closing later.
+      client.onclose = () => {
+        if (!signal.aborted) {
+          registry.uninstall({ name: extensionName })
+          update({ type: 'disconnected' }, [])
         }
-        await connection.close()
       }
-      install(connection.extension, connection.tools)
     } catch (error) {
       failed(error)
+      await client.close()
     }
   })()
+
   return {
     server,
     info: () => structuredClone(info),
     close: async () => {
-      abort.abort()
-      registry.uninstall({ name: `familiar.mcp.${server.name}` })
+      closing.abort()
+      registry.uninstall({ name: extensionName })
       await ready
-      await closeClient()
+      if (connected instanceof StreamableHTTPClientTransport) {
+        try {
+          await connected.terminateSession()
+        } catch {
+          /* The session may already be expired or unreachable. */
+        }
+      }
+      await client.close()
       info = { ...info, status: { type: 'disconnected' }, tools: [] }
     },
   }

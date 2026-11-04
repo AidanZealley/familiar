@@ -62,4 +62,4 @@ const api = createHttpApi(familiar, {
 
 `allow: () => true` allows everything, only for hosts that only their owner can reach. Everyone in a conversation shares its history, what the model knows and every tool installed on the Familiar. Tools, or the app APIs behind them, enforce narrower rules with `api.author`, the person a call runs for. Separate audiences, such as tenants, need separate Familiars over separate storage. Native tools are trusted code running in your process; Familiar doesn't sandbox them.
 
-Public entry points are `/http`, `/models`, `/models/openai`, `/models/openrouter`, `/models/faux`, `/storage/memory`, `/extensions`, `/mcp` and `/diagnostics`; see [package exports](package.json). Core contains no Node-only or Workers-only code.
+Public entry points are `/http`, `/models`, `/models/openai`, `/models/openrouter`, `/models/faux`, `/storage/memory`, `/extensions` and `/diagnostics`; see [package exports](package.json). Core contains no Node-only or Workers-only code.

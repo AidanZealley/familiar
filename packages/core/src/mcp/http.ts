@@ -3,7 +3,7 @@ import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../http/access.ts'
 import { ConnectionError } from '../plugins/connections.ts'
 import { McpConfigError, parseServer } from './servers.ts'
-import type { McpApi } from './types.ts'
+import type { McpApi } from './servers.ts'
 
 /**
  * The owner's MCP servers, mounted at `/mcp`. A malformed configuration

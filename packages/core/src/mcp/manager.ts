@@ -9,9 +9,10 @@ import {
   McpServers,
   parseServer,
   tokenDeclaration,
+  type McpApi,
   type McpServer,
+  type McpStdioFactory,
 } from './servers.ts'
-import type { McpApi, McpStdioFactory } from './types.ts'
 
 /** Owns saved declarations and serializes owner edits, never network startup. */
 export async function createMcp(

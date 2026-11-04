@@ -1,7 +1,7 @@
 import type { Extension } from '@earendil-works/pi-durable'
 import type { Notification } from '../schedules/index.ts'
 import type { Connection } from './secrets.ts'
-import type { McpConnectionInfo } from '../mcp/types.ts'
+import type { McpConnectionInfo } from '../mcp/servers.ts'
 
 /**
  * How plugins reach the network: the Fetch API's signature, so a host can

@@ -17,7 +17,6 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 | `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                                                    |
 | `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                                                            |
 | `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                   |
-| `@familiar-ai/core/mcp`               | `connectMcp` and MCP types                                                                                                 |
 | `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                      |
 
 The model and extension entries re-export Pi at the exact version core depends on.
