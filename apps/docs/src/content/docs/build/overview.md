@@ -11,7 +11,6 @@ The installer gives you a complete assistant. The npm packages give you the same
 | ------------------------- | ------------------------------------------------------------------------------------------------- |
 | `@familiar-ai/core`       | The assistant: one conversation, memory, schedules, plugins and the HTTP/SSE routes that serve it |
 | `@familiar-ai/client`     | A browser-safe store that mirrors the API, derives a chat transcript and offers React bindings    |
-| `@familiar-ai/plugin-web` | Brave web search and public page reading                                                          |
 | `@familiar-ai/cloudflare` | Runs one Familiar in a SQLite-backed Cloudflare Durable Object                                    |
 
 Core is portable. It has no Node-only code, starts no server and renders nothing. The repository's Node daemon and Cloudflare Worker are two hosts built on it.
