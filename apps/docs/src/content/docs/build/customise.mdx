@@ -33,13 +33,15 @@ Inside `execute`:
 
 ## Secrets and network access
 
-A plugin declares its secrets and where each may be sent. The owner sets the value through the Connections API. Plugin code never sees it. `authorizedFetch` attaches the secret only to a request whose origin, method and path match the declaration, and throws otherwise:
+A plugin declares its secrets and where each may be sent. The owner sets the value through the Connections API. Familiar never passes the value to plugin code. `authorizedFetch` attaches the secret only to a request whose origin, method and path match the declaration, and throws otherwise:
 
 <Code code={connected} lang="ts" title="tasks.ts" />
 
-Plugins reach the network only through the host's `fetch`. If your process can reach private, loopback or tailnet addresses, that `fetch` must refuse them, both when it connects and on every redirect. A model can be talked into fetching any URL. The daemon's [guarded fetch](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/fetch.ts) is a Node example. A Cloudflare Worker can't reach those addresses, so it can pass its own `fetch`.
+The context's `fetch` and `authorizedFetch` are the host's `fetch`. If your process can reach private, loopback or tailnet addresses, that `fetch` must refuse them, both when it connects and on every redirect. A model can be talked into fetching any URL. The daemon's [guarded fetch](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/fetch.ts) is a Node example. A Cloudflare Worker can't reach those addresses, so it can pass its own `fetch`.
 
 Familiar doesn't scrub authenticated responses or tool output. Whatever a tool returns, the model reads.
+
+These limits stop the model steering a well-behaved plugin to a private address, or a secret into the wrong request. They don't contain the plugin itself. A plugin is code you install, trusted like any other dependency: it runs in your process with its privileges, so it could call the global `fetch` or read whatever the process can. Familiar doesn't sandbox it. Install only plugins you trust.
 
 ## Tool details for UIs
 

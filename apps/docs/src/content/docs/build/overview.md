@@ -23,15 +23,19 @@ A host opens one Familiar over one storage. It supplies:
 - **Models and credentials.** A `Models` instance with providers registered and a credential store. See [Models and sign-in](/familiar/build/models-and-sign-in/).
 - **Time zone.** An IANA zone such as `Europe/London`. Memory dates, upkeep and schedules use it.
 - **Identity.** Who sent each message. Familiar records an `Author` with a stable `id` and a display `name`. It doesn't authenticate anyone.
-- **Authorization.** Whether that person may do what they ask. Attribution grants nothing.
-- **Network policy.** A `fetch` for plugins that can't reach private addresses, and separate hooks for owner-configured MCP servers.
-- **Notifications.** An optional `notify` for scheduled replies, such as Web Push.
+- **Audience.** Which Familiar each person reaches. Everyone a Familiar serves shares its conversation, memory, tools and schedules, so separate audiences, such as tenants, get separate Familiars over separate storage.
+- **Authorization.** Which routes each person may use, with `createHttpApi`'s `routes`, and narrower rules about your app's data and actions, which tools check against `api.author`. Attribution grants nothing.
+- **Network policy.** A `fetch` for plugins that refuses private addresses your process can reach, and the MCP transports, `mcpFetch` and `mcpStdio`, which decide what MCP servers may reach or run. Familiar only checks an MCP server's shape.
+- **Notifications.** An optional `notify` for scheduled replies. Your host chooses who receives each one, and stores and authorizes any Web Push subscriptions.
+- **Browser protection.** Cross-site request protection if you authenticate browsers with cookies, and your pages' own framing and content policies. `createHttpApi` adds neither.
 
 ## What Familiar owns
 
 Familiar owns the conversation and everything it does in the background: replies, tool calls, memory upkeep, schedules and recovery after a crash. Pi Durable runs that work and commits each change to storage. The HTTP adapter streams those commits, and the client mirrors them. Your UI renders the client's state and sends commands. It never edits state directly.
 
-Several people can share one Familiar. Each message keeps its author, and tools can see who started a run. They also share one memory and one conversation. A host that serves separate people opens one Familiar for each.
+Several people can share one Familiar. Each message keeps its author, and tools can see who started a run. They also share one memory, one conversation, every tool and every schedule. A host that serves separate audiences opens one Familiar for each. See [Serve the API](/familiar/build/serve-the-api/#a-shared-conversation-is-shared).
+
+Familiar bounds what it admits: request bodies, message and schedule sizes, how often a repeat runs and how many schedules it keeps. It doesn't sandbox tools. Plugins are code you install, trusted like any other dependency, and they run with your process's privileges. Replies, tool results and fetched pages are untrusted text, so sanitise them wherever you render them.
 
 ## Where to go next
 

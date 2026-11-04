@@ -67,11 +67,11 @@ defineTool({
 })
 ```
 
-Every board tool is available to everyone in the conversation. The board's operations decide what a change may do, and `assign_task_to_me` acts only for a person: the one who asked, or a schedule's creator, never memory upkeep.
+Every board tool is available to everyone in the conversation. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory upkeep. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against `api.author`, so the same rules apply to the UI and the tools.
 
 ## Only the routes it needs
 
-The host serves sending, history, aborting and the conversation's event stream, with no memory, schedules or admin routes. The client store is typed to it:
+The host serves sending, history, aborting and the conversation's event stream. Memory, schedules, sign-in, connections and MCP aren't mounted, so they answer 404. The client store is typed to it:
 
 ```ts
 const createHostApi = (familiar: Familiar, author: Author) =>
@@ -86,7 +86,7 @@ const createHostApi = (familiar: Familiar, author: Author) =>
 const store = createFamiliarStore<HostApi>(url, { fetch })
 ```
 
-In the demo, `fetch` hands each request to the routes inside the page. A real host serves them from its server, authenticates each request and passes the API's URL instead.
+The demo has one fixed person and nobody signs in, so `authenticate` names them for every request. That is a demo identity, not authentication. In the demo, `fetch` hands each request to the routes inside the page. A real host serves them from its server, authenticates each request from its session and passes the API's URL instead.
 
 ## Using a real model
 

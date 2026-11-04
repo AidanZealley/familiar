@@ -13,9 +13,11 @@ pnpm --filter @familiar-example/embedded-kanban build   # Static files in dist/
 ## How it fits together
 
 - `src/board/board.ts` owns the tasks. Its operations, `create`, `assign` and `move`, are the only way tasks change.
-- `src/assistant/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` assigns the person from `api.author`, which the host sets, never from the tool's arguments. Every tool is available to everyone in the conversation; the board's operations decide what each change may do.
+- `src/assistant/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` assigns the person from `api.author`, the author of the message that started the call, never from the tool's arguments, and refuses when no person started it. Every tool is available to everyone in the conversation. This board lets anyone change any task; a board with rules about who may change what would check them in its operations, against that author.
 - The cards, the new-task form and drag and drop call the same operations, so a change made either way shows up in the other.
-- `src/assistant/demo.ts` opens a real Familiar over `MemoryStorage`, mounts only the conversation and event routes, and points a typed client store at them through an in-page `fetch`.
+- `src/assistant/demo.ts` opens a real Familiar over `MemoryStorage`, mounts only the sending, history, abort and conversation event routes with `createHttpApi`'s `routes`, and points a typed client store at them through an in-page `fetch`. Every other route, such as memory, schedules, sign-in or MCP, answers 404.
+
+The demo has one fixed person, Sam (`src/board/seed.ts`), and nobody signs in: `authenticate` names Sam for every request. That is a demo identity, not authentication. A real host checks each request's session in `authenticate`.
 
 Reloading the page, or pressing **Reset**, starts again from the seed tasks.
 

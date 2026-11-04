@@ -1,6 +1,6 @@
 # Familiar daemon
 
-The Node host for the installed assistant. It owns SQLite storage, ChatGPT credentials, CLI setup and services, Web Push, network filtering and isolated HTML conversion. It serves core's HTTP API and the built web UI.
+The Node host for the installed assistant. It owns SQLite storage, ChatGPT credentials, CLI setup and services, Web Push, the plugins' network filtering and HTML conversion in a worker thread. It serves core's HTTP API and the built web UI.
 
 User guides, including commands, settings and notifications, are under [Use Familiar](https://aidanzealley.github.io/familiar/use/install/) (publishes once GitHub Pages deployment is enabled).
 

@@ -1,7 +1,10 @@
 import type { Author } from '@familiar-ai/core'
 import type { Task } from './board.ts'
 
-/** The signed-in person. A real host takes this from its session. */
+/**
+ * The demo's one person. Nobody signs in; a real host authenticates each
+ * request and takes the person from its session.
+ */
 export const CURRENT_AUTHOR: Author = { id: 'sam', name: 'Sam' }
 
 const priya: Author = { id: 'priya', name: 'Priya' }
