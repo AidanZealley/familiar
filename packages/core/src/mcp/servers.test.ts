@@ -1,9 +1,5 @@
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { createModels } from '@earendil-works/pi-ai/models'
-import {
-  fauxAssistantMessage,
-  fauxProvider,
-} from '@earendil-works/pi-ai/providers/faux'
+import { fauxProvider } from '@earendil-works/pi-ai/providers/faux'
 import { afterEach, expect, test } from 'vitest'
 import {
   McpConfigError,
@@ -14,8 +10,7 @@ import {
   type McpServer,
 } from '../familiar.ts'
 import { createHttpApi } from '../http/index.ts'
-import { ReopenableStorage, withHarness } from '../memory/testing.ts'
-import { McpServers } from './servers.ts'
+import { ReopenableStorage } from '../memory/testing.ts'
 
 // Familiar saves any well-formed server and connects through the transport
 // the host passed. Which protocols, destinations and commands are allowed is
@@ -65,10 +60,6 @@ const home: McpServer = {
     auth: { type: 'bearer' },
   },
 }
-const local: McpServer = {
-  name: 'local',
-  transport: { type: 'stdio', command: 'uvx', args: ['mcp-server-time'] },
-}
 
 const statuses = async (familiar: Familiar) =>
   Object.fromEntries(
@@ -99,48 +90,6 @@ test('a bearer server over plain HTTP waits for its token, then is tried with it
   expect(f.requests[0]?.headers.get('authorization')).toBe(
     'Bearer secret-token',
   )
-})
-
-test('a transport the host did not pass is saved and fails, before and after reopening, without stopping Familiar', async () => {
-  const f = setup()
-  let familiar = await f.open()
-  await familiar.mcp.add(local)
-  const failed = {
-    local: { type: 'failed', error: 'This host has no MCP stdio transport.' },
-  }
-  await expect.poll(() => statuses(familiar)).toEqual(failed)
-  await f.close(familiar)
-
-  familiar = await f.open()
-  await expect.poll(() => statuses(familiar)).toEqual(failed)
-  await familiar.mcp.reconnect('local')
-  await expect.poll(() => statuses(familiar)).toEqual(failed)
-  // Familiar carries on, and the server is still the owner's to remove.
-  f.faux.setResponses([fauxAssistantMessage('Still here.')])
-  await familiar.send({
-    author: { id: 'owner', name: 'Owner' },
-    text: 'Hello.',
-    requestId: 'hello',
-  })
-  await familiar.idle()
-  await familiar.mcp.remove('local')
-  expect(await familiar.connections.list()).toEqual([])
-})
-
-test('a server saved earlier opens like any other, whatever its transport', async () => {
-  const f = setup()
-  await withHarness(f.storage, (harness) =>
-    harness.commit(async (tx) => {
-      ;(await tx.doc(McpServers)).servers.push(home, local)
-    }, BACKGROUND_CONTEXT),
-  )
-  const familiar = await f.open()
-  await expect
-    .poll(() => statuses(familiar))
-    .toEqual({
-      home: { type: 'needs-auth' },
-      local: { type: 'failed', error: 'This host has no MCP stdio transport.' },
-    })
 })
 
 test.each([

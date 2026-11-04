@@ -27,7 +27,7 @@ import {
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona, defaultPersona } from './persona/index.ts'
 import { createMcp } from './mcp/manager.ts'
-import type { McpApi, McpStdioFactory } from './mcp/types.ts'
+import type { McpApi, McpStdioFactory } from './mcp/servers.ts'
 import {
   createPlugins,
   type ConnectionsApi,
@@ -60,10 +60,12 @@ export {
 } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
 export { defaultPersona } from './persona/index.ts'
-export type { McpApi, McpConnectionInfo, McpStdioFactory } from './mcp/types.ts'
 export {
   McpConfigError,
+  type McpApi,
+  type McpConnectionInfo,
   type McpServer,
+  type McpStdioFactory,
   type McpStdioTransport,
 } from './mcp/servers.ts'
 export {

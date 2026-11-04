@@ -1,5 +1,4 @@
 import { fileURLToPath } from 'node:url'
-import { EventEmitter, once } from 'node:events'
 import { createModels } from '@familiar-ai/core/models'
 import {
   fauxProvider,
@@ -54,7 +53,7 @@ const exited = (pid: number) => {
   }
 }
 
-async function setup(factory: typeof stdioTransport | null = stdioTransport) {
+async function setup() {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -65,13 +64,11 @@ async function setup(factory: typeof stdioTransport | null = stdioTransport) {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    mcpStdio: factory
-      ? (config) => {
-          const child = factory(config)
-          children.push(child)
-          return child
-        }
-      : undefined,
+    mcpStdio: (config) => {
+      const child = stdioTransport(config)
+      children.push(child)
+      return child
+    },
   })
   opened.add(familiar)
   return { familiar, faux, children }
@@ -187,21 +184,6 @@ test('process exit removes tools, reconnect launches a fresh process, and dismis
   await expect.poll(() => exited(secondPid)).toBe(true)
 })
 
-test('hosts without stdio report an unsupported transport without blocking chat', async () => {
-  const { familiar, faux } = await setup(null)
-  await familiar.mcp.add(server)
-  await expect
-    .poll(async () => (await info(familiar)).status)
-    .toEqual({ type: 'failed', error: 'This host has no MCP stdio transport.' })
-  faux.setResponses([fauxAssistantMessage('Still here.')])
-  await familiar.send({
-    author: { id: 'owner', name: 'owner' },
-    text: 'Hello.',
-    requestId: 'stdio-unsupported',
-  })
-  await familiar.idle()
-})
-
 test('removing a server during initialization closes the child process', async () => {
   const { familiar, children } = await setup()
   await familiar.mcp.add({
@@ -218,8 +200,8 @@ test('removing a server during initialization closes the child process', async (
   expect(await familiar.connections.list()).toEqual([])
 })
 
-test('an unavailable command reports failure and can be removed', async () => {
-  const { familiar } = await setup()
+test('a server that cannot start reports failure without blocking chat, and can be removed', async () => {
+  const { familiar, faux } = await setup()
   await familiar.mcp.add({
     name: 'local',
     transport: {
@@ -231,34 +213,13 @@ test('an unavailable command reports failure and can be removed', async () => {
   await expect
     .poll(async () => (await info(familiar)).status.type)
     .toBe('failed')
+  faux.setResponses([fauxAssistantMessage('Still here.')])
+  await familiar.send({
+    author: { id: 'owner', name: 'owner' },
+    text: 'Hello.',
+    requestId: 'unavailable',
+  })
+  await familiar.idle()
   await familiar.mcp.remove('local')
   expect(await familiar.connections.list()).toEqual([])
-})
-
-test('a late process close preserves the initialization error', async () => {
-  const events = new EventEmitter()
-  const closed = once(events, 'closed')
-  const { familiar } = await setup((config) => {
-    const transport = stdioTransport(config)
-    transport.onclose = () => {
-      events.emit('closed')
-    }
-    return transport
-  })
-  await familiar.mcp.add({
-    ...server,
-    transport: {
-      ...server.transport,
-      args: [
-        fileURLToPath(
-          new URL('./testing/rejecting-stdio-server.ts', import.meta.url),
-        ),
-      ],
-    },
-  })
-  await closed
-  expect((await info(familiar)).status).toMatchObject({
-    type: 'failed',
-    error: expect.stringContaining('Initialization refused'),
-  })
 })

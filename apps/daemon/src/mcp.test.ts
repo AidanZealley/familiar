@@ -7,11 +7,8 @@ import {
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { createToolSearchExtension } from '@familiar-ai/core/extensions'
 import { summonFamiliar } from '@familiar-ai/core'
-import { connectMcp } from '@familiar-ai/core/mcp'
 import { serve } from '@hono/node-server'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import {
   Server,
   WebStandardStreamableHTTPServerTransport,
@@ -19,7 +16,7 @@ import {
   type CallToolRequest,
   type ServerContext,
 } from '@modelcontextprotocol/server'
-import { expect, test, type TestContext } from 'vitest'
+import { expect, test, vi, type TestContext } from 'vitest'
 
 async function setup(
   test: TestContext,
@@ -82,13 +79,6 @@ async function setup(
   if (!address || typeof address === 'string') {
     throw new Error('Expected an HTTP port.')
   }
-  const connection = await connectMcp(
-    'test',
-    new StreamableHTTPClientTransport(
-      new URL(`http://127.0.0.1:${address.port}/mcp`),
-    ),
-  )
-  test.onTestFinished(() => connection.close())
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -97,19 +87,21 @@ async function setup(
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    plugins: [
-      {
-        name: 'mcp-test',
-        title: 'Test MCP',
-        extension: () => connection.extension,
-      },
-      {
-        name: 'tool-search',
-        title: 'Tool search',
-        extension: createToolSearchExtension,
-      },
-    ],
+    mcpFetch: fetch,
   })
+  await familiar.mcp.add({
+    name: 'test',
+    transport: {
+      type: 'http',
+      url: `http://127.0.0.1:${address.port}/mcp`,
+      auth: { type: 'none' },
+    },
+  })
+  await vi.waitFor(async () =>
+    expect((await familiar.connections.list())[0]).toMatchObject({
+      status: { type: 'connected' },
+    }),
+  )
   test.onTestFinished(() => familiar.dismiss())
   return { familiar, faux, pages }
 }
