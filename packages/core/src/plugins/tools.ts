@@ -6,7 +6,8 @@ import {
   type ToolExecutionResult,
   type ToolRegistration,
 } from '@earendil-works/pi-durable'
-import { toolInvoker, type Invoker } from './invoker.ts'
+import type { Author } from '../conversation/message.ts'
+import { toolAuthor } from './author.ts'
 
 export { Type } from '@earendil-works/pi-ai'
 export type { Static, TSchema } from '@earendil-works/pi-ai'
@@ -20,11 +21,13 @@ export type ToolResult<TDetails extends JsonValue = JsonValue> =
 export type FamiliarToolApi<TDetails extends JsonValue = JsonValue> =
   ToolExecutionApi<TDetails> & {
     /**
-     * Who this call runs for, resolved from the stored input that started it,
-     * never from the tool's arguments. A tool that narrows what someone may
-     * do with its data or actions checks it against this.
+     * The person this call runs for: the author of the message that started
+     * it, or the creator of a scheduled run, read from storage, never from
+     * the tool's arguments. Undefined for other work, such as memory upkeep,
+     * or a message stored with only a name. A tool that narrows what someone
+     * may do with its data or actions checks it against this.
      */
-    readonly invoker: Invoker
+    readonly author: Author | undefined
   }
 
 export type FamiliarTool<
@@ -38,7 +41,7 @@ export type FamiliarTool<
   ): Promise<ToolResult<TDetails>>
 }
 
-/** Pi owns execution; Familiar adds who the call runs for. */
+/** Pi owns execution; Familiar adds the person the call runs for. */
 export function defineTool<
   TParameters extends TSchema,
   TDetails extends JsonValue = JsonValue,
@@ -48,13 +51,13 @@ export function defineTool<
   return piDefineTool({
     ...tool,
     execute: async (args, api, context) => {
-      const invoker = await api.commit(
-        (tx) => toolInvoker(tx, api.taskId),
+      const author = await api.commit(
+        (tx) => toolAuthor(tx, api.taskId),
         context,
       )
       // Inherit Pi's live getters rather than evaluating them into snapshots.
       const invocation = Object.create(api, {
-        invoker: { value: invoker, enumerable: true },
+        author: { value: author, enumerable: true },
       }) as FamiliarToolApi<TDetails>
       return tool.execute(args, invocation, context)
     },

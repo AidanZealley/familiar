@@ -19,13 +19,7 @@ import { ReopenableStorage, withHarness } from '../memory/testing.ts'
 import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
 import { parseMinute } from '../time/index.ts'
 import { latestOccurrence, nextOccurrence, repeatProblem } from './repeat.ts'
-import {
-  defineTool,
-  Type,
-  type Author,
-  type FamiliarPlugin,
-  type Invoker,
-} from '../index.ts'
+import { defineTool, Type, type Author, type FamiliarPlugin } from '../index.ts'
 import {
   addSchedule,
   advance,
@@ -572,7 +566,7 @@ test('reopened in another zone, a one-off keeps its time and a repeat follows th
 })
 
 test('a reopened schedule exposes its creator snapshot to tools without recipient routing', async () => {
-  const seen: Invoker[] = []
+  const seen: (Author | undefined)[] = []
   const f = await setup({
     plugins: [
       {
@@ -585,7 +579,7 @@ test('a reopened schedule exposes its creator snapshot to tools without recipien
               description: 'Report the creator',
               parameters: Type.Object({}),
               execute: async (_args, api) => {
-                seen.push(api.invoker)
+                seen.push(api.author)
                 return { output: [{ type: 'text', text: 'Identified' }] }
               },
             }),
@@ -610,9 +604,7 @@ test('a reopened schedule exposes its creator snapshot to tools without recipien
     'Time to call Mum',
   )
   await f.fireAt(at(21, 18), 'done')
-  expect(seen).toEqual([
-    { kind: 'schedule', author: { id: 'sam-1', name: 'Sam' }, scheduleId: id },
-  ])
+  expect(seen).toEqual([{ id: 'sam-1', name: 'Sam' }])
   expect(bodies(f.notifications)).toEqual(['Time to call Mum'])
 })
 

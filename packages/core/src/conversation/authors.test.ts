@@ -10,7 +10,7 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { afterEach, expect, test, vi } from 'vitest'
-import { defineTool, Type, type Author, type Invoker } from '../index.ts'
+import { defineTool, Type, type Author } from '../index.ts'
 import {
   summonFamiliar,
   type Familiar,
@@ -49,7 +49,6 @@ const call = (name: string) =>
   fauxAssistantMessage(fauxToolCall(name, {}), { stopReason: 'toolUse' })
 
 const output = { output: [{ type: 'text' as const, text: 'Done' }] }
-const person = (author: Author): Invoker => ({ kind: 'person', author })
 
 test('same-name authors stay distinct and rename snapshots survive retries and reopen', async () => {
   const { faux, open } = await setup()
@@ -100,7 +99,7 @@ test('same-name authors stay distinct and rename snapshots survive retries and r
 })
 
 test('tools and nested calls retain their author across rounds while another author is queued', async () => {
-  const seen: Invoker[] = []
+  const seen: (Author | undefined)[] = []
   let release!: () => void
   const held = new Promise<void>((resolve) => {
     release = resolve
@@ -115,7 +114,7 @@ test('tools and nested calls retain their author across rounds while another aut
           description: 'Test nested calls',
           parameters: Type.Object({}),
           execute: async (_args, api, context) => {
-            seen.push(api.invoker)
+            seen.push(api.author)
             await held
             await api.executeTool('inner', {}, context)
             return output
@@ -126,7 +125,7 @@ test('tools and nested calls retain their author across rounds while another aut
           description: 'Report attribution',
           parameters: Type.Object({}),
           execute: async (_args, api) => {
-            seen.push(api.invoker)
+            seen.push(api.author)
             return output
           },
         }),
@@ -142,18 +141,18 @@ test('tools and nested calls retain their author across rounds while another aut
     fauxAssistantMessage('Second done'),
   ])
   await familiar.send({ author: first, text: 'First', requestId: 'first' })
-  await vi.waitFor(() => expect(seen).toEqual([person(first)]))
+  await vi.waitFor(() => expect(seen).toEqual([first]))
   await familiar.send({ author: second, text: 'Second', requestId: 'second' })
   const queued = await familiar.watch()
   await queued.stop()
   expect(JSON.stringify(queued.value.docs['pi.inbox'])).toContain('person-2')
   release()
   await familiar.idle()
-  expect(seen).toEqual([first, first, first, second].map(person))
+  expect(seen).toEqual([first, first, first, second])
 })
 
 test('a replay-safe interrupted tool resolves the same author after reopening', async () => {
-  const seen: Invoker[] = []
+  const seen: (Author | undefined)[] = []
   let interrupted = false
   const { faux, open } = await setup({
     name: 'identity',
@@ -166,7 +165,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
           parameters: Type.Object({}),
           replay: 'safe',
           execute: async (_args, api, context) => {
-            seen.push(api.invoker)
+            seen.push(api.author)
             if (!interrupted) {
               const signal = context.abortSignal!
               await new Promise<void>((_resolve, reject) => {
@@ -189,7 +188,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
   const familiar = await open()
   faux.setResponses([call('identify')])
   await familiar.send({ author: first, text: 'First', requestId: 'first' })
-  await vi.waitFor(() => expect(seen).toEqual([person(first)]))
+  await vi.waitFor(() => expect(seen).toEqual([first]))
   await familiar.send({ author: second, text: 'Second', requestId: 'second' })
   await familiar.dismiss()
   faux.setResponses([
@@ -199,7 +198,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
   ])
   const reopened = await open()
   await reopened.idle()
-  expect(seen).toEqual([first, first, second].map(person))
+  expect(seen).toEqual([first, first, second])
 })
 
 test('name-only history survives reopening, memory reads and tool execution without an inferred ID', async () => {
@@ -210,7 +209,7 @@ test('name-only history survives reopening, memory reads and tool execution with
   models.setProvider(faux.provider)
   const model = { provider: 'faux', modelId: 'faux-1' }
   const registry = createRegistry()
-  const seen: Invoker[] = []
+  const seen: (Author | undefined)[] = []
   registry.install({
     name: 'identity',
     tools: [
@@ -219,7 +218,7 @@ test('name-only history survives reopening, memory reads and tool execution with
         description: 'Report attribution',
         parameters: Type.Object({}),
         execute: async (_args, api) => {
-          seen.push(api.invoker)
+          seen.push(api.author)
           return output
         },
       }),
@@ -250,7 +249,7 @@ test('name-only history survives reopening, memory reads and tool execution with
       context,
     )
     await conversation.waitForIdle(context)
-    expect(seen).toEqual([{ kind: 'unknown' }])
+    expect(seen).toEqual([undefined])
   } finally {
     await harness.close(context)
   }

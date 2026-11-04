@@ -43,7 +43,6 @@ import {
 import { checkTimeZone, createTime } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
-export type { Invoker } from './plugins/invoker.ts'
 export {
   createAccount,
   type Account,

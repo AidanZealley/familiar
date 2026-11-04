@@ -53,27 +53,20 @@ Familiar records who said what and shows the model each author. It doesn't decid
 - choose each Familiar's audience: who may send to it, and so share it
 - choose each Familiar's tools, with `plugins` and its MCP servers
 
-Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.invoker`. That says who the call runs for, from the stored input that started it, never from the tool's arguments:
+Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.author`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep, and for a message an older version stored with only a name.
 
-| `kind`     | Runs for                                                                                     |
-| ---------- | -------------------------------------------------------------------------------------------- |
-| `person`   | `author`, whose message started it                                                           |
-| `schedule` | `author`, who created schedule `scheduleId`                                                  |
-| `system`   | Familiar's own memory upkeep                                                                 |
-| `unknown`  | nobody Familiar can establish, such as a message stored with only a name by an older version |
-
-Nested calls run for their caller's invoker. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
+Nested calls, and calls rerun after a crash, keep the author of the input that started them. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 
 ```ts
-execute: async ({ taskId }, { invoker }) => {
+execute: async ({ taskId }, { author }) => {
   // Your API checks, as it runs, whether this person may change the task.
-  if (invoker.kind !== 'person') {
+  if (!author) {
     return {
       output: [{ type: 'text', text: 'Only a person can do this.' }],
       isError: true,
     }
   }
-  return updateTask(taskId, { as: invoker.author.id })
+  return updateTask(taskId, { as: author.id })
 }
 ```
 

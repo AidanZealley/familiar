@@ -47,19 +47,11 @@ Opens a Familiar over its storage, resumes unfinished work and starts background
 | `onWake`          |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/) |
 | `now`, `setTimer` |          | Clock and timer overrides, mainly for tests                                                            |
 
-### Invoker
+### Tool author
 
-Every tool on a Familiar is available to everyone who chats with it. Tools read who a call runs for as `api.invoker`, resolved from the stored input that started the call, never from its arguments. Nested calls take their caller's:
+Every tool on a Familiar is available to everyone who chats with it. Tools defined with `defineTool` read the person a call runs for as `api.author: Author | undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. Nested calls and calls rerun after a crash keep it. It's `undefined` for memory upkeep and for a message stored with only a name by an older version.
 
-```ts
-type Invoker =
-  | { kind: 'person'; author: Author } // a person's message
-  | { kind: 'schedule'; author: Author; scheduleId: string } // author created it
-  | { kind: 'system' } // memory upkeep
-  | { kind: 'unknown' } // a name-only legacy message, a schedule without a creator, other input
-```
-
-Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against `api.invoker`. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
+Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against `api.author`. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
 
 ## Familiar
 
@@ -121,4 +113,4 @@ A stored repeat that isn't valid cron is kept with `refused` set to the reason a
 
 `add` throws `McpConfigError`, saving nothing, for a server of the wrong shape: a bad name, an unknown transport, or a URL that isn't `http://` or `https://` or carries credentials, a query or a fragment. Familiar saves any server of the right shape and connects through the transport the host passed, `mcpFetch` or `mcpStdio`. The host owns which protocols, destinations and commands those transports allow. A server whose transport the host didn't pass, or whose connection fails, shows `{ type: 'failed', error }` in `connections.list()` and never stops Familiar opening. An HTTP server with a bearer token and no token set shows `needs-auth`.
 
-`Invoker`, `Message`, `HistoryPage`, `ChatModel`, `ModelOption`, `Notification`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.
+`Message`, `HistoryPage`, `ChatModel`, `ModelOption`, `Notification`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.

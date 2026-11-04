@@ -4,11 +4,11 @@ import type { ToolExecutionApi } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { defineTool, Type } from './tools.ts'
 
-test('the invoker reaches the tool through live API getters', async () => {
+test('the author reaches the tool through live API getters', async () => {
   const first = createModels()
   const second = createModels()
   let current = first
-  // Only invoker lookup (no such task) and the live getter are exercised.
+  // Only author lookup (no such task) and the live getter are exercised.
   const api = {
     taskId: 1,
     commit: async (change: (tx: unknown) => unknown) =>
@@ -22,7 +22,7 @@ test('the invoker reaches the tool through live API getters', async () => {
     description: 'Check the current models during a call.',
     parameters: Type.Object({}),
     execute: async (_args, invocation) => {
-      expect(invocation.invoker).toEqual({ kind: 'unknown' })
+      expect(invocation.author).toBeUndefined()
       expect(invocation.models).toBe(first)
       current = second
       expect(invocation.models).toBe(second)

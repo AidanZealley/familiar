@@ -92,7 +92,7 @@ export type HttpApi = HttpApiFor<true>
  * all read its history and whatever the model says, which can include
  * anything it remembers: leaving memory out of `events` doesn't make memory
  * private. They also share every tool installed on the Familiar; a tool or
- * the app API behind it narrows what each may do, using `api.invoker`.
+ * the app API behind it narrows what each may do, using `api.author`.
  */
 export function createHttpApi<
   const Routes extends RouteSelection = Record<never, never>,
