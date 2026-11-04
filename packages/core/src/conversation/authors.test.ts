@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { configure, createRegistry, Harness } from '@earendil-works/pi-durable'
-import { harnessOptions } from '../context/index.ts'
+import { harnessOptions } from '../harness.ts'
 import { transcriptExchanges } from '../memory/exchanges.ts'
 import { newMessages } from '../memory/upkeep/transcript.ts'
 import { createModels } from '@earendil-works/pi-ai/models'
@@ -226,7 +226,7 @@ test('name-only history survives reopening, memory reads and tool execution with
   })
   const harness = await Harness.open(
     storage,
-    harnessOptions({ models, model }, registry, 64_000),
+    harnessOptions({ models, model, chatModels: [] }, registry, 64_000),
     context,
   )
   try {

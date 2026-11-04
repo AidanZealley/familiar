@@ -15,7 +15,7 @@ import {
   type AccountApi,
   type AccountOptions,
 } from './account/index.ts'
-import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
+import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './harness.ts'
 import {
   conversationExtension,
   findChatModel,

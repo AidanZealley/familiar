@@ -10,7 +10,7 @@ import {
   type Storage,
 } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
-import { harnessOptions } from '../context/index.ts'
+import { harnessOptions } from '../harness.ts'
 import { summonFamiliar, type Familiar } from '../familiar.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
 import { ModelError, type ChatModel } from './models.ts'
