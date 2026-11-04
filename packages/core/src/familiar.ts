@@ -72,6 +72,8 @@ export {
   DEFAULT_MAX_SCHEDULES,
   SCHEDULE_LIMITS,
   type Notification,
+  type NotificationContext,
+  type Notify,
   type SchedulesApi,
 } from './schedules/index.ts'
 export {
@@ -160,9 +162,12 @@ export type FamiliarOptions = {
    */
   contextBudget?: number
   /**
-   * Shows the owner a notification: each scheduled run's reply, or its
-   * prompt if there was none. Without it, schedules still run in the
-   * conversation. Hosts deliver it however suits them, such as Web Push.
+   * Delivers a notification: each scheduled run's reply, or its prompt if
+   * there was none, and whatever plugins send. Without it, schedules still
+   * run in the conversation. Scheduled runs pass a `NotificationContext`
+   * with the schedule's ID and stored creator; the host chooses who sees it
+   * and how, such as Web Push or its own notification system. Familiar
+   * never picks recipients, and the creator isn't one by default.
    */
   notify?: Notify
   /**

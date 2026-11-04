@@ -14,10 +14,29 @@ import {
 import { localMinute } from '../time/index.ts'
 import { advance, dueAt, Schedules, type Schedule } from './schedules.ts'
 
-/** What a host is asked to show the owner. */
+/** What a host is asked to show: the same for whoever it shows it to. */
 export type Notification = { title: string; body: string; url?: string }
 
-export type Notify = (notification: Notification) => Promise<void>
+/**
+ * Where a scheduled notification came from, for the host to choose its
+ * audience and tenant. `creator` is the schedule's stored creator, kept
+ * with the schedule so a restart can't lose it; it is attribution, not a
+ * recipient. Undefined for schedules made without one, such as before
+ * creators were recorded.
+ */
+export type NotificationContext = {
+  scheduleId: string
+  creator: Author | undefined
+}
+
+/**
+ * Delivers a notification. Scheduled runs pass their `context`; plugins'
+ * notifications come without one.
+ */
+export type Notify = (
+  notification: Notification,
+  context?: NotificationContext,
+) => Promise<void>
 
 type ScheduleStep =
   | { phase: 'wait' }
@@ -162,11 +181,14 @@ export function createScheduleTask(
         // A crash between notifying and the commit below notifies again on
         // rerun: better twice than never.
         if (notify) {
-          await notify({
-            title: name,
-            body: notificationBody(reply || prompt),
-            url: '/',
-          }).catch((error: unknown) => runtime.report(error))
+          await notify(
+            {
+              title: name,
+              body: notificationBody(reply || prompt),
+              url: '/',
+            },
+            { scheduleId: id, creator },
+          ).catch((error: unknown) => runtime.report(error))
         }
 
         await runtime.commit(async (tx) => {

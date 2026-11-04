@@ -42,10 +42,28 @@ Opens a Familiar over its storage, resumes unfinished work and starts background
 | `mcpFetch`        |          | `PluginFetch` for owner-configured HTTP MCP servers                                                    |
 | `mcpStdio`        |          | `McpStdioFactory` for owner-configured local MCP commands                                              |
 | `contextBudget`   |          | Tokens per request before older conversation is compacted. Default 64,000                              |
-| `notify`          |          | `(notification: { title, body, url? }) => Promise<void>` for scheduled replies                         |
+| `notify`          |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)   |
 | `maxSchedules`    |          | Most schedules kept at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50              |
 | `onWake`          |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/) |
 | `now`, `setTimer` |          | Clock and timer overrides, mainly for tests                                                            |
+
+### Notifications
+
+`notify(notification, context?)` receives `{ title, body, url? }`, the same for everyone who sees it. A scheduled run also passes a `NotificationContext`, `{ scheduleId, creator }`. `creator` is the `Author` stored with the schedule when it was made, unchanged by restarts or later renames, and `undefined` for a schedule an older version saved without one. A plugin's notification has no context.
+
+Familiar never chooses recipients. Your host decides who sees each notification, in which tenant, and how: through Web Push with `PushHost`, or its own notification preferences and delivery. The creator is attribution, not a recipient: schedules are shared controls, so whoever else chats with the Familiar may also want it, and the host may send it to none of them.
+
+```ts
+notify: async (notification, context) => {
+  // Your app's members and preferences, not Familiar's.
+  for (const member of await household.membersWantingNotifications()) {
+    await household.notify(member, {
+      ...notification,
+      requestedBy: context?.creator?.name,
+    })
+  }
+}
+```
 
 ### Tool author
 
@@ -113,4 +131,4 @@ A stored repeat that isn't valid cron is kept with `refused` set to the reason a
 
 `add` throws `McpConfigError`, saving nothing, for a server of the wrong shape: a bad name, an unknown transport, or a URL that isn't `http://` or `https://` or carries credentials, a query or a fragment. Familiar saves any server of the right shape and connects through the transport the host passed, `mcpFetch` or `mcpStdio`. The host owns which protocols, destinations and commands those transports allow. A server whose transport the host didn't pass, or whose connection fails, shows `{ type: 'failed', error }` in `connections.list()` and never stops Familiar opening. An HTTP server with a bearer token and no token set shows `needs-auth`.
 
-`Message`, `HistoryPage`, `ChatModel`, `ModelOption`, `Notification`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.
+`Message`, `HistoryPage`, `ChatModel`, `ModelOption`, `Notification`, `NotificationContext`, `Notify`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.

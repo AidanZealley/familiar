@@ -1,8 +1,12 @@
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { summonFamiliar, type Familiar } from '@familiar-ai/core'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, onTestFinished, test, vi } from 'vitest'
 import { daemonApp, isAllowedHost } from './serve.ts'
 
 test.each([
@@ -121,4 +125,42 @@ describe('browser mutations', () => {
     expect((await post(headers)).status).toBe(202)
     expect(abort).toHaveBeenCalledOnce()
   })
+})
+
+test("the daemon's own UI refuses to be framed; an embedding host's API sets no framing policy", async () => {
+  const models = createModels()
+  models.setProvider(fauxProvider().provider)
+  const familiar = await summonFamiliar({
+    storage: new MemoryStorage(),
+    models,
+    model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+  })
+  onTestFinished(() => familiar.dismiss())
+  const webDir = mkdtempSync(join(tmpdir(), 'familiar-web-'))
+  writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>UI</title>')
+  const app = daemonApp(familiar, { owner: 'Aidan', webDir })
+  const framing = (response: Response) => [
+    response.headers.get('content-security-policy'),
+    response.headers.get('x-frame-options'),
+  ]
+
+  // The page itself, and the client-side routes it answers for.
+  for (const path of ['/', '/schedules']) {
+    const page = await app.request(path, { headers: { host: '127.0.0.1' } })
+    expect(page.status).toBe(200)
+    expect(page.headers.get('content-type')).toMatch(/^text\/html/)
+    expect(framing(page)).toEqual(["frame-ancestors 'none'", 'DENY'])
+  }
+
+  // Embedded hosts serve Familiar's API inside their own pages and keep
+  // their own framing policy.
+  const embedded = createHttpApi(familiar, {
+    authenticate: () => ({ id: 'sam', name: 'Sam' }),
+    routes: { memory: { health: true } },
+  })
+  expect(framing(await embedded.request('/memory/health'))).toEqual([
+    null,
+    null,
+  ])
 })

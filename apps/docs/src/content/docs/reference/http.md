@@ -44,7 +44,7 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 | `cancelSignIn` | `DELETE /account/sign-in`      |            | 204                |
 | `signOut`      | `POST /account/sign-out`       |            | 204                |
 
-**Push**, in `routes.push`. Every route answers 404 when the host passes no `push`.
+**Push**, in `routes.push`. Every route answers 404 when the host passes no `push`. Familiar validates the subscription, then calls the `PushHost`'s `subscribe(subscription, subscriber)` or `unsubscribe(subscription, subscriber)` with the `Author` that `authenticate` returned. The body can't name a subscriber, and only `endpoint`, `expirationTime` and `keys` reach the host.
 
 | Operation     | Method and path              | Body                        | Success       |
 | ------------- | ---------------------------- | --------------------------- | ------------- |

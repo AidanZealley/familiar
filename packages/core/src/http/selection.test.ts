@@ -145,7 +145,10 @@ test('each operation asks only its own check, and a refusal changes nothing', as
   expect((await call(api, remove)).status).toBe(204)
   expect(unsubscribe).toHaveBeenCalledOnce()
   expect(subscribe).toHaveBeenCalledOnce()
-  expect(push.unsubscribe).toHaveBeenCalledOnce()
+  expect(push.unsubscribe).toHaveBeenCalledExactlyOnceWith(
+    { ...subscription, expirationTime: null },
+    sam,
+  )
 })
 
 test('authentication, then the body limit, come before any check', async () => {

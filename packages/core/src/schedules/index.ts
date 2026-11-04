@@ -21,7 +21,7 @@ export {
   SCHEDULE_LIMITS,
   ScheduleError,
 } from './schedules.ts'
-export type { Notification, Notify } from './task.ts'
+export type { Notification, NotificationContext, Notify } from './task.ts'
 
 export type SchedulesApi = {
   watch(): Promise<DocumentWatch<SchedulesState>>
