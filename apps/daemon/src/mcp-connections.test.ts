@@ -4,11 +4,7 @@ import {
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import type { TranscriptContext } from '@familiar-ai/core/models'
-import type {
-  Familiar,
-  McpConnectionInfo,
-  ToolInvocation,
-} from '@familiar-ai/core'
+import type { Familiar, McpConnectionInfo } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'
 import { mcpFixture } from './testing/mcp.ts'
@@ -16,70 +12,6 @@ import { mcpFixture } from './testing/mcp.ts'
 const info = async (familiar: Familiar) =>
   (await familiar.connections.list())[0] as McpConnectionInfo
 const connection = { kind: 'mcp', name: 'test' } as const
-
-test('MCP tools, including ones a server adds later, run only when the host allows', async (test) => {
-  const fixture = mcpFixture(test)
-  const asked: ToolInvocation[] = []
-  const familiar = await fixture.open(fixture.fetch, (call) => {
-    asked.push(call)
-    return call.tool === 'tool_search'
-  })
-  await familiar.mcp.add(fixture.server)
-  await familiar.connections.setSecret(connection, 'token', fixture.state.token)
-  await expect
-    .poll(async () => (await info(familiar)).status.type)
-    .toBe('connected')
-  const results: string[] = []
-  const callTool = async (name: string) => {
-    fixture.faux.setResponses([
-      fauxAssistantMessage(fauxToolCall('tool_search', { query: name }), {
-        stopReason: 'toolUse',
-      }),
-      fauxAssistantMessage(fauxToolCall(`mcp__test__${name}`, {}), {
-        stopReason: 'toolUse',
-      }),
-      (context) => {
-        results.push(JSON.stringify(context.messages.at(-1)))
-        return fauxAssistantMessage('Refused.')
-      },
-    ])
-    await familiar.send({
-      author: { id: 'owner', name: 'owner' },
-      text: `Call ${name}.`,
-      requestId: name,
-    })
-    await familiar.idle()
-  }
-  await callTool('echo')
-
-  // The server's list changes, so its extension is installed again.
-  fixture.state.tools = [
-    {
-      name: 'add',
-      description: 'Add numbers',
-      inputSchema: { type: 'object' },
-    },
-  ]
-  await fixture.notify()
-  await expect
-    .poll(async () => (await info(familiar)).tools.map((tool) => tool.name))
-    .toEqual(['add'])
-  await callTool('add')
-
-  expect(fixture.state.calls).toBe(0)
-  expect(
-    asked
-      .filter((call) => call.tool !== 'tool_search')
-      .map(({ tool, extension }) => ({ tool, extension })),
-  ).toEqual([
-    { tool: 'mcp__test__echo', extension: 'familiar.mcp.test' },
-    { tool: 'mcp__test__add', extension: 'familiar.mcp.test' },
-  ])
-  expect(results).toEqual([
-    expect.stringContaining('Not permitted: mcp__test__echo'),
-    expect.stringContaining('Not permitted: mcp__test__add'),
-  ])
-})
 
 test('a failed credential write restores the existing connection', async (test) => {
   const fixture = mcpFixture(test)
@@ -109,7 +41,7 @@ test('a new declaration cannot reuse an orphaned token for a different endpoint'
     ...fixture.server,
     transport: {
       ...fixture.server.transport,
-      url: 'https://different.local/mcp',
+      url: 'http://different.local/mcp',
     },
   })
   await expect

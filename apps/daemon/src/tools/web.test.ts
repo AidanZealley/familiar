@@ -7,7 +7,6 @@ import {
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import {
   memorySecrets,
-  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type PluginFetch,
@@ -44,7 +43,6 @@ async function setup(
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'Asia/Kolkata',
-    authorizeTool: authorizeSingleOwner,
     plugins: await loadPlugins(''),
     secrets,
     fetch,

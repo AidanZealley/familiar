@@ -7,7 +7,6 @@ const absent = {
   connecting: 'Its tools appear once it connects.',
   'needs-auth': 'Its tools appear once it has a token the server accepts.',
   failed: "No tools while it can't connect.",
-  refused: 'No tools while Familiar refuses its settings.',
   disconnected: 'No tools while disconnected.',
 }
 

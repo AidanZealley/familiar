@@ -1,11 +1,5 @@
 import { summonFamiliar } from '@familiar-ai/core'
-import {
-  credentials,
-  mayUseTool,
-  publicOnlyFetch,
-  secrets,
-  storage,
-} from './host.ts'
+import { credentials, publicOnlyFetch, secrets, storage } from './host.ts'
 import { createModels } from '@familiar-ai/core/models'
 import { openaiProvider } from '@familiar-ai/core/models/openai'
 import { greeting } from './plugin.ts'
@@ -18,8 +12,6 @@ export const familiar = await summonFamiliar({
   models,
   model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
   timeZone: 'Europe/London',
-  // Asked before every tool call, for whoever it runs for.
-  authorizeTool: ({ invoker, tool }) => mayUseTool(invoker, tool),
   name: 'Willow',
   persona:
     'You are Willow, a helpful assistant for a family kitchen. Replies render as Markdown.',

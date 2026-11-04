@@ -46,9 +46,6 @@ export async function startDemo({
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    // Tools change the host's board, so only a person's own request runs
-    // them: not a schedule's run, memory upkeep or an unattributed message.
-    authorizeTool: ({ invoker }) => invoker.kind === 'person',
     persona: PERSONA,
     plugins: [boardPlugin(board)],
     // The board tools never reach the network.

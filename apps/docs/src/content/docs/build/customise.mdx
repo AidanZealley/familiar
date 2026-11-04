@@ -27,7 +27,7 @@ Import the helpers from `@familiar-ai/core` rather than installing your own copy
 Inside `execute`:
 
 - `api.invoker` is who the call runs for: `{ kind: 'person', author }` for the person whose message started it, `{ kind: 'schedule', author, scheduleId }` for a scheduled run and its creator, `{ kind: 'system' }` for memory upkeep, or `{ kind: 'unknown' }`. Familiar reads it from the stored input, never from the tool's arguments.
-- The host's `authorizeTool` has already allowed the call. Rules about particular records, such as who may change a task, are the tool's to check against `api.invoker`.
+- Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against `api.invoker`, or the app API's behind it.
 - The third argument is the call's context. Pass its `abortSignal` to anything you can cancel.
 - `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.
 
@@ -47,7 +47,7 @@ A tool result has two audiences. `output` is what the model reads. `details` is 
 
 ## MCP servers
 
-The owner can add MCP servers at runtime through `familiar.mcp` or the `/mcp` routes. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available.
+The owner can add MCP servers at runtime through `familiar.mcp` or the `/mcp` routes. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available: they're saved but show as failed. The host owns MCP transport and destination policy. Familiar checks a server's shape, then connects through `mcpFetch` or `mcpStdio`, so restrict protocols, destinations or commands there.
 
 ## Data that belongs to your host
 

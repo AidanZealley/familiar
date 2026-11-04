@@ -38,19 +38,11 @@ export type HostApi = ReturnType<typeof createHostApi>
  * credentials never reach the browser.
  */
 export async function startDemo(people: Author[]) {
-  // The host's sign-ins: session token to the person it belongs to.
-  const sessions = new Map<string, Author>()
-  const signedIn = (id: string) =>
-    [...sessions.values()].some((author) => author.id === id)
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    // Asked as each tool runs, so someone who has signed out can't run tools
-    // through a message they sent earlier.
-    authorizeTool: ({ invoker }) =>
-      invoker.kind === 'person' && signedIn(invoker.author.id),
     persona: PERSONA,
     plugins: [guestListPlugin()],
     // The guest list tools never reach the network.
@@ -58,6 +50,8 @@ export async function startDemo(people: Author[]) {
       throw new Error('This demo has no network access.')
     },
   })
+  // The host's sign-ins: session token to the person it belongs to.
+  const sessions = new Map<string, Author>()
   const api = createHostApi(familiar, sessions)
   const stores: FamiliarStore<HostApi>[] = []
 

@@ -1,4 +1,8 @@
-import type { SetTimer } from '@earendil-works/pi-durable'
+import { createModels } from '@earendil-works/pi-ai/models'
+import { fauxProvider } from '@earendil-works/pi-ai/providers/faux'
+import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
+import { onTestFinished } from 'vitest'
+import { summonFamiliar, type FamiliarOptions } from './familiar.ts'
 import { parseMinute } from './time/index.ts'
 
 /** Test helpers; not part of Familiar. */
@@ -45,4 +49,25 @@ export function timeAt(minute: string, timeZone = TEST_ZONE) {
     throw new Error(`${minute} doesn't exist in ${timeZone}.`)
   }
   return at
+}
+
+/** Models whose only provider is `faux`, which scripts what they say. */
+export function fauxModels() {
+  const faux = fauxProvider()
+  const models = createModels()
+  models.setProvider(faux.provider)
+  return { faux, models }
+}
+
+/** A Familiar on faux models and memory storage, dismissed after the test. */
+export async function testFamiliar(options: Partial<FamiliarOptions> = {}) {
+  const familiar = await summonFamiliar({
+    storage: new MemoryStorage(),
+    models: fauxModels().models,
+    model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    ...options,
+  })
+  onTestFinished(() => familiar.dismiss())
+  return familiar
 }

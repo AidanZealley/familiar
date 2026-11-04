@@ -4,7 +4,7 @@ import { ConnectionError } from '../plugins/connections.ts'
 import { McpConfigError, parseServer } from './servers.ts'
 import type { McpApi } from './types.ts'
 
-// Refused configuration answers 400 and a missing server 404.
+// A malformed configuration answers 400 and a missing server 404.
 const routes = () =>
   new Hono().onError((error, c) => {
     if (error instanceof McpConfigError) {

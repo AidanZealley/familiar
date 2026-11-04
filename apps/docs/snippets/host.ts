@@ -1,11 +1,6 @@
 // Stand-ins for code only your host can write. The other snippets import
 // them so they compile against Familiar's real types.
-import type {
-  Author,
-  Invoker,
-  PluginFetch,
-  SecretStore,
-} from '@familiar-ai/core'
+import type { Author, PluginFetch, SecretStore } from '@familiar-ai/core'
 import type { CredentialStore } from '@familiar-ai/core/models'
 import type { Storage } from '@familiar-ai/core/storage/memory'
 
@@ -15,14 +10,6 @@ export declare function sessionAuthor(
 ): Promise<Author | undefined>
 /** Your rule for who administers this Familiar. */
 export declare function isOwner(author: Author): boolean
-/**
- * Your permission check, read now rather than remembered, so revoking access
- * also stops schedules and work already queued.
- */
-export declare function mayUseTool(
-  invoker: Invoker,
-  tool: string,
-): Promise<boolean>
 /** Your persistent store for provider logins. */
 export declare const credentials: CredentialStore
 /** A stable ID for this installation. */

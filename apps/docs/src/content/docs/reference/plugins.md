@@ -46,7 +46,7 @@ type PluginSecret = {
 
 ## defineTool(tool)
 
-Types a Pi tool registration whose `execute` reads `api.invoker`. Familiar's registry adds the invoker and asks the host's `authorizeTool` before every call, however the tool was defined.
+Takes a Pi tool registration and adds `api.invoker`.
 
 | Field                         | Meaning                                                                |
 | ----------------------------- | ---------------------------------------------------------------------- |
@@ -56,7 +56,7 @@ Types a Pi tool registration whose `execute` reads `api.invoker`. Familiar's reg
 | `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'`  |
 | `structuredOutputSchema`      | Optional schema for output that other tools and code mode read         |
 
-`api` is Pi's `ToolExecutionApi` plus `invoker`: who the call runs for, as described under [authorizeTool](/familiar/reference/core/#authorizetool). By the time `execute` runs, the host has allowed the call. Check rules about particular records against `api.invoker` in the tool. `context.abortSignal` is set when the call can be cancelled.
+`api` is Pi's `ToolExecutionApi` plus `invoker`: who the call runs for, as described under [Invoker](/familiar/reference/core/#invoker). Every tool on a Familiar is available to everyone who chats with it, so check rules about particular records or actions against `api.invoker` in the tool or the app API behind it. `context.abortSignal` is set when the call can be cancelled.
 
 A `ToolResult` has optional `output` (content for the model), `details` (JSON for UIs), `structuredOutput`, `isError` and `diagnostics`.
 

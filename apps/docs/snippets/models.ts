@@ -1,8 +1,4 @@
-import {
-  createAccount,
-  authorizeSingleOwner,
-  summonFamiliar,
-} from '@familiar-ai/core'
+import { createAccount, summonFamiliar } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { openaiProvider } from '@familiar-ai/core/models/openai'
 import { credentials, deviceId, storage } from './host.ts'
@@ -32,6 +28,4 @@ export const familiar = await summonFamiliar({
     },
   ],
   timeZone: 'Europe/London',
-  // Only its owner can reach it; see Serve the API for shared hosts.
-  authorizeTool: authorizeSingleOwner,
 })

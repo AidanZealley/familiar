@@ -14,13 +14,7 @@ import {
 } from '@earendil-works/pi-durable'
 import { nextUpkeep } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
-import {
-  authorizeSingleOwner,
-  summonFamiliar,
-  type AuthorizeTool,
-  type Familiar,
-  type ToolInvocation,
-} from '../../familiar.ts'
+import { summonFamiliar, type Familiar } from '../../familiar.ts'
 import { MemoryUsage } from '../facts.ts'
 import { fakeClock, TEST_ZONE, timeAt } from '../../testing.ts'
 import { readStored, ReopenableStorage, storageWith } from '../testing.ts'
@@ -31,10 +25,7 @@ const start = timeAt('2026-10-25 12:00')
 const firstPass = nextUpkeep(start, TEST_ZONE)
 const secondPass = nextUpkeep(firstPass, TEST_ZONE)
 
-async function setup(
-  storage: Storage = new ReopenableStorage(),
-  authorizeTool: AuthorizeTool = authorizeSingleOwner,
-) {
+async function setup(storage: Storage = new ReopenableStorage()) {
   const faux = fauxProvider()
   const models = createModels()
   models.setProvider(faux.provider)
@@ -46,7 +37,6 @@ async function setup(
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: TEST_ZONE,
-      authorizeTool,
       now: clock.now,
       setTimer: clock.setTimer,
     })
@@ -222,47 +212,6 @@ test('a pass at 04:00 files facts with their sources and days', async () => {
     },
   ])
   expect(await memory()).toHaveLength(4)
-})
-
-test('upkeep runs its tools as the system, which the host can refuse', async () => {
-  const asked: ToolInvocation[] = []
-  const { faux, say, memory, passAt } = await setup(
-    new ReopenableStorage(),
-    (call) => {
-      asked.push(call)
-      return call.invoker.kind !== 'system'
-    },
-  )
-  faux.setResponses([fauxAssistantMessage('Noted.')])
-  await say('I am vegetarian.')
-  let result = ''
-  faux.setResponses([
-    (context) => {
-      const source = exchangeIn(inputOf(context), 'vegetarian')
-      return fauxAssistantMessage(
-        fauxToolCall('remember', {
-          text: 'Is vegetarian',
-          importance: 4,
-          sources: [source],
-        }),
-        { stopReason: 'toolUse' },
-      )
-    },
-    (context) => {
-      result = JSON.stringify(context.messages.at(-1))
-      return fauxAssistantMessage('Could not save it.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
-  expect(asked).toEqual([
-    {
-      invoker: { kind: 'system' },
-      tool: 'remember',
-      extension: expect.stringContaining('upkeep'),
-    },
-  ])
-  expect(result).toContain('Not permitted')
-  expect(await memory()).toEqual([])
 })
 
 test("a pass rejects sources that are not people's messages", async () => {

@@ -11,7 +11,6 @@ import type { InboxState, Wake } from '@earendil-works/pi-durable'
 import { afterEach, expect, test, vi } from 'vitest'
 import { SCHEDULED_KIND } from '../conversation/index.ts'
 import {
-  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type Notification,
@@ -24,7 +23,6 @@ import {
   defineTool,
   Type,
   type Author,
-  type AuthorizeTool,
   type FamiliarPlugin,
   type Invoker,
 } from '../index.ts'
@@ -72,11 +70,7 @@ afterEach(async () => {
 })
 
 async function setup(
-  options: {
-    onWake?: (wake: Wake) => void
-    plugins?: FamiliarPlugin[]
-    authorizeTool?: AuthorizeTool
-  } = {},
+  options: { onWake?: (wake: Wake) => void; plugins?: FamiliarPlugin[] } = {},
 ) {
   const storage = new ReopenableStorage()
   const faux = fauxProvider()
@@ -113,7 +107,6 @@ async function setup(
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone,
-      authorizeTool: options.authorizeTool ?? authorizeSingleOwner,
       now: clock.now,
       setTimer: clock.setTimer,
       notify: async (notification) => {
@@ -623,55 +616,6 @@ test('a reopened schedule exposes its creator snapshot to tools without recipien
   expect(bodies(f.notifications)).toEqual(['Time to call Mum'])
 })
 
-test('revoking a creator before their schedule fires refuses its tools', async () => {
-  let revoked = false
-  const asked: Invoker[] = []
-  let ran = 0
-  const f = await setup({
-    authorizeTool: ({ invoker, tool }) => {
-      if (tool === 'act') {
-        asked.push(invoker)
-      }
-      return !(revoked && tool === 'act')
-    },
-    plugins: [
-      {
-        name: 'acts',
-        title: 'Acts',
-        extension: () => ({
-          tools: [
-            defineTool({
-              name: 'act',
-              description: 'Change something outside Familiar',
-              parameters: Type.Object({}),
-              execute: async () => {
-                ran++
-                return { output: [{ type: 'text', text: 'Acted' }] }
-              },
-            }),
-          ],
-        }),
-      },
-    ],
-  })
-  const id = await f.schedule({ at: '2026-10-21 18:00' })
-  revoked = true
-  f.answer(
-    () =>
-      fauxAssistantMessage(fauxToolCall('act', {}), { stopReason: 'toolUse' }),
-    'Could not act.',
-  )
-  await f.fireAt(at(21, 18), 'done')
-  expect(ran).toBe(0)
-  expect(asked).toEqual([
-    {
-      kind: 'schedule',
-      author: { id: 'aidan', name: 'aidan' },
-      scheduleId: id,
-    },
-  ])
-})
-
 test.each([
   // Repeats saved before repeats were cron.
   'FREQ=DAILY;BYHOUR=7;BYMINUTE=0',
@@ -898,7 +842,6 @@ test.each([0, -1, 1.5, Infinity, Number.NaN])(
         models: createModels(),
         model: { provider: 'faux', modelId: 'faux-1' },
         timeZone: TEST_ZONE,
-        authorizeTool: authorizeSingleOwner,
         maxSchedules,
       }),
     ).rejects.toThrow('maxSchedules must be a positive whole number')

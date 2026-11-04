@@ -67,16 +67,7 @@ defineTool({
 })
 ```
 
-## Only a person's own request changes the board
-
-The board tools change the host's data, so the host lets only a person's own message run tools. A schedule's run, memory upkeep and unattributed input are refused before any tool runs:
-
-```ts
-const familiar = await summonFamiliar({
-  // ...
-  authorizeTool: ({ invoker }) => invoker.kind === 'person',
-})
-```
+Every board tool is available to everyone in the conversation. The board's operations decide what a change may do, and `assign_task_to_me` acts only for a person, never for a schedule's run or memory upkeep.
 
 ## Only the routes it needs
 

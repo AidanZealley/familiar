@@ -4,11 +4,7 @@ import {
   fauxProvider,
 } from '@familiar-ai/core/models/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import {
-  defaultPersona,
-  authorizeSingleOwner,
-  summonFamiliar,
-} from '@familiar-ai/core'
+import { defaultPersona, summonFamiliar } from '@familiar-ai/core'
 import { expect, test } from 'vitest'
 import { webPersona } from './persona.ts'
 
@@ -21,7 +17,6 @@ test('the web host keeps the default persona and names what its chat draws', asy
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'Europe/London',
-    authorizeTool: authorizeSingleOwner,
     name: 'Wren',
     persona: webPersona('Wren'),
   })

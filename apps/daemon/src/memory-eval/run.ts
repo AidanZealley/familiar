@@ -1,6 +1,6 @@
 import type { Models } from '@familiar-ai/core/models'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
-import { authorizeSingleOwner, summonFamiliar } from '@familiar-ai/core'
+import { summonFamiliar } from '@familiar-ai/core'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { askQuestions, type QuestionResult } from './questions.ts'
 import { replayScenario, resumePoint, type UpkeepResult } from './replay.ts'
@@ -81,7 +81,6 @@ export async function runMemoryEval({
     model,
     contextBudget: 4_000,
     timeZone: EVAL_TIME_ZONE,
-    authorizeTool: authorizeSingleOwner,
     now: clock.now,
     setTimer: clock.setTimer,
   })

@@ -13,7 +13,7 @@ npm install @familiar-ai/core
 This runs the real assistant with a scripted response and disposable storage. It needs no credentials or network.
 
 ```ts
-import { authorizeSingleOwner, summonFamiliar } from '@familiar-ai/core'
+import { summonFamiliar } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import {
   fauxProvider,
@@ -31,8 +31,6 @@ const familiar = await summonFamiliar({
   models,
   model: { provider: 'faux', modelId: 'demo' },
   timeZone: 'Europe/London',
-  // Only the owner uses this Familiar, so every tool call is allowed.
-  authorizeTool: authorizeSingleOwner,
 })
 try {
   await familiar.send({
@@ -46,7 +44,7 @@ try {
 }
 ```
 
-A lasting host supplies persistent storage (Pi Durable's SQLite storage on Node, at the exact Pi version in the [workspace catalog](../../pnpm-workspace.yaml), or [@familiar-ai/cloudflare](../cloudflare/README.md) on Workers), registered model providers with a credential store, and an `authenticate` function when it serves HTTP. Only one live Familiar may own a storage. Attribution is not authorization: hosts authenticate people, decide every tool call in `authorizeTool`, which Familiar asks before each one runs, and choose who may use each HTTP route in `createHttpApi`'s `routes`, which serves nothing unless chosen:
+A lasting host supplies persistent storage (Pi Durable's SQLite storage on Node, at the exact Pi version in the [workspace catalog](../../pnpm-workspace.yaml), or [@familiar-ai/cloudflare](../cloudflare/README.md) on Workers), registered model providers with a credential store, and an `authenticate` function when it serves HTTP. Only one live Familiar may own a storage. Attribution is not authorization: hosts authenticate people, choose who may use each HTTP route in `createHttpApi`'s `routes`, which serves nothing unless chosen, and choose each Familiar's audience and tools:
 
 ```ts
 const api = createHttpApi(familiar, {
@@ -59,6 +57,6 @@ const api = createHttpApi(familiar, {
 export type Api = typeof api
 ```
 
-`routes: true` serves everything, only for hosts that only their owner can reach. Everyone in a conversation shares its history and what the model knows.
+`routes: true` serves everything, only for hosts that only their owner can reach. Everyone in a conversation shares its history, what the model knows and every tool installed on the Familiar. Tools, or the app APIs behind them, enforce narrower rules with `api.invoker`, the person or schedule a call runs for.
 
 Public entry points are `/http`, `/models`, `/models/openai`, `/models/openrouter`, `/models/faux`, `/storage/memory`, `/extensions`, `/mcp` and `/diagnostics`; see [package exports](package.json). Core contains no Node-only or Workers-only code.

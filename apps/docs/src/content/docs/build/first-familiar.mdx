@@ -28,7 +28,6 @@ Familiar: Hello, Sam.
 - **`fauxProvider`** is a scripted model provider. Each `setResponses` entry answers one model request. Use it in tests to drive the real harness without model calls.
 - **`MemoryStorage`** keeps everything in memory and loses it when the process exits.
 - **`summonFamiliar`** opens the assistant over its storage, resumes any unfinished work and starts background work such as schedules and upkeep.
-- **`authorizeTool`** is asked before every tool call runs. `authorizeSingleOwner` allows them all, which suits one owner. A host shared with other people passes its own rules: see [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
 - **`send`** records a message from `author`. `requestId` should stay the same if you retry the same logical message, so it's admitted once.
 - **`idle`** waits until every sent message has an answer.
 - **`watch`** returns the committed conversation view, then streams each commit's changes. Stop it when you're done.

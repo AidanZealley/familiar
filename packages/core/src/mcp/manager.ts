@@ -6,8 +6,6 @@ import type { ConnectionsApi, PluginFetch } from '../plugins/types.ts'
 import type { Connection, SecretStore } from '../plugins/secrets.ts'
 import { openConnection } from './connection.ts'
 import {
-  admissionProblem,
-  McpConfigError,
   McpServers,
   parseServer,
   tokenDeclaration,
@@ -67,10 +65,6 @@ export async function createMcp(
     add: (input) =>
       edit(async () => {
         const server = parseServer(input)
-        const refused = admissionProblem(server, options)
-        if (refused) {
-          throw new McpConfigError(refused)
-        }
         if (entries.has(server.name)) {
           throw new ConnectionError(`MCP server ${server.name} already exists.`)
         }

@@ -1,9 +1,5 @@
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import {
-  authorizeSingleOwner,
-  summonFamiliar,
-  type Familiar,
-} from '@familiar-ai/core'
+import { summonFamiliar, type Familiar } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -44,7 +40,6 @@ describe('browser mutations', () => {
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
-      authorizeTool: authorizeSingleOwner,
     })
     opened.push(familiar)
     const abort = vi.spyOn(familiar, 'abort')

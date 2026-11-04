@@ -11,7 +11,6 @@ import {
   definePlugin,
   defineTool,
   Type,
-  authorizeSingleOwner,
   summonFamiliar,
   type ToolContext,
 } from '@familiar-ai/core'
@@ -76,7 +75,6 @@ test('plugin results and last reported details survive reopen and reach the tran
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
     plugins: [plugin],
   }
   let familiar = await summonFamiliar(options)
@@ -161,7 +159,6 @@ test('tool execution retains cancellation', async () => {
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
     plugins: [
       definePlugin({
         name: 'test',
@@ -289,7 +286,6 @@ test('Familiar imports retain sections, hooks, wrappers, tasks and transactional
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
     plugins: [
       definePlugin({
         name: 'full',

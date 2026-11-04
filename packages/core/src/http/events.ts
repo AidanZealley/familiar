@@ -4,8 +4,9 @@ import type {
 } from '@earendil-works/pi-durable'
 import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import type { AccountApi } from './account/index.ts'
-import type { Documents, DocumentName, StreamEvent } from './http.ts'
+import type { AccountApi } from '../account/index.ts'
+import type { Documents, DocumentName, StreamEvent } from './contract.ts'
+import { allows, forbidden, type Allow, type AuthorEnv } from './guard.ts'
 
 /** Only supplied sources are opened and sent. Null account explicitly sends null. */
 export type EventSources = {
@@ -20,8 +21,29 @@ export type EventSources = {
 export const eventRoutes = (sources: EventSources) =>
   new Hono().get('/events', (c) => streamEvents(c, sources))
 
+/**
+ * `/events` for the sources a host chose, each asked as a stream connects.
+ * Only the allowed ones are opened; a stream every one refuses answers 403.
+ */
+export const chosenEventRoutes = (
+  sources: Required<EventSources>,
+  chosen: Partial<Record<keyof EventSources, Allow>>,
+) =>
+  new Hono<AuthorEnv>().get('/events', async (c) => {
+    const allowed: EventSources = {}
+    for (const [name, allow] of Object.entries(chosen) as [
+      keyof EventSources,
+      Allow,
+    ][]) {
+      if (await allows(allow, c)) {
+        Object.assign(allowed, { [name]: sources[name] })
+      }
+    }
+    return Object.keys(allowed).length ? streamEvents(c, allowed) : forbidden(c)
+  })
+
 /** Streams the given sources until the client disconnects or one closes. */
-export const streamEvents = (c: Context, sources: EventSources) =>
+const streamEvents = (c: Context, sources: EventSources) =>
   streamSSE(c, async (stream) => {
     const watches: { stop(): Promise<unknown>; closed: Promise<unknown> }[] = []
     let stopped = false

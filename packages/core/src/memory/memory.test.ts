@@ -37,7 +37,6 @@ import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../context/index.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import {
-  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type FamiliarOptions,
@@ -58,7 +57,6 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: TEST_ZONE,
-    authorizeTool: authorizeSingleOwner,
     ...options,
   })
   opened.push(familiar)
