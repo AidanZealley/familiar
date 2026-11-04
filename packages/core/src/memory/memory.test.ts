@@ -34,7 +34,7 @@ import { nextUpkeep } from './upkeep/schedule.ts'
 import { addEpisode, Episodes } from './episodes.ts'
 import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
-import { harnessOptions } from '../context/index.ts'
+import { harnessOptions } from '../harness.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import {
   summonFamiliar,
@@ -143,7 +143,11 @@ test("only upkeep's conversation is given the tools that write facts", async () 
   const model = { provider: 'faux', modelId: 'faux-1' }
   const harness = await Harness.open(
     new MemoryStorage(),
-    harnessOptions({ models: createModels(), model }, registry, 64_000),
+    harnessOptions(
+      { models: createModels(), model, chatModels: [] },
+      registry,
+      64_000,
+    ),
     BACKGROUND_CONTEXT,
   )
   try {

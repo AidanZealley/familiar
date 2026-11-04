@@ -8,7 +8,6 @@ import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
 import { afterEach, expect, test, vi } from 'vitest'
-import { compactionFor } from './context/index.ts'
 import { MESSAGE_KIND, type MessageData } from './conversation/index.ts'
 import {
   summonFamiliar,
@@ -147,15 +146,6 @@ test('history returns the messages compaction took out of the view', async () =>
     Array.from({ length: 20 }, (_, i) => i + 1),
   )
   expect(older.every((entry) => entry.id < first.head!)).toBe(true)
-})
-
-test('the default budget compacts gpt-6.1-sol well before its window', () => {
-  const settings = compactionFor(272_000, 64_000)
-  expect(settings).toEqual({
-    reserveTokens: 208_000,
-    keepRecentTokens: 21_333,
-    backgroundTokens: 16_000,
-  })
 })
 
 /** The first request's prompt sections and tool names, after saying hello. */

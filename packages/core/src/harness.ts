@@ -1,24 +1,24 @@
-import type { Models } from '@earendil-works/pi-ai'
 import type {
   CompactionSettings,
   HarnessOptions,
   ModelRef,
   Registry,
 } from '@earendil-works/pi-durable'
-import { modelKey, type ChatModel } from '../conversation/models.ts'
-import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
+import { modelKey, type ChatModel } from './conversation/models.ts'
+import type { FamiliarOptions } from './familiar.ts'
+import { UPKEEP_EXTENSION } from './memory/upkeep/index.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
 
 /** How long a model response may go silent before it fails and is retried. */
-export const STREAM_TIMEOUT_MS = 180_000
+const STREAM_TIMEOUT_MS = 180_000
 
 /**
  * Compaction thresholds that keep requests under `budget`. Pi measures from
  * the top of the window, so the budget becomes the room reserved below it.
  * A window smaller than the budget keeps a quarter of itself free instead.
  */
-export function compactionFor(
+function compactionFor(
   contextWindow: number,
   budget: number,
 ): CompactionSettings {
@@ -34,14 +34,12 @@ export function compactionFor(
   }
 }
 
-type HostOptions = Pick<HarnessOptions, 'now' | 'setTimer' | 'onWake'> & {
-  models: Models
-  model: ModelRef
-  chatModels?: readonly ChatModel[]
-}
-
+/** Pi's options for this Familiar: its models, compaction, defaults and clock. */
 export function harnessOptions(
-  options: HostOptions,
+  options: Pick<
+    FamiliarOptions,
+    'models' | 'model' | 'now' | 'setTimer' | 'onWake'
+  > & { chatModels: readonly ChatModel[] },
   registry: Registry,
   budget: number,
 ): HarnessOptions {
@@ -57,7 +55,7 @@ export function harnessOptions(
   }
   const base = compactionOf(options.model)
   const modelOverrides = Object.fromEntries(
-    (options.chatModels ?? []).flatMap(({ model }) => {
+    options.chatModels.flatMap(({ model }) => {
       const compaction = compactionOf(model)
       return compaction ? [[modelKey(model), compaction]] : []
     }),
@@ -66,8 +64,10 @@ export function harnessOptions(
     models: options.models,
     registry,
     settings: {
-      // What a conversation gets unless it chooses: everything but the tools
-      // that write facts, which only upkeep's conversation selects.
+      // What a conversation gets unless it chooses: every installed
+      // extension, read each time so MCP servers added later reach chat,
+      // except upkeep's. Its tools write facts directly, and upkeep is their
+      // only writer, so only upkeep's own conversation selects them.
       get extensions() {
         return registry
           .snapshot()

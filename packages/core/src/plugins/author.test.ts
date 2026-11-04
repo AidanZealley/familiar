@@ -7,7 +7,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { configure, createRegistry, Harness } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
-import { harnessOptions } from '../context/index.ts'
+import { harnessOptions } from '../harness.ts'
 import type { Author } from '../conversation/message.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
 import { defineTool, Type } from './tools.ts'
@@ -40,7 +40,7 @@ test('input with no person behind it, such as an upkeep pass, has no author', as
   })
   const harness = await Harness.open(
     new ReopenableStorage(),
-    harnessOptions({ models, model }, registry, 64_000),
+    harnessOptions({ models, model, chatModels: [] }, registry, 64_000),
     context,
   )
   try {
