@@ -90,12 +90,12 @@ describe('embedded kanban demo', () => {
     }
   })
 
-  it('serves only the routes the host chose', async () => {
+  it('refuses everything but the conversation', async () => {
     const demo = await open()
     try {
       const history = await demo.api.request('/history?before=1')
       expect(history.status).toBe(200)
-      // Not chosen, so not mounted, for everyone `authenticate` accepts.
+      // Not in CHAT, so refused for everyone `authenticate` accepts.
       for (const [method, path] of [
         ['GET', '/memory/health'],
         ['DELETE', '/schedules/any'],
@@ -104,7 +104,7 @@ describe('embedded kanban demo', () => {
         ['GET', '/connections'],
       ]) {
         const response = await demo.api.request(path, { method })
-        expect(response.status, `${method} ${path}`).toBe(404)
+        expect(response.status, `${method} ${path}`).toBe(403)
       }
     } finally {
       await close(demo)

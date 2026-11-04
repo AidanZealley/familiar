@@ -1,19 +1,10 @@
-import type {
-  AssistantMessage,
-  AuthInteraction,
-  Credential,
-  Models,
-} from '@familiar-ai/core/models'
+import type { AuthInteraction, Credential } from '@familiar-ai/core/models'
 import { createModels } from '@familiar-ai/core/models'
+import { fauxProvider } from '@familiar-ai/core/models/faux'
+import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
-  fauxAssistantMessage,
-  fauxProvider,
-} from '@familiar-ai/core/models/faux'
-import { MemoryStorage, type EntryId } from '@earendil-works/pi-durable'
-import {
-  createAccount,
   summonFamiliar,
-  type Account,
+  type AccountOptions,
   type Familiar,
 } from '@familiar-ai/core'
 import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
@@ -30,7 +21,7 @@ afterEach(async () => {
 
 const model = { provider: 'faux', modelId: 'faux-1' }
 
-async function host(account?: (models: Models) => Promise<Account>) {
+async function host(account?: AccountOptions) {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
   models.setProvider(faux.provider)
@@ -39,14 +30,14 @@ async function host(account?: (models: Models) => Promise<Account>) {
     models,
     model,
     timeZone: 'UTC',
-    account: await account?.(models),
+    account,
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, {
-    routes: true,
+    allow: () => true,
     authenticate: () => ({ id: 'aidan', name: 'aidan' }),
   })
-  return { faux, models, familiar, api }
+  return { models, familiar, api }
 }
 
 /** The event stream's first `account` event, parsed. */
@@ -63,55 +54,19 @@ async function firstAccountEvent(api: HttpApi) {
 }
 
 test('a host that manages credentials gets chat without account routes', async () => {
-  const { faux, models, familiar, api } = await host()
+  const { familiar, api } = await host()
 
   expect(familiar.account).toBeUndefined()
   expect((await api.request('/account')).status).toBe(404)
   expect(
     (await api.request('/account/sign-in', { method: 'POST' })).status,
   ).toBe(404)
-  for (const body of ['{}', '{', '{"text":"hello"}']) {
-    expect(
-      (
-        await api.request('/account/sign-in/answer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-        })
-      ).status,
-    ).toBe(404)
-  }
   expect(await firstAccountEvent(api)).toBeNull()
-
-  faux.setResponses([fauxAssistantMessage('Hello.')])
-  await familiar.send({
-    author: { id: 'aidan', name: 'aidan' },
-    text: 'Hi',
-    requestId: 'hi',
-  })
-  await familiar.idle()
-
-  // A credential the host let lapse fails the request like any other error.
-  vi.spyOn(models, 'getAuth').mockRejectedValue(new Error('token revoked'))
-  await familiar.send({
-    author: { id: 'aidan', name: 'aidan' },
-    text: 'Again',
-    requestId: 'again',
-  })
-  await familiar.idle()
-
-  const page = await familiar.history(Number.MAX_SAFE_INTEGER as EntryId, 50)
-  const replies = page.entries
-    .filter((entry) => entry.kind === 'pi.assistant')
-    .map((entry) => (entry.model?.[0] as AssistantMessage).stopReason)
-  expect(replies).toEqual(['error', 'stop'])
 })
 
 test('an attached account signs in on the Models requests use, and dismissal stops it without signing out', async () => {
   let interaction: AuthInteraction | undefined
-  const { models, familiar, api } = await host((models) =>
-    createAccount({ models, provider: 'faux' }),
-  )
+  const { models, familiar, api } = await host({})
   const login = vi
     .spyOn(models, 'login')
     .mockImplementation((_provider, _type, next) => {

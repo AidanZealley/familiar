@@ -6,7 +6,6 @@ description: Mirror Familiar in the browser with the client store, render its tr
 import { Code } from '@astrojs/starlight/components'
 import client from '../../../../snippets/client.ts?raw'
 import react from '../../../../snippets/react.tsx?raw'
-import typed from '../../../../snippets/typed-client.ts?raw'
 
 `@familiar-ai/client` connects to the HTTP API, mirrors everything the event stream sends and derives a transcript a chat UI can render. Familiar's own web app is built on it.
 
@@ -18,7 +17,7 @@ npm install @familiar-ai/client
 
 <Code code={client} lang="ts" title="client.ts" />
 
-`createFamiliarStore<Api>(url, options)` opens the event stream straight away. `Api` is your host's API type, here the `Api` exported beside [`createHttpApi`](/familiar/build/serve-the-api/#choose-routes), imported with `import type` so no server code reaches the browser. It is required, and the store offers exactly the commands whose routes your host serves. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
+`createFamiliarStore(url, options)` opens the event stream straight away. The store offers every command; one your host's [`allow`](/familiar/build/serve-the-api/#decide-who-may-do-what) refuses rejects with its 403, so render only the UI each person may use. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
 
 The store is read-only. You read it with `getState()` and `subscribe()`, and change things only by calling commands. State is grouped:
 
@@ -27,7 +26,7 @@ The store is read-only. You read it with `getState()` and `subscribe()`, and cha
 - `memory`: streamed `facts` and `episodes`, with `revise`, `retire`, `setPinned` and `health`
 - `schedules`: streamed `items`, with `cancel`
 - `account`: the streamed sign-in `state` and its commands
-- `push`, `connections` and `mcp`: commands only, present when the host serves any of them
+- `push`, `connections` and `mcp`: commands only
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 
@@ -68,12 +67,4 @@ Install React 18 or 19, then use the separate `/react` entry:
 
 <Code code={react} lang="tsx" title="App.tsx" />
 
-Create the bindings and the store once, outside render, where your app manages connections. `createFamiliarBindings<Api>()` types the provider and hooks to the same host API as the store. The provider doesn't open or close it. `useFamiliar` compares selections with `Object.is`, so return stable values such as a single field or a command. The vanilla entry doesn't load React.
-
-## Type the client to your host
-
-The store's commands follow its host API type one operation at a time. A host that serves `memory: { health: true }` gets `memory.health()` but not `memory.revise()`, and one that serves no MCP routes has no `mcp` at all. The same works for routes you compose yourself:
-
-<Code code={typed} lang="ts" title="frontend.ts" />
-
-Export the host's type from a type-only module and keep it as the inferred Hono type rather than widening it to `Hono`. A host route must accept everything the client sends and keep its typed response, or the store's type is an error. This narrows TypeScript only. It doesn't remove handlers or enforce permissions. The repository's [typed host example](https://github.com/AidanZealley/familiar/tree/main/examples/typed-host) is compile-checked against the packages.
+Create the store once, outside render, where your app manages connections. `FamiliarProvider` gives its subtree a store, and nested providers each give their own. The provider doesn't open or close it. `useFamiliar` compares selections with `Object.is`, so return stable values such as a single field or a command. The vanilla entry doesn't load React.

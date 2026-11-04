@@ -1,5 +1,5 @@
 import { summonFamiliar, type Author, type Familiar } from '@familiar-ai/core'
-import { createHttpApi } from '@familiar-ai/core/http'
+import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore } from '@familiar-ai/client'
 import { createBoard, type Task } from '../board/board.ts'
@@ -7,6 +7,14 @@ import { boardPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
 const PERSONA = `You are Familiar, the assistant inside a team's task board. Help the person see and change the board with your tools. Refer to tasks by ID and title. Answer in short plain text.`
+
+// Everyone signed in may talk, read history and watch the conversation.
+const CHAT = new Set<Operation>([
+  'conversation.send',
+  'conversation.history',
+  'conversation.abort',
+  'events.conversation',
+])
 
 /**
  * The routes this page serves: sending, history and the conversation's event
@@ -20,13 +28,8 @@ const PERSONA = `You are Familiar, the assistant inside a team's task board. Hel
 const createHostApi = (familiar: Familiar, author: Author) =>
   createHttpApi(familiar, {
     authenticate: () => author,
-    routes: {
-      conversation: { send: true, history: true, abort: true },
-      events: { conversation: true },
-    },
+    allow: (_, operation) => CHAT.has(operation),
   })
-
-export type HostApi = ReturnType<typeof createHostApi>
 
 /**
  * Everything one page needs, all in memory: the host's board, a Familiar with
@@ -60,7 +63,7 @@ export async function startDemo({
   const api = createHostApi(familiar, author)
   // In-page requests: the client's usual HTTP and SSE calls reach the routes
   // without leaving the browser. A real host passes its API's URL instead.
-  const store = createFamiliarStore<HostApi>('https://demo.invalid', {
+  const store = createFamiliarStore('https://demo.invalid', {
     fetch: async (input, init) => api.fetch(new Request(input, init)),
   })
   return { author, board, familiar, api, store }

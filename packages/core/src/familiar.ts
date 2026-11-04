@@ -11,9 +11,9 @@ import {
   type Wake,
 } from '@earendil-works/pi-durable'
 import {
-  attachAccount,
-  type Account,
+  createAccount,
   type AccountApi,
+  type AccountOptions,
 } from './account/index.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
@@ -43,12 +43,10 @@ import {
 import { checkTimeZone, createTime } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
-export {
-  createAccount,
-  type Account,
-  type AccountApi,
-  type AccountOptions,
-  type AccountState,
+export type {
+  AccountApi,
+  AccountOptions,
+  AccountState,
 } from './account/index.ts'
 export {
   MESSAGE_LIMITS,
@@ -130,13 +128,12 @@ export type FamiliarOptions = {
    */
   persona?: string
   /**
-   * Lets the owner sign in and out of `model`'s provider, and notices when
-   * the login stops working. Create it with `createAccount` over these same
-   * `models`; Familiar refuses one for other `Models` or another provider,
-   * and closes it on dismiss. Without it, the host keeps `models`' credentials
-   * working itself, and a request they fail fails like any other.
+   * Lets the owner sign in and out of `model`'s provider through `models`,
+   * and notices when the login stops working. Without it, the host keeps
+   * `models`' credentials working itself, and a request they fail fails like
+   * any other.
    */
-  account?: Account
+  account?: AccountOptions
   /** Everything beyond core: tools, sections and hooks, with their secrets. */
   plugins?: readonly FamiliarPlugin[]
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
@@ -200,7 +197,7 @@ export type { SessionEnd as FamiliarEnd } from '@earendil-works/pi-durable'
 export type Familiar = ConversationApi & {
   /** Settles on dismissal or a storage failure. Failed instances must be reopened. */
   readonly closed: Promise<SessionEnd>
-  /** The owner's login with the models' provider, if the host attached one. */
+  /** The owner's login with the models' provider, if the host passed `account`. */
   account?: AccountApi
   memory: MemoryApi
   schedules: SchedulesApi
@@ -248,10 +245,13 @@ export async function summonFamiliar(
     timeZone: options.timeZone,
     maxSchedules: options.maxSchedules,
   })
-  // Checked before storage opens, like the zone.
-  const accountAttachment =
+  const account =
     options.account &&
-    attachAccount(options.account, options.models, options.model.provider)
+    (await createAccount(
+      options.models,
+      options.model.provider,
+      options.account,
+    ))
 
   try {
     // Extensions can be installed after opening: nothing runs until resume().
@@ -286,7 +286,7 @@ export async function summonFamiliar(
     const extensions = [
       createPersona(options.persona ?? defaultPersona(name)),
       conversationExtension,
-      ...(accountAttachment ? [accountAttachment.extension] : []),
+      ...(account ? [account.extension] : []),
       createTime(options.timeZone),
       ...memory.extensions,
       schedules.extension,
@@ -315,7 +315,7 @@ export async function summonFamiliar(
 
     return {
       ...conversation,
-      account: options.account?.api,
+      account: account?.api,
       memory: memoryActions,
       schedules: scheduleActions,
       mcp: mcp.api,
@@ -342,7 +342,7 @@ export async function summonFamiliar(
       wake: () => harness.wake(),
       resume: () => harness.resume(),
       dismiss: async () => {
-        options.account?.close()
+        account?.close()
         try {
           await harness.close(context)
         } finally {
@@ -351,7 +351,7 @@ export async function summonFamiliar(
       },
     }
   } catch (error) {
-    accountAttachment?.release()
+    account?.close()
     throw error
   }
 }

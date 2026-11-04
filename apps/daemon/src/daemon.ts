@@ -1,5 +1,5 @@
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { createAccount, summonFamiliar } from '@familiar-ai/core'
+import { summonFamiliar } from '@familiar-ai/core'
 import { config, dataPath, deviceId } from './config.ts'
 import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -17,12 +17,6 @@ export async function serve() {
   const push = openPush({ path: dataPath, contact: config.pushContact })
 
   const models = openModels()
-  // Owners sign in to ChatGPT from the web UI, through the Models requests use.
-  const account = await createAccount({
-    models,
-    provider: config.model.provider,
-    login: { getDeviceId: deviceId, agentName: config.name },
-  })
   const familiar = await summonFamiliar({
     storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),
     models,
@@ -32,7 +26,8 @@ export async function serve() {
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     name: config.name,
     persona: webPersona(config.name),
-    account,
+    // Owners sign in to ChatGPT from the web UI, through the Models requests use.
+    account: { login: { getDeviceId: deviceId, agentName: config.name } },
     notify: push.notify,
     plugins: await loadPlugins(),
     secrets: fileSecretStore(dataPath('secrets.json')),

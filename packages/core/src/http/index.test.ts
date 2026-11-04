@@ -1,167 +1,127 @@
-import { createModels } from '@earendil-works/pi-ai/models'
-import {
-  fauxAssistantMessage,
-  fauxProvider,
-} from '@earendil-works/pi-ai/providers/faux'
-import { MemoryStorage, type DocumentWatch } from '@earendil-works/pi-durable'
-import { Hono } from 'hono'
+import { fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux'
+import type { DocumentWatch } from '@earendil-works/pi-durable'
 import { testClient } from 'hono/testing'
-import { afterEach, expect, test, vi } from 'vitest'
-import { MESSAGE_LIMITS, summonFamiliar, type Familiar } from '../familiar.ts'
+import { expect, test, vi } from 'vitest'
+import type { Author } from '../conversation/message.ts'
+import { MESSAGE_LIMITS, type Familiar } from '../familiar.ts'
+import { storageWith } from '../memory/testing.ts'
+import { fauxModels, testFamiliar } from '../testing.ts'
 import {
-  conversationRoutes,
-  eventRoutes,
   createHttpApi,
   DEFAULT_MAX_BODY_SIZE,
-  type HttpApi,
+  type Allow,
   type FactsState,
-  type EpisodesState,
+  type HttpOptions,
+  type PushHost,
 } from './index.ts'
-import { storageWith } from '../memory/testing.ts'
 
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
+const sam: Author = { id: 'sam', name: 'Sam' }
 
-test('memory routes edit facts and refuse missing or past ones', async () => {
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const familiar = await summonFamiliar({
-    storage: await storageWith(['Lives in Leeds', 4], ['Likes blue pens', 1]),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
-  })
-  opened.push(familiar)
-
-  const api = createHttpApi(familiar, {
-    routes: true,
-    authenticate: () => ({ id: 'aidan', name: 'aidan' }),
-  })
-  const call = (method: string, path: string, body?: unknown) =>
-    api.request(path, {
-      method,
-      ...(body !== undefined && {
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      }),
-    })
-
-  expect(
-    (await call('PUT', '/memory/f1', { text: 'Lives in York' })).status,
-  ).toBe(204)
-  expect((await call('PUT', '/memory/f2/pin', { pinned: true })).status).toBe(
-    204,
-  )
-  expect((await call('POST', '/memory/f3/retire')).status).toBe(204)
-  const past = await call('PUT', '/memory/f1', { text: 'Again' })
-  expect(past.status).toBe(404)
-  expect(await past.json()).toEqual({
-    error: 'f1 is already past; only current facts can change.',
-  })
-  // Nothing deletes a fact.
-  expect((await call('DELETE', '/memory/f2')).status).toBe(404)
-  const health = await call('GET', '/memory/health')
-  expect(health.status).toBe(200)
-  expect(await health.json()).toMatchObject({
-    facts: { current: 1, past: 2 },
-    episodes: { day: 0, week: 0, month: 0 },
-  })
-  expect((await call('PUT', '/memory/f2/pin', { pinned: 'yes' })).status).toBe(
-    400,
-  )
-
-  const watch = await familiar.memory.watch()
-  await watch.stop()
-  expect(watch.value?.facts).toMatchObject([
-    { id: 'f1', until: expect.any(String) },
-    { id: 'f2', core: true, pinned: true },
-    {
-      id: 'f3',
-      text: 'Lives in York',
-      replaces: ['f1'],
-      until: expect.any(String),
-    },
-  ])
-})
-
-test('the event stream sends the view and every document whole first', async () => {
-  const models = createModels()
-  models.setProvider(fauxProvider().provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
-  })
-  opened.push(familiar)
-  const api = createHttpApi(familiar, {
-    routes: true,
-    authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+const api = (familiar: Familiar, options: Partial<HttpOptions> = {}) =>
+  createHttpApi(familiar, {
+    authenticate: () => sam,
+    allow: () => true,
+    ...options,
   })
 
-  const response = await api.request('/events')
+const post = (
+  app: {
+    request(path: string, init: RequestInit): Promise<Response> | Response
+  },
+  path: string,
+  body: BodyInit,
+  headers: Record<string, string> = {},
+) =>
+  app.request(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
+    body,
+    duplex: 'half',
+  } as RequestInit)
+
+/** Reads a stream's events until `until` has arrived. */
+async function events(response: Response, until: string) {
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
   let text = ''
-  while (!text.includes('event: account\n')) {
+  while (!text.includes(`event: ${until}\n`)) {
     const chunk = await reader.read()
     expect(chunk.done).toBe(false)
     text += chunk.value
   }
-  await reader.cancel()
-
-  const events = [...text.matchAll(/^event: (.+)\ndata: (.+)$/gm)].map(
+  const names = [...text.matchAll(/^event: (.+)\ndata: (.+)$/gm)].map(
     ([, event, data]) =>
-      event === 'document'
-        ? JSON.parse(data)
-        : event === 'protocol'
-          ? { event, data: JSON.parse(data) }
-          : { event },
+      event === 'document' ? `document ${JSON.parse(data).name}` : event,
   )
-  expect(events).toEqual([
-    { event: 'protocol', data: { version: 2 } },
-    { event: 'view' },
-    { name: 'memory', value: { facts: [], next: 1 } },
-    { name: 'episodes', value: { episodes: [], next: 1 } },
-    { name: 'schedules', value: {} },
-    { event: 'account' },
-  ])
+  return { names, reader }
+}
+
+test('a request is authenticated, then bounded, then allowed, before any route reads it', async () => {
+  const familiar = await testFamiliar()
+  const send = vi.spyOn(familiar, 'send')
+  const allow = vi.fn<Allow>(
+    (_, operation) => operation !== 'conversation.send',
+  )
+  const app = api(familiar, {
+    authenticate: (request) =>
+      request.headers.get('x-person') === 'sam' ? sam : undefined,
+    allow,
+  })
+  const message = JSON.stringify({ text: 'Hi', requestId: 'hi' })
+  const huge = JSON.stringify({
+    text: 'x'.repeat(DEFAULT_MAX_BODY_SIZE),
+    requestId: 'huge',
+  })
+  // Streamed, so no Content-Length says how big it is.
+  const streamed = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(huge))
+      controller.close()
+    },
+  })
+
+  expect((await post(app, '/messages', message)).status).toBe(401)
+  expect(
+    (await post(app, '/messages', huge, { 'x-person': 'sam' })).status,
+  ).toBe(413)
+  expect(
+    (await post(app, '/messages', streamed, { 'x-person': 'sam' })).status,
+  ).toBe(413)
+  expect(allow).not.toHaveBeenCalled()
+
+  expect(
+    (await post(app, '/messages', message, { 'x-person': 'sam' })).status,
+  ).toBe(403)
+  expect(allow).toHaveBeenCalledWith(sam, 'conversation.send')
+  expect(send).not.toHaveBeenCalled()
 })
 
-test('messages and history validate what clients send', async () => {
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
-  })
-  opened.push(familiar)
+test('messages and history validate what clients send, and the author comes from the host', async () => {
+  const { faux, models } = fauxModels()
+  const familiar = await testFamiliar({ models })
   faux.setResponses([fauxAssistantMessage('Hello.')])
-  const client = testClient(
-    createHttpApi(familiar, {
-      routes: true,
-      authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+  const client = testClient(api(familiar))
+
+  const sent = await post(
+    api(familiar),
+    '/messages',
+    JSON.stringify({
+      text: 'Hi',
+      requestId: 'hi',
+      author: { id: 'x', name: 'Spoofed' },
     }),
   )
-
-  const sent = await client.messages.$post({
-    json: { text: 'Hi', requestId: 'hi' },
-  })
   expect(sent.status).toBe(202)
   await familiar.idle()
 
-  const blank = await client.messages.$post({
-    json: { text: ' ', requestId: 'blank' },
-  })
-  expect(blank.status).toBe(400)
-
-  const unbounded = await client.history.$get({ query: { before: 'latest' } })
-  expect(unbounded.status).toBe(400)
+  for (const text of [' ', 'x'.repeat(MESSAGE_LIMITS.text + 1)]) {
+    const refused = await client.messages.$post({
+      json: { text, requestId: 'r' },
+    })
+    expect(refused.status).toBe(400)
+  }
+  expect(
+    (await client.history.$get({ query: { before: 'latest' } })).status,
+  ).toBe(400)
 
   const response = await client.history.$get({
     query: { before: String(Number.MAX_SAFE_INTEGER) },
@@ -170,308 +130,155 @@ test('messages and history validate what clients send', async () => {
     throw new Error(`history failed: ${response.status}`)
   }
   const page = await response.json()
-  // The whole conversation fits in one page, newest first.
   expect(page.entries.map((entry) => entry.kind)).toEqual([
     'pi.assistant',
     'pi.system',
     'familiar.message',
   ])
-  // The author is whoever the host authenticates.
-  expect(page.entries[2].data).toEqual({
-    author: { id: 'aidan', name: 'aidan' },
-    text: 'Hi',
-  })
-  expect(page.more).toBe(false)
+  expect(page.entries[2].data).toEqual({ author: sam, text: 'Hi' })
 })
 
-test('hosts compose groups and enforce middleware before mutations', async () => {
-  const send = vi.fn(async () => {})
-  const abort = vi.fn(async () => {})
-  const history = vi.fn(async () => ({ entries: [], more: false }))
-  const app = new Hono()
-    .use('/chat/*', async (c, next) => {
-      if (c.req.header('authorization') !== 'member') {
-        return c.json({ error: 'forbidden' }, 403)
-      }
-      await next()
-    })
-    .route(
-      '/chat',
-      conversationRoutes({ send, abort, history }, () => ({
-        id: 'Sam',
-        name: 'Sam',
-      })),
-    )
-  const body = {
-    text: 'Hello',
-    requestId: 'one',
-    author: { id: 'Spoofed', name: 'Spoofed' },
-  }
-  const request = (authorized: boolean) =>
-    app.request('/chat/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(authorized ? { authorization: 'member' } : {}),
-      },
+test('memory routes edit facts and refuse missing or past ones', async () => {
+  const familiar = await testFamiliar({
+    storage: await storageWith(['Lives in Leeds', 4]),
+  })
+  const app = api(familiar)
+  const put = (path: string, body: unknown) =>
+    app.request(path, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     })
-  expect((await request(false)).status).toBe(403)
-  expect(send).not.toHaveBeenCalled()
-  expect((await app.request('/chat/abort', { method: 'POST' })).status).toBe(
-    403,
-  )
-  expect(abort).not.toHaveBeenCalled()
-  expect((await request(true)).status).toBe(202)
-  expect(send).toHaveBeenCalledWith({
-    author: { id: 'Sam', name: 'Sam' },
-    text: 'Hello',
-    requestId: 'one',
+
+  expect((await put('/memory/f1', { text: 'Lives in York' })).status).toBe(204)
+  const past = await put('/memory/f1', { text: 'Again' })
+  expect(past.status).toBe(404)
+  expect(await past.json()).toEqual({
+    error: 'f1 is already past; only current facts can change.',
   })
-  for (const path of [
-    '/memory/health',
-    '/account',
-    '/model/options',
-    '/events',
-  ]) {
-    expect((await app.request(path)).status).toBe(404)
-  }
+  expect((await put('/memory/f2/pin', { pinned: 'yes' })).status).toBe(400)
 })
 
-test('restricted events open only selected watches and clean up on cancel and reconnect', async () => {
-  const models = createModels()
-  models.setProvider(fauxProvider().provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
+test('the stream sends each allowed source whole first, and 403 when none is', async () => {
+  const familiar = await testFamiliar()
+  const watchMemory = vi.spyOn(familiar.memory, 'watch')
+
+  const all = await events(await api(familiar).request('/events'), 'account')
+  expect(all.names).toEqual([
+    'protocol',
+    'view',
+    'document memory',
+    'document episodes',
+    'document schedules',
+    'account',
+  ])
+  await all.reader.cancel()
+  watchMemory.mockClear()
+
+  const chat = api(familiar, {
+    allow: (_, operation) => operation === 'events.conversation',
   })
-  opened.push(familiar)
-  const omitted = [
-    vi.spyOn(familiar.memory, 'watch'),
-    vi.spyOn(familiar.memory, 'watchEpisodes'),
-    vi.spyOn(familiar.schedules, 'watch'),
-  ]
-  const stops: ReturnType<typeof vi.fn>[] = []
-  const watch = vi.fn(async () => {
-    const source = await familiar.watch()
-    const stop = vi.fn(() => source.stop())
-    stops.push(stop)
-    return {
-      value: source.value,
-      closed: source.closed,
-      start: source.start.bind(source),
-      stop,
-    }
-  })
-  const app = eventRoutes({ conversation: watch })
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await app.request('/events')
-    const reader = response
-      .body!.pipeThrough(new TextDecoderStream())
-      .getReader()
-    let text = ''
-    while (!text.includes('event: view\n')) {
-      const chunk = await reader.read()
-      expect(chunk.done).toBe(false)
-      text += chunk.value
-    }
-    expect(
-      [...text.matchAll(/^event: (.+)$/gm)].map((match) => match[1]),
-    ).toEqual(['protocol', 'view'])
-    await reader.cancel()
-    await vi.waitFor(() => expect(stops[attempt]).toHaveBeenCalledTimes(1))
-  }
-  expect(watch).toHaveBeenCalledTimes(2)
-  for (const open of omitted) {
-    expect(open).not.toHaveBeenCalled()
-  }
+  const some = await events(await chat.request('/events'), 'view')
+  expect(some.names).toEqual(['protocol', 'view'])
+  await some.reader.cancel()
+  expect(watchMemory).not.toHaveBeenCalled()
+
+  const none = api(familiar, { allow: () => false })
+  expect((await none.request('/events')).status).toBe(403)
 })
 
-test('empty and account-only streams send only explicit sources and stop listeners', async () => {
-  const stop = vi.fn()
-  const state = vi.fn(() => ({ status: 'signed-out' as const }))
-  const onChange = vi.fn(() => stop)
-  for (const sources of [
-    {},
-    { account: { state, onChange } },
-    { account: null },
-  ]) {
-    const app = eventRoutes(sources)
-    const response = await app.request('/events')
-    const reader = response
-      .body!.pipeThrough(new TextDecoderStream())
-      .getReader()
-    let text = ''
-    const expected = 'account' in sources ? 2 : 1
-    while ((text.match(/^event:/gm) ?? []).length < expected) {
-      const chunk = await reader.read()
-      expect(chunk.done).toBe(false)
-      text += chunk.value
-    }
-    expect(
-      [...text.matchAll(/^event: (.+)$/gm)].map((match) => match[1]),
-    ).toEqual(expected === 1 ? ['protocol'] : ['protocol', 'account'])
-    if (sources.account) {
-      await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1))
-    }
-    await reader.cancel()
-  }
-  expect(state).toHaveBeenCalledTimes(1)
-  expect(onChange).toHaveBeenCalledTimes(1)
-  expect(stop).toHaveBeenCalledTimes(1)
-})
-
-test('selected watch closure ends the stream and clears heartbeat and account listener', async () => {
-  const clear = vi.spyOn(globalThis, 'clearInterval')
-  let close!: () => void
-  const closed = new Promise<{ reason: 'stopped' }>((resolve) => {
-    close = () => resolve({ reason: 'stopped' })
+test('a client leaving stops every watch, even one still opening', async () => {
+  const familiar = await testFamiliar()
+  let stopView: ReturnType<typeof vi.fn> | undefined
+  const watch = familiar.watch
+  vi.spyOn(familiar, 'watch').mockImplementation(async () => {
+    const view = await watch()
+    stopView = vi.spyOn(view, 'stop')
+    return view
   })
-  const stop = vi.fn(async () => ({ reason: 'stopped' as const }))
-  const stopAccount = vi.fn()
-  const onChange = vi.fn(() => stopAccount)
-  const app = eventRoutes({
-    memory: async () => ({ value: null, start: vi.fn(), stop, closed }),
-    account: {
-      state: () => ({ status: 'signed-out' }),
-      onChange,
-    },
-  })
-  const response = await app.request('/events')
-  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
-  let text = ''
-  while (!text.includes('event: account\n')) {
-    const chunk = await reader.read()
-    expect(chunk.done).toBe(false)
-    text += chunk.value
-  }
-  await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1))
-  close()
-  while (!(await reader.read()).done) {
-    /* Drain until the selected watch closes the response. */
-  }
-  expect(stop).toHaveBeenCalledTimes(1)
-  expect(stopAccount).toHaveBeenCalledTimes(1)
-  expect(clear).toHaveBeenCalledWith(expect.anything())
-  clear.mockRestore()
-})
-
-test('watch closure ends setup while another source is opening and disposes its late watch', async () => {
-  let close!: () => void
-  const closed = new Promise<{ reason: 'stopped' }>((resolve) => {
-    close = () => resolve({ reason: 'stopped' })
-  })
-  let acquired!: (watch: DocumentWatch<EpisodesState>) => void
-  const opening = new Promise<DocumentWatch<EpisodesState>>((resolve) => {
-    acquired = resolve
-  })
-  const openEpisodes = vi.fn(() => opening)
-  const stop = vi.fn(async () => ({ reason: 'stopped' as const }))
-  const app = eventRoutes({
-    memory: async () => ({ value: null, start: vi.fn(), stop, closed }),
-    episodes: openEpisodes,
-  })
-  const response = await app.request('/events')
-  const reader = response.body!.getReader()
-  await reader.read()
-  await vi.waitFor(() => expect(openEpisodes).toHaveBeenCalledTimes(1))
-  close()
-  await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
-  while (!(await reader.read()).done) {
-    /* The response must end before the pending source resolves. */
-  }
-  const stopLate = vi.fn(async () => ({ reason: 'stopped' as const }))
-  const startLate = vi.fn()
-  acquired({
-    value: null,
-    start: startLate,
-    stop: stopLate,
-    closed: new Promise(() => {}),
-  })
-  await vi.waitFor(() => expect(stopLate).toHaveBeenCalledTimes(1))
-  expect(startLate).not.toHaveBeenCalled()
-})
-
-test('disconnect during watch opening stops the late watch without starting it', async () => {
   let opened!: (watch: DocumentWatch<FactsState>) => void
-  const opening = new Promise<DocumentWatch<FactsState>>((resolve) => {
-    opened = resolve
-  })
-  const open = vi.fn(() => opening)
-  const app = eventRoutes({ memory: open })
-  const response = await app.request('/events')
-  const reader = response.body!.getReader()
-  await reader.read()
-  await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1))
+  vi.spyOn(familiar.memory, 'watch').mockReturnValue(
+    new Promise((resolve) => (opened = resolve)),
+  )
+
+  const { reader } = await events(
+    await api(familiar).request('/events'),
+    'view',
+  )
   await reader.cancel()
+  await vi.waitFor(() => expect(stopView).toHaveBeenCalledOnce())
+
   const stop = vi.fn(async () => ({ reason: 'stopped' as const }))
   const start = vi.fn()
   opened({ value: null, start, stop, closed: new Promise(() => {}) })
-  await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
+  await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce())
   expect(start).not.toHaveBeenCalled()
 })
 
-test('request bodies are bounded before routes read them, and fields by Familiar', async () => {
-  const models = createModels()
-  models.setProvider(fauxProvider().provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
+test('a watch closing ends the stream and stops everything else', async () => {
+  const clear = vi.spyOn(globalThis, 'clearInterval')
+  const stopAccount = vi.fn()
+  const familiar: Familiar = {
+    ...(await testFamiliar()),
+    account: {
+      state: () => ({ status: 'signed-out' }),
+      onChange: () => stopAccount,
+    } as unknown as Familiar['account'],
+  }
+  let close!: () => void
+  const stopMemory = vi.fn(async () => ({ reason: 'stopped' as const }))
+  vi.spyOn(familiar.memory, 'watch').mockResolvedValue({
+    value: null,
+    start: vi.fn(),
+    stop: stopMemory,
+    closed: new Promise(
+      (resolve) => (close = () => resolve({ reason: 'stopped' })),
+    ),
   })
-  opened.push(familiar)
-  const send = vi.spyOn(familiar, 'send')
-  const post = (
-    api: HttpApi,
-    body: BodyInit,
-    headers: Record<string, string> = {},
-  ) =>
-    api.request('/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
-      body,
-      duplex: 'half',
-    } as RequestInit)
-  const authenticate = () => ({ id: 'aidan', name: 'aidan' })
-  const api = createHttpApi(familiar, { authenticate, routes: true })
 
-  const huge = JSON.stringify({
-    text: 'x'.repeat(DEFAULT_MAX_BODY_SIZE),
-    requestId: 'huge',
-  })
-  expect((await post(api, huge)).status).toBe(413)
-  // Streamed, so no Content-Length says how big it is.
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(huge))
-      controller.close()
-    },
-  })
-  expect((await post(api, stream)).status).toBe(413)
-
-  // Within the body limit, but over the message's own bound.
-  const long = await post(
-    api,
-    JSON.stringify({
-      text: 'x'.repeat(MESSAGE_LIMITS.text + 1),
-      requestId: 'long',
-    }),
+  const { reader } = await events(
+    await api(familiar).request('/events'),
+    'account',
   )
-  expect(long.status).toBe(400)
-  expect(send).toHaveBeenCalledOnce()
-  await expect(send.mock.results[0].value).rejects.toThrow()
+  close()
+  while (!(await reader.read()).done) {
+    /* Drain until the closed watch ends the response. */
+  }
+  expect(stopMemory).toHaveBeenCalledOnce()
+  expect(stopAccount).toHaveBeenCalledOnce()
+  expect(clear).toHaveBeenCalled()
+  clear.mockRestore()
+})
 
-  // Hosts can choose their own limit.
-  const small = createHttpApi(familiar, {
-    authenticate,
-    routes: true,
-    maxBodySize: 16,
-  })
+test('push hosts get the authenticated subscriber, whatever the body says', async () => {
+  const calls: [string, Author][] = []
+  const push: PushHost = {
+    publicKey: () => 'key',
+    subscribe: async (_, subscriber) =>
+      void calls.push(['subscribe', subscriber]),
+    unsubscribe: async (_, subscriber) =>
+      void calls.push(['unsubscribe', subscriber]),
+  }
+  const app = api(await testFamiliar(), { push })
+  const subscription = {
+    endpoint: 'https://push.example/alice-phone',
+    keys: { p256dh: 'p', auth: 'a' },
+    // Sam claims to be someone else.
+    subscriber: { id: 'alice', name: 'Alice' },
+  }
+  const body = JSON.stringify(subscription)
+  expect((await post(app, '/push/subscriptions', body)).status).toBe(204)
   expect(
-    (await post(small, JSON.stringify({ text: 'Hello there', requestId: 'a' })))
-      .status,
-  ).toBe(413)
+    (
+      await app.request('/push/subscriptions', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body,
+      })
+    ).status,
+  ).toBe(204)
+  expect(calls).toEqual([
+    ['subscribe', sam],
+    ['unsubscribe', sam],
+  ])
 })

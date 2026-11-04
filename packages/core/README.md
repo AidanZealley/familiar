@@ -44,19 +44,22 @@ try {
 }
 ```
 
-A lasting host supplies persistent storage (Pi Durable's SQLite storage on Node, at the exact Pi version in the [workspace catalog](../../pnpm-workspace.yaml), or [@familiar-ai/cloudflare](../cloudflare/README.md) on Workers), registered model providers with a credential store, and an `authenticate` function when it serves HTTP. Only one live Familiar may own a storage. Attribution is not authorization: hosts authenticate people, choose who may use each HTTP route in `createHttpApi`'s `routes`, which serves nothing unless chosen, and choose each Familiar's audience and tools:
+A lasting host supplies persistent storage (Pi Durable's SQLite storage on Node, at the exact Pi version in the [workspace catalog](../../pnpm-workspace.yaml), or [@familiar-ai/cloudflare](../cloudflare/README.md) on Workers), registered model providers with a credential store, and an `authenticate` function when it serves HTTP. Only one live Familiar may own a storage. Attribution is not authorization: hosts authenticate people, decide who may do what with `createHttpApi`'s `allow`, and choose each Familiar's audience and tools:
 
 ```ts
+const CHAT = new Set<Operation>([
+  'conversation.send',
+  'conversation.history',
+  'conversation.abort',
+  'events.conversation',
+])
+
 const api = createHttpApi(familiar, {
   authenticate: sessionAuthor,
-  routes: {
-    conversation: { send: true, history: true, abort: true },
-    events: { conversation: true },
-  },
+  allow: (_, operation) => CHAT.has(operation),
 })
-export type Api = typeof api
 ```
 
-`routes: true` serves everything, only for hosts that only their owner can reach. Everyone in a conversation shares its history, what the model knows and every tool installed on the Familiar. Tools, or the app APIs behind them, enforce narrower rules with `api.author`, the person a call runs for. Separate audiences, such as tenants, need separate Familiars over separate storage. Native tools are trusted code running in your process; Familiar doesn't sandbox them.
+`allow: () => true` allows everything, only for hosts that only their owner can reach. Everyone in a conversation shares its history, what the model knows and every tool installed on the Familiar. Tools, or the app APIs behind them, enforce narrower rules with `api.author`, the person a call runs for. Separate audiences, such as tenants, need separate Familiars over separate storage. Native tools are trusted code running in your process; Familiar doesn't sandbox them.
 
 Public entry points are `/http`, `/models`, `/models/openai`, `/models/openrouter`, `/models/faux`, `/storage/memory`, `/extensions`, `/mcp` and `/diagnostics`; see [package exports](package.json). Core contains no Node-only or Workers-only code.

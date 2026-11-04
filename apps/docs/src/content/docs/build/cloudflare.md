@@ -78,13 +78,14 @@ override fetch(request: Request) {
     // Your Worker authenticated the request before routing it here.
     createHttpApi(familiar, {
       authenticate: () => author,
-      routes: { conversation: { send: true, history: true, abort: true } },
+      // Your allowlist of operations, as in Serve the API.
+      allow: (_, operation) => CHAT.has(operation),
     }).fetch(request),
   )
 }
 ```
 
-`author` is whoever your Worker authenticated. Choose the routes as in [Choose routes](/familiar/build/serve-the-api/#choose-routes); `routes: true` serves everything, only when the object's owner is the only person who reaches it. Each object is one Familiar over its own storage, so give each tenant its own object, chosen from the authenticated session as in [One Familiar per tenant](/familiar/build/serve-the-api/#one-familiar-per-tenant). The repository's [development Worker](https://github.com/AidanZealley/familiar/tree/main/apps/cloudflare) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
+`author` is whoever your Worker authenticated. Decide what each person may do as in [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what); `allow: () => true` allows everything, only when the object's owner is the only person who reaches it. Each object is one Familiar over its own storage, so give each tenant its own object, chosen from the authenticated session as in [One Familiar per tenant](/familiar/build/serve-the-api/#one-familiar-per-tenant). The repository's [development Worker](https://github.com/AidanZealley/familiar/tree/main/apps/cloudflare) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
 
 ## What's been verified
 

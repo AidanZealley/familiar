@@ -7,9 +7,9 @@ Declarations live in [`packages/client/src`](https://github.com/AidanZealley/fam
 
 ## createFamiliarStore(url, options?)
 
-Returns a read-only Zustand store, `FamiliarStore<Api>`, and opens the event stream. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
+Returns a read-only Zustand store, `FamiliarStore`, and opens the event stream. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
 
-The type argument is required: `createFamiliarStore<Api>(url)`, where `Api` is your host's Hono type, such as `typeof api` for an API from `createHttpApi`, or `HttpApi` for one that serves every route. Each command is present only when that type has its route. A missing or unsupported type is a type error.
+Every command is present. One the host's `allow` refuses rejects with the server's 403.
 
 The store exposes `getState()`, `getInitialState()` and `subscribe(listener)`. It has no `setState`.
 
@@ -98,8 +98,6 @@ Times are milliseconds since the epoch. A message's `author` is a plain name str
 ## React
 
 Import from `@familiar-ai/client/react`. Requires React 18 or 19.
-
-`createFamiliarBindings<Api>()` returns a provider and hooks typed to your host, for the same `Api` as its stores. Create them once at module scope. The type argument is required.
 
 | Binding                 | Meaning                                                  |
 | ----------------------- | -------------------------------------------------------- |

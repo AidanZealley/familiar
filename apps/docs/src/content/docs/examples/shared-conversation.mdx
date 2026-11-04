@@ -47,9 +47,16 @@ Everything runs in this page: the real core, in-memory storage, the HTTP and SSE
 
 ## The host decides who is speaking
 
-The host maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It serves only sending, history, aborting and the conversation's events, so no participant reaches memory, schedules or admin routes:
+The host maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It allows only sending, history, aborting and the conversation's events, so every participant is refused memory, schedules and admin routes:
 
 ```ts
+const CHAT = new Set<Operation>([
+  'conversation.send',
+  'conversation.history',
+  'conversation.abort',
+  'events.conversation',
+])
+
 const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
   createHttpApi(familiar, {
     authenticate: (request) => {
@@ -58,10 +65,7 @@ const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
         ?.replace(/^Bearer /, '')
       return token ? sessions.get(token) : undefined
     },
-    routes: {
-      conversation: { send: true, history: true, abort: true },
-      events: { conversation: true },
-    },
+    allow: (_, operation) => CHAT.has(operation),
   })
 ```
 
@@ -70,7 +74,7 @@ Everyone signed in shares the conversation: each person reads its whole history,
 Each person gets their own client store, which sends their session with every request and opens its own event stream. Every store mirrors the same conversation:
 
 ```ts
-const store = createFamiliarStore<HostApi>(url, {
+const store = createFamiliarStore(url, {
   fetch: async (input, init) => {
     const request = new Request(input, init)
     request.headers.set('authorization', `Bearer ${token}`)

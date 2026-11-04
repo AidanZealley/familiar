@@ -1,25 +1,24 @@
 ---
 title: Serve the API
-description: Put Familiar behind HTTP with your own authentication, and choose which routes and streams to expose.
+description: Put Familiar behind HTTP with your own authentication, and decide who may do what.
 ---
 
 import { Code } from '@astrojs/starlight/components'
 import serve from '../../../../snippets/serve.ts?raw'
-import compose from '../../../../snippets/compose-routes.ts?raw'
 import tenants from '../../../../snippets/tenants.ts?raw'
 import notify from '../../../../snippets/notify.ts?raw'
 
 `@familiar-ai/core/http` turns a Familiar into a [Hono](https://hono.dev) app: JSON commands plus one server-sent event stream at `/events`. Any runtime with the Fetch API can serve it.
 
-## Choose routes
+## Decide who may do what
 
-`createHttpApi` takes an `authenticate` function and the `routes` to serve. It serves nothing you don't choose: every route you leave out answers 404, and with no event sources there is no `/events`.
+`createHttpApi` takes an `authenticate` function and an `allow` policy. Every route is mounted; `allow` decides, for each request, whether its author may perform that operation.
 
 <Code code={serve} lang="ts" title="api.ts" />
 
-Mount it under any path, such as `new Hono().route('/api', createApi(familiar))`, and give your frontend its type, `Api`. The client then offers exactly the commands whose routes you serve.
+Mount it under any path, such as `new Hono().route('/api', createApi(familiar))`. The client offers every command; one your policy refuses rejects with the 403, so show each person only the UI they may use.
 
-`routes` groups operations the way the client groups its commands:
+`allow(author, operation)` is asked after authentication and the body limit, before the route reads anything or changes anything, and anything but `true` answers 403. `operation` names one of:
 
 | Group          | Operations                                                                 |
 | -------------- | -------------------------------------------------------------------------- |
@@ -32,26 +31,26 @@ Mount it under any path, such as `new Hono().route('/api', createApi(familiar))`
 | `mcp`          | `add`, `remove`, `reconnect`                                               |
 | `events`       | `conversation`, `memory`, `episodes`, `schedules`, `account`               |
 
-Each one is `true`, for everyone `authenticate` accepts, or your own check, `(author, request) => boolean | Promise<boolean>`. Familiar asks the check on every request to that route, after authentication and the body limit, and answers 403 unless it returns `true`, before the route reads anything or changes anything. Each check covers only its own operation: `signIn` and `cancelSignIn` share a path but each asks its own. A name that isn't an operation is a type error, and throws when Familiar starts.
+each as `group.name`, such as `memory.revise`. The `Operation` type is that union, so a misspelt name in a `Set<Operation>` is a type error. Check against a list of what you allow, as above, so an operation Familiar adds later is refused until you add it.
 
-`events` chooses what `/events` streams. Each source is checked once, when a stream connects: revoking someone's access applies from their next connection, not to a stream they already have open. A stream every chosen source refuses answers 403. Account routes don't stream the account: its sign-in page and code arrive only through `events.account`, so keep that source to the people who sign in. `events: true` streams every source.
+`events.*` decides what `/events` streams. Each source is asked once, when a stream connects: revoking someone's access applies from their next connection, not to a stream they already have open. A stream every source refuses answers 403. The account routes don't stream the account: its sign-in page arrives only through `events.account`, so keep that source to the people who sign in.
 
-`routes: true` serves every route and every event source, including any that Familiar adds later, to everyone `authenticate` accepts. Use it only when everyone who can reach the API is the Familiar's owner. The daemon does, because only its owner can reach it. Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available. See [Notifications](#notifications).
+`allow: () => true` lets everyone `authenticate` accepts do everything, including anything Familiar adds later. Use it only when everyone who can reach the API is the Familiar's owner. The daemon does, because only its owner can reach it. Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available. See [Notifications](#notifications).
 
 `authenticate` receives each request and returns the person making it as `{ id, name }`, or `undefined` to answer 401. The result becomes the author of any message that request sends. Request bodies can't choose their own author.
 
-Request bodies are limited to `maxBodySize` bytes, by default `DEFAULT_MAX_BODY_SIZE` (1 MiB), and larger ones answer 413. Route groups you mount yourself don't get this limit, so add Hono's `bodyLimit` in front of them. Familiar checks field bounds such as `MESSAGE_LIMITS` itself, for every caller.
+Request bodies are limited to `maxBodySize` bytes, by default `DEFAULT_MAX_BODY_SIZE` (1 MiB), and larger ones answer 413. Familiar checks field bounds such as `MESSAGE_LIMITS` itself, for every caller.
 
 ## A shared conversation is shared
 
-Everyone who can send to a Familiar is in one conversation. They all read its history, and the model reads all of it too, so anything said, any tool's result and anything the model recalls from memory can reach every participant in a reply. Leaving memory out of `events` keeps the memory document off the stream, but it doesn't make memory private: the model can repeat what it remembers. Familiar doesn't promise per-message secrecy. Give people who mustn't share information [separate Familiars](#one-familiar-per-tenant).
+Everyone who can send to a Familiar is in one conversation. They all read its history, and the model reads all of it too, so anything said, any tool's result and anything the model recalls from memory can reach every participant in a reply. Refusing `events.memory` keeps the memory document off the stream, but it doesn't make memory private: the model can repeat what it remembers. Familiar doesn't promise per-message secrecy. Give people who mustn't share information [separate Familiars](#one-familiar-per-tenant).
 
 ## Identity is not permission
 
 Familiar records who said what and shows the model each author. It doesn't decide who may do what. Your host must:
 
 - authenticate every request, including the event stream
-- decide who may use each route, with `routes`
+- decide who may do what, with `allow`
 - choose each Familiar's audience: who may send to it, and so share it
 - choose each Familiar's tools, with `plugins` and its MCP servers
 - choose who receives each notification, and store and authorize push subscriptions
@@ -109,35 +108,5 @@ The daemon's own web UI also refuses to be shown inside another site's page, wit
 The daemon's Web Push stores each subscription with the authenticated subscriber who added it, and subscribing or unsubscribing changes only that subscriber's entries. The daemon authenticates every request as `owner`, so all of its devices share one subscriber. A host that authenticates separate people receives each person's `Author` and must enforce the same scoping in its `PushHost` implementation. It also gives each delivery a 30-second socket inactivity timeout, web-push's `timeout`, so a push service that stops answering can't hold up a scheduled run. That limits silence, not a delivery's total time or the size of its response. A failed delivery is reported and doesn't stop other devices getting theirs.
 
 The daemon gives plugins a `fetch` that refuses every address that isn't public unicast, on each connection and every redirect. Its web UI renders replies with Streamdown, which sanitises their HTML, and draws Mermaid diagrams in strict mode. Those reduce what a reply can do in the page, but they aren't a verified guarantee against script injection. Anyone who can reach the daemon can add MCP servers, including local commands that run as the daemon's user.
-
-## Compose routes yourself
-
-To mount Familiar's routes beside your own or behind your own middleware, compose the route factories instead. Each one is a Hono app you mount at its standard path, built from the same operations `routes` names, such as `memoryOperations(familiar.memory).health`:
-
-| Factory              | Mount at       | Commands                                    |
-| -------------------- | -------------- | ------------------------------------------- |
-| `conversationRoutes` | `/`            | send messages, abort, read history          |
-| `modelRoutes`        | `/model`       | list, switch model and reasoning level      |
-| `memoryRoutes`       | `/memory`      | revise, retire and pin facts; memory health |
-| `scheduleRoutes`     | `/schedules`   | cancel a schedule                           |
-| `accountRoutes`      | `/account`     | sign in, answer, cancel, sign out           |
-| `pushRoutes`         | `/push`        | VAPID key, subscribe, unsubscribe           |
-| `connectionRoutes`   | `/connections` | list connections, set and delete secrets    |
-| `mcpRoutes`          | `/mcp`         | add, remove and reconnect MCP servers       |
-| `eventRoutes`        | `/`            | the `/events` stream                        |
-
-`conversationRoutes` and `pushRoutes` take a function that returns the author for a request. This host exposes the conversation plus memory, to people trusted with memory:
-
-<Code code={compose} lang="ts" title="host.ts" />
-
-## Choose event sources
-
-The event stream is a separate choice from the commands. `routes.events`, and `eventRoutes` when you compose, open only the sources you choose:
-
-- `conversation` sends the view and each commit's changes.
-- `memory`, `episodes` and `schedules` each send a document and its changes.
-- `account` sends the sign-in state. Pass `null` to send `null` once, telling clients the host manages credentials itself.
-
-Mounting `memoryRoutes` doesn't add memory to the stream, and streaming memory doesn't allow memory commands.
 
 The [HTTP API reference](/familiar/reference/http/) lists every route and event.

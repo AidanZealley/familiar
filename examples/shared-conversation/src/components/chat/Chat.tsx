@@ -5,7 +5,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useFamiliar, useTranscript } from '@/demo/react'
+import { useFamiliar, useTranscript } from '@familiar-ai/client/react'
 import { TranscriptItems } from './components/transcript-items'
 import type { ChatProps } from './types'
 

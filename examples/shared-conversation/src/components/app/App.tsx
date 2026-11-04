@@ -7,7 +7,7 @@ import { PersonSwitcher } from '@/components/person-switcher'
 import { Suggestions } from '@/components/suggestions'
 import { startDemo } from '@/demo/demo'
 import { PEOPLE } from '@/demo/people'
-import { FamiliarProvider } from '@/demo/react'
+import { FamiliarProvider } from '@familiar-ai/client/react'
 import { suggestedPrompts } from '@/demo/script'
 import type { AppProps } from './types'
 

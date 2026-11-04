@@ -83,7 +83,7 @@ test('owner-configured stdio tools run through Familiar with filtered environmen
   vi.stubEnv('NODE_OPTIONS', '--expose-internals')
   const { familiar, faux, children } = await setup()
   const api = createHttpApi(familiar, {
-    routes: true,
+    allow: () => true,
     authenticate: () => ({ id: 'owner', name: 'owner' }),
   })
   const added = await api.request('/mcp', {

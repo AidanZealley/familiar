@@ -25,7 +25,7 @@ import {
   ToolTask,
   GenerationTask,
 } from '@familiar-ai/core/extensions'
-import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { createFamiliarStore } from '../../../packages/client/src/store/index.ts'
 import { toTranscript } from '../../../packages/client/src/transcript.ts'
 
@@ -110,10 +110,10 @@ test('plugin results and last reported details survive reopen and reach the tran
     await watch.stop()
     // JSON roundtrip mirrors persisted results sent through the HTTP view.
     const api = createHttpApi(familiar, {
-      routes: true,
+      allow: () => true,
       authenticate: () => ({ id: 'test', name: 'test' }),
     })
-    const client = createFamiliarStore<HttpApi>('http://familiar.test', {
+    const client = createFamiliarStore('http://familiar.test', {
       fetch: async (input, init) => api.fetch(new Request(input, init)),
     })
     try {

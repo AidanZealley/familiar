@@ -1,39 +1,20 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import type { BlankSchema } from 'hono/types'
+import { accountRoutes } from '../account/http.ts'
 import type { Author } from '../conversation/message.ts'
+import { conversationRoutes } from '../conversation/http.ts'
 import type { Familiar } from '../familiar.ts'
-import { eventSources, operations } from './catalogue.ts'
-import { chosenEventRoutes } from './events.ts'
-import { guarded, type AuthorEnv } from './guard.ts'
-import {
-  selection,
-  type Known,
-  type RouteSelection,
-  type SelectedSchema,
-} from './selection.ts'
-import type { PushHost } from './push.ts'
+import { mcpRoutes } from '../mcp/http.ts'
+import { memoryRoutes } from '../memory/http.ts'
+import { connectionRoutes } from '../plugins/http.ts'
+import { scheduleRoutes } from '../schedules/http.ts'
+import type { AccessEnv, Allow } from './access.ts'
+import { eventRoutes } from './events.ts'
+import { pushRoutes, type PushHost } from './push.ts'
 
-// The wire contract every client speaks, and the types of choosing routes.
+// The wire contract every client speaks, and the names `allow` is asked about.
 export type * from './contract.ts'
-export type { Allow } from './guard.ts'
-export type { HttpOperations } from './catalogue.ts'
-export type { HttpRoutes, RouteSelection } from './selection.ts'
-
-// Each feature's operations, and its routes mounted together, to compose by hand.
-export { accountOperations, accountRoutes } from '../account/http.ts'
-export {
-  conversationOperations,
-  conversationRoutes,
-  modelOperations,
-  modelRoutes,
-} from '../conversation/http.ts'
-export { memoryOperations, memoryRoutes } from '../memory/http.ts'
-export { scheduleOperations, scheduleRoutes } from '../schedules/http.ts'
-export { pushOperations, pushRoutes } from './push.ts'
-export { connectionOperations, connectionRoutes } from '../plugins/http.ts'
-export { mcpOperations, mcpRoutes } from '../mcp/http.ts'
-export { eventRoutes, type EventSources } from './events.ts'
+export type { Allow, Operation } from './access.ts'
 
 export type HttpOptions = {
   /**
@@ -46,11 +27,14 @@ export type HttpOptions = {
     request: Request,
   ) => Author | undefined | Promise<Author | undefined>
   /**
-   * The routes to serve; none by default. See `HttpRoutes`. `true` serves
-   * every route and event source, including any added later, so pass it
-   * only when everyone `authenticate` accepts is the Familiar's owner.
+   * Whether an author may perform an operation, asked before the route reads
+   * anything or changes anything; anything but `true` answers 403. `/events`
+   * asks once per source as a stream connects. Check against a list of the
+   * operations you allow, so any Familiar adds later is refused until you
+   * add it; `() => true` only when everyone `authenticate` accepts is the
+   * Familiar's owner.
    */
-  routes?: RouteSelection
+  allow: Allow
   /** Web Push, if the host offers it; the push routes answer 404 without it. */
   push?: PushHost
   /**
@@ -67,46 +51,40 @@ export type HttpOptions = {
  */
 export const DEFAULT_MAX_BODY_SIZE = 1024 * 1024
 
-/**
- * The API `createHttpApi` returns for a selection, for Hono's typed client.
- * Written out here, not imported, so hosts' declarations can name it.
- */
-type HttpApiFor<Routes extends RouteSelection> = Hono<
-  { Variables: { author: Author } },
-  [SelectedSchema<Routes>] extends [never]
-    ? BlankSchema
-    : SelectedSchema<Routes>
->
+const routes = (familiar: Familiar, push: PushHost | undefined) =>
+  new Hono<AccessEnv>()
+    .route('/', conversationRoutes(familiar))
+    .route('/account', accountRoutes(familiar.account))
+    .route('/memory', memoryRoutes(familiar.memory))
+    .route('/schedules', scheduleRoutes(familiar.schedules))
+    .route('/push', pushRoutes(push))
+    .route('/connections', connectionRoutes(familiar.connections))
+    .route('/mcp', mcpRoutes(familiar.mcp))
+    .route('/', eventRoutes(familiar))
 
-/** Every route, as the daemon serves them: `hc<HttpApi>(baseUrl)`. */
-export type HttpApi = HttpApiFor<true>
+/** Familiar's HTTP API, for Hono's typed client: `hc<HttpApi>(baseUrl)`. */
+export type HttpApi = ReturnType<typeof routes>
 
 /**
- * Familiar's HTTP API as a fetch handler, serving only the routes chosen in
- * `routes`. Every request is authenticated first (401), then its body is
- * bounded (413), then the chosen route's own `Allow` is asked (403), all
- * before the route reads the body or changes anything. Mount it under any
- * path; export `typeof api` for the frontend's typed client.
+ * Familiar's HTTP API as a fetch handler. Every request is authenticated
+ * first (401), then its body is bounded (413), then `allow` is asked (403),
+ * all before the route reads the body or changes anything. Mount it under
+ * any path.
  *
  * Everyone it authenticates and lets send shares one conversation, so they
  * all read its history and whatever the model says, which can include
- * anything it remembers: leaving memory out of `events` doesn't make memory
+ * anything it remembers: refusing `events.memory` doesn't make memory
  * private. They also share every tool installed on the Familiar; a tool or
  * the app API behind it narrows what each may do, using `api.author`.
  */
-export function createHttpApi<
-  const Routes extends RouteSelection = Record<never, never>,
->(
+export function createHttpApi(
   familiar: Familiar,
-  options: HttpOptions & { routes?: Routes & Known<Routes> },
-) {
-  const catalogue = operations(familiar, options.push)
-  const sources = eventSources(familiar)
-  const { events = {}, ...chosen } = selection(options.routes, {
-    ...catalogue,
-    events: sources,
-  })
-  const api = new Hono<AuthorEnv>()
+  options: HttpOptions,
+): HttpApi {
+  if (typeof options.allow !== 'function') {
+    throw new TypeError('allow must be a function.')
+  }
+  return new Hono<AccessEnv>()
     .use(async (c, next) => {
       const author = await options.authenticate(c.req.raw)
 
@@ -115,21 +93,9 @@ export function createHttpApi<
       }
 
       c.set('author', author)
+      c.set('allow', options.allow)
       await next()
     })
     .use(bodyLimit({ maxSize: options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE }))
-
-  for (const [group, named] of Object.entries(catalogue)) {
-    for (const [name, operation] of Object.entries(named)) {
-      const allow = chosen[group]?.[name]
-      if (allow !== undefined) {
-        api.route('/', guarded(operation, allow))
-      }
-    }
-  }
-  if (Object.keys(events).length) {
-    api.route('/', chosenEventRoutes(sources, events))
-  }
-  // The loop mounts exactly the selected operations, whose types these are.
-  return api as unknown as HttpApiFor<Routes>
+    .route('/', routes(familiar, options.push))
 }

@@ -3,7 +3,6 @@ import type { AccountState, Documents } from '@familiar-ai/core/http'
 import type { StoreApi } from 'zustand/vanilla'
 import type { Commands } from '../commands.ts'
 import type { Transcript } from '../transcript.ts'
-import type { HostState } from './host-api.ts'
 
 /**
  * The event stream's state. It goes `open` when a full view arrives.
@@ -74,13 +73,8 @@ export type FamiliarState = {
   disconnect(): void
 }
 
-declare const hostApi: unique symbol
-
-/**
- * Read-only store for the host API `Api`, the type of the host's own Hono
- * app. The optional type witness keeps different host APIs distinct.
- */
-export type FamiliarStore<Api> = Pick<
-  StoreApi<HostState<Api>>,
+/** A read-only store: commands change Familiar, and the stream changes it. */
+export type FamiliarStore = Pick<
+  StoreApi<FamiliarState>,
   'getState' | 'getInitialState' | 'subscribe'
-> & { readonly [hostApi]?: (api: Api) => Api }
+>
