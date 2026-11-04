@@ -32,28 +32,39 @@ const subscription = validator('json', (body, c) => {
   return body as PushSubscriptionJson
 })
 
+const unavailable = { error: 'push is not available' } as const
+
 /**
- * Push routes, mounted at `/push` by the HTTP API. Each answers 404 when the
+ * Push routes, mounted at `/push`, one route each. Each answers 404 when the
  * host has no push, so clients can tell notifications aren't available.
  */
-export const pushRoutes = (push: PushHost | undefined) =>
-  new Hono()
-    .get('/key', async (c) =>
-      push
-        ? c.json({ key: await push.publicKey() }, 200)
-        : c.json({ error: 'push is not available' }, 404),
-    )
-    .post('/subscriptions', subscription, async (c) => {
-      if (!push) {
-        return c.json({ error: 'push is not available' }, 404)
-      }
-      await push.subscribe(c.req.valid('json'))
-      return c.body(null, 204)
-    })
-    .delete('/subscriptions', subscription, async (c) => {
-      if (!push) {
-        return c.json({ error: 'push is not available' }, 404)
-      }
-      await push.unsubscribe(c.req.valid('json'))
-      return c.body(null, 204)
-    })
+export const pushOperations = (push: PushHost | undefined) => ({
+  key: new Hono().get('/key', async (c) =>
+    push
+      ? c.json({ key: await push.publicKey() }, 200)
+      : c.json(unavailable, 404),
+  ),
+  subscribe: new Hono().post('/subscriptions', subscription, async (c) => {
+    if (!push) {
+      return c.json(unavailable, 404)
+    }
+    await push.subscribe(c.req.valid('json'))
+    return c.body(null, 204)
+  }),
+  unsubscribe: new Hono().delete('/subscriptions', subscription, async (c) => {
+    if (!push) {
+      return c.json(unavailable, 404)
+    }
+    await push.unsubscribe(c.req.valid('json'))
+    return c.body(null, 204)
+  }),
+})
+
+/** Every push route, mounted at `/push`. */
+export const pushRoutes = (push: PushHost | undefined) => {
+  const operations = pushOperations(push)
+  return new Hono()
+    .route('/', operations.key)
+    .route('/', operations.subscribe)
+    .route('/', operations.unsubscribe)
+}

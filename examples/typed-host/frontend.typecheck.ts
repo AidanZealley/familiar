@@ -1,6 +1,7 @@
 // Compile assertions only. These functions are never executed.
 import type {
   HostApi,
+  ParticipantApi,
   ErasedOutputApi,
   PartialApi,
   NonstandardApi,
@@ -9,7 +10,11 @@ import type {
   NarrowInputApi,
   PartialConversationApi,
 } from './api.ts'
-import { createFamiliarStore, type FamiliarStore } from '@familiar-ai/client'
+import {
+  createFamiliarStore,
+  type FamiliarStore,
+  type HttpApi,
+} from '@familiar-ai/client'
 
 export const checkHost = (store: FamiliarStore<HostApi>) => {
   const state = store.getState()
@@ -48,23 +53,38 @@ export const createChecked = () => {
   createFamiliarStore<IncompatibleApi>('/api')
   // @ts-expect-error host cannot require inputs the client does not send
   createFamiliarStore<NarrowInputApi>('/api')
+  const participant = createFamiliarStore<ParticipantApi>('/api')
+  participant.getState().conversation.send('Hello')
+  participant.getState().conversation.loadOlder()
+  participant.getState().memory.health()
+  // Commands narrow per operation: health without the memory edits.
+  // @ts-expect-error revise isn't selected
+  participant.getState().memory.revise('fact', 'Changed')
+  // @ts-expect-error no model routes are selected
+  participant.getState().conversation.setModel({ provider: 'p', modelId: 'm' })
+  // @ts-expect-error no MCP routes are selected
+  participant.getState().mcp.add({})
   const partial = createFamiliarStore<PartialApi>('/api')
   partial.getState().conversation.send('Hello')
-  // @ts-expect-error partial memory group exposes no memory commands
   partial.getState().memory.health()
+  // @ts-expect-error a hand-composed health route grants only health
+  partial.getState().memory.setPinned('fact', true)
   // @ts-expect-error widened host declarations lose guarantees
   createFamiliarStore<WidenedApi>('/api')
   // @ts-expect-error erased host declarations cannot grant commands
   createFamiliarStore<ReturnType<typeof JSON.parse>>('/api')
   const messagesOnly = createFamiliarStore<PartialConversationApi>('/api')
-  // @ts-expect-error partial conversation exposes no command group
   messagesOnly.getState().conversation.send('Hello')
+  // @ts-expect-error no abort endpoint
+  messagesOnly.getState().conversation.abort()
   // @ts-expect-error no history endpoint
   messagesOnly.getState().conversation.loadOlder()
-  const full = createFamiliarStore('/api')
+  const full = createFamiliarStore<HttpApi>('/api')
   full.getState().mcp.reconnect('notes')
+  // @ts-expect-error the host's API type is required
+  createFamiliarStore('/api')
   // @ts-expect-error distinct APIs cannot be substituted
-  const incompatible: FamiliarStore = store
+  const incompatible: FamiliarStore<HttpApi> = store
   return { store, full, incompatible }
 }
 
@@ -80,8 +100,9 @@ export const checkBindings = () => {
   useFamiliar((state) => state.mcp)
   // @ts-expect-error selector return type stays precise
   const count: number = useFamiliar((state) => state.connection)
+  const fullStore = createFamiliarStore<HttpApi>('/api')
   // @ts-expect-error provider rejects another host's store, even with extra commands
-  createElement(FamiliarProvider, { store: createFamiliarStore('/api') })
+  createElement(FamiliarProvider, { store: fullStore })
   return createElement(
     'span',
     null,
@@ -92,6 +113,8 @@ export const checkBindings = () => {
 }
 
 export const checkBindingValidation = () => {
+  // @ts-expect-error the host's API type is required
+  createFamiliarBindings()
   // @ts-expect-error arbitrary API type is rejected by bindings too
   createFamiliarBindings<string>()
   // @ts-expect-error erased API type is rejected by bindings too

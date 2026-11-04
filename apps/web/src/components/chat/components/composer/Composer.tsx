@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { ArrowUpIcon, SquareIcon } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import {

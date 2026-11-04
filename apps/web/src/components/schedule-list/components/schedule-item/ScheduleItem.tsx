@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { AlarmClockIcon, PauseIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'

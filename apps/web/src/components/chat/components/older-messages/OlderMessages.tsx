@@ -2,7 +2,7 @@ import { LoaderCircleIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { cn } from '@/lib/utils'
 import type { OlderMessagesProps } from './types'
 

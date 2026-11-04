@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import type { CSSProperties } from 'react'
 import { AppError } from '@/components/app-error'
 import { AppLoader } from '@/components/app-loader'

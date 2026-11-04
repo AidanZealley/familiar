@@ -8,7 +8,7 @@ import {
 } from '@familiar-ai/core/models/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { createToolSearchExtension } from '@familiar-ai/core/extensions'
-import { summonFamiliar } from '@familiar-ai/core'
+import { authorizeSingleOwner, summonFamiliar } from '@familiar-ai/core'
 import { connectMcp } from '@familiar-ai/core/mcp'
 import { serve } from '@hono/node-server'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
@@ -97,6 +97,7 @@ async function setup(
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     plugins: [
       {
         name: 'mcp-test',

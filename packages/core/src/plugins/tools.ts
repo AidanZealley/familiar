@@ -6,7 +6,7 @@ import {
   type ToolExecutionResult,
   type ToolRegistration,
 } from '@earendil-works/pi-durable'
-import { toolAuthor, type Author } from '../conversation/message.ts'
+import type { Invoker } from '../authorization.ts'
 
 export { Type } from '@earendil-works/pi-ai'
 export type { Static, TSchema } from '@earendil-works/pi-ai'
@@ -16,11 +16,15 @@ export type ToolContext = Context
 export type ToolResult<TDetails extends JsonValue = JsonValue> =
   ToolExecutionResult<TDetails>
 
-/** Invocation data resolved from the durable message, never from tool arguments. */
+/** Pi's tool API, plus who the call runs for. */
 export type FamiliarToolApi<TDetails extends JsonValue = JsonValue> =
   ToolExecutionApi<TDetails> & {
-    /** The initiating person, or the creator of a scheduled run; absent for other work. */
-    readonly author: Author | undefined
+    /**
+     * Who this call runs for, resolved from the stored input that started it,
+     * never from the tool's arguments. The host already allowed it to run; a
+     * tool that keeps per-record permissions checks them against this.
+     */
+    readonly invoker: Invoker
   }
 
 export type FamiliarTool<
@@ -34,25 +38,16 @@ export type FamiliarTool<
   ): Promise<ToolResult<TDetails>>
 }
 
-/** Pi owns execution; Familiar adds the identity associated with this call. */
+/**
+ * Types a tool whose `execute` reads `api.invoker`. Pi owns execution;
+ * Familiar's registry resolves the invoker and asks the host before every
+ * call, whichever way the tool is defined, so this adds nothing at runtime.
+ */
 export function defineTool<
   TParameters extends TSchema,
   TDetails extends JsonValue = JsonValue,
 >(
   tool: FamiliarTool<TParameters, TDetails>,
 ): ToolRegistration<TParameters, TDetails> {
-  return piDefineTool({
-    ...tool,
-    execute: async (args, api, context) => {
-      const author = await api.commit(
-        (tx) => toolAuthor(tx, api.taskId),
-        context,
-      )
-      // Inherit Pi's live getters rather than evaluating them into snapshots.
-      const invocation = Object.create(api, {
-        author: { value: author, enumerable: true },
-      }) as FamiliarToolApi<TDetails>
-      return tool.execute(args, invocation, context)
-    },
-  })
+  return piDefineTool(tool as ToolRegistration<TParameters, TDetails>)
 }

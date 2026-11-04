@@ -12,11 +12,12 @@ import {
 import { MemoryStorage, type EntryId } from '@earendil-works/pi-durable'
 import {
   createAccount,
+  authorizeSingleOwner,
   summonFamiliar,
   type Account,
   type Familiar,
 } from '@familiar-ai/core'
-import { createHttpApi } from '@familiar-ai/core/http'
+import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
 import { afterEach, expect, test, vi } from 'vitest'
 
 // The two ways a host composes Familiar, through the packages' public
@@ -39,17 +40,19 @@ async function host(account?: (models: Models) => Promise<Account>) {
     models,
     model,
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     account: await account?.(models),
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, {
+    routes: true,
     authenticate: () => ({ id: 'aidan', name: 'aidan' }),
   })
   return { faux, models, familiar, api }
 }
 
 /** The event stream's first `account` event, parsed. */
-async function firstAccountEvent(api: ReturnType<typeof createHttpApi>) {
+async function firstAccountEvent(api: HttpApi) {
   const response = await api.request('/events')
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
   const event = /^event: account\ndata: (.+)$/m

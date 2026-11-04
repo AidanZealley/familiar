@@ -108,8 +108,9 @@ try {
   await writeFile(
     resolve(consumer, 'react.js'),
     `
-import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
-if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value === 'function')) {
+import { createFamiliarBindings } from '@familiar-ai/client/react'
+const bindings = createFamiliarBindings()
+if (![bindings.FamiliarProvider, bindings.useFamiliar, bindings.useTranscript].every(value => typeof value === 'function')) {
   throw new Error('React bindings missing from the packed client')
 }
 `,
@@ -194,7 +195,7 @@ if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value 
     'portable',
     ['ES2023', 'DOM'],
     [],
-    `import { summonFamiliar, type Author } from '@familiar-ai/core'
+    `import { summonFamiliar, authorizeSingleOwner, type Author, type AuthorizeTool, type Invoker } from '@familiar-ai/core'
 import { createHttpApi, conversationRoutes, memoryRoutes, eventRoutes, type HttpApi } from '@familiar-ai/core/http'
 import { Hono } from 'hono'
 import { hc, type InferResponseType } from 'hono/client'
@@ -218,6 +219,32 @@ declare const historyPage: Page
 const more: boolean = historyPage.more
 // @ts-expect-error composed response remains typed
 const invalidMore: number = historyPage.more
+const owner = (who: Author) => who.id === 'owner'
+const participantApi = createHttpApi(hostFamiliar, {
+  authenticate: () => author,
+  routes: {
+    conversation: { send: true, history: true, abort: true },
+    account: { signIn: owner, cancelSignIn: owner },
+    events: { conversation: true, account: owner },
+  },
+})
+const participant = hc<typeof participantApi>('https://example.com')
+participant.messages.$post({ json: { text: 'Hello', requestId: 'three' } })
+participant.account['sign-in'].$post()
+participant.account['sign-in'].$delete()
+participant.events.$get()
+// @ts-expect-error unselected routes stay absent
+participant.mcp.$post()
+// @ts-expect-error unselected operations in a selected group stay absent
+participant.account['sign-out'].$post()
+createHttpApi(hostFamiliar, {
+  authenticate: () => author,
+  // @ts-expect-error operation names are checked
+  routes: { conversation: { sned: true } },
+})
+const policy: AuthorizeTool = ({ invoker }: { invoker: Invoker }) => invoker.kind === 'person'
+void policy
+void authorizeSingleOwner
 const standard = hc<HttpApi>('https://example.com')
 standard.messages.$post({ json: { text: 'Hello', requestId: 'two' } })
 // @ts-expect-error standard input remains typed
@@ -239,12 +266,16 @@ declare const ok: never
 
 // @ts-expect-error
 summonFamiliar(1)
+// @ts-expect-error hosts must choose a tool policy
+summonFamiliar({ storage: ok, models: ok, model: ok, timeZone: 'UTC' })
 // @ts-expect-error
 export const familiar: Awaited<ReturnType<typeof summonFamiliar>> = 1
 // @ts-expect-error
 createHttpApi(1, ok)
 // @ts-expect-error
 createHttpApi(ok, 1)
+// @ts-expect-error
+createHttpApi(ok, { authenticate: ok, routes: { events: { documents: true } } })
 // @ts-expect-error
 export const api: HttpApi = 1
 // @ts-expect-error
@@ -345,7 +376,9 @@ declare const transaction: ToolExecutionApi['commit']
 const precise = defineTool<typeof Parameters, { count: number }>({
   name: 'precise', description: 'Precise details', parameters: Parameters,
   execute: async (args, api, context) => {
-    const authorId: string | undefined = api.author?.id
+    const authorId: string | undefined = api.invoker.kind === 'person' ? api.invoker.author.id : undefined
+    // @ts-expect-error the author is on a person's invoker
+    api.author
     void authorId
     await api.details({ count: args.query.length }, context)
     // @ts-expect-error details type must survive packing
@@ -363,9 +396,10 @@ precise.execute({ query: 'value' })
     ['ES2023', 'DOM'],
     [],
     `import { createElement } from 'react'
-import type { FamiliarStore } from '@familiar-ai/client'
-import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
-declare const store: FamiliarStore
+import type { FamiliarStore, HttpApi } from '@familiar-ai/client'
+import { createFamiliarBindings } from '@familiar-ai/client/react'
+const { FamiliarProvider, useFamiliar, useTranscript } = createFamiliarBindings<HttpApi>()
+declare const store: FamiliarStore<HttpApi>
 const state = store.getState()
 state.conversation.send('Hello')
 state.conversation.setModel({ provider: 'test', modelId: 'test' })
@@ -394,7 +428,7 @@ state.conversation.setThinkingLevel('unsupported')
 store.getInitialState()
 store.subscribe(state => state.connection)
 // @ts-expect-error public stores do not expose arbitrary writes
-type UnsupportedSetter = FamiliarStore['setState']
+type UnsupportedSetter = FamiliarStore<HttpApi>['setState']
 createElement(FamiliarProvider, { store })
 // @ts-expect-error provider requires an explicit store
 createElement(FamiliarProvider, {})
@@ -517,7 +551,7 @@ new DurableFamiliar(ok, 1)
 import assert from 'node:assert/strict'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider, fauxAssistantMessage } from '@familiar-ai/core/models/faux'
-import { summonFamiliar, createAccount } from '@familiar-ai/core'
+import { summonFamiliar, createAccount, authorizeSingleOwner } from '@familiar-ai/core'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
 const coreUrl = import.meta.resolve('@familiar-ai/core')
@@ -541,8 +575,8 @@ const faux = fauxProvider({ models: [{ id: 'packed' }] })
 models.setProvider(faux.provider)
 faux.setResponses([fauxAssistantMessage('Packed host works')])
 const account = await createAccount({ models, provider: 'faux' })
-await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: createModels(), account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' }), /same Models/)
-const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: createModels(), account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC', authorizeTool: authorizeSingleOwner }), /same Models/)
+const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC', authorizeTool: authorizeSingleOwner })
 try {
   assert.equal(familiar.account, account.api)
   await familiar.send({ author: { id: 'Consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })

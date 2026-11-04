@@ -13,7 +13,7 @@ pnpm --filter @familiar-example/embedded-kanban build   # Static files in dist/
 ## How it fits together
 
 - `src/board/board.ts` owns the tasks. Its operations, `create`, `assign` and `move`, are the only way tasks change.
-- `src/assistant/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` assigns the person from `api.author`, which the host sets, never from the tool's arguments.
+- `src/assistant/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` assigns the person from `api.invoker`, which the host sets, never from the tool's arguments. `demo.ts` serves only the conversation's routes with `createHttpApi` and lets only a person's own message run tools.
 - The cards, the new-task form and drag and drop call the same operations, so a change made either way shows up in the other.
 - `src/assistant/demo.ts` opens a real Familiar over `MemoryStorage`, mounts only the conversation and event routes, and points a typed client store at them through an in-page `fetch`.
 

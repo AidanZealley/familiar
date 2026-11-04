@@ -6,7 +6,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useTranscript } from '@familiar-ai/client/react'
+import { useTranscript } from '@/lib/familiar'
 import { Composer } from './components/composer'
 import { OlderMessages } from './components/older-messages'
 import { SignIn } from './components/sign-in'

@@ -1,5 +1,9 @@
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { createAccount, summonFamiliar } from '@familiar-ai/core'
+import {
+  createAccount,
+  authorizeSingleOwner,
+  summonFamiliar,
+} from '@familiar-ai/core'
 import { config, dataPath, deviceId } from './config.ts'
 import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -30,6 +34,8 @@ export async function serve() {
     chatModels: config.chatModels,
     // The machine's zone, so the owner's calendar is the one their clock shows.
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // Only its owner can reach the daemon (serve.ts), so every call is theirs.
+    authorizeTool: authorizeSingleOwner,
     name: config.name,
     persona: webPersona(config.name),
     account,

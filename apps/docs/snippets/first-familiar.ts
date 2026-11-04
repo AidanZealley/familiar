@@ -1,5 +1,5 @@
 import { toTranscript } from '@familiar-ai/client'
-import { summonFamiliar } from '@familiar-ai/core'
+import { authorizeSingleOwner, summonFamiliar } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
@@ -18,6 +18,7 @@ const familiar = await summonFamiliar({
   models,
   model: { provider: 'faux', modelId: 'demo' },
   timeZone: 'Europe/London',
+  authorizeTool: authorizeSingleOwner,
 })
 
 try {

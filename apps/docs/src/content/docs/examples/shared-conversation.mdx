@@ -47,26 +47,25 @@ Everything runs in this page: the real core, in-memory storage, the HTTP and SSE
 
 ## The host decides who is speaking
 
-The host maps each session to an `Author`, and `conversationRoutes` takes the author from the request's session, never its body:
+The host maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It serves only sending, history, aborting and the conversation's events, so no participant reaches memory, schedules or admin routes:
 
 ```ts
 const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
-  new Hono<{ Variables: { author: Author } }>()
-    .use(async (c, next) => {
-      const token = c.req.header('authorization')?.replace(/^Bearer /, '')
-      const author = token && sessions.get(token)
-      if (!author) {
-        return c.json({ error: 'unauthorized' }, 401)
-      }
-      c.set('author', author)
-      await next()
-    })
-    .route(
-      '/',
-      conversationRoutes(familiar, (c) => c.get('author')),
-    )
-    .route('/', eventRoutes({ conversation: familiar.watch }))
+  createHttpApi(familiar, {
+    authenticate: (request) => {
+      const token = request.headers
+        .get('authorization')
+        ?.replace(/^Bearer /, '')
+      return token ? sessions.get(token) : undefined
+    },
+    routes: {
+      conversation: { send: true, history: true, abort: true },
+      events: { conversation: true },
+    },
+  })
 ```
+
+Everyone signed in shares the conversation: each person reads its whole history, and the model answers with all of it in mind, including anything it remembers. Give people who mustn't share information separate Familiars.
 
 Each person gets their own client store, which sends their session with every request and opens its own event stream. Every store mirrors the same conversation:
 
@@ -84,14 +83,15 @@ In a real app each person's browser signs in to your host and sends its own cook
 
 ## Tools act for the person who asked
 
-A tool never takes the person as an argument. It reads `api.author`, which Familiar resolves from the message that started the run. When Ben sends while Ana's run is going, Ana's tool still runs as Ana, and Ben's as Ben:
+A tool never takes the person as an argument. It reads `api.invoker`, which Familiar resolves from the message that started the run. When Ben sends while Ana's run is going, Ana's tool still runs as Ana, and Ben's as Ben:
 
 ```ts
 defineTool({
   name: 'count_me_in',
   description: 'Adds the person asking to the guest list.',
   parameters: Type.Object({}),
-  execute: async (_args, { author }) => {
+  execute: async (_args, { invoker }) => {
+    const author = invoker.kind === 'person' ? invoker.author : undefined
     if (!author) {
       return result('Nobody asked, so there is no one to add.', [], true)
     }
@@ -101,12 +101,19 @@ defineTool({
 })
 ```
 
+The host also decides whether each call may run at all. This one asks whether the person is still signed in, at the moment the tool runs, so signing out stops tools a message sent earlier would have run:
+
+```ts
+authorizeTool: ({ invoker }) =>
+  invoker.kind === 'person' && signedIn(invoker.author.id),
+```
+
 Each message keeps the name its author had when they sent it. A later rename on the host changes new messages, not old ones, and the `id` stays the same.
 
 ## What it doesn't show
 
 - Real sign-in, or people on other devices. The sessions are simulated in one page.
 - Long-term memory. Familiar's background memory work runs, but the script gives it a placeholder answer, and nothing outlasts the page.
-- Permissions. Familiar records who asked; your tools decide what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
+- Per-person permissions. Familiar records who asked and asks the host before each tool runs; the host decides what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
 
 To use a real model, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/). Model credentials stay on that server.

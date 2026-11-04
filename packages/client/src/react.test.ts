@@ -2,15 +2,19 @@
 import { act, createElement, StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { FamiliarProvider, useFamiliar, useTranscript } from './react.ts'
+import { createFamiliarBindings } from './react.ts'
 import { createFamiliarStore } from './store/index.ts'
 import type { FamiliarStore } from './store/types.ts'
 import { frame, testServer, view } from './testing.ts'
 import type { HostApi, PartialApi } from '../../../examples/typed-host/api.ts'
+import type { HttpApi } from '@familiar-ai/core/http'
+
+const { FamiliarProvider, useFamiliar, useTranscript } =
+  createFamiliarBindings<HttpApi>()
 
 let root: Root
 let container: HTMLDivElement
-const stores: FamiliarStore[] = []
+const stores: FamiliarStore<HttpApi>[] = []
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   container = document.createElement('div')
@@ -23,7 +27,7 @@ afterEach(async () => {
 })
 const open = () => {
   const server = testServer()
-  const store = createFamiliarStore('http://familiar.test/api', {
+  const store = createFamiliarStore<HttpApi>('http://familiar.test/api', {
     fetch: server.fetch,
   })
   stores.push(store)
@@ -99,7 +103,7 @@ test('nearest providers isolate stores and replacement moves the subscription wi
       null,
       useFamiliar((s) => s.connection),
     )
-  const render = (store: FamiliarStore) =>
+  const render = (store: FamiliarStore<HttpApi>) =>
     act(() =>
       root.render(
         createElement(

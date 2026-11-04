@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { configure, createRegistry, Harness } from '@earendil-works/pi-durable'
+import { configure, Harness } from '@earendil-works/pi-durable'
 import { harnessOptions } from '../context/index.ts'
 import { transcriptExchanges } from '../memory/exchanges.ts'
 import { newMessages } from '../memory/upkeep/transcript.ts'
@@ -10,8 +10,10 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { afterEach, expect, test, vi } from 'vitest'
-import { defineTool, Type, type Author } from '../index.ts'
+import { defineTool, Type, type Author, type Invoker } from '../index.ts'
+import { authorizingRegistry } from '../authorization.ts'
 import {
+  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type FamiliarPlugin,
@@ -37,6 +39,7 @@ async function setup(plugin?: FamiliarPlugin) {
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
+      authorizeTool: authorizeSingleOwner,
       plugins: plugin ? [plugin] : [],
     })
     opened.push(familiar)
@@ -49,6 +52,7 @@ const call = (name: string) =>
   fauxAssistantMessage(fauxToolCall(name, {}), { stopReason: 'toolUse' })
 
 const output = { output: [{ type: 'text' as const, text: 'Done' }] }
+const person = (author: Author): Invoker => ({ kind: 'person', author })
 
 test('same-name authors stay distinct and rename snapshots survive retries and reopen', async () => {
   const { faux, open } = await setup()
@@ -99,7 +103,7 @@ test('same-name authors stay distinct and rename snapshots survive retries and r
 })
 
 test('tools and nested calls retain their author across rounds while another author is queued', async () => {
-  const seen: (Author | undefined)[] = []
+  const seen: Invoker[] = []
   let release!: () => void
   const held = new Promise<void>((resolve) => {
     release = resolve
@@ -114,7 +118,7 @@ test('tools and nested calls retain their author across rounds while another aut
           description: 'Test nested calls',
           parameters: Type.Object({}),
           execute: async (_args, api, context) => {
-            seen.push(api.author)
+            seen.push(api.invoker)
             await held
             await api.executeTool('inner', {}, context)
             return output
@@ -125,7 +129,7 @@ test('tools and nested calls retain their author across rounds while another aut
           description: 'Report attribution',
           parameters: Type.Object({}),
           execute: async (_args, api) => {
-            seen.push(api.author)
+            seen.push(api.invoker)
             return output
           },
         }),
@@ -141,18 +145,18 @@ test('tools and nested calls retain their author across rounds while another aut
     fauxAssistantMessage('Second done'),
   ])
   await familiar.send({ author: first, text: 'First', requestId: 'first' })
-  await vi.waitFor(() => expect(seen).toEqual([first]))
+  await vi.waitFor(() => expect(seen).toEqual([person(first)]))
   await familiar.send({ author: second, text: 'Second', requestId: 'second' })
   const queued = await familiar.watch()
   await queued.stop()
   expect(JSON.stringify(queued.value.docs['pi.inbox'])).toContain('person-2')
   release()
   await familiar.idle()
-  expect(seen).toEqual([first, first, first, second])
+  expect(seen).toEqual([first, first, first, second].map(person))
 })
 
 test('a replay-safe interrupted tool resolves the same author after reopening', async () => {
-  const seen: (Author | undefined)[] = []
+  const seen: Invoker[] = []
   let interrupted = false
   const { faux, open } = await setup({
     name: 'identity',
@@ -165,7 +169,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
           parameters: Type.Object({}),
           replay: 'safe',
           execute: async (_args, api, context) => {
-            seen.push(api.author)
+            seen.push(api.invoker)
             if (!interrupted) {
               const signal = context.abortSignal!
               await new Promise<void>((_resolve, reject) => {
@@ -188,7 +192,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
   const familiar = await open()
   faux.setResponses([call('identify')])
   await familiar.send({ author: first, text: 'First', requestId: 'first' })
-  await vi.waitFor(() => expect(seen).toEqual([first]))
+  await vi.waitFor(() => expect(seen).toEqual([person(first)]))
   await familiar.send({ author: second, text: 'Second', requestId: 'second' })
   await familiar.dismiss()
   faux.setResponses([
@@ -198,7 +202,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
   ])
   const reopened = await open()
   await reopened.idle()
-  expect(seen).toEqual([first, first, second])
+  expect(seen).toEqual([first, first, second].map(person))
 })
 
 test('name-only history survives reopening, memory reads and tool execution without an inferred ID', async () => {
@@ -208,8 +212,8 @@ test('name-only history survives reopening, memory reads and tool execution with
   const models = createModels()
   models.setProvider(faux.provider)
   const model = { provider: 'faux', modelId: 'faux-1' }
-  const registry = createRegistry()
-  const seen: (Author | undefined)[] = []
+  const registry = authorizingRegistry(authorizeSingleOwner)
+  const seen: Invoker[] = []
   registry.install({
     name: 'identity',
     tools: [
@@ -218,7 +222,7 @@ test('name-only history survives reopening, memory reads and tool execution with
         description: 'Report attribution',
         parameters: Type.Object({}),
         execute: async (_args, api) => {
-          seen.push(api.author)
+          seen.push(api.invoker)
           return output
         },
       }),
@@ -249,7 +253,7 @@ test('name-only history survives reopening, memory reads and tool execution with
       context,
     )
     await conversation.waitForIdle(context)
-    expect(seen).toEqual([undefined])
+    expect(seen).toEqual([{ kind: 'unknown' }])
   } finally {
     await harness.close(context)
   }
@@ -258,6 +262,7 @@ test('name-only history survives reopening, memory reads and tool execution with
     models,
     model,
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   faux.setResponses([

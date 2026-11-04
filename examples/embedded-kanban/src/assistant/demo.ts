@@ -1,22 +1,26 @@
 import { summonFamiliar, type Author, type Familiar } from '@familiar-ai/core'
-import { conversationRoutes, eventRoutes } from '@familiar-ai/core/http'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore } from '@familiar-ai/client'
-import { Hono } from 'hono'
 import { createBoard, type Task } from '../board/board.ts'
 import { boardPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
 const PERSONA = `You are Familiar, the assistant inside a team's task board. Help the person see and change the board with your tools. Refer to tasks by ID and title. Answer in short plain text.`
 
-/** The routes this page serves: the conversation and its event stream. */
+/**
+ * The routes this page serves: sending, history and the conversation's event
+ * stream. No memory, schedules or admin routes. The page has one signed-in
+ * person, so every request is theirs.
+ */
 const createHostApi = (familiar: Familiar, author: Author) =>
-  new Hono()
-    .route(
-      '/',
-      conversationRoutes(familiar, () => author),
-    )
-    .route('/', eventRoutes({ conversation: familiar.watch }))
+  createHttpApi(familiar, {
+    authenticate: () => author,
+    routes: {
+      conversation: { send: true, history: true, abort: true },
+      events: { conversation: true },
+    },
+  })
 
 export type HostApi = ReturnType<typeof createHostApi>
 
@@ -42,6 +46,9 @@ export async function startDemo({
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // Tools change the host's board, so only a person's own request runs
+    // them: not a schedule's run, memory upkeep or an unattributed message.
+    authorizeTool: ({ invoker }) => invoker.kind === 'person',
     persona: PERSONA,
     plugins: [boardPlugin(board)],
     // The board tools never reach the network.

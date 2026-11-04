@@ -11,7 +11,9 @@ import type { Message } from '@familiar-ai/core/models'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import {
   memorySecrets,
+  authorizeSingleOwner,
   summonFamiliar,
+  type AuthorizeTool,
   type Familiar,
   type PluginFetch,
 } from '@familiar-ai/core'
@@ -103,13 +105,17 @@ export function mcpFixture(test: TestContext) {
   test.onTestFinished(async () => {
     await Promise.all([...opened].map((familiar) => familiar.dismiss()))
   })
-  const open = async (mcpFetch: PluginFetch = fetch) => {
+  const open = async (
+    mcpFetch: PluginFetch = fetch,
+    authorizeTool: AuthorizeTool = authorizeSingleOwner,
+  ) => {
     const familiar = await summonFamiliar({
       storage: await openNodeSqliteStorage(join(directory, 'test.sqlite')),
       secrets,
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
+      authorizeTool,
       mcpFetch,
     })
     opened.add(familiar)

@@ -1,11 +1,10 @@
-import { FamiliarProvider } from '@familiar-ai/client/react'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { AppError } from './components/app-error'
 import { AppLoader } from './components/app-loader'
-import { familiar } from './lib/familiar'
+import { FamiliarProvider, familiar } from './lib/familiar'
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({

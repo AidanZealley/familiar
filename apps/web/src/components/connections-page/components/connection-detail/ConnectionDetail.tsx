@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import type { ConnectionInfo } from '@familiar-ai/client'
 import { Link, useRouter } from '@tanstack/react-router'
 import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'

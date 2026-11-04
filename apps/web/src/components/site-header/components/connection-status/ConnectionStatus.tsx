@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { CatIcon, CircleAlertIcon } from 'lucide-react'
 import { Spinner } from '@/components/ui/spinner'
 

@@ -1,5 +1,5 @@
 import { Spinner } from '@/components/ui/spinner'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { BrowserSignIn } from './components/browser-sign-in'
 import { CancelSignIn } from './components/cancel-sign-in'
 import { DeviceCode } from './components/device-code'

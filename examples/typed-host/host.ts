@@ -3,6 +3,7 @@ import type { ExtractSchema } from 'hono/types'
 import { validator } from 'hono/validator'
 import {
   conversationRoutes,
+  createHttpApi,
   eventRoutes,
   memoryRoutes,
 } from '@familiar-ai/core/http'
@@ -21,6 +22,20 @@ export const createHostApi = (familiar: Familiar) =>
     .route('/', eventRoutes({ conversation: familiar.watch }))
 
 export type HostApi = ReturnType<typeof createHostApi>
+
+// What participants may use: the conversation and its stream, and memory
+// health for the host's own staff only.
+export const createParticipantApi = (familiar: Familiar) =>
+  createHttpApi(familiar, {
+    authenticate: () => ({ id: 'owner', name: 'Example owner' }),
+    routes: {
+      conversation: { send: true, history: true, abort: true },
+      memory: { health: (author) => author.id === 'owner' },
+      events: { conversation: true },
+    },
+  })
+
+export type ParticipantApi = ReturnType<typeof createParticipantApi>
 
 export const createPartialApi = (familiar: Familiar) =>
   new Hono()

@@ -86,15 +86,15 @@ export const boardPlugin = (board: Board) =>
           name: 'assign_task_to_me',
           description: 'Assigns a task to the person asking.',
           parameters: Type.Object({ taskId }),
-          execute: async ({ taskId }, api) =>
+          execute: async ({ taskId }, { invoker }) =>
             run(() => {
               // The host's authenticated author, never a tool argument.
-              if (!api.author) {
+              if (invoker.kind !== 'person') {
                 throw new BoardError(
                   'Nobody asked, so there is no one to assign.',
                 )
               }
-              const task = board.assign(taskId, api.author)
+              const task = board.assign(taskId, invoker.author)
               return { text: `Assigned ${describeTask(task)}.`, tasks: [task] }
             }),
         }),

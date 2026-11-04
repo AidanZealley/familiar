@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'

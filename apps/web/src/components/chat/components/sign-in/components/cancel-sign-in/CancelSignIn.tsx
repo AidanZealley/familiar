@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { Button } from '@/components/ui/button'
 
 /** Stops the sign-in, back to the button that starts one. */

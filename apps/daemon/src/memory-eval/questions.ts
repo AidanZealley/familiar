@@ -1,7 +1,11 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@familiar-ai/core/models'
 import type { ModelRef, Storage } from '@earendil-works/pi-durable'
-import { summonFamiliar, type Familiar } from '@familiar-ai/core'
+import {
+  authorizeSingleOwner,
+  summonFamiliar,
+  type Familiar,
+} from '@familiar-ai/core'
 import { nextUpkeep, saidBy } from '@familiar-ai/core/diagnostics'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { judgeAnswer, transcriptOf, type Verdict } from './judge.ts'
@@ -71,6 +75,7 @@ export async function askQuestions({
     model,
     contextBudget: 4_000,
     timeZone: EVAL_TIME_ZONE,
+    authorizeTool: authorizeSingleOwner,
   }
   const transcript = transcriptOf(scenario)
   const results = new Array<QuestionResult>(scenario.questions.length)

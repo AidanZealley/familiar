@@ -55,30 +55,42 @@ defineTool({
   name: 'assign_task_to_me',
   description: 'Assigns a task to the person asking.',
   parameters: Type.Object({ taskId }),
-  execute: async ({ taskId }, api) =>
+  execute: async ({ taskId }, { invoker }) =>
     run(() => {
       // The host's authenticated author, never a tool argument.
-      if (!api.author) {
+      if (invoker.kind !== 'person') {
         throw new BoardError('Nobody asked, so there is no one to assign.')
       }
-      const task = board.assign(taskId, api.author)
+      const task = board.assign(taskId, invoker.author)
       return { text: `Assigned ${describeTask(task)}.`, tasks: [task] }
     }),
 })
 ```
 
+## Only a person's own request changes the board
+
+The board tools change the host's data, so the host lets only a person's own message run tools. A schedule's run, memory upkeep and unattributed input are refused before any tool runs:
+
+```ts
+const familiar = await summonFamiliar({
+  // ...
+  authorizeTool: ({ invoker }) => invoker.kind === 'person',
+})
+```
+
 ## Only the routes it needs
 
-The host mounts the conversation routes and their event stream, nothing else. The client store is typed to them:
+The host serves sending, history, aborting and the conversation's event stream, with no memory, schedules or admin routes. The client store is typed to it:
 
 ```ts
 const createHostApi = (familiar: Familiar, author: Author) =>
-  new Hono()
-    .route(
-      '/',
-      conversationRoutes(familiar, () => author),
-    )
-    .route('/', eventRoutes({ conversation: familiar.watch }))
+  createHttpApi(familiar, {
+    authenticate: () => author,
+    routes: {
+      conversation: { send: true, history: true, abort: true },
+      events: { conversation: true },
+    },
+  })
 
 const store = createFamiliarStore<HostApi>(url, { fetch })
 ```

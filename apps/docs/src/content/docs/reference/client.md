@@ -7,9 +7,9 @@ Declarations live in [`packages/client/src`](https://github.com/AidanZealley/fam
 
 ## createFamiliarStore(url, options?)
 
-Returns a read-only Zustand store, `FamiliarStore`, and opens the event stream. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
+Returns a read-only Zustand store, `FamiliarStore<Api>`, and opens the event stream. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
 
-`createFamiliarStore<HostApi>(url)` narrows commands to the route groups in your host's Hono type. A type that isn't a supported Familiar API is a type error.
+The type argument is required: `createFamiliarStore<Api>(url)`, where `Api` is your host's Hono type, such as `typeof api` for an API from `createHttpApi`, or `HttpApi` for one that serves every route. Each command is present only when that type has its route. A missing or unsupported type is a type error.
 
 The store exposes `getState()`, `getInitialState()` and `subscribe(listener)`. It has no `setState`.
 
@@ -29,7 +29,7 @@ The store exposes `getState()`, `getInitialState()` and `subscribe(listener)`. I
 
 ## Commands
 
-Commands return promises that reject with the server's error. They aren't retried.
+Commands return promises that reject with the server's error. They aren't retried. Each one has the name of the [route operation](/familiar/reference/http/) it calls, except `loadOlder()`, which calls `history`.
 
 | Group          | Commands                                                                                                |
 | -------------- | ------------------------------------------------------------------------------------------------------- |
@@ -99,9 +99,10 @@ Times are milliseconds since the epoch. A message's `author` is a plain name str
 
 Import from `@familiar-ai/client/react`. Requires React 18 or 19.
 
-| Export                              | Meaning                                                              |
-| ----------------------------------- | -------------------------------------------------------------------- |
-| `FamiliarProvider`                  | `{ store, children }`. Doesn't open or close the store               |
-| `useFamiliar(selector)`             | Select from state. Compares with `Object.is`                         |
-| `useTranscript()`                   | Shorthand for `useFamiliar((state) => state.transcript)`             |
-| `createFamiliarBindings<HostApi>()` | A provider and hooks typed to your host. Create once at module scope |
+`createFamiliarBindings<Api>()` returns a provider and hooks typed to your host, for the same `Api` as its stores. Create them once at module scope. The type argument is required.
+
+| Binding                 | Meaning                                                  |
+| ----------------------- | -------------------------------------------------------- |
+| `FamiliarProvider`      | `{ store, children }`. Doesn't open or close the store   |
+| `useFamiliar(selector)` | Select from state. Compares with `Object.is`             |
+| `useTranscript()`       | Shorthand for `useFamiliar((state) => state.transcript)` |

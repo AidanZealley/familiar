@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { getRouteApi, useRouter } from '@tanstack/react-router'
 import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'

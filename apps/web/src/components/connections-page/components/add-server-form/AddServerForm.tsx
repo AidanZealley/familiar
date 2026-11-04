@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import type { McpServer } from '@familiar-ai/client'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'

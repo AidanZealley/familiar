@@ -9,6 +9,7 @@ import {
 import type { ToolResultMessage } from '@familiar-ai/core/models'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
+  authorizeSingleOwner,
   summonFamiliar,
   memorySecrets,
   type Familiar,
@@ -65,6 +66,7 @@ async function setup(factory: typeof stdioTransport | null = stdioTransport) {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     mcpStdio: factory
       ? (config) => {
           const child = factory(config)
@@ -83,6 +85,7 @@ test('owner-configured stdio tools run through Familiar with filtered environmen
   vi.stubEnv('NODE_OPTIONS', '--expose-internals')
   const { familiar, faux, children } = await setup()
   const api = createHttpApi(familiar, {
+    routes: true,
     authenticate: () => ({ id: 'owner', name: 'owner' }),
   })
   const added = await api.request('/mcp', {

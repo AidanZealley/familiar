@@ -1,7 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
 import {
-  createRegistry,
   Harness,
   type HarnessOptions,
   type ModelRef,
@@ -15,6 +14,7 @@ import {
   type Account,
   type AccountApi,
 } from './account/index.ts'
+import { authorizingRegistry, type AuthorizeTool } from './authorization.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './context/index.ts'
 import {
   conversationExtension,
@@ -43,6 +43,12 @@ import {
 import { checkTimeZone, createTime } from './time/index.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
+export {
+  authorizeSingleOwner,
+  type AuthorizeTool,
+  type Invoker,
+  type ToolInvocation,
+} from './authorization.ts'
 export {
   createAccount,
   type Account,
@@ -107,6 +113,18 @@ export type FamiliarOptions = {
    * affects future calendar calculations, not stored instants or dates.
    */
   timeZone: string
+  /**
+   * Whether a tool call may run, asked immediately before every execution:
+   * a person's, a schedule's, memory upkeep's, nested calls and reruns after
+   * a crash. `call.invoker` says who it runs for, resolved from the stored
+   * input that started it, so a permission the host revokes applies to work
+   * already queued or scheduled. False, or a throw, refuses the call before
+   * the tool runs. Familiar has no roles of its own: the host decides, for
+   * every invoker, including `system` and `unknown`. Pass
+   * `authorizeSingleOwner` only when everyone who can reach this Familiar is
+   * its owner.
+   */
+  authorizeTool: AuthorizeTool
   /**
    * The models the owner may switch the conversation between, each with the
    * level it starts on. Must include `model`. Default: only `model`, at
@@ -251,7 +269,8 @@ export async function summonFamiliar(
 
   try {
     // Extensions can be installed after opening: nothing runs until resume().
-    const registry = createRegistry()
+    // Every tool it installs asks the host before it runs.
+    const registry = authorizingRegistry(options.authorizeTool)
 
     const harness = await Harness.open(
       options.storage,
