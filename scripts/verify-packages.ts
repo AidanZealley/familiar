@@ -371,9 +371,7 @@ declare const transaction: ToolExecutionApi['commit']
 const precise = defineTool<typeof Parameters, { count: number }>({
   name: 'precise', description: 'Precise details', parameters: Parameters,
   execute: async (args, api, context) => {
-    const authorId: string | undefined = api.invoker.kind === 'person' ? api.invoker.author.id : undefined
-    // @ts-expect-error the author is on a person's invoker
-    api.author
+    const authorId: string | undefined = api.author?.id
     void authorId
     await api.details({ count: args.query.length }, context)
     // @ts-expect-error details type must survive packing

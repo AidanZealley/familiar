@@ -26,8 +26,8 @@ Import the helpers from `@familiar-ai/core` rather than installing your own copy
 
 Inside `execute`:
 
-- `api.invoker` is who the call runs for: `{ kind: 'person', author }` for the person whose message started it, `{ kind: 'schedule', author, scheduleId }` for a scheduled run and its creator, `{ kind: 'system' }` for memory upkeep, or `{ kind: 'unknown' }`. Familiar reads it from the stored input, never from the tool's arguments.
-- Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against `api.invoker`, or the app API's behind it.
+- `api.author` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author, and neither does a message an older version stored with only a name. Familiar reads it from the stored message, never from the tool's arguments.
+- Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against `api.author`, or the app API's behind it.
 - The third argument is the call's context. Pass its `abortSignal` to anything you can cancel.
 - `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.
 
@@ -51,7 +51,7 @@ The owner can add MCP servers at runtime through `familiar.mcp` or the `/mcp` ro
 
 ## Data that belongs to your host
 
-Keep your app's own records in your app. Familiar's storage holds the conversation, memory, schedules and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check `api.invoker` for permission there.
+Keep your app's own records in your app. Familiar's storage holds the conversation, memory, schedules and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check `api.author` for permission there.
 
 ## Advanced extensions
 

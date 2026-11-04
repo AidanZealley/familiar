@@ -14,7 +14,7 @@ pnpm --filter @familiar-example/shared-conversation build   # Static files in di
 
 - `src/demo/demo.ts` opens one Familiar over `MemoryStorage` and mounts the conversation and event routes behind a sign-in check. The host owns the sessions: each token maps to an `Author`, and that is the author of any message the request sends. Nothing in the request body can change it.
 - `signIn` gives each person a session token and their own client store, whose `fetch` sends that token with every request and opens its own event stream. Every client mirrors the same conversation, so the page shows one transcript, read through the first client. **Send as** picks whose suggestions and message box are in front; each person's are bound to their own client and keep their own draft, so a message always goes through the session of the person who sent it.
-- `src/demo/plugin.ts` has two tools, `who_am_i` and `count_me_in`. Neither takes a name. Both read `api.invoker`, which Familiar resolves from the message that started the run, so a message sent while someone else's run is going still runs as its own sender.
+- `src/demo/plugin.ts` has two tools, `who_am_i` and `count_me_in`. Neither takes a name. Both read `api.author`, which Familiar resolves from the message that started the run, so a message sent while someone else's run is going still runs as its own sender.
 - Each message keeps the author it was sent with. If a person's name changes on the host, their earlier messages keep the old name; the `id` stays the same.
 
 Reloading the page, or pressing **Reset**, closes every client, ends the sessions and starts a new Familiar.

@@ -46,7 +46,7 @@ type PluginSecret = {
 
 ## defineTool(tool)
 
-Takes a Pi tool registration and adds `api.invoker`.
+Takes a Pi tool registration and adds `api.author`.
 
 | Field                         | Meaning                                                                |
 | ----------------------------- | ---------------------------------------------------------------------- |
@@ -56,7 +56,7 @@ Takes a Pi tool registration and adds `api.invoker`.
 | `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'`  |
 | `structuredOutputSchema`      | Optional schema for output that other tools and code mode read         |
 
-`api` is Pi's `ToolExecutionApi` plus `invoker`: who the call runs for, as described under [Invoker](/familiar/reference/core/#invoker). Every tool on a Familiar is available to everyone who chats with it, so check rules about particular records or actions against `api.invoker` in the tool or the app API behind it. `context.abortSignal` is set when the call can be cancelled.
+`api` is Pi's `ToolExecutionApi` plus `author: Author | undefined`: the person the call runs for, as described under [Tool author](/familiar/reference/core/#tool-author). Every tool on a Familiar is available to everyone who chats with it, so check rules about particular records or actions against `api.author` in the tool or the app API behind it. `context.abortSignal` is set when the call can be cancelled.
 
 A `ToolResult` has optional `output` (content for the model), `details` (JSON for UIs), `structuredOutput`, `isError` and `diagnostics`.
 

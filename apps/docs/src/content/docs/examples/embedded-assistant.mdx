@@ -55,19 +55,19 @@ defineTool({
   name: 'assign_task_to_me',
   description: 'Assigns a task to the person asking.',
   parameters: Type.Object({ taskId }),
-  execute: async ({ taskId }, { invoker }) =>
+  execute: async ({ taskId }, api) =>
     run(() => {
       // The host's authenticated author, never a tool argument.
-      if (invoker.kind !== 'person') {
+      if (!api.author) {
         throw new BoardError('Nobody asked, so there is no one to assign.')
       }
-      const task = board.assign(taskId, invoker.author)
+      const task = board.assign(taskId, api.author)
       return { text: `Assigned ${describeTask(task)}.`, tasks: [task] }
     }),
 })
 ```
 
-Every board tool is available to everyone in the conversation. The board's operations decide what a change may do, and `assign_task_to_me` acts only for a person, never for a schedule's run or memory upkeep.
+Every board tool is available to everyone in the conversation. The board's operations decide what a change may do, and `assign_task_to_me` acts only for a person: the one who asked, or a schedule's creator, never memory upkeep.
 
 ## Only the routes it needs
 

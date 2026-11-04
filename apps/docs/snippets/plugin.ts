@@ -11,12 +11,9 @@ export const greeting = definePlugin({
         parameters: Type.Object({}),
         // Repeating this tool after a crash has no outside effect.
         replay: 'safe',
-        execute: async (_args, { invoker }) => ({
+        execute: async (_args, api) => ({
           output: [
-            {
-              type: 'text',
-              text: `Hello, ${invoker.kind === 'person' ? invoker.author.name : 'there'}.`,
-            },
+            { type: 'text', text: `Hello, ${api.author?.name ?? 'there'}.` },
           ],
         }),
       }),
