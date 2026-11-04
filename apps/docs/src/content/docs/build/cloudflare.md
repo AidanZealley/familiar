@@ -84,7 +84,7 @@ override fetch(request: Request) {
 }
 ```
 
-`author` is whoever your Worker authenticated. Choose the routes as in [Choose routes](/familiar/build/serve-the-api/#choose-routes); `routes: true` serves everything, only when the object's owner is the only person who reaches it. The repository's [development Worker](https://github.com/AidanZealley/familiar/tree/main/apps/cloudflare) routes `/bots/<name>/api/*` to one object per name, behind a bearer token.
+`author` is whoever your Worker authenticated. Choose the routes as in [Choose routes](/familiar/build/serve-the-api/#choose-routes); `routes: true` serves everything, only when the object's owner is the only person who reaches it. Each object is one Familiar over its own storage, so give each tenant its own object, chosen from the authenticated session as in [One Familiar per tenant](/familiar/build/serve-the-api/#one-familiar-per-tenant). The repository's [development Worker](https://github.com/AidanZealley/familiar/tree/main/apps/cloudflare) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
 
 ## What's been verified
 

@@ -90,6 +90,27 @@ describe('embedded kanban demo', () => {
     }
   })
 
+  it('serves only the routes the host chose', async () => {
+    const demo = await open()
+    try {
+      const history = await demo.api.request('/history?before=1')
+      expect(history.status).toBe(200)
+      // Not chosen, so not mounted, for everyone `authenticate` accepts.
+      for (const [method, path] of [
+        ['GET', '/memory/health'],
+        ['DELETE', '/schedules/any'],
+        ['POST', '/account/sign-in'],
+        ['POST', '/mcp'],
+        ['GET', '/connections'],
+      ]) {
+        const response = await demo.api.request(path, { method })
+        expect(response.status, `${method} ${path}`).toBe(404)
+      }
+    } finally {
+      await close(demo)
+    }
+  })
+
   it('reports a refused change from the tool result', async () => {
     const demo = await open()
     try {

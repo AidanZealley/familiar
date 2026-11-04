@@ -6,6 +6,8 @@ description: Put Familiar behind HTTP with your own authentication, and choose w
 import { Code } from '@astrojs/starlight/components'
 import serve from '../../../../snippets/serve.ts?raw'
 import compose from '../../../../snippets/compose-routes.ts?raw'
+import tenants from '../../../../snippets/tenants.ts?raw'
+import notify from '../../../../snippets/notify.ts?raw'
 
 `@familiar-ai/core/http` turns a Familiar into a [Hono](https://hono.dev) app: JSON commands plus one server-sent event stream at `/events`. Any runtime with the Fetch API can serve it.
 
@@ -34,9 +36,7 @@ Each one is `true`, for everyone `authenticate` accepts, or your own check, `(au
 
 `events` chooses what `/events` streams. Each source is checked once, when a stream connects: revoking someone's access applies from their next connection, not to a stream they already have open. A stream every chosen source refuses answers 403. Account routes don't stream the account: its sign-in page and code arrive only through `events.account`, so keep that source to the people who sign in. `events: true` streams every source.
 
-`routes: true` serves every route and every event source, including any that Familiar adds later, to everyone `authenticate` accepts. Use it only when everyone who can reach the API is the Familiar's owner. The daemon does, because only its owner can reach it. Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available.
-
-A `PushHost` stores subscriptions and decides what each person may change. Its `subscribe` and `unsubscribe` receive the subscription and the authenticated `Author`. Store each subscription with its subscriber's `id`, and let unsubscribing remove only that person's own: an endpoint is not proof of whose browser it is. The host also chooses who receives each notification, in `notify`. You don't need Familiar's push routes at all if your app already delivers notifications its own way. See [Notifications](/familiar/reference/core/#notifications).
+`routes: true` serves every route and every event source, including any that Familiar adds later, to everyone `authenticate` accepts. Use it only when everyone who can reach the API is the Familiar's owner. The daemon does, because only its owner can reach it. Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available. See [Notifications](#notifications).
 
 `authenticate` receives each request and returns the person making it as `{ id, name }`, or `undefined` to answer 401. The result becomes the author of any message that request sends. Request bodies can't choose their own author.
 
@@ -44,7 +44,7 @@ Request bodies are limited to `maxBodySize` bytes, by default `DEFAULT_MAX_BODY_
 
 ## A shared conversation is shared
 
-Everyone who can send to a Familiar is in one conversation. They all read its history, and the model reads all of it too, so anything said, any tool's result and anything the model recalls from memory can reach every participant in a reply. Leaving memory out of `events` keeps the memory document off the stream, but it doesn't make memory private: the model can repeat what it remembers. Familiar doesn't promise per-message secrecy. Give people who mustn't share information separate Familiars.
+Everyone who can send to a Familiar is in one conversation. They all read its history, and the model reads all of it too, so anything said, any tool's result and anything the model recalls from memory can reach every participant in a reply. Leaving memory out of `events` keeps the memory document off the stream, but it doesn't make memory private: the model can repeat what it remembers. Familiar doesn't promise per-message secrecy. Give people who mustn't share information [separate Familiars](#one-familiar-per-tenant).
 
 ## Identity is not permission
 
@@ -54,10 +54,12 @@ Familiar records who said what and shows the model each author. It doesn't decid
 - decide who may use each route, with `routes`
 - choose each Familiar's audience: who may send to it, and so share it
 - choose each Familiar's tools, with `plugins` and its MCP servers
+- choose who receives each notification, and store and authorize push subscriptions
+- decide which MCP transports, destinations and commands it allows
 
 Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.author`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep, and for a message an older version stored with only a name.
 
-Nested calls, and calls rerun after a crash, keep the author of the input that started them. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
+Nested calls, and calls rerun after a crash, keep the author of the input that started them, and a message queued while a call runs can't take its place. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 
 ```ts
 execute: async ({ taskId }, { author }) => {
@@ -72,15 +74,41 @@ execute: async ({ taskId }, { author }) => {
 }
 ```
 
-Schedules are shared controls, like the conversation: anyone who chats with a Familiar can see and cancel any of its schedules. Give people who mustn't share tools or schedules separate Familiars.
+`api.author` is for native tools made with `defineTool`. An MCP server's tools receive only their arguments, so an MCP server can't tell who asked.
 
-The installed daemon is the simplest case. It authenticates every request as its owner, with the stable ID `owner`, serves every route and relies on the network for access. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
+Schedules are shared controls, like the conversation: anyone who chats with a Familiar can see and cancel any of its schedules, so Alice can cancel Bob's reminder. That's the group's contract, not a missing check. A scheduled run's tools see the schedule's creator as `api.author`. Give people who mustn't share tools or schedules separate Familiars.
 
-Because the browser sends the network along with every request, the daemon also uses Hono's `csrf` middleware against cross-site requests. It refuses a browser's form or bodyless `POST` unless `Sec-Fetch-Site` is `same-origin` or `Origin` names the `Host` the request was sent to. That still accepts the daemon's own page through Tailscale Serve and through Vite's proxy. Requests with neither header, such as from the CLI or `curl`, aren't from a browser and pass. If your host authenticates browsers with cookies or other ambient credentials, add the same protection, because `createHttpApi` doesn't.
+Native tools are code you install, trusted like any other dependency. They run in your process with its privileges. Familiar doesn't sandbox them. The host's `fetch` and `authorizedFetch`'s declarations limit where a well-behaved tool sends requests and secrets, whatever the model asks for, not what the tool's own code can do.
+
+## One Familiar per tenant
+
+When your app has separate audiences, such as teams, households or customers, open one Familiar for each, over that audience's own storage. Choose it from the authenticated session, never from anything the request says. Each Familiar then has its own conversation, memory, tools, schedules and secrets:
+
+<Code code={tenants} lang="ts" title="tenants.ts" />
+
+Mount `host.fetch` under your API path, for example with Hono's `app.mount('/api', host.fetch)`. Only one live Familiar may own a storage, so a host that runs several processes routes each tenant to one of them, as a Durable Object does on [Cloudflare](/familiar/build/cloudflare/).
+
+## Notifications
+
+Familiar's `notify` says what to show and, for a scheduled run, which schedule it was and who created it. It never chooses recipients. This tenant's `notify` delivers through the app's own preferences and notifications, without Familiar's push routes:
+
+<Code code={notify} lang="ts" title="notify.ts" />
+
+The creator is attribution, not a recipient. Familiar's `/push` routes are optional, for hosts that want browser Web Push. A `PushHost` stores subscriptions and decides what each person may change. Its `subscribe` and `unsubscribe` receive the subscription and the authenticated `Author`. Store each subscription with its subscriber's `id`, and let unsubscribing remove only that person's own: an endpoint is not proof of whose browser it is. See [Notifications](/familiar/reference/core/#notifications) for the types.
+
+## What the daemon does for itself
+
+These protections are the installed daemon's own, for a host that only its owner reaches. `createHttpApi` doesn't apply them to your host, so choose your own.
+
+The daemon authenticates every request as its owner, with the stable ID `owner`, serves every route and relies on the network for access. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
+
+Because the browser sends the network along with every request, the daemon also uses Hono's `csrf` middleware against cross-site requests. It refuses a browser's form or bodyless `POST` unless `Sec-Fetch-Site` is `same-origin` or `Origin` names the `Host` the request was sent to. That still accepts the daemon's own page through Tailscale Serve and through Vite's proxy. A JSON `POST` from another site needs a CORS preflight, which the daemon never grants, so a browser doesn't send it. Requests with neither header, such as from the CLI or `curl`, aren't from a browser and pass. If your host authenticates browsers with cookies or other ambient credentials, add the same protection, because `createHttpApi` doesn't.
 
 The daemon's own web UI also refuses to be shown inside another site's page, with `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. Those headers are the daemon's, not `createHttpApi`'s: a host that embeds Familiar in its own pages, or in a frame, sets its own framing policy.
 
-The daemon's Web Push stores each subscription with the authenticated subscriber who added it, and subscribing or unsubscribing changes only that subscriber's entries. The daemon authenticates every request as `owner`, so all of its devices share one subscriber. A host that authenticates separate people receives each person's `Author` and must enforce the same scoping in its `PushHost` implementation. It also gives each delivery a 30-second socket inactivity timeout, web-push's `timeout`, so a push service that stops answering can't hold up a scheduled run. A failed delivery is reported and doesn't stop other devices getting theirs.
+The daemon's Web Push stores each subscription with the authenticated subscriber who added it, and subscribing or unsubscribing changes only that subscriber's entries. The daemon authenticates every request as `owner`, so all of its devices share one subscriber. A host that authenticates separate people receives each person's `Author` and must enforce the same scoping in its `PushHost` implementation. It also gives each delivery a 30-second socket inactivity timeout, web-push's `timeout`, so a push service that stops answering can't hold up a scheduled run. That limits silence, not a delivery's total time or the size of its response. A failed delivery is reported and doesn't stop other devices getting theirs.
+
+The daemon gives plugins a `fetch` that refuses every address that isn't public unicast, on each connection and every redirect. Its web UI renders replies with Streamdown, which sanitises their HTML, and draws Mermaid diagrams in strict mode. Those reduce what a reply can do in the page, but they aren't a verified guarantee against script injection. Anyone who can reach the daemon can add MCP servers, including local commands that run as the daemon's user.
 
 ## Compose routes yourself
 

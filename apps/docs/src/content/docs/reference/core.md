@@ -38,7 +38,7 @@ Opens a Familiar over its storage, resumes unfinished work and starts background
 | `account`         |          | From `createAccount` over the same `models` and `model.provider`                                       |
 | `plugins`         |          | `FamiliarPlugin[]`                                                                                     |
 | `secrets`         |          | `SecretStore`. Without it, every secret is missing                                                     |
-| `fetch`           |          | `PluginFetch` for plugins. Must refuse private destinations where the process can reach them           |
+| `fetch`           |          | `PluginFetch` for plugins, used as given. Refuse private destinations the process can reach            |
 | `mcpFetch`        |          | `PluginFetch` for owner-configured HTTP MCP servers                                                    |
 | `mcpStdio`        |          | `McpStdioFactory` for owner-configured local MCP commands                                              |
 | `contextBudget`   |          | Tokens per request before older conversation is compacted. Default 64,000                              |
@@ -53,21 +53,11 @@ Opens a Familiar over its storage, resumes unfinished work and starts background
 
 Familiar never chooses recipients. Your host decides who sees each notification, in which tenant, and how: through Web Push with `PushHost`, or its own notification preferences and delivery. The creator is attribution, not a recipient: schedules are shared controls, so whoever else chats with the Familiar may also want it, and the host may send it to none of them.
 
-```ts
-notify: async (notification, context) => {
-  // Your app's members and preferences, not Familiar's.
-  for (const member of await household.membersWantingNotifications()) {
-    await household.notify(member, {
-      ...notification,
-      requestedBy: context?.creator?.name,
-    })
-  }
-}
-```
+[Serve the API](/familiar/build/serve-the-api/#notifications) has a tenant's `notify` that delivers through the app's own preferences.
 
 ### Tool author
 
-Every tool on a Familiar is available to everyone who chats with it. Tools defined with `defineTool` read the person a call runs for as `api.author: Author | undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. Nested calls and calls rerun after a crash keep it. It's `undefined` for memory upkeep and for a message stored with only a name by an older version.
+Every tool on a Familiar is available to everyone who chats with it. Tools defined with `defineTool` read the person a call runs for as `api.author: Author | undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep, for any other input with no person behind it, and for a message stored with only a name by an older version. MCP tools don't receive it.
 
 Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against `api.author`. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
 

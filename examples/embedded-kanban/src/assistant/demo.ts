@@ -10,8 +10,12 @@ const PERSONA = `You are Familiar, the assistant inside a team's task board. Hel
 
 /**
  * The routes this page serves: sending, history and the conversation's event
- * stream. No memory, schedules or admin routes. The page has one signed-in
- * person, so every request is theirs.
+ * stream. Every other route, such as memory, schedules, sign-in or MCP,
+ * isn't mounted and answers 404.
+ *
+ * The demo has one fixed person and nobody signs in, so `authenticate`
+ * names them for every request. That is a demo identity, not
+ * authentication: a real host checks each request's session here.
  */
 const createHostApi = (familiar: Familiar, author: Author) =>
   createHttpApi(familiar, {
@@ -59,7 +63,7 @@ export async function startDemo({
   const store = createFamiliarStore<HostApi>('https://demo.invalid', {
     fetch: async (input, init) => api.fetch(new Request(input, init)),
   })
-  return { author, board, familiar, store }
+  return { author, board, familiar, api, store }
 }
 
 export type Demo = Awaited<ReturnType<typeof startDemo>>
