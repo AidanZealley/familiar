@@ -6,24 +6,26 @@ import {
   type ReactElement,
 } from 'react'
 import { useStore } from 'zustand'
-import type { HttpApi } from '@familiar-ai/core/http'
 import type { FamiliarStore, FamiliarState } from './store/types.ts'
 import type { HostState, SupportedHostApi } from './store/host-api.ts'
 
-export type FamiliarProviderProps<Api = HttpApi> = {
+export type FamiliarProviderProps<Api> = {
   /** Caller owns the store and its connection lifecycle. */
   store: FamiliarStore<Api>
   children?: ReactNode
 }
 
-export type FamiliarBindings<Api = HttpApi> = {
+export type FamiliarBindings<Api> = {
   FamiliarProvider: (props: FamiliarProviderProps<Api>) => ReactElement
   useFamiliar: <T>(selector: (state: HostState<Api>) => T) => T
   useTranscript: () => FamiliarState['transcript']
 }
 
-/** Create once at module scope. Each factory owns one explicit store context. */
-export function createFamiliarBindings<Api = HttpApi>(
+/**
+ * Create once at module scope, for the host API `Api` (required), the same
+ * type its stores use. Each factory owns one explicit store context.
+ */
+export function createFamiliarBindings<Api>(
   ..._supported: [SupportedHostApi<Api>] extends [never] ? [never] : []
 ): FamiliarBindings<Api> {
   void _supported
@@ -42,10 +44,3 @@ export function createFamiliarBindings<Api = HttpApi>(
   const useTranscript = () => useFamiliar((state) => state.transcript)
   return { FamiliarProvider, useFamiliar, useTranscript }
 }
-
-const defaults = createFamiliarBindings()
-export const FamiliarProvider: FamiliarBindings['FamiliarProvider'] =
-  defaults.FamiliarProvider
-export const useFamiliar: FamiliarBindings['useFamiliar'] = defaults.useFamiliar
-export const useTranscript: FamiliarBindings['useTranscript'] =
-  defaults.useTranscript

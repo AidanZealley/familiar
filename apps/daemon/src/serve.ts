@@ -70,7 +70,10 @@ export function browserRequestsSameOrigin(): MiddlewareHandler {
       : guard(c, next)
 }
 
-/** The daemon's routes: the API under `/api`, then the built web UI. */
+/**
+ * The daemon's routes: the whole API under `/api`, since everyone who can
+ * reach it is the owner, then the built web UI.
+ */
 export function daemonApp(
   familiar: Familiar,
   options: Pick<ServeOptions, 'owner' | 'webDir' | 'push'>,
@@ -78,6 +81,7 @@ export function daemonApp(
   const app = new Hono().use(browserRequestsSameOrigin()).route(
     '/api',
     createHttpApi(familiar, {
+      routes: true,
       authenticate: (request) =>
         isAllowedHost(request.headers.get('host'))
           ? { id: 'owner', name: options.owner }

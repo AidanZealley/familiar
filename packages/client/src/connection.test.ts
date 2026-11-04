@@ -3,6 +3,7 @@ import { streamSSE } from 'hono/streaming'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createFamiliarStore } from './store/index.ts'
 import type { FamiliarStore } from './store/types.ts'
+import type { HttpApi } from '@familiar-ai/core/http'
 import { entry, frame, testServer, tick, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.
@@ -10,7 +11,7 @@ beforeEach(() => {
   vi.stubGlobal('document', { baseURI: 'http://familiar.test/chat' })
 })
 
-const opened: FamiliarStore[] = []
+const opened: FamiliarStore<HttpApi>[] = []
 afterEach(() => {
   opened.splice(0).forEach((store) => store.getState().disconnect())
   vi.unstubAllGlobals()
@@ -18,9 +19,9 @@ afterEach(() => {
 })
 
 const open = (
-  ...[baseUrl, options]: Parameters<typeof createFamiliarStore>
+  ...[baseUrl, options]: Parameters<typeof createFamiliarStore<HttpApi>>
 ) => {
-  const store = createFamiliarStore(baseUrl, options)
+  const store = createFamiliarStore<HttpApi>(baseUrl, options)
   opened.push(store)
   return store
 }

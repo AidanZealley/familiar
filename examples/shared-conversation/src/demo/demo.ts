@@ -1,33 +1,30 @@
 import { summonFamiliar, type Author, type Familiar } from '@familiar-ai/core'
-import { conversationRoutes, eventRoutes } from '@familiar-ai/core/http'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore, type FamiliarStore } from '@familiar-ai/client'
-import { Hono } from 'hono'
 import { guestListPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
 const PERSONA = `You are Familiar, the assistant in a group's shared chat. Several people talk to you in one conversation. Answer in short plain text.`
 
 /**
- * The host's routes: the conversation and its event stream, behind the host's
- * own sign-in. Each request's session decides its author, never its body.
+ * The host's routes: sending, history and the conversation's event stream,
+ * behind the host's own sign-in. Each request's session decides its author,
+ * never its body. Everyone signed in shares the conversation and its history.
  */
 const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
-  new Hono<{ Variables: { author: Author } }>()
-    .use(async (c, next) => {
-      const token = c.req.header('authorization')?.replace(/^Bearer /, '')
-      const author = token && sessions.get(token)
-      if (!author) {
-        return c.json({ error: 'unauthorized' }, 401)
-      }
-      c.set('author', author)
-      await next()
-    })
-    .route(
-      '/',
-      conversationRoutes(familiar, (c) => c.get('author')),
-    )
-    .route('/', eventRoutes({ conversation: familiar.watch }))
+  createHttpApi(familiar, {
+    authenticate: (request) => {
+      const token = request.headers
+        .get('authorization')
+        ?.replace(/^Bearer /, '')
+      return token ? sessions.get(token) : undefined
+    },
+    routes: {
+      conversation: { send: true, history: true, abort: true },
+      events: { conversation: true },
+    },
+  })
 
 export type HostApi = ReturnType<typeof createHostApi>
 
@@ -41,11 +38,19 @@ export type HostApi = ReturnType<typeof createHostApi>
  * credentials never reach the browser.
  */
 export async function startDemo(people: Author[]) {
+  // The host's sign-ins: session token to the person it belongs to.
+  const sessions = new Map<string, Author>()
+  const signedIn = (id: string) =>
+    [...sessions.values()].some((author) => author.id === id)
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // Asked as each tool runs, so someone who has signed out can't run tools
+    // through a message they sent earlier.
+    authorizeTool: ({ invoker }) =>
+      invoker.kind === 'person' && signedIn(invoker.author.id),
     persona: PERSONA,
     plugins: [guestListPlugin()],
     // The guest list tools never reach the network.
@@ -53,8 +58,6 @@ export async function startDemo(people: Author[]) {
       throw new Error('This demo has no network access.')
     },
   })
-  // The host's sign-ins: session token to the person it belongs to.
-  const sessions = new Map<string, Author>()
   const api = createHostApi(familiar, sessions)
   const stores: FamiliarStore<HostApi>[] = []
 

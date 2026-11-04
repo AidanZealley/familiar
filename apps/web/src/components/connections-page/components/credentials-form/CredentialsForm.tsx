@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { Badge } from '@/components/ui/badge'

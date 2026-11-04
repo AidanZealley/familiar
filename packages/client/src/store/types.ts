@@ -1,5 +1,5 @@
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
-import type { HttpApi, AccountState, Documents } from '@familiar-ai/core/http'
+import type { AccountState, Documents } from '@familiar-ai/core/http'
 import type { StoreApi } from 'zustand/vanilla'
 import type { Commands } from '../commands.ts'
 import type { Transcript } from '../transcript.ts'
@@ -76,8 +76,11 @@ export type FamiliarState = {
 
 declare const hostApi: unique symbol
 
-/** Read-only store. The optional type witness keeps different host APIs distinct. */
-export type FamiliarStore<Api = HttpApi> = Pick<
+/**
+ * Read-only store for the host API `Api`, the type of the host's own Hono
+ * app. The optional type witness keeps different host APIs distinct.
+ */
+export type FamiliarStore<Api> = Pick<
   StoreApi<HostState<Api>>,
   'getState' | 'getInitialState' | 'subscribe'
 > & { readonly [hostApi]?: (api: Api) => Api }

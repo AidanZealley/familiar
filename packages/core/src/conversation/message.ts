@@ -5,7 +5,6 @@ import type {
   EntryQuery,
   EntryRecord,
   GenerationCheckpoint,
-  ToolTaskInput,
   TaskId,
   Tx,
 } from '@earendil-works/pi-durable'
@@ -242,45 +241,4 @@ export async function* entriesOf(tx: Tx, query: EntryQuery) {
     yield* page.items
     cursor = page.next
   } while (cursor)
-}
-
-/**
- * Resolve a tool's author through its persisted call ancestry. The assistant
- * entry bounds the search, so later queued or placed messages cannot steal it.
- * Nested tools follow their parent, and scheduled runs retain their creator.
- */
-export async function toolAuthor(
-  tx: Tx,
-  taskId: TaskId,
-): Promise<Author | undefined> {
-  const task = await tx.task(taskId)
-  if (!task || task.kind !== 'pi.tool') {
-    return undefined
-  }
-  const input = task.input as ToolTaskInput
-  if (input.kind === 'nested') {
-    return toolAuthor(tx, input.parent)
-  }
-  for await (const entry of entriesOf(tx, {
-    conversationId: task.conversationId,
-    maxEntryId: input.assistant,
-  })) {
-    if (entry.kind === MESSAGE_KIND) {
-      const { author } = entry.data as StoredMessageData
-      // A historical name cannot establish a person’s stable identity.
-      return typeof author === 'string' ? undefined : author
-    }
-    if (entry.kind === SCHEDULED_KIND) {
-      return (entry.data as ScheduledData).creator
-    }
-    // Other input, e.g. upkeep, has no person behind it. Compaction summaries
-    // are history markers, not inputs, and must not hide the original author.
-    if (
-      !entry.head &&
-      entry.model?.some((message) => message.role === 'user')
-    ) {
-      return undefined
-    }
-  }
-  return undefined
 }

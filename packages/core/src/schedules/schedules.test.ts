@@ -11,6 +11,7 @@ import type { InboxState, Wake } from '@earendil-works/pi-durable'
 import { afterEach, expect, test, vi } from 'vitest'
 import { SCHEDULED_KIND } from '../conversation/index.ts'
 import {
+  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type Notification,
@@ -19,7 +20,14 @@ import { ReopenableStorage, withHarness } from '../memory/testing.ts'
 import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
 import { parseMinute } from '../time/index.ts'
 import { latestOccurrence, nextOccurrence, repeatProblem } from './repeat.ts'
-import { defineTool, Type, type Author, type FamiliarPlugin } from '../index.ts'
+import {
+  defineTool,
+  Type,
+  type Author,
+  type AuthorizeTool,
+  type FamiliarPlugin,
+  type Invoker,
+} from '../index.ts'
 import {
   addSchedule,
   advance,
@@ -64,7 +72,11 @@ afterEach(async () => {
 })
 
 async function setup(
-  options: { onWake?: (wake: Wake) => void; plugins?: FamiliarPlugin[] } = {},
+  options: {
+    onWake?: (wake: Wake) => void
+    plugins?: FamiliarPlugin[]
+    authorizeTool?: AuthorizeTool
+  } = {},
 ) {
   const storage = new ReopenableStorage()
   const faux = fauxProvider()
@@ -101,6 +113,7 @@ async function setup(
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone,
+      authorizeTool: options.authorizeTool ?? authorizeSingleOwner,
       now: clock.now,
       setTimer: clock.setTimer,
       notify: async (notification) => {
@@ -566,7 +579,7 @@ test('reopened in another zone, a one-off keeps its time and a repeat follows th
 })
 
 test('a reopened schedule exposes its creator snapshot to tools without recipient routing', async () => {
-  const seen: (Author | undefined)[] = []
+  const seen: Invoker[] = []
   const f = await setup({
     plugins: [
       {
@@ -579,7 +592,7 @@ test('a reopened schedule exposes its creator snapshot to tools without recipien
               description: 'Report the creator',
               parameters: Type.Object({}),
               execute: async (_args, api) => {
-                seen.push(api.author)
+                seen.push(api.invoker)
                 return { output: [{ type: 'text', text: 'Identified' }] }
               },
             }),
@@ -604,8 +617,59 @@ test('a reopened schedule exposes its creator snapshot to tools without recipien
     'Time to call Mum',
   )
   await f.fireAt(at(21, 18), 'done')
-  expect(seen).toEqual([{ id: 'sam-1', name: 'Sam' }])
+  expect(seen).toEqual([
+    { kind: 'schedule', author: { id: 'sam-1', name: 'Sam' }, scheduleId: id },
+  ])
   expect(bodies(f.notifications)).toEqual(['Time to call Mum'])
+})
+
+test('revoking a creator before their schedule fires refuses its tools', async () => {
+  let revoked = false
+  const asked: Invoker[] = []
+  let ran = 0
+  const f = await setup({
+    authorizeTool: ({ invoker, tool }) => {
+      if (tool === 'act') {
+        asked.push(invoker)
+      }
+      return !(revoked && tool === 'act')
+    },
+    plugins: [
+      {
+        name: 'acts',
+        title: 'Acts',
+        extension: () => ({
+          tools: [
+            defineTool({
+              name: 'act',
+              description: 'Change something outside Familiar',
+              parameters: Type.Object({}),
+              execute: async () => {
+                ran++
+                return { output: [{ type: 'text', text: 'Acted' }] }
+              },
+            }),
+          ],
+        }),
+      },
+    ],
+  })
+  const id = await f.schedule({ at: '2026-10-21 18:00' })
+  revoked = true
+  f.answer(
+    () =>
+      fauxAssistantMessage(fauxToolCall('act', {}), { stopReason: 'toolUse' }),
+    'Could not act.',
+  )
+  await f.fireAt(at(21, 18), 'done')
+  expect(ran).toBe(0)
+  expect(asked).toEqual([
+    {
+      kind: 'schedule',
+      author: { id: 'aidan', name: 'aidan' },
+      scheduleId: id,
+    },
+  ])
 })
 
 test.each([
@@ -834,6 +898,7 @@ test.each([0, -1, 1.5, Infinity, Number.NaN])(
         models: createModels(),
         model: { provider: 'faux', modelId: 'faux-1' },
         timeZone: TEST_ZONE,
+        authorizeTool: authorizeSingleOwner,
         maxSchedules,
       }),
     ).rejects.toThrow('maxSchedules must be a positive whole number')

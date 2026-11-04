@@ -1,13 +1,10 @@
-import type { HttpApi, conversationRoutes } from '@familiar-ai/core/http'
+import type { HttpApi, HttpOperations } from '@familiar-ai/core/http'
 import type { ExtractSchema } from 'hono/types'
 import type { Commands } from '../commands.ts'
 import type { FamiliarState } from './types.ts'
 
 type SchemaOf<Api> = ExtractSchema<Api>
 type Standard = SchemaOf<HttpApi>
-type Paths<Prefix extends string> = Extract<keyof Standard, Prefix>
-type Group<Schema, Path extends keyof Standard, Value> =
-  Schema extends Pick<Standard, Path> ? Value : unknown
 
 // Responses may be narrower, but the host must accept every standard input.
 type Compatible<Actual, Expected> = Actual extends Expected
@@ -47,32 +44,37 @@ export type SupportedHostApi<Api> = 0 extends 1 & Api
           ? Api
           : never
 
-/** Checks whole standard route groups; partial groups expose no commands. */
+type Groups = keyof Commands & keyof HttpOperations
+
+/** Commands whose own route the host mounts, by the operation's name. */
+type Mounted<Api, Group extends Groups> = {
+  [Name in keyof Commands[Group]]: Name extends keyof HttpOperations[Group]
+    ? SchemaOf<Api> extends HttpOperations[Group][Name]
+      ? Name
+      : never
+    : never
+}[keyof Commands[Group]]
+type Available<Api, Group extends Groups> = Pick<
+  FamiliarState[Group],
+  Mounted<Api, Group>
+>
+/** A whole group of commands, only when the host mounts any of them. */
+type Present<Api, Group extends Groups> = [Mounted<Api, Group>] extends [never]
+  ? unknown
+  : { [Key in Group]: Available<Api, Group> }
+
+/** Each command is there only when the host mounts its route. */
 export type HostState<Api> = Omit<FamiliarState, keyof Commands> & {
-  account: Pick<FamiliarState['account'], 'state'> &
-    Group<SchemaOf<Api>, Paths<`/account/${string}`>, Commands['account']>
+  account: Pick<FamiliarState['account'], 'state'> & Available<Api, 'account'>
   conversation: Pick<FamiliarState['conversation'], 'view' | 'history'> &
-    Group<
-      SchemaOf<Api>,
-      keyof SchemaOf<ReturnType<typeof conversationRoutes>>,
-      Pick<FamiliarState['conversation'], 'send' | 'abort' | 'loadOlder'>
-    > &
-    Group<
-      SchemaOf<Api>,
-      Paths<'/model' | `/model/${string}`>,
-      Pick<
-        Commands['conversation'],
-        'modelOptions' | 'setModel' | 'setThinkingLevel'
-      >
-    >
+    Available<Api, 'conversation'> &
+    (SchemaOf<Api> extends HttpOperations['conversation']['history']
+      ? Pick<FamiliarState['conversation'], 'loadOlder'>
+      : unknown)
   memory: Pick<FamiliarState['memory'], 'facts' | 'episodes'> &
-    Group<SchemaOf<Api>, Paths<`/memory/${string}`>, Commands['memory']>
+    Available<Api, 'memory'>
   schedules: Pick<FamiliarState['schedules'], 'items'> &
-    Group<SchemaOf<Api>, Paths<`/schedules/${string}`>, Commands['schedules']>
-} & Group<SchemaOf<Api>, Paths<`/push/${string}`>, Pick<Commands, 'push'>> &
-  Group<
-    SchemaOf<Api>,
-    Paths<'/connections' | `/connections/${string}`>,
-    Pick<Commands, 'connections'>
-  > &
-  Group<SchemaOf<Api>, Paths<'/mcp' | `/mcp/${string}`>, Pick<Commands, 'mcp'>>
+    Available<Api, 'schedules'>
+} & Present<Api, 'push'> &
+  Present<Api, 'connections'> &
+  Present<Api, 'mcp'>

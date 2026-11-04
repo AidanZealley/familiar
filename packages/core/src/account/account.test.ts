@@ -11,7 +11,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { Harness, MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { summonFamiliar } from '../familiar.ts'
+import { authorizeSingleOwner, summonFamiliar } from '../familiar.ts'
 import { createAccount, type Account, type AccountState } from './index.ts'
 
 const credential = { type: 'oauth' } as unknown as Credential
@@ -303,6 +303,7 @@ test('a Familiar refuses an account for other Models or another provider', async
       models,
       model,
       timeZone: 'UTC',
+      authorizeTool: authorizeSingleOwner,
       account,
     })
 
@@ -321,6 +322,7 @@ test('an account has one Familiar owner and cannot attach after dismissal', asyn
       models,
       model,
       timeZone: 'UTC',
+      authorizeTool: authorizeSingleOwner,
       account,
     })
   const familiar = await open()
@@ -340,13 +342,21 @@ test('failed startup leaves the account available for retry', async () => {
     new Error('storage unavailable'),
   )
   await expect(
-    summonFamiliar({ storage, models, model, timeZone: 'UTC', account }),
+    summonFamiliar({
+      storage,
+      models,
+      model,
+      timeZone: 'UTC',
+      authorizeTool: authorizeSingleOwner,
+      account,
+    }),
   ).rejects.toThrow('storage unavailable')
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models,
     model,
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     account,
   })
   await familiar.dismiss()
@@ -360,6 +370,7 @@ test('a reply failing on a login that stopped working marks it expired, and a wo
     models,
     model,
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     account,
   })
   const say = async (text: string) => {

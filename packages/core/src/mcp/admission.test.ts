@@ -6,6 +6,7 @@ import { afterEach, expect, test } from 'vitest'
 import {
   McpConfigError,
   memorySecrets,
+  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type McpConnectionInfo,
@@ -49,6 +50,7 @@ function setup() {
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
+      authorizeTool: authorizeSingleOwner,
       ...(host.http && { mcpFetch }),
       ...(host.stdio && { mcpStdio }),
     })
@@ -89,6 +91,7 @@ test.each([
       McpConfigError,
     )
     const api = createHttpApi(familiar, {
+      routes: true,
       authenticate: () => ({ id: 'owner', name: 'Owner' }),
     })
     const response = await api.request('/mcp', {

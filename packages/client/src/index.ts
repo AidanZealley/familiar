@@ -12,6 +12,7 @@ export * from './transcript.ts'
 export type {
   Author,
   AccountState,
+  HttpApi,
   ConnectionInfo,
   Episode,
   EpisodesState,

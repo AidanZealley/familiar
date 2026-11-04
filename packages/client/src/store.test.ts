@@ -2,6 +2,7 @@ import type { McpServer } from '@familiar-ai/core/http'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createFamiliarStore } from './store/index.ts'
 import type { FamiliarStore } from './store/types.ts'
+import type { HttpApi } from '@familiar-ai/core/http'
 import { entry, frame, testServer, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.
@@ -9,16 +10,16 @@ beforeEach(() => {
   vi.stubGlobal('document', { baseURI: 'http://familiar.test/chat' })
 })
 
-const opened: FamiliarStore[] = []
+const opened: FamiliarStore<HttpApi>[] = []
 afterEach(() => {
   opened.splice(0).forEach((store) => store.getState().disconnect())
   vi.unstubAllGlobals()
 })
 
 const open = (
-  ...[baseUrl, options]: Parameters<typeof createFamiliarStore>
+  ...[baseUrl, options]: Parameters<typeof createFamiliarStore<HttpApi>>
 ) => {
-  const store = createFamiliarStore(baseUrl, options)
+  const store = createFamiliarStore<HttpApi>(baseUrl, options)
   opened.push(store)
   return store
 }
@@ -166,7 +167,7 @@ const conversation = (...ids: number[]) => ({
   entries: ids.map(message),
 })
 
-const itemIds = (store: FamiliarStore) =>
+const itemIds = (store: FamiliarStore<HttpApi>) =>
   store.getState().transcript?.items.map((item) => item.id)
 
 test('transcript arrives atomically with views and operations and retains streamed activity', async () => {

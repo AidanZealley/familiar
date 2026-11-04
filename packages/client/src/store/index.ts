@@ -17,16 +17,14 @@ import { receiveDocument, applyDocumentOps } from './documents.ts'
  * A command that fails rejects with the server's reason and is never sent
  * again. Only the stream retries, and only by reconnecting.
  *
+ * @typeParam Api The host's API type, such as `typeof api` imported with
+ *   `import type`, which decides the commands the store offers. Required.
  * @param baseUrl Where the HTTP API is mounted: `/api`, or a full URL.
  */
 export function createFamiliarStore<Api>(
   baseUrl: string & ([SupportedHostApi<Api>] extends [never] ? never : unknown),
   options?: FamiliarStoreOptions,
 ): FamiliarStore<Api>
-export function createFamiliarStore(
-  baseUrl: string,
-  options?: FamiliarStoreOptions,
-): FamiliarStore
 export function createFamiliarStore(
   baseUrl: string,
   options: FamiliarStoreOptions = {},

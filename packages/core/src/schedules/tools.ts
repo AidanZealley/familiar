@@ -1,5 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
+import type { Invoker } from '../authorization.ts'
 import { defineTool } from '../plugins/tools.ts'
 import { weekdayMinute } from '../time/index.ts'
 import {
@@ -14,6 +15,15 @@ import type { ScheduleTask } from './task.ts'
 const text = (value: string) => ({
   output: [{ type: 'text' as const, text: value }],
 })
+
+/**
+ * Who a new schedule's runs are for: the person asking, or the creator of the
+ * schedule whose run asked; nobody for other work.
+ */
+const creatorOf = (invoker: Invoker) =>
+  invoker.kind === 'person' || invoker.kind === 'schedule'
+    ? invoker.author
+    : undefined
 
 /** A schedule as the model reads it: what, and when, in Familiar's time zone. */
 function describe(schedule: Schedule, timeZone: string) {
@@ -66,7 +76,7 @@ export function scheduleTools(
         }
         const added = addSchedule(
           schedules,
-          { id, ...args, creator: api.author },
+          { id, ...args, creator: creatorOf(api.invoker) },
           api.now(),
           timeZone,
           maxSchedules,

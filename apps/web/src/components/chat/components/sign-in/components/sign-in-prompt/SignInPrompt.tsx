@@ -1,4 +1,4 @@
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliar } from '@/lib/familiar'
 import { KeyRoundIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { SignInPromptProps } from './types'

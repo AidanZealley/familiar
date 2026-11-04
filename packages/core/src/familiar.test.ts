@@ -11,6 +11,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { compactionFor } from './context/index.ts'
 import { MESSAGE_KIND, type MessageData } from './conversation/index.ts'
 import {
+  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type FamiliarOptions,
@@ -33,6 +34,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: TEST_ZONE,
+    authorizeTool: authorizeSingleOwner,
     ...options,
   })
   opened.push(familiar)

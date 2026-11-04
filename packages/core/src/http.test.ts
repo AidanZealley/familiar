@@ -7,12 +7,18 @@ import { MemoryStorage, type DocumentWatch } from '@earendil-works/pi-durable'
 import { Hono } from 'hono'
 import { testClient } from 'hono/testing'
 import { afterEach, expect, test, vi } from 'vitest'
-import { MESSAGE_LIMITS, summonFamiliar, type Familiar } from './familiar.ts'
+import {
+  MESSAGE_LIMITS,
+  authorizeSingleOwner,
+  summonFamiliar,
+  type Familiar,
+} from './familiar.ts'
 import {
   conversationRoutes,
   eventRoutes,
   createHttpApi,
   DEFAULT_MAX_BODY_SIZE,
+  type HttpApi,
   type FactsState,
   type EpisodesState,
 } from './http.ts'
@@ -32,10 +38,12 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
 
   const api = createHttpApi(familiar, {
+    routes: true,
     authenticate: () => ({ id: 'aidan', name: 'aidan' }),
   })
   const call = (method: string, path: string, body?: unknown) =>
@@ -93,9 +101,11 @@ test('the event stream sends the view and every document whole first', async () 
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, {
+    routes: true,
     authenticate: () => ({ id: 'aidan', name: 'aidan' }),
   })
 
@@ -136,11 +146,13 @@ test('messages and history validate what clients send', async () => {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   faux.setResponses([fauxAssistantMessage('Hello.')])
   const client = testClient(
     createHttpApi(familiar, {
+      routes: true,
       authenticate: () => ({ id: 'aidan', name: 'aidan' }),
     }),
   )
@@ -242,6 +254,7 @@ test('restricted events open only selected watches and clean up on cancel and re
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   const omitted = [
@@ -417,11 +430,12 @@ test('request bodies are bounded before routes read them, and fields by Familiar
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   const send = vi.spyOn(familiar, 'send')
   const post = (
-    api: ReturnType<typeof createHttpApi>,
+    api: HttpApi,
     body: BodyInit,
     headers: Record<string, string> = {},
   ) =>
@@ -432,7 +446,7 @@ test('request bodies are bounded before routes read them, and fields by Familiar
       duplex: 'half',
     } as RequestInit)
   const authenticate = () => ({ id: 'aidan', name: 'aidan' })
-  const api = createHttpApi(familiar, { authenticate })
+  const api = createHttpApi(familiar, { authenticate, routes: true })
 
   const huge = JSON.stringify({
     text: 'x'.repeat(DEFAULT_MAX_BODY_SIZE),
@@ -461,7 +475,11 @@ test('request bodies are bounded before routes read them, and fields by Familiar
   await expect(send.mock.results[0].value).rejects.toThrow()
 
   // Hosts can choose their own limit.
-  const small = createHttpApi(familiar, { authenticate, maxBodySize: 16 })
+  const small = createHttpApi(familiar, {
+    authenticate,
+    routes: true,
+    maxBodySize: 16,
+  })
   expect(
     (await post(small, JSON.stringify({ text: 'Hello there', requestId: 'a' })))
       .status,

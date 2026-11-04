@@ -11,6 +11,7 @@ import {
   definePlugin,
   defineTool,
   Type,
+  authorizeSingleOwner,
   summonFamiliar,
   type ToolContext,
 } from '@familiar-ai/core'
@@ -25,7 +26,7 @@ import {
   ToolTask,
   GenerationTask,
 } from '@familiar-ai/core/extensions'
-import { createHttpApi } from '@familiar-ai/core/http'
+import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
 import { createFamiliarStore } from '../../../packages/client/src/store/index.ts'
 import { toTranscript } from '../../../packages/client/src/transcript.ts'
 
@@ -75,6 +76,7 @@ test('plugin results and last reported details survive reopen and reach the tran
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     plugins: [plugin],
   }
   let familiar = await summonFamiliar(options)
@@ -110,9 +112,10 @@ test('plugin results and last reported details survive reopen and reach the tran
     await watch.stop()
     // JSON roundtrip mirrors persisted results sent through the HTTP view.
     const api = createHttpApi(familiar, {
+      routes: true,
       authenticate: () => ({ id: 'test', name: 'test' }),
     })
-    const client = createFamiliarStore('http://familiar.test', {
+    const client = createFamiliarStore<HttpApi>('http://familiar.test', {
       fetch: async (input, init) => api.fetch(new Request(input, init)),
     })
     try {
@@ -158,6 +161,7 @@ test('tool execution retains cancellation', async () => {
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     plugins: [
       definePlugin({
         name: 'test',
@@ -285,6 +289,7 @@ test('Familiar imports retain sections, hooks, wrappers, tasks and transactional
     models,
     model: { provider: 'faux', modelId: 'test' },
     timeZone: 'UTC',
+    authorizeTool: authorizeSingleOwner,
     plugins: [
       definePlugin({
         name: 'full',
