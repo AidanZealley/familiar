@@ -11,11 +11,7 @@ import type {
   LiveState,
   TaskId,
 } from '@earendil-works/pi-durable'
-import type {
-  Author,
-  StoredMessageData,
-  ScheduledData,
-} from '@familiar-ai/core/http'
+import type { Author, MessageData, ScheduledData } from '@familiar-ai/core/http'
 
 import { MESSAGE_KIND, SCHEDULED_KIND } from './conversation/message.ts'
 
@@ -34,8 +30,7 @@ export type TranscriptItem =
   | {
       type: 'message'
       id: string
-      /** Old messages retain their name-only author, without an inferred ID. */
-      author: StoredMessageData['author']
+      author: MessageData['author']
       text: string
       /** When it was sent, in ms since the epoch; absent while queued. */
       at?: number
@@ -151,7 +146,7 @@ export function toTranscript(
     }
     const id = `queued:${item.id}`
     if (item.entry?.kind === MESSAGE_KIND) {
-      const data = item.entry.data as StoredMessageData
+      const data = item.entry.data as MessageData
       items.push({ type: 'message', id, ...data, queued: true })
     } else if (item.entry?.kind === SCHEDULED_KIND) {
       items.push(scheduled(id, item.entry.data as ScheduledData, true))
@@ -168,7 +163,7 @@ function toItem(
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
-      const data = entry.data as StoredMessageData
+      const data = entry.data as MessageData
       const message = entry.model?.[0] as UserMessage | undefined
       return {
         type: 'message',

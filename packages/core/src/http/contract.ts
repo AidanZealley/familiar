@@ -13,7 +13,6 @@ export type {
   Author,
   MESSAGE_KIND,
   MessageData,
-  StoredMessageData,
   ModelOption,
   SCHEDULED_KIND,
   ScheduledData,

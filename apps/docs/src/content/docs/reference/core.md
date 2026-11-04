@@ -57,7 +57,7 @@ Familiar never chooses recipients. Your host decides who sees each notification,
 
 ### Tool author
 
-Every tool on a Familiar is available to everyone who chats with it. Tools defined with `defineTool` read the person a call runs for as `api.author: Author | undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep, for any other input with no person behind it, and for a message stored with only a name by an older version. MCP tools don't receive it.
+Every tool on a Familiar is available to everyone who chats with it. Tools defined with `defineTool` read the person a call runs for as `api.author: Author | undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep and any other input with no person behind it. MCP tools don't receive it.
 
 Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against `api.author`. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
 

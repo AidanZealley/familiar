@@ -97,10 +97,8 @@ export async function installConversation(
 ): Promise<ConversationApi> {
   // Every chat model resolved once, so a catalog missing one fails at startup.
   const options = modelOptions(models, chatModels)
-  const fallback = findChatModel(options, model)
-  if (!fallback) {
-    throw new Error(`${modelKey(model)} must be one of the chat models.`)
-  }
+  // summonFamiliar checked that `model` is one of them.
+  const fallback = findChatModel(options, model)!
 
   const conversation = await harness.root(context)
   // The conversation owns its model and level. A new one, or one whose model

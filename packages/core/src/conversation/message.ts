@@ -23,9 +23,6 @@ export type Author = {
 /** A person's message as stored, without parsing the model's copy. */
 export type MessageData = { author: Author; text: string }
 
-/** Historical entries may have only a name. New sends still require an Author. */
-export type StoredMessageData = { author: Author | string; text: string }
-
 /**
  * Bounds on what a message may carry, enforced by `admitMessage` for every
  * caller, HTTP or not. Text is in UTF-16 code units, as JavaScript counts.
@@ -104,7 +101,7 @@ export function admitMessage(message: {
 }
 
 /** JSON stays on one line even when a host supplies control characters. */
-export const formatAuthor = (author: StoredMessageData['author']) =>
+export const formatAuthor = (author: Author) =>
   JSON.stringify(author).replace(
     /[\u007f-\u009f\u2028\u2029]/g,
     (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
@@ -152,7 +149,7 @@ export async function answeredMessage(tx: Tx, taskId: TaskId) {
 
     if (entry.model?.some((message) => message.role === 'user')) {
       return entry.kind === MESSAGE_KIND
-        ? (entry.data as StoredMessageData)
+        ? (entry.data as MessageData)
         : undefined
     }
   }
@@ -186,7 +183,7 @@ export const textOf = (message: Message) => {
 export type Said =
   | {
       role: 'person'
-      author: StoredMessageData['author']
+      author: Author
       text: string
       at: number
     }
@@ -203,7 +200,7 @@ export function saidBy(entry: EntryRecord): Said | undefined {
   }
 
   if (entry.kind === MESSAGE_KIND) {
-    const data = entry.data as StoredMessageData
+    const data = entry.data as MessageData
     return {
       role: 'person',
       author: data.author,

@@ -5,7 +5,7 @@ import {
   SCHEDULED_KIND,
   type Author,
   type ScheduledData,
-  type StoredMessageData,
+  type MessageData,
 } from '../conversation/message.ts'
 
 /**
@@ -32,9 +32,7 @@ export async function toolAuthor(
     maxEntryId: input.assistant,
   })) {
     if (entry.kind === MESSAGE_KIND) {
-      const { author } = entry.data as StoredMessageData
-      // A historical name cannot establish a person's stable identity.
-      return typeof author === 'string' ? undefined : author
+      return (entry.data as MessageData).author
     }
     if (entry.kind === SCHEDULED_KIND) {
       return (entry.data as ScheduledData).creator

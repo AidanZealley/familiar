@@ -23,9 +23,7 @@ const colourOf = (key: string) => {
 
 export const PersonAvatar = ({ author }: PersonAvatarProps) => (
   <Avatar size="sm" aria-hidden>
-    <AvatarFallback
-      className={colourOf('id' in author ? author.id : author.name)}
-    >
+    <AvatarFallback className={colourOf(author.id)}>
       {author.name[0]}
     </AvatarFallback>
   </Avatar>
