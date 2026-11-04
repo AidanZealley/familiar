@@ -22,7 +22,6 @@
     "@astrojs/check": "0.9.12",
     "@familiar-ai/client": "workspace:*",
     "@familiar-ai/core": "workspace:*",
-    "@familiar-ai/plugin-web": "workspace:*",
     "@types/react": "^19",
     "hono": "catalog:",
     "react": "^19.3.1",

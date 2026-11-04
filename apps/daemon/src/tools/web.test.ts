@@ -12,7 +12,7 @@ import {
   type PluginFetch,
 } from '@familiar-ai/core'
 import { afterEach, expect, test } from 'vitest'
-import web from './index.ts'
+import { loadPlugins } from '../plugins.ts'
 
 const KEY = 'BSA-test-0123456789'
 
@@ -43,7 +43,7 @@ async function setup(
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'Asia/Kolkata',
-    plugins: [web],
+    plugins: await loadPlugins(''),
     secrets,
     fetch,
     now,

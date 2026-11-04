@@ -33,7 +33,6 @@ Type one of these words in the chat to run a scripted scenario: `tool`, `memory`
 | ------------------------------ | -------------------------------------------------------------- |
 | `packages/core`                | The assistant. Portable: no Node-only or Workers-only code     |
 | `packages/client`              | Browser store and React bindings. Imports only types from core |
-| `packages/plugin-web`          | Web search and page reading                                    |
 | `packages/cloudflare`          | Durable Object adapter. The only Workers-specific package      |
 | `apps/daemon`                  | The installed Node host, CLI and demo                          |
 | `apps/web`                     | The web UI                                                     |

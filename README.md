@@ -30,7 +30,6 @@ The npm packages let you embed Familiar in your own app. Installing a library do
 | -------------------------------------------------------- | ------------------------------------------------------------------- |
 | [@familiar-ai/core](packages/core/README.md)             | Portable assistant, memory, schedules, plugins and HTTP/SSE routes  |
 | [@familiar-ai/client](packages/client/README.md)         | Live client store, transcripts and optional React bindings          |
-| [@familiar-ai/plugin-web](packages/plugin-web/README.md) | Web search and page reading                                         |
 | [@familiar-ai/cloudflare](packages/cloudflare/README.md) | SQLite Durable Object storage and alarm lifecycle                   |
 | [Node daemon](apps/daemon/README.md)                     | Local storage, ChatGPT login, network policy, CLI and notifications |
 | [Web app](apps/web/README.md)                            | Chat, memory, schedules and Connections UI                          |

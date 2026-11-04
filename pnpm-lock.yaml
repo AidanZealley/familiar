@@ -103,12 +103,12 @@ importers:
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@familiar-ai/plugin-web':
-        specifier: workspace:*
-        version: link:../../packages/plugin-web
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.13)
+      '@mdream/js':
+        specifier: 2.0.3
+        version: 2.0.3
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
         version: 2.4.0
@@ -171,9 +171,6 @@ importers:
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@familiar-ai/plugin-web':
-        specifier: workspace:*
-        version: link:../../packages/plugin-web
       '@types/react':
         specifier: ^19
         version: 19.3.0
@@ -507,19 +504,6 @@ importers:
       zod:
         specifier: 4.6.7
         version: 4.6.7
-
-  packages/plugin-web:
-    dependencies:
-      '@mdream/js':
-        specifier: 2.0.3
-        version: 2.0.3
-    devDependencies:
-      '@earendil-works/pi-ai':
-        specifier: 'catalog:'
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
-      '@familiar-ai/core':
-        specifier: workspace:*
-        version: link:../core
 
 packages:
 

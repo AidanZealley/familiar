@@ -3,7 +3,6 @@ packages:
   - apps/*
   - packages/core
   - packages/client
-  - packages/plugin-web
   - packages/cloudflare
 
 # Versions packages must share exactly. Pi's API changes between releases, and

@@ -84,8 +84,6 @@ try {
     '@familiar-ai/core/mcp',
     '@familiar-ai/core/storage/memory',
     '@familiar-ai/client',
-    '@familiar-ai/plugin-web',
-    '@familiar-ai/plugin-web/convert-html',
   ]
   await writeFile(
     resolve(consumer, 'runtime.js'),
@@ -235,8 +233,6 @@ const invalidModel: ModelRef = { provider: 1 }
 const entry: EntryRecord = 1
 // @ts-expect-error advanced view stays typed
 const view: ConversationView = 1
-import { webPlugin } from '@familiar-ai/plugin-web'
-import { convertHtml } from '@familiar-ai/plugin-web/convert-html'
 
 // Assignable to every parameter, so each misuse below tests one parameter.
 declare const ok: never
@@ -263,14 +259,6 @@ connectMcp('name', 1)
 repeatText(1)
 // @ts-expect-error
 export const schedule: Schedule = 1
-// @ts-expect-error
-webPlugin(1)
-// @ts-expect-error
-export const plugin: number = webPlugin()
-// @ts-expect-error
-convertHtml(1, 'https://example.com', 100)
-// @ts-expect-error
-export const page: number = convertHtml('', 'https://example.com', 100)
 `,
   )
   await typeCheck(

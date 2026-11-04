@@ -1,27 +1,7 @@
 import { isAbsolute } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { FamiliarPlugin } from '@familiar-ai/core'
-import { webPlugin } from '@familiar-ai/plugin-web'
-import Piscina from 'piscina'
-
-// Synchronous HTML conversion must not block the daemon; Piscina owns its limits.
-const pages = new Piscina({
-  filename: new URL(
-    import.meta.url.endsWith('.ts') ? './page-worker.ts' : './page-worker.js',
-    import.meta.url,
-  ).href,
-  minThreads: 0,
-  maxThreads: 2,
-  maxQueue: 8,
-  resourceLimits: { maxOldGenerationSizeMb: 128 },
-})
-/** Plugins every daemon installs. */
-const firstParty: FamiliarPlugin[] = [
-  webPlugin({
-    convert: (html, url, maxChars, signal) =>
-      pages.run({ html, url, maxChars }, { signal }),
-  }),
-]
+import { webTools } from './tools/index.ts'
 
 /**
  * The daemon's plugins: the first-party ones, then any named in
@@ -44,5 +24,5 @@ export async function loadPlugins(
       return module.default as FamiliarPlugin
     }),
   )
-  return [...firstParty, ...loaded]
+  return [webTools, ...loaded]
 }
