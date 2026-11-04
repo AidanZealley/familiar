@@ -50,11 +50,10 @@ Familiar records who said what and shows the model each author. It doesn't decid
 
 - authenticate every request, including the event stream
 - decide who may use each route, with `routes`
-- decide which tool calls may run, with `authorizeTool`
+- choose each Familiar's audience: who may send to it, and so share it
+- choose each Familiar's tools, with `plugins` and its MCP servers
 
-`authorizeTool` is a required option of `summonFamiliar`. Familiar asks it immediately before every tool call runs, whichever way the tool was defined: a plugin's tools, Familiar's own, MCP servers' tools, calls one tool makes to another, scheduled runs and calls rerun after a crash. It gets the call's `invoker`, the tool's name and its extension's name, and returns whether the call may run. Anything but `true`, or a throw, refuses it: the tool doesn't run and the model reads that it wasn't permitted. Because it is asked at the moment of each call, a permission you revoke also stops schedules and work that was already queued.
-
-The `invoker` says who the call runs for, from the stored input that started it, never from the tool's arguments:
+Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.invoker`. That says who the call runs for, from the stored input that started it, never from the tool's arguments:
 
 | `kind`     | Runs for                                                                                     |
 | ---------- | -------------------------------------------------------------------------------------------- |
@@ -63,11 +62,24 @@ The `invoker` says who the call runs for, from the stored input that started it,
 | `system`   | Familiar's own memory upkeep                                                                 |
 | `unknown`  | nobody Familiar can establish, such as a message stored with only a name by an older version |
 
-Familiar has no roles of its own, and gives `system` no special treatment, so decide for every kind. Refusing `unknown` keeps old or unattributed input from running tools. Familiar stores who started each call, never what you decided, so your current rules always apply. Pass `authorizeSingleOwner`, which allows every call, only when everyone who can reach the Familiar is its owner, as in the daemon.
+Nested calls run for their caller's invoker. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 
-`authorizeTool` decides whether a tool runs at all. Rules about particular records, such as who may change a task, belong in the tool, which reads the same invoker as `api.invoker`.
+```ts
+execute: async ({ taskId }, { invoker }) => {
+  // Your API checks, as it runs, whether this person may change the task.
+  if (invoker.kind !== 'person') {
+    return {
+      output: [{ type: 'text', text: 'Only a person can do this.' }],
+      isError: true,
+    }
+  }
+  return updateTask(taskId, { as: invoker.author.id })
+}
+```
 
-The installed daemon is the simplest case. It authenticates every request as its owner, with the stable ID `owner`, passes `authorizeSingleOwner`, and relies on the network for access. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
+Schedules are shared controls, like the conversation: anyone who chats with a Familiar can see and cancel any of its schedules. Give people who mustn't share tools or schedules separate Familiars.
+
+The installed daemon is the simplest case. It authenticates every request as its owner, with the stable ID `owner`, serves every route and relies on the network for access. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
 
 Because the browser sends the network along with every request, the daemon also uses Hono's `csrf` middleware against cross-site requests. It refuses a browser's form or bodyless `POST` unless `Sec-Fetch-Site` is `same-origin` or `Origin` names the `Host` the request was sent to. That still accepts the daemon's own page through Tailscale Serve and through Vite's proxy. Requests with neither header, such as from the CLI or `curl`, aren't from a browser and pass. If your host authenticates browsers with cookies or other ambient credentials, add the same protection, because `createHttpApi` doesn't.
 

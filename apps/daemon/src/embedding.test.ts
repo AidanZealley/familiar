@@ -12,7 +12,6 @@ import {
 import { MemoryStorage, type EntryId } from '@earendil-works/pi-durable'
 import {
   createAccount,
-  authorizeSingleOwner,
   summonFamiliar,
   type Account,
   type Familiar,
@@ -40,7 +39,6 @@ async function host(account?: (models: Models) => Promise<Account>) {
     models,
     model,
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
     account: await account?.(models),
   })
   opened.push(familiar)

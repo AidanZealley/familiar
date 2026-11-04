@@ -1,12 +1,7 @@
 // Scripted model, in-memory storage and no login. Never import config.ts:
 // importing it creates the real data directory.
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import {
-  definePlugin,
-  memorySecrets,
-  authorizeSingleOwner,
-  summonFamiliar,
-} from '@familiar-ai/core'
+import { definePlugin, memorySecrets, summonFamiliar } from '@familiar-ai/core'
 import { webPersona } from '../persona.ts'
 import { openPush } from '../push.ts'
 import { serveFamiliar } from '../serve.ts'
@@ -36,7 +31,6 @@ const familiar = await summonFamiliar({
   model: demoChatModels[0].model,
   chatModels: demoChatModels,
   timeZone: DEMO_TIME_ZONE,
-  authorizeTool: authorizeSingleOwner,
   name,
   persona: webPersona(name),
   notify: async (notification) => {

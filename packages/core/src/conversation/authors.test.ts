@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { configure, Harness } from '@earendil-works/pi-durable'
+import { configure, createRegistry, Harness } from '@earendil-works/pi-durable'
 import { harnessOptions } from '../context/index.ts'
 import { transcriptExchanges } from '../memory/exchanges.ts'
 import { newMessages } from '../memory/upkeep/transcript.ts'
@@ -11,9 +11,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { afterEach, expect, test, vi } from 'vitest'
 import { defineTool, Type, type Author, type Invoker } from '../index.ts'
-import { authorizingRegistry } from '../authorization.ts'
 import {
-  authorizeSingleOwner,
   summonFamiliar,
   type Familiar,
   type FamiliarPlugin,
@@ -39,7 +37,6 @@ async function setup(plugin?: FamiliarPlugin) {
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
-      authorizeTool: authorizeSingleOwner,
       plugins: plugin ? [plugin] : [],
     })
     opened.push(familiar)
@@ -212,7 +209,7 @@ test('name-only history survives reopening, memory reads and tool execution with
   const models = createModels()
   models.setProvider(faux.provider)
   const model = { provider: 'faux', modelId: 'faux-1' }
-  const registry = authorizingRegistry(authorizeSingleOwner)
+  const registry = createRegistry()
   const seen: Invoker[] = []
   registry.install({
     name: 'identity',
@@ -262,7 +259,6 @@ test('name-only history survives reopening, memory reads and tool execution with
     models,
     model,
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   faux.setResponses([

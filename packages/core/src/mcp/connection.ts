@@ -8,7 +8,7 @@ import type { SecretStore } from '../plugins/secrets.ts'
 import type { PluginFetch } from '../plugins/types.ts'
 import { connectMcp } from './index.ts'
 import { httpTransport } from './http-transport.ts'
-import { admissionProblem, type McpServer } from './servers.ts'
+import type { McpServer } from './servers.ts'
 import type {
   McpConnectionInfo,
   McpToolInfo,
@@ -58,12 +58,6 @@ export function openConnection(
   }
   const ready = (async () => {
     const config = server.transport
-    // Every open checks, so reconnecting never bypasses today's rules.
-    const refused = admissionProblem(server, options)
-    if (refused) {
-      info = { ...info, status: { type: 'refused', error: refused } }
-      return
-    }
     const token = () =>
       options.secrets?.get({ kind: 'mcp', name: server.name }, 'token') ??
       Promise.resolve(undefined)
@@ -77,14 +71,19 @@ export function openConnection(
         return
       }
       abort.signal.throwIfAborted()
-      // Admitted, so the host has this server's transport.
       let transport: Transport
       if (config.type === 'stdio') {
-        transport = options.stdio!(config)
+        if (!options.stdio) {
+          throw new Error('This host has no MCP stdio transport.')
+        }
+        transport = options.stdio(config)
       } else {
+        if (!options.fetch) {
+          throw new Error('This host has no MCP HTTP transport.')
+        }
         transport = httpTransport(
           config,
-          options.fetch!,
+          options.fetch,
           async () => {
             const value = await token()
             if (!value) {

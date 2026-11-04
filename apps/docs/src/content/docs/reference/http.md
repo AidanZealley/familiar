@@ -7,7 +7,7 @@ description: Every route createHttpApi can serve, and the server-sent events at 
 
 Paths are relative to wherever you mount the API, such as `/api`. Every request passes through `authenticate` first and answers `401 { "error": "unauthorized" }` when it returns `undefined`. A request body over `maxBodySize` (default `DEFAULT_MAX_BODY_SIZE`, 1 MiB) then answers 413 before any route reads it. A route whose check refuses the request answers `403 { "error": "forbidden" }`. Other errors are JSON `{ "error": string }`.
 
-[`packages/core/src/http.ts`](https://github.com/AidanZealley/familiar/blob/main/packages/core/src/http.ts) owns the contract. The client imports its types, so a change on one side is a type error on the other.
+[`packages/core/src/http/index.ts`](https://github.com/AidanZealley/familiar/blob/main/packages/core/src/http/index.ts) owns the contract. The client imports its types, so a change on one side is a type error on the other.
 
 ## Routes
 
@@ -59,7 +59,7 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 | `connections.list`         | `GET /connections`                                |             | 200 `ConnectionInfo[]` |                             |
 | `connections.setSecret`    | `PUT /connections/:kind/:name/secrets/:secret`    | `{ value }` | 204                    | 400, 404                    |
 | `connections.deleteSecret` | `DELETE /connections/:kind/:name/secrets/:secret` |             | 204                    | 404                         |
-| `mcp.add`                  | `POST /mcp`                                       | `McpServer` | 201                    | 400 refused, 404 name taken |
+| `mcp.add`                  | `POST /mcp`                                       | `McpServer` | 201                    | 400 invalid, 404 name taken |
 | `mcp.remove`               | `DELETE /mcp/:name`                               |             | 204                    | 404                         |
 | `mcp.reconnect`            | `POST /mcp/:name/reconnect`                       |             | 202                    | 404                         |
 
@@ -67,7 +67,7 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 
 `:kind` is `plugin` or `mcp`. Secret values must be visible ASCII. No route returns a secret's value.
 
-`POST /mcp` answers 400, saving nothing, for a server of the wrong shape or one Familiar won't connect to: a transport the host didn't pass (`mcpFetch` or `mcpStdio`), fields over `MCP_LIMITS`, or a bearer token over plain HTTP to anywhere but `localhost`, `127.0.0.0/8` or `[::1]`.
+`POST /mcp` answers 400, saving nothing, for a server of the wrong shape. Any other server is saved and tried through the host's transport; one that can't connect shows as `failed` in `GET /connections`.
 
 An `McpServer` is:
 

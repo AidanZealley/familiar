@@ -10,11 +10,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import {
-  authorizeSingleOwner,
-  summonFamiliar,
-  type FamiliarOptions,
-} from '@familiar-ai/core'
+import { summonFamiliar, type FamiliarOptions } from '@familiar-ai/core'
 import { nextUpkeep } from '@familiar-ai/core/diagnostics'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { unquoted } from './recall.ts'
@@ -114,7 +110,6 @@ export async function runUnfiledEval(
     model: { provider: 'faux', modelId: 'faux-1' },
     contextBudget: CONTEXT_BUDGET,
     timeZone: EVAL_TIME_ZONE,
-    authorizeTool: authorizeSingleOwner,
   } satisfies Partial<FamiliarOptions>
   const replayPath = join(directory, 'replay.sqlite')
 

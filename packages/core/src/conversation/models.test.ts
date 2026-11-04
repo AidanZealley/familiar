@@ -11,11 +11,7 @@ import {
 } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
 import { harnessOptions } from '../context/index.ts'
-import {
-  authorizeSingleOwner,
-  summonFamiliar,
-  type Familiar,
-} from '../familiar.ts'
+import { summonFamiliar, type Familiar } from '../familiar.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
 import { ModelError, type ChatModel } from './models.ts'
 
@@ -51,7 +47,6 @@ async function open(storage: Storage, chatModels = both) {
     models,
     model: sol,
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
     chatModels,
   })
   opened.push(familiar)

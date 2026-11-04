@@ -1,6 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
-import type { Invoker } from '../authorization.ts'
+import type { Invoker } from '../plugins/invoker.ts'
 import { defineTool } from '../plugins/tools.ts'
 import { weekdayMinute } from '../time/index.ts'
 import {

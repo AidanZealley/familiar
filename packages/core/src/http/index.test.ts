@@ -7,12 +7,7 @@ import { MemoryStorage, type DocumentWatch } from '@earendil-works/pi-durable'
 import { Hono } from 'hono'
 import { testClient } from 'hono/testing'
 import { afterEach, expect, test, vi } from 'vitest'
-import {
-  MESSAGE_LIMITS,
-  authorizeSingleOwner,
-  summonFamiliar,
-  type Familiar,
-} from './familiar.ts'
+import { MESSAGE_LIMITS, summonFamiliar, type Familiar } from '../familiar.ts'
 import {
   conversationRoutes,
   eventRoutes,
@@ -21,8 +16,8 @@ import {
   type HttpApi,
   type FactsState,
   type EpisodesState,
-} from './http.ts'
-import { storageWith } from './memory/testing.ts'
+} from './index.ts'
+import { storageWith } from '../memory/testing.ts'
 
 const opened: Familiar[] = []
 afterEach(async () => {
@@ -38,7 +33,6 @@ test('memory routes edit facts and refuse missing or past ones', async () => {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
 
@@ -101,7 +95,6 @@ test('the event stream sends the view and every document whole first', async () 
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, {
@@ -146,7 +139,6 @@ test('messages and history validate what clients send', async () => {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   faux.setResponses([fauxAssistantMessage('Hello.')])
@@ -254,7 +246,6 @@ test('restricted events open only selected watches and clean up on cancel and re
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   const omitted = [
@@ -430,7 +421,6 @@ test('request bodies are bounded before routes read them, and fields by Familiar
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
   })
   opened.push(familiar)
   const send = vi.spyOn(familiar, 'send')

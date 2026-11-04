@@ -10,7 +10,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./http": "./src/http.ts",
+    "./http": "./src/http/index.ts",
     "./extensions": "./src/extensions.ts",
     "./diagnostics": "./src/diagnostics.ts",
     "./mcp": "./src/mcp/index.ts",
@@ -27,7 +27,7 @@
     "access": "public",
     "exports": {
       ".": "./dist/index.js",
-      "./http": "./dist/http.js",
+      "./http": "./dist/http/index.js",
       "./extensions": "./dist/extensions.js",
       "./diagnostics": "./dist/diagnostics.js",
       "./mcp": "./dist/mcp/index.js",

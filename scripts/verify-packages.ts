@@ -195,7 +195,7 @@ if (![bindings.FamiliarProvider, bindings.useFamiliar, bindings.useTranscript].e
     'portable',
     ['ES2023', 'DOM'],
     [],
-    `import { summonFamiliar, authorizeSingleOwner, type Author, type AuthorizeTool, type Invoker } from '@familiar-ai/core'
+    `import { summonFamiliar, type Author } from '@familiar-ai/core'
 import { createHttpApi, conversationRoutes, memoryRoutes, eventRoutes, type HttpApi } from '@familiar-ai/core/http'
 import { Hono } from 'hono'
 import { hc, type InferResponseType } from 'hono/client'
@@ -242,9 +242,6 @@ createHttpApi(hostFamiliar, {
   // @ts-expect-error operation names are checked
   routes: { conversation: { sned: true } },
 })
-const policy: AuthorizeTool = ({ invoker }: { invoker: Invoker }) => invoker.kind === 'person'
-void policy
-void authorizeSingleOwner
 const standard = hc<HttpApi>('https://example.com')
 standard.messages.$post({ json: { text: 'Hello', requestId: 'two' } })
 // @ts-expect-error standard input remains typed
@@ -266,8 +263,6 @@ declare const ok: never
 
 // @ts-expect-error
 summonFamiliar(1)
-// @ts-expect-error hosts must choose a tool policy
-summonFamiliar({ storage: ok, models: ok, model: ok, timeZone: 'UTC' })
 // @ts-expect-error
 export const familiar: Awaited<ReturnType<typeof summonFamiliar>> = 1
 // @ts-expect-error
@@ -551,7 +546,7 @@ new DurableFamiliar(ok, 1)
 import assert from 'node:assert/strict'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider, fauxAssistantMessage } from '@familiar-ai/core/models/faux'
-import { summonFamiliar, createAccount, authorizeSingleOwner } from '@familiar-ai/core'
+import { summonFamiliar, createAccount } from '@familiar-ai/core'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
 const coreUrl = import.meta.resolve('@familiar-ai/core')
@@ -575,8 +570,8 @@ const faux = fauxProvider({ models: [{ id: 'packed' }] })
 models.setProvider(faux.provider)
 faux.setResponses([fauxAssistantMessage('Packed host works')])
 const account = await createAccount({ models, provider: 'faux' })
-await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: createModels(), account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC', authorizeTool: authorizeSingleOwner }), /same Models/)
-const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC', authorizeTool: authorizeSingleOwner })
+await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: createModels(), account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' }), /same Models/)
+const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
   assert.equal(familiar.account, account.api)
   await familiar.send({ author: { id: 'Consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })

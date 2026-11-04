@@ -16,7 +16,6 @@ Construct `DurableFamiliar` with a factory for the assistant's options, and forw
 ```ts
 import { DurableObject } from 'cloudflare:workers'
 import { DurableFamiliar } from '@familiar-ai/cloudflare'
-import { authorizeSingleOwner } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
@@ -34,8 +33,6 @@ export class Bot extends DurableObject {
         models,
         model: { provider: 'faux', modelId: 'demo' },
         timeZone: 'Europe/London',
-        // One owner per object, who may run every tool.
-        authorizeTool: authorizeSingleOwner,
       }
     },
   })
@@ -56,7 +53,7 @@ export class Bot extends DurableObject {
 }
 ```
 
-The factory returns everything `summonFamiliar` takes except storage, the clock and wake handling, which the adapter supplies. That includes `authorizeTool`: pass your own policy when more than the owner can reach the object. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission). The adapter calls it each time the object opens, including after eviction. This scripted model answers once per object opening. A real host registers its provider, credentials, notifications and network policy there.
+The factory returns everything `summonFamiliar` takes except storage, the clock and wake handling, which the adapter supplies. The adapter calls it each time the object opens, including after eviction. This scripted model answers once per object opening. A real host registers its provider, credentials, notifications and network policy there.
 
 Configure a SQLite Durable Object binding and migration in Wrangler. The development Worker's [`wrangler.jsonc`](https://github.com/AidanZealley/familiar/blob/main/apps/cloudflare/wrangler.jsonc) is a working configuration.
 

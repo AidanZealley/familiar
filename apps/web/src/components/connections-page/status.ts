@@ -14,8 +14,6 @@ export function statusOf(connection: ConnectionInfo): {
       : { label: 'Ready', tone: 'ok', rank: 5 }
   }
   switch (connection.status.type) {
-    case 'refused':
-      return { label: 'Refused', tone: 'bad', rank: 0 }
     case 'failed':
       return { label: 'Failed', tone: 'bad', rank: 0 }
     case 'needs-auth':

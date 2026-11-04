@@ -101,19 +101,12 @@ defineTool({
 })
 ```
 
-The host also decides whether each call may run at all. This one asks whether the person is still signed in, at the moment the tool runs, so signing out stops tools a message sent earlier would have run:
-
-```ts
-authorizeTool: ({ invoker }) =>
-  invoker.kind === 'person' && signedIn(invoker.author.id),
-```
-
 Each message keeps the name its author had when they sent it. A later rename on the host changes new messages, not old ones, and the `id` stays the same.
 
 ## What it doesn't show
 
 - Real sign-in, or people on other devices. The sessions are simulated in one page.
 - Long-term memory. Familiar's background memory work runs, but the script gives it a placeholder answer, and nothing outlasts the page.
-- Per-person permissions. Familiar records who asked and asks the host before each tool runs; the host decides what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
+- Per-person permissions. Everyone in the conversation shares its tools; Familiar records who asked, and your tools or the app APIs behind them decide what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
 
 To use a real model, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/). Model credentials stay on that server.

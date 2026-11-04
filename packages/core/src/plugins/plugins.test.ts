@@ -7,12 +7,8 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'vitest'
-import {
-  authorizeSingleOwner,
-  summonFamiliar,
-  type Familiar,
-} from '../familiar.ts'
-import { createHttpApi } from '../http.ts'
+import { summonFamiliar, type Familiar } from '../familiar.ts'
+import { createHttpApi } from '../http/index.ts'
 import { authorizedFetch, checkDeclaration } from './authorized-fetch.ts'
 import { definePlugin, memorySecrets, type PluginFetch } from './index.ts'
 
@@ -78,7 +74,6 @@ async function setup() {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    authorizeTool: authorizeSingleOwner,
     plugins: [echo],
     secrets,
     fetch,

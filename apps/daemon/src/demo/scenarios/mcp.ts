@@ -134,14 +134,14 @@ export async function seedMcp(familiar: Familiar) {
   const stdio = (name: string, command: string, ...args: string[]) =>
     familiar.mcp.add({ name, transport: { type: 'stdio', command, args } })
 
-  await http('home-assistant', 'https://home.demo.invalid:8123/api/mcp', true)
+  await http('home-assistant', 'http://home.demo.invalid:8123/api/mcp', true)
   await familiar.connections.setSecret(
     { kind: 'mcp', name: 'home-assistant' },
     'token',
     DEMO_TOKEN,
   )
   await http('notes', 'https://notes.demo.invalid/mcp')
-  await http('printer', 'https://printer.demo.invalid/mcp', true)
+  await http('printer', 'http://printer.demo.invalid/mcp', true)
   await http('nas', 'http://nas.local:8080/mcp')
   await stdio(
     'time',

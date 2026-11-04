@@ -1,6 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
 import { DurableFamiliar, FamiliarTerminated } from '@familiar-ai/cloudflare'
-import { authorizeSingleOwner } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { DEV_MODEL, devModels } from './model.ts'
 import type { Env } from './env.ts'
@@ -13,8 +12,6 @@ export class Bot extends DurableObject<Env> {
       model: DEV_MODEL.model,
       chatModels: [DEV_MODEL],
       timeZone: this.env.TIME_ZONE,
-      // A development bot with one owner, who may run every tool.
-      authorizeTool: authorizeSingleOwner,
       notify: (notification) => this.#outbox().add(notification),
     }),
     heartbeatMs: Number(this.env.HEARTBEAT_MS) || undefined,
