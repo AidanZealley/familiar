@@ -2,19 +2,14 @@
 import { act, createElement, StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { createFamiliarBindings } from './react.ts'
+import { FamiliarProvider, useFamiliar, useTranscript } from './react.ts'
 import { createFamiliarStore } from './store/index.ts'
 import type { FamiliarStore } from './store/types.ts'
 import { frame, testServer, view } from './testing.ts'
-import type { HostApi, PartialApi } from '../../../examples/typed-host/api.ts'
-import type { HttpApi } from '@familiar-ai/core/http'
-
-const { FamiliarProvider, useFamiliar, useTranscript } =
-  createFamiliarBindings<HttpApi>()
 
 let root: Root
 let container: HTMLDivElement
-const stores: FamiliarStore<HttpApi>[] = []
+const stores: FamiliarStore[] = []
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   container = document.createElement('div')
@@ -27,7 +22,7 @@ afterEach(async () => {
 })
 const open = () => {
   const server = testServer()
-  const store = createFamiliarStore<HttpApi>('http://familiar.test/api', {
+  const store = createFamiliarStore('http://familiar.test/api', {
     fetch: server.fetch,
   })
   stores.push(store)
@@ -103,7 +98,7 @@ test('nearest providers isolate stores and replacement moves the subscription wi
       null,
       useFamiliar((s) => s.connection),
     )
-  const render = (store: FamiliarStore<HttpApi>) =>
+  const render = (store: FamiliarStore) =>
     act(() =>
       root.render(
         createElement(
@@ -158,45 +153,42 @@ test('hooks explain a missing provider', async () => {
   )
 })
 
-test('typed bindings isolate distinct APIs and route selected actions after store replacement', async () => {
-  const { createFamiliarBindings } = await import('./react.ts')
-  const chat = createFamiliarBindings<HostApi>()
-  const partial = createFamiliarBindings<PartialApi>()
+test('nested providers route actions to their own store, also after replacement', async () => {
   const firstServer = testServer()
   const secondServer = testServer()
   const partialServer = testServer()
-  const first = createFamiliarStore<HostApi>('/api', {
+  const first = createFamiliarStore('/api', {
     fetch: firstServer.fetch,
   })
-  const second = createFamiliarStore<HostApi>('/api', {
+  const second = createFamiliarStore('/api', {
     fetch: secondServer.fetch,
   })
-  const other = createFamiliarStore<PartialApi>('/api', {
+  const other = createFamiliarStore('/api', {
     fetch: partialServer.fetch,
   })
   const disconnectFirst = vi.spyOn(first.getState(), 'disconnect')
   const Chat = () => {
-    const send = chat.useFamiliar((state) => state.conversation.send)
-    const status = chat.useFamiliar((state) => state.connection)
+    const send = useFamiliar((state) => state.conversation.send)
+    const status = useFamiliar((state) => state.connection)
     return createElement('button', { onClick: () => void send('chat') }, status)
   }
   const Other = () => {
-    const send = partial.useFamiliar((state) => state.conversation.send)
+    const send = useFamiliar((state) => state.conversation.send)
     return createElement(
       'button',
       { onClick: () => void send('other') },
       'other',
     )
   }
-  const render = (store: FamiliarStore<HostApi>) =>
+  const render = (store: FamiliarStore) =>
     act(() =>
       root.render(
         createElement(
-          chat.FamiliarProvider,
+          FamiliarProvider,
           { store },
           createElement(Chat),
           createElement(
-            partial.FamiliarProvider,
+            FamiliarProvider,
             { store: other },
             createElement(Other),
           ),

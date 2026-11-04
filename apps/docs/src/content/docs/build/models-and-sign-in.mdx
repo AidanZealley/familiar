@@ -24,16 +24,16 @@ Keep provider credentials on the server. Never put them in frontend code.
 
 ## ChatGPT sign-in
 
-ChatGPT sign-in lets a Familiar use a ChatGPT subscription instead of an API key. It's the model's access, not a login to your app. Create an account over the same `models` and attach it:
+ChatGPT sign-in lets a Familiar use a ChatGPT subscription instead of an API key. It's the model's access, not a login to your app. Pass `account`, and Familiar signs in through the same `models`:
 
 <Code code={models} lang="ts" title="assistant.ts" />
 
 The `./host.ts` imports stand in for your own code. `deviceId` returns a stable ID for this installation; OpenAI identifies the app's logins by it.
 
-With an account attached:
+With `account`:
 
 - `familiar.account` exposes `state()`, `signIn()`, `answer(text)`, `cancelSignIn()`, `signOut()` and `onChange(listener)`.
-- The state is one of `signed-in`, `signed-out`, `expired` or `signing-in`. While signing in it carries the provider's `url`, any `code` to enter and `paste: true` when the provider needs the address the browser ended on.
+- The state is one of `signed-in`, `signed-out`, `expired` or `signing-in`. While signing in it carries the provider's `url` and `paste: true` when the provider needs the address the browser ended on.
 - The HTTP API serves these under `/account` and streams the state, so a UI can run the whole sign-in.
 - Familiar closes the account when it's dismissed.
 

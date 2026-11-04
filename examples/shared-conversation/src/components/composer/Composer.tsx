@@ -6,7 +6,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { useFamiliar } from '@/demo/react'
+import { useFamiliar } from '@familiar-ai/client/react'
 import type { ComposerProps } from './types'
 
 /** As in Familiar's web UI: a textarea with its send button below, at the end. */

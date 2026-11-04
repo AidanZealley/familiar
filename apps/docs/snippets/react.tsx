@@ -1,11 +1,12 @@
 import { createFamiliarStore } from '@familiar-ai/client'
-import { createFamiliarBindings } from '@familiar-ai/client/react'
-import type { Api } from './serve.ts'
+import {
+  FamiliarProvider,
+  useFamiliar,
+  useTranscript,
+} from '@familiar-ai/client/react'
 
 // Once, at module scope. The provider never opens or closes the store.
-const { FamiliarProvider, useFamiliar, useTranscript } =
-  createFamiliarBindings<Api>()
-const store = createFamiliarStore<Api>('/api')
+const store = createFamiliarStore('/api')
 
 const Chat = () => {
   const connection = useFamiliar((state) => state.connection)

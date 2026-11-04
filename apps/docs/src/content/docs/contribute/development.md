@@ -40,7 +40,6 @@ Type one of these words in the chat to run a scripted scenario: `tool`, `memory`
 | `apps/docs`                    | This site                                                      |
 | `examples/embedded-kanban`     | Task board with Familiar embedded. Built into this site        |
 | `examples/shared-conversation` | Several people sharing one Familiar. Built into this site      |
-| `examples/typed-host`          | Compile-checked typed client example                           |
 
 Workspace packages import each other's TypeScript source. Published packages ship compiled `dist` files, which `pnpm build:packages` builds. ESLint enforces the portability rules.
 

@@ -1,5 +1,5 @@
 import { summonFamiliar, type Author, type Familiar } from '@familiar-ai/core'
-import { createHttpApi } from '@familiar-ai/core/http'
+import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore, type FamiliarStore } from '@familiar-ai/client'
 import { guestListPlugin } from './plugin.ts'
@@ -7,8 +7,16 @@ import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
 const PERSONA = `You are Familiar, the assistant in a group's shared chat. Several people talk to you in one conversation. Answer in short plain text.`
 
+// Everyone signed in may talk, read history and watch the conversation.
+const CHAT = new Set<Operation>([
+  'conversation.send',
+  'conversation.history',
+  'conversation.abort',
+  'events.conversation',
+])
+
 /**
- * The host's routes: sending, history and the conversation's event stream,
+ * The host's API, allowing sending, history and the conversation's stream,
  * behind the host's own sign-in. Each request's session decides its author,
  * never its body. Everyone signed in shares the conversation and its history.
  */
@@ -20,13 +28,8 @@ const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
         ?.replace(/^Bearer /, '')
       return token ? sessions.get(token) : undefined
     },
-    routes: {
-      conversation: { send: true, history: true, abort: true },
-      events: { conversation: true },
-    },
+    allow: (_, operation) => CHAT.has(operation),
   })
-
-export type HostApi = ReturnType<typeof createHostApi>
 
 /**
  * One Familiar and its one conversation, with a signed-in client for each
@@ -53,7 +56,7 @@ export async function startDemo(people: Author[]) {
   // The host's sign-ins: session token to the person it belongs to.
   const sessions = new Map<string, Author>()
   const api = createHostApi(familiar, sessions)
-  const stores: FamiliarStore<HostApi>[] = []
+  const stores: FamiliarStore[] = []
 
   /** What the host does when a person signs in: a session, and a client for it. */
   const signIn = (author: Author) => {
@@ -66,7 +69,7 @@ export async function startDemo(people: Author[]) {
     // In-page requests: the client's usual HTTP and SSE calls reach the routes
     // without leaving the browser. A real host passes its API's URL instead,
     // and the browser sends its session cookie.
-    const store = createFamiliarStore<HostApi>('https://demo.invalid', {
+    const store = createFamiliarStore('https://demo.invalid', {
       fetch: async (input, init) => {
         const request = new Request(input, init)
         request.headers.set('authorization', `Bearer ${token}`)

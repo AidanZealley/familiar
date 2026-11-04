@@ -7,18 +7,18 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 
 ## Entry points
 
-| Import                                | Contents                                                                                                                                    |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@familiar-ai/core`                   | `summonFamiliar`, `createAccount`, `definePlugin`, `defineTool`, `Type`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types |
-| `@familiar-ai/core/http`              | `createHttpApi`, the route and operation factories, `eventRoutes` and wire types                                                            |
-| `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                                            |
-| `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                                            |
-| `@familiar-ai/core/models/openrouter` | `openrouterProvider`                                                                                                                        |
-| `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                                                                     |
-| `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                                                                             |
-| `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                                    |
-| `@familiar-ai/core/mcp`               | `connectMcp` and MCP types                                                                                                                  |
-| `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                                       |
+| Import                                | Contents                                                                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `@familiar-ai/core`                   | `summonFamiliar`, `definePlugin`, `defineTool`, `Type`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types |
+| `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                                                            |
+| `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                           |
+| `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                           |
+| `@familiar-ai/core/models/openrouter` | `openrouterProvider`                                                                                                       |
+| `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                                                    |
+| `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                                                            |
+| `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                   |
+| `@familiar-ai/core/mcp`               | `connectMcp` and MCP types                                                                                                 |
+| `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                      |
 
 The model and extension entries re-export Pi at the exact version core depends on.
 
@@ -26,26 +26,26 @@ The model and extension entries re-export Pi at the exact version core depends o
 
 Opens a Familiar over its storage, resumes unfinished work and starts background work. Returns `Promise<Familiar>`. Use one process per storage, and `dismiss()` it when done.
 
-| Option            | Required | Meaning                                                                                                |
-| ----------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `storage`         | yes      | Pi Durable `Storage`                                                                                   |
-| `models`          | yes      | Pi `Models` with providers registered                                                                  |
-| `model`           | yes      | `{ provider, modelId }` for upkeep and a new conversation's starting model                             |
-| `timeZone`        | yes      | IANA zone. Throws if invalid                                                                           |
-| `chatModels`      |          | `{ model, thinkingLevel }[]` people may switch to. Must include `model`. Default: `model` at medium    |
-| `name`            |          | Notification titles and upkeep prompts. Default `Familiar`                                             |
-| `persona`         |          | Replaces `defaultPersona(name)` completely                                                             |
-| `account`         |          | From `createAccount` over the same `models` and `model.provider`                                       |
-| `plugins`         |          | `FamiliarPlugin[]`                                                                                     |
-| `secrets`         |          | `SecretStore`. Without it, every secret is missing                                                     |
-| `fetch`           |          | `PluginFetch` for plugins, used as given. Refuse private destinations the process can reach            |
-| `mcpFetch`        |          | `PluginFetch` for owner-configured HTTP MCP servers                                                    |
-| `mcpStdio`        |          | `McpStdioFactory` for owner-configured local MCP commands                                              |
-| `contextBudget`   |          | Tokens per request before older conversation is compacted. Default 64,000                              |
-| `notify`          |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)   |
-| `maxSchedules`    |          | Most schedules kept at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50              |
-| `onWake`          |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/) |
-| `now`, `setTimer` |          | Clock and timer overrides, mainly for tests                                                            |
+| Option            | Required | Meaning                                                                                                             |
+| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `storage`         | yes      | Pi Durable `Storage`                                                                                                |
+| `models`          | yes      | Pi `Models` with providers registered                                                                               |
+| `model`           | yes      | `{ provider, modelId }` for upkeep and a new conversation's starting model                                          |
+| `timeZone`        | yes      | IANA zone. Throws if invalid                                                                                        |
+| `chatModels`      |          | `{ model, thinkingLevel }[]` people may switch to. Must include `model`. Default: `model` at medium                 |
+| `name`            |          | Notification titles and upkeep prompts. Default `Familiar`                                                          |
+| `persona`         |          | Replaces `defaultPersona(name)` completely                                                                          |
+| `account`         |          | `{ login }`: lets the owner sign in to `model.provider`. `login` is Pi's `LoginOptions`; OpenAI needs `getDeviceId` |
+| `plugins`         |          | `FamiliarPlugin[]`                                                                                                  |
+| `secrets`         |          | `SecretStore`. Without it, every secret is missing                                                                  |
+| `fetch`           |          | `PluginFetch` for plugins, used as given. Refuse private destinations the process can reach                         |
+| `mcpFetch`        |          | `PluginFetch` for owner-configured HTTP MCP servers                                                                 |
+| `mcpStdio`        |          | `McpStdioFactory` for owner-configured local MCP commands                                                           |
+| `contextBudget`   |          | Tokens per request before older conversation is compacted. Default 64,000                                           |
+| `notify`          |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)                |
+| `maxSchedules`    |          | Most schedules kept at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50                           |
+| `onWake`          |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)              |
+| `now`, `setTimer` |          | Clock and timer overrides, mainly for tests                                                                         |
 
 ### Notifications
 
@@ -91,7 +91,7 @@ Familiar stores no permissions. A tool, or the app API behind it, enforces narro
 | `connections.setSecret(connection, name, value)`             | Store a secret. `connection` is `{ kind: 'plugin' \| 'mcp', name }` |
 | `connections.deleteSecret(connection, name)`                 | Remove a secret                                                     |
 | `mcp.add(server)`, `mcp.remove(name)`, `mcp.reconnect(name)` | Manage owner-configured MCP servers. `add` throws `McpConfigError`  |
-| `account`                                                    | The attached account's API, if any                                  |
+| `account`                                                    | The account's API, if `account` was passed                          |
 
 Memory edits reject, changing nothing, when the fact is missing or already past.
 
@@ -104,10 +104,6 @@ Memory edits reject, changing nothing, when the fact is missing or already past.
 | `wake()`, `resume()` | For hosts that pass `onWake`                                                  |
 | `closed`             | Settles on dismissal or a storage failure. A failed instance must be reopened |
 | `dismiss()`          | Close the assistant, its account and its MCP connections                      |
-
-## createAccount(options)
-
-`createAccount({ models, provider, login })` returns an `Account` for one provider's login. `login` is Pi's `LoginOptions`; OpenAI needs `getDeviceId`. Pass the account to `summonFamiliar`. See [Models and sign-in](/familiar/build/models-and-sign-in/).
 
 ## Types
 

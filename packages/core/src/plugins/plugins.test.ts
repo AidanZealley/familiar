@@ -80,7 +80,7 @@ async function setup() {
   })
   opened.push(familiar)
   const api = createHttpApi(familiar, {
-    routes: true,
+    allow: () => true,
     authenticate: () => ({ id: 'owner', name: 'owner' }),
   })
 

@@ -163,7 +163,7 @@ test.each([
       familiar.mcp.add(server as unknown as McpServer),
     ).rejects.toBeInstanceOf(McpConfigError)
     const api = createHttpApi(familiar, {
-      routes: true,
+      allow: () => true,
       authenticate: () => ({ id: 'owner', name: 'Owner' }),
     })
     const response = await api.request('/mcp', {

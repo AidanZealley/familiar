@@ -93,11 +93,12 @@ export function daemonApp(
   const app = new Hono().use(browserRequestsSameOrigin()).route(
     '/api',
     createHttpApi(familiar, {
-      routes: true,
       authenticate: (request) =>
         isAllowedHost(request.headers.get('host'))
           ? { id: 'owner', name: options.owner }
           : undefined,
+      // Everyone who can reach the daemon is its owner.
+      allow: () => true,
       push: options.push,
     }),
   )

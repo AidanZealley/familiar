@@ -127,7 +127,7 @@ test('HTTP connections persist, keep tokens write-only, refresh tools and clean 
   const fixture = mcpFixture(test)
   let familiar = await fixture.open()
   const api = createHttpApi(familiar, {
-    routes: true,
+    allow: () => true,
     authenticate: () => ({ id: 'owner', name: 'owner' }),
   })
   const add = await api.request('/mcp', {

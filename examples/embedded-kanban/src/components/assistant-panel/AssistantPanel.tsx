@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { useTranscript } from '@/assistant/react'
+import { useTranscript } from '@familiar-ai/client/react'
 import { Composer } from './components/composer'
 import { TranscriptItem } from './components/transcript-item'
 

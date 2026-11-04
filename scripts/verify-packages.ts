@@ -108,60 +108,13 @@ try {
   await writeFile(
     resolve(consumer, 'react.js'),
     `
-import { createFamiliarBindings } from '@familiar-ai/client/react'
-const bindings = createFamiliarBindings()
-if (![bindings.FamiliarProvider, bindings.useFamiliar, bindings.useTranscript].every(value => typeof value === 'function')) {
+import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
+if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value === 'function')) {
   throw new Error('React bindings missing from the packed client')
 }
 `,
   )
   run('node', ['react.js'], consumer)
-
-  // Publish the host's inferred declaration separately. The frontend imports
-  // only its types export, never Hono or the host implementation.
-  const hostPackage = resolve(consumer, 'host-package')
-  await mkdir(hostPackage)
-  for (const file of ['host.ts', 'api.ts']) {
-    await writeFile(
-      resolve(hostPackage, file),
-      await readFile(resolve(root, 'examples/typed-host', file), 'utf8'),
-    )
-  }
-  run(
-    tsc,
-    [
-      '--declaration',
-      '--emitDeclarationOnly',
-      '--module',
-      'nodenext',
-      '--target',
-      'es2023',
-      '--skipLibCheck',
-      '--strict',
-      '--rewriteRelativeImportExtensions',
-      '--outDir',
-      'dist',
-      'host.ts',
-      'api.ts',
-    ],
-    hostPackage,
-  )
-  await writeFile(
-    resolve(hostPackage, 'package.json'),
-    JSON.stringify({
-      name: '@familiar-example/host',
-      version: '0.0.0',
-      type: 'module',
-      exports: { './api': { types: './dist/api.d.ts' } },
-      files: ['dist'],
-    }),
-  )
-  run('npm', ['pack', '--pack-destination', consumer], hostPackage)
-  run(
-    'npm',
-    ['install', '--no-audit', '--no-fund', './familiar-example-host-0.0.0.tgz'],
-    consumer,
-  )
 
   // skipLibCheck, as most projects and Wrangler's templates set it: Pi's
   // dependencies bring Node and DOM globals that clash with Workers types.
@@ -196,54 +149,29 @@ if (![bindings.FamiliarProvider, bindings.useFamiliar, bindings.useTranscript].e
     ['ES2023', 'DOM'],
     [],
     `import { summonFamiliar, type Author } from '@familiar-ai/core'
-import { createHttpApi, conversationRoutes, memoryRoutes, eventRoutes, type HttpApi } from '@familiar-ai/core/http'
-import { Hono } from 'hono'
+import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
 import { hc, type InferResponseType } from 'hono/client'
 declare const hostFamiliar: Awaited<ReturnType<typeof summonFamiliar>>
 const author: Author = { id: 'sam', name: 'Sam' }
 hostFamiliar.send({ author, text: 'Hello', requestId: 'one' })
 // @ts-expect-error hosts must supply a stable author ID
 hostFamiliar.send({ author: { name: 'Sam' }, text: 'Hello', requestId: 'two' })
-const composed = new Hono()
-  .route('/chat', conversationRoutes(hostFamiliar, () => ({ id: 'sam', name: 'Sam' })))
-  .route('/memory', memoryRoutes(hostFamiliar.memory))
-  .route('/', eventRoutes({ conversation: hostFamiliar.watch }))
-const custom = hc<typeof composed>('https://example.com')
-custom.chat.messages.$post({ json: { text: 'Hello', requestId: 'one' } })
-// @ts-expect-error composed input remains typed
-custom.chat.messages.$post({ json: { text: 1, requestId: 'one' } })
-// @ts-expect-error omitted groups stay absent
-custom.account.$post()
-type Page = InferResponseType<typeof custom.chat.history.$get, 200>
-declare const historyPage: Page
-const more: boolean = historyPage.more
-// @ts-expect-error composed response remains typed
-const invalidMore: number = historyPage.more
-const owner = (who: Author) => who.id === 'owner'
-const participantApi = createHttpApi(hostFamiliar, {
+const hostApi: HttpApi = createHttpApi(hostFamiliar, {
   authenticate: () => author,
-  routes: {
-    conversation: { send: true, history: true, abort: true },
-    account: { signIn: owner, cancelSignIn: owner },
-    events: { conversation: true, account: owner },
-  },
+  allow: (_, operation) => operation === 'conversation.send',
 })
-const participant = hc<typeof participantApi>('https://example.com')
-participant.messages.$post({ json: { text: 'Hello', requestId: 'three' } })
-participant.account['sign-in'].$post()
-participant.account['sign-in'].$delete()
-participant.events.$get()
-// @ts-expect-error unselected routes stay absent
-participant.mcp.$post()
-// @ts-expect-error unselected operations in a selected group stay absent
-participant.account['sign-out'].$post()
 createHttpApi(hostFamiliar, {
   authenticate: () => author,
   // @ts-expect-error operation names are checked
-  routes: { conversation: { sned: true } },
+  allow: (_, operation) => operation === 'conversation.sned',
 })
-const standard = hc<HttpApi>('https://example.com')
+const standard = hc<typeof hostApi>('https://example.com')
 standard.messages.$post({ json: { text: 'Hello', requestId: 'two' } })
+type Page = InferResponseType<typeof standard.history.$get, 200>
+declare const historyPage: Page
+const more: boolean = historyPage.more
+// @ts-expect-error responses remain typed
+const invalidMore: number = historyPage.more
 // @ts-expect-error standard input remains typed
 standard.messages.$post({ json: { text: 1, requestId: 'two' } })
 import { localDay } from '@familiar-ai/core/diagnostics'
@@ -270,7 +198,7 @@ createHttpApi(1, ok)
 // @ts-expect-error
 createHttpApi(ok, 1)
 // @ts-expect-error
-createHttpApi(ok, { authenticate: ok, routes: { events: { documents: true } } })
+createHttpApi(ok, { authenticate: ok })
 // @ts-expect-error
 export const api: HttpApi = 1
 // @ts-expect-error
@@ -389,10 +317,9 @@ precise.execute({ query: 'value' })
     ['ES2023', 'DOM'],
     [],
     `import { createElement } from 'react'
-import type { FamiliarStore, HttpApi } from '@familiar-ai/client'
-import { createFamiliarBindings } from '@familiar-ai/client/react'
-const { FamiliarProvider, useFamiliar, useTranscript } = createFamiliarBindings<HttpApi>()
-declare const store: FamiliarStore<HttpApi>
+import type { FamiliarStore } from '@familiar-ai/client'
+import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
+declare const store: FamiliarStore
 const state = store.getState()
 state.conversation.send('Hello')
 state.conversation.setModel({ provider: 'test', modelId: 'test' })
@@ -421,7 +348,7 @@ state.conversation.setThinkingLevel('unsupported')
 store.getInitialState()
 store.subscribe(state => state.connection)
 // @ts-expect-error public stores do not expose arbitrary writes
-type UnsupportedSetter = FamiliarStore<HttpApi>['setState']
+type UnsupportedSetter = FamiliarStore['setState']
 createElement(FamiliarProvider, { store })
 // @ts-expect-error provider requires an explicit store
 createElement(FamiliarProvider, {})
@@ -433,23 +360,6 @@ const count: number = useFamiliar(state => state.connection)
 const transcript: number = useTranscript()
 `,
   )
-  const typedFrontend = (
-    await readFile(resolve(root, 'examples/typed-host/frontend.ts'), 'utf8')
-  ).replace("'./api.ts'", "'@familiar-example/host/api'")
-  assert.doesNotMatch(typedFrontend, /from ['"](?:hono|@familiar-ai\/core)/)
-  await typeCheck('typed-frontend', ['ES2023', 'DOM'], [], typedFrontend)
-  await typeCheck(
-    'typed-assertions',
-    ['ES2023', 'DOM'],
-    [],
-    (
-      await readFile(
-        resolve(root, 'examples/typed-host/frontend.typecheck.ts'),
-        'utf8',
-      )
-    ).replace("'./api.ts'", "'@familiar-example/host/api'"),
-  )
-
   await typeCheck(
     'workers',
     ['ES2023'],
@@ -511,25 +421,6 @@ new DurableFamiliar(ok, 1)
       lib: { entry: resolve(consumer, 'browser.js'), formats: ['es'] },
     },
   })
-  await build({
-    configFile: false,
-    root: consumer,
-    plugins: [
-      {
-        name: 'check-typed-host-runtime',
-        moduleParsed(module) {
-          assert.doesNotMatch(
-            module.id,
-            /(?:host-package|@familiar-example|@familiar-ai\/core|@earendil-works\/pi-|cloudflare)/,
-          )
-        },
-      },
-    ],
-    build: {
-      write: false,
-      lib: { entry: resolve(consumer, 'typed-frontend.ts'), formats: ['es'] },
-    },
-  })
   // The host installs Familiar only; Pi remains a transitive implementation dependency.
   const installedManifest = JSON.parse(
     await readFile(resolve(consumer, 'package.json'), 'utf8'),
@@ -544,7 +435,7 @@ new DurableFamiliar(ok, 1)
 import assert from 'node:assert/strict'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider, fauxAssistantMessage } from '@familiar-ai/core/models/faux'
-import { summonFamiliar, createAccount } from '@familiar-ai/core'
+import { summonFamiliar } from '@familiar-ai/core'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
 const coreUrl = import.meta.resolve('@familiar-ai/core')
@@ -567,11 +458,9 @@ const models = createModels()
 const faux = fauxProvider({ models: [{ id: 'packed' }] })
 models.setProvider(faux.provider)
 faux.setResponses([fauxAssistantMessage('Packed host works')])
-const account = await createAccount({ models, provider: 'faux' })
-await assert.rejects(summonFamiliar({ storage: new MemoryStorage(), models: createModels(), account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' }), /same Models/)
-const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
-  assert.equal(familiar.account, account.api)
+  assert.equal(familiar.account?.state().status, 'signed-in')
   await familiar.send({ author: { id: 'Consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
   await familiar.idle()
   const view = await familiar.watch()

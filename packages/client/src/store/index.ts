@@ -2,7 +2,6 @@ import { createStore } from 'zustand/vanilla'
 import { createCommands } from '../commands.ts'
 import { createConversation } from '../conversation.ts'
 import { openEvents } from '../events.ts'
-import type { SupportedHostApi } from './host-api.ts'
 import type {
   FamiliarState,
   FamiliarStore,
@@ -17,18 +16,12 @@ import { receiveDocument, applyDocumentOps } from './documents.ts'
  * A command that fails rejects with the server's reason and is never sent
  * again. Only the stream retries, and only by reconnecting.
  *
- * @typeParam Api The host's API type, such as `typeof api` imported with
- *   `import type`, which decides the commands the store offers. Required.
  * @param baseUrl Where the HTTP API is mounted: `/api`, or a full URL.
  */
-export function createFamiliarStore<Api>(
-  baseUrl: string & ([SupportedHostApi<Api>] extends [never] ? never : unknown),
-  options?: FamiliarStoreOptions,
-): FamiliarStore<Api>
 export function createFamiliarStore(
   baseUrl: string,
   options: FamiliarStoreOptions = {},
-) {
+): FamiliarStore {
   // Looks the global up on each call, so a later polyfill or stub counts.
   const fetch: typeof globalThis.fetch =
     options.fetch ?? ((input, init) => globalThis.fetch(input, init))

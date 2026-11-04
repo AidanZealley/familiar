@@ -1,138 +1,130 @@
-import type {
-  ConversationWatch,
-  DocumentWatch,
-} from '@earendil-works/pi-durable'
-import { Hono, type Context } from 'hono'
+import type { DocumentWatch } from '@earendil-works/pi-durable'
+import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import type { AccountApi } from '../account/index.ts'
+import type { Familiar } from '../familiar.ts'
+import { allows, forbidden, type AccessEnv } from './access.ts'
 import type { Documents, DocumentName, StreamEvent } from './contract.ts'
-import { allows, forbidden, type Allow, type AuthorEnv } from './guard.ts'
 
-/** Only supplied sources are opened and sent. Null account explicitly sends null. */
-export type EventSources = {
-  conversation?: () => Promise<ConversationWatch>
-  memory?: () => Promise<DocumentWatch<Documents['memory']>>
-  episodes?: () => Promise<DocumentWatch<Documents['episodes']>>
-  schedules?: () => Promise<DocumentWatch<Documents['schedules']>>
-  account?: Pick<AccountApi, 'state' | 'onChange'> | null
-}
+type Watch = { stop(): Promise<unknown>; closed: Promise<unknown> }
 
-/** Mount at `/`; account-only and empty streams stay open until disconnected. */
-export const eventRoutes = (sources: EventSources) =>
-  new Hono().get('/events', (c) => streamEvents(c, sources))
+const SOURCES = [
+  'conversation',
+  'memory',
+  'episodes',
+  'schedules',
+  'account',
+] as const
 
 /**
- * `/events` for the sources a host chose, each asked as a stream connects.
- * Only the allowed ones are opened; a stream every one refuses answers 403.
+ * `/events`: a server-sent stream of every source the author is allowed,
+ * each asked once as the stream connects, so revoking access later doesn't
+ * close a stream that's already open. A stream every source refuses answers
+ * 403. Each value arrives whole first, then as each commit's changes.
  */
-export const chosenEventRoutes = (
-  sources: Required<EventSources>,
-  chosen: Partial<Record<keyof EventSources, Allow>>,
-) =>
-  new Hono<AuthorEnv>().get('/events', async (c) => {
-    const allowed: EventSources = {}
-    for (const [name, allow] of Object.entries(chosen) as [
-      keyof EventSources,
-      Allow,
-    ][]) {
-      if (await allows(allow, c)) {
-        Object.assign(allowed, { [name]: sources[name] })
+export const eventRoutes = (familiar: Familiar) =>
+  new Hono<AccessEnv>().get('/events', async (c) => {
+    const allowed = new Set<(typeof SOURCES)[number]>()
+    for (const source of SOURCES) {
+      if (await allows(c, `events.${source}`)) {
+        allowed.add(source)
       }
     }
-    return Object.keys(allowed).length ? streamEvents(c, allowed) : forbidden(c)
-  })
+    if (!allowed.size) {
+      return forbidden(c)
+    }
 
-/** Streams the given sources until the client disconnects or one closes. */
-const streamEvents = (c: Context, sources: EventSources) =>
-  streamSSE(c, async (stream) => {
-    const watches: { stop(): Promise<unknown>; closed: Promise<unknown> }[] = []
-    let stopped = false
-    let stopAccount: (() => void) | undefined
-    let heartbeat: ReturnType<typeof setInterval> | undefined
-    let disconnected!: () => void
-    const aborted = new Promise<void>((resolve) => {
-      disconnected = resolve
-    })
-    const stop = () => {
-      stopped = true
-      disconnected()
-      stopAccount?.()
-      stopAccount = undefined
-      clearInterval(heartbeat)
-      for (const watch of watches.splice(0)) {
-        void watch.stop()
-      }
-    }
-    stream.onAbort(stop)
-    const send = (message: StreamEvent) =>
-      stream.writeSSE({
-        event: message.event,
-        data: JSON.stringify(message.data),
-      })
-    const retain = (watch: (typeof watches)[number]) => {
-      if (stopped) {
-        void watch.stop()
-        return false
-      }
-      watches.push(watch)
-      void watch.closed.then(stop, stop)
-      return true
-    }
-    const document = async <Name extends DocumentName>(
-      name: Name,
-      open: () => Promise<DocumentWatch<Documents[Name]>>,
-    ) => {
-      const watch = await open()
-      if (!retain(watch)) {
-        return
-      }
-      // The generic name and value belong to the same union member.
-      await send({
-        event: 'document',
-        data: { name, value: watch.value },
-      } as StreamEvent)
-      if (!stopped) {
-        watch.start((_value, ops) =>
-          send({ event: 'document.ops', data: { name, ops } }),
-        )
-      }
-    }
-    const setup = async () => {
-      await send({ event: 'protocol', data: { version: 2 } })
-      if (sources.conversation && !stopped) {
-        const watch = await sources.conversation()
-        if (retain(watch)) {
-          await send({ event: 'view', data: watch.value })
-          if (!stopped) {
-            watch.start((_value, ops) => send({ event: 'ops', data: ops }))
-          }
-        }
-      }
-      for (const name of ['memory', 'episodes', 'schedules'] as const) {
-        const open = sources[name]
-        if (open && !stopped) {
-          await document(name, open)
-        }
-      }
-      if (sources.account !== undefined && !stopped) {
-        await send({
-          event: 'account',
-          data: sources.account?.state() ?? null,
+    return streamSSE(c, async (stream) => {
+      // Owns the stream's lifetime: the client leaving, or any watch closing,
+      // ends it, and everything opened registers its cleanup here.
+      const done = new AbortController()
+      const { signal } = done
+      const end = () => done.abort()
+      stream.onAbort(end)
+
+      const send = (message: StreamEvent) =>
+        stream.writeSSE({
+          event: message.event,
+          data: JSON.stringify(message.data),
         })
-        if (!stopped) {
-          stopAccount = sources.account?.onChange(
-            (state) => void send({ event: 'account', data: state }),
+
+      // Runs `cleanup` when the stream ends, or now if it already has.
+      const onEnd = (cleanup: () => void) =>
+        signal.aborted
+          ? cleanup()
+          : signal.addEventListener('abort', cleanup, { once: true })
+
+      // Keeps `watch` until the stream ends. Returns whether it still runs.
+      const keep = (watch: Watch) => {
+        void watch.closed.then(end, end)
+        onEnd(() => void watch.stop())
+        return !signal.aborted
+      }
+
+      const document = async <Name extends DocumentName>(
+        name: Name,
+        open: () => Promise<DocumentWatch<Documents[Name]>>,
+      ) => {
+        const watch = await open()
+        if (!keep(watch)) {
+          return
+        }
+        // The generic name and value belong to the same union member.
+        await send({
+          event: 'document',
+          data: { name, value: watch.value },
+        } as StreamEvent)
+        if (!signal.aborted) {
+          watch.start((_value, ops) =>
+            send({ event: 'document.ops', data: { name, ops } }),
           )
         }
       }
-      if (!stopped) {
-        heartbeat = setInterval(() => void stream.write(': ping\n\n'), 15_000)
-        await aborted
+
+      const setup = async () => {
+        await send({ event: 'protocol', data: { version: 2 } })
+        if (allowed.has('conversation') && !signal.aborted) {
+          const watch = await familiar.watch()
+          if (keep(watch)) {
+            await send({ event: 'view', data: watch.value })
+            if (!signal.aborted) {
+              watch.start((_value, ops) => send({ event: 'ops', data: ops }))
+            }
+          }
+        }
+        const documents = {
+          memory: familiar.memory.watch,
+          episodes: familiar.memory.watchEpisodes,
+          schedules: familiar.schedules.watch,
+        }
+        for (const name of ['memory', 'episodes', 'schedules'] as const) {
+          if (allowed.has(name) && !signal.aborted) {
+            await document(name, documents[name])
+          }
+        }
+        if (allowed.has('account') && !signal.aborted) {
+          // Null once when the host manages credentials itself.
+          const account = familiar.account
+          await send({ event: 'account', data: account?.state() ?? null })
+          if (account) {
+            onEnd(
+              account.onChange(
+                (state) => void send({ event: 'account', data: state }),
+              ),
+            )
+          }
+        }
+        const heartbeat = setInterval(
+          () => void stream.write(': ping\n\n'),
+          15_000,
+        )
+        onEnd(() => clearInterval(heartbeat))
       }
-    }
-    try {
-      await Promise.race([setup(), aborted])
-    } finally {
-      stop()
-    }
+
+      const ended = new Promise<void>((resolve) => onEnd(resolve))
+      try {
+        await Promise.race([setup().then(() => ended), ended])
+      } finally {
+        end()
+      }
+    })
   })

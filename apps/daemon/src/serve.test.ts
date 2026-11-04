@@ -157,7 +157,7 @@ test("the daemon's own UI refuses to be framed; an embedding host's API sets no 
   // their own framing policy.
   const embedded = createHttpApi(familiar, {
     authenticate: () => ({ id: 'sam', name: 'Sam' }),
-    routes: { memory: { health: true } },
+    allow: () => true,
   })
   expect(framing(await embedded.request('/memory/health'))).toEqual([
     null,

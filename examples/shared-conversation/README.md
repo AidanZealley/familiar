@@ -31,6 +31,6 @@ Anything else, including negated or combined requests, gets a reply listing what
 
 ## Not shown
 
-The sessions are simulated in one page. Other tabs and visitors don't join, and there is no real sign-in. In a real app, each person's browser signs in to your host, which authenticates each request and passes the author to `conversationRoutes`, as [Serve the API](https://aidanzealley.github.io/familiar/build/serve-the-api/) describes. To use a real model, run Familiar on that server and register a provider there (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), so credentials never reach the browser.
+The sessions are simulated in one page. Other tabs and visitors don't join, and there is no real sign-in. In a real app, each person's browser signs in to your host, which authenticates each request and returns the author from `createHttpApi`'s `authenticate`, as [Serve the API](https://aidanzealley.github.io/familiar/build/serve-the-api/) describes. To use a real model, run Familiar on that server and register a provider there (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), so credentials never reach the browser.
 
 `src/components/ui` comes from the shadcn CLI (`pnpm dlx shadcn@latest add ...`), including the [chat components](https://ui.shadcn.com/docs/ai-elements/base/chat) Familiar's web UI uses. Update it through the CLI rather than by hand.

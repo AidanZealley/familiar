@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
+import { can, type AccessEnv } from '../http/access.ts'
 import { ScheduleError, type SchedulesApi } from './index.ts'
 
-/** The owner's schedule actions, mounted at `/schedules`, one route each. */
-export const scheduleOperations = (schedules: SchedulesApi) => ({
+/** The owner's schedule actions, mounted at `/schedules`. */
+export const scheduleRoutes = (schedules: SchedulesApi) =>
   // Cancels a schedule; 404 when there's no such schedule.
-  cancel: new Hono().delete('/:id', async (c) => {
+  new Hono<AccessEnv>().delete('/:id', can('schedules.cancel'), async (c) => {
     try {
       await schedules.cancel(c.req.param('id'))
     } catch (error) {
@@ -14,9 +15,4 @@ export const scheduleOperations = (schedules: SchedulesApi) => ({
       throw error
     }
     return c.body(null, 204)
-  }),
-})
-
-/** Every schedule route, mounted at `/schedules`. */
-export const scheduleRoutes = (schedules: SchedulesApi) =>
-  new Hono().route('/', scheduleOperations(schedules).cancel)
+  })

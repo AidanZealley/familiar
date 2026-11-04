@@ -3,15 +3,15 @@ title: HTTP API and events
 description: Every route createHttpApi can serve, and the server-sent events at /events.
 ---
 
-`createHttpApi` serves the routes below that its `routes` option chooses, each by the operation name in its table, and `routes: true` serves them all. Every other path answers 404. See [Choose routes](/familiar/build/serve-the-api/#choose-routes).
+`createHttpApi` serves every route below. Its `allow` policy is asked about each request by the operation named in the tables, as `group.name` such as `memory.revise`. See [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what).
 
-Paths are relative to wherever you mount the API, such as `/api`. Every request passes through `authenticate` first and answers `401 { "error": "unauthorized" }` when it returns `undefined`. A request body over `maxBodySize` (default `DEFAULT_MAX_BODY_SIZE`, 1 MiB) then answers 413 before any route reads it. A route whose check refuses the request answers `403 { "error": "forbidden" }`. Other errors are JSON `{ "error": string }`.
+Paths are relative to wherever you mount the API, such as `/api`. Every request passes through `authenticate` first and answers `401 { "error": "unauthorized" }` when it returns `undefined`. A request body over `maxBodySize` (default `DEFAULT_MAX_BODY_SIZE`, 1 MiB) then answers 413 before any route reads it. A request `allow` refuses answers `403 { "error": "forbidden" }`. Other errors are JSON `{ "error": string }`.
 
 [`packages/core/src/http/index.ts`](https://github.com/AidanZealley/familiar/blob/main/packages/core/src/http/index.ts) owns the contract. The client imports its types, so a change on one side is a type error on the other.
 
 ## Routes
 
-**Conversation**, in `routes.conversation`
+**Conversation**, `conversation.*`
 
 | Operation          | Method and path             | Body                    | Success                           | Errors           |
 | ------------------ | --------------------------- | ----------------------- | --------------------------------- | ---------------- |
@@ -24,7 +24,7 @@ Paths are relative to wherever you mount the API, such as `/api`. Every request 
 
 The author of `POST /messages` comes from `authenticate`, never the body.
 
-**Memory and schedules**, in `routes.memory` and `routes.schedules`
+**Memory and schedules**, `memory.*` and `schedules.*`
 
 | Operation          | Method and path           | Body         | Success            | Errors                   |
 | ------------------ | ------------------------- | ------------ | ------------------ | ------------------------ |
@@ -34,7 +34,7 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 | `memory.setPinned` | `PUT /memory/:id/pin`     | `{ pinned }` | 204                | 400, 404                 |
 | `schedules.cancel` | `DELETE /schedules/:id`   |              | 204                | 404                      |
 
-**Account**, in `routes.account`. Every route answers 404 when no account is attached.
+**Account**, `account.*`. Every route answers 404 when the host passed no `account`.
 
 | Operation      | Method and path                | Body       | Success            |
 | -------------- | ------------------------------ | ---------- | ------------------ |
@@ -44,7 +44,7 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 | `cancelSignIn` | `DELETE /account/sign-in`      |            | 204                |
 | `signOut`      | `POST /account/sign-out`       |            | 204                |
 
-**Push**, in `routes.push`. Every route answers 404 when the host passes no `push`. Familiar validates the subscription, then calls the `PushHost`'s `subscribe(subscription, subscriber)` or `unsubscribe(subscription, subscriber)` with the `Author` that `authenticate` returned. The body can't name a subscriber, and only `endpoint`, `expirationTime` and `keys` reach the host.
+**Push**, `push.*`. Every route answers 404 when the host passes no `push`. Familiar validates the subscription, then calls the `PushHost`'s `subscribe(subscription, subscriber)` or `unsubscribe(subscription, subscriber)` with the `Author` that `authenticate` returned. The body can't name a subscriber, and only `endpoint`, `expirationTime` and `keys` reach the host.
 
 | Operation     | Method and path              | Body                        | Success       |
 | ------------- | ---------------------------- | --------------------------- | ------------- |
@@ -52,7 +52,7 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 | `subscribe`   | `POST /push/subscriptions`   | `PushSubscription.toJSON()` | 204           |
 | `unsubscribe` | `DELETE /push/subscriptions` | `PushSubscription.toJSON()` | 204           |
 
-**Connections and MCP**, in `routes.connections` and `routes.mcp`
+**Connections and MCP**, `connections.*` and `mcp.*`
 
 | Operation                  | Method and path                                   | Body        | Success                | Errors                      |
 | -------------------------- | ------------------------------------------------- | ----------- | ---------------------- | --------------------------- |
@@ -95,4 +95,4 @@ type McpServer = {
 
 Apply ops in order to the last whole value. After a reconnect, everything arrives whole again. The server sends a comment every 15 seconds to keep the connection open.
 
-`protocol` always comes first. The rest come only from the sources `routes.events` chooses and allows for that request when it connects: `conversation` sends `view` and `ops`, `memory`, `episodes` and `schedules` each send their `document` and `document.ops`, and `account` sends `account`. A stream built with `eventRoutes` sends only the sources it was given. See [Choose event sources](/familiar/build/serve-the-api/#choose-event-sources).
+`protocol` always comes first. The rest come only from the sources `allow` agrees to for that request when it connects, `events.conversation` and so on: `conversation` sends `view` and `ops`, `memory`, `episodes` and `schedules` each send their `document` and `document.ops`, and `account` sends `account`, or `null` once when the host manages credentials itself.

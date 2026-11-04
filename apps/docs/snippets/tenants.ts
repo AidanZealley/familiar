@@ -4,18 +4,23 @@ import {
   type Familiar,
   type FamiliarOptions,
 } from '@familiar-ai/core'
-import { createHttpApi } from '@familiar-ai/core/http'
+import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 
 /** Who a request is from, and the tenant their session is in. */
 export type Member = { author: Author; tenant: string }
 
+// Members may talk, read history and watch the conversation.
+const CHAT = new Set<Operation>([
+  'conversation.send',
+  'conversation.history',
+  'conversation.abort',
+  'events.conversation',
+])
+
 const tenantApi = (familiar: Familiar, author: Author) =>
   createHttpApi(familiar, {
     authenticate: () => author,
-    routes: {
-      conversation: { send: true, history: true, abort: true },
-      events: { conversation: true },
-    },
+    allow: (_, operation) => CHAT.has(operation),
   })
 
 export type TenantApi = ReturnType<typeof tenantApi>

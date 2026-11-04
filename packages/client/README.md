@@ -10,9 +10,8 @@ npm install @familiar-ai/client
 
 ```ts
 import { createFamiliarStore } from '@familiar-ai/client'
-import type { Api } from './server/api.ts'
 
-const store = createFamiliarStore<Api>('/api')
+const store = createFamiliarStore('/api')
 const unsubscribe = store.subscribe((state) => {
   console.log(state.connection, state.transcript?.items)
 })
@@ -24,4 +23,4 @@ store.getState().disconnect()
 
 The host assigns the message author. Pass `{ fetch }` to attach credentials to every request, including stream reconnects. `unauthorized`, `failed` and `outdated` connections stop retrying; disconnect and create a new store after those, after sign-out or after an identity change. The library never reloads the page.
 
-`Api` is the type of your host's API, such as `typeof api` from `createHttpApi`, imported with `import type`; it is required, and the store offers a command only when that API has its route. React 18 or 19 bindings come from `createFamiliarBindings<Api>()` in `@familiar-ai/client/react`. The vanilla entry loads neither React nor core's server runtime. See the [typed host example](../../examples/typed-host/README.md).
+The store offers every command; a command the host's `allow` refuses rejects with its 403. React 18 or 19 bindings, `FamiliarProvider`, `useFamiliar` and `useTranscript`, come from `@familiar-ai/client/react`. The vanilla entry loads neither React nor core's server runtime.

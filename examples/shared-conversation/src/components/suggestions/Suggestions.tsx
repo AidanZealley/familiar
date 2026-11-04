@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { useFamiliar } from '@/demo/react'
+import { useFamiliar } from '@familiar-ai/client/react'
 import type { SuggestionsProps } from './types'
 
 /** Phrases the script understands, sent through this person's own client. */

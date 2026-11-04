@@ -1,8 +1,7 @@
 import { createFamiliarStore } from '@familiar-ai/client'
 import { getCurrentToken } from './host.ts'
-import type { Api } from './serve.ts'
 
-const store = createFamiliarStore<Api>('https://your-host.example/api', {
+const store = createFamiliarStore('https://your-host.example/api', {
   // Every request, including stream reconnects, goes through this.
   fetch: async (input, init) => {
     const request = new Request(input, init)
