@@ -17,6 +17,10 @@ const text = (value: string) => ({
 
 /** A schedule as the model reads it: what, and when, in Familiar's time zone. */
 function describe(schedule: Schedule, timeZone: string) {
+  // A refused repeat can't be read, so its times aren't worked out.
+  if (schedule.refused !== undefined) {
+    return `${schedule.id}: ${schedule.repeat}, paused because ${schedule.refused} Cancel and schedule it again to fix it: ${schedule.prompt}`
+  }
   const when = upcoming(schedule, 3, timeZone)
     .map((at) => weekdayMinute(at, timeZone))
     .join(', ')
@@ -26,7 +30,11 @@ function describe(schedule: Schedule, timeZone: string) {
 }
 
 /** schedule, list_schedules and cancel_schedule. */
-export function scheduleTools(task: ScheduleTask, timeZone: string) {
+export function scheduleTools(
+  task: ScheduleTask,
+  timeZone: string,
+  maxSchedules: number,
+) {
   const schedule = defineTool({
     name: 'schedule',
     description:
@@ -43,7 +51,7 @@ export function scheduleTools(task: ScheduleTask, timeZone: string) {
       repeat: Type.Optional(
         Type.String({
           description:
-            'Repeating, as an RFC 5545 RRULE in local time with its time, e.g. FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=7;BYMINUTE=0',
+            'Repeating, as five-field cron (minute hour day-of-month month day-of-week) in local time, e.g. 0 7 * * 1-5 for 07:00 on weekdays. Runs at most hourly; closer times are skipped.',
         }),
       ),
     }),
@@ -61,6 +69,7 @@ export function scheduleTools(task: ScheduleTask, timeZone: string) {
           { id, ...args, creator: api.author },
           api.now(),
           timeZone,
+          maxSchedules,
         )
         // Background, so it never keeps the conversation busy while it sleeps.
         await tx.createTask(

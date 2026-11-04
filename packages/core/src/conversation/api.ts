@@ -11,7 +11,7 @@ import {
   type ModelRef,
 } from '@earendil-works/pi-durable'
 import {
-  authorSnapshot,
+  admitMessage,
   formatMessage,
   MESSAGE_KIND,
   type Author,
@@ -36,13 +36,18 @@ export type Message = {
    */
   author: Author
   text: string
-  /** Stable per logical message, so a retried send is admitted once. */
+  /**
+   * Stable per logical message from this author, so a retried send is
+   * admitted once. Scoped to the author: another author's same ID is a
+   * different message. At most `MESSAGE_LIMITS.requestId` characters.
+   */
   requestId: string
 }
 
 export type HistoryPage = { entries: EntryRecord[]; more: boolean }
 
 export type ConversationApi = {
+  /** Rejects with a MessageError, sending nothing, when `admitMessage` refuses it. */
   send(message: Message): Promise<void>
   /** Stop the current run and withdraw the messages queued behind it. */
   abort(): Promise<void>
@@ -112,8 +117,8 @@ export async function installConversation(
   }, context)
 
   return {
-    send: async ({ author: suppliedAuthor, text, requestId }) => {
-      const author = authorSnapshot(suppliedAuthor)
+    send: async (message) => {
+      const { author, text, requestId } = admitMessage(message)
       // The model's copy names the author; the entry keeps the words as sent.
       await conversation.submit(
         {

@@ -3,7 +3,7 @@ import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import type { ConversationApi, HistoryPage } from './api.ts'
-import type { Author } from './message.ts'
+import { MessageError, type Author } from './message.ts'
 import { ModelError } from './models.ts'
 
 /** Answers 204, or 400 when the chat models refuse the change. */
@@ -95,12 +95,13 @@ export const conversationRoutes = (
     )
     .post(
       '/messages',
+      // Only the shape here: `send` owns the bounds, for every caller.
       validator('json', (body, c) => {
-        if (typeof body?.text !== 'string' || !body.text.trim()) {
+        if (typeof body?.text !== 'string') {
           return c.json({ error: 'text is required' }, 400)
         }
 
-        if (typeof body.requestId !== 'string' || !body.requestId) {
+        if (typeof body.requestId !== 'string') {
           return c.json({ error: 'requestId is required' }, 400)
         }
 
@@ -110,10 +111,17 @@ export const conversationRoutes = (
         }
       }),
       async (c) => {
-        await conversation.send({
-          author: await author(c),
-          ...c.req.valid('json'),
-        })
+        try {
+          await conversation.send({
+            author: await author(c),
+            ...c.req.valid('json'),
+          })
+        } catch (error) {
+          if (error instanceof MessageError) {
+            return c.json({ error: error.message }, 400)
+          }
+          throw error
+        }
         return c.body(null, 202)
       },
     )

@@ -1,143 +1,63 @@
-import * as rruleModule from 'rrule'
-import { wallClock, zonedTime } from '../time/index.ts'
-
-// Node loads rrule's CommonJS build, whose exports arrive only as the default;
-// bundlers such as Wrangler's load its ES build, which has no default.
-const rrule: typeof rruleModule =
-  Reflect.get(rruleModule, 'default') ?? rruleModule
+import { Cron } from 'croner'
 
 /**
- * Repeats are RFC 5545 RRULEs, read in Familiar's time zone. rrule computes
- * in UTC, so it's given wall-clock times dressed as UTC and its answers are
- * read back the same way: a daily 07:00 stays 07:00 across a daylight saving
- * change. An occurrence the clock skips moves forward with `zonedTime`, and
- * one it shows twice is the earlier time.
+ * Repeats are five-field cron expressions, such as `0 7 * * 1-5`, read in
+ * Familiar's time zone. Croner owns the grammar and the calendar, including
+ * daylight saving: a time the clock skips runs when the clock resumes, and
+ * of one it shows twice, a daily repeat runs the first while an hourly one
+ * runs both. How often a repeat may run is schedules.ts's rule, not the
+ * expression's.
  */
 
-/** A time as the UTC time with the same calendar fields in `timeZone`. */
-const toFloating = (at: number, timeZone: string) => {
-  const { year, month, day, hour, minute, second } = wallClock(at, timeZone)
-  return Date.UTC(year, month - 1, day, hour, minute, second)
-}
-
-const fromFloating = (date: Date, timeZone: string) =>
-  zonedTime(
-    {
-      year: date.getUTCFullYear(),
-      month: date.getUTCMonth() + 1,
-      day: date.getUTCDate(),
-      hour: date.getUTCHours(),
-      minute: date.getUTCMinutes(),
-      second: date.getUTCSeconds(),
-    },
-    timeZone,
-  )
-
-const DAY_MS = 24 * 60 * 60 * 1000
-
-/** A rule that starts at `start`, the minute its schedule was created. */
-function ruleOf(repeat: string, start: number, timeZone: string) {
-  const startMinute = toFloating(start, timeZone)
-  return rrule.rrulestr(repeat.replace(/^RRULE:/i, ''), {
-    dtstart: new Date(startMinute - (startMinute % 60_000)),
-  })
-}
+/** The longest repeat, checked before Croner reads it. */
+export const REPEAT_LENGTH = 256
 
 /**
- * The rule's occurrences as times, in order, within a day of `time`'s wall
- * clock. Around a clock change, wall-clock order and time order can differ
- * by up to the change, so searches look this far either side.
+ * A repeat as Croner reads it, or throws saying why it isn't one. Without a
+ * callback or name, Croner starts no timer and registers nothing: it's only
+ * a calculator.
  */
-function around(repeat: string, start: number, time: number, timeZone: string) {
-  const rule = ruleOf(repeat, start, timeZone)
-  const floating = toFloating(time, timeZone)
-  const near = rule
-    .between(new Date(floating - DAY_MS), new Date(floating + DAY_MS), true)
-    .map((date) => fromFloating(date, timeZone))
-    .sort((a, b) => a - b)
-  return { rule, floating, near }
-}
-
-/** The first occurrence after `time`, or undefined once the rule has ended. */
-export function occurrenceAfter(
-  repeat: string,
-  start: number,
-  time: number,
-  timeZone: string,
-) {
-  const { rule, floating, near } = around(repeat, start, time, timeZone)
-  const next = near.find((at) => at > time)
-  if (next !== undefined) {
-    return next
+function cronOf(repeat: string, timeZone: string) {
+  if (repeat.length > REPEAT_LENGTH) {
+    throw new Error(`Keep the repeat to ${REPEAT_LENGTH} characters.`)
   }
-  const later = rule.after(new Date(floating + DAY_MS))
-  return later ? fromFloating(later, timeZone) : undefined
-}
-
-/** The latest occurrence at or before `time`, if any. */
-export function occurrenceBy(
-  repeat: string,
-  start: number,
-  time: number,
-  timeZone: string,
-) {
-  const { rule, floating, near } = around(repeat, start, time, timeZone)
-  const latest = near.findLast((at) => at <= time)
-  if (latest !== undefined) {
-    return latest
-  }
-  const earlier = rule.before(new Date(floating - DAY_MS))
-  return earlier ? fromFloating(earlier, timeZone) : undefined
-}
-
-/** Up to `count` occurrences after `time`. */
-export function occurrencesAfter(
-  repeat: string,
-  start: number,
-  time: number,
-  count: number,
-  timeZone: string,
-) {
-  const times: number[] = []
-  let at: number | undefined = time
-  while (times.length < count) {
-    at = occurrenceAfter(repeat, start, at, timeZone)
-    if (at === undefined) {
-      break
-    }
-    times.push(at)
-  }
-  return times
-}
-
-/**
- * Why a repeat can't be scheduled, or undefined if it can. A repeat names
- * its own time, so it never silently inherits the minute it was set.
- */
-export function repeatProblem(repeat: string) {
-  let options
   try {
-    options = rrule.rrulestr(repeat.replace(/^RRULE:/i, '')).origOptions
+    return new Cron(repeat, { mode: '5-part', timezone: timeZone })
   } catch (error) {
-    return `Not a valid RRULE: ${(error as Error).message}`
+    throw new Error(
+      `Give the repeat as five-field cron, such as 0 7 * * 1-5: ${(error as Error).message}`,
+      { cause: error },
+    )
   }
-  if (options.freq === undefined) {
-    return 'The RRULE needs a FREQ.'
-  }
-  if (
-    options.freq === rrule.RRule.MINUTELY ||
-    options.freq === rrule.RRule.SECONDLY
-  ) {
-    return 'Repeats can be at most hourly.'
-  }
-  if (options.byminute === undefined || options.byminute === null) {
-    return 'Give the time with BYMINUTE (and BYHOUR unless it repeats hourly).'
-  }
-  if (
-    options.freq !== rrule.RRule.HOURLY &&
-    (options.byhour === undefined || options.byhour === null)
-  ) {
-    return 'Give the time with BYHOUR and BYMINUTE.'
-  }
-  return undefined
 }
+
+/** Why a repeat can't be scheduled, or undefined if it can. */
+export function repeatProblem(repeat: string, timeZone: string) {
+  try {
+    cronOf(repeat, timeZone)
+    return undefined
+  } catch (error) {
+    return (error as Error).message
+  }
+}
+
+/** The first occurrence after `time`, or undefined if there is none. */
+export const nextOccurrence = (
+  repeat: string,
+  time: number,
+  timeZone: string,
+) => cronOf(repeat, timeZone).nextRun(new Date(time))?.getTime()
+
+/**
+ * The latest occurrence at or before `time`, if any. Croner looks strictly
+ * before a time, to the second, and occurrences fall on whole minutes, so
+ * looking before the next second includes one exactly at `time`.
+ */
+export const latestOccurrence = (
+  repeat: string,
+  time: number,
+  timeZone: string,
+) =>
+  cronOf(repeat, timeZone)
+    .previousRuns(1, new Date(time + 1000))[0]
+    ?.getTime()

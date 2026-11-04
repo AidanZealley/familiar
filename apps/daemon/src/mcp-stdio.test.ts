@@ -186,12 +186,12 @@ test('process exit removes tools, reconnect launches a fresh process, and dismis
   await expect.poll(() => exited(secondPid)).toBe(true)
 })
 
-test('hosts without stdio report an unsupported transport without blocking chat', async () => {
+test('hosts without stdio refuse the transport before saving it, without blocking chat', async () => {
   const { familiar, faux } = await setup(null)
-  await familiar.mcp.add(server)
-  await expect
-    .poll(async () => (await info(familiar)).status)
-    .toEqual({ type: 'failed', error: 'This host has no MCP stdio transport.' })
+  await expect(familiar.mcp.add(server)).rejects.toThrow(
+    'This host does not run local MCP commands.',
+  )
+  expect(await familiar.connections.list()).toEqual([])
   faux.setResponses([fauxAssistantMessage('Still here.')])
   await familiar.send({
     author: { id: 'owner', name: 'owner' },

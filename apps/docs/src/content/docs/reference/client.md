@@ -93,7 +93,6 @@ Times are milliseconds since the epoch. A message's `author` is a plain name str
 
 - `toTranscript(view, history?)` derives a transcript. The store already does this; use it for other clients.
 - `agentOf(view)` reads the conversation's current model and reasoning level.
-- `repeatText(rrule)` describes a schedule's repeat in words, such as "Every weekday".
 - `startOf(view)` and `carryOver(history, before, after)` are the history bookkeeping the store uses.
 
 ## React

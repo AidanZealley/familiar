@@ -7,11 +7,12 @@ import { MemoryStorage, type DocumentWatch } from '@earendil-works/pi-durable'
 import { Hono } from 'hono'
 import { testClient } from 'hono/testing'
 import { afterEach, expect, test, vi } from 'vitest'
-import { summonFamiliar, type Familiar } from './familiar.ts'
+import { MESSAGE_LIMITS, summonFamiliar, type Familiar } from './familiar.ts'
 import {
   conversationRoutes,
   eventRoutes,
   createHttpApi,
+  DEFAULT_MAX_BODY_SIZE,
   type FactsState,
   type EpisodesState,
 } from './http.ts'
@@ -406,4 +407,63 @@ test('disconnect during watch opening stops the late watch without starting it',
   opened({ value: null, start, stop, closed: new Promise(() => {}) })
   await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
   expect(start).not.toHaveBeenCalled()
+})
+
+test('request bodies are bounded before routes read them, and fields by Familiar', async () => {
+  const models = createModels()
+  models.setProvider(fauxProvider().provider)
+  const familiar = await summonFamiliar({
+    storage: new MemoryStorage(),
+    models,
+    model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+  })
+  opened.push(familiar)
+  const send = vi.spyOn(familiar, 'send')
+  const post = (
+    api: ReturnType<typeof createHttpApi>,
+    body: BodyInit,
+    headers: Record<string, string> = {},
+  ) =>
+    api.request('/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body,
+      duplex: 'half',
+    } as RequestInit)
+  const authenticate = () => ({ id: 'aidan', name: 'aidan' })
+  const api = createHttpApi(familiar, { authenticate })
+
+  const huge = JSON.stringify({
+    text: 'x'.repeat(DEFAULT_MAX_BODY_SIZE),
+    requestId: 'huge',
+  })
+  expect((await post(api, huge)).status).toBe(413)
+  // Streamed, so no Content-Length says how big it is.
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(huge))
+      controller.close()
+    },
+  })
+  expect((await post(api, stream)).status).toBe(413)
+
+  // Within the body limit, but over the message's own bound.
+  const long = await post(
+    api,
+    JSON.stringify({
+      text: 'x'.repeat(MESSAGE_LIMITS.text + 1),
+      requestId: 'long',
+    }),
+  )
+  expect(long.status).toBe(400)
+  expect(send).toHaveBeenCalledOnce()
+  await expect(send.mock.results[0].value).rejects.toThrow()
+
+  // Hosts can choose their own limit.
+  const small = createHttpApi(familiar, { authenticate, maxBodySize: 16 })
+  expect(
+    (await post(small, JSON.stringify({ text: 'Hello there', requestId: 'a' })))
+      .status,
+  ).toBe(413)
 })

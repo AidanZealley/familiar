@@ -41,7 +41,7 @@ test('a new declaration cannot reuse an orphaned token for a different endpoint'
     ...fixture.server,
     transport: {
       ...fixture.server.transport,
-      url: 'http://different.local/mcp',
+      url: 'https://different.local/mcp',
     },
   })
   await expect

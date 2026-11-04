@@ -19,6 +19,8 @@ import compose from '../../../../snippets/compose-routes.ts?raw'
 
 Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available.
 
+`createHttpApi` limits request bodies to `maxBodySize` bytes, by default `DEFAULT_MAX_BODY_SIZE` (1 MiB), and answers 413 for larger ones. Route groups you mount yourself don't get this limit, so add Hono's `bodyLimit` in front of them. Familiar checks field bounds such as `MESSAGE_LIMITS` itself, for every caller.
+
 ## Identity is not permission
 
 Familiar records who said what and shows the model each author. It doesn't decide who may do what. Your host must:
@@ -28,6 +30,8 @@ Familiar records who said what and shows the model each author. It doesn't decid
 - check permission inside tools that change things outside Familiar, using `api.author` in the tool
 
 The installed daemon is the simplest case. It authenticates every request as its owner, with the stable ID `owner`, and relies on the network for access. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
+
+Because the browser sends the network along with every request, the daemon also uses Hono's `csrf` middleware against cross-site requests. It refuses a browser's form or bodyless `POST` unless `Sec-Fetch-Site` is `same-origin` or `Origin` names the `Host` the request was sent to. That still accepts the daemon's own page through Tailscale Serve and through Vite's proxy. Requests with neither header, such as from the CLI or `curl`, aren't from a browser and pass. If your host authenticates browsers with cookies or other ambient credentials, add the same protection, because `createHttpApi` doesn't.
 
 ## Choose route groups
 

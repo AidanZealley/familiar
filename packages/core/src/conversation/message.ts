@@ -27,17 +27,81 @@ export type MessageData = { author: Author; text: string }
 /** Historical entries may have only a name. New sends still require an Author. */
 export type StoredMessageData = { author: Author | string; text: string }
 
+/**
+ * Bounds on what a message may carry, enforced by `admitMessage` for every
+ * caller, HTTP or not. Text is in UTF-16 code units, as JavaScript counts.
+ */
+export const MESSAGE_LIMITS = {
+  /**
+   * An input-size policy, not a token budget: room for anything a person
+   * would paste, while keeping what one message stores bounded. Longer
+   * messages are refused, not cut.
+   */
+  text: 128_000,
+  requestId: 128,
+  authorId: 256,
+  authorName: 128,
+} as const
+
+/** A message the admission rules refuse; nothing was sent. */
+export class MessageError extends TypeError {}
+
+const bounded = (value: unknown, limit: number): value is string =>
+  typeof value === 'string' && !!value.trim() && value.length <= limit
+
 /** Reject malformed host identities rather than admitting an unattributed message. */
 export function authorSnapshot(author: Author): Author {
   if (
-    typeof author?.id !== 'string' ||
-    !author.id.trim() ||
-    typeof author.name !== 'string' ||
-    !author.name.trim()
+    !bounded(author?.id, MESSAGE_LIMITS.authorId) ||
+    !bounded(author.name, MESSAGE_LIMITS.authorName)
   ) {
-    throw new TypeError('An author requires a non-empty id and name.')
+    throw new MessageError(
+      `An author requires a non-empty id and name, of at most ${MESSAGE_LIMITS.authorId} and ${MESSAGE_LIMITS.authorName} characters.`,
+    )
   }
   return { id: author.id, name: author.name }
+}
+
+/**
+ * The conversation's request ID for a person's message. A caller's ID is only
+ * unique to its author, so it is namespaced by the author's stable ID: two
+ * people can't collide, a retry by the same author is still admitted once,
+ * and no caller can name Familiar's own submissions, which use other
+ * prefixes, such as a schedule's `schedule:`. JSON keeps the pair unambiguous
+ * whatever either contains.
+ */
+const personRequestId = (author: Author, requestId: string) =>
+  `person:${JSON.stringify([author.id, requestId])}`
+
+/**
+ * The single admission check for a person's message: a valid author, words
+ * within bounds and a bounded request ID. Throws a MessageError otherwise.
+ */
+export function admitMessage(message: {
+  author: Author
+  text: string
+  requestId: string
+}) {
+  const author = authorSnapshot(message.author)
+  if (!bounded(message.text, MESSAGE_LIMITS.text)) {
+    throw new MessageError(
+      `A message needs text, of at most ${MESSAGE_LIMITS.text} characters.`,
+    )
+  }
+  if (
+    typeof message.requestId !== 'string' ||
+    !message.requestId ||
+    message.requestId.length > MESSAGE_LIMITS.requestId
+  ) {
+    throw new MessageError(
+      `A message needs a requestId of at most ${MESSAGE_LIMITS.requestId} characters.`,
+    )
+  }
+  return {
+    author,
+    text: message.text,
+    requestId: personRequestId(author, message.requestId),
+  }
 }
 
 /** JSON stays on one line even when a host supplies control characters. */

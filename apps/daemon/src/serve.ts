@@ -4,7 +4,8 @@ import type { Familiar } from '@familiar-ai/core'
 import { createHttpApi, type PushHost } from '@familiar-ai/core/http'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { Hono } from 'hono'
+import { Hono, type MiddlewareHandler } from 'hono'
+import { csrf } from 'hono/csrf'
 
 export type ServeOptions = {
   host: string
@@ -39,9 +40,42 @@ export function isAllowedHost(host: string | null) {
   )
 }
 
-/** Serve one Familiar over HTTP until SIGINT or SIGTERM, then close it. */
-export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
-  const app = new Hono().route(
+/** Whether `origin` names the server this request was addressed to. */
+const sameHost = (origin: string, host: string | undefined) =>
+  URL.canParse(origin) && new URL(origin).host === host
+
+/**
+ * The network is the daemon's auth, so a page on another site could make the
+ * owner's browser post to it. Hono's csrf refuses browser mutations unless
+ * they are same-origin by Sec-Fetch-Site or by an Origin naming the Host they
+ * were sent to. Comparing hosts rather than whole origins accepts the
+ * daemon's own page through a proxy that keeps the Host and changes the
+ * scheme, such as Tailscale Serve's HTTPS, and Vite's proxy in development.
+ * Hono checks the content types a form can send, and treats a missing one as
+ * text/plain, so bodyless POSTs are checked too; JSON from another site needs
+ * a CORS preflight the daemon never grants.
+ *
+ * A request with neither header doesn't come from a browser, which always
+ * sends Origin on a cross-origin POST, so the CLI, curl and scripts on the
+ * owner's network keep working without one.
+ */
+export function browserRequestsSameOrigin(): MiddlewareHandler {
+  const guard = csrf({
+    origin: (origin, c) => sameHost(origin, c.req.header('host')),
+  })
+  return (c, next) =>
+    c.req.header('origin') === undefined &&
+    c.req.header('sec-fetch-site') === undefined
+      ? next()
+      : guard(c, next)
+}
+
+/** The daemon's routes: the API under `/api`, then the built web UI. */
+export function daemonApp(
+  familiar: Familiar,
+  options: Pick<ServeOptions, 'owner' | 'webDir' | 'push'>,
+) {
+  const app = new Hono().use(browserRequestsSameOrigin()).route(
     '/api',
     createHttpApi(familiar, {
       authenticate: (request) =>
@@ -57,6 +91,12 @@ export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
     app.use(serveStatic({ root: options.webDir }))
     app.get('*', serveStatic({ root: options.webDir, path: 'index.html' }))
   }
+  return app
+}
+
+/** Serve one Familiar over HTTP until SIGINT or SIGTERM, then close it. */
+export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
+  const app = daemonApp(familiar, options)
 
   const server = serve(
     { fetch: app.fetch, hostname: options.host, port: options.port },

@@ -48,8 +48,8 @@
     "@earendil-works/pi-durable": "catalog:",
     "@modelcontextprotocol/client": "catalog:",
     "hono": "catalog:",
+    "croner": "11.0.0",
     "minisearch": "7.2.0",
-    "rrule": "2.8.1",
     "zod": "4.6.7"
   }
 }
