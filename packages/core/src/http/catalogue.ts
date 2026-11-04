@@ -24,20 +24,18 @@ import { scheduleOperations } from '../schedules/http.ts'
  * as clients group their commands. Its names are the names hosts select,
  * and its apps give their types.
  */
+/** Who `createHttpApi` authenticated the request as. */
+const author = (c: Context<AuthorEnv>) => c.get('author')
+
 export const operations = (familiar: Familiar, push: PushHost | undefined) => ({
   conversation: {
-    ...at(
-      '/',
-      conversationOperations(familiar, (c: Context<AuthorEnv>) =>
-        c.get('author'),
-      ),
-    ),
+    ...at('/', conversationOperations(familiar, author)),
     ...at('/model', modelOperations(familiar)),
   },
   account: at('/account', accountOperations(familiar.account)),
   memory: at('/memory', memoryOperations(familiar.memory)),
   schedules: at('/schedules', scheduleOperations(familiar.schedules)),
-  push: at('/push', pushOperations(push)),
+  push: at('/push', pushOperations(push, author)),
   connections: at('/connections', connectionOperations(familiar.connections)),
   mcp: at('/mcp', mcpOperations(familiar.mcp)),
 })

@@ -36,6 +36,8 @@ Each one is `true`, for everyone `authenticate` accepts, or your own check, `(au
 
 `routes: true` serves every route and every event source, including any that Familiar adds later, to everyone `authenticate` accepts. Use it only when everyone who can reach the API is the Familiar's owner. The daemon does, because only its owner can reach it. Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available.
 
+A `PushHost` stores subscriptions and decides what each person may change. Its `subscribe` and `unsubscribe` receive the subscription and the authenticated `Author`. Store each subscription with its subscriber's `id`, and let unsubscribing remove only that person's own: an endpoint is not proof of whose browser it is. The host also chooses who receives each notification, in `notify`. You don't need Familiar's push routes at all if your app already delivers notifications its own way. See [Notifications](/familiar/reference/core/#notifications).
+
 `authenticate` receives each request and returns the person making it as `{ id, name }`, or `undefined` to answer 401. The result becomes the author of any message that request sends. Request bodies can't choose their own author.
 
 Request bodies are limited to `maxBodySize` bytes, by default `DEFAULT_MAX_BODY_SIZE` (1 MiB), and larger ones answer 413. Route groups you mount yourself don't get this limit, so add Hono's `bodyLimit` in front of them. Familiar checks field bounds such as `MESSAGE_LIMITS` itself, for every caller.
@@ -76,6 +78,10 @@ The installed daemon is the simplest case. It authenticates every request as its
 
 Because the browser sends the network along with every request, the daemon also uses Hono's `csrf` middleware against cross-site requests. It refuses a browser's form or bodyless `POST` unless `Sec-Fetch-Site` is `same-origin` or `Origin` names the `Host` the request was sent to. That still accepts the daemon's own page through Tailscale Serve and through Vite's proxy. Requests with neither header, such as from the CLI or `curl`, aren't from a browser and pass. If your host authenticates browsers with cookies or other ambient credentials, add the same protection, because `createHttpApi` doesn't.
 
+The daemon's own web UI also refuses to be shown inside another site's page, with `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. Those headers are the daemon's, not `createHttpApi`'s: a host that embeds Familiar in its own pages, or in a frame, sets its own framing policy.
+
+The daemon's Web Push stores each subscription with the authenticated subscriber who added it, and subscribing or unsubscribing changes only that subscriber's entries. The daemon authenticates every request as `owner`, so all of its devices share one subscriber. A host that authenticates separate people receives each person's `Author` and must enforce the same scoping in its `PushHost` implementation. It also gives each delivery a 30-second socket inactivity timeout, web-push's `timeout`, so a push service that stops answering can't hold up a scheduled run. A failed delivery is reported and doesn't stop other devices getting theirs.
+
 ## Compose routes yourself
 
 To mount Familiar's routes beside your own or behind your own middleware, compose the route factories instead. Each one is a Hono app you mount at its standard path, built from the same operations `routes` names, such as `memoryOperations(familiar.memory).health`:
@@ -92,7 +98,7 @@ To mount Familiar's routes beside your own or behind your own middleware, compos
 | `mcpRoutes`          | `/mcp`         | add, remove and reconnect MCP servers       |
 | `eventRoutes`        | `/`            | the `/events` stream                        |
 
-`conversationRoutes` takes a function that returns the author for a request. This host exposes the conversation plus memory, to people trusted with memory:
+`conversationRoutes` and `pushRoutes` take a function that returns the author for a request. This host exposes the conversation plus memory, to people trusted with memory:
 
 <Code code={compose} lang="ts" title="host.ts" />
 

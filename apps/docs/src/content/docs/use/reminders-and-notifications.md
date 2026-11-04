@@ -22,7 +22,9 @@ To turn them on, open **Schedules** on each device and choose **Enable**. Notifi
 - an HTTPS address, such as the Tailscale address setup prints
 - on iPhone and iPad, iOS 16.4 or later, with Familiar added to the home screen and opened from there
 
-Turn them off again from the same place.
+Turn them off again from the same place. Each device turns off only its own notifications.
+
+If a device's push service stops answering for 30 seconds, Familiar gives up on that notification and reports the failure. Other devices still get theirs, and the next notification tries that device again.
 
 ## When the computer was asleep
 

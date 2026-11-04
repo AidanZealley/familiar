@@ -14,6 +14,7 @@ import {
   summonFamiliar,
   type Familiar,
   type Notification,
+  type NotificationContext,
 } from '../familiar.ts'
 import { ReopenableStorage, withHarness } from '../memory/testing.ts'
 import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
@@ -73,6 +74,7 @@ async function setup(
   const clock = fakeClock(start)
   let timeZone = TEST_ZONE
   const notifications: Notification[] = []
+  const contexts: (NotificationContext | undefined)[] = []
 
   // Scheduled inputs take the next answer in turn, and the owner's messages
   // the answer given for them. Anything else, such as memory upkeep at
@@ -103,8 +105,9 @@ async function setup(
       timeZone,
       now: clock.now,
       setTimer: clock.setTimer,
-      notify: async (notification) => {
+      notify: async (notification, context) => {
         notifications.push(notification)
+        contexts.push(context)
       },
       onWake: options.onWake,
       plugins: options.plugins,
@@ -216,6 +219,8 @@ async function setup(
       })
     },
     notifications,
+    /** Each notification's context, in the same order. */
+    contexts,
     schedule,
     schedules,
     scheduledEntries,
@@ -379,6 +384,10 @@ test('reopening while waiting for the reply submits once and notifies once', asy
 
   await f.sleepingUntil('done')
   expect(bodies(f.notifications)).toEqual(['Call Mum.'])
+  // The rerun's checkpoint still names who asked.
+  expect(f.contexts).toEqual([
+    { scheduleId: expect.any(String), creator: { id: 'aidan', name: 'aidan' } },
+  ])
   expect(await f.scheduledEntries()).toHaveLength(1)
 })
 
@@ -606,6 +615,33 @@ test('a reopened schedule exposes its creator snapshot to tools without recipien
   await f.fireAt(at(21, 18), 'done')
   expect(seen).toEqual([{ id: 'sam-1', name: 'Sam' }])
   expect(bodies(f.notifications)).toEqual(['Time to call Mum'])
+  // Attribution for the host, which picks recipients; not a recipient list.
+  expect(f.contexts).toEqual([
+    { scheduleId: id, creator: { id: 'sam-1', name: 'Sam' } },
+  ])
+})
+
+test("a plugin's notification carries no schedule context", async () => {
+  let notify!: (notification: Notification) => Promise<void>
+  const f = await setup({
+    plugins: [
+      {
+        name: 'notifier',
+        title: 'Notifier',
+        extension: (context) => {
+          notify = context.notify
+          return {}
+        },
+      },
+    ],
+  })
+  // Even when it tries to claim one: a plugin isn't a schedule.
+  await (notify as (...args: unknown[]) => Promise<void>)(
+    { title: 'Parcel', body: 'Delivered' },
+    { scheduleId: 's1', creator: { id: 'mallory', name: 'Mallory' } },
+  )
+  expect(f.notifications).toEqual([{ title: 'Parcel', body: 'Delivered' }])
+  expect(f.contexts).toEqual([undefined])
 })
 
 test.each([

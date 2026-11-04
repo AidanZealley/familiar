@@ -42,7 +42,8 @@ export function createPlugins(options: PluginsOptions) {
     const extension = plugin.extension({
       now: options.now,
       timeZone: options.timeZone,
-      notify: options.notify ?? (async () => {}),
+      // Without a schedule's context: plugins can't claim one.
+      notify: async (notification) => options.notify?.(notification),
       fetch,
       authorizedFetch: async (name, input, init) =>
         authorizedFetch(

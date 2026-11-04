@@ -71,6 +71,18 @@ export function browserRequestsSameOrigin(): MiddlewareHandler {
 }
 
 /**
+ * The daemon's own UI is never shown inside another page, which could
+ * otherwise overlay it to trick the owner into clicking. Only the daemon's
+ * UI: hosts embedding Familiar serve their own pages with their own policy.
+ * `X-Frame-Options` is for browsers older than `frame-ancestors`.
+ */
+const unframed: MiddlewareHandler = async (c, next) => {
+  await next()
+  c.header('Content-Security-Policy', "frame-ancestors 'none'")
+  c.header('X-Frame-Options', 'DENY')
+}
+
+/**
  * The daemon's routes: the whole API under `/api`, since everyone who can
  * reach it is the owner, then the built web UI.
  */
@@ -92,6 +104,7 @@ export function daemonApp(
 
   // In development Vite serves the UI instead.
   if (options.webDir && existsSync(options.webDir)) {
+    app.use(unframed)
     app.use(serveStatic({ root: options.webDir }))
     app.get('*', serveStatic({ root: options.webDir, path: 'index.html' }))
   }
