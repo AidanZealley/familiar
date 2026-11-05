@@ -5,7 +5,7 @@ import {
   SettingsIcon,
   SunIcon,
 } from 'lucide-react'
-import { useTheme } from '@/components/theme-provider'
+import { useTheme } from '@/lib/theme'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
