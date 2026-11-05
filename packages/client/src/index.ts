@@ -7,6 +7,7 @@ export type {
 export type { Connection } from './events.ts'
 export { agentOf } from './conversation.ts'
 export type { History } from './conversation.ts'
+export { CORE_BUDGET } from './memory.ts'
 export { toTranscript } from './transcript.ts'
 export type { ToolCall, Transcript, TranscriptItem } from './transcript.ts'
 export type {

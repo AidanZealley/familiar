@@ -1,7 +1,7 @@
 import { HistoryIcon, PinIcon } from 'lucide-react'
 import { useState } from 'react'
 import { FactMenu } from '@/components/fact-menu'
-import { formatDate } from '@/lib/memory'
+import { formatDate } from '@/lib/format'
 import { FactEditor } from '../fact-editor'
 import { ImportanceDots } from '../importance-dots'
 import type { FactItemProps } from './types'

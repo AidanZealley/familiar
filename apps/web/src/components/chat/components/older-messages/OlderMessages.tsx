@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
 import { familiar, useFamiliar } from '@/lib/familiar'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import type { OlderMessagesProps } from './types'
 
 /**

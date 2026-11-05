@@ -1,5 +1,4 @@
 import { BellIcon, BellOffIcon } from 'lucide-react'
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useNotifications, type NotificationStatus } from '@/lib/notifications'
 
@@ -15,15 +14,8 @@ const explanations: Record<NotificationStatus, string> = {
 
 /** Whether this device gets notifications, and the one button that changes it. */
 export const NotificationSetting = () => {
-  const { status, error, enable, disable } = useNotifications()
-  const [busy, setBusy] = useState(false)
+  const { status, busy, error, enable, disable } = useNotifications()
   const on = status === 'on'
-
-  const toggle = async () => {
-    setBusy(true)
-    await (on ? disable() : enable())
-    setBusy(false)
-  }
 
   return (
     <section className="flex items-center gap-3 border bg-card p-3">
@@ -43,7 +35,7 @@ export const NotificationSetting = () => {
         <Button
           variant={on ? 'outline' : 'default'}
           disabled={busy}
-          onClick={toggle}
+          onClick={on ? disable : enable}
         >
           {on ? 'Turn off' : 'Enable'}
         </Button>

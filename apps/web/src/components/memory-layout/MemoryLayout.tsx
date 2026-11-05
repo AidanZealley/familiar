@@ -8,7 +8,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { memorySections } from '@/lib/memory'
+import { memorySections } from '@/lib/memory-sections'
 
 /** Memory's pages, reached from the header menu, under one heading. */
 export const MemoryLayout = () => {

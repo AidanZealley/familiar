@@ -1,5 +1,6 @@
 import { cn } from 'cn'
-import { formatDate, isPast } from '@/lib/memory'
+import { formatDate } from '@/lib/format'
+import { isPast } from '@/lib/memory'
 import type { HistoryChainProps } from './types'
 
 /**

@@ -1,5 +1,5 @@
 import type { PushSubscriptionJson } from '@familiar-ai/client'
-import { useCallback, useEffect, useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { familiar } from '@/lib/familiar'
 
 /**
@@ -16,21 +16,6 @@ const supported = () =>
   'PushManager' in window &&
   'Notification' in window
 
-/** The VAPID key's base64url as the bytes `subscribe` wants. */
-const keyBytes = (key: string) => {
-  const base64 = key.replace(/-/g, '+').replace(/_/g, '/')
-  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
-}
-
-const sameKey = (subscription: PushSubscription, key: Uint8Array) => {
-  const current = subscription.options.applicationServerKey
-  return (
-    !!current &&
-    new Uint8Array(current).length === key.length &&
-    new Uint8Array(current).every((byte, i) => byte === key[i])
-  )
-}
-
 const asJson = (subscription: PushSubscription) =>
   subscription.toJSON() as PushSubscriptionJson
 
@@ -46,92 +31,85 @@ async function devicePush() {
   }
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
-  const bytes = keyBytes(key)
+  const used = subscription?.options.applicationServerKey
   return {
-    key: bytes,
+    key,
     registration,
     subscription,
-    current: !!subscription && sameKey(subscription, bytes),
+    current:
+      !!used &&
+      new Uint8Array(used).toBase64({
+        alphabet: 'base64url',
+        omitPadding: true,
+      }) === key,
   }
 }
 
-/** Whether this device gets Familiar's notifications, and the means to change it. */
+async function check(): Promise<NotificationStatus> {
+  if (!supported()) {
+    return 'unsupported'
+  }
+  if (Notification.permission === 'denied') {
+    return 'blocked'
+  }
+  const push = await devicePush()
+  if (!push) {
+    return 'unsupported'
+  }
+  if (push.current && Notification.permission === 'granted') {
+    // The server may have forgotten it (a fresh demo, a pruned endpoint).
+    await familiar.push.subscribe(asJson(push.subscription!))
+    return 'on'
+  }
+  return 'off'
+}
+
+async function subscribe(permission: Promise<NotificationPermission>) {
+  if ((await permission) !== 'granted') {
+    return
+  }
+  const push = await devicePush()
+  if (!push) {
+    return
+  }
+  if (push.subscription && !push.current) {
+    await push.subscription.unsubscribe()
+  }
+  const subscription = push.current
+    ? push.subscription!
+    : await push.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: push.key,
+      })
+  await familiar.push.subscribe(asJson(subscription))
+}
+
+async function unsubscribe() {
+  const subscription = (await devicePush())?.subscription
+  if (subscription) {
+    await familiar.push.unsubscribe(asJson(subscription))
+    await subscription.unsubscribe()
+  }
+}
+
+/**
+ * Whether this device gets Familiar's notifications, and the means to change
+ * it. The status is checked again after each change, and whenever the page
+ * regains focus, such as after allowing notifications in site settings.
+ */
 export function useNotifications() {
-  const [status, setStatus] = useState<NotificationStatus>('checking')
-  const [error, setError] = useState<string>()
+  const status = useQuery({ queryKey: ['notifications'], queryFn: check })
+  const change = useMutation({
+    mutationFn: (permission?: Promise<NotificationPermission>) =>
+      permission ? subscribe(permission) : unsubscribe(),
+  })
 
-  const check = useCallback(async () => {
-    if (!supported()) {
-      return 'unsupported'
-    }
-    if (Notification.permission === 'denied') {
-      return 'blocked'
-    }
-    const push = await devicePush()
-    if (!push) {
-      return 'unsupported'
-    }
-    if (push.current && Notification.permission === 'granted') {
-      // The server may have forgotten it (a fresh demo, a pruned endpoint).
-      await familiar.push.subscribe(asJson(push.subscription!))
-      return 'on'
-    }
-    return 'off'
-  }, [])
-
-  useEffect(() => {
-    let current = true
-    check()
-      .then((next) => current && setStatus(next))
-      .catch(() => current && setStatus('unsupported'))
-    return () => {
-      current = false
-    }
-  }, [check])
-
-  const enable = async () => {
-    setError(undefined)
-    // First, before any await: iOS only asks from within the tap itself.
-    const permission = Notification.requestPermission()
-    try {
-      if ((await permission) !== 'granted') {
-        setStatus(Notification.permission === 'denied' ? 'blocked' : 'off')
-        return
-      }
-      const push = await devicePush()
-      if (!push) {
-        setStatus('unsupported')
-        return
-      }
-      if (push.subscription && !push.current) {
-        await push.subscription.unsubscribe()
-      }
-      const subscription = push.current
-        ? push.subscription!
-        : await push.registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: push.key,
-          })
-      await familiar.push.subscribe(asJson(subscription))
-      setStatus('on')
-    } catch (failure) {
-      setError((failure as Error).message)
-    }
+  return {
+    status: status.data ?? (status.isPending ? 'checking' : 'unsupported'),
+    busy: change.isPending,
+    error: change.error?.message,
+    // Asked within the tap itself, before anything else: iOS only asks then.
+    enable: () => change.mutate(Notification.requestPermission()),
+    disable: () => change.mutate(undefined),
   }
-
-  const disable = async () => {
-    setError(undefined)
-    try {
-      const subscription = (await devicePush())?.subscription
-      if (subscription) {
-        await familiar.push.unsubscribe(asJson(subscription))
-        await subscription.unsubscribe()
-      }
-      setStatus('off')
-    } catch (failure) {
-      setError((failure as Error).message)
-    }
-  }
-
-  return { status, error, enable, disable }
 }
