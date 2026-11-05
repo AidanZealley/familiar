@@ -36,7 +36,7 @@ Ana, Ben and Chloe share one Familiar and one conversation. Each has their own s
   loading="lazy"
 ></iframe>
 
-Everything runs in this page: the real core, in-memory storage, the HTTP and SSE routes, and one client store per person. The three sessions are simulated in the frame, so other tabs and visitors don't join. Only the model is scripted. Choose who to **Send as** below the suggestions, send something, then choose someone else and try:
+Everything runs in this page: the real core, in-memory storage, the HTTP API and its event stream, and one client store per person. The three sessions are simulated in the frame, so other tabs and visitors don't join. Only the model is scripted. Choose who to **Send as** below the suggestions, send something, then choose someone else and try:
 
 - Note for the group: I can bring dessert
 - What did Ana say?
@@ -47,7 +47,7 @@ Everything runs in this page: the real core, in-memory storage, the HTTP and SSE
 
 ## The host decides who is speaking
 
-The host maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It allows only sending, history, aborting and the conversation's events, so every participant is refused memory, schedules and admin routes:
+The host maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It allows only sending, history, aborting and the conversation's events, so every participant is refused memory, schedules and admin operations:
 
 ```ts
 const CHAT = new Set<Operation>([
@@ -57,16 +57,17 @@ const CHAT = new Set<Operation>([
   'events.conversation',
 ])
 
-const createHostApi = (familiar: Familiar, sessions: Map<string, Author>) =>
-  createHttpApi(familiar, {
-    authenticate: (request) => {
-      const token = request.headers
-        .get('authorization')
-        ?.replace(/^Bearer /, '')
-      return token ? sessions.get(token) : undefined
-    },
-    allow: (_, operation) => CHAT.has(operation),
-  })
+// The host's sign-ins: session token to the person it belongs to.
+const sessions = new Map<string, Author>()
+
+const api = createHttpApi(familiar, {
+  // Each request's session decides its author, never its body.
+  authenticate: (request) => {
+    const token = request.headers.get('authorization')?.replace(/^Bearer /, '')
+    return token ? sessions.get(token) : undefined
+  },
+  allow: (_, operation) => CHAT.has(operation),
+})
 ```
 
 Everyone signed in shares the conversation: each person reads its whole history, and the model answers with all of it in mind, including anything it remembers. Give people who mustn't share information separate Familiars.
@@ -74,7 +75,7 @@ Everyone signed in shares the conversation: each person reads its whole history,
 Each person gets their own client store, which sends their session with every request and opens its own event stream. Every store mirrors the same conversation:
 
 ```ts
-const store = createFamiliarStore(url, {
+const store = createFamiliarStore('https://demo.invalid', {
   fetch: async (input, init) => {
     const request = new Request(input, init)
     request.headers.set('authorization', `Bearer ${token}`)
@@ -96,10 +97,11 @@ defineTool({
   parameters: Type.Object({}),
   execute: async (_args, { author }) => {
     if (!author) {
-      return result('Nobody asked, so there is no one to add.', [], true)
+      return result('Nobody asked, so there is no one to add.', true)
     }
     going.set(author.id, author)
-    // ...
+    const names = [...going.values()].map(({ name }) => name)
+    return result(`Counted ${author.name} in. Going: ${names.join(', ')}.`)
   },
 })
 ```

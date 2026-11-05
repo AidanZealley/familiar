@@ -11,7 +11,7 @@ When a schedule is due, its prompt arrives in the conversation like a message an
 
 Ask Familiar to list or cancel schedules, or open **Schedules** in the header to see what's coming and cancel one yourself. To change a schedule, Familiar cancels it and creates a new one.
 
-A repeat runs at most once an hour, and Familiar keeps up to 50 schedules at a time. A saved repeat Familiar can't read is kept but marked **Paused**, and doesn't run. Cancel it and ask again.
+A repeat runs at most once an hour, and Familiar keeps up to 50 schedules at a time.
 
 ## Notifications
 
