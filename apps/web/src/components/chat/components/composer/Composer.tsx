@@ -1,4 +1,4 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation, useMutationState } from '@tanstack/react-query'
 import { ArrowUpIcon, SquareIcon } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
@@ -7,28 +7,36 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
+import { familiar } from '@/lib/familiar'
 import { ModelPicker } from '../model-picker'
 import type { ComposerProps } from './types'
 
 export const Composer = ({ busy }: ComposerProps) => {
   const [text, setText] = useState('')
-  const [error, setError] = useState<string>()
+  const send = useMutation({
+    mutationKey: ['composer'],
+    // While busy this queues; Familiar answers it after the current reply.
+    mutationFn: (message: string) => familiar.conversation.send(message),
+    onError: (_error, message) => setText(message),
+  })
+  const abort = useMutation({
+    mutationKey: ['composer'],
+    mutationFn: () => familiar.conversation.abort(),
+  })
+  // Every command here, the model picker's too, shares the composer's key:
+  // the latest one's failure shows below it until another succeeds.
+  const error = useMutationState({
+    filters: { mutationKey: ['composer'] },
+    select: (mutation) => mutation.state.error,
+  }).at(-1)
   const showStop = busy && !text.trim()
 
-  const submit = async (event: FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault()
     const message = text.trim()
-    if (!message) {
-      return
-    }
-    setText('')
-    setError(undefined)
-    try {
-      // While busy this queues; Familiar answers it after the current reply.
-      await familiar.conversation.send(message)
-    } catch (cause) {
-      setText(message)
-      setError(cause instanceof Error ? cause.message : String(cause))
+    if (message) {
+      setText('')
+      send.mutate(message)
     }
   }
 
@@ -69,15 +77,13 @@ export const Composer = ({ busy }: ComposerProps) => {
             className="ml-auto"
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
-            onClick={
-              showStop ? () => void familiar.conversation.abort() : undefined
-            }
+            onClick={showStop ? () => abort.mutate() : undefined}
           >
             {showStop ? <SquareIcon /> : <ArrowUpIcon />}
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+      {error && <p className="mt-2 text-xs text-destructive">{error.message}</p>}
     </form>
   )
 }

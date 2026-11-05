@@ -1,9 +1,10 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation } from '@tanstack/react-query'
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { familiar } from '@/lib/familiar'
 import { CancelSignIn } from '../cancel-sign-in'
 import type { BrowserSignInProps } from './types'
 
@@ -13,10 +14,15 @@ import type { BrowserSignInProps } from './types'
  * so the owner brings that last address back here.
  */
 export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
-  const [step, setStep] = useState<'open' | 'paste' | 'sent'>('open')
+  const [step, setStep] = useState<'open' | 'paste'>('open')
   const [address, setAddress] = useState('')
+  const answer = useMutation({
+    mutationKey: ['sign-in'],
+    mutationFn: (text: string) => familiar.account.answerSignIn(text),
+  })
 
-  if (step === 'sent') {
+  // Sent: the sign-in finishes, or fails, as the account's own state.
+  if (answer.isPending || answer.isSuccess) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <Spinner />
@@ -62,8 +68,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
     if (!text) {
       return
     }
-    setStep('sent')
-    void familiar.account.answerSignIn(text).catch(() => setStep('paste'))
+    answer.mutate(text)
   }
 
   return (

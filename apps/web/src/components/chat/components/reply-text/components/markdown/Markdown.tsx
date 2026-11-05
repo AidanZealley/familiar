@@ -4,6 +4,7 @@ import { createMermaidPlugin } from '@streamdown/mermaid'
 import 'katex/dist/katex.min.css'
 import { useSyncExternalStore } from 'react'
 import { Streamdown } from 'streamdown'
+import { useTheme } from '@/lib/theme'
 import type { MarkdownProps } from './types'
 
 // Streamdown renders both Shiki themes and picks with Tailwind's `dark:`
@@ -14,14 +15,8 @@ const plugins = {
   mermaid: createMermaidPlugin(),
 }
 
-// Mermaid bakes its colours into each SVG, so diagrams follow the `.dark`
-// class by rendering again when it changes.
-const root = document.documentElement
-const subscribe = (onChange: () => void) => {
-  const observer = new MutationObserver(onChange)
-  observer.observe(root, { attributeFilter: ['class'] })
-  return () => observer.disconnect()
-}
+// Mermaid bakes its colours into each SVG, so diagrams render again when
+// the theme changes.
 const mermaidThemes = {
   dark: { config: { theme: 'dark' } },
   light: { config: { theme: 'default' } },
@@ -45,9 +40,7 @@ const watchMotion = (change: () => void) => {
 }
 
 export const Markdown = ({ text, streaming }: MarkdownProps) => {
-  const dark = useSyncExternalStore(subscribe, () =>
-    root.classList.contains('dark'),
-  )
+  const { dark } = useTheme()
   const still = useSyncExternalStore(watchMotion, () => reduceMotion.matches)
 
   return (

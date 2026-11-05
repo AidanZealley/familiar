@@ -1,10 +1,16 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation } from '@tanstack/react-query'
 import { KeyRoundIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { familiar } from '@/lib/familiar'
 import type { SignInPromptProps } from './types'
 
 /** Why Familiar needs a sign-in, and the button that starts one. */
 export const SignInPrompt = ({ account }: SignInPromptProps) => {
+  const signIn = useMutation({
+    mutationKey: ['sign-in'],
+    mutationFn: () => familiar.account.signIn(),
+  })
+
   return (
     <div className="flex items-center gap-3">
       <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
@@ -23,7 +29,7 @@ export const SignInPrompt = ({ account }: SignInPromptProps) => {
           <p className="mt-1 text-xs text-destructive">{account.error}</p>
         )}
       </div>
-      <Button onClick={() => void familiar.account.signIn().catch(() => {})}>
+      <Button disabled={signIn.isPending} onClick={() => signIn.mutate()}>
         Sign in
       </Button>
     </div>

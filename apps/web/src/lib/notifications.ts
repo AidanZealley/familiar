@@ -100,6 +100,7 @@ async function unsubscribe() {
 export function useNotifications() {
   const status = useQuery({ queryKey: ['notifications'], queryFn: check })
   const change = useMutation({
+    mutationKey: ['notifications'],
     mutationFn: (permission?: Promise<NotificationPermission>) =>
       permission ? subscribe(permission) : unsubscribe(),
   })

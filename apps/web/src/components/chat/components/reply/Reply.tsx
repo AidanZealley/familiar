@@ -8,14 +8,14 @@ import type { ReplyProps } from './types'
 
 export const Reply = ({ reply }: ReplyProps) => {
   // Nothing visible has arrived yet, so the reply is still thinking.
-  const thinking =
+  const waiting =
     reply.streaming && !reply.text && reply.toolCalls.length === 0
 
   return (
     <Message className="text-sm">
       <MessageContent>
-        {(reply.thinking || thinking) && (
-          <Thinking text={reply.thinking} active={thinking} />
+        {(reply.thinking || waiting) && (
+          <Thinking text={reply.thinking} active={waiting} />
         )}
         {reply.toolCalls.map((call) => (
           <ToolCall key={call.id} call={call} />
