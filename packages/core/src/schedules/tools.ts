@@ -17,10 +17,6 @@ const text = (value: string) => ({
 
 /** A schedule as the model reads it: what, and when, in Familiar's time zone. */
 function describe(schedule: Schedule, timeZone: string) {
-  // A refused repeat can't be read, so its times aren't worked out.
-  if (schedule.refused !== undefined) {
-    return `${schedule.id}: ${schedule.repeat}, paused because ${schedule.refused} Cancel and schedule it again to fix it: ${schedule.prompt}`
-  }
   const when = upcoming(schedule, 3, timeZone)
     .map((at) => weekdayMinute(at, timeZone))
     .join(', ')

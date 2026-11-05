@@ -8,7 +8,6 @@ import {
 import {
   cancelSchedule,
   DEFAULT_MAX_SCHEDULES,
-  refuseIneligible,
   Schedules,
   type SchedulesState,
 } from './schedules.ts'
@@ -66,10 +65,9 @@ export function createSchedules(options: {
   return {
     extension,
     start: async (harness: Harness): Promise<SchedulesApi> => {
-      // Watches only attach to documents that exist. Before any schedule's
-      // task resumes, so none runs under rules it no longer meets.
+      // Watches only attach to documents that exist.
       await harness.commit(async (tx) => {
-        refuseIneligible(await tx.doc(Schedules), options.timeZone)
+        await tx.doc(Schedules)
       }, context)
       return {
         watch: async () => (await harness.watchDoc(Schedules, context))!,

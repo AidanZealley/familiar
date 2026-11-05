@@ -12,7 +12,7 @@ import {
   type ScheduledData,
 } from '../conversation/message.ts'
 import { localMinute } from '../time/index.ts'
-import { advance, dueAt, Schedules, type Schedule } from './schedules.ts'
+import { advance, dueAt, Schedules } from './schedules.ts'
 
 /** What a host is asked to show: the same for whoever it shows it to. */
 export type Notification = { title: string; body: string; url?: string }
@@ -54,13 +54,6 @@ const finished = {
   status: 'terminal',
   outcome: { status: 'completed', result: null },
 } as const
-
-/**
- * Whether a schedule's task should carry on. A cancelled schedule is gone,
- * and a refused one stays for the owner to see but never runs.
- */
-const runs = (schedule: Schedule | undefined): schedule is Schedule =>
-  schedule !== undefined && schedule.refused === undefined
 
 /** Woken more than this after its time, a delivery says it's late. */
 const LATE_MS = 60_000
@@ -104,7 +97,8 @@ export function createScheduleTask(
         runtime.commit(async (tx) => {
           const schedule = (await tx.doc(Schedules))[task.input.id]
           const now = runtime.now()
-          if (!runs(schedule)) {
+          // Cancelling removes the schedule.
+          if (!schedule) {
             return finished
           }
           if (now < schedule.next) {
@@ -131,10 +125,10 @@ export function createScheduleTask(
         const { id } = task.input
         const { prompt, due, late, creator } = task.state.checkpoint
         // Rerun after a restart, this may come after the schedule was
-        // cancelled or refused at startup, so it checks again first.
+        // cancelled, so it checks again first.
         let runnable = false
         await runtime.commit(async (tx) => {
-          runnable = runs((await tx.doc(Schedules))[id])
+          runnable = (await tx.doc(Schedules))[id] !== undefined
           return runnable ? undefined : finished
         }, context)
         if (!runnable) {
