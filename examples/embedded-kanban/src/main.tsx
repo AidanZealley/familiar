@@ -4,7 +4,6 @@ import '@/index.css'
 import { startDemo } from '@/assistant/demo'
 import { FamiliarProvider } from '@familiar-ai/client/react'
 import { BoardProvider } from '@/board/react'
-import { CURRENT_AUTHOR } from '@/board/seed'
 import { App } from '@/components/app'
 
 // Follow the system's light or dark setting.
@@ -20,7 +19,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BoardProvider board={board}>
       <FamiliarProvider store={store}>
-        <App author={CURRENT_AUTHOR} />
+        <App />
       </FamiliarProvider>
     </BoardProvider>
   </StrictMode>,
