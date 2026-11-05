@@ -12,22 +12,21 @@ pnpm --filter @familiar-example/shared-conversation build   # Static files in di
 
 ## How it fits together
 
-- `src/demo/demo.ts` opens one Familiar over `MemoryStorage` and mounts the conversation and event routes behind a sign-in check. The host owns the sessions: each token maps to an `Author`, and that is the author of any message the request sends. Nothing in the request body can change it.
-- `signIn` gives each person a session token and their own client store, whose `fetch` sends that token with every request and opens its own event stream. Every client mirrors the same conversation, so the page shows one transcript, read through the first client. **Send as** picks whose suggestions and message box are in front; each person's are bound to their own client and keep their own draft, so a message always goes through the session of the person who sent it.
-- `src/demo/plugin.ts` has two tools, `who_am_i` and `count_me_in`. Neither takes a name. Both read `api.author`, which Familiar resolves from the message that started the run, so a message sent while someone else's run is going still runs as its own sender.
-- Each message keeps the author it was sent with. If a person's name changes on the host, their earlier messages keep the old name; the `id` stays the same.
+- `src/demo/demo.ts` opens one Familiar over `MemoryStorage` and serves it with `createHttpApi`. The host owns the sessions: `authenticate` maps each request's token to an `Author`, and that is the author of any message the request sends. Nothing in the request body can change it. Its `allow` permits only sending, history, stopping a reply and the conversation's events; every other operation answers 403.
+- Each person signs in to a session token and their own client store, whose `fetch` sends that token with every request and opens its own event stream. Every client mirrors the same conversation, so the page shows one transcript. **Send as** picks whose suggestions and message box are in front, so a message always goes through its sender's session.
+- `src/demo/plugin.ts` has two tools, `who_am_i` and `count_me_in`. Neither takes a name. Both read `api.author`, which Familiar resolves from the message that started the run, so a message sent while someone else's reply is running still runs as its own sender.
 
-Reloading the page, or pressing **Reset**, closes every client, ends the sessions and starts a new Familiar.
+Reloading the page, or pressing **Reset**, starts again.
 
 ## The scripted model
 
-Only the model is fake. `src/demo/script.ts` registers a faux provider that answers a few exact phrases:
+Only the model is fake. `src/demo/script.ts` uses core's `scriptedModels` to answer a few exact phrases:
 
-- `Note for the group: …` gets an acknowledgement naming the sender, read from the message's author line.
+- `Note for the group: …` gets an acknowledgement naming the sender.
 - `What did Ana say?` quotes Ana's latest earlier message, found in the input Familiar sent the model. That is the conversation's context, not long-term memory.
 - `Who am I?` and `Count me in` call the tools, and the reply repeats the tool's output.
 
-Anything else, including negated or combined requests, gets a reply listing what the script understands. Memory recall and upkeep run, but the script gives them a placeholder answer, so the demo shows nothing about long-term memory. Nothing outlasts the page.
+Anything else gets a reply listing what the script understands. Nothing outlasts the page.
 
 ## Not shown
 
