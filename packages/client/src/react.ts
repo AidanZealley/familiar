@@ -35,5 +35,3 @@ export const useFamiliarStore = (): FamiliarStore => {
 /** Uses Zustand's standard subscription and Object.is selection. */
 export const useFamiliar = <T>(selector: (state: FamiliarState) => T): T =>
   useStore(useFamiliarStore(), selector)
-
-export const useTranscript = () => useFamiliar((state) => state.transcript)

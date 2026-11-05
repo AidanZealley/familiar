@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { useTranscript } from '@familiar-ai/client/react'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { Composer } from './components/composer'
 import { TranscriptItem } from './components/transcript-item'
 
 export const AssistantPanel = () => {
-  const transcript = useTranscript()
+  const transcript = useFamiliar((state) => state.transcript)
   const items = transcript?.items ?? []
   const scroller = useRef<HTMLDivElement>(null)
 

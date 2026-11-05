@@ -103,9 +103,8 @@ Times are milliseconds since the epoch.
 
 Import from `@familiar-ai/client/react`. Requires React 18 or 19.
 
-| Binding                 | Meaning                                                  |
-| ----------------------- | -------------------------------------------------------- |
-| `FamiliarProvider`      | `{ store, children }`. Doesn't open or close the store   |
-| `useFamiliar(selector)` | Select from state. Compares with `Object.is`             |
-| `useTranscript()`       | Shorthand for `useFamiliar((state) => state.transcript)` |
-| `useFamiliarStore()`    | The nearest provider's store, for its commands           |
+| Binding                 | Meaning                                                |
+| ----------------------- | ------------------------------------------------------ |
+| `FamiliarProvider`      | `{ store, children }`. Doesn't open or close the store |
+| `useFamiliar(selector)` | Select from state. Compares with `Object.is`           |
+| `useFamiliarStore()`    | The nearest provider's store, for its commands         |
