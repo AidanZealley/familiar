@@ -2,9 +2,14 @@
 import { act, createElement, StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { FamiliarProvider, useFamiliar, useTranscript } from './react.ts'
-import { createFamiliarStore } from './store/index.ts'
-import type { FamiliarStore } from './store/types.ts'
+import {
+  FamiliarProvider,
+  useFamiliar,
+  useFamiliarStore,
+  useTranscript,
+} from './react.ts'
+import { createFamiliarStore } from './store.ts'
+import type { FamiliarStore } from './store.ts'
 import { frame, testServer, view } from './testing.ts'
 
 let root: Root
@@ -17,7 +22,7 @@ beforeEach(() => {
 })
 afterEach(async () => {
   await act(() => root.unmount())
-  stores.splice(0).forEach((store) => store.getState().disconnect())
+  stores.splice(0).forEach((store) => store.disconnect())
   vi.unstubAllGlobals()
 })
 const open = () => {
@@ -66,7 +71,7 @@ test('selectors update only for their selection; transcript is the store-owned v
   await act(async () => {
     await expect.poll(server.connections).toBe(1)
     server.send(frame('account', null))
-    await expect.poll(() => store.getState().account.state).toBeNull()
+    await expect.poll(() => store.getState().account).toBeNull()
   })
   expect(renders).toBe(initialRenders)
   await act(async () => {
@@ -82,7 +87,7 @@ test('selectors update only for their selection; transcript is the store-owned v
     server.send(
       frame('document', { name: 'memory', value: { facts: [], next: 1 } }),
     )
-    await expect.poll(() => store.getState().memory.facts?.next).toBe(1)
+    await expect.poll(() => store.getState().memory?.next).toBe(1)
   })
   expect(featureRenders).toBe(initialFeatureRenders + 1)
 })
@@ -90,8 +95,8 @@ test('selectors update only for their selection; transcript is the store-owned v
 test('nearest providers isolate stores and replacement moves the subscription without disconnecting', async () => {
   const { store: first, server: firstServer } = open()
   const { store: second, server: secondServer } = open()
-  const disconnectFirst = vi.spyOn(first.getState(), 'disconnect')
-  const disconnectSecond = vi.spyOn(second.getState(), 'disconnect')
+  const disconnectFirst = vi.spyOn(first, 'disconnect')
+  const disconnectSecond = vi.spyOn(second, 'disconnect')
   const Status = () =>
     createElement(
       'span',
@@ -149,7 +154,7 @@ test('hooks explain a missing provider', async () => {
     return null
   }
   expect(() => act(() => root.render(createElement(Missing)))).toThrow(
-    'useFamiliar must be used within a FamiliarProvider',
+    'Familiar hooks must be used within a FamiliarProvider',
   )
 })
 
@@ -166,17 +171,21 @@ test('nested providers route actions to their own store, also after replacement'
   const other = createFamiliarStore('/api', {
     fetch: partialServer.fetch,
   })
-  const disconnectFirst = vi.spyOn(first.getState(), 'disconnect')
+  const disconnectFirst = vi.spyOn(first, 'disconnect')
   const Chat = () => {
-    const send = useFamiliar((state) => state.conversation.send)
+    const { conversation } = useFamiliarStore()
     const status = useFamiliar((state) => state.connection)
-    return createElement('button', { onClick: () => void send('chat') }, status)
-  }
-  const Other = () => {
-    const send = useFamiliar((state) => state.conversation.send)
     return createElement(
       'button',
-      { onClick: () => void send('other') },
+      { onClick: () => void conversation.send('chat') },
+      status,
+    )
+  }
+  const Other = () => {
+    const { conversation } = useFamiliarStore()
+    return createElement(
+      'button',
+      { onClick: () => void conversation.send('other') },
       'other',
     )
   }
@@ -229,8 +238,8 @@ test('nested providers route actions to their own store, also after replacement'
     await act(() => root.unmount())
     expect(disconnectFirst).not.toHaveBeenCalled()
   } finally {
-    first.getState().disconnect()
-    second.getState().disconnect()
-    other.getState().disconnect()
+    first.disconnect()
+    second.disconnect()
+    other.disconnect()
   }
 })

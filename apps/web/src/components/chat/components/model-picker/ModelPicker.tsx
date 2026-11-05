@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { InputGroupButton } from '@/components/ui/input-group'
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
 
 const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
   off: 'Off',
@@ -31,11 +31,9 @@ const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
 const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
 
 export const ModelPicker = () => {
-  const modelOptions = useFamiliar((state) => state.conversation.modelOptions)
-  const setModel = useFamiliar((state) => state.conversation.setModel)
-  const setThinkingLevel = useFamiliar(
-    (state) => state.conversation.setThinkingLevel,
-  )
+  const {
+    conversation: { modelOptions, setModel, setThinkingLevel },
+  } = useFamiliarStore()
   // Fixed for each store's daemon lifetime, so fetched rather than mirrored.
   const [options, setOptions] = useState<ModelOption[]>()
   useEffect(() => {
@@ -50,7 +48,7 @@ export const ModelPicker = () => {
     }
   }, [modelOptions])
   // Live from the conversation, so a change on another device shows here.
-  const agent = useFamiliar((state) => agentOf(state.conversation.view))
+  const agent = useFamiliar((state) => agentOf(state.view))
   const current =
     agent?.model &&
     options?.find((option) => keyOf(option.model) === keyOf(agent.model!))

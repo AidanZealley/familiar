@@ -2,7 +2,7 @@ import { LoaderCircleIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
 import { cn } from '@/lib/utils'
 import type { OlderMessagesProps } from './types'
 
@@ -13,8 +13,10 @@ import type { OlderMessagesProps } from './types'
  * first child was an item.
  */
 export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
-  const loadOlder = useFamiliar((state) => state.conversation.loadOlder)
-  const status = useFamiliar((state) => state.conversation.history.status)
+  const {
+    conversation: { loadOlder },
+  } = useFamiliarStore()
+  const status = useFamiliar((state) => state.history.status)
   const { visibleMessageIds } = useMessageScrollerVisibility()
   const nearTop = firstItemIds.some((id) => visibleMessageIds.includes(id))
 

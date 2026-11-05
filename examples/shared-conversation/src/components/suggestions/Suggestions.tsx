@@ -1,10 +1,12 @@
 import { Button } from '@/components/ui/button'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliarStore } from '@familiar-ai/client/react'
 import type { SuggestionsProps } from './types'
 
 /** Phrases the script understands, sent through this person's own client. */
 export const Suggestions = ({ prompts }: SuggestionsProps) => {
-  const send = useFamiliar((state) => state.conversation.send)
+  const {
+    conversation: { send },
+  } = useFamiliarStore()
   return (
     <div className="flex flex-wrap gap-1">
       {prompts.map((prompt) => (

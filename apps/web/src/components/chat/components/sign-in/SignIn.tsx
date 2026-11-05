@@ -10,7 +10,7 @@ import { SignInPrompt } from './components/sign-in-prompt'
  * manage credentials themselves send no account, so it never shows.
  */
 export const SignIn = () => {
-  const account = useFamiliar((state) => state.account.state)
+  const account = useFamiliar((state) => state.account)
 
   if (!account || account.status === 'signed-in') {
     return null

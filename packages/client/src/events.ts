@@ -1,6 +1,6 @@
 import { EventSource, type FetchLike } from 'eventsource'
 import type { StreamEvent } from '@familiar-ai/core/http'
-import type { Connection } from './store/types.ts'
+import type { Connection } from './store.ts'
 
 export const openEvents = (
   baseUrl: string,

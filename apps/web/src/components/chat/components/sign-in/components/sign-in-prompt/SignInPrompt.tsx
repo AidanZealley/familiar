@@ -1,11 +1,13 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import { KeyRoundIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { SignInPromptProps } from './types'
 
 /** Why Familiar needs a sign-in, and the button that starts one. */
 export const SignInPrompt = ({ account }: SignInPromptProps) => {
-  const signIn = useFamiliar((state) => state.account.signIn)
+  const {
+    account: { signIn },
+  } = useFamiliarStore()
   return (
     <div className="flex items-center gap-3">
       <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">

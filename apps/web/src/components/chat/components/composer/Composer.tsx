@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import { ArrowUpIcon, SquareIcon } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
@@ -11,8 +11,9 @@ import { ModelPicker } from '../model-picker'
 import type { ComposerProps } from './types'
 
 export const Composer = ({ busy }: ComposerProps) => {
-  const send = useFamiliar((state) => state.conversation.send)
-  const abort = useFamiliar((state) => state.conversation.abort)
+  const {
+    conversation: { send, abort },
+  } = useFamiliarStore()
   const [text, setText] = useState('')
   const [error, setError] = useState<string>()
   const showStop = busy && !text.trim()

@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import {
   ArchiveIcon,
   EllipsisIcon,
@@ -18,8 +18,9 @@ import type { FactMenuProps } from './types'
 
 /** A current fact's actions. Past facts are history, so they have none. */
 export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
-  const setPinned = useFamiliar((state) => state.memory.setPinned)
-  const retire = useFamiliar((state) => state.memory.retire)
+  const {
+    memory: { setPinned, retire },
+  } = useFamiliarStore()
   const run = (action: Promise<void>) =>
     action.catch((cause) =>
       onError(cause instanceof Error ? cause.message : String(cause)),

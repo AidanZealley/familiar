@@ -3,6 +3,7 @@ import { createFamiliarStore } from '@familiar-ai/client'
 export {
   FamiliarProvider,
   useFamiliar,
+  useFamiliarStore,
   useTranscript,
 } from '@familiar-ai/client/react'
 

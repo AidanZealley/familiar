@@ -19,14 +19,14 @@ npm install @familiar-ai/client
 
 `createFamiliarStore(url, options)` opens the event stream straight away. The store offers every command; one your host's [`allow`](/familiar/build/serve-the-api/#decide-who-may-do-what) refuses rejects with its 403, so render only the UI each person may use. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
 
-The store is read-only. You read it with `getState()` and `subscribe()`, and change things only by calling commands. State is grouped:
+The store's state is plain data from the event stream. Read it with `getState()` and `subscribe()`:
 
-- `conversation`: the live `view`, older `history`, `loadOlder()`, and the commands `send`, `abort`, `modelOptions`, `setModel` and `setThinkingLevel`
+- `view` and `history`: the live conversation and the older entries loaded before it
 - `transcript`: the derived chat items and whether a run is `busy`
-- `memory`: streamed `facts` and `episodes`, with `revise`, `retire` and `setPinned`
-- `schedules`: streamed `items`, with `cancel`
-- `account`: the streamed sign-in `state` and its commands
-- `push`, `connections` and `mcp`: commands only
+- `memory`, `episodes` and `schedules`: the streamed documents, under their wire names
+- `account`: the streamed sign-in state
+
+Change things by calling the commands on the store itself, grouped as `store.conversation`, `store.memory`, `store.schedules`, `store.account`, `store.push`, `store.connections` and `store.mcp`. They never change identity, so you can pass them around freely.
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 
@@ -44,7 +44,7 @@ Streamed documents are `undefined` until they arrive, and `null` when the server
 
 Each tool call has a `name`, `arguments`, `status` (`running`, `done` or `error`), text `output` and optional `details`. `details` is whatever the tool returned for UIs. Narrow it before you render it.
 
-Older entries arrive through `conversation.loadOlder()`. `conversation.history.status` is `more`, `loading`, `failed` or `start`.
+Older entries arrive through `store.conversation.loadOlder()`. `state.history.status` is `more`, `loading`, `failed` or `start`.
 
 ## The connection
 
@@ -59,7 +59,7 @@ Older entries arrive through `conversation.loadOlder()`. `conversation.history.s
 | `failed`       | Any other unusable answer, such as a 404. Retries stop                         |
 | `outdated`     | The protocol handshake was missing or incompatible. Retries stop               |
 
-The store never reloads the page or signs anyone in. After a terminal state, sign-out or an identity change, call `disconnect()` and create a new store. Commands reject with the server's error and aren't retried. Commands already sent still settle after you disconnect.
+The store never reloads the page or signs anyone in. After a terminal state, sign-out or an identity change, call `store.disconnect()` and create a new store. Commands reject with the server's error and aren't retried. Commands already sent still settle after you disconnect.
 
 ## React
 
@@ -67,4 +67,4 @@ Install React 18 or 19, then use the separate `/react` entry:
 
 <Code code={react} lang="tsx" title="App.tsx" />
 
-Create the store once, outside render, where your app manages connections. `FamiliarProvider` gives its subtree a store, and nested providers each give their own. The provider doesn't open or close it. `useFamiliar` compares selections with `Object.is`, so return stable values such as a single field or a command. The vanilla entry doesn't load React.
+Create the store once, outside render, where your app manages connections. `FamiliarProvider` gives its subtree a store, and nested providers each give their own. The provider doesn't open or close it. `useFamiliar` compares selections with `Object.is`, so return stable values such as a single field. `useFamiliarStore()` returns the nearest provider's store, for its commands. The vanilla entry doesn't load React.

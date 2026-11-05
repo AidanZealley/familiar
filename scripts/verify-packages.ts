@@ -107,8 +107,8 @@ try {
   await writeFile(
     resolve(consumer, 'react.js'),
     `
-import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
-if (![FamiliarProvider, useFamiliar, useTranscript].every(value => typeof value === 'function')) {
+import { FamiliarProvider, useFamiliar, useFamiliarStore, useTranscript } from '@familiar-ai/client/react'
+if (![FamiliarProvider, useFamiliar, useFamiliarStore, useTranscript].every(value => typeof value === 'function')) {
   throw new Error('React bindings missing from the packed client')
 }
 `,
@@ -312,32 +312,32 @@ precise.execute({ query: 'value' })
     [],
     `import { createElement } from 'react'
 import type { FamiliarStore } from '@familiar-ai/client'
-import { FamiliarProvider, useFamiliar, useTranscript } from '@familiar-ai/client/react'
+import { FamiliarProvider, useFamiliar, useFamiliarStore, useTranscript } from '@familiar-ai/client/react'
 declare const store: FamiliarStore
+store.conversation.send('Hello')
+store.conversation.setModel({ provider: 'test', modelId: 'test' })
+store.conversation.setThinkingLevel('high')
+store.conversation.loadOlder()
+store.memory.revise('fact-1', 'Corrected')
+store.memory.setPinned('fact-1', true)
+store.account.signIn()
+store.schedules.cancel('schedule-1')
+store.push.key()
+store.connections.list()
+store.mcp.add({ name: 'notes', transport: { type: 'stdio', command: 'notes', args: [] } })
+store.disconnect()
 const state = store.getState()
-state.conversation.send('Hello')
-state.conversation.setModel({ provider: 'test', modelId: 'test' })
-state.conversation.setThinkingLevel('high')
-state.conversation.loadOlder()
-state.memory.revise('fact-1', 'Corrected')
-state.memory.setPinned('fact-1', true)
-state.account.signIn()
-state.account.state?.status
-state.memory.facts?.facts
-state.memory.episodes?.episodes
-state.schedules.items
-state.schedules.cancel('schedule-1')
-state.push.key()
-state.connections.list()
-state.mcp.add({ name: 'notes', transport: { type: 'stdio', command: 'notes', args: [] } })
+state.account?.status
+state.memory?.facts
+state.episodes?.episodes
+state.schedules
 state.transcript?.items
-state.disconnect()
-// @ts-expect-error old flat commands were removed
-state.send('Hello')
+// @ts-expect-error commands live on the store, not in its state
+state.conversation
 // @ts-expect-error grouped command parameters remain typed
-state.memory.revise(1, 'Corrected')
+store.memory.revise(1, 'Corrected')
 // @ts-expect-error grouped model commands retain Pi types
-state.conversation.setThinkingLevel('unsupported')
+store.conversation.setThinkingLevel('unsupported')
 store.getInitialState()
 store.subscribe(state => state.connection)
 // @ts-expect-error public stores do not expose arbitrary writes

@@ -1,9 +1,11 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import { Button } from '@/components/ui/button'
 
 /** Stops the sign-in, back to the button that starts one. */
 export const CancelSignIn = () => {
-  const cancelSignIn = useFamiliar((state) => state.account.cancelSignIn)
+  const {
+    account: { cancelSignIn },
+  } = useFamiliarStore()
   return (
     <Button variant="ghost" onClick={() => void cancelSignIn().catch(() => {})}>
       Cancel
