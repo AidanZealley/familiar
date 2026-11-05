@@ -13,9 +13,9 @@ pnpm --filter @familiar-example/embedded-kanban build   # Static files in dist/
 ## How it fits together
 
 - `src/board/board.ts` owns the tasks. Its operations, `create`, `assign` and `move`, are the only way tasks change.
-- `src/assistant/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` takes the person from `api.author`, the author of the message that started the call, never from its arguments.
+- `src/familiar/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` takes the person from `api.author`, the author of the message that started the call, never from its arguments.
 - The cards, the new-task form and drag and drop call the same operations, so a change made either way shows up in the other.
-- `src/assistant/demo.ts` opens a real Familiar over `MemoryStorage`, serves it with `createHttpApi`, and points a client store at it through an in-page `fetch`. Its `allow` permits only sending, history, stopping a reply and the conversation's events; every other operation answers 403.
+- `src/familiar/demo.ts` opens a real Familiar over `MemoryStorage`, serves it with `createHttpApi`, and points a client store at it through an in-page `fetch`. Its `allow` permits only sending, history, stopping a reply and the conversation's events; every other operation answers 403.
 
 The demo has one fixed person, Sam (`src/board/seed.ts`), and nobody signs in: `authenticate` names Sam for every request. A real host checks each request's session there.
 
@@ -23,7 +23,7 @@ Reloading the page, or pressing **Reset**, starts again from the seed tasks.
 
 ## The scripted model
 
-Only the model is fake. `src/assistant/script.ts` uses core's `scriptedModels` to answer a few phrases, such as `Move T-3 to done`, with the tool call a model might make, then repeats the tool's output. Anything else gets a reply listing what it understands.
+Only the model is fake. `src/familiar/script.ts` uses core's `scriptedModels` to answer a few phrases, such as `Move T-3 to done`, with the tool call a model might make, then repeats the tool's output. Anything else gets a reply listing what it understands.
 
 ## Not shown
 

@@ -7,7 +7,7 @@ import {
   scriptedModels,
   type ScriptedMessage,
 } from '@familiar-ai/core/models/scripted'
-import { PEOPLE } from './people.ts'
+import { PEOPLE } from '../people.ts'
 
 /** Something each person might tell the group, offered as a suggestion. */
 const NOTES: Record<string, string> = {

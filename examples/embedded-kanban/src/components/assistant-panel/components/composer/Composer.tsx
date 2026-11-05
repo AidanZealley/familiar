@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFamiliarStore } from '@familiar-ai/client/react'
-import { SUGGESTED_PROMPTS } from '@/assistant/script'
+import { SUGGESTED_PROMPTS } from '@/familiar/script'
 
 export const Composer = () => {
   const {
