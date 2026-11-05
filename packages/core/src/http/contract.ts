@@ -16,6 +16,7 @@ export type {
   SCHEDULED_KIND,
   ScheduledData,
 } from '../conversation/message.ts'
+export type { HistoryPage } from '../conversation/index.ts'
 export type { ModelOption } from '../conversation/models.ts'
 export type { AgentState } from '@earendil-works/pi-durable'
 export type { AccountState } from '../account/index.ts'

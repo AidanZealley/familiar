@@ -1,12 +1,12 @@
 export { createFamiliarStore } from './store.ts'
 export type {
-  Connection,
   FamiliarStoreOptions,
-  History,
   FamiliarState,
   FamiliarStore,
 } from './store.ts'
+export type { Connection } from './events.ts'
 export { agentOf } from './conversation.ts'
+export type { History } from './conversation.ts'
 export { toTranscript } from './transcript.ts'
 export type { ToolCall, Transcript, TranscriptItem } from './transcript.ts'
 export type {

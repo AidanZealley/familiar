@@ -2,7 +2,7 @@ import { MESSAGE_KIND } from './transcript.ts'
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { carryOver } from './conversation.ts'
-import type { History } from './store.ts'
+import type { History } from './conversation.ts'
 import { toTranscript } from './transcript.ts'
 
 // Entries as storage commits them: IDs ascend in commit order.
