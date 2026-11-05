@@ -2,27 +2,22 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { TranscriptContext } from '@earendil-works/pi-ai'
+import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
 import { MESSAGE_KIND, type MessageData } from './conversation/message.ts'
 import { type FamiliarOptions } from './index.ts'
 import { defaultPersona } from './index.ts'
+import { scriptedModels, type ScriptedRequest } from './models/scripted.ts'
 import { TEST_ZONE, testHost } from './testing.ts'
 
-type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
-  contextWindow?: number
-}
+type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>>
 
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
-async function setup({ contextWindow, ...options }: SetupOptions = {}) {
-  const host = await testHost({
-    faux: [{ id: 'faux-1', contextWindow }],
-    timeZone: TEST_ZONE,
-    ...options,
-  })
+async function setup(options: SetupOptions = {}) {
+  const host = await testHost({ timeZone: TEST_ZONE, ...options })
   const familiar = host.familiar()
   const memory = async () => {
     const watch = await familiar.memory.watch()
@@ -39,25 +34,34 @@ const tokensOf = (context: TranscriptContext) =>
     0,
   )
 
-const isSummaryRequest = (context: TranscriptContext) =>
-  JSON.stringify(context.messages[0]).includes('context summarization')
+/**
+ * A Familiar whose conversation compacts past `contextBudget` tokens. The
+ * script answers compaction's summaries itself and every message with `reply`.
+ */
+const compactingHost = (
+  contextBudget: number,
+  reply: (request: ScriptedRequest) => AssistantMessage,
+) =>
+  testHost({
+    models: scriptedModels(
+      (request) =>
+        request.type === 'background'
+          ? fauxAssistantMessage('## Goal\nChatting about the weather.')
+          : reply(request),
+      { models: [{ id: 'faux-1', contextWindow: 16_000 }] },
+    ),
+    timeZone: TEST_ZONE,
+    contextBudget,
+  })
 
 test('compaction keeps requests under the context budget', async () => {
   const budget = 2_000
-  const { faux, familiar, say } = await setup({
-    contextWindow: 16_000,
-    contextBudget: budget,
-  })
   const requests: number[] = []
-  faux.setResponses(
-    Array.from({ length: 60 }, () => (context: TranscriptContext) => {
-      if (isSummaryRequest(context)) {
-        return fauxAssistantMessage('## Goal\nChatting about the weather.')
-      }
-      requests.push(tokensOf(context))
-      return fauxAssistantMessage('Lovely. '.repeat(20))
-    }),
-  )
+  const { familiar: current, say } = await compactingHost(budget, (request) => {
+    requests.push(tokensOf(request.context))
+    return fauxAssistantMessage('Lovely. '.repeat(20))
+  })
+  const familiar = current()
 
   for (let day = 1; day <= 20; day++) {
     await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
@@ -74,19 +78,10 @@ test('compaction keeps requests under the context budget', async () => {
 })
 
 test('history returns the messages compaction took out of the view', async () => {
-  const { faux, familiar, say } = await setup({
-    contextWindow: 16_000,
-    contextBudget: 2_000,
-  })
-  faux.setResponses(
-    Array.from(
-      { length: 60 },
-      () => (context: TranscriptContext) =>
-        fauxAssistantMessage(
-          isSummaryRequest(context) ? '## Goal\nThe weather.' : 'Lovely.',
-        ),
-    ),
+  const { familiar: current, say } = await compactingHost(2_000, () =>
+    fauxAssistantMessage('Lovely.'),
   )
+  const familiar = current()
   for (let day = 1; day <= 20; day++) {
     await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
   }
