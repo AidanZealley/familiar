@@ -22,12 +22,14 @@ export const App = ({ demo }: AppProps) => {
   return (
     <div className="flex h-svh flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <h1 className="font-heading text-sm font-medium">
-          Shared conversation
-        </h1>
-        <span className="hidden text-muted-foreground sm:inline">
-          A Familiar demo that runs in your browser
-        </span>
+        <div className="flex items-baseline gap-2">
+          <h1 className="font-heading text-sm font-medium">
+            Shared conversation
+          </h1>
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            A Familiar demo that runs in your browser
+          </span>
+        </div>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={reset}>
           <RotateCcwIcon data-icon="inline-start" />
           Reset
