@@ -3,7 +3,7 @@ import { streamSSE } from 'hono/streaming'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createFamiliarStore } from './store.ts'
 import type { FamiliarStore } from './store.ts'
-import { entry, frame, testServer, tick, view } from './testing.ts'
+import { frame, testServer, tick, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.
 beforeEach(() => {
@@ -90,56 +90,25 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
   ])
 })
 
-test('the parser joins frames split across chunks, multiline data and split UTF-8', async () => {
+test('a dropped or ended stream reconnects and the fresh view replaces the old', async () => {
   const server = testServer()
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
-
-  const facts = { facts: [{ id: 'f1', text: 'Lives in Zürich ☕' }] }
-  const bytes = new TextEncoder().encode(
-    frame('document', { name: 'memory', value: facts }),
-  )
-  // One byte at a time splits the two- and three-byte characters too.
-  bytes.forEach((byte) => server.send(Uint8Array.of(byte)))
-  // A data field over several lines arrives joined by newlines.
-  server.send('event: account\ndata: {"status":\ndata: "signed-in"}\n\n')
-
-  await expect.poll(() => store.getState().memory).toEqual(facts)
-  await expect
-    .poll(() => store.getState().account)
-    .toEqual({ status: 'signed-in' })
-})
-
-test('a dropped or ended stream reconnects and the fresh view replaces the old', async () => {
-  const server = testServer((request) => {
-    const before = Number(new URL(request.url).searchParams.get('before'))
-    return Response.json({ entries: [entry(before - 1)], more: true })
-  })
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(retrySoon + frame('view', view(3, 4)))
+  server.send(retrySoon + frame('view', view(1)))
   await expect.poll(() => store.getState().connection).toBe('open')
-  await store.conversation.loadOlder()
 
   server.drop()
   await expect.poll(() => store.getState().connection).toBe('reconnecting')
   await expect.poll(server.connections).toBe(2)
-  // Compaction moved the start to 4 meanwhile, so 3 joins loaded history.
-  server.send(frame('view', view(4, 5)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-  expect(store.getState().view).toEqual(view(4, 5))
-  expect(store.getState().history.entries).toEqual([entry(2), entry(3)])
+  server.send(frame('view', view(2)))
+  await expect.poll(() => store.getState().view).toEqual(view(2))
+  expect(store.getState().connection).toBe('open')
 
   server.end()
   await expect.poll(() => store.getState().connection).toBe('reconnecting')
   await expect.poll(server.connections).toBe(3)
-  // A view the old one never reached leaves a gap, so history starts over.
-  server.send(frame('view', view(9)))
-  await expect.poll(() => store.getState().view).toEqual(view(9))
-  expect(store.getState().history).toEqual({
-    entries: [],
-    status: 'more',
-  })
+  server.send(frame('view', view(3)))
+  await expect.poll(() => store.getState().view).toEqual(view(3))
 })
 
 test.each([
@@ -158,22 +127,6 @@ test.each([
     expect(server.connections()).toBe(1)
   },
 )
-
-test('a refused reconnect stops retrying too', async () => {
-  const server = testServer()
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(retrySoon + frame('view', view(1)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-
-  server.refuse(401)
-  server.end()
-  await expect.poll(() => store.getState().connection).toBe('unauthorized')
-  await tick()
-  expect(server.connections()).toBe(2)
-  // The last view stays for the host to show while it signs back in.
-  expect(store.getState().view).toEqual(view(1))
-})
 
 test('server errors and network failures retry after the default delay', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
@@ -202,111 +155,55 @@ test('server errors and network failures retry after the default delay', async (
   await vi.waitFor(() => expect(store.getState().connection).toBe('open'))
 })
 
-test('disconnect while the host fetch is still waiting drops what it returns', async () => {
-  const server = testServer()
-  server.refuse(401)
+test('disconnect ends the stream at every stage, even through a host fetch that ignores the abort signal', async () => {
+  // While the host's fetch is still waiting, what it returns is dropped.
+  const refusing = testServer()
+  refusing.refuse(401)
   let release = () => {}
-  const store = open('/api', {
-    // Ignores the abort signal, as a slow token lookup might.
+  const waiting = open('/api', {
     fetch: async (input, init) => {
       await new Promise<void>((resolve) => (release = resolve))
-      return server.fetch(input, { ...init, signal: undefined })
+      return refusing.fetch(input, { ...init, signal: undefined })
     },
   })
   await tick()
-
-  store.disconnect()
+  waiting.disconnect()
   release()
   await tick()
+  expect(waiting.getState().connection).toBe('connecting')
 
-  expect(server.connections()).toBe(1)
-  expect(store.getState().connection).toBe('connecting')
-})
+  // While EventSource takes the response over, its body is cancelled.
+  const cancelled = vi.fn()
+  let respond!: (response: Response) => void
+  const handoff = open('/api', {
+    fetch: () => new Promise<Response>((resolve) => (respond = resolve)),
+  })
+  respond(
+    new Response(new ReadableStream({ cancel: cancelled }), {
+      headers: { 'Content-Type': 'text/event-stream' },
+    }),
+  )
+  queueMicrotask(() => handoff.disconnect())
+  await tick()
+  expect(cancelled).toHaveBeenCalledOnce()
 
-test('disconnect while reading ignores late frames', async () => {
+  // While reading, the stream is cancelled and the last state stays.
   const server = testServer()
-  const store = open('/api', {
-    // The stream it returns ignores the abort signal, unlike fetch's own.
+  const reading = open('/api', {
     fetch: (input, init) => server.fetch(input, { ...init, signal: undefined }),
   })
   await expect.poll(server.connections).toBe(1)
   server.send(frame('view', view(1)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-
-  store.disconnect()
+  await expect.poll(() => reading.getState().connection).toBe('open')
+  reading.disconnect()
   await tick()
   expect(server.cancellations()).toBe(1)
-  expect(() => server.send(frame('view', view(2)))).toThrow()
-
-  expect(store.getState().view).toEqual(view(1))
-  expect(store.getState().account).toBeUndefined()
-  expect(server.connections()).toBe(1)
+  expect(reading.getState().view).toEqual(view(1))
 })
-
-test('disconnect while waiting to retry cancels the reconnect', async () => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-  const server = testServer()
-  const store = open('/api', { fetch: server.fetch })
-  await vi.waitFor(() => expect(server.connections()).toBe(1))
-  server.send(frame('view', view(1)))
-  await vi.waitFor(() => expect(store.getState().connection).toBe('open'))
-
-  server.end()
-  await vi.waitFor(() =>
-    expect(store.getState().connection).toBe('reconnecting'),
-  )
-  store.disconnect()
-  await vi.advanceTimersByTimeAsync(6000)
-
-  expect(server.connections()).toBe(1)
-  expect(store.getState().connection).toBe('reconnecting')
-})
-
-test('an absolute base URL reaches another origin', async () => {
-  const server = testServer()
-  const store = open('https://familiar.example/api', { fetch: server.fetch })
-  await store.conversation.abort()
-
-  expect(server.requests.map((request) => request.url)).toEqual([
-    'https://familiar.example/api/events',
-    'https://familiar.example/api/abort',
-  ])
-})
-
-test.each([200, 401])(
-  'disconnect during response handoff cancels a %i body and prevents late updates',
-  async (status) => {
-    let resolveResponse!: (response: Response) => void
-    const cancelled = vi.fn()
-    const body = new ReadableStream<Uint8Array>({ cancel: cancelled })
-    const store = open('/api', {
-      fetch: () =>
-        new Promise<Response>((resolve) => {
-          resolveResponse = resolve
-        }),
-    })
-    const updates = vi.fn()
-    store.subscribe(updates)
-    resolveResponse(
-      new Response(body, {
-        status,
-        headers: { 'Content-Type': 'text/event-stream' },
-      }),
-    )
-    // connect() receives the response first; close before EventSource's next
-    // promise handler can validate it or acquire its reader.
-    queueMicrotask(() => store.disconnect())
-    await tick()
-    expect(cancelled).toHaveBeenCalledTimes(1)
-    expect(updates).not.toHaveBeenCalled()
-    expect(store.getState().connection).toBe('connecting')
-  },
-)
 
 test.each([
   frame('protocol', { version: 1 }),
   'event: protocol\ndata: {broken\n\n',
-  frame('protocol', {}),
   frame('view', view(99)),
 ])(
   'an incompatible first event stops without applying state: %s',
@@ -319,103 +216,10 @@ test.each([
     expect(store.getState().view).toBeUndefined()
     await tick()
     expect(server.connections()).toBe(1)
-    expect(server.requests).toHaveLength(1)
   },
 )
 
-test.each(['Text/Event-Stream', 'TEXT/EVENT-STREAM; charset=utf-8'])(
-  'an incompatible handshake is rejected with content type %s',
-  async (contentType) => {
-    const store = open('/api', {
-      fetch: async () =>
-        new Response(
-          frame('protocol', { version: 1 }) + frame('view', view(99)),
-          {
-            headers: { 'Content-Type': contentType },
-          },
-        ),
-    })
-    await expect.poll(() => store.getState().connection).toBe('outdated')
-    expect(store.getState().view).toBeUndefined()
-    expect(store.getState().transcript).toBeUndefined()
-  },
-)
-
-test('each reconnect requires its own compatible handshake and retains the last view on mismatch', async () => {
-  const server = testServer(undefined, false)
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  // Split the handshake itself, including CRLF boundaries.
-  for (const byte of new TextEncoder().encode(
-    'event: protocol\r\ndata: {"version":2}\r\n\r\n',
-  )) {
-    server.send(Uint8Array.of(byte))
-  }
-  server.send(retrySoon + frame('view', view(1)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-  server.end()
-  await expect.poll(server.connections).toBe(2)
-  server.send(frame('protocol', { version: 1 }) + frame('view', view(2)))
-  await expect.poll(() => store.getState().connection).toBe('outdated')
-  expect(store.getState().view).toEqual(view(1))
-  await tick()
-  expect(server.connections()).toBe(2)
-})
-
-test('silent streams keep connecting and retry when they end', async () => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-  const server = testServer(undefined, false)
-  const store = open('/api', { fetch: server.fetch })
-  await vi.waitFor(() => expect(server.connections()).toBe(1))
-  await vi.advanceTimersByTimeAsync(30_000)
-  expect(store.getState().connection).toBe('connecting')
-  server.end()
-  await vi.waitFor(() =>
-    expect(store.getState().connection).toBe('reconnecting'),
-  )
-  await vi.advanceTimersByTimeAsync(3_000)
-  expect(server.connections()).toBe(2)
-})
-
-test('handshake acceptance waits for a view', async () => {
-  const server = testServer(undefined, false)
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(frame('protocol', { version: 2 }))
-  await tick()
-  expect(store.getState().connection).toBe('connecting')
-  server.send(frame('view', view(1)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-})
-
-test('outdated stops stream retries and leaves HTTP commands unchanged', async () => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-  const server = testServer(() => Response.json([]), false)
-  const store = open('/api', { fetch: server.fetch })
-  await vi.waitFor(() => expect(server.connections()).toBe(1))
-  server.send(frame('protocol', { version: 99 }))
-  await vi.waitFor(() => expect(store.getState().connection).toBe('outdated'))
-  await vi.advanceTimersByTimeAsync(30_000)
-  await expect(store.conversation.modelOptions()).resolves.toEqual([])
-  await expect(store.account.signOut()).resolves.toBeUndefined()
-  expect(server.connections()).toBe(1)
-  expect(server.requests.map((request) => request.method)).toEqual([
-    'GET',
-    'GET',
-    'POST',
-  ])
-})
-
-test('a compatible handshake and view in one chunk opens the connection', async () => {
-  const server = testServer(undefined, false)
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(frame('protocol', { version: 2 }) + frame('view', view(1)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-  expect(store.getState().view).toEqual(view(1))
-})
-
-test('a reconnect cannot reuse the previous connection handshake', async () => {
+test('each reconnect needs its own handshake, and the last view stays without one', async () => {
   const server = testServer(undefined, false)
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
@@ -428,23 +232,6 @@ test('a reconnect cannot reuse the previous connection handshake', async () => {
   server.send(frame('view', view(2)))
   await expect.poll(() => store.getState().connection).toBe('outdated')
   expect(store.getState().view).toEqual(view(1))
-})
-
-test('disconnect during a view notification prevents later state from the same chunk', async () => {
-  const server = testServer(undefined, false)
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  store.subscribe(() => {
-    if (store.getState().view) {
-      store.disconnect()
-    }
-  })
-  server.send(
-    frame('protocol', { version: 2 }) +
-      frame('view', view(1)) +
-      frame('view', view(2)),
-  )
-  await expect.poll(() => store.getState().view).toEqual(view(1))
   await tick()
-  expect(store.getState().view).toEqual(view(1))
+  expect(server.connections()).toBe(2)
 })

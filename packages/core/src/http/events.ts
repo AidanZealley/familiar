@@ -3,7 +3,12 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from '../familiar.ts'
 import { allows, forbidden, type AccessEnv } from '../access.ts'
-import type { Documents, DocumentName, StreamEvent } from './contract.ts'
+import {
+  PROTOCOL_VERSION,
+  type Documents,
+  type DocumentName,
+  type StreamEvent,
+} from './contract.ts'
 
 type Watch = { stop(): Promise<unknown>; closed: Promise<unknown> }
 
@@ -81,7 +86,7 @@ export const eventRoutes = (familiar: Familiar) =>
       }
 
       const setup = async () => {
-        await send({ event: 'protocol', data: { version: 2 } })
+        await send({ event: 'protocol', data: { version: PROTOCOL_VERSION } })
         if (allowed.has('conversation') && !signal.aborted) {
           const watch = await familiar.watch()
           if (keep(watch)) {
