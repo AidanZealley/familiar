@@ -101,7 +101,6 @@ export function openConnection(
           description: tool.description ?? tool.name,
           parameters: Type.Unsafe<Record<string, unknown>>(tool.inputSchema),
           deferred: true,
-          replay: 'unsafe',
           execute: async (args, _api, context) => {
             try {
               return toolResult(

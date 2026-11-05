@@ -11,6 +11,8 @@ import type { Transport } from '@modelcontextprotocol/client'
 export class McpConfigError extends ConnectionError {}
 
 const serverSchema = z.object({
+  // Each tool is named `mcp__<name>__<tool>`, which providers limit to 64
+  // letters, digits, `_` and `-`. The web app's form repeats this rule.
   name: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
   transport: z.discriminatedUnion('type', [
     z.object({
