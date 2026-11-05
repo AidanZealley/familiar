@@ -187,7 +187,7 @@ function readEpisode(
       )
       .map((child) => ({
         id: child.id,
-        text: `${child.id} (${child.span} of ${child.start === child.end ? child.start : `${child.start} to ${child.end}`}): ${firstLine(child.text)}`,
+        text: describeEpisode({ ...child, text: firstLine(child.text) }),
       }))
     return children.length
       ? [

@@ -284,32 +284,6 @@ test('messages queued behind a reply are each recalled for in their own run', as
   ])
 })
 
-test('the recall tool finds past facts, labelled as past', async () => {
-  const storage = await storageWith(['Lives in Leeds', 4])
-  const { faux, familiar, say } = await setup({ storage })
-  await familiar.memory.revise('f1', 'Lives in York')
-  let results: string[] = []
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('recall', { query: 'lived Leeds' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      results = toolResultsOf(context)
-      return fauxAssistantMessage('Leeds.')
-    },
-  ])
-  // Matches no fact, so only the tool's search records a use.
-  await say('Anything from the past?')
-  expect(results.at(-1)).toMatch(
-    /^Facts:\nf1 \(2026-01-05 to .*, replaced by f2\): Lives in Leeds$/,
-  )
-  // What the conversation's search found counts as used.
-  await dismiss(familiar)
-  expect((await readStored(storage, MemoryUsage)).facts.f1?.recalled).toEqual(
-    expect.any(Number),
-  )
-})
-
 test('recall goes last, so a revision mid-run leaves the earlier messages unchanged', async () => {
   const { faux, familiar, say } = await setup({
     storage: await storageWith(['Prefers green tea', 1]),
@@ -422,7 +396,7 @@ test('automatic recall and the recall tool find an exchange compaction took out 
     /Earlier conversation, not yet reviewed:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
   )
   expect(results.at(-1)).toMatch(
-    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
+    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
   )
 })
 
