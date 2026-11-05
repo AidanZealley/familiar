@@ -6,7 +6,7 @@ import {
 } from '@earendil-works/pi-durable'
 import MiniSearch from 'minisearch'
 import { entriesOf, saidBy, type Author } from '../conversation/message.ts'
-import { localDay } from '../time/index.ts'
+import { localDay } from '../time.ts'
 import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
 

@@ -207,33 +207,18 @@ test("a host's persona replaces the default and keeps core's instructions", asyn
   )
 })
 
-test('current_time reads the Harness clock', async () => {
-  const at = new Date('2026-03-04T12:34:00Z').getTime()
-  const { faux, say } = await setup({ now: () => at })
-  let toolResult = ''
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('current_time', { timeZone: 'UTC' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      toolResult = JSON.stringify(context.messages.at(-1))
-      return fauxAssistantMessage('It is Wednesday afternoon.')
-    },
-  ])
-  await say('What time is it?')
-  expect(toolResult).toContain('Wednesday, 4 March 2026')
-  expect(toolResult).toContain('12:34')
-})
-
-test("current_time answers in the Familiar's own time zone", async () => {
+test("current_time reads the Harness clock in the Familiar's own time zone, or the one asked for", async () => {
   const at = Date.UTC(2026, 2, 4, 23, 30)
-  const answer = async (timeZone: string) => {
+  const answer = async (timeZone: string, asked?: string) => {
     const { faux, say } = await setup({ now: () => at, timeZone })
     let toolResult = ''
     faux.setResponses([
-      fauxAssistantMessage(fauxToolCall('current_time', {}), {
-        stopReason: 'toolUse',
-      }),
+      fauxAssistantMessage(
+        fauxToolCall('current_time', asked ? { timeZone: asked } : {}),
+        {
+          stopReason: 'toolUse',
+        },
+      ),
       (context) => {
         toolResult = JSON.stringify(context.messages.at(-1))
         return fauxAssistantMessage('Noted.')
@@ -244,14 +229,17 @@ test("current_time answers in the Familiar's own time zone", async () => {
   }
 
   // Two Familiars in one process, neither reading the process's zone.
-  const [tokyo, newYork] = await Promise.all([
+  const [tokyo, newYork, utc] = await Promise.all([
     answer('Asia/Tokyo'),
     answer('America/New_York'),
+    answer('Asia/Tokyo', 'UTC'),
   ])
   expect(tokyo).toContain('Thursday, 5 March 2026')
   expect(tokyo).toContain('08:30')
   expect(newYork).toContain('Wednesday, 4 March 2026')
   expect(newYork).toContain('18:30')
+  expect(utc).toContain('Wednesday, 4 March 2026')
+  expect(utc).toContain('23:30')
 })
 
 test('a Familiar refuses a time zone it does not know', async () => {

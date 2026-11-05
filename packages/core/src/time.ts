@@ -31,7 +31,7 @@ export const addDays = (day: string, count: number) => {
 }
 
 /** A time's calendar fields in a zone. `month` counts from 1. */
-export type WallClock = {
+type WallClock = {
   year: number
   month: number
   day: number
@@ -79,7 +79,7 @@ export function checkTimeZone(timeZone: string) {
 }
 
 /** The calendar fields of a time in `timeZone`. */
-export function wallClock(at: number, timeZone: string): WallClock {
+function wallClock(at: number, timeZone: string): WallClock {
   const fields: Record<string, number> = {}
   for (const { type, value } of formatter(timeZone).formatToParts(at)) {
     fields[type] = Number(value)
@@ -112,7 +112,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * back) is the earlier one, and a time it skips (it went forward) moves
  * forward by the skipped length, so 02:30 on a spring-forward night is 03:30.
  */
-export function zonedTime(wall: WallClock, timeZone: string) {
+function zonedTime(wall: WallClock, timeZone: string) {
   const guess = asUtc(wall)
   // Offsets a day either side bracket any change near this wall time.
   const before = guess - offsetAt(guess - DAY_MS, timeZone)

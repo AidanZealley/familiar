@@ -11,7 +11,7 @@ import {
   saidBy,
   type ScheduledData,
 } from '../conversation/message.ts'
-import { localMinute } from '../time/index.ts'
+import { localMinute } from '../time.ts'
 import { advance, dueAt, Schedules } from './schedules.ts'
 
 /** What a host is asked to show: the same for whoever it shows it to. */

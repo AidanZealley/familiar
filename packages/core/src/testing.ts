@@ -3,7 +3,7 @@ import { fauxProvider } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
 import { onTestFinished } from 'vitest'
 import { summonFamiliar, type FamiliarOptions } from './familiar.ts'
-import { parseMinute } from './time/index.ts'
+import { parseMinute } from './time.ts'
 
 /** Test helpers; not part of Familiar. */
 

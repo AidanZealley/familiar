@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 import { summonFamiliar } from '../familiar.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
 import { TEST_ZONE, timeAt } from '../testing.ts'
-import { parseMinute } from '../time/index.ts'
+import { parseMinute } from '../time.ts'
 import { latestOccurrence, nextOccurrence, repeatProblem } from './repeat.ts'
 import {
   addSchedule,

@@ -1,5 +1,5 @@
 import { defineDoc, type EntryId } from '@earendil-works/pi-durable'
-import { addDays, formatDay, parseDay } from '../time/index.ts'
+import { addDays, formatDay, parseDay } from '../time.ts'
 
 /**
  * Episodes: what happened, as summaries. Upkeep writes one per pass over a

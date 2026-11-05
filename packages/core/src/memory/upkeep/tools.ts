@@ -8,7 +8,7 @@ import {
 } from '@earendil-works/pi-durable'
 import type { Context } from '@earendil-works/chord'
 import { saidBy } from '../../conversation/message.ts'
-import { localDay } from '../../time/index.ts'
+import { localDay } from '../../time.ts'
 import { entryOf } from '../exchanges.ts'
 import {
   FactError,
