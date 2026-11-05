@@ -21,7 +21,7 @@ const startupErrors = {
 const AppContent = () => {
   // The first snapshot is the readiness signal and stays present on reconnect.
   const startup = useFamiliar((state) =>
-    state.conversation.view === undefined ? state.connection : 'ready',
+    state.view === undefined ? state.connection : 'ready',
   )
 
   if (startup === 'connecting' || startup === 'reconnecting') {

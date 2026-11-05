@@ -7,25 +7,30 @@ Declarations live in [`packages/client/src`](https://github.com/AidanZealley/fam
 
 ## createFamiliarStore(url, options?)
 
-Returns a read-only Zustand store, `FamiliarStore`, and opens the event stream. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
+Returns a `FamiliarStore` and opens the event stream. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
 
-Every command is present. One the host's `allow` refuses rejects with the server's 403.
+The store reads like a Zustand store, with `getState()`, `getInitialState()` and `subscribe(listener)`, but has no `setState`. Its state is plain data from the stream. Commands, and `disconnect()`, are on the store itself and never change identity. `disconnect()` stops the stream and retries, and keeps the last state.
 
-The store exposes `getState()`, `getInitialState()` and `subscribe(listener)`. It has no `setState`.
+```ts
+const store = createFamiliarStore('/api')
+await store.conversation.send('Hello')
+store.getState().memory?.facts
+```
 
 ## State
 
-| Field                  | Type                                                                                   | Notes                                              |
-| ---------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `connection`           | `'connecting' \| 'open' \| 'reconnecting' \| 'unauthorized' \| 'failed' \| 'outdated'` |                                                    |
-| `transcript`           | `Transcript \| undefined`                                                              | `{ items, busy }`                                  |
-| `conversation.view`    | `ConversationView \| undefined`                                                        | Pi's view as streamed                              |
-| `conversation.history` | `{ entries, status }`                                                                  | Older entries, oldest first                        |
-| `memory.facts`         | `FactsState \| null \| undefined`                                                      |                                                    |
-| `memory.episodes`      | `EpisodesState \| null \| undefined`                                                   |                                                    |
-| `schedules.items`      | `SchedulesState \| null \| undefined`                                                  |                                                    |
-| `account.state`        | `AccountState \| null \| undefined`                                                    | `null` when the host manages credentials           |
-| `disconnect()`         |                                                                                        | Stops the stream and retries, keeps the last state |
+| Field        | Type                                                                                   | Notes                                    |
+| ------------ | -------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `connection` | `'connecting' \| 'open' \| 'reconnecting' \| 'unauthorized' \| 'failed' \| 'outdated'` |                                          |
+| `transcript` | `Transcript \| undefined`                                                              | `{ items, busy }`                        |
+| `view`       | `ConversationView \| undefined`                                                        | Pi's view as streamed                    |
+| `history`    | `{ entries, status }`                                                                  | Older entries, oldest first              |
+| `account`    | `AccountState \| null \| undefined`                                                    | `null` when the host manages credentials |
+| `memory`     | `FactsState \| null \| undefined`                                                      |                                          |
+| `episodes`   | `EpisodesState \| null \| undefined`                                                   |                                          |
+| `schedules`  | `SchedulesState \| null \| undefined`                                                  |                                          |
+
+Each document is `undefined` until it arrives and `null` when the stream sends none.
 
 ## Commands
 
@@ -50,7 +55,7 @@ type TranscriptItem =
   | {
       type: 'message'
       id: string
-      author: Author | string
+      author: Author
       text: string
       at?: number
       queued: boolean
@@ -87,7 +92,7 @@ type ToolCall = {
 }
 ```
 
-Times are milliseconds since the epoch. A message's `author` is a plain name string only for messages stored before authors had IDs.
+Times are milliseconds since the epoch.
 
 ## Helpers
 
@@ -104,3 +109,4 @@ Import from `@familiar-ai/client/react`. Requires React 18 or 19.
 | `FamiliarProvider`      | `{ store, children }`. Doesn't open or close the store   |
 | `useFamiliar(selector)` | Select from state. Compares with `Object.is`             |
 | `useTranscript()`       | Shorthand for `useFamiliar((state) => state.transcript)` |
+| `useFamiliarStore()`    | The nearest provider's store, for its commands           |

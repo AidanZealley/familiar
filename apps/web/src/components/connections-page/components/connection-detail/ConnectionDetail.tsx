@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import type { ConnectionInfo } from '@familiar-ai/client'
 import { Link, useRouter } from '@tanstack/react-router'
 import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'
@@ -40,7 +40,9 @@ export const ConnectionDetail = ({
   connection,
   onEdit,
 }: ConnectionDetailProps) => {
-  const reconnectServer = useFamiliar((state) => state.mcp.reconnect)
+  const {
+    mcp: { reconnect: reconnectServer },
+  } = useFamiliarStore()
   const router = useRouter()
   const [reconnecting, setReconnecting] = useState(false)
   const [error, setError] = useState<string>()

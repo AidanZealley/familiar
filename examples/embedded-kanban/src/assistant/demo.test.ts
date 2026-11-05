@@ -10,13 +10,13 @@ const open = async () => {
 }
 
 const close = async ({ familiar, store }: Demo) => {
-  store.getState().disconnect()
+  store.disconnect()
   await familiar.dismiss()
 }
 
 /** Sends through the client and waits for the streamed transcript to settle. */
 const ask = async ({ familiar, store }: Demo, text: string) => {
-  await store.getState().conversation.send(text)
+  await store.conversation.send(text)
   await familiar.idle()
   await vi.waitFor(() => {
     const transcript = store.getState().transcript

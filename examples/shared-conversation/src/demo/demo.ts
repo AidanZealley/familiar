@@ -88,7 +88,7 @@ export async function startDemo(people: Author[]) {
     /** Closes every client's stream, ends the sessions and Familiar. */
     stop: async () => {
       for (const store of stores) {
-        store.getState().disconnect()
+        store.disconnect()
       }
       sessions.clear()
       await familiar.dismiss()

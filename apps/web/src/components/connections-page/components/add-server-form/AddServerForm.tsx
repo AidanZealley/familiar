@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import type { McpServer } from '@familiar-ai/client'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
@@ -59,8 +59,10 @@ function read(
 }
 
 export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
-  const addServer = useFamiliar((state) => state.mcp.add)
-  const setSecret = useFamiliar((state) => state.connections.setSecret)
+  const {
+    mcp: { add: addServer },
+    connections: { setSecret },
+  } = useFamiliarStore()
   const router = useRouter()
   const id = useId()
   const [transport, setTransport] = useState<'http' | 'stdio'>('http')

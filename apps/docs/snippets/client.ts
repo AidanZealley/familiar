@@ -14,8 +14,8 @@ const unsubscribe = store.subscribe((state) => {
   console.log(state.connection, state.transcript?.items.length)
 })
 
-await store.getState().conversation.send('Hello')
+await store.conversation.send('Hello')
 
 // On sign-out, or when this view goes away:
 unsubscribe()
-store.getState().disconnect()
+store.disconnect()

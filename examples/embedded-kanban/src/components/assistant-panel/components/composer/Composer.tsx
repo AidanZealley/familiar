@@ -2,11 +2,13 @@ import { SendIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useFamiliarStore } from '@familiar-ai/client/react'
 import { SUGGESTED_PROMPTS } from '@/assistant/script'
 
 export const Composer = () => {
-  const send = useFamiliar((state) => state.conversation.send)
+  const {
+    conversation: { send },
+  } = useFamiliarStore()
   const [text, setText] = useState('')
   const submit = (value: string) => {
     if (value.trim()) {

@@ -1,13 +1,12 @@
-export { createFamiliarStore } from './store/index.ts'
+export { createFamiliarStore } from './store.ts'
 export type {
   Connection,
   FamiliarStoreOptions,
   History,
   FamiliarState,
   FamiliarStore,
-} from './store/types.ts'
-export { agentOf } from './store/utils.ts'
-export { carryOver, startOf } from './conversation.ts'
+} from './store.ts'
+export { agentOf, carryOver, startOf } from './conversation.ts'
 export * from './transcript.ts'
 export type {
   Author,

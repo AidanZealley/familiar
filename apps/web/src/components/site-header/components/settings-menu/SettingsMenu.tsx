@@ -18,14 +18,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
 
 export const SettingsMenu = () => {
-  const signOut = useFamiliar((state) => state.account.signOut)
+  const {
+    account: { signOut },
+  } = useFamiliarStore()
   const { theme, setTheme } = useTheme()
-  const signedIn = useFamiliar(
-    (state) => state.account.state?.status === 'signed-in',
-  )
+  const signedIn = useFamiliar((state) => state.account?.status === 'signed-in')
 
   return (
     <DropdownMenu>

@@ -40,7 +40,7 @@ const asJson = (subscription: PushSubscription) =>
  * restarted since) receives nothing. Undefined when the server has no push.
  */
 async function devicePush() {
-  const key = await familiar.getState().push.key()
+  const key = await familiar.push.key()
   if (!key) {
     return undefined
   }
@@ -73,7 +73,7 @@ export function useNotifications() {
     }
     if (push.current && Notification.permission === 'granted') {
       // The server may have forgotten it (a fresh demo, a pruned endpoint).
-      await familiar.getState().push.subscribe(asJson(push.subscription!))
+      await familiar.push.subscribe(asJson(push.subscription!))
       return 'on'
     }
     return 'off'
@@ -112,7 +112,7 @@ export function useNotifications() {
             userVisibleOnly: true,
             applicationServerKey: push.key,
           })
-      await familiar.getState().push.subscribe(asJson(subscription))
+      await familiar.push.subscribe(asJson(subscription))
       setStatus('on')
     } catch (failure) {
       setError((failure as Error).message)
@@ -124,7 +124,7 @@ export function useNotifications() {
     try {
       const subscription = (await devicePush())?.subscription
       if (subscription) {
-        await familiar.getState().push.unsubscribe(asJson(subscription))
+        await familiar.push.unsubscribe(asJson(subscription))
         await subscription.unsubscribe()
       }
       setStatus('off')

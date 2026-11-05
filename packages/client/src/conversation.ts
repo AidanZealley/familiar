@@ -1,29 +1,25 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
 import type { StreamEvent } from '@familiar-ai/core/http'
-import type { ConversationView } from '@earendil-works/pi-durable'
+import type { AgentState, ConversationView } from '@earendil-works/pi-durable'
 import type { StoreApi } from 'zustand/vanilla'
-import type { FamiliarState, History } from './store/types.ts'
+import type { FamiliarState, History } from './store.ts'
 import { toTranscript } from './transcript.ts'
 
 export type FetchHistory = (
   before: number,
 ) => Promise<{ entries: History['entries']; more: boolean }>
 
-type ConversationState = Pick<FamiliarState, 'conversation' | 'transcript'>
+type ConversationState = Pick<FamiliarState, 'view' | 'history' | 'transcript'>
 
 const transition = (
   previous: ConversationState,
   view: ConversationView | undefined,
   history: History,
 ): ConversationState => ({
-  conversation:
-    view === previous.conversation.view &&
-    history === previous.conversation.history
-      ? previous.conversation
-      : { ...previous.conversation, view, history },
+  view,
+  history,
   transcript:
-    view === previous.conversation.view &&
-    history.entries === previous.conversation.history.entries
+    view === previous.view && history.entries === previous.history.entries
       ? previous.transcript
       : view && toTranscript(view, history.entries),
 })
@@ -36,7 +32,7 @@ export const createConversation = (
   let loading: Promise<boolean> | undefined
   const loadOlder = async () => {
     const state = get()
-    const { history } = state.conversation
+    const { history } = state
     if (history.status === 'start') {
       return false
     }
@@ -44,62 +40,44 @@ export const createConversation = (
     if (before === undefined) {
       return true
     }
-    set({
-      conversation: {
-        ...state.conversation,
-        history: { ...history, status: 'loading' },
-      },
-    })
+    set({ history: { ...history, status: 'loading' } })
     try {
       const page = await historyPage(before)
       const current = get()
       // A reconnect left a gap, so history starts again from the new view.
       if (oldestOf(current) !== before) {
-        set({
-          conversation: {
-            ...current.conversation,
-            history: { ...current.conversation.history, status: 'more' },
-          },
-        })
+        set({ history: { ...current.history, status: 'more' } })
         return true
       }
       set(
-        transition(current, current.conversation.view, {
-          entries: [
-            ...page.entries.toReversed(),
-            ...current.conversation.history.entries,
-          ],
+        transition(current, current.view, {
+          entries: [...page.entries.toReversed(), ...current.history.entries],
           status: page.more ? 'more' : 'start',
         }),
       )
       return page.more
     } catch (error) {
-      set(({ conversation }) => ({
-        conversation: {
-          ...conversation,
-          history: { ...conversation.history, status: 'failed' },
-        },
-      }))
+      set(({ history }) => ({ history: { ...history, status: 'failed' } }))
       throw error
     }
   }
 
   const receive = (view: ConversationView | undefined) => {
     const state = get()
-    return transition(
-      state,
-      view,
-      carryOver(state.conversation.history, state.conversation.view, view),
-    )
+    return transition(state, view, carryOver(state.history, state.view, view))
   }
   return {
     loadOlder: () =>
       (loading ??= loadOlder().finally(() => (loading = undefined))),
     receive,
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>
-      receive(applyImmutable(get().conversation.view, ops)),
+      receive(applyImmutable(get().view, ops)),
   }
 }
+
+/** The conversation's model and reasoning level, as Pi stores them. */
+export const agentOf = (view: ConversationView | undefined) =>
+  view?.docs['pi.agent'] as AgentState | undefined
 
 /**
  * The oldest entry in a view. A view opens with its head marker, such as a
@@ -108,9 +86,7 @@ export const createConversation = (
 export const startOf = (view: ConversationView) =>
   view.entries[0] && (view.entries[0].head ?? view.entries[0].id)
 
-const oldestOf = ({
-  conversation: { view, history },
-}: Pick<FamiliarState, 'conversation'>) =>
+const oldestOf = ({ view, history }: ConversationState) =>
   history.entries[0]?.id ?? (view && startOf(view))
 
 /**

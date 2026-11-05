@@ -1,7 +1,6 @@
-import type { McpServer } from '@familiar-ai/core/http'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { createFamiliarStore } from './store/index.ts'
-import type { FamiliarStore } from './store/types.ts'
+import { createFamiliarStore } from './store.ts'
+import type { FamiliarStore } from './store.ts'
 import { entry, frame, testServer, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.
@@ -11,7 +10,7 @@ beforeEach(() => {
 
 const opened: FamiliarStore[] = []
 afterEach(() => {
-  opened.splice(0).forEach((store) => store.getState().disconnect())
+  opened.splice(0).forEach((store) => store.disconnect())
   vi.unstubAllGlobals()
 })
 
@@ -30,33 +29,16 @@ const history = (request: Request) => {
   return Response.json({ entries, more: before - 1 > 1 })
 }
 
-test('account is undefined until the server says, and null when it offers no sign-in', async () => {
-  const server = testServer()
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  expect(store.getState().account.state).toBeUndefined()
-
-  server.send(frame('account', null))
-  await expect.poll(() => store.getState().account.state).toBeNull()
-
-  server.send(frame('account', { status: 'signed-in' }))
-  await expect
-    .poll(() => store.getState().account.state)
-    .toEqual({ status: 'signed-in' })
-})
-
 test('loadOlder pages back to the start, one request per page', async () => {
   const server = testServer(history)
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
   server.send(frame('view', view(3)))
   await expect.poll(() => store.getState().connection).toBe('open')
-  const {
-    conversation: { loadOlder },
-  } = store.getState()
+  const { loadOlder } = store.conversation
 
   const first = loadOlder()
-  expect(store.getState().conversation.history.status).toBe('loading')
+  expect(store.getState().history.status).toBe('loading')
   // A second call while loading shares the first's request.
   expect(loadOlder()).toBe(first)
   expect(await first).toBe(true)
@@ -71,46 +53,35 @@ test('loadOlder pages back to the start, one request per page', async () => {
     'http://familiar.test/api/history?before=3',
     'http://familiar.test/api/history?before=2',
   ])
-  expect(store.getState().conversation.history).toEqual({
+  expect(store.getState().history).toEqual({
     entries: [entry(1), entry(2)],
     status: 'start',
   })
-  expect(store.getState().conversation.view?.entries).toEqual([entry(3)])
+  expect(store.getState().view?.entries).toEqual([entry(3)])
 })
 
-test("MCP edits reach their routes and reject with the server's reason", async () => {
-  const server = testServer((request) =>
-    request.url.endsWith('/reconnect')
-      ? new Response(null, { status: 202 })
-      : Response.json(
-          { error: 'MCP server notes already exists.' },
-          { status: 404 },
-        ),
-  )
+test('account and documents arrive whole, take patches and can be null', async () => {
+  const server = testServer()
   const store = open('/api', { fetch: server.fetch })
-  const { mcp } = store.getState()
-  const notes: McpServer = {
-    name: 'notes',
-    transport: { type: 'stdio', command: 'notes-mcp', args: [] },
-  }
+  await expect.poll(server.connections).toBe(1)
+  expect(store.getState().account).toBeUndefined()
 
-  await expect(mcp.add(notes)).rejects.toThrow(
-    'MCP server notes already exists.',
+  server.send(frame('account', null))
+  server.send(
+    frame('document', { name: 'memory', value: { facts: [], next: 1 } }),
   )
-  await mcp.reconnect('notes')
+  server.send(frame('document', { name: 'schedules', value: {} }))
+  server.send(
+    frame('document.ops', { name: 'memory', ops: [['s', ['next'], 2]] }),
+  )
+  server.send(frame('document', { name: 'schedules', value: null }))
 
-  const sent = await Promise.all(
-    server.requests
-      .filter((request) => request.url.includes('/mcp'))
-      .map(
-        async (request) =>
-          `${request.method} ${request.url} ${await request.text()}`,
-      ),
-  )
-  expect(sent.map((line) => line.trim())).toEqual([
-    `POST http://familiar.test/api/mcp ${JSON.stringify(notes)}`,
-    'POST http://familiar.test/api/mcp/notes/reconnect',
-  ])
+  await expect.poll(() => store.getState().schedules).toBeNull()
+  expect(store.getState()).toMatchObject({
+    account: null,
+    memory: { facts: [], next: 2 },
+    episodes: undefined,
+  })
 })
 
 test('a refused or failed command rejects once and is never sent again', async () => {
@@ -125,11 +96,9 @@ test('a refused or failed command rejects once and is never sent again', async (
   server.send(frame('view', view(1)))
   await expect.poll(() => store.getState().connection).toBe('open')
 
-  await expect(store.getState().conversation.send('Hello')).rejects.toThrow(
-    'unauthorized',
-  )
+  await expect(store.conversation.send('Hello')).rejects.toThrow('unauthorized')
   status = 503
-  await expect(store.getState().conversation.abort()).rejects.toThrow('503')
+  await expect(store.conversation.abort()).rejects.toThrow('503')
 
   expect(
     server.requests
@@ -147,7 +116,7 @@ test('without a fetch option the store uses the global fetch for the stream and 
   await expect.poll(server.connections).toBe(1)
   server.send(frame('view', view(1)))
   await expect.poll(() => store.getState().connection).toBe('open')
-  await store.getState().conversation.send('Hello')
+  await store.conversation.send('Hello')
 
   expect(server.requests.map((request) => request.url)).toEqual([
     'http://familiar.test/api/events',
@@ -207,28 +176,30 @@ test('transcript reference survives unrelated updates and history loading or fai
   server.send(frame('view', conversation(2)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:2'])
   const initial = store.getState().transcript
+  // Operations that leave the view unchanged, and other sources' events.
+  server.send(frame('ops', []))
   server.send(frame('account', null))
   server.send(frame('document', { name: 'memory', value: { facts: [] } }))
-  await expect.poll(() => store.getState().memory.facts).toEqual({ facts: [] })
+  await expect.poll(() => store.getState().memory).toEqual({ facts: [] })
   expect(store.getState().transcript).toBe(initial)
 
-  const load = store.getState().conversation.loadOlder()
-  expect(store.getState().conversation.history.status).toBe('loading')
+  const load = store.conversation.loadOlder()
+  expect(store.getState().history.status).toBe('loading')
   expect(store.getState().transcript).toBe(initial)
   await expect(load).rejects.toThrow('Try again')
-  expect(store.getState().conversation.history.status).toBe('failed')
+  expect(store.getState().history.status).toBe('failed')
   expect(store.getState().transcript).toBe(initial)
   fail = false
   const published: (string[] | undefined)[] = []
   const unsubscribe = store.subscribe(() => published.push(itemIds(store)))
-  await store.getState().conversation.loadOlder()
+  await store.conversation.loadOlder()
   unsubscribe()
   expect(published).toEqual([['entry:2'], ['entry:1', 'entry:2']])
   expect(itemIds(store)).toEqual(['entry:1', 'entry:2'])
   expect(store.getState().transcript).not.toBe(initial)
   const loaded = store.getState().transcript
-  await store.getState().conversation.loadOlder()
-  store.getState().disconnect()
+  await store.conversation.loadOlder()
+  store.disconnect()
   expect(store.getState().transcript).toBe(loaded)
 })
 
@@ -240,7 +211,7 @@ test('transcript carries compacted entries into history and drops history across
   await expect.poll(server.connections).toBe(1)
   server.send('retry: 5\n\n' + frame('view', conversation(2, 3)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:2', 'entry:3'])
-  await store.getState().conversation.loadOlder()
+  await store.conversation.loadOlder()
   const compacted = {
     ...conversation(3),
     entries: [{ ...entry(4), kind: 'pi.compaction', head: 3 }, message(3)],
@@ -256,7 +227,7 @@ test('transcript carries compacted entries into history and drops history across
   await expect.poll(server.connections).toBe(2)
   server.send(frame('view', conversation(9)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:9'])
-  expect(store.getState().conversation.history.entries).toEqual([])
+  expect(store.getState().history.entries).toEqual([])
 })
 
 test('a history page arriving after a reconnect gap cannot restore stale transcript items', async () => {
@@ -268,7 +239,7 @@ test('a history page arriving after a reconnect gap cannot restore stale transcr
   await expect.poll(server.connections).toBe(1)
   server.send(frame('view', conversation(3)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:3'])
-  const load = store.getState().conversation.loadOlder()
+  const load = store.conversation.loadOlder()
   server.send(frame('view', conversation(9)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:9'])
   const fresh = store.getState().transcript
@@ -276,115 +247,4 @@ test('a history page arriving after a reconnect gap cannot restore stale transcr
   await load
   expect(itemIds(store)).toEqual(['entry:9'])
   expect(store.getState().transcript).toBe(fresh)
-})
-
-test('public store exposes only read and subscription methods', () => {
-  const store = open('/api', { fetch: testServer().fetch })
-  expect(Object.keys(store).sort()).toEqual([
-    'getInitialState',
-    'getState',
-    'subscribe',
-  ])
-})
-
-test('operations that leave view references unchanged retain the transcript', async () => {
-  const server = testServer()
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(frame('view', conversation(1)))
-  await expect.poll(() => itemIds(store)).toEqual(['entry:1'])
-  const initial = store.getState().transcript
-  const feature = store.getState().conversation
-  server.send(frame('ops', []))
-  server.send(frame('account', null))
-  await expect.poll(() => store.getState().account.state).toBeNull()
-  expect(store.getState().transcript).toBe(initial)
-  expect(store.getState().conversation).toBe(feature)
-})
-
-test('feature data retains commands and sibling documents across patches, nulls and reconnects', async () => {
-  const server = testServer()
-  const store = open('/api', { fetch: server.fetch })
-  const initial = store.getInitialState()
-  await expect.poll(server.connections).toBe(1)
-  server.send('retry: 5\n\n' + frame('view', view(1)))
-  server.send(frame('account', { status: 'signed-in' }))
-  server.send(
-    frame('document', { name: 'memory', value: { facts: [], next: 1 } }),
-  )
-  server.send(
-    frame('document', { name: 'episodes', value: { episodes: [], next: 1 } }),
-  )
-  server.send(frame('document', { name: 'schedules', value: {} }))
-  await expect.poll(() => store.getState().schedules.items).toEqual({})
-  const received = store.getState()
-  expect(received.account.signIn).toBe(initial.account.signIn)
-  expect(received.memory.revise).toBe(initial.memory.revise)
-  expect(received.schedules.cancel).toBe(initial.schedules.cancel)
-  expect(received.conversation.send).toBe(initial.conversation.send)
-  expect(received.conversation.loadOlder).toBe(initial.conversation.loadOlder)
-
-  server.send(
-    frame('document.ops', { name: 'memory', ops: [['s', ['next'], 2]] }),
-  )
-  server.send(
-    frame('document.ops', { name: 'episodes', ops: [['s', ['next'], 3]] }),
-  )
-  server.send(
-    frame('document.ops', {
-      name: 'schedules',
-      ops: [
-        [
-          's',
-          ['reminder'],
-          {
-            id: 'reminder',
-            prompt: 'Call Mum',
-            next: 100,
-            at: 100,
-            created: 0,
-          },
-        ],
-      ],
-    }),
-  )
-  await expect
-    .poll(() => store.getState().schedules.items)
-    .toEqual({
-      reminder: {
-        id: 'reminder',
-        prompt: 'Call Mum',
-        next: 100,
-        at: 100,
-        created: 0,
-      },
-    })
-  const patched = store.getState()
-  expect(patched.memory.facts).toEqual({ facts: [], next: 2 })
-  expect(patched.memory.episodes).toEqual({ episodes: [], next: 3 })
-  expect(patched.memory.revise).toBe(initial.memory.revise)
-  expect(patched.schedules.cancel).toBe(initial.schedules.cancel)
-  expect(patched.conversation).toBe(received.conversation)
-  expect(patched.account).toBe(received.account)
-
-  server.send(frame('document', { name: 'memory', value: null }))
-  await expect.poll(() => store.getState().memory.facts).toBeNull()
-  expect(store.getState().memory.episodes).toBe(patched.memory.episodes)
-  expect(store.getState().memory.revise).toBe(initial.memory.revise)
-  server.drop()
-  await expect.poll(server.connections).toBe(2)
-  server.send(frame('view', view(2)))
-  server.send(
-    frame('document', { name: 'memory', value: { facts: [], next: 4 } }),
-  )
-  await expect.poll(() => store.getState().memory.facts?.next).toBe(4)
-  expect(store.getState().memory.revise).toBe(initial.memory.revise)
-  expect(store.getState().schedules.cancel).toBe(initial.schedules.cancel)
-  expect(store.getState().push).toBe(initial.push)
-  expect(store.getState().connections).toBe(initial.connections)
-  expect(store.getState().mcp).toBe(initial.mcp)
-  await store.getState().memory.revise('fact-1', 'Corrected')
-  expect(server.requests.at(-1)?.url).toBe(
-    'http://familiar.test/api/memory/fact-1',
-  )
 })

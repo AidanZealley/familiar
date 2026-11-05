@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -25,8 +25,9 @@ export const CredentialsForm = ({
   error: initialError,
   onDone,
 }: CredentialsFormProps) => {
-  const setSecret = useFamiliar((state) => state.connections.setSecret)
-  const deleteSecret = useFamiliar((state) => state.connections.deleteSecret)
+  const {
+    connections: { setSecret, deleteSecret },
+  } = useFamiliarStore()
   const router = useRouter()
   const id = useId()
   const [drafts, setDrafts] = useState<Record<string, string>>({})

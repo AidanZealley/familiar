@@ -26,7 +26,7 @@ import {
   GenerationTask,
 } from '@familiar-ai/core/extensions'
 import { createHttpApi } from '@familiar-ai/core/http'
-import { createFamiliarStore } from '../../../packages/client/src/store/index.ts'
+import { createFamiliarStore } from '../../../packages/client/src/store.ts'
 import { toTranscript } from '../../../packages/client/src/transcript.ts'
 
 class ReopenableStorage extends MemoryStorage {
@@ -118,10 +118,10 @@ test('plugin results and last reported details survive reopen and reach the tran
     })
     try {
       await expect.poll(() => client.getState().connection).toBe('open')
-      const view = client.getState().conversation.view
+      const view = client.getState().view
       expect(view).toEqual(watch.value)
     } finally {
-      client.getState().disconnect()
+      client.disconnect()
     }
     const transcript = toTranscript(JSON.parse(JSON.stringify(watch.value)))
     const calls = transcript.items.flatMap((item) =>

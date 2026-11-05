@@ -33,7 +33,7 @@ const settle = async ({ familiar }: Demo, client: Client) => {
 
 /** Sends as this client's person and waits for the reply. */
 const ask = async (demo: Demo, client: Client, text: string) => {
-  await client.store.getState().conversation.send(text)
+  await client.store.conversation.send(text)
   await settle(demo, client)
   return replies(client).at(-1)
 }
@@ -99,7 +99,7 @@ describe('shared conversation demo', () => {
       expect(store.getState().connection).not.toBe('reconnecting')
     }
     await expect(
-      anaClient.store.getState().conversation.send('Count me in'),
+      anaClient.store.conversation.send('Count me in'),
     ).rejects.toThrow()
     // A fresh start shares nothing with the last.
     const next = await open()

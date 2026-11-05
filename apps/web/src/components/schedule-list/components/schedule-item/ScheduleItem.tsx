@@ -1,4 +1,4 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,9 @@ const nextFormat = new Intl.DateTimeFormat(undefined, {
 })
 
 export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
-  const cancelSchedule = useFamiliar((state) => state.schedules.cancel)
+  const {
+    schedules: { cancel: cancelSchedule },
+  } = useFamiliarStore()
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string>()
 

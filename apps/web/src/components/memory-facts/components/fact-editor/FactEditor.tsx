@@ -1,11 +1,13 @@
-import { useFamiliar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { FactEditorProps } from './types'
 
 export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
-  const revise = useFamiliar((state) => state.memory.revise)
+  const {
+    memory: { revise },
+  } = useFamiliarStore()
   const [draft, setDraft] = useState(fact.text)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()

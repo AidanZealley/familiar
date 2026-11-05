@@ -3,6 +3,7 @@ import {
   FamiliarProvider,
   useFamiliar,
   useTranscript,
+  useFamiliarStore,
 } from '@familiar-ai/client/react'
 
 // Once, at module scope. The provider never opens or closes the store.
@@ -10,7 +11,9 @@ const store = createFamiliarStore('/api')
 
 const Chat = () => {
   const connection = useFamiliar((state) => state.connection)
-  const send = useFamiliar((state) => state.conversation.send)
+  const {
+    conversation: { send },
+  } = useFamiliarStore()
   const transcript = useTranscript()
 
   if (connection !== 'open') {
