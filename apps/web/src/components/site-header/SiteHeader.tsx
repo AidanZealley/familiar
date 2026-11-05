@@ -15,7 +15,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu'
-import { memorySections } from '@/lib/memory'
+import { memorySections } from '@/lib/memory-sections'
 
 import { SettingsMenu } from './components/settings-menu'
 import { ConnectionStatus } from './components/connection-status'

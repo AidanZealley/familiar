@@ -5,7 +5,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import type { ActivityProps } from './types'
 
 /** A status line for something Familiar did, expandable to show the detail. */

@@ -1,21 +1,10 @@
 import type { Episode, Fact } from '@familiar-ai/client'
-import {
-  CalendarDaysIcon,
-  HistoryIcon,
-  ListIcon,
-  type LucideIcon,
-} from 'lucide-react'
+import { localDate, monthFormat } from '@/lib/format'
 
 /**
- * Views of the memory the store mirrors, shared by the Memory pages and the
- * chat. Read-only: every change goes through the store's actions.
+ * Views of the memory the store mirrors, for the Memory pages. Read-only:
+ * every change goes through the store's commands.
  */
-
-/** Mirrors core's `CORE_BUDGET`, which the client can't import. */
-export const CORE_BUDGET = 6_000
-
-/** Mirrors core's `CORE_IMPORTANCE`: facts this important go in core while there's room. */
-export const CORE_IMPORTANCE = 3
 
 export const isPast = (fact: Fact) => fact.until !== undefined
 
@@ -32,21 +21,19 @@ export const coreFacts = (facts: readonly Fact[]) =>
 export const reserveFacts = (facts: readonly Fact[]) =>
   facts.filter((fact) => !fact.core && !isPast(fact)).toSorted(byStanding)
 
-/** A fact's length as the model sees it, which core's budget measures. */
-export const factSize = (fact: Fact) => `${fact.id}: ${fact.text}`.length
+/** A fact as the model sees it, one line of core. */
+const line = (fact: Fact) => `${fact.id}: ${fact.text}`
 
-/** Characters core takes; core joins its facts with newlines. */
-export const coreSize = (facts: readonly Fact[]) => {
-  const core = coreFacts(facts)
-  return Math.max(
-    0,
-    core.reduce((sum, fact) => sum + factSize(fact) + 1, 0) - 1,
-  )
-}
+export const factSize = (fact: Fact) => line(fact).length
+
+/** The characters core takes of `CORE_BUDGET`. */
+export const coreSize = (facts: readonly Fact[]) =>
+  coreFacts(facts).map(line).join('\n').length
 
 /**
- * Each fact's history, oldest first: one chain per fact that hasn't been
- * superseded, if it superseded something or was retired. Newest change first.
+ * Every fact that has changed, as a chain of its versions from oldest to
+ * newest: one per fact that is the latest of its line and either replaced
+ * something or was retired. Chains come most recently changed first.
  */
 export const historyChains = (facts: readonly Fact[]) => {
   const byId = new Map(facts.map((fact) => [fact.id, fact]))
@@ -73,17 +60,14 @@ export const historyChains = (facts: readonly Fact[]) => {
   return chains.toSorted((a, b) => changed(b).localeCompare(changed(a)))
 }
 
-/** The fact that superseded a past one, if any. */
-export const successorOf = (facts: readonly Fact[], fact: Fact) =>
-  facts.find((other) => other.replaces?.includes(fact.id))
-
 export type EpisodeMonth = {
   /** `YYYY-MM`. */
   key: string
   label: string
-  month?: Episode
-  weeks: Episode[]
-  days: Episode[]
+  /** The month's own episode, written once it has ended. */
+  summary?: Episode
+  /** Its weeks and days, newest first, each week above its days. */
+  entries: Episode[]
 }
 
 /** Episodes grouped by the month they start in, newest month first. */
@@ -94,85 +78,24 @@ export const episodeMonths = (episodes: readonly Episode[]): EpisodeMonth[] => {
     const month = months.get(key) ?? {
       key,
       label: monthFormat.format(localDate(`${key}-01`)),
-      weeks: [],
-      days: [],
+      entries: [],
     }
     if (episode.span === 'month') {
-      month.month = episode
-    } else if (episode.span === 'week') {
-      month.weeks.push(episode)
+      month.summary = episode
     } else {
-      month.days.push(episode)
+      month.entries.push(episode)
     }
     months.set(key, month)
   }
-  return [...months.values()].toSorted((a, b) => b.key.localeCompare(a.key))
-}
-
-/** The Memory pages, for every nav that links to them. */
-export const memorySections: {
-  to: '/memory' | '/memory/history' | '/memory/episodes'
-  label: string
-  icon: LucideIcon
-  description: string
-}[] = [
-  {
-    to: '/memory',
-    label: 'Facts',
-    icon: ListIcon,
-    description: 'What Familiar knows now: pinned, core and reserve.',
-  },
-  {
-    to: '/memory/history',
-    label: 'History',
-    icon: HistoryIcon,
-    description: 'How facts changed over time.',
-  },
-  {
-    to: '/memory/episodes',
-    label: 'Episodes',
-    icon: CalendarDaysIcon,
-    description: 'What happened, by day, week and month.',
-  },
-]
-
-/** A `YYYY-MM-DD` date at local noon, so no time zone moves it a day. */
-const localDate = (date: string) => new Date(`${date}T12:00:00`)
-
-const monthFormat = new Intl.DateTimeFormat(undefined, {
-  month: 'long',
-  year: 'numeric',
-})
-const dayFormat = new Intl.DateTimeFormat(undefined, {
-  day: 'numeric',
-  month: 'short',
-})
-const dayYearFormat = new Intl.DateTimeFormat(undefined, {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-})
-const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
-
-/** A short date, with the year only when it isn't this year. */
-export const formatDay = (ms: number) =>
-  new Date(ms).getFullYear() === new Date().getFullYear()
-    ? dayFormat.format(ms)
-    : dayYearFormat.format(ms)
-
-/** A `YYYY-MM-DD` day, such as a fact's `since`, as `formatDay` writes it. */
-export const formatDate = (day: string) => formatDay(localDate(day).getTime())
-
-export const formatTime = (ms: number) => timeFormat.format(ms)
-
-/** An episode's dates: `7 Jan` for a day, `22–28 Dec` for a week. */
-export const formatSpan = (episode: Episode) => {
-  const start = localDate(episode.start)
-  if (episode.span === 'day') {
-    return formatDay(start.getTime())
-  }
-  if (episode.span === 'month') {
-    return monthFormat.format(start)
-  }
-  return dayFormat.formatRange(start, localDate(episode.end))
+  return [...months.values()]
+    .map((month) => ({
+      ...month,
+      // A week ends with its last day, so on a tie the week goes first.
+      entries: month.entries.toSorted(
+        (a, b) =>
+          b.end.localeCompare(a.end) ||
+          Number(b.span === 'week') - Number(a.span === 'week'),
+      ),
+    }))
+    .toSorted((a, b) => b.key.localeCompare(a.key))
 }

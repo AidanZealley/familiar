@@ -1,7 +1,7 @@
 import { getRouteApi } from '@tanstack/react-router'
 import { SearchIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import { idOf, needsAttention, whereOf } from '../../status'
 import { ConnectionRow } from './components/connection-row'
 import type { ConnectionListProps } from './types'

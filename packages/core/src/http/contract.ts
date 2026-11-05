@@ -47,6 +47,9 @@ export type Documents = {
 
 export type DocumentName = keyof Documents
 
+/** Core memory's limit in characters, which clients show it against. */
+export { CORE_BUDGET } from '../memory/facts.ts'
+
 /**
  * Opens every event stream. A client that speaks another version stops
  * before applying any state; bump it on any change an older client would

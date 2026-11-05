@@ -1,6 +1,6 @@
 import { AlarmClockIcon } from 'lucide-react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
-import { formatTime } from '@/lib/memory'
+import { formatTime } from '@/lib/format'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
 import { Thinking } from '../thinking'

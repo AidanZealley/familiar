@@ -1,13 +1,7 @@
-import type { Fact } from '@familiar-ai/client'
+import { CORE_BUDGET, type Fact } from '@familiar-ai/client'
 import { cn } from 'cn'
 import { useState } from 'react'
-import {
-  CORE_BUDGET,
-  coreFacts,
-  coreSize,
-  factSize,
-  reserveFacts,
-} from '@/lib/memory'
+import { coreFacts, coreSize, factSize, reserveFacts } from '@/lib/memory'
 import type { MemoryOverviewProps } from './types'
 
 const number = new Intl.NumberFormat()

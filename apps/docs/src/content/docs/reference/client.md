@@ -98,6 +98,7 @@ Times are milliseconds since the epoch.
 
 - `toTranscript(view, history?)` derives a transcript. The store already does this; use it for other clients.
 - `agentOf(view)` reads the conversation's current model and reasoning level.
+- `CORE_BUDGET` is core memory's limit in characters, measured as the model sees the facts: `id: text`, one per line.
 
 ## React
 

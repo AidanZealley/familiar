@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import { idOf, statusOf, whereOf } from '../../../../status'
 import { StatusDot } from '../../../status-dot'
 import type { ConnectionRowProps } from './types'
