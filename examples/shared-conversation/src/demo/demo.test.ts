@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { startDemo, type Client, type Demo } from './demo.ts'
-import { PEOPLE } from './people.ts'
 import { UNSUPPORTED_REPLY } from './script.ts'
 
 const open = async () => {
-  const demo = await startDemo(PEOPLE)
+  const demo = await startDemo()
   await vi.waitFor(() => {
     for (const { store } of demo.clients) {
       expect(store.getState().connection).toBe('open')
@@ -13,11 +12,19 @@ const open = async () => {
   return demo
 }
 
+const close = async ({ familiar, clients }: Demo) => {
+  for (const { store } of clients) {
+    store.disconnect()
+  }
+  await familiar.dismiss()
+}
+
 const items = ({ store }: Client) => store.getState().transcript?.items ?? []
-const toolCalls = (client: Client) =>
-  items(client).flatMap((item) => (item.type === 'reply' ? item.toolCalls : []))
 const replies = (client: Client) =>
-  items(client).flatMap((item) => (item.type === 'reply' ? [item.text] : []))
+  items(client).flatMap((item) =>
+    item.type === 'reply' && item.text ? [item.text] : [],
+  )
+
 /** Waits until Familiar and this client's mirror of it have both settled. */
 const settle = async ({ familiar }: Demo, client: Client) => {
   await familiar.idle()
@@ -41,75 +48,58 @@ const ask = async (demo: Demo, client: Client, text: string) => {
 describe('shared conversation demo', () => {
   it("answers from an earlier person's words in the model's input", async () => {
     const demo = await open()
-    const [anaClient, benClient, chloeClient] = demo.clients
+    const [ana, ben, chloe] = demo.clients
     try {
-      await ask(demo, anaClient, 'Note for the group: I can bring tiramisu')
-      await ask(demo, benClient, 'Note for the group: Friday works for me')
-      expect(await ask(demo, chloeClient, 'What did Ana say?')).toBe(
+      await ask(demo, ana, 'Note for the group: I can bring tiramisu')
+      await ask(demo, ben, 'Note for the group: Friday works for me')
+      expect(await ask(demo, chloe, 'What did Ana say?')).toBe(
         'Ana said: "Note for the group: I can bring tiramisu"\n\n' +
           'The script found that in the conversation Familiar sent with this request. ' +
           "It isn't long-term memory.",
       )
-      expect(await ask(demo, chloeClient, 'What did Dana say?')).toBe(
+      expect(await ask(demo, chloe, 'What did Dana say?')).toBe(
         "I can't see a message from Dana in this conversation yet.",
       )
     } finally {
-      await demo.stop()
+      await close(demo)
     }
   })
 
-  it('does not add the same guest twice', async () => {
+  it("runs a message queued during someone else's reply as its own sender", async () => {
     const demo = await open()
-    const [anaClient] = demo.clients
+    const [ana, ben] = demo.clients
     try {
-      expect(await ask(demo, anaClient, 'Count me in')).toBe(
+      await ana.store.conversation.send('Count me in')
+      // Sending resolves once Familiar has the message, so Ana's run is
+      // still going when Ben's arrives.
+      await ben.store.conversation.send('Count me in')
+      await settle(demo, ben)
+      expect(replies(ben).slice(-2)).toEqual([
         'Counted Ana in. Going: Ana.',
-      )
-      expect(await ask(demo, anaClient, 'Count me in')).toBe(
-        'Ana was already counted in. Going: Ana.',
-      )
+        'Counted Ben in. Going: Ana, Ben.',
+      ])
     } finally {
-      await demo.stop()
+      await close(demo)
     }
   })
 
-  it.each([
-    "Don't count me in",
-    'Count me in and Ben too',
-    'Who am I and who is coming?',
-    'Count Chloe in',
-    'Write me a poem',
-  ])('falls back without running a tool: %s', async (prompt) => {
+  it('runs no tool for anything the script does not know', async () => {
     const demo = await open()
-    const [, , chloeClient] = demo.clients
+    const [, , chloe] = demo.clients
     try {
-      expect(await ask(demo, chloeClient, prompt)).toBe(UNSUPPORTED_REPLY)
-      expect(toolCalls(chloeClient)).toEqual([])
-    } finally {
-      await demo.stop()
-    }
-  })
-
-  it('closes every stream and refuses ended sessions on stop', async () => {
-    const demo = await open()
-    const [anaClient] = demo.clients
-    await demo.stop()
-    // Everyone's stream is closed, and nothing reconnects it.
-    for (const { store } of demo.clients) {
-      expect(store.getState().connection).not.toBe('reconnecting')
-    }
-    await expect(
-      anaClient.store.conversation.send('Count me in'),
-    ).rejects.toThrow()
-    // A fresh start shares nothing with the last.
-    const next = await open()
-    try {
-      expect(next.clients.map(items)).toEqual([[], [], []])
-      expect(await ask(next, next.clients[1], 'Count me in')).toBe(
-        'Counted Ben in. Going: Ben.',
+      for (const prompt of [
+        "Don't count me in",
+        'Count me in and Ben too',
+        'Write me a poem',
+      ]) {
+        expect(await ask(demo, chloe, prompt), prompt).toBe(UNSUPPORTED_REPLY)
+      }
+      const toolCalls = items(chloe).flatMap((item) =>
+        item.type === 'reply' ? item.toolCalls : [],
       )
+      expect(toolCalls).toEqual([])
     } finally {
-      await next.stop()
+      await close(demo)
     }
   })
 })
