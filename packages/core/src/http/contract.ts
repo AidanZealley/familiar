@@ -47,6 +47,13 @@ export type Documents = {
 export type DocumentName = keyof Documents
 
 /**
+ * Opens every event stream. A client that speaks another version stops
+ * before applying any state; bump it on any change an older client would
+ * misread.
+ */
+export const PROTOCOL_VERSION = 2
+
+/**
  * `GET /events` is a server-sent event stream of these. The conversation's
  * view and each document arrive whole first (again after any reconnect),
  * then as each commit's changes, to apply in order to the last value.

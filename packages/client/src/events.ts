@@ -1,6 +1,13 @@
 import { EventSource, type FetchLike } from 'eventsource'
-import type { StreamEvent } from '@familiar-ai/core/http'
+import type {
+  PROTOCOL_VERSION as CoreProtocolVersion,
+  StreamEvent,
+} from '@familiar-ai/core/http'
 import type { Connection } from './store.ts'
+
+// Core's version, typed against it without loading its runtime, so a bump
+// there fails this check until the client is updated to match.
+const PROTOCOL_VERSION: typeof CoreProtocolVersion = 2
 
 export const openEvents = (
   baseUrl: string,
@@ -27,20 +34,13 @@ export const openEvents = (
   )
   events.addEventListener(
     'protocol',
-    (message) => {
+    ({ data }) => {
       try {
-        const data: unknown = JSON.parse(message.data)
-        if (
-          typeof data !== 'object' ||
-          data === null ||
-          !('version' in data) ||
-          data.version !== 2
-        ) {
-          outdated()
-          return
-        }
-        accepted = true
+        accepted = JSON.parse(data).version === PROTOCOL_VERSION
       } catch {
+        // Unreadable, so not a version this client speaks.
+      }
+      if (!accepted) {
         outdated()
       }
     },
@@ -91,21 +91,17 @@ export const openEvents = (
  * any status but 200, as the spec says, so server errors and rate limits
  * throw here and it retries them like a dropped connection instead.
  *
- * A response that arrives after `disconnect` is dropped here, in case the
- * host's fetch didn't pass the abort signal on. Piping the returned body
- * with that signal also cancels its producer if disconnect happens during
- * the handoff to EventSource or while it is reading.
+ * EventSource's close only aborts the request's signal; it never cancels a
+ * body it already has, and in-process hosts such as Hono's `app.fetch`
+ * ignore that signal. Piping the body with it cancels the producer on
+ * disconnect, whether the response is still on its way, being handed over
+ * or being read.
  */
 const connect = async (
   fetch: typeof globalThis.fetch,
   ...[url, init]: Parameters<FetchLike>
 ) => {
   const response = await fetch(url, init)
-
-  if (init.signal?.aborted) {
-    void response.body?.cancel().catch(() => {})
-    throw init.signal.reason
-  }
 
   if (response.status >= 500 || response.status === 429) {
     void response.body?.cancel().catch(() => {})
