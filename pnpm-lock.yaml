@@ -82,9 +82,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20261023.1
         version: 5.20261023.1
-      vitest:
-        specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(jsdom@29.1.1)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
       wrangler:
         specifier: 4.156.0
         version: 4.156.0(@cloudflare/workers-types@5.20261023.1)(@types/node@24.19.2)
@@ -449,6 +446,12 @@ importers:
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../core
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@24.19.2)(jsdom@29.1.1)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+      wrangler:
+        specifier: 4.156.0
+        version: 4.156.0(@cloudflare/workers-types@5.20261023.1)(@types/node@24.19.2)
 
   packages/core:
     dependencies:

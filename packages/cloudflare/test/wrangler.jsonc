@@ -1,0 +1,13 @@
+{
+  "name": "familiar-cloudflare-test",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-23",
+  "durable_objects": {
+    "bindings": [
+      { "name": "BOTS", "class_name": "Bot" },
+      { "name": "OUTBOX", "class_name": "Outbox" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Bot", "Outbox"] }],
+  "vars": { "TIME_ZONE": "Europe/London", "HEARTBEAT_MS": "1000" },
+}
