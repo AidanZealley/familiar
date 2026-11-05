@@ -57,7 +57,7 @@ Also run:
 - `pnpm test:packages` for package exports or dependencies. It packs the libraries and installs them outside the workspace.
 - `pnpm build:docs` for documentation changes. It builds this site and fails on broken internal links.
 
-Use the faux provider to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model. `pnpm eval:memory` runs a long model-backed replay with its own separate login.
+Use the faux provider to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model.
 
 ## The docs site
 

@@ -5,7 +5,7 @@ import {
   localDay,
   type Exchange,
 } from '@familiar-ai/core/diagnostics'
-import { EVAL_TIME_ZONE } from './clock.ts'
+import { EVAL_TIME_ZONE, noonOf } from './clock.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
 
 /**
@@ -21,19 +21,13 @@ const DAY = 24 * 60 * 60 * 1000
 export const PADDING_YEARS = [0, 1, 5, 10] as const
 const EXCHANGES_PER_DAY = 10
 
-/** Midday local time, so a day never shifts with the time zone. */
-const middayOf = (date: string) => {
-  const [year, month, day] = date.split('-').map(Number)
-  return new Date(year, month - 1, day, 12).getTime()
-}
-
 /** One exchange per scenario day that has text, as the person said it. */
 export const scenarioExchanges = (scenario: Scenario): Exchange[] =>
   scenario.days
     .filter((day) => day.text)
     .map((day, index) => ({
       id: `x${index + 1}`,
-      at: middayOf(day.date),
+      at: noonOf(day.date),
       text: day.text!,
       last: (index + 1) as EntryId,
     }))
@@ -148,6 +142,16 @@ export function unquoted(scenario: Scenario) {
   )
 }
 
+/** Whether `unquoted` skipped this required string of this question. */
+export const isSkipped = (
+  skipped: ReturnType<typeof unquoted>,
+  question: string,
+  required: string,
+) =>
+  skipped.some(
+    (skip) => skip.question === question && skip.required === required,
+  )
+
 export type RecallScore = {
   category: Category
   years: number
@@ -180,13 +184,9 @@ export function runRecallEval(scenario: Scenario): RecallResult {
   const real = scenarioExchanges(scenario)
   const evidence = new Map(real.map((exchange) => [exchange.id, exchange]))
   const skipped = unquoted(scenario)
-  const isSkipped = (question: string, required: string) =>
-    skipped.some(
-      (skip) => skip.question === question && skip.required === required,
-    )
 
   const index = createExchangeIndex(EVAL_TIME_ZONE)
-  const end = middayOf(scenario.days.at(-1)!.date)
+  const end = noonOf(scenario.days.at(-1)!.date)
   const result: RecallResult = {
     scenario: scenario.id,
     skipped,
@@ -240,7 +240,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
       )
       const tally = tallies.get(question.category)!
       for (const required of question.required) {
-        if (isSkipped(question.id, required)) {
+        if (isSkipped(skipped, question.id, required)) {
           continue
         }
         const needle = required.toLowerCase()

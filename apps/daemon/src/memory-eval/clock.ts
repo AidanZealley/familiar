@@ -6,6 +6,9 @@ import type { SetTimer } from '@earendil-works/pi-durable'
  */
 export const EVAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
+/** Noon on a scenario day, `YYYY-MM-DD`, in the eval's time zone: when its message is sent. */
+export const noonOf = (date: string) => new Date(`${date}T12:00:00`).getTime()
+
 /** Only the simulated clock owns time; real model latency never advances it. */
 export function createClock(start: number) {
   let now = start

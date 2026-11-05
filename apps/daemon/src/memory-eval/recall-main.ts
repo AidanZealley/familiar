@@ -1,23 +1,8 @@
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { categories } from './scenario.ts'
 import { PADDING_YEARS, runRecallEval } from './recall.ts'
-import { rowanV3 } from './scenario.ts'
-
-const commit = execFileSync('git', ['describe', '--always', '--dirty'], {
-  encoding: 'utf8',
-  cwd: resolve(import.meta.dirname, '../../../..'),
-}).trim()
+import { percent, row, saveResult } from './results.ts'
+import { categories, rowanV3 } from './scenario.ts'
 
 const result = runRecallEval(rowanV3)
-
-const percent = (part: number, whole: number) =>
-  whole ? `${Math.round((part / whole) * 100)}%` : '-'
-const row = (cells: string[]) =>
-  cells
-    .map((cell, index) => (index ? cell.padStart(10) : cell.padEnd(15)))
-    .join('')
 
 console.log(
   `Skipped ${result.skipped.length} required strings found nowhere in ${result.scenario}:`,
@@ -65,9 +50,5 @@ for (const years of PADDING_YEARS) {
   )
 }
 
-const date = new Date().toISOString().slice(0, 10)
-const directory = resolve(import.meta.dirname, '../../../../eval/results')
-mkdirSync(directory, { recursive: true })
-const path = join(directory, `recall-${date}-${commit}.json`)
-writeFileSync(path, `${JSON.stringify({ date, commit, ...result }, null, 2)}\n`)
-console.log(`\nSaved ${path}`)
+console.log(`
+Saved ${saveResult('recall', result)}`)

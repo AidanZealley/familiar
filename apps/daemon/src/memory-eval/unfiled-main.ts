@@ -1,25 +1,13 @@
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
+import { percent, row, saveResult } from './results.ts'
 import { categories, rowanV3 } from './scenario.ts'
 import { runUnfiledEval } from './unfiled.ts'
-
-const commit = execFileSync('git', ['describe', '--always', '--dirty'], {
-  encoding: 'utf8',
-  cwd: resolve(import.meta.dirname, '../../../..'),
-}).trim()
 
 const temporary = mkdtempSync(join(tmpdir(), 'familiar-unfiled-eval-'))
 try {
   const result = await runUnfiledEval(rowanV3, temporary, console.log)
-
-  const percent = (part: number, whole: number) =>
-    whole ? `${Math.round((part / whole) * 100)}%` : '-'
-  const row = (cells: string[]) =>
-    cells
-      .map((cell, index) => (index ? cell.padStart(10) : cell.padEnd(15)))
-      .join('')
 
   console.log(
     `\nSkipped ${result.skipped.length} required strings found nowhere in ${result.scenario}.`,
@@ -48,15 +36,7 @@ try {
     `\nRecall note tokens: median ${result.noteTokens.median}, max ${result.noteTokens.max}`,
   )
 
-  const date = new Date().toISOString().slice(0, 10)
-  const directory = resolve(import.meta.dirname, '../../../../eval/results')
-  mkdirSync(directory, { recursive: true })
-  const path = join(directory, `unfiled-${date}-${commit}.json`)
-  writeFileSync(
-    path,
-    `${JSON.stringify({ date, commit, ...result }, null, 2)}\n`,
-  )
-  console.log(`\nSaved ${path}`)
+  console.log(`\nSaved ${saveResult('unfiled', result)}`)
 } finally {
   rmSync(temporary, { recursive: true, force: true })
 }
