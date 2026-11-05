@@ -3,8 +3,7 @@ import {
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import { localMinute } from '@familiar-ai/core'
-import type { Scenario } from '../types.ts'
-import { DEMO_TIME_ZONE } from '../zone.ts'
+import { DEMO_TIME_ZONE, type Scenario } from '../scenario.ts'
 
 /** The next whole minute, as the schedule tool's `YYYY-MM-DD HH:MM`. */
 const nextMinute = () => localMinute(Date.now() + 60_000, DEMO_TIME_ZONE)

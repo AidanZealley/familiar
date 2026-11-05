@@ -8,20 +8,22 @@ import type {
   PluginFetch,
   PluginSecret,
 } from '@familiar-ai/core'
-import { guardedFetch } from '../../fetch.ts'
-import type { Scenario } from '../types.ts'
+import type { Scenario } from '../scenario.ts'
 
 // A pretend service verifies that a key arrived without returning its value.
 const DEMO_SERVICE = 'https://demo.invalid'
 
-export const demoFetch: PluginFetch = async (input, init) =>
-  new URL(input).origin === DEMO_SERVICE
-    ? new Response(
-        new Headers(init?.headers).has('X-Demo-Key')
-          ? 'The demo key works.'
-          : 'No demo key arrived.',
-      )
-    : guardedFetch(input, init)
+/** The demo reaches only its pretend service, never the network. */
+export const demoFetch: PluginFetch = async (input, init) => {
+  if (new URL(input).origin !== DEMO_SERVICE) {
+    throw new TypeError(`The demo has no network: ${input}`)
+  }
+  return new Response(
+    new Headers(init?.headers).has('X-Demo-Key')
+      ? 'The demo key works.'
+      : 'No demo key arrived.',
+  )
+}
 
 export const checkDemoKey = (context: PluginContext) =>
   defineTool({

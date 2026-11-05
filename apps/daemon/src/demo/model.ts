@@ -13,8 +13,7 @@ import { key } from './scenarios/connections.ts'
 import { mcp } from './scenarios/mcp.ts'
 import { memory, seed } from './scenarios/memory.ts'
 import { remind, scheduledReply } from './scenarios/schedules.ts'
-import { textOf } from './text.ts'
-import type { Scenario } from './types.ts'
+import { textOf, type Scenario } from './scenario.ts'
 
 const scenarios = { tool, memory, remind, key, mcp, slow, compact, error }
 const replies: NonNullable<Scenario['replies']> = Object.assign(
