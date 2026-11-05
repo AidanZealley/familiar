@@ -5,7 +5,7 @@ import { createConnections } from './connections.ts'
 import type { SecretStore } from './secrets.ts'
 import type { FamiliarPlugin, PluginFetch } from './types.ts'
 
-export { ConnectionError, secretValue } from './connections.ts'
+export { allConnections, ConnectionError, secretValue } from './connections.ts'
 export { memorySecrets, type Connection, type SecretStore } from './secrets.ts'
 export type {
   ConnectionInfo,

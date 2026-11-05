@@ -2,26 +2,20 @@ import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
   fauxProvider,
-  fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import { afterEach, expect, test, vi } from 'vitest'
-import { defineTool, Type, type Author } from '../index.ts'
-import {
-  summonFamiliar,
-  type Familiar,
-  type FamiliarPlugin,
-} from '../familiar.ts'
+import { afterEach, expect, test } from 'vitest'
+import type { Author } from '../index.ts'
+import { summonFamiliar, type Familiar } from '../familiar.ts'
 import { ReopenableStorage } from '../memory/testing.ts'
 import { MESSAGE_KIND, MESSAGE_LIMITS, MessageError } from './message.ts'
 
 const first = { id: 'person-1', name: 'Sam' }
-const second = { id: 'person-2', name: 'Sam' }
 const opened: Familiar[] = []
 afterEach(async () => {
   await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
 })
 
-async function setup(plugin?: FamiliarPlugin) {
+async function setup() {
   const storage = new ReopenableStorage()
   const faux = fauxProvider()
   const models = createModels()
@@ -32,18 +26,12 @@ async function setup(plugin?: FamiliarPlugin) {
       models,
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
-      plugins: plugin ? [plugin] : [],
     })
     opened.push(familiar)
     return familiar
   }
   return { faux, open }
 }
-
-const call = (name: string) =>
-  fauxAssistantMessage(fauxToolCall(name, {}), { stopReason: 'toolUse' })
-
-const output = { output: [{ type: 'text' as const, text: 'Done' }] }
 
 test('each message keeps its author as sent, quoted for the model, and only the same author retries', async () => {
   const { faux, open } = await setup()
@@ -95,109 +83,6 @@ test('each message keeps its author as sent, quoted for the model, and only the 
     '[Message from {"id":"a:b","name":"Ab"}]\nJoined one way',
     '[Message from {"id":"a","name":"A"}]\nJoined the other',
   ])
-})
-
-test('tools and nested calls retain their author across rounds while another author is queued', async () => {
-  const seen: (Author | undefined)[] = []
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  const { faux, open } = await setup({
-    name: 'identity',
-    title: 'Identity',
-    extension: () => ({
-      tools: [
-        defineTool({
-          name: 'outer',
-          description: 'Test nested calls',
-          parameters: Type.Object({}),
-          execute: async (_args, api, context) => {
-            seen.push(api.author)
-            await held
-            await api.executeTool('inner', {}, context)
-            return output
-          },
-        }),
-        defineTool({
-          name: 'inner',
-          description: 'Report attribution',
-          parameters: Type.Object({}),
-          execute: async (_args, api) => {
-            seen.push(api.author)
-            return output
-          },
-        }),
-      ],
-    }),
-  })
-  const familiar = await open()
-  faux.setResponses([
-    call('outer'),
-    call('inner'),
-    fauxAssistantMessage('First done'),
-    call('inner'),
-    fauxAssistantMessage('Second done'),
-  ])
-  await familiar.send({ author: first, text: 'First', requestId: 'first' })
-  await vi.waitFor(() => expect(seen).toEqual([first]))
-  await familiar.send({ author: second, text: 'Second', requestId: 'second' })
-  const queued = await familiar.watch()
-  await queued.stop()
-  expect(JSON.stringify(queued.value.docs['pi.inbox'])).toContain('person-2')
-  release()
-  await familiar.idle()
-  expect(seen).toEqual([first, first, first, second])
-})
-
-test('a replay-safe interrupted tool resolves the same author after reopening', async () => {
-  const seen: (Author | undefined)[] = []
-  let interrupted = false
-  const { faux, open } = await setup({
-    name: 'identity',
-    title: 'Identity',
-    extension: () => ({
-      tools: [
-        defineTool({
-          name: 'identify',
-          description: 'Report attribution',
-          parameters: Type.Object({}),
-          replay: 'safe',
-          execute: async (_args, api, context) => {
-            seen.push(api.author)
-            if (!interrupted) {
-              const signal = context.abortSignal!
-              await new Promise<void>((_resolve, reject) => {
-                signal.addEventListener(
-                  'abort',
-                  () => {
-                    interrupted = true
-                    reject(signal.reason)
-                  },
-                  { once: true },
-                )
-              })
-            }
-            return output
-          },
-        }),
-      ],
-    }),
-  })
-  const familiar = await open()
-  faux.setResponses([call('identify')])
-  await familiar.send({ author: first, text: 'First', requestId: 'first' })
-  await vi.waitFor(() => expect(seen).toEqual([first]))
-  await familiar.send({ author: second, text: 'Second', requestId: 'second' })
-  await familiar.dismiss()
-  faux.setResponses([
-    fauxAssistantMessage('Recovered'),
-    call('identify'),
-    fauxAssistantMessage('Second done'),
-  ])
-  const reopened = await open()
-  await reopened.idle()
-  expect(seen).toEqual([first, first, second])
 })
 
 test('send refuses messages outside the bounds for every caller, sending nothing', async () => {

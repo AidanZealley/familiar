@@ -25,10 +25,11 @@ import {
   type ConversationApi,
 } from './conversation/index.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
-import { createPersona, defaultPersona } from './persona/index.ts'
+import { createPersona, defaultPersona } from './persona.ts'
 import { createMcp } from './mcp/manager.ts'
 import type { McpApi, McpStdioFactory } from './mcp/servers.ts'
 import {
+  allConnections,
   createPlugins,
   type ConnectionsApi,
   type FamiliarPlugin,
@@ -59,7 +60,7 @@ export {
   type ModelOption,
 } from './conversation/index.ts'
 export type { MemoryApi } from './memory/index.ts'
-export { defaultPersona } from './persona/index.ts'
+export { defaultPersona } from './persona.ts'
 export {
   McpConfigError,
   type McpApi,
@@ -321,23 +322,11 @@ export async function summonFamiliar(
       memory: memoryActions,
       schedules: scheduleActions,
       mcp: mcp.api,
-      connections: {
-        list: async () => [
-          ...(await plugins.api.list()),
-          ...(await mcp.connections.list()),
-        ],
-        setSecret: (connection, name, value) =>
-          (connection.kind === 'mcp' ? mcp.connections : plugins.api).setSecret(
-            connection,
-            name,
-            value,
-          ),
-        deleteSecret: (connection, name) =>
-          (connection.kind === 'mcp'
-            ? mcp.connections
-            : plugins.api
-          ).deleteSecret(connection, name),
-      },
+      connections: allConnections(
+        plugins.api,
+        mcp.connections,
+        options.secrets,
+      ),
       onCommit: (listener) => harness.subscribeCommits(() => listener()),
       usage: () => harness.usage(context),
       closed: harness.closed,

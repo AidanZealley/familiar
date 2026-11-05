@@ -1,4 +1,4 @@
-/** What owns a secret: a plugin, or (later) an MCP server. */
+/** What owns a secret: a plugin or an MCP server. */
 export type Connection = { kind: 'plugin' | 'mcp'; name: string }
 
 /**
