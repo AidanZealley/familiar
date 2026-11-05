@@ -3,11 +3,29 @@ import type {
   PROTOCOL_VERSION as CoreProtocolVersion,
   StreamEvent,
 } from '@familiar-ai/core/http'
-import type { Connection } from './store.ts'
 
 // Core's version, typed against it without loading its runtime, so a bump
 // there fails this check until the client is updated to match.
 const PROTOCOL_VERSION: typeof CoreProtocolVersion = 2
+
+/**
+ * The event stream's state. It goes `open` when a full view arrives.
+ * `reconnecting` follows a network error, a stream that ended, or a 5xx or
+ * 429 answer, and retries after the server's `retry` delay (3 seconds unless
+ * it sets one). `outdated` stops retrying on an incompatible or missing
+ * protocol handshake before state arrives. The host decides when to reload.
+ * Other terminal states are: `unauthorized` when the stream is
+ * answered 401 or 403, and `failed` for any other answer it can't use, such
+ * as a 404 or a page that isn't an event stream. To recover from either,
+ * disconnect and create a new store.
+ */
+export type Connection =
+  | 'connecting'
+  | 'open'
+  | 'reconnecting'
+  | 'unauthorized'
+  | 'failed'
+  | 'outdated'
 
 export const openEvents = (
   baseUrl: string,

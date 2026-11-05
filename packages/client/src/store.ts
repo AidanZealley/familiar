@@ -1,5 +1,4 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
-import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import type {
   AccountState,
   DocumentName,
@@ -7,28 +6,8 @@ import type {
 } from '@familiar-ai/core/http'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { createCommands, type Commands } from './commands.ts'
-import { createConversation } from './conversation.ts'
-import { openEvents } from './events.ts'
-import type { Transcript } from './transcript.ts'
-
-/**
- * The event stream's state. It goes `open` when a full view arrives.
- * `reconnecting` follows a network error, a stream that ended, or a 5xx or
- * 429 answer, and retries after the server's `retry` delay (3 seconds unless
- * it sets one). `outdated` stops retrying on an incompatible or missing
- * protocol handshake before state arrives. The host decides when to reload.
- * Other terminal states are: `unauthorized` when the stream is
- * answered 401 or 403, and `failed` for any other answer it can't use, such
- * as a 404 or a page that isn't an event stream. To recover from either,
- * disconnect and create a new store.
- */
-export type Connection =
-  | 'connecting'
-  | 'open'
-  | 'reconnecting'
-  | 'unauthorized'
-  | 'failed'
-  | 'outdated'
+import { createConversation, type ConversationState } from './conversation.ts'
+import { openEvents, type Connection } from './events.ts'
 
 export type FamiliarStoreOptions = {
   /**
@@ -40,26 +19,11 @@ export type FamiliarStoreOptions = {
   fetch?: typeof fetch
 }
 
-/** The conversation before the view, as far back as it has been loaded. */
-export type History = {
-  /** Committed entries older than any in the view, oldest first. */
-  entries: readonly EntryRecord[]
-  /**
-   * `start` once `entries` reaches the start of the conversation; `failed`
-   * if the last load did, until the next one.
-   */
-  status: 'more' | 'loading' | 'failed' | 'start'
-}
-
 /** What the event stream has sent, as plain data. */
-export type FamiliarState = {
+export type FamiliarState = ConversationState & {
   connection: Connection
   /** Undefined until the first frame; null when the host manages credentials. */
   account: AccountState | null | undefined
-  view: ConversationView | undefined
-  history: History
-  /** Derived with the view and history; unchanged by unrelated updates. */
-  transcript: Transcript | undefined
 } & {
   /** Each streamed document under its wire name, undefined until received. */
   [Name in DocumentName]: Readonly<Documents[Name]> | null | undefined

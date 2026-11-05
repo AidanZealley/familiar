@@ -9,7 +9,6 @@ import type {
   McpServer,
   PushSubscriptionJson,
 } from '@familiar-ai/core/http'
-import type { FetchHistory } from './conversation.ts'
 
 export const createCommands = (
   baseUrl: string,
@@ -108,7 +107,7 @@ export const createCommands = (
         succeed(api.mcp[':name'].reconnect.$post({ param: { name } })),
     },
   }
-  const history: FetchHistory = async (before) => {
+  const history = async (before: number) => {
     const response = await api.history.$get({
       query: { before: String(before) },
     })
@@ -138,3 +137,4 @@ const randomId = () =>
   ).join('')
 
 export type Commands = ReturnType<typeof createCommands>['commands']
+export type FetchHistory = ReturnType<typeof createCommands>['history']

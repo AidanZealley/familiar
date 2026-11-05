@@ -1,15 +1,32 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
 import type { StreamEvent } from '@familiar-ai/core/http'
-import type { AgentState, ConversationView } from '@earendil-works/pi-durable'
+import type {
+  AgentState,
+  ConversationView,
+  EntryRecord,
+} from '@earendil-works/pi-durable'
 import type { StoreApi } from 'zustand/vanilla'
-import type { FamiliarState, History } from './store.ts'
-import { toTranscript } from './transcript.ts'
+import type { FetchHistory } from './commands.ts'
+import { toTranscript, type Transcript } from './transcript.ts'
 
-export type FetchHistory = (
-  before: number,
-) => Promise<{ entries: History['entries']; more: boolean }>
+/** The conversation before the view, as far back as it has been loaded. */
+export type History = {
+  /** Committed entries older than any in the view, oldest first. */
+  entries: readonly EntryRecord[]
+  /**
+   * `start` once `entries` reaches the start of the conversation; `failed`
+   * if the last load did, until the next one.
+   */
+  status: 'more' | 'loading' | 'failed' | 'start'
+}
 
-type ConversationState = Pick<FamiliarState, 'view' | 'history' | 'transcript'>
+/** The store's conversation fields, which this module owns. */
+export type ConversationState = {
+  view: ConversationView | undefined
+  history: History
+  /** Derived with the view and history; unchanged by unrelated updates. */
+  transcript: Transcript | undefined
+}
 
 const transition = (
   previous: ConversationState,
@@ -25,8 +42,8 @@ const transition = (
 })
 
 export const createConversation = (
-  set: StoreApi<FamiliarState>['setState'],
-  get: StoreApi<FamiliarState>['getState'],
+  set: StoreApi<ConversationState>['setState'],
+  get: StoreApi<ConversationState>['getState'],
   historyPage: FetchHistory,
 ) => {
   /**
