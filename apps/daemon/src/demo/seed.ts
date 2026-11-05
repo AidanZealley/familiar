@@ -9,7 +9,7 @@ import {
   type Episode,
   type Fact,
 } from '@familiar-ai/core/diagnostics'
-import { DEMO_TIME_ZONE } from './zone.ts'
+import { DEMO_TIME_ZONE } from './scenario.ts'
 
 // Calendar arithmetic on UTC dates, from today's day in the demo's zone.
 const dayOf = (date: Date) => date.toISOString().slice(0, 10)

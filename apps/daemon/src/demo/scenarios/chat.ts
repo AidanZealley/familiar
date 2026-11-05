@@ -5,7 +5,7 @@ import {
   fauxToolCall,
   fauxText,
 } from '@familiar-ai/core/models/faux'
-import type { Scenario } from '../types.ts'
+import type { Scenario } from '../scenario.ts'
 
 export const markdownReply = `## A quick tour
 
@@ -58,7 +58,7 @@ flowchart LR
 
 ![Familiar's icon](/icon-192.png)
 
-> Say **tool**, **memory**, **remind**, **key**, **slow**, **compact** or **error** to see the other scenarios.`
+> Say **tool**, **memory**, **remind**, **key**, **mcp**, **slow**, **compact** or **error** to see the other scenarios.`
 
 const slowReply = Array.from(
   { length: 30 },

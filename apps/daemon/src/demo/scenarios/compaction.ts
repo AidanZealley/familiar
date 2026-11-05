@@ -3,8 +3,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
-import { textOf } from '../text.ts'
-import type { Scenario } from '../types.ts'
+import { textOf, type Scenario } from '../scenario.ts'
 
 // Pi compacts only when there is enough to summarise, so the compact scenario
 // first fills the context with a demo-only tool.

@@ -9,7 +9,7 @@ import {
   WebStandardStreamableHTTPServerTransport,
   type Tool,
 } from '@modelcontextprotocol/server'
-import type { Scenario } from '../types.ts'
+import type { Scenario } from '../scenario.ts'
 
 // Pretend MCP services, so the Connections page has real connections in every
 // state without the demo reaching a network or starting a process.

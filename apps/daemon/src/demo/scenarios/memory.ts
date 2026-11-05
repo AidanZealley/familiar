@@ -4,7 +4,7 @@ import {
 } from '@familiar-ai/core/models/faux'
 import type { Familiar } from '@familiar-ai/core'
 import { SEED_MESSAGE, seedPinned } from '../seed.ts'
-import type { Scenario } from '../types.ts'
+import type { Scenario } from '../scenario.ts'
 
 export const memory: Scenario = {
   start: () =>
