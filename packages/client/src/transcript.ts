@@ -11,9 +11,17 @@ import type {
   LiveState,
   TaskId,
 } from '@earendil-works/pi-durable'
-import type { Author, MessageData, ScheduledData } from '@familiar-ai/core/http'
+import type {
+  Author,
+  MESSAGE_KIND as CoreMessageKind,
+  MessageData,
+  SCHEDULED_KIND as CoreScheduledKind,
+  ScheduledData,
+} from '@familiar-ai/core/http'
 
-import { MESSAGE_KIND, SCHEDULED_KIND } from './conversation/message.ts'
+// Core's entry kinds, typed against it without loading its runtime.
+export const MESSAGE_KIND: typeof CoreMessageKind = 'familiar.message'
+const SCHEDULED_KIND: typeof CoreScheduledKind = 'familiar.scheduled'
 
 export type ToolCall = {
   id: string

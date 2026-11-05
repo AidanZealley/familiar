@@ -34,7 +34,7 @@ Each document is `undefined` until it arrives and `null` when the stream sends n
 
 ## Commands
 
-Commands return promises that reject with the server's error. They aren't retried. Each one has the name of the [route operation](/familiar/reference/http/) it calls, except `loadOlder()`, which calls `history`.
+Commands return promises that reject with the server's error. They aren't retried. Each one has the name of the [route operation](/familiar/reference/http/) it calls, except `loadOlder()`, which calls `history` and never rejects: `history.status` shows its progress and any failure.
 
 | Group          | Commands                                                                                                |
 | -------------- | ------------------------------------------------------------------------------------------------------- |
@@ -46,7 +46,7 @@ Commands return promises that reject with the server's error. They aren't retrie
 | `connections`  | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`                    |
 | `mcp`          | `add(server)`, `remove(name)`, `reconnect(name)`                                                        |
 
-`send` generates the `requestId`. `loadOlder()` resolves to whether it loaded anything; concurrent callers share one request.
+`send` generates the `requestId`. `loadOlder()` does nothing while a page is loading or once `history.status` is `start`.
 
 ## Transcript
 
@@ -98,7 +98,6 @@ Times are milliseconds since the epoch.
 
 - `toTranscript(view, history?)` derives a transcript. The store already does this; use it for other clients.
 - `agentOf(view)` reads the conversation's current model and reasoning level.
-- `startOf(view)` and `carryOver(history, before, after)` are the history bookkeeping the store uses.
 
 ## React
 

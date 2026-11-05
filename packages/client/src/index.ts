@@ -6,8 +6,9 @@ export type {
   FamiliarState,
   FamiliarStore,
 } from './store.ts'
-export { agentOf, carryOver, startOf } from './conversation.ts'
-export * from './transcript.ts'
+export { agentOf } from './conversation.ts'
+export { toTranscript } from './transcript.ts'
+export type { ToolCall, Transcript, TranscriptItem } from './transcript.ts'
 export type {
   Author,
   AccountState,

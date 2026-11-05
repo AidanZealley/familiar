@@ -29,37 +29,33 @@ export const createConversation = (
   get: StoreApi<FamiliarState>['getState'],
   historyPage: FetchHistory,
 ) => {
-  let loading: Promise<boolean> | undefined
+  /**
+   * Loads the page before the oldest entry. `history.status` owns its
+   * progress and failure, so one call at a time runs and none rejects.
+   */
   const loadOlder = async () => {
     const state = get()
-    const { history } = state
-    if (history.status === 'start') {
-      return false
-    }
     const before = oldestOf(state)
-    if (before === undefined) {
-      return true
+    const { status } = state.history
+    if (before === undefined || status === 'loading' || status === 'start') {
+      return
     }
-    set({ history: { ...history, status: 'loading' } })
-    try {
-      const page = await historyPage(before)
-      const current = get()
-      // A reconnect left a gap, so history starts again from the new view.
-      if (oldestOf(current) !== before) {
-        set({ history: { ...current.history, status: 'more' } })
-        return true
-      }
-      set(
-        transition(current, current.view, {
-          entries: [...page.entries.toReversed(), ...current.history.entries],
-          status: page.more ? 'more' : 'start',
-        }),
-      )
-      return page.more
-    } catch (error) {
-      set(({ history }) => ({ history: { ...history, status: 'failed' } }))
-      throw error
+    set({ history: { ...state.history, status: 'loading' } })
+    const page = await historyPage(before).catch(() => undefined)
+    const current = get()
+    // A reconnect gap reset history to `more` meanwhile, so this page
+    // belongs to the old view, and a newer load may already be running.
+    if (oldestOf(current) !== before) {
+      return
     }
+    set(
+      page
+        ? transition(current, current.view, {
+            entries: [...page.entries.toReversed(), ...current.history.entries],
+            status: page.more ? 'more' : 'start',
+          })
+        : { history: { ...current.history, status: 'failed' } },
+    )
   }
 
   const receive = (view: ConversationView | undefined) => {
@@ -67,8 +63,7 @@ export const createConversation = (
     return transition(state, view, carryOver(state.history, state.view, view))
   }
   return {
-    loadOlder: () =>
-      (loading ??= loadOlder().finally(() => (loading = undefined))),
+    loadOlder,
     receive,
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>
       receive(applyImmutable(get().view, ops)),

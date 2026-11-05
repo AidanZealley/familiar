@@ -75,8 +75,11 @@ export type FamiliarStore = Pick<
 > &
   Commands & {
     conversation: {
-      /** Concurrent callers share the current page request. */
-      loadOlder(): Promise<boolean>
+      /**
+       * Loads the next older page into `history`. Its `status` shows
+       * progress and failure, so this never rejects.
+       */
+      loadOlder(): Promise<void>
     }
     /** Closes the stream and pending reconnects, retaining the last state. */
     disconnect(): void
