@@ -1,4 +1,4 @@
-import { useFamiliarStore } from '@/lib/familiar'
+import { familiar } from '@/lib/familiar'
 import { getRouteApi, useRouter } from '@tanstack/react-router'
 import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
@@ -19,9 +19,6 @@ import type { RemoveServerProps } from './types'
 const route = getRouteApi('/connections')
 
 export const RemoveServer = ({ connection }: RemoveServerProps) => {
-  const {
-    mcp: { remove: removeServer },
-  } = useFamiliarStore()
   const router = useRouter()
   const navigate = route.useNavigate()
   const [busy, setBusy] = useState(false)
@@ -32,7 +29,7 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
     setBusy(true)
     setError(undefined)
     try {
-      await removeServer(name)
+      await familiar.mcp.remove(name)
       await navigate({ search: ({ q }) => ({ q }) })
       await router.invalidate()
     } catch (failure) {

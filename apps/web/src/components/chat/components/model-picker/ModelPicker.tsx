@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { InputGroupButton } from '@/components/ui/input-group'
-import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
+import { familiar, useFamiliar } from '@/lib/familiar'
 
 const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
   off: 'Off',
@@ -31,14 +31,11 @@ const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
 const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
 
 export const ModelPicker = () => {
-  const {
-    conversation: { modelOptions, setModel, setThinkingLevel },
-  } = useFamiliarStore()
   // Fixed for each store's daemon lifetime, so fetched rather than mirrored.
   const [options, setOptions] = useState<ModelOption[]>()
   useEffect(() => {
     let active = true
-    void modelOptions().then((options) => {
+    void familiar.conversation.modelOptions().then((options) => {
       if (active) {
         setOptions(options)
       }
@@ -46,7 +43,7 @@ export const ModelPicker = () => {
     return () => {
       active = false
     }
-  }, [modelOptions])
+  }, [])
   // Live from the conversation, so a change on another device shows here.
   const agent = useFamiliar((state) => agentOf(state.view))
   const current =
@@ -74,7 +71,7 @@ export const ModelPicker = () => {
                   (option) => keyOf(option.model) === value,
                 )
                 if (chosen) {
-                  void setModel(chosen.model)
+                  void familiar.conversation.setModel(chosen.model)
                 }
               }}
             >
@@ -103,7 +100,7 @@ export const ModelPicker = () => {
             <DropdownMenuRadioGroup
               value={agent.thinkingLevel}
               onValueChange={(level: ModelThinkingLevel) =>
-                void setThinkingLevel(level)
+                void familiar.conversation.setThinkingLevel(level)
               }
             >
               {current.thinkingLevels.map((level) => (

@@ -1,13 +1,10 @@
-import { useFamiliarStore } from '@/lib/familiar'
+import { familiar } from '@/lib/familiar'
 import { KeyRoundIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { SignInPromptProps } from './types'
 
 /** Why Familiar needs a sign-in, and the button that starts one. */
 export const SignInPrompt = ({ account }: SignInPromptProps) => {
-  const {
-    account: { signIn },
-  } = useFamiliarStore()
   return (
     <div className="flex items-center gap-3">
       <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
@@ -26,7 +23,9 @@ export const SignInPrompt = ({ account }: SignInPromptProps) => {
           <p className="mt-1 text-xs text-destructive">{account.error}</p>
         )}
       </div>
-      <Button onClick={() => void signIn().catch(() => {})}>Sign in</Button>
+      <Button onClick={() => void familiar.account.signIn().catch(() => {})}>
+        Sign in
+      </Button>
     </div>
   )
 }
