@@ -1,41 +1,30 @@
 import { localMinute } from '@familiar-ai/core'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestHarness, type TestHarness } from 'wrangler'
-import { SLOW_REPLY } from '../src/model.ts'
+import { SLOW_REPLY } from './model.ts'
 
-// The Worker runs in workerd from wrangler.jsonc, as `wrangler dev` runs it,
-// with a short heartbeat so lost work resumes within seconds.
-const TOKEN = crypto.randomUUID()
+// DurableFamiliar in workerd, through the test Worker beside this file: what
+// it promises across eviction, reloads and termination. Its heartbeat is a
+// second, so lost work resumes within seconds.
 const ZONE = 'Europe/London'
 const HEARTBEAT_MS = 1_000
-const root = new URL('..', import.meta.url).pathname
 
 let server: TestHarness
 
 beforeAll(async () => {
   server = createTestHarness({
-    root,
-    workers: [
-      {
-        configPath: './wrangler.jsonc',
-        vars: { HEARTBEAT_MS: String(HEARTBEAT_MS), TIME_ZONE: ZONE },
-        secrets: { FAMILIAR_DEV_TOKEN: TOKEN },
-      },
-    ],
+    root: import.meta.dirname,
+    workers: [{ configPath: './wrangler.jsonc' }],
   })
   await server.listen()
 })
 
 afterAll(() => server?.close())
 
-const auth = { authorization: `Bearer ${TOKEN}` }
-
-const get = (path: string) => server.fetch(path, { headers: auth })
-
 const send = (bot: string, text: string) =>
-  server.fetch(`/bots/${bot}/api/messages`, {
+  server.fetch(`/${bot}/api/messages`, {
     method: 'POST',
-    headers: { ...auth, 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ text, requestId: crypto.randomUUID() }),
   })
 
@@ -46,43 +35,36 @@ type Status = {
 }
 
 const status = async (bot: string) =>
-  (await (await get(`/bots/${bot}/status`)).json()) as Status
+  (await (await server.fetch(`/${bot}/status`)).json()) as Status
 
-type Entry = {
-  kind: string
-  data?: { text?: string }
-  model?: {
-    role: string
-    content: { type: string; text?: string }[]
-    stopReason?: string
-    timestamp?: number
-    durationMs?: number
-  }[]
+type Message = {
+  role: string
+  content: { type: string; text?: string }[]
+  stopReason?: string
+  timestamp?: number
+  durationMs?: number
 }
 
-const entries = async (bot: string): Promise<Entry[]> => {
-  const response = await get(
-    `/bots/${bot}/api/history?before=${Number.MAX_SAFE_INTEGER}`,
+/** Everything the bot's model said, oldest first. */
+const replies = async (bot: string) => {
+  const response = await server.fetch(
+    `/${bot}/api/history?before=${Number.MAX_SAFE_INTEGER}`,
   )
   expect(response.status).toBe(200)
-  return ((await response.json()) as { entries: Entry[] }).entries.toReversed()
+  const { entries } = (await response.json()) as {
+    entries: { model?: Message[] }[]
+  }
+  return entries
+    .toReversed()
+    .flatMap((entry) => entry.model ?? [])
+    .filter((message) => message.role === 'assistant')
 }
 
-const replies = async (bot: string) =>
-  (await entries(bot)).flatMap((entry) =>
-    (entry.model ?? [])
-      .filter((message) => message.role === 'assistant')
-      .map((message) =>
-        message.content.map((part) => part.text ?? '').join(''),
-      ),
-  )
+const textOf = (message: Message) =>
+  message.content.map((part) => part.text ?? '').join('')
 
 const notifications = async (bot: string) =>
-  (
-    (await (await get(`/bots/${bot}/notifications`)).json()) as {
-      body: string
-    }[]
-  ).map(({ body }) => body)
+  (await (await server.fetch(`/${bot}/notifications`)).json()) as string[]
 
 /**
  * Nothing running, and the alarm exactly what the Familiar needs. A request
@@ -106,57 +88,20 @@ const evict = (bot: string) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-test('every route needs the token', async () => {
-  for (const headers of [{}, { authorization: 'Bearer wrong' }]) {
-    expect((await server.fetch('/bots/a/status', { headers })).status).toBe(401)
-    expect(
-      (await server.fetch('/bots/a/api/history?before=1', { headers })).status,
-    ).toBe(401)
-    expect((await server.fetch('/elsewhere', { headers })).status).toBe(401)
-  }
-  expect((await get('/elsewhere')).status).toBe(404)
-})
-
-test('without a configured token, nothing is served', async () => {
-  const closed = createTestHarness({
-    root,
-    workers: [
-      { configPath: './wrangler.jsonc', secrets: { FAMILIAR_DEV_TOKEN: '' } },
-    ],
-  })
-  await closed.listen()
-  try {
-    const response = await closed.fetch('/bots/a/status', {
-      headers: { authorization: 'Bearer anything' },
-    })
-    expect(response.status).toBe(401)
-  } finally {
-    await closed.close()
-  }
-})
-
-test('a new bot arms its alarm for upkeep once idle', async () => {
+test('a reply settles the alarm on the next upkeep pass', async () => {
+  expect((await send('fresh', 'hello')).status).toBe(202)
   const { wake } = await settled('fresh')
+  expect((await replies('fresh')).map(textOf)).toEqual(['You said: hello'])
   // Upkeep's nightly pass is the only sleep a new Familiar has.
   expect(localMinute(wake!.at!, ZONE)).toMatch(/ 04:00$/)
   expect(wake!.at).toBeGreaterThan(Date.now())
-})
-
-test('chats through the HTTP API, and each name is its own Familiar', async () => {
-  expect((await send('one', 'hello from one')).status).toBe(202)
-  expect((await send('two', 'hello from two')).status).toBe(202)
-  await settled('one')
-  await settled('two')
-  expect(await replies('one')).toEqual(['You said: hello from one'])
-  expect(await replies('two')).toEqual(['You said: hello from two'])
 })
 
 test('a reminder fires from its alarm after the object is evicted', async () => {
   // Whole minutes, far enough ahead to evict before it's due.
   const due = Math.ceil((Date.now() + 15_000) / 60_000) * 60_000
   await send('reminder', `remind ${localMinute(due, ZONE)} stretch`)
-  const before = await settled('reminder')
-  expect(before.alarm).toBe(due)
+  expect((await settled('reminder')).alarm).toBe(due)
 
   await evict('reminder')
   // The outbox is its own object: polling it doesn't start the bot.
@@ -169,7 +114,7 @@ test('a reminder fires from its alarm after the object is evicted', async () => 
 
   const after = await settled('reminder')
   expect(localMinute(after.alarm!, ZONE)).toMatch(/ 04:00$/)
-  expect((await replies('reminder')).at(-1)).toBe('Reminder: stretch')
+  expect(textOf((await replies('reminder')).at(-1)!)).toBe('Reminder: stretch')
 })
 
 test('work cut off by a reload resumes from the heartbeat alarm', async () => {
@@ -186,13 +131,11 @@ test('work cut off by a reload resumes from the heartbeat alarm', async () => {
   await server.update((options) => ({ ...options }))
   const reloaded = Date.now()
 
-  // Untouched long enough for the alarm to restart the object and the reply
-  // to stream again in full.
-  await sleep(20_000)
+  // Untouched long enough for the heartbeat alarm to restart the object and
+  // the reply, about six seconds at the stream's pace, to stream again in full.
+  await sleep(10_000)
   const touched = Date.now()
-  const [cut, retried, ...rest] = (await entries('interrupted'))
-    .flatMap((entry) => entry.model ?? [])
-    .filter((message) => message.role === 'assistant')
+  const [cut, retried, ...rest] = await replies('interrupted')
   expect(rest).toEqual([])
   expect(cut).toMatchObject({ stopReason: 'aborted' })
   expect(retried).toMatchObject({
@@ -212,14 +155,12 @@ test('a terminated bot stays terminated, keeps its history and has no alarm', as
   await settled('ended')
   await send('ended', 'slow')
 
-  const terminated = await server.fetch('/bots/ended/terminate', {
-    method: 'POST',
-    headers: auth,
-  })
-  expect(terminated.status).toBe(204)
+  expect(
+    (await server.fetch('/ended/terminate', { method: 'POST' })).status,
+  ).toBe(204)
   expect(await status('ended')).toEqual({ status: 'terminated', alarm: null })
   expect((await send('ended', 'hello?')).status).toBe(410)
-  expect((await get('/bots/ended/api/history?before=1')).status).toBe(410)
+  expect((await server.fetch('/ended/api/history?before=1')).status).toBe(410)
 
   // A new instance reads the record and opens nothing.
   await evict('ended')
@@ -239,7 +180,7 @@ test('termination wins over requests racing it', async () => {
   await send('race', 'first')
   await settled('race')
   const [terminated, ...sends] = await Promise.all([
-    server.fetch('/bots/race/terminate', { method: 'POST', headers: auth }),
+    server.fetch('/race/terminate', { method: 'POST' }),
     ...Array.from({ length: 5 }, (_, i) => send('race', `racing ${i}`)),
   ])
   expect(terminated.status).toBe(204)
@@ -249,32 +190,4 @@ test('termination wins over requests racing it', async () => {
   expect((await send('race', 'after')).status).toBe(410)
   await sleep(2 * HEARTBEAT_MS)
   expect(await status('race')).toEqual({ status: 'terminated', alarm: null })
-})
-
-test('oversized bodies are refused before forwarding, including streams without Content-Length', async () => {
-  const body = JSON.stringify({
-    text: 'x'.repeat(65 * 1024),
-    requestId: 'large',
-  })
-  const headers = { ...auth, 'content-type': 'application/json' }
-  const url = '/bots/body-limit/api/messages'
-  expect(
-    (await server.fetch(url, { method: 'POST', headers, body })).status,
-  ).toBe(413)
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(body))
-      controller.close()
-    },
-  })
-  expect(
-    (
-      await server.fetch(url, {
-        method: 'POST',
-        headers,
-        body: stream,
-        duplex: 'half',
-      } as Parameters<TestHarness['fetch']>[1])
-    ).status,
-  ).toBe(413)
 })

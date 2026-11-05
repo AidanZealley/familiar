@@ -2,7 +2,7 @@ import { DurableObjectSqliteDatabase } from '@earendil-works/pi-durable/storage/
 import { expect, test, vi } from 'vitest'
 import { alarmTime, alarmWriter } from './alarm.ts'
 
-// The Worker tests in apps/cloudflare run all of this in workerd. These cover
+// The workerd tests in ../test run all of this in workerd. These cover
 // what workerd can't be made to do on cue: a write that fails, and writes
 // queued behind a commit in progress.
 

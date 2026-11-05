@@ -24,7 +24,7 @@
     "service:install": "pnpm build && node apps/daemon/src/cli/install-service.ts",
     "service:logs": "journalctl --user -u familiar -f",
     "test": "vitest run",
-    "test:cloudflare": "pnpm --filter @familiar-ai/cloudflare-dev test",
+    "test:cloudflare": "pnpm --filter @familiar-ai/cloudflare test",
     "bundle": "pnpm --filter @familiar-ai/daemon bundle",
     "test:release": "pnpm --filter @familiar-ai/daemon test:release",
     "test:packages": "node scripts/verify-packages.ts"
