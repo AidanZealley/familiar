@@ -4,6 +4,7 @@ import { config, dataPath, deviceId } from './config.ts'
 import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'
 import { lockDataDir } from './lock.ts'
+import { ensureDataDir } from './paths.ts'
 import { openModels } from './models.ts'
 import { webPersona } from './persona.ts'
 import { openPush } from './push.ts'
@@ -12,6 +13,7 @@ import { serveFamiliar } from './serve.ts'
 import { webTools } from './tools/index.ts'
 
 export async function serve() {
+  ensureDataDir(config.dataDir)
   lockDataDir(dataPath('daemon.lock'))
 
   const push = openPush({ path: dataPath, contact: config.pushContact })

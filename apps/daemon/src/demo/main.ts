@@ -1,5 +1,5 @@
-// Scripted model, in-memory storage and no login. Never import config.ts:
-// importing it creates the real data directory.
+// Scripted model, in-memory storage and no login, so nothing here reads the
+// installation's config or data.
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { definePlugin, memorySecrets, summonFamiliar } from '@familiar-ai/core'
 import { webPersona } from '../persona.ts'

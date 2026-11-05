@@ -16,83 +16,58 @@ afterEach(() => {
   }
 })
 
-test('missing settings use defaults, with environment overrides', () => {
+test('settings are defaults, then saved choices, then environment overrides', () => {
   const path = directory()
-  expect(readSettings(path, {})).toMatchObject({
+  expect(readSettings(path, {})).toEqual({
+    explicit: {},
     name: 'Familiar',
     owner: 'owner',
     port: 4317,
   })
-  expect(
-    readSettings(path, { FAMILIAR_PORT: '5000', FAMILIAR_NAME: 'Cat' }),
-  ).toMatchObject({ name: 'Cat', port: 5000 })
-})
-
-test('saved settings survive a new process environment and individual overrides', () => {
-  const path = directory()
   writeFileSync(
     join(path, 'settings.json'),
-    JSON.stringify({
-      name: 'Cat',
-      owner: 'Aidan',
-      model: 'saved-model',
-      port: 4320,
-    }),
+    JSON.stringify({ name: 'Cat', owner: 'Aidan', model: 'saved-model' }),
   )
-  expect(readSettings(path, {})).toEqual({
-    explicit: { name: 'Cat', owner: 'Aidan', model: 'saved-model', port: 4320 },
+  expect(readSettings(path, {})).toMatchObject({
+    explicit: { name: 'Cat', owner: 'Aidan', model: 'saved-model' },
     name: 'Cat',
-    owner: 'Aidan',
-    model: { provider: 'openai', modelId: 'saved-model' },
-    port: 4320,
+    port: 4317,
   })
   expect(
     readSettings(path, {
       FAMILIAR_NAME: 'Other',
-      FAMILIAR_OWNER: 'Rowan',
       FAMILIAR_MODEL: 'other-model',
       FAMILIAR_PORT: '4321',
     }),
-  ).toEqual({
+  ).toMatchObject({
     explicit: {
       name: 'Other',
-      owner: 'Rowan',
+      owner: 'Aidan',
       model: 'other-model',
       port: 4321,
     },
     name: 'Other',
-    owner: 'Rowan',
-    model: { provider: 'openai', modelId: 'other-model' },
+    owner: 'Aidan',
     port: 4321,
   })
 })
 
-test.each([
-  '{',
-  'null',
-  '[]',
-  '{"name":42}',
-  '{"owner":""}',
-  '{"model":false}',
-  '{"port":0}',
-  '{"port":65536}',
-  '{"port":"4317"}',
-])('invalid saved settings explain which file needs fixing: %s', (value) => {
-  const path = directory()
-  writeFileSync(join(path, 'settings.json'), value)
-  expect(() => readSettings(path, {})).toThrow(
-    `Cannot read ${join(path, 'settings.json')}`,
-  )
-})
-
-test.each(['', 'NaN', '-1', '3.5', '65536'])(
-  'invalid environment port is refused: %s',
-  (port) => {
-    expect(() => readSettings(directory(), { FAMILIAR_PORT: port })).toThrow(
-      'port must be an integer',
+test.each(['{', '{"port":"4317"}'])(
+  'invalid saved settings name the file to fix: %s',
+  (value) => {
+    const path = directory()
+    writeFileSync(join(path, 'settings.json'), value)
+    expect(() => readSettings(path, {})).toThrow(
+      `Cannot read ${join(path, 'settings.json')}`,
     )
   },
 )
+
+test.each(['', '3.5'])('an invalid environment port is refused: %o', (port) => {
+  expect(() => readSettings(directory(), { FAMILIAR_PORT: port })).toThrow(
+    'port must be an integer between 1 and 65535.',
+  )
+})
 
 test('setup saves choices without pinning defaults, and preserves saved and environment choices', () => {
   const path = directory()

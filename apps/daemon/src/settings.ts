@@ -1,42 +1,33 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { z } from 'zod'
 
-type Settings = {
-  name?: string
-  owner?: string
-  model?: string
-  port?: number
-}
+const nonEmpty = 'must be a non-empty string'
+const text = z.string(nonEmpty).trim().min(1, nonEmpty).optional()
+const port = 'must be an integer between 1 and 65535'
 
-function validateSettings(value: unknown): Settings {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Expected a settings object.')
-  }
-  const settings = value as Record<string, unknown>
-  for (const key of ['name', 'owner', 'model']) {
-    if (
-      settings[key] !== undefined &&
-      (typeof settings[key] !== 'string' || !settings[key].trim())
-    ) {
-      throw new Error(`${key} must be a non-empty string.`)
-    }
-  }
-  if (settings.port !== undefined) {
-    validatePort(settings.port)
-  }
-  return settings as Settings
-}
+/** What `settings.json` may hold. Anything left out follows the release's default. */
+const Settings = z.object(
+  {
+    name: text,
+    /** The owner's name, as the model sees it on their messages. */
+    owner: text,
+    /** The OpenAI model to start on; the first chat model when unset. */
+    model: text,
+    port: z.int(port).min(1, port).max(65535, port).optional(),
+  },
+  { error: 'must be a JSON object' },
+)
+type Settings = z.infer<typeof Settings>
 
-function validatePort(port: unknown): number {
-  if (
-    typeof port !== 'number' ||
-    !Number.isInteger(port) ||
-    port < 1 ||
-    port > 65535
-  ) {
-    throw new Error('port must be an integer between 1 and 65535.')
+/** Valid settings, or an error naming the first field to fix. */
+const parse = (value: unknown) => {
+  const result = Settings.safeParse(value)
+  if (!result.success) {
+    const [issue] = result.error.issues
+    throw new Error(`${issue.path.join('.') || 'settings'} ${issue.message}.`)
   }
-  return port
+  return result.data
 }
 
 /** Saved settings belong to the installation; environment overrides are per run. */
@@ -47,7 +38,7 @@ export function readSettings(
   const path = resolve(dataDir, 'settings.json')
   let saved: Settings = {}
   try {
-    saved = validateSettings(JSON.parse(readFileSync(path, 'utf8')))
+    saved = parse(JSON.parse(readFileSync(path, 'utf8')))
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw new Error(
@@ -56,25 +47,19 @@ export function readSettings(
       )
     }
   }
-  const explicit = { ...saved }
-  for (const key of ['name', 'owner', 'model'] as const) {
-    const value = env[`FAMILIAR_${key.toUpperCase()}`]
-    if (value !== undefined) {
-      explicit[key] = value
-    }
-  }
-  if (env.FAMILIAR_PORT !== undefined) {
-    explicit.port = Number(env.FAMILIAR_PORT)
-  }
-  validateSettings(explicit)
+  const explicit = parse({
+    ...saved,
+    ...(env.FAMILIAR_NAME !== undefined && { name: env.FAMILIAR_NAME }),
+    ...(env.FAMILIAR_OWNER !== undefined && { owner: env.FAMILIAR_OWNER }),
+    ...(env.FAMILIAR_MODEL !== undefined && { model: env.FAMILIAR_MODEL }),
+    ...(env.FAMILIAR_PORT !== undefined && {
+      port: Number(env.FAMILIAR_PORT),
+    }),
+  })
   return {
     explicit,
     name: explicit.name ?? 'Familiar',
     owner: explicit.owner ?? 'owner',
-    model: {
-      provider: 'openai',
-      modelId: explicit.model ?? 'gpt-6.1-sol',
-    },
     port: explicit.port ?? 4317,
   }
 }
@@ -82,7 +67,7 @@ export function readSettings(
 /** Save explicit choices, allowing defaults to follow future releases. */
 export function saveSettings(dataDir: string, settings: Settings) {
   const path = resolve(dataDir, 'settings.json')
-  const content = JSON.stringify(validateSettings(settings), null, 2) + '\n'
+  const content = JSON.stringify(parse(settings), null, 2) + '\n'
   if (existsSync(path) && readFileSync(path, 'utf8') === content) {
     return false
   }

@@ -57,7 +57,6 @@ beforeEach(() => {
     explicit: {},
     name: 'Familiar',
     owner: 'owner',
-    model: { provider: 'openai', modelId: 'test' },
     port: 4325,
   })
 })
