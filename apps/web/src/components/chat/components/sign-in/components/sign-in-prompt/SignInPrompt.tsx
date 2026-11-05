@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { KeyRoundIcon } from 'lucide-react'
+import { IconTile } from '@/components/icon-tile'
 import { Button } from '@/components/ui/button'
 import { familiar } from '@/lib/familiar'
 import type { SignInPromptProps } from './types'
@@ -13,9 +14,7 @@ export const SignInPrompt = ({ account }: SignInPromptProps) => {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
-        <KeyRoundIcon className="size-[1.125rem]" />
-      </span>
+      <IconTile icon={KeyRoundIcon} />
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-medium">
           {account.status === 'expired'

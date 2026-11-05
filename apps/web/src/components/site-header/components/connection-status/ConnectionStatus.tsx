@@ -1,6 +1,6 @@
 import { useFamiliar } from '@/lib/familiar'
 import { CatIcon, CircleAlertIcon } from 'lucide-react'
-import { connectionProblems } from '@/components/app-error'
+import { connectionProblems } from '@/lib/connection-problems'
 import { Spinner } from '@/components/ui/spinner'
 
 export const ConnectionStatus = () => {

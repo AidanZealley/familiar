@@ -1,8 +1,9 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { AppError, connectionProblems } from '@/components/app-error'
+import { AppError } from '@/components/app-error'
 import { AppLoader } from '@/components/app-loader'
 import { SiteHeader } from '@/components/site-header'
 import { Toaster } from '@/components/ui/sonner'
+import { connectionProblems } from '@/lib/connection-problems'
 import { useFamiliar } from '@/lib/familiar'
 import { useTheme } from '@/lib/theme'
 

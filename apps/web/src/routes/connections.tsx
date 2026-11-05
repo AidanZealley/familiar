@@ -1,20 +1,10 @@
+import { createFileRoute } from '@tanstack/react-router'
 import {
-  createFileRoute,
-  useRouter,
-  type ErrorComponentProps,
-} from '@tanstack/react-router'
-import {
+  ConnectionsError,
   ConnectionsPage,
   connectionsQuery,
 } from '@/components/connections-page'
-import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { Empty } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { queryClient } from '@/lib/familiar'
 
@@ -26,23 +16,6 @@ type ConnectionsSearch = {
 
 const text = (value: unknown) =>
   typeof value === 'string' && value ? value : undefined
-
-const ConnectionsError = ({ error }: ErrorComponentProps) => {
-  const router = useRouter()
-  return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>Couldn't load connections</EmptyTitle>
-        <EmptyDescription>{(error as Error).message}</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button variant="outline" onClick={() => void router.invalidate()}>
-          Try again
-        </Button>
-      </EmptyContent>
-    </Empty>
-  )
-}
 
 export const Route = createFileRoute('/connections')({
   validateSearch: (search): ConnectionsSearch => ({
