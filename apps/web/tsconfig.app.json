@@ -5,7 +5,6 @@
     "lib": ["ES2023", "ESNext.TypedArrays", "DOM"],
     "module": "esnext",
     "types": ["vite/client"],
-    "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
     /* Bundler mode */
