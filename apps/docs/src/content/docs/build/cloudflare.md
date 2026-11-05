@@ -66,8 +66,6 @@ Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudfl
 
 While work is running, the adapter keeps a heartbeat alarm. While the assistant sleeps, the alarm is set for its next wake time, such as a reminder.
 
-The package also exports `openDurableObjectSqliteStorage`, `DurableObjectSqliteDatabase` and `SqliteStorage` for hosts that manage the lifecycle themselves. Prefer `DurableFamiliar` unless you need that control.
-
 ## Serving HTTP
 
 Serve the API from the object's `fetch` handler, inside `use()`:
