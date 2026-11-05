@@ -24,7 +24,7 @@ A host opens one Familiar over one storage. It supplies:
 - **Time zone.** An IANA zone such as `Europe/London`. Memory dates, upkeep and schedules use it.
 - **Identity.** Who sent each message. Familiar records an `Author` with a stable `id` and a display `name`. It doesn't authenticate anyone.
 - **Audience.** Which Familiar each person reaches. Everyone a Familiar serves shares its conversation, memory, tools and schedules, so separate audiences, such as tenants, get separate Familiars over separate storage.
-- **Authorization.** Which routes each person may use, with `createHttpApi`'s `routes`, and narrower rules about your app's data and actions, which tools check against `api.author`. Attribution grants nothing.
+- **Authorization.** Which operations each person may use, with `createHttpApi`'s `allow`, and narrower rules about your app's data and actions, which tools check against `api.author`. Attribution grants nothing.
 - **Network policy.** A `fetch` for plugins that refuses private addresses your process can reach, and the MCP transports, `mcpFetch` and `mcpStdio`, which decide what MCP servers may reach or run. Familiar only checks an MCP server's shape.
 - **Notifications.** An optional `notify` for scheduled replies. Your host chooses who receives each one, and stores and authorizes any Web Push subscriptions.
 - **Browser protection.** Cross-site request protection if you authenticate browsers with cookies, and your pages' own framing and content policies. `createHttpApi` adds neither.

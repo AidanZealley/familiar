@@ -36,7 +36,7 @@ A small task board with Familiar beside it. The board keeps its own tasks. Famil
   loading="lazy"
 ></iframe>
 
-Everything runs in this page: the real core, in-memory storage, the HTTP and SSE routes, and the client store. Only the model is scripted, so Familiar understands a few phrases. Press **Assistant** in the frame, or open it fullscreen to see the chat beside the board, and try:
+Everything runs in this page: the real core, in-memory storage, the HTTP API and its event stream, and the client store. Only the model is scripted, so Familiar understands a few phrases. Press **Assistant** in the frame, or open it fullscreen to see the chat beside the board, and try:
 
 - What's in progress?
 - Add a task: Write the release notes
@@ -48,21 +48,21 @@ Then drag a card or press **Assign to me** and ask again. Familiar reads the boa
 
 ## One owner for the tasks
 
-The board is the only place tasks change. Its UI and Familiar's tools call the same operations, and each tool returns its result as text for the model and as `details` for a UI:
+The board is the only place tasks change. Its UI and Familiar's tools call the same operations. Each tool returns text for the model, and a change the board refuses as an error result the model can explain:
 
 ```ts
 defineTool({
   name: 'assign_task_to_me',
   description: 'Assigns a task to the person asking.',
   parameters: Type.Object({ taskId }),
-  execute: async ({ taskId }, api) =>
+  execute: ({ taskId }, api) =>
     run(() => {
-      // The host's authenticated author, never a tool argument.
+      // The person who asked, never a tool argument. Undefined for
+      // work nobody asked for, such as memory upkeep.
       if (!api.author) {
         throw new BoardError('Nobody asked, so there is no one to assign.')
       }
-      const task = board.assign(taskId, api.author)
-      return { text: `Assigned ${describeTask(task)}.`, tasks: [task] }
+      return `Assigned ${describeTask(board.assign(taskId, api.author))}.`
     }),
 })
 ```
@@ -81,17 +81,20 @@ const CHAT = new Set<Operation>([
   'events.conversation',
 ])
 
-const createHostApi = (familiar: Familiar, author: Author) =>
-  createHttpApi(familiar, {
-    authenticate: () => author,
-    allow: (_, operation) => CHAT.has(operation),
-  })
+const api = createHttpApi(familiar, {
+  // Nobody signs in to this demo, so every request is from its one person.
+  authenticate: () => CURRENT_AUTHOR,
+  allow: (_, operation) => CHAT.has(operation),
+})
 
-const store = createFamiliarStore(url, { fetch })
+// In-page requests. A real host passes its API's URL instead.
+const store = createFamiliarStore('https://demo.invalid', {
+  fetch: async (input, init) => api.fetch(new Request(input, init)),
+})
 ```
 
-The demo has one fixed person and nobody signs in, so `authenticate` names them for every request. That is a demo identity, not authentication. In the demo, `fetch` hands each request to the routes inside the page. A real host serves them from its server, authenticates each request from its session and passes the API's URL instead.
+The demo has one fixed person and nobody signs in, so `authenticate` names them for every request. That is a demo identity, not authentication. In the demo, `fetch` hands each request to the API inside the page. A real host serves them from its server, authenticates each request from its session and passes the API's URL instead.
 
 ## Using a real model
 
-The scripted model is a faux provider registered in the page's `Models`. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve the routes as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The host must also provide an API and updates for its task data. Here, React and the tools share an in-page Zustand store. On a server, tools should use the host’s server-side task operations, while the React board uses the host’s API to read and change tasks. Familiar’s conversation events do not synchronise that data.
+The scripted model comes from core's `scriptedModels`, which answers a few phrases with the tool calls a model might make. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve its API as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The host must also provide an API and updates for its task data. Here, React and the tools share an in-page Zustand store. On a server, tools should use the host’s server-side task operations, while the React board uses the host’s API to read and change tasks. Familiar’s conversation events do not synchronise that data.
