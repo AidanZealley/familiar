@@ -13,7 +13,7 @@ export type PushOptions = {
   contact: string
   /** Sends one push; replaceable in tests. */
   send?: typeof webpush.sendNotification
-  /** web-push's socket `timeout`, in milliseconds. Default `PUSH_TIMEOUT_MS`. */
+  /** web-push's socket `timeout`, in milliseconds; shortened in tests. */
   timeout?: number
 }
 
@@ -23,13 +23,10 @@ export type PushOptions = {
  * run. It is a socket inactivity timeout: a slow but moving response can
  * take longer, which push services' short answers never need.
  */
-export const PUSH_TIMEOUT_MS = 30_000
+const PUSH_TIMEOUT_MS = 30_000
 
-/**
- * A subscription with who subscribed it: the `Author.id` the daemon
- * authenticated. Saved before subscribers were recorded, it has none.
- */
-type Stored = PushSubscriptionJson & { subscriber?: string }
+/** A subscription with who subscribed it: the `Author.id` the daemon authenticated. */
+type Stored = PushSubscriptionJson & { subscriber: string }
 
 /** Push services answer these for a subscription that no longer exists. */
 const GONE = [404, 410]
@@ -37,8 +34,8 @@ const GONE = [404, 410]
 /**
  * Web Push for Familiar's notifications: the routes' host, and `notify`,
  * which sends to every subscribed browser and forgets the ones that are gone.
- * Everyone the daemon serves is its owner, so every subscription gets every
- * notification; each subscriber can still remove only their own.
+ * Everyone in the conversation gets every notification; each subscriber can
+ * change only their own subscriptions.
  */
 export function openPush(options: PushOptions) {
   const send = options.send ?? webpush.sendNotification
@@ -53,18 +50,12 @@ export function openPush(options: PushOptions) {
     () => [],
   )
 
-  /**
-   * Whether `subscriber` may change this subscription: their own, or one
-   * saved before subscribers were recorded, which anyone could change then.
-   */
-  const owns = (stored: Stored, subscriber: string) =>
-    stored.subscriber === undefined || stored.subscriber === subscriber
   /** Forgets `endpoint`: everyone's, or only `subscriber`'s when given. */
   const remove = (endpoint: string, subscriber?: string) => {
     subscriptions.value = subscriptions.value.filter(
       (other) =>
         other.endpoint !== endpoint ||
-        (subscriber !== undefined && !owns(other, subscriber)),
+        (subscriber !== undefined && other.subscriber !== subscriber),
     )
   }
 

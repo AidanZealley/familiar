@@ -1,11 +1,11 @@
 import { createECDH, randomBytes } from 'node:crypto'
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { createServer, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import webpush from 'web-push'
 import { expect, onTestFinished, test } from 'vitest'
-import { openPush, PUSH_TIMEOUT_MS } from './push.ts'
+import { openPush } from './push.ts'
 
 const owner = { id: 'owner', name: 'Aidan' }
 const contact = 'mailto:test@example.com'
@@ -94,29 +94,6 @@ test("each subscriber changes only their own subscriptions, and everyone's get n
   const again = openPush({ path, contact, send })
   await again.host.unsubscribe(subscription(laptop), alice)
   expect(endpoints(path)).toEqual([`bob ${laptop}`])
-})
-
-test('subscriptions saved before subscribers were recorded still notify, and are claimed on change', async () => {
-  const path = temporaryPath()
-  const old = 'https://push.example/old'
-  writeFileSync(path('push.json'), JSON.stringify([subscription(old)]))
-  const { sent, send } = recorder()
-  const push = openPush({ path, contact, send })
-
-  await push.notify({ title: 'Familiar', body: 'Still here.' })
-  expect(sent.map(({ endpoint }) => endpoint)).toEqual([old])
-
-  await push.host.subscribe(subscription(old), owner)
-  expect(endpoints(path)).toEqual([`owner ${old}`])
-})
-
-test("each push has web-push's socket timeout, default PUSH_TIMEOUT_MS", async () => {
-  const { sent, send } = recorder()
-  const push = openPush({ contact, send })
-  await push.host.subscribe(subscription('https://push.example/phone'), owner)
-  await push.notify({ title: 'Familiar', body: 'Hi.' })
-  expect(PUSH_TIMEOUT_MS).toBe(30_000)
-  expect(sent[0]?.options?.timeout).toBe(PUSH_TIMEOUT_MS)
 })
 
 /** A push service that accepts connections and never says anything. */
