@@ -72,6 +72,7 @@ const view = viewOf(
 
 test('history renders before the view, with compactions where they summarised', () => {
   expect(labels(view)).toEqual(['---', 'reply three'])
+  const { items } = toTranscript(view, history)
   expect(labels(view, history)).toEqual([
     '> one',
     'reply one',
@@ -83,33 +84,20 @@ test('history renders before the view, with compactions where they summarised', 
     '---',
     'reply three',
   ])
-})
-
-test('a tool call in history pairs with its result in the view', () => {
-  const reply = toTranscript(view, history).items.find(
-    (item) => item.type === 'reply' && item.toolCalls.length,
-  )
-  expect(reply).toMatchObject({
+  // A tool call in history pairs with its result in the view.
+  expect(
+    items.find((item) => item.type === 'reply' && item.toolCalls.length),
+  ).toMatchObject({
     toolCalls: [{ id: 'c1', status: 'done', output: '12:00' }],
   })
-})
-
-test('item IDs are unique across history and view', () => {
-  const ids = toTranscript(view, history).items.map((item) => item.id)
+  const ids = items.map((item) => item.id)
   expect(new Set(ids).size).toBe(ids.length)
 })
 
-test('a stopped reply is marked', () => {
-  const [reply] = toTranscript(
-    viewOf(replied(1, [text('Part one')], 'aborted')),
-  ).items
-  expect(reply).toMatchObject({ type: 'reply', stopped: true })
-})
-
-test('a reply keeps its identity from streaming through completion or stopping', () => {
+test('a reply keeps its identity and reasoning from streaming through completion or stopping', () => {
   const message = {
     role: 'assistant',
-    content: [text('Part one')],
+    content: [{ type: 'thinking', thinking: 'Reasoning' }, text('Part one')],
     timestamp: 1234,
     stopReason: 'stop',
   }
@@ -133,7 +121,12 @@ test('a reply keeps its identity from streaming through completion or stopping',
     const completed = toTranscript(viewOf(said(1, 'hello'), saved)).items.at(
       -1,
     )!
-    expect(completed).toMatchObject({ id: streaming.id, streaming: false })
+    expect(completed).toMatchObject({
+      id: streaming.id,
+      streaming: false,
+      stopped: stopReason === 'aborted',
+      thinking: 'Reasoning',
+    })
     expect(
       toTranscript(viewOf(saved), [said(1, 'hello')]).items.at(-1)?.id,
     ).toBe(streaming.id)
@@ -245,25 +238,7 @@ test('waiting feedback covers the first token and the gap after a completed tool
   }
 })
 
-test('reasoning remains available to expand after the reply completes', () => {
-  expect(
-    toTranscript(
-      viewOf(
-        replied(1, [
-          { type: 'thinking', thinking: 'Provider supplied reasoning' },
-          text('Answer'),
-        ]),
-      ),
-    ).items.at(-1),
-  ).toMatchObject({
-    type: 'reply',
-    thinking: 'Provider supplied reasoning',
-    text: 'Answer',
-    streaming: false,
-  })
-})
-
-test('author snapshots survive history, current entries and the queued transcript', () => {
+test('queued messages follow committed ones, each with the author it was sent as', () => {
   const before = { id: 'sam-1', name: 'Sam' }
   const other = { id: 'sam-2', name: 'Sam' }
   const renamed = { id: 'sam-1', name: 'Samuel' }
