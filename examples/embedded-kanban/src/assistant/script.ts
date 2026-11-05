@@ -20,11 +20,10 @@ ${SUGGESTED_PROMPTS.map((prompt) => `- ${prompt}`).join('\n')}
 
 const STATUS_WORDS: Record<string, Status> = {
   todo: 'todo',
-  'to do': 'todo',
   'in progress': 'in_progress',
   done: 'done',
 }
-const status = '(todo|to do|in progress|done)'
+const status = '(todo|in progress|done)'
 
 const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
   fauxAssistantMessage(fauxToolCall(name, args), { stopReason: 'toolUse' })
@@ -33,7 +32,7 @@ const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
 function plan(words: string) {
   const text = words.trim().replace(/[.!?]+$/, '')
   let match
-  if ((match = /^(?:add|create)(?: a)? task:?\s+(.+)$/i.exec(text))) {
+  if ((match = /^add a task: (.+)$/i.exec(text))) {
     return call('create_task', { title: match[1] })
   }
   if ((match = /^assign (t-\d+) to me$/i.exec(text))) {
@@ -45,14 +44,10 @@ function plan(words: string) {
       status: STATUS_WORDS[match[2].toLowerCase()],
     })
   }
-  if ((match = new RegExp(`^what'?s ${status}$`, 'i').exec(text))) {
+  if ((match = new RegExp(`^what's ${status}$`, 'i').exec(text))) {
     return call('list_tasks', { status: STATUS_WORDS[match[1].toLowerCase()] })
   }
-  if (
-    /^(?:what'?s on the board|(?:show|list)(?: me)?(?: all| the)? tasks)$/i.test(
-      text,
-    )
-  ) {
+  if (/^what's on the board$/i.test(text)) {
     return call('list_tasks', {})
   }
   return fauxAssistantMessage(UNSUPPORTED_REPLY)
