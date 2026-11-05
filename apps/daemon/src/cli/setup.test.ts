@@ -124,13 +124,12 @@ test('setup refuses a public bind before writing settings or installing anything
   expect(install).not.toHaveBeenCalled()
 })
 
-test('setup waits for a starting daemon before publishing its URL', async () => {
+test('setup waits for the daemon to answer before giving its URLs, and points to the logs if it never does', async () => {
   vi.mocked(fetch).mockRejectedValueOnce(new Error('not listening yet'))
   await setup()
   expect(publish).toHaveBeenCalledOnce()
-})
 
-test('a failed daemon startup reports logs instead of claiming a working URL', async () => {
+  vi.clearAllMocks()
   vi.mocked(fetch).mockRejectedValue(new Error('not listening'))
   await expect(setup()).rejects.toThrow('familiar logs')
   expect(publish).not.toHaveBeenCalled()

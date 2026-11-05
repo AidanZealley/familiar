@@ -8,8 +8,6 @@ import {
 } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { dirname, resolve } from 'node:path'
-import { resolvePaths } from '../../paths.ts'
-
 import type { ServiceOptions } from './types.ts'
 
 type LinuxOptions = ServiceOptions & { unitDir?: string }
@@ -59,19 +57,7 @@ export function linuxService(options: LinuxOptions) {
   const dataEnvironment = `Environment=${quote(`FAMILIAR_DATA_DIR=${options.dataDir}`)}`
   const installedUnit = () =>
     existsSync(unit) ? readFileSync(unit, 'utf8') : ''
-  const ownsData = () => {
-    const current = installedUnit()
-    if (!current) {
-      return false
-    }
-    return current.includes('FAMILIAR_DATA_DIR=')
-      ? current.split('\n').includes(dataEnvironment)
-      : options.dataDir ===
-          resolvePaths({
-            platform: 'linux',
-            env: { ...process.env, FAMILIAR_DATA_DIR: undefined },
-          }).dataDir
-  }
+  const ownsData = () => installedUnit().split('\n').includes(dataEnvironment)
   const checkOwnership = () => {
     if (installedUnit() && !ownsData()) {
       throw new Error(
@@ -95,28 +81,18 @@ export function linuxService(options: LinuxOptions) {
       throw error
     }
   }
-  const stop = () => {
-    systemctl('stop', 'familiar')
-  }
   const restart = () => {
     systemctl('restart', 'familiar')
   }
   return {
     isRunning: () => ownsData() && isRunning(),
-    restart,
-    async withStopped<T>(run: () => Promise<T>) {
-      const running = ownsData() && isRunning()
-      if (running) {
-        stop()
-      }
-      try {
-        return await run()
-      } finally {
-        if (running) {
-          restart()
-        }
-      }
+    stop: () => {
+      systemctl('stop', 'familiar')
     },
+    start: () => {
+      systemctl('start', 'familiar')
+    },
+    restart,
     install(forceRestart = false) {
       checkOwnership()
       const content = renderUnit(options)

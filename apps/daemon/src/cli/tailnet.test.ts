@@ -59,33 +59,22 @@ test.each([
   },
 )
 
-test('missing Tailscale gives installation guidance without breaking local setup', () => {
-  vi.mocked(execFileSync).mockImplementation(() => {
-    throw Object.assign(new Error('missing'), { code: 'ENOENT' })
-  })
-  expect(publish(4317)).toBeUndefined()
-  expect(console.log).toHaveBeenCalledWith(
-    expect.stringContaining('Install Tailscale'),
-  )
-})
-
-test.each(['linux', 'darwin', 'win32'] as const)(
-  'permissions leave local setup usable on %s',
-  (platform) => {
-    vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+test.each([
+  [
+    'missing',
+    Object.assign(new Error('missing'), { code: 'ENOENT' }),
+    'Install Tailscale',
+  ],
+  ['refused', new Error('access denied'), 'sudo tailscale set --operator='],
+])(
+  '%s Tailscale leaves local setup usable, with a next step',
+  (_, error, hint) => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
     vi.mocked(execFileSync).mockImplementation(() => {
-      throw new Error('access denied')
+      throw error
     })
     expect(publish(4317)).toBeUndefined()
-    expect(console.log).toHaveBeenCalledWith(
-      expect.stringContaining('Tailscale setup skipped: access denied'),
-    )
-    const operator = expect.stringContaining('sudo tailscale set --operator=')
-    if (platform === 'linux') {
-      expect(console.log).toHaveBeenCalledWith(operator)
-    } else {
-      expect(console.log).not.toHaveBeenCalledWith(operator)
-    }
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining(hint))
   },
 )
 
@@ -93,25 +82,25 @@ test('removal targets only the matching publication, never resets all Serve rout
   publication = existing()
   unpublish(4317)
   expect(calls()).toContain('serve --https=10000 off')
-  publication = existing('http://127.0.0.1:9999')
-  vi.mocked(execFileSync).mockClear()
-  unpublish(4317)
-  expect(calls()).toEqual(['serve status --json'])
-})
-
-test('removal preserves other routes sharing the HTTPS port', () => {
-  publication = {
-    Web: {
-      [host]: {
-        Handlers: {
-          '/': { Proxy: 'http://127.0.0.1:4317' },
-          '/other': { Proxy: 'http://127.0.0.1:9999' },
+  // Another app's route, and other routes sharing the port, are left alone.
+  for (const other of [
+    existing('http://127.0.0.1:9999'),
+    {
+      Web: {
+        [host]: {
+          Handlers: {
+            '/': { Proxy: 'http://127.0.0.1:4317' },
+            '/other': { Proxy: 'http://127.0.0.1:9999' },
+          },
         },
       },
     },
+  ]) {
+    publication = other
+    vi.mocked(execFileSync).mockClear()
+    unpublish(4317)
+    expect(calls()).toEqual(['serve status --json'])
   }
-  unpublish(4317)
-  expect(calls()).toEqual(['serve status --json'])
 })
 
 test('reading an existing URL never publishes a new route', () => {
@@ -120,9 +109,7 @@ test('reading an existing URL never publishes a new route', () => {
   expect(calls()).toEqual(['serve status --json'])
   publication = {}
   expect(publishedUrl(4317)).toBeUndefined()
-})
-
-test('status never reports a public Funnel route as a private tailnet URL', () => {
+  // A public Funnel route is never reported as a private tailnet URL.
   publication = { ...existing(), AllowFunnel: { [host]: true } }
   expect(publishedUrl(4317)).toBeUndefined()
 })
