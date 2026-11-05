@@ -1,6 +1,12 @@
 import { Type, defineTool } from '@familiar-ai/core'
 import { localMinute, type PluginFetch } from '@familiar-ai/core'
-import type { ConvertHtml } from './convert-html.ts'
+
+/** Converts HTML to Markdown, stopping when `signal` aborts. */
+type ToMarkdown = (
+  html: string,
+  url: string,
+  signal: AbortSignal,
+) => Promise<string>
 
 const MAX_BYTES = 3 * 1024 * 1024
 
@@ -42,7 +48,7 @@ async function readText(response: Response, signal: AbortSignal) {
 
 export const webFetchTool = (
   fetch: PluginFetch,
-  convert: ConvertHtml,
+  toMarkdown: ToMarkdown,
   timeZone: string,
 ) =>
   defineTool({
@@ -101,18 +107,15 @@ export const webFetchTool = (
         }
         const finalUrl = response.url || requested.href
         const body = await readText(response, signal)
-        const page = html
-          ? await convert(body, finalUrl, maxChars, signal)
-          : {
-              text: body.trim().slice(0, maxChars),
-              truncated: body.trim().length > maxChars,
-            }
+        const text = (
+          html ? await toMarkdown(body, finalUrl, signal) : body
+        ).trim()
         signal.throwIfAborted()
         return {
           output: [
             {
               type: 'text',
-              text: `URL: ${finalUrl}\nRetrieved: ${localMinute(api.now(), timeZone)}\n\n${page.text || '(The page has no text.)'}${page.truncated ? '\n\n[Content truncated]' : ''}`,
+              text: `URL: ${finalUrl}\nRetrieved: ${localMinute(api.now(), timeZone)}\n\n${text.slice(0, maxChars) || '(The page has no text.)'}${text.length > maxChars ? '\n\n[Content truncated]' : ''}`,
             },
           ],
           details: { url: finalUrl },

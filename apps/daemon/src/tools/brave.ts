@@ -1,9 +1,12 @@
 import { Type, defineTool, type Static } from '@familiar-ai/core'
 import { localMinute, type PluginContext } from '@familiar-ai/core'
-import { cut } from './format.ts'
 
 export const BRAVE_ORIGIN = 'https://api.search.brave.com'
 export const BRAVE_PATH = '/res/v1/web/search'
+
+/** At most `max` characters, ending in … when cut. */
+const cut = (text: string, max: number) =>
+  text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
 
 const FRESHNESS = { day: 'pd', week: 'pw', month: 'pm', year: 'py' } as const
 
