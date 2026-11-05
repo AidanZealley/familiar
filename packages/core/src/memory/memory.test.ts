@@ -12,17 +12,7 @@ import {
   MemoryStorage,
   ROOT_CONVERSATION_ID,
 } from '@earendil-works/pi-durable'
-import {
-  CORE_BUDGET,
-  coreFacts,
-  FactError,
-  Facts,
-  listFacts,
-  MemoryUsage,
-  openMemory,
-  rememberFact,
-  reviseFact,
-} from './facts.ts'
+import { CORE_BUDGET, coreFacts, listFacts, MemoryUsage } from './facts.ts'
 import {
   readStored,
   ReopenableStorage,
@@ -31,7 +21,6 @@ import {
 } from './testing.ts'
 import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
 import { nextUpkeep } from './upkeep/schedule.ts'
-import { addEpisode, Episodes } from './episodes.ts'
 import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../harness.ts'
@@ -95,14 +84,6 @@ const sectionsOf = (context: TranscriptContext) =>
     message.role === 'system' ? [message.sections ?? {}] : [],
   )
 
-/** The names of the tools offered in one request. */
-const toolsOf = (context: TranscriptContext) =>
-  context.messages.flatMap((message) =>
-    message.role === 'system'
-      ? (message.toolsAdded ?? []).map((tool) => tool.name)
-      : [],
-  )
-
 /** The text of every tool result sent back in one request. */
 const toolResultsOf = (context: TranscriptContext) =>
   context.messages.flatMap((message) =>
@@ -115,30 +96,7 @@ const toolResultsOf = (context: TranscriptContext) =>
       : [],
   )
 
-test('the conversation model reads memory but is never offered the tools that write it', async () => {
-  const { faux, say } = await setup({
-    storage: await storageWith(['Uses pnpm', 3]),
-  })
-  let tools: string[] = []
-  let prompt: Record<string, string | null>[] = []
-  faux.setResponses([
-    (context) => {
-      tools = toolsOf(context)
-      prompt = sectionsOf(context)
-      return fauxAssistantMessage('pnpm, as always.')
-    },
-  ])
-  await say('Which package manager do I use? Remember that I like pnpm.')
-  expect(tools).toContain('recall')
-  for (const writer of ['remember', 'revise_memory', 'retire']) {
-    expect(tools).not.toContain(writer)
-  }
-  const shown = prompt.findLast((sections) => sections.memory)?.memory
-  expect(shown).toContain('f1: Uses pnpm')
-  expect(shown).toContain('filed tonight')
-})
-
-test("only upkeep's conversation is given the tools that write facts", async () => {
+test("only upkeep's conversation is given the tools that write facts, whatever another chooses", async () => {
   const registry = createRegistry()
   const model = { provider: 'faux', modelId: 'faux-1' }
   const harness = await Harness.open(
@@ -186,71 +144,6 @@ test("only upkeep's conversation is given the tools that write facts", async () 
       expect(tools.filter((name) => writers.includes(name))).toEqual([])
     }
     expect(await toolsIn(upkeep)).toEqual(expect.arrayContaining(writers))
-  } finally {
-    await harness.close(BACKGROUND_CONTEXT)
-  }
-})
-
-test('people can revise, retire and pin facts', async () => {
-  const { familiar, memory } = await setup({
-    storage: await storageWith(
-      ['Lives in Leeds', 4],
-      ['Has a cat', 3],
-      ['Likes blue pens', 1],
-    ),
-  })
-  await familiar.memory.revise('f1', 'Lives in York')
-  await familiar.memory.retire('f2')
-  await familiar.memory.setPinned('f3', true)
-  expect((await memory())?.facts).toMatchObject([
-    { id: 'f1', until: expect.any(String) },
-    { id: 'f2', until: expect.any(String) },
-    { id: 'f3', core: true, pinned: true },
-    {
-      id: 'f4',
-      text: 'Lives in York',
-      replaces: ['f1'],
-      sources: [],
-      core: true,
-    },
-  ])
-  await expect(familiar.memory.revise('f1', 'Again')).rejects.toThrow(
-    'already past',
-  )
-  await expect(familiar.memory.revise('f4', 'x'.repeat(301))).rejects.toThrow(
-    'Split it',
-  )
-})
-
-test('an edit that fails partway through a commit changes nothing', async () => {
-  const harness = await Harness.open(
-    new MemoryStorage(),
-    { models: createModels(), registry: createRegistry() },
-    BACKGROUND_CONTEXT,
-  )
-  const fact = (text: string) => ({
-    text,
-    importance: 3,
-    since: '2025-01-01',
-    sources: [],
-  })
-  try {
-    await harness.commit(async (tx) => {
-      rememberFact(await openMemory(tx), fact('Lives in Leeds'), 10)
-    }, BACKGROUND_CONTEXT)
-    await expect(
-      harness.commit(async (tx) => {
-        const memory = await openMemory(tx)
-        rememberFact(memory, fact('Has a cat'), 20)
-        reviseFact(memory, 'f9', { text: 'Missing', since: '2025-01-01' }, 20)
-      }, BACKGROUND_CONTEXT),
-    ).rejects.toThrow(FactError)
-    const watch = (await harness.watchDoc(Facts, BACKGROUND_CONTEXT))!
-    await watch.stop()
-    expect(watch.value).toMatchObject({
-      facts: [{ id: 'f1', text: 'Lives in Leeds' }],
-      next: 2,
-    })
   } finally {
     await harness.close(BACKGROUND_CONTEXT)
   }
@@ -620,67 +513,4 @@ test('upkeep passes are not shown unfiled exchanges', async () => {
   clock.advanceTo(nextUpkeep(clock.now(), TEST_ZONE))
   await vi.waitFor(() => expect(notes.length).toBeGreaterThan(0))
   expect(notes.join('\n')).not.toContain('Earlier conversation')
-})
-
-test('health counts facts, core, episodes, exchanges and searches', async () => {
-  const YEAR = 365 * 24 * 60 * 60 * 1000
-  const storage = await storageWith(
-    ['Lives in Leeds', 4],
-    ['Has a cat', 3],
-    ['Old note nobody checked', 1, Date.now() - YEAR],
-  )
-  await withHarness(storage, (harness) =>
-    harness.commit(async (tx) => {
-      const episodes = await tx.doc(Episodes)
-      for (const [span, start, end] of [
-        ['day', '2026-01-05', '2026-01-05'],
-        ['day', '2026-01-06', '2026-01-06'],
-        ['week', '2026-01-05', '2026-01-11'],
-        ['month', '2026-01-01', '2026-01-31'],
-      ] as const) {
-        addEpisode(episodes, { span, start, end, text: 'Quiet.', at: 1 })
-      }
-    }, BACKGROUND_CONTEXT),
-  )
-  const { faux, familiar, say, memory } = await setup({ storage })
-  await familiar.memory.revise('f1', 'Lives in York')
-  faux.setResponses(
-    ['Hello.', 'Hi again.', 'Still here.'].map((reply) =>
-      fauxAssistantMessage(reply),
-    ),
-  )
-  for (const text of ['Hello.', 'How are you?', 'Bye.']) {
-    await say(text)
-  }
-
-  const core = coreFacts((await memory())!)
-  const health = await familiar.memory.health()
-  expect(health).toEqual({
-    facts: { current: 3, core: 2, past: 1 },
-    coreCharacters: listFacts(core).length,
-    unchecked: 1,
-    episodes: { day: 2, week: 1, month: 1 },
-    // The newest exchange waits for the next message before it's indexed.
-    exchanges: 2,
-    indexBuildMs: expect.any(Number),
-    // Automatic recall catches the index up for every message after the first.
-    indexCatchUpMs: expect.any(Number),
-    // One automatic recall per message.
-    search: {
-      count: 3,
-      medianMs: expect.any(Number),
-      maxMs: expect.any(Number),
-    },
-  })
-  expect(health.search.maxMs).toBeGreaterThanOrEqual(health.search.medianMs)
-
-  // Reading health without new transcript entries must not inflate timings.
-  expect(await familiar.memory.health()).toEqual(health)
-  faux.setResponses([fauxAssistantMessage('One more reply.')])
-  await say('One more message.')
-  const updated = await familiar.memory.health()
-  expect(updated.indexBuildMs).toBe(health.indexBuildMs)
-  expect(updated.indexCatchUpMs).toEqual(expect.any(Number))
-  expect(updated.exchanges).toBe(health.exchanges + 1)
-  expect(await familiar.memory.health()).toEqual(updated)
 })

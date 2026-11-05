@@ -11,7 +11,6 @@ import { textOf } from '../conversation/message.ts'
 import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
 import type { RecallNote } from './recall.ts'
 import type { TranscriptExchanges } from './exchanges.ts'
-import type { SearchTimes } from './health.ts'
 import { createMemoryTools } from './tools.ts'
 
 const render = (facts: FactsState | undefined) => {
@@ -38,8 +37,6 @@ export type MemoryExtensionOptions = {
     request: TaskId,
     unfiled: boolean,
   ) => Promise<RecallNote>
-  /** Where every search's time is recorded, for health. */
-  times: SearchTimes
   /** The IANA zone the tools read dates in. */
   timeZone: string
 }
@@ -52,11 +49,7 @@ export type MemoryExtensionOptions = {
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: createMemoryTools(
-      options.exchanges,
-      options.times,
-      options.timeZone,
-    ),
+    tools: createMemoryTools(options.exchanges, options.timeZone),
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
       section('memory', async (input, context) =>

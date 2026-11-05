@@ -26,13 +26,12 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 
 **Memory and schedules**, `memory.*` and `schedules.*`
 
-| Operation          | Method and path           | Body         | Success            | Errors                   |
-| ------------------ | ------------------------- | ------------ | ------------------ | ------------------------ |
-| `memory.health`    | `GET /memory/health`      |              | 200 `MemoryHealth` |                          |
-| `memory.revise`    | `PUT /memory/:id`         | `{ text }`   | 204                | 400, 404 missing or past |
-| `memory.retire`    | `POST /memory/:id/retire` |              | 204                | 404                      |
-| `memory.setPinned` | `PUT /memory/:id/pin`     | `{ pinned }` | 204                | 400, 404                 |
-| `schedules.cancel` | `DELETE /schedules/:id`   |              | 204                | 404                      |
+| Operation          | Method and path           | Body         | Success | Errors                   |
+| ------------------ | ------------------------- | ------------ | ------- | ------------------------ |
+| `memory.revise`    | `PUT /memory/:id`         | `{ text }`   | 204     | 400, 404 missing or past |
+| `memory.retire`    | `POST /memory/:id/retire` |              | 204     | 404                      |
+| `memory.setPinned` | `PUT /memory/:id/pin`     | `{ pinned }` | 204     | 400, 404                 |
+| `schedules.cancel` | `DELETE /schedules/:id`   |              | 204     | 404                      |
 
 **Account**, `account.*`. Every route answers 404 when the host passed no `account`.
 

@@ -1,7 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { defineTool, ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
 import type { TranscriptExchanges } from './exchanges.ts'
-import type { SearchTimes } from './health.ts'
 import { Episodes } from './episodes.ts'
 import { Facts, markRecalled, MemoryUsage } from './facts.ts'
 import { readMemory } from './read.ts'
@@ -19,7 +18,6 @@ const text = (text: string) => ({
  */
 export function createMemoryTools(
   exchanges: TranscriptExchanges,
-  times: SearchTimes,
   timeZone: string,
 ) {
   const recall = defineTool({
@@ -34,8 +32,13 @@ export function createMemoryTools(
           const facts = await tx.doc(Facts)
           const usage = await tx.doc(MemoryUsage)
           const episodes = await tx.doc(Episodes)
-          const found = times.time(() =>
-            recallAll(facts, episodes, index, args.query, api.now(), timeZone),
+          const found = recallAll(
+            facts,
+            episodes,
+            index,
+            args.query,
+            api.now(),
+            timeZone,
           )
           // Only conversation counts as use; upkeep's searches are housekeeping.
           if (api.conversationId === ROOT_CONVERSATION_ID) {

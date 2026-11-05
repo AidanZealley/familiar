@@ -97,7 +97,7 @@ describe('embedded kanban demo', () => {
       expect(history.status).toBe(200)
       // Not in CHAT, so refused for everyone `authenticate` accepts.
       for (const [method, path] of [
-        ['GET', '/memory/health'],
+        ['GET', '/model/options'],
         ['DELETE', '/schedules/any'],
         ['POST', '/account/sign-in'],
         ['POST', '/mcp'],

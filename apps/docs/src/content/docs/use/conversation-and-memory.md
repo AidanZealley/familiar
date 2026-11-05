@@ -31,7 +31,6 @@ Open **Memory** in the header.
 - Use a fact's menu to edit it, pin or unpin it or retire it. Editing saves a new version that is true from today. Retiring marks it no longer true. Familiar treats your correction as the source.
 - **History** shows how facts changed over time.
 - **Episodes** lists the daily, weekly and monthly summaries.
-- **Health** reports whether memory upkeep is keeping up as memory grows.
 
 Everyone who uses the same Familiar shares its memory. On an installed Familiar, that's you.
 

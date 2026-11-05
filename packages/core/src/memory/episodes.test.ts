@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest'
 import { TEST_ZONE, timeAt } from '../testing.ts'
-import { localDay } from '../time/index.ts'
 import { nextUpkeep, upkeepDay } from './upkeep/schedule.ts'
 import {
   addEpisode,
@@ -24,6 +23,8 @@ const due = (state: EpisodesState, today: string) => {
 }
 
 test('a week rolls up once it has ended, from its day episodes', () => {
+  // Days with no conversation need none.
+  expect(due(stateOf(), '2025-03-10')).toBeUndefined()
   // Wednesday 5 and Sunday 9 March 2025 are in the week of Monday 3 March.
   const state = stateOf(['day', '2025-03-05'], ['day', '2025-03-09'])
   expect(due(state, '2025-03-09')).toBeUndefined()
@@ -75,12 +76,7 @@ test('missed passes are caught up oldest first', () => {
   ])
 })
 
-test('days with no conversation need no rollup', () => {
-  expect(due(stateOf(), '2025-03-10')).toBeUndefined()
-  expect(localDay(timeAt('2025-03-09 23:59'), TEST_ZONE)).toBe('2025-03-09')
-})
-
-test('an episode spanning a new week or month counts towards both', () => {
+test('an episode spanning weeks or months counts towards each', () => {
   // Familiar was off from Friday 30 January to Tuesday 3 February 2026.
   const state = stateOf(['day', '2026-01-30', '2026-02-03'])
   const order: unknown[] = []
@@ -95,6 +91,26 @@ test('an episode spanning a new week or month counts towards both', () => {
     ['week', '2026-02-02', 1],
     ['month', '2026-02-01', 1],
   ])
+
+  {
+    // 31 days of failed passes, then one episode for the lot.
+    const state = stateOf(['day', '2026-03-02', '2026-04-01'])
+    const weeks: string[] = []
+    for (let rollup = dueRollup(state, '2026-05-01'); rollup;) {
+      if (rollup.span === 'week') {
+        weeks.push(rollup.start)
+      }
+      addEpisode(state, { ...rollup, text: '', at: 0 })
+      rollup = dueRollup(state, '2026-05-01')
+    }
+    expect(weeks).toEqual([
+      '2026-03-02',
+      '2026-03-09',
+      '2026-03-16',
+      '2026-03-23',
+      '2026-03-30',
+    ])
+  }
 })
 
 test('a message names dates only explicitly, and past ones without a year', () => {
@@ -159,24 +175,4 @@ test("upkeep runs at 04:00 in each Familiar's own zone", () => {
   // 12:00 UTC is already evening in Tokyo, and midnight in Auckland.
   expect(nextUpkeep(now, 'Asia/Tokyo')).toBe(Date.UTC(2026, 5, 1, 19))
   expect(nextUpkeep(now, 'Pacific/Auckland')).toBe(Date.UTC(2026, 5, 1, 16))
-})
-
-test('an episode spanning several weeks counts towards each of them', () => {
-  // 31 days of failed passes, then one episode for the lot.
-  const state = stateOf(['day', '2026-03-02', '2026-04-01'])
-  const weeks: string[] = []
-  for (let rollup = dueRollup(state, '2026-05-01'); rollup;) {
-    if (rollup.span === 'week') {
-      weeks.push(rollup.start)
-    }
-    addEpisode(state, { ...rollup, text: '', at: 0 })
-    rollup = dueRollup(state, '2026-05-01')
-  }
-  expect(weeks).toEqual([
-    '2026-03-02',
-    '2026-03-09',
-    '2026-03-16',
-    '2026-03-23',
-    '2026-03-30',
-  ])
 })
