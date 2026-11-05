@@ -101,8 +101,8 @@ export async function newMessages(
     oldest,
     newest,
     transcript: lines.join('\n'),
-    start: day,
-    end: day,
+    /** The upkeep day every message in the batch belongs to. */
+    day,
     truncated,
   }
 }
