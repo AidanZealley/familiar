@@ -1,20 +1,21 @@
 import { DurableObject } from 'cloudflare:workers'
 import { DurableFamiliar, FamiliarTerminated } from '@familiar-ai/cloudflare'
 import { createHttpApi } from '@familiar-ai/core/http'
-import { DEV_MODEL, devModels } from './model.ts'
 import type { Env } from './env.ts'
+import { ECHO_MODEL, echoModels } from './model.ts'
 
-/** One Familiar per name, on the scripted model. */
+/** One Familiar per name, each in its own Durable Object and storage. */
 export class Bot extends DurableObject<Env> {
   readonly familiar = new DurableFamiliar(this.ctx, {
+    // Called each time the object opens, including after eviction.
     familiar: () => ({
-      models: devModels(),
-      model: DEV_MODEL.model,
-      chatModels: [DEV_MODEL],
+      models: echoModels(),
+      model: ECHO_MODEL.model,
+      chatModels: [ECHO_MODEL],
       timeZone: this.env.TIME_ZONE,
-      notify: (notification) => this.#outbox().add(notification),
+      // A real host delivers these, such as by Web Push or email.
+      notify: async (notification) => console.log(notification),
     }),
-    heartbeatMs: Number(this.env.HEARTBEAT_MS) || undefined,
   })
 
   override async fetch(request: Request): Promise<Response> {
@@ -36,19 +37,5 @@ export class Bot extends DurableObject<Env> {
 
   override alarm() {
     return this.familiar.alarm()
-  }
-
-  terminate() {
-    return this.familiar.terminate()
-  }
-
-  status() {
-    return this.familiar.status()
-  }
-
-  #outbox() {
-    return this.env.OUTBOX.get(
-      this.env.OUTBOX.idFromName(this.ctx.id.toString()),
-    )
   }
 }

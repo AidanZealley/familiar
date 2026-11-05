@@ -1,5 +1,5 @@
 {
-  "name": "@familiar-ai/cloudflare-dev",
+  "name": "@familiar-example/cloudflare-worker",
   "private": true,
   "type": "module",
   "scripts": {

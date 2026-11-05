@@ -55,7 +55,7 @@ export class Bot extends DurableObject {
 
 The factory returns everything `summonFamiliar` takes except storage, the clock and wake handling, which the adapter supplies. The adapter calls it each time the object opens, including after eviction. This scripted model answers once per object opening. A real host registers its provider, credentials, notifications and network policy there.
 
-Configure a SQLite Durable Object binding and migration in Wrangler. The development Worker's [`wrangler.jsonc`](https://github.com/AidanZealley/familiar/blob/main/apps/cloudflare/wrangler.jsonc) is a working configuration.
+Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudflare Worker example's [`wrangler.jsonc`](https://github.com/AidanZealley/familiar/blob/main/examples/cloudflare-worker/wrangler.jsonc) is a working configuration.
 
 ## Lifecycle
 
@@ -85,7 +85,7 @@ override fetch(request: Request) {
 }
 ```
 
-`author` is whoever your Worker authenticated. Decide what each person may do as in [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what); `allow: () => true` allows everything, only when the object's owner is the only person who reaches it. Each object is one Familiar over its own storage, so give each tenant its own object, chosen from the authenticated session as in [One Familiar per tenant](/familiar/build/serve-the-api/#one-familiar-per-tenant). The repository's [development Worker](https://github.com/AidanZealley/familiar/tree/main/apps/cloudflare) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
+`author` is whoever your Worker authenticated. Decide what each person may do as in [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what); `allow: () => true` allows everything, only when the object's owner is the only person who reaches it. Each object is one Familiar over its own storage, so give each tenant its own object, chosen from the authenticated session as in [One Familiar per tenant](/familiar/build/serve-the-api/#one-familiar-per-tenant). The repository's [Cloudflare Worker example](https://github.com/AidanZealley/familiar/tree/main/examples/cloudflare-worker) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
 
 ## What's been verified
 

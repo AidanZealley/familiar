@@ -26,16 +26,16 @@ This is one personal assistant per user, with no separate app login. Anyone who 
 
 The npm packages let you embed Familiar in your own app. Installing a library doesn't install the daemon or UI.
 
-| Part                                                     | Responsibility                                                      |
-| -------------------------------------------------------- | ------------------------------------------------------------------- |
-| [@familiar-ai/core](packages/core/README.md)             | Portable assistant, memory, schedules, plugins and HTTP/SSE routes  |
-| [@familiar-ai/client](packages/client/README.md)         | Live client store, transcripts and optional React bindings          |
-| [@familiar-ai/cloudflare](packages/cloudflare/README.md) | SQLite Durable Object storage and alarm lifecycle                   |
-| [Node daemon](apps/daemon/README.md)                     | Local storage, ChatGPT login, network policy, CLI and notifications |
-| [Web app](apps/web/README.md)                            | Chat, memory, schedules and Connections UI                          |
-| [Development Worker](apps/cloudflare/README.md)          | Scripted Cloudflare host for runtime testing                        |
-| [Docs site](apps/docs/README.md)                         | This project's documentation                                        |
-| [Examples](examples/README.md)                           | Embedded task board, shared conversation and typed host fixture     |
+| Part                                                              | Responsibility                                                      |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [@familiar-ai/core](packages/core/README.md)                      | Portable assistant, memory, schedules, plugins and HTTP/SSE routes  |
+| [@familiar-ai/client](packages/client/README.md)                  | Live client store, transcripts and optional React bindings          |
+| [@familiar-ai/cloudflare](packages/cloudflare/README.md)          | SQLite Durable Object storage and alarm lifecycle                   |
+| [Node daemon](apps/daemon/README.md)                              | Local storage, ChatGPT login, network policy, CLI and notifications |
+| [Web app](apps/web/README.md)                                     | Chat, memory, schedules and Connections UI                          |
+| [Cloudflare Worker example](examples/cloudflare-worker/README.md) | A Worker hosting one Familiar per name on Durable Objects           |
+| [Docs site](apps/docs/README.md)                                  | This project's documentation                                        |
+| [Examples](examples/README.md)                                    | Embedded task board, shared conversation and typed host fixture     |
 
 Start building with [Your first Familiar](https://aidanzealley.github.io/familiar/build/first-familiar/).
 
