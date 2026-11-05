@@ -5,11 +5,11 @@ import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'
 import { lockDataDir } from './lock.ts'
 import { openModels } from './models.ts'
-import { loadPlugins } from './plugins.ts'
 import { webPersona } from './persona.ts'
 import { openPush } from './push.ts'
 import { fileSecretStore } from './secrets.ts'
 import { serveFamiliar } from './serve.ts'
+import { webTools } from './tools/index.ts'
 
 export async function serve() {
   lockDataDir(dataPath('daemon.lock'))
@@ -29,7 +29,7 @@ export async function serve() {
     // Owners sign in to ChatGPT from the web UI, through the Models requests use.
     account: { login: { getDeviceId: deviceId, agentName: config.name } },
     notify: push.notify,
-    plugins: await loadPlugins(),
+    plugins: [webTools],
     secrets: fileSecretStore(dataPath('secrets.json')),
     fetch: guardedFetch,
     mcpFetch: fetch,

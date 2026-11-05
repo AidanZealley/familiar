@@ -59,7 +59,6 @@ test('serve starts with saved settings and isolated SQLite storage', async () =>
     ...process.env,
     FAMILIAR_DATA_DIR: temporary,
     FAMILIAR_HOST: '127.0.0.1',
-    FAMILIAR_PLUGINS: '',
   }
   delete env.FAMILIAR_PORT
   delete env.FAMILIAR_NAME

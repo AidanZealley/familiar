@@ -4,11 +4,10 @@ import {
 } from '@familiar-ai/core/extensions'
 import type { ToolExecutionApi } from '@familiar-ai/core/extensions'
 import { expect, test } from 'vitest'
-import { loadPlugins } from './plugins.ts'
+import { webTools } from './tools/index.ts'
 
-const tool = async (html: string) => {
-  const [web] = await loadPlugins('')
-  return web
+const tool = async (html: string) =>
+  webTools
     .extension({
       now: Date.now,
       timeZone: 'UTC',
@@ -20,7 +19,6 @@ const tool = async (html: string) => {
       },
     })
     .tools!.find((tool) => tool.name === 'web_fetch')!
-}
 const api = {
   now: Date.now,
   // This isolated conversion test has no durable tool task or initiating person.

@@ -28,7 +28,7 @@ export type ServeOptions = {
  * the API as if it were its own origin; Tailscale owns *.ts.net, so those
  * names can't be rebound.
  */
-export function isAllowedHost(host: string | null) {
+function isAllowedHost(host: string | null) {
   if (!host || !URL.canParse(`http://${host}`)) {
     return false
   }
@@ -59,7 +59,7 @@ const sameHost = (origin: string, host: string | undefined) =>
  * sends Origin on a cross-origin POST, so the CLI, curl and scripts on the
  * owner's network keep working without one.
  */
-export function browserRequestsSameOrigin(): MiddlewareHandler {
+function browserRequestsSameOrigin(): MiddlewareHandler {
   const guard = csrf({
     origin: (origin, c) => sameHost(origin, c.req.header('host')),
   })

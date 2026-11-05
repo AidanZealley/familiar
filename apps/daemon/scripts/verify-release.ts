@@ -48,7 +48,6 @@ const env: NodeJS.ProcessEnv = {
   FAMILIAR_DATA_DIR: resolve(temporary, 'data'),
   FAMILIAR_HOST: '127.0.0.1',
   FAMILIAR_NAME: 'Release test',
-  FAMILIAR_PLUGINS: '',
   NODE_PATH: '',
   FAMILIAR_RELEASE_TEST_DIR: temporary,
   PATH: `${bin}${delimiter}${process.env.PATH}`,

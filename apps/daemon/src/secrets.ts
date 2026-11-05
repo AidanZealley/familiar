@@ -1,24 +1,12 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import type { SecretStore } from '@familiar-ai/core'
+import { jsonFile } from './json-file.ts'
 
 type SecretsFile = Record<string, Record<string, Record<string, string>>>
 
-/**
- * Plugins' secrets in one JSON file, nested by kind, name and secret, kept in
- * memory and rewritten atomically on change. Writes are synchronous and one
- * process owns the file, so they can't interleave.
- */
+/** Plugins' and MCP servers' secrets in one JSON file, nested by kind, name and secret. */
 export function fileSecretStore(path: string): SecretStore {
-  const secrets: SecretsFile = existsSync(path)
-    ? JSON.parse(readFileSync(path, 'utf8'))
-    : {}
-
-  const save = () => {
-    writeFileSync(`${path}.tmp`, JSON.stringify(secrets, null, 2), {
-      mode: 0o600,
-    })
-    renameSync(`${path}.tmp`, path)
-  }
+  const file = jsonFile<SecretsFile>(path, () => ({}))
+  const secrets = file.value
 
   return {
     get: async ({ kind, name }, secret) => secrets[kind]?.[name]?.[secret],
@@ -26,7 +14,7 @@ export function fileSecretStore(path: string): SecretStore {
       secrets[kind] ??= {}
       secrets[kind][name] ??= {}
       secrets[kind][name][secret] = value
-      save()
+      file.save()
     },
     delete: async ({ kind, name }, secret) => {
       const owned = secrets[kind]?.[name]
@@ -37,7 +25,7 @@ export function fileSecretStore(path: string): SecretStore {
       if (Object.keys(owned).length === 0) {
         delete secrets[kind][name]
       }
-      save()
+      file.save()
     },
   }
 }
