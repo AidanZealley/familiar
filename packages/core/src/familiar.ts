@@ -41,7 +41,7 @@ import {
   type Notify,
   type SchedulesApi,
 } from './schedules/index.ts'
-import { checkTimeZone, createTime } from './time/index.ts'
+import { checkTimeZone, createTime } from './time.ts'
 
 // The types in Familiar's own signatures, so hosts can name them.
 export type {
@@ -90,7 +90,7 @@ export {
   type PluginSecret,
   type SecretStore,
 } from './plugins/index.ts'
-export { localMinute } from './time/index.ts'
+export { localMinute } from './time.ts'
 export type { UsageState as Usage, Wake } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {

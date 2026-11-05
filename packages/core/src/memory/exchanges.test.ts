@@ -1,7 +1,7 @@
 import type { EntryId } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { TEST_ZONE } from '../testing.ts'
-import { parseDay } from '../time/index.ts'
+import { parseDay } from '../time.ts'
 import { datesIn } from './episodes.ts'
 import { createExchangeIndex } from './exchanges.ts'
 

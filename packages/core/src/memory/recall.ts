@@ -10,7 +10,7 @@ import {
   type EpisodesState,
   type Span,
 } from './episodes.ts'
-import { hourOn, localDay, localMinute } from '../time/index.ts'
+import { hourOn, localDay, localMinute } from '../time.ts'
 import type { Exchange, ExchangeIndex } from './exchanges.ts'
 import { factDays, isPast, type Fact, type FactsState } from './facts.ts'
 

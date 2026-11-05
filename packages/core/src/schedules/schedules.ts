@@ -1,6 +1,6 @@
 import { defineDoc } from '@earendil-works/pi-durable'
 import type { Author } from '../conversation/message.ts'
-import { parseMinute } from '../time/index.ts'
+import { parseMinute } from '../time.ts'
 import {
   latestOccurrence,
   nextOccurrence,

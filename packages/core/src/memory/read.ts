@@ -1,6 +1,6 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { formatAuthor } from '../conversation/message.ts'
-import { localMinute } from '../time/index.ts'
+import { localMinute } from '../time.ts'
 import type { Episode, EpisodesState, Span } from './episodes.ts'
 import {
   entryOf,

@@ -1,5 +1,5 @@
 import { defineDoc, type EntryId, type Tx } from '@earendil-works/pi-durable'
-import { formatDay, parseDay } from '../time/index.ts'
+import { formatDay, parseDay } from '../time.ts'
 
 /**
  * The fact store and every rule about changing it. Upkeep's tools and the

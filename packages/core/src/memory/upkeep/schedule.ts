@@ -4,7 +4,7 @@ import {
   type EntryId,
   type TaskId,
 } from '@earendil-works/pi-durable'
-import { addDays, hourOn, localDay } from '../../time/index.ts'
+import { addDays, hourOn, localDay } from '../../time.ts'
 
 /** Passes run daily at this hour, in Familiar's time zone. */
 const UPKEEP_HOUR = 4

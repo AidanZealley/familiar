@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
-import { localDay } from '../time/index.ts'
+import { localDay } from '../time.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import {
   Facts,

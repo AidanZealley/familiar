@@ -5,7 +5,7 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import { entriesOf, formatAuthor, saidBy } from '../../conversation/message.ts'
-import { localMinute } from '../../time/index.ts'
+import { localMinute } from '../../time.ts'
 import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
 

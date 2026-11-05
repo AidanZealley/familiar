@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 import { addEpisode, type EpisodesState, type Span } from './episodes.ts'
 import { rememberFact, retireFact, reviseFact, type Memory } from './facts.ts'
 import { TEST_ZONE } from '../testing.ts'
-import { localDay } from '../time/index.ts'
+import { localDay } from '../time.ts'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { createExchangeIndex } from './exchanges.ts'
 import {

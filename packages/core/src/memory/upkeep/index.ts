@@ -24,7 +24,7 @@ import {
   type EpisodesState,
 } from '../episodes.ts'
 import { describeEpisode } from '../recall.ts'
-import { addDays } from '../../time/index.ts'
+import { addDays } from '../../time.ts'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import {
   coreFacts,
