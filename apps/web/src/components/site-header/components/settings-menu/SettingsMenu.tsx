@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import {
   LogOutIcon,
   MonitorIcon,
@@ -5,7 +6,7 @@ import {
   SettingsIcon,
   SunIcon,
 } from 'lucide-react'
-import { useTheme } from '@/lib/theme'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,10 +20,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { familiar, useFamiliar } from '@/lib/familiar'
+import { useTheme, type Theme } from '@/lib/theme'
 
 export const SettingsMenu = () => {
   const { theme, setTheme } = useTheme()
   const signedIn = useFamiliar((state) => state.account?.status === 'signed-in')
+  // The menu has closed by the time it fails, so the failure is a toast.
+  const signOut = useMutation({
+    mutationFn: () => familiar.account.signOut(),
+    onError: (error) => toast.error(`Couldn't sign out: ${error.message}`),
+  })
 
   return (
     <DropdownMenu>
@@ -36,11 +43,7 @@ export const SettingsMenu = () => {
           <DropdownMenuLabel>Appearance</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={theme}
-            onValueChange={(value) => {
-              if (value === 'light' || value === 'dark' || value === 'system') {
-                setTheme(value)
-              }
-            }}
+            onValueChange={(value: Theme) => setTheme(value)}
           >
             <DropdownMenuRadioItem value="light">
               <SunIcon />
@@ -62,9 +65,7 @@ export const SettingsMenu = () => {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuLabel>Provider</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => void familiar.account.signOut().catch(() => {})}
-              >
+              <DropdownMenuItem onClick={() => signOut.mutate()}>
                 <LogOutIcon />
                 Sign out
               </DropdownMenuItem>

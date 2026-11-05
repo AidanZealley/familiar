@@ -16,21 +16,25 @@ import {
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu'
 import { memorySections } from '@/lib/memory-sections'
-
-import { SettingsMenu } from './components/settings-menu'
 import { ConnectionStatus } from './components/connection-status'
+import { SettingsMenu } from './components/settings-menu'
+
+const pages = [
+  { to: '/', label: 'Chat', icon: MessageSquareIcon },
+  { to: '/schedules', label: 'Schedules', icon: AlarmClockIcon },
+  { to: '/connections', label: 'Connections', icon: PlugIcon },
+] as const
 
 const current = 'bg-muted text-foreground'
 
 /**
  * Glass: translucent, blurring what scrolls under it, with a faint edge.
- * Its height is `--chrome`, which the root sets, so sticky parts of a page
- * can sit below it. Memory's pages are one choice away in its menu; a tap
- * opens it on a phone, as hovering does with a mouse.
+ * Its height is `--chrome`, so sticky parts of a page can sit below it.
+ * Memory's pages are one choice away in its menu; a tap opens it on a
+ * phone, as hovering does with a mouse.
  */
 export const SiteHeader = () => {
   const path = useRouterState({ select: (state) => state.location.pathname })
-  const inMemory = path.startsWith('/memory')
 
   return (
     <header className="sticky top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md">
@@ -42,53 +46,27 @@ export const SiteHeader = () => {
         </h1>
         <NavigationMenu align="end" className="ml-auto">
           <NavigationMenuList className="gap-1">
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                active={path === '/'}
-                render={<Link to="/" />}
-                className={cn(
-                  navigationMenuTriggerStyle(),
-                  'gap-1.5 text-muted-foreground',
-                  path === '/' && current,
-                )}
-              >
-                <MessageSquareIcon />
-                <span className="max-sm:sr-only">Chat</span>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                active={path === '/schedules'}
-                render={<Link to="/schedules" />}
-                className={cn(
-                  navigationMenuTriggerStyle(),
-                  'gap-1.5 text-muted-foreground',
-                  path === '/schedules' && current,
-                )}
-              >
-                <AlarmClockIcon />
-                <span className="max-sm:sr-only">Schedules</span>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                active={path === '/connections'}
-                render={<Link to="/connections" />}
-                className={cn(
-                  navigationMenuTriggerStyle(),
-                  'gap-1.5 text-muted-foreground',
-                  path === '/connections' && current,
-                )}
-              >
-                <PlugIcon />
-                <span className="max-sm:sr-only">Connections</span>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+            {pages.map(({ to, label, icon: Icon }) => (
+              <NavigationMenuItem key={to}>
+                <NavigationMenuLink
+                  active={path === to}
+                  render={<Link to={to} />}
+                  className={cn(
+                    navigationMenuTriggerStyle(),
+                    'gap-1.5 text-muted-foreground data-active:bg-muted data-active:text-foreground',
+                  )}
+                >
+                  <Icon />
+                  <span className="max-sm:sr-only">{label}</span>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            ))}
             <NavigationMenuItem>
               <NavigationMenuTrigger
                 className={cn(
                   'gap-1.5 text-muted-foreground max-sm:[&>svg:last-child]:hidden',
-                  inMemory && current,
+                  // A trigger, not a link, so it has no active state of its own.
+                  path.startsWith('/memory') && current,
                 )}
               >
                 <LibraryIcon className="size-4" />
