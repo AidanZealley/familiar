@@ -1,12 +1,8 @@
+import { IconTile } from '@/components/icon-tile'
 import { FactItem } from '../fact-item'
 import type { FactListProps } from './types'
 
-export const FactList = ({
-  title,
-  icon: Icon,
-  description,
-  facts,
-}: FactListProps) =>
+export const FactList = ({ title, icon, description, facts }: FactListProps) =>
   facts.length > 0 && (
     <section>
       <header className="flex items-center gap-3 border-b pb-3">
@@ -19,9 +15,7 @@ export const FactList = ({
           </h2>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
-          <Icon className="size-[1.125rem]" />
-        </span>
+        <IconTile icon={icon} />
       </header>
       <ul className="mt-1 flex flex-col">
         {facts.map((fact) => (

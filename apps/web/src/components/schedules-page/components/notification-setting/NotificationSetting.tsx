@@ -1,6 +1,7 @@
 import { BellIcon, BellOffIcon } from 'lucide-react'
+import { IconTile } from '@/components/icon-tile'
 import { Button } from '@/components/ui/button'
-import { useNotifications, type NotificationStatus } from '@/lib/notifications'
+import { useNotifications, type NotificationStatus } from './notifications'
 
 const explanations: Record<NotificationStatus, string> = {
   checking: 'Checking this device…',
@@ -19,13 +20,7 @@ export const NotificationSetting = () => {
 
   return (
     <section className="flex items-center gap-3 border bg-card p-3">
-      <span className="grid size-9 shrink-0 place-items-center bg-primary/10 text-primary">
-        {on ? (
-          <BellIcon className="size-[1.125rem]" />
-        ) : (
-          <BellOffIcon className="size-[1.125rem]" />
-        )}
-      </span>
+      <IconTile icon={on ? BellIcon : BellOffIcon} />
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-medium">Notifications</h2>
         <p className="text-xs text-muted-foreground">{explanations[status]}</p>
