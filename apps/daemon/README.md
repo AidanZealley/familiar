@@ -29,4 +29,4 @@ This starts the scripted daemon on port 4318 and the UI on 5174 with disposable 
 
 `pnpm bundle` creates the installable tarball; `pnpm test:release` verifies it using temporary storage. Both run from the repository root. The [release workflow](../../.github/workflows/release.yml) publishes tagged releases.
 
-Start reading at `src/main.ts`, `src/serve.ts` and `src/config.ts`. Platform setup is under `src/cli/`. Portable assistant capabilities belong in [core](../../packages/core/README.md), not this host.
+Start reading at `src/cli.ts`, the entry, then `src/daemon.ts`, which assembles the host, `src/serve.ts` and `src/config.ts`. Platform setup is under `src/cli/`. Portable assistant capabilities belong in [core](../../packages/core/README.md), not this host.
