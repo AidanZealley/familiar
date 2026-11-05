@@ -17,6 +17,13 @@ const dayYearFormat = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
+const nextFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+})
 
 /** A short date, with the year only when it isn't this year. */
 const formatDay = (date: Date) =>
@@ -28,6 +35,9 @@ const formatDay = (date: Date) =>
 export const formatDate = (day: string) => formatDay(localDate(day))
 
 export const formatTime = (ms: number) => timeFormat.format(ms)
+
+/** When a schedule next fires: `Tue 7 Jan, 09:00`. */
+export const formatNext = (ms: number) => nextFormat.format(ms)
 
 /** An episode's dates: `7 Jan` for a day, `22–28 Dec` for a week. */
 export const formatSpan = (episode: Episode) => {
