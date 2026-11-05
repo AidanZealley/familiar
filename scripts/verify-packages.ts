@@ -321,7 +321,6 @@ state.conversation.setThinkingLevel('high')
 state.conversation.loadOlder()
 state.memory.revise('fact-1', 'Corrected')
 state.memory.setPinned('fact-1', true)
-state.memory.health()
 state.account.signIn()
 state.account.state?.status
 state.memory.facts?.facts

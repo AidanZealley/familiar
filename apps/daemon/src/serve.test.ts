@@ -159,7 +159,7 @@ test("the daemon's own UI refuses to be framed; an embedding host's API sets no 
     authenticate: () => ({ id: 'sam', name: 'Sam' }),
     allow: () => true,
   })
-  expect(framing(await embedded.request('/memory/health'))).toEqual([
+  expect(framing(await embedded.request('/model/options'))).toEqual([
     null,
     null,
   ])

@@ -53,36 +53,53 @@ const full = (count: number) => {
 
 const coreSize = (memory: Memory) => listFacts(coreFacts(memory.facts)).length
 
-test('remember puts important facts in core and minor ones outside it', () => {
-  const memory = empty()
-  const important = save(memory, ' Lives in Leeds ', 3, 10, '2025-01-06', 4)
-  const minor = save(memory, 'Likes blue pens', 1, 20)
-  expect(important).toEqual({
-    id: 'f1',
-    text: 'Lives in Leeds',
-    importance: 3,
-    since: '2025-01-06',
-    sources: [4],
-    saved: 10,
-    core: true,
-  })
-  expect(minor).toMatchObject({ id: 'f2', importance: 1, core: false })
-  expect(memory.facts.next).toBe(3)
-})
+test('remember saves a fact as given, and core fills by importance, then recent use, within budget', () => {
+  {
+    const memory = empty()
+    const important = save(memory, ' Lives in Leeds ', 3, 10, '2025-01-06', 4)
+    const minor = save(memory, 'Likes blue pens', 1, 20)
+    expect(important).toEqual({
+      id: 'f1',
+      text: 'Lives in Leeds',
+      importance: 3,
+      since: '2025-01-06',
+      sources: [4],
+      saved: 10,
+      core: true,
+    })
+    expect(minor).toMatchObject({ id: 'f2', importance: 1, core: false })
+    expect(memory.facts.next).toBe(3)
+  }
 
-test('beyond core budget, remember keeps the fact outside core instead of refusing', () => {
   const memory = full(80)
+  // Past the budget, a fact is kept outside core rather than refused.
   expect(memory.facts.facts).toHaveLength(80)
-  expect(coreSize(memory)).toBeLessThanOrEqual(CORE_BUDGET)
   expect(memory.facts.facts.at(-1)?.core).toBe(false)
-  // More important than everything in core, so it takes a place there.
-  const essential = save(memory, 'Allergic to penicillin', 5, 2)
-  expect(essential.core).toBe(true)
+  // Minor facts never enter core unless pinned.
+  const minor = save(memory, 'Likes blue pens', 1, 5)
+  // A fact recalled well after core's facts were last used takes a place;
+  // CORE_STICKINESS keeps one recalled about as recently from flipping core.
+  const outside = memory.facts.facts.filter((fact) => !fact.core)
+  const recalled = outside[0]
+  markRecalled(memory.usage, [recalled.id], 2 + CORE_STICKINESS)
+  const recent = outside[1]
+  markRecalled(memory.usage, [recent.id], CORE_STICKINESS - 1)
+  // An essential fact beats every importance-4 fact.
+  const essential = save(memory, 'Allergic to penicillin', 5)
+  const count = memory.facts.facts.length
+  rebalanceCore(memory)
+  expect(memory.facts.facts).toHaveLength(count)
   expect(coreSize(memory)).toBeLessThanOrEqual(CORE_BUDGET)
-  expect(memory.facts.facts).toHaveLength(81)
+  expect(minor.core).toBe(false)
+  expect(recalled.core).toBe(true)
+  expect(recent.core).toBe(false)
+  expect(essential.core).toBe(true)
+  // Past facts never return to core.
+  retireFact(memory, essential.id, '2025-06-01')
+  rebalanceCore(memory)
+  expect(essential.core).toBe(false)
 })
-
-test('text, importance and days are checked without changing memory', () => {
+test('text, importance, days and length are checked without changing memory', () => {
   const memory = empty()
   for (const importance of [0, 6, 2.5]) {
     expect(() => save(memory, 'Text', importance)).toThrow(FactError)
@@ -92,10 +109,7 @@ test('text, importance and days are checked without changing memory', () => {
     expect(() => save(memory, 'Text', 2, 1, since)).toThrow('not a day')
   }
   expect(memory).toEqual(empty())
-})
 
-test('a fact over the length cap is refused with advice to split it', () => {
-  const memory = empty()
   save(memory, 'x'.repeat(FACT_LIMIT), 2)
   expect(() => save(memory, 'x'.repeat(FACT_LIMIT + 1), 2)).toThrow(
     /at most 300 characters.*Split it into separate facts/,
@@ -111,7 +125,6 @@ test('a fact over the length cap is refused with advice to split it', () => {
   expect(memory.facts.facts).toHaveLength(1)
   expect(memory.facts.facts[0].until).toBeUndefined()
 })
-
 test('revising ends the old version on the day the new one begins, carrying its sources', () => {
   const memory = empty()
   save(memory, 'Lives in Leeds', 4, 10, '2025-01-06', 1)
@@ -158,19 +171,26 @@ test('revising ends the old version on the day the new one begins, carrying its 
   expect(factDays(memory.facts, sheffield)).toBe('since 2025-07-01')
 })
 
-test('a revision dated before the old fact began never ends it before it started', () => {
-  const memory = empty()
-  save(memory, 'Birthday is 4 May', 3, 1, '2025-03-01')
-  reviseFact(
-    memory,
-    'f1',
-    { text: 'Birthday is 5 May', since: '2025-01-01', importance: 5 },
-    2,
-  )
-  expect(memory.facts.facts[0].until).toBe('2025-03-01')
-  expect(memory.facts.facts[1]).toMatchObject({ importance: 5 })
+test('a fact never ends before it started, whether revised or retired', () => {
+  {
+    const memory = empty()
+    save(memory, 'Birthday is 4 May', 3, 1, '2025-03-01')
+    reviseFact(
+      memory,
+      'f1',
+      { text: 'Birthday is 5 May', since: '2025-01-01', importance: 5 },
+      2,
+    )
+    expect(memory.facts.facts[0].until).toBe('2025-03-01')
+    expect(memory.facts.facts[1]).toMatchObject({ importance: 5 })
+  }
+  {
+    const memory = empty()
+    save(memory, 'Works at Lantern Museum', 4, 10, '2025-03-01')
+    retireFact(memory, 'f1', '2025-01-01')
+    expect(memory.facts.facts[0].until).toBe('2025-03-01')
+  }
 })
-
 test('merging supersedes every merged fact with one new version', () => {
   const memory = empty()
   save(memory, 'Has a cat', 2, 10, '2025-01-01', 1)
@@ -218,13 +238,6 @@ test('retiring keeps the fact as past history, ending on the given day', () => {
   expect(factDays(memory.facts, memory.facts.facts[0])).toBe(
     '2025-01-06 to 2025-02-09, no longer current',
   )
-})
-
-test('retiring before a fact began ends it the day it began', () => {
-  const memory = empty()
-  save(memory, 'Works at Lantern Museum', 4, 10, '2025-03-01')
-  retireFact(memory, 'f1', '2025-01-01')
-  expect(memory.facts.facts[0].until).toBe('2025-03-01')
 })
 
 test('past and missing facts cannot change, and nothing is touched trying', () => {
@@ -287,33 +300,6 @@ test('a revision too long to stay pinned stays current, unpinned', () => {
   expect(
     memory.facts.facts.filter((fact) => fact.pinned).every((fact) => fact.core),
   ).toBe(true)
-})
-
-test('rebalancing fills core by importance, then recent use, within budget', () => {
-  const memory = full(80)
-  // Minor facts never enter core unless pinned.
-  const minor = save(memory, 'Likes blue pens', 1, 5)
-  // A fact recalled well after core's facts were last used takes a place;
-  // CORE_STICKINESS keeps one recalled about as recently from flipping core.
-  const outside = memory.facts.facts.filter((fact) => !fact.core)
-  const recalled = outside[0]
-  markRecalled(memory.usage, [recalled.id], 2 + CORE_STICKINESS)
-  const recent = outside[1]
-  markRecalled(memory.usage, [recent.id], CORE_STICKINESS - 1)
-  // An essential fact beats every importance-4 fact.
-  const essential = save(memory, 'Allergic to penicillin', 5)
-  const count = memory.facts.facts.length
-  rebalanceCore(memory)
-  expect(memory.facts.facts).toHaveLength(count)
-  expect(coreSize(memory)).toBeLessThanOrEqual(CORE_BUDGET)
-  expect(minor.core).toBe(false)
-  expect(recalled.core).toBe(true)
-  expect(recent.core).toBe(false)
-  expect(essential.core).toBe(true)
-  // Past facts never return to core.
-  retireFact(memory, essential.id, '2025-06-01')
-  rebalanceCore(memory)
-  expect(essential.core).toBe(false)
 })
 
 test('review picks current facts unchecked longest, oldest first, up to the limit', () => {

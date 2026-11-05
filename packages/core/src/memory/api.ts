@@ -1,8 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
 import { localDay } from '../time/index.ts'
-import type { TranscriptExchanges } from './exchanges.ts'
-import { memoryHealth, type MemoryHealth, type SearchTimes } from './health.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import {
   Facts,
@@ -25,8 +23,6 @@ export type MemoryApi = {
   retire(id: string): Promise<void>
   /** Pin a fact into core, or unpin it so rebalancing decides. Rejects when the pinned facts alone would pass core's budget. */
   setPinned(id: string, pinned: boolean): Promise<void>
-  /** Numbers that show whether memory is keeping up as it grows. */
-  health(): Promise<MemoryHealth>
 }
 
 const context = BACKGROUND_CONTEXT
@@ -35,8 +31,6 @@ const context = BACKGROUND_CONTEXT
 export function memoryApi(
   harness: Harness,
   now: () => number,
-  exchanges: TranscriptExchanges,
-  times: SearchTimes,
   timeZone: string,
 ): MemoryApi {
   const editMemory = (edit: (memory: Memory) => void) =>
@@ -59,21 +53,5 @@ export function memoryApi(
       editMemory((memory) => retireFact(memory, id, localDay(now(), timeZone))),
     setPinned: (id, pinned) =>
       editMemory((memory) => setPinned(memory, id, pinned)),
-    // Catches the exchange index up first, so its count is the transcript's.
-    health: () =>
-      harness.commit(async (tx) => {
-        const index = await exchanges.catchUp(tx)
-        return memoryHealth(
-          await openMemory(tx),
-          await tx.doc(Episodes),
-          {
-            size: index.size,
-            buildMs: exchanges.buildMs,
-            catchUpMs: exchanges.catchUpMs,
-          },
-          times.summary(),
-          now(),
-        )
-      }, context),
   }
 }

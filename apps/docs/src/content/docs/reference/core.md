@@ -83,7 +83,6 @@ Familiar stores no permissions. A tool, or the app API behind it, enforces narro
 | `memory.revise(id, text)`                                    | Save a new version of a fact, true from today                       |
 | `memory.retire(id)`                                          | Mark a fact no longer true from today                               |
 | `memory.setPinned(id, pinned)`                               | Pin a fact into core or unpin it                                    |
-| `memory.health()`                                            | Numbers that show whether memory upkeep is keeping up               |
 | `schedules.watch()`                                          | Document watch for schedules                                        |
 | `schedules.cancel(id)`                                       | Cancel a schedule. Rejects if there's no such schedule              |
 | `connections.list()`                                         | Plugin and MCP connections, with whether each secret is set         |

@@ -34,7 +34,7 @@ Commands return promises that reject with the server's error. They aren't retrie
 | Group          | Commands                                                                                                |
 | -------------- | ------------------------------------------------------------------------------------------------------- |
 | `conversation` | `send(text)`, `abort()`, `loadOlder()`, `modelOptions()`, `setModel(ref)`, `setThinkingLevel(level)`    |
-| `memory`       | `revise(id, text)`, `retire(id)`, `setPinned(id, pinned)`, `health()`                                   |
+| `memory`       | `revise(id, text)`, `retire(id)`, `setPinned(id, pinned)`                                               |
 | `schedules`    | `cancel(id)`                                                                                            |
 | `account`      | `signIn()`, `answerSignIn(text)`, `cancelSignIn()`, `signOut()`                                         |
 | `push`         | `key()` (`undefined` when the host has no push), `subscribe(subscription)`, `unsubscribe(subscription)` |

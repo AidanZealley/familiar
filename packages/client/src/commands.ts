@@ -5,7 +5,6 @@ import type {
   HttpApi,
   Connection as ConnectionKey,
   ConnectionInfo,
-  MemoryHealth,
   ModelOption,
   McpServer,
   PushSubscriptionJson,
@@ -58,13 +57,6 @@ export const createCommands = (
         succeed(
           api.memory[':id'].pin.$put({ param: { id }, json: { pinned } }),
         ),
-      health: async (): Promise<MemoryHealth> => {
-        const response = await api.memory.health.$get()
-        if (!response.ok) {
-          throw await failed(response)
-        }
-        return response.json()
-      },
     },
     schedules: {
       cancel: (id: string) =>

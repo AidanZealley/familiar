@@ -15,7 +15,6 @@ export type Operation =
   | 'account.answerSignIn'
   | 'account.cancelSignIn'
   | 'account.signOut'
-  | 'memory.health'
   | 'memory.revise'
   | 'memory.retire'
   | 'memory.setPinned'

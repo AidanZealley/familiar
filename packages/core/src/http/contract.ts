@@ -32,7 +32,6 @@ export type {
   EpisodesState,
   Fact,
   FactsState,
-  MemoryHealth,
 } from '../memory/index.ts'
 
 /**
