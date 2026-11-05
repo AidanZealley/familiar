@@ -12,6 +12,7 @@ vi.mock('../config.ts', () => ({
   deviceId: vi.fn(),
 }))
 vi.mock('../models.ts', () => ({ openModels: vi.fn() }))
+vi.mock('../paths.ts', () => ({ ensureDataDir: vi.fn() }))
 const terminal = { question: vi.fn(), close: vi.fn() }
 const login = vi.fn(
   async (_provider: string, _type: string, interaction: AuthInteraction) => {

@@ -5,8 +5,7 @@ import { createModels } from '@familiar-ai/core/models'
 import { openaiProvider } from '@familiar-ai/core/models/openai'
 import { fileCredentialStore } from '../credentials.ts'
 
-// This command deliberately never imports config.ts: that module creates the
-// owner's data directory as a side effect when FAMILIAR_DATA_DIR is unset.
+// The eval signs in separately, so it never touches the owner's login.
 export const evalDataDir = resolve(homedir(), '.local/share/familiar-eval')
 const authPath = join(evalDataDir, 'auth.json')
 const credentials = fileCredentialStore(authPath)

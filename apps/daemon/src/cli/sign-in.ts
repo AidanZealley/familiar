@@ -5,8 +5,10 @@ import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
 import { config, deviceId } from '../config.ts'
 import { openModels } from '../models.ts'
+import { ensureDataDir } from '../paths.ts'
 
 export async function signIn() {
+  ensureDataDir(config.dataDir)
   const models = openModels()
   const terminal = createInterface({
     input: process.stdin,

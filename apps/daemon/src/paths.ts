@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync } from 'node:fs'
+import { chmodSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, resolve } from 'node:path'
 
@@ -16,42 +16,35 @@ export function resolvePaths({
   home = homedir(),
   codeDir = import.meta.dirname,
 }: PathOptions = {}) {
-  const legacy = resolve(
-    env.XDG_DATA_HOME ?? resolve(home, '.local/share'),
-    'familiar',
-  )
-  const platformDefault =
-    platform === 'darwin'
-      ? resolve(home, 'Library/Application Support/Familiar')
-      : platform === 'win32'
-        ? resolve(
-            env.LOCALAPPDATA ?? resolve(home, 'AppData/Local'),
-            'Familiar',
-          )
-        : legacy
-
-  // Earlier releases used the XDG location on every platform. Keep an
-  // existing installation there rather than silently starting a new one.
   const dataDir = resolve(
-    env.FAMILIAR_DATA_DIR ?? (existsSync(legacy) ? legacy : platformDefault),
+    env.FAMILIAR_DATA_DIR ??
+      (platform === 'darwin'
+        ? resolve(home, 'Library/Application Support/Familiar')
+        : platform === 'win32'
+          ? resolve(
+              env.LOCALAPPDATA ?? resolve(home, 'AppData/Local'),
+              'Familiar',
+            )
+          : resolve(
+              env.XDG_DATA_HOME ?? resolve(home, '.local/share'),
+              'familiar',
+            )),
   )
+  // Run from a checkout's `apps/daemon/src`, or from the installed bundle.
+  const source = basename(codeDir) === 'src'
   return {
     dataDir,
     // Saved stdio MCP commands inherit this directory, including relative script paths.
-    workDir:
-      basename(codeDir) === 'src' ? resolve(codeDir, '../../..') : codeDir,
-    cliPath: resolve(
-      codeDir,
-      basename(codeDir) === 'src' ? 'cli.ts' : 'familiar.js',
-    ),
-    webDir:
-      basename(codeDir) === 'src'
-        ? resolve(codeDir, '../../web/dist')
-        : resolve(codeDir, 'web'),
+    workDir: source ? resolve(codeDir, '../../..') : codeDir,
+    cliPath: resolve(codeDir, source ? 'cli.ts' : 'familiar.js'),
+    webDir: resolve(codeDir, source ? '../../web/dist' : 'web'),
   }
 }
 
-/** Both setup and the daemon create private storage through this boundary. */
+/**
+ * Create the data directory, private to this user even if it already
+ * existed: it holds the ChatGPT login and the whole conversation.
+ */
 export function ensureDataDir(dataDir: string) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
   // Windows ignores mode bits. The default location inherits the user profile's
