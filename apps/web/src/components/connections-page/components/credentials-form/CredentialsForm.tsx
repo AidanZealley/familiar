@@ -1,5 +1,4 @@
-import { familiar } from '@/lib/familiar'
-import { useRouter } from '@tanstack/react-router'
+import { useMutation } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +12,7 @@ import {
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { familiar } from '@/lib/familiar'
 import { TransportDetails } from '../transport-details'
 import type { CredentialsFormProps } from './types'
 
@@ -25,47 +25,35 @@ export const CredentialsForm = ({
   error: initialError,
   onDone,
 }: CredentialsFormProps) => {
-  const router = useRouter()
   const id = useId()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(initialError)
   const changed = connection.secrets.filter((secret) =>
     drafts[secret.name]?.trim(),
   )
-
-  const change = async (request: () => Promise<void>) => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      await request()
-      return true
-    } catch (failure) {
-      setError((failure as Error).message)
-      return false
-    } finally {
-      setBusy(false)
-      await router.invalidate()
-    }
-  }
+  // Each secret's new value, or null to delete it.
+  const change = useMutation({
+    mutationKey: ['connections'],
+    mutationFn: async (secrets: Record<string, string | null>) => {
+      for (const [name, value] of Object.entries(secrets)) {
+        await (value === null
+          ? familiar.connections.deleteSecret(connection, name)
+          : familiar.connections.setSecret(connection, name, value))
+      }
+    },
+  })
+  const error = change.isIdle ? initialError : change.error?.message
 
   return (
     <form
       className="flex min-h-0 flex-1 flex-col"
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault()
-        const saved = await change(async () => {
-          for (const secret of changed) {
-            await familiar.connections.setSecret(
-              connection,
-              secret.name,
-              drafts[secret.name].trim(),
-            )
-          }
-        })
-        if (saved) {
-          onDone()
-        }
+        change.mutate(
+          Object.fromEntries(
+            changed.map((secret) => [secret.name, drafts[secret.name].trim()]),
+          ),
+          { onSuccess: onDone },
+        )
       }}
     >
       <FieldGroup className="flex-1 overflow-y-auto p-4">
@@ -94,15 +82,8 @@ export const CredentialsForm = ({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    void change(() =>
-                      familiar.connections.deleteSecret(
-                        connection,
-                        secret.name,
-                      ),
-                    )
-                  }
+                  disabled={change.isPending}
+                  onClick={() => change.mutate({ [secret.name]: null })}
                 >
                   Remove
                 </Button>
@@ -118,18 +99,12 @@ export const CredentialsForm = ({
         {connection.kind === 'mcp' && (
           <>
             <FieldSeparator />
-            <Field>
-              <TransportDetails transport={connection.transport} />
-              <FieldDescription>
-                The name and these settings are fixed. To change them, remove
-                the server and add it again.
-              </FieldDescription>
-            </Field>
+            <TransportDetails transport={connection.transport} />
           </>
         )}
       </FieldGroup>
       <DrawerFooter>
-        <Button type="submit" disabled={busy || !changed.length}>
+        <Button type="submit" disabled={change.isPending || !changed.length}>
           Save
         </Button>
         <DrawerClose render={<Button variant="outline" />}>Cancel</DrawerClose>

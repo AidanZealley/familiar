@@ -8,8 +8,7 @@ import type { ReplyProps } from './types'
 
 export const Reply = ({ reply }: ReplyProps) => {
   // Nothing visible has arrived yet, so the reply is still thinking.
-  const waiting =
-    reply.streaming && !reply.text && reply.toolCalls.length === 0
+  const waiting = reply.streaming && !reply.text && reply.toolCalls.length === 0
 
   return (
     <Message className="text-sm">

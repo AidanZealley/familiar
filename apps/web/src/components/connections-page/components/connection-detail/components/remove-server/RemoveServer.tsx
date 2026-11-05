@@ -1,7 +1,6 @@
-import { familiar } from '@/lib/familiar'
-import { getRouteApi, useRouter } from '@tanstack/react-router'
+import { useMutation } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { Trash2Icon } from 'lucide-react'
-import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,29 +13,19 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { familiar } from '@/lib/familiar'
 import type { RemoveServerProps } from './types'
 
 const route = getRouteApi('/connections')
 
 export const RemoveServer = ({ connection }: RemoveServerProps) => {
-  const router = useRouter()
   const navigate = route.useNavigate()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
   const { name, transport } = connection
-
-  const remove = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      await familiar.mcp.remove(name)
-      await navigate({ search: ({ q }) => ({ q }) })
-      await router.invalidate()
-    } catch (failure) {
-      setError((failure as Error).message)
-      setBusy(false)
-    }
-  }
+  const remove = useMutation({
+    mutationKey: ['connections'],
+    mutationFn: () => familiar.mcp.remove(name),
+    onSuccess: () => navigate({ search: ({ q }) => ({ q }) }),
+  })
 
   return (
     <AlertDialog>
@@ -56,13 +45,15 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
             . To use it again, add it again.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {remove.error && (
+          <p className="text-sm text-destructive">{remove.error.message}</p>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            disabled={busy}
-            onClick={() => void remove()}
+            disabled={remove.isPending}
+            onClick={() => remove.mutate()}
           >
             Remove
           </AlertDialogAction>
