@@ -192,10 +192,9 @@ try {
     const page = await pages.run({
       html: '<main><h1>Release test</h1><a href="/more">Read more</a></main>',
       url: 'https://example.com/',
-      maxChars: 1000,
     })
-    assert.match(page.text, /# Release test/)
-    assert.match(page.text, /\[Read more\]\(https:\/\/example.com\/more\)/)
+    assert.match(page, /# Release test/)
+    assert.match(page, /\[Read more\]\(https:\/\/example.com\/more\)/)
   } finally {
     await pages.destroy()
   }

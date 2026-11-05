@@ -26,7 +26,7 @@ await mkdir(dist, { recursive: true })
 await build({
   input: {
     familiar: resolve(daemon, 'src/cli.ts'),
-    'page-worker': resolve(daemon, 'src/page-worker.ts'),
+    'page-worker': resolve(daemon, 'src/tools/page-worker.ts'),
     // This depends on the pinned Pi version's internal layout. Its opaque
     // loader expects this filename beside the provider's bundled code. Keep
     // the entry in sync with Pi upgrades; test:release checks both login and refresh.

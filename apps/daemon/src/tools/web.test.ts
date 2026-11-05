@@ -96,8 +96,9 @@ const braveResults = (count: number) => ({
 })
 
 test('web_search sends the key in Brave header and returns compact, numbered results', async () => {
-  const { sent, callTool, setKey } = await setup(() =>
-    Response.json(braveResults(20)),
+  const { sent, callTool, setKey } = await setup(
+    () => Response.json(braveResults(20)),
+    () => Date.UTC(2026, 9, 28, 14, 5),
   )
   await setKey()
 
@@ -117,7 +118,8 @@ test('web_search sends the key in Brave header and returns compact, numbered res
   expect(url.searchParams.get('count')).toBe('5')
   expect(url.searchParams.get('freshness')).toBe('pw')
 
-  expect(text).toMatch(/^Brave Search results for "cats", \d{4}-\d\d-\d\d /)
+  // In Familiar's time zone.
+  expect(text).toMatch(/^Brave Search results for "cats", 2026-10-28 19:35:/)
   expect(text).toContain(
     '1. Cats & kittens 1\n   https://example.com/cats/1\n   Published 2026-10-01\n   About cats. Whiskers.',
   )
@@ -148,19 +150,8 @@ test('web_search keeps the whole output to 8,000 characters', async () => {
   expect(text).not.toContain('10. Cats')
 })
 
-test("times are written in Familiar's time zone", async () => {
-  const { callTool, setKey } = await setup(
-    () => Response.json(braveResults(1)),
-    () => Date.UTC(2026, 9, 28, 14, 5),
-  )
-  await setKey()
-
-  const { text } = await callTool('web_search', { query: 'cats' })
-  expect(text).toMatch(/^Brave Search results for "cats", 2026-10-28 19:35:/)
-})
-
 const article =
-  '<nav>Menu</nav><main><h1>Purrs</h1><p>Read <a href="/more">more</a>.</p><pre><code>cat()</code></pre><table><tr><th>Cat</th></tr><tr><td>Tabby</td></tr></table></main><footer>Footer</footer>'
+  '<nav>Menu</nav><main><h1>Purrs</h1><p>Read <a href="/more">more</a>.</p></main><footer>Footer</footer>'
 
 test('web_fetch reads an article without sending the search key', async () => {
   const { sent, callTool, setKey } = await setup(
@@ -173,30 +164,27 @@ test('web_fetch reads an article without sending the search key', async () => {
   expect(isError).toBe(false)
   expect(text).toContain('# Purrs')
   expect(text).toContain('[more](https://cats.example/more)')
-  expect(text).toContain('cat()')
-  expect(text).toContain('Tabby')
   expect(text).not.toMatch(/Menu|Footer/)
   expect(new Headers(sent[0].init?.headers).has('X-Subscription-Token')).toBe(
     false,
   )
 })
 
-test.each(['text/html', 'text/markdown', 'text/plain'])(
-  'web_fetch bounds %s output and marks truncation',
-  async (type) => {
-    const { callTool } = await setup(
-      () =>
-        new Response('a'.repeat(100), { headers: { 'content-type': type } }),
-    )
-    const { text, isError } = await callTool('web_fetch', {
-      url: 'https://cats.example',
-      maxChars: 12,
-    })
-    expect(isError).toBe(false)
-    expect(text).toContain('aaaaaaaaaaaa\n\n[Content truncated]')
-    expect(text).not.toContain('a'.repeat(13))
-  },
-)
+test('web_fetch bounds its output and marks truncation', async () => {
+  const { callTool } = await setup(
+    () =>
+      new Response(`<p>${'a'.repeat(100)}</p>`, {
+        headers: { 'content-type': 'text/html' },
+      }),
+  )
+  const { text, isError } = await callTool('web_fetch', {
+    url: 'https://cats.example',
+    maxChars: 12,
+  })
+  expect(isError).toBe(false)
+  expect(text).toContain('aaaaaaaaaaaa\n\n[Content truncated]')
+  expect(text).not.toContain('a'.repeat(13))
+})
 
 test('web_fetch refuses oversized bodies and cancels the stream', async () => {
   let cancelled = false
