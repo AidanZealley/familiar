@@ -13,8 +13,6 @@
     "build:docs": "pnpm --filter @familiar-ai/docs build",
     "start": "pnpm --filter @familiar-ai/daemon start",
     "sign-in": "pnpm --filter @familiar-ai/daemon sign-in",
-    "eval:memory": "pnpm --filter @familiar-ai/daemon eval:memory",
-    "eval:memory:rejudge": "pnpm --filter @familiar-ai/daemon eval:memory:rejudge",
     "eval:recall": "pnpm --filter @familiar-ai/daemon eval:recall",
     "eval:unfiled": "pnpm --filter @familiar-ai/daemon eval:unfiled",
     "typecheck": "pnpm -r typecheck",

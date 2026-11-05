@@ -1,12 +1,11 @@
 import { expect, test } from 'vitest'
-import { categories, memoryScenario, rowanV3 } from './scenario.ts'
+import { categories, rowanV3 } from './scenario.ts'
 
 const textDays = rowanV3.days.filter((day) => day.text)
 const groundTruth = textDays.map((day) => day.text).join('\n')
 const normalise = (text: string) => text.toLowerCase().replace(/\s+/g, ' ')
 
-test('v3 preserves v2 and has ten uniquely identified questions per category', () => {
-  expect(memoryScenario.id).toBe('rowan-90-days-v2')
+test('v3 has ten uniquely identified questions per category', () => {
   expect(rowanV3.id).toBe('rowan-v3')
   expect(rowanV3.questions).toHaveLength(50)
   expect(new Set(rowanV3.questions.map((question) => question.id)).size).toBe(
@@ -67,22 +66,21 @@ test('v3 leaves substantial fact-free chatter after the last tested day', () => 
   }
 })
 
-test.each(rowanV3.questions)(
-  '$id has explicit evidence for every required item',
-  (question) => {
-    expect(question.required.length).toBeGreaterThan(0)
-    const testedText = normalise(
-      textDays
-        .filter((day) => day.date <= rowanV3.testedFactsThrough!)
-        .map((day) => day.text)
-        .join('\n'),
-    )
+test('every required item has explicit evidence in the tested days', () => {
+  const testedText = normalise(
+    textDays
+      .filter((day) => day.date <= rowanV3.testedFactsThrough!)
+      .map((day) => day.text)
+      .join('\n'),
+  )
+  for (const question of rowanV3.questions) {
+    expect(question.required.length, question.id).toBeGreaterThan(0)
     // Required items are short verbatim phrases from the prose, so this checks
     // their grounding directly without adding evidence fields to shared types.
     // A "Says …" item describes the answer, for things Rowan never mentioned,
     // so it has no evidence to find.
     for (const required of question.required) {
-      expect(required.trim()).not.toBe('')
+      expect(required.trim(), question.id).not.toBe('')
       if (required.startsWith('Says ')) {
         expect(question.category, question.id).toBe('unknown')
         continue
@@ -91,8 +89,8 @@ test.each(rowanV3.questions)(
         normalise(required),
       )
     }
-  },
-)
+  }
+})
 
 test('v3 asks about some things Rowan never mentioned at all', () => {
   // Explicit "not agreed yet" facts test remembering a negative; these test

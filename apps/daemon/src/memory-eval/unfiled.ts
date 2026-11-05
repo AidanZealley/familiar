@@ -1,5 +1,6 @@
 import { copyFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { setTimeout } from 'node:timers/promises'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Message, TranscriptContext } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
@@ -9,15 +10,17 @@ import {
   type FauxResponseFactory,
 } from '@earendil-works/pi-ai/providers/faux'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
+import {
+  ROOT_CONVERSATION_ID,
+  type EntryRecord,
+  type Storage,
+} from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar, type FamiliarOptions } from '@familiar-ai/core'
-import { nextUpkeep } from '@familiar-ai/core/diagnostics'
-import { createClock, EVAL_TIME_ZONE } from './clock.ts'
-import { unquoted } from './recall.ts'
-import { upkeepThrough } from './replay.ts'
+import { nextUpkeep, type UpkeepState } from '@familiar-ai/core/diagnostics'
+import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
+import { isSkipped, unquoted } from './recall.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
-import { entriesAfter } from './storage.ts'
-import { waitForUpkeep } from './wait.ts'
 
 /**
  * The unfiled test: how much of what was said, compacted out of the model's
@@ -68,8 +71,78 @@ const textOf = (message: Message) =>
 const isSummaryRequest = (context: TranscriptContext) =>
   JSON.stringify(context.messages[0]).includes('context summarization')
 
-/** Midday local time, as the memory eval sends each day. */
-const noonOf = (date: string) => new Date(`${date}T12:00:00`).getTime()
+const context = BACKGROUND_CONTEXT
+
+/**
+ * Waits for upkeep to schedule its first pass for `until`, firing any
+ * earlier timers on the simulated clock while Familiar starts.
+ */
+async function waitForUpkeep(
+  storage: Storage,
+  clock: ReturnType<typeof createClock>,
+  until: number,
+) {
+  const deadline = Date.now() + 60_000
+  for (;;) {
+    const { items } = await storage.scanTasks(
+      { kind: 'familiar.upkeep' },
+      2,
+      undefined,
+      context,
+    )
+    const state = items[0]?.state
+    if (state?.status === 'terminal') {
+      throw new Error(`Memory upkeep ended: ${JSON.stringify(state.outcome)}`)
+    }
+    if (
+      items.length === 1 &&
+      state?.status === 'sleeping' &&
+      state.until === until
+    ) {
+      return
+    }
+    if (Date.now() > deadline) {
+      throw new Error('Memory upkeep never scheduled its first pass.')
+    }
+    await setTimeout(25)
+    const due = clock.nextDue()
+    if (due < until && due >= clock.now()) {
+      clock.advanceTo(due)
+    }
+  }
+}
+
+/** How far upkeep has filed the conversation, or null if it never has. */
+async function upkeepThrough(storage: Storage) {
+  const record = await storage.findDocument(
+    { kind: 'familiar.upkeep', scope: { kind: 'session' } },
+    'current',
+    context,
+  )
+  const document =
+    record && (await storage.document(record.id, 'current', context))
+  if (!document) {
+    throw new Error('Memory upkeep document is missing.')
+  }
+  return (document.value as UpkeepState).through
+}
+
+/** Every entry in the conversation, oldest first. */
+async function entriesIn(storage: Storage) {
+  const entries: EntryRecord[] = []
+  let cursor: Parameters<Storage['scanEntries']>[2]
+  do {
+    const page = await storage.scanEntries(
+      { conversationId: ROOT_CONVERSATION_ID, order: 'ascending' },
+      200,
+      cursor,
+      context,
+    )
+    entries.push(...page.items)
+    cursor = page.next
+  } while (cursor)
+  return entries
+}
 
 /**
  * A scripted model that records every conversation request and replies
@@ -126,12 +199,7 @@ export async function runUnfiledEval(
     setTimer: holding.setTimer,
   })
   try {
-    await waitForUpkeep(
-      holder,
-      held,
-      holding,
-      nextUpkeep(asked, EVAL_TIME_ZONE),
-    )
+    await waitForUpkeep(held, holding, nextUpkeep(asked, EVAL_TIME_ZONE))
   } finally {
     await holder.dismiss()
   }
@@ -166,11 +234,11 @@ export async function runUnfiledEval(
     if ((await upkeepThrough(replay)) !== null) {
       throw new Error('Upkeep ran during the replay, so nothing is unfiled.')
     }
-    compactions = (await entriesAfter(replay)).filter(
+    compactions = (await entriesIn(replay)).filter(
       (entry) => entry.kind === 'pi.compaction',
     ).length
   } finally {
-    await replay.close(BACKGROUND_CONTEXT)
+    await replay.close(context)
   }
 
   const skipped = unquoted(scenario)
@@ -224,11 +292,7 @@ export async function runUnfiledEval(
     const tally = tallies.get(question.category)!
     const found: string[] = []
     for (const required of question.required) {
-      if (
-        skipped.some(
-          (skip) => skip.question === question.id && skip.required === required,
-        )
-      ) {
+      if (isSkipped(skipped, question.id, required)) {
         continue
       }
       const needle = required.toLowerCase()

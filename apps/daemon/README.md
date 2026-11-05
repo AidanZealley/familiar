@@ -25,7 +25,7 @@ This starts the scripted daemon on port 4318 and the UI on 5174 with disposable 
 
 `pnpm start` serves the real assistant; `pnpm sign-in` changes its saved provider login. `pnpm dev` starts a real daemon too. Use these only when you intend to work with that installation. Never run a second daemon over its storage. Leave the running service, port 4317 and its data untouched during ordinary development.
 
-`pnpm eval:recall` and `pnpm eval:unfiled` check retrieval without a real model. `pnpm eval:memory` runs the model-backed replay, uses a separate eval login and can take hours. Its setup and output paths are in [src/memory-eval](src/memory-eval/). Do not substitute the owner's login for the eval login.
+`pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval against a scripted year of conversation, in [src/memory-eval](src/memory-eval/), without a model. Results are saved under `eval/results`.
 
 `pnpm bundle` creates the installable tarball; `pnpm test:release` verifies it using temporary storage. Both run from the repository root. The [release workflow](../../.github/workflows/release.yml) publishes tagged releases.
 
