@@ -5,8 +5,13 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { expect, test } from 'vitest'
 import { createHttpApi } from '../http/index.ts'
-import { authorizedFetch, checkDeclaration } from './authorized-fetch.ts'
-import { definePlugin, memorySecrets, type PluginFetch } from './index.ts'
+import { definePlugin } from '../plugins/index.ts'
+import {
+  authorizedFetch,
+  checkDeclaration,
+  memorySecrets,
+  type PluginFetch,
+} from './index.ts'
 import { testHost } from '../testing.ts'
 
 const KEY = 'sk-test-0123456789'

@@ -2,7 +2,7 @@ import type { DocumentWatch } from '@earendil-works/pi-durable'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Familiar } from '../familiar.ts'
-import { allows, forbidden, type AccessEnv } from './access.ts'
+import { allows, forbidden, type AccessEnv } from '../access.ts'
 import type { Documents, DocumentName, StreamEvent } from './contract.ts'
 
 type Watch = { stop(): Promise<unknown>; closed: Promise<unknown> }

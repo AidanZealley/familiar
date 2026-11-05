@@ -5,7 +5,7 @@ import {
   type Familiar,
   type McpConnectionInfo,
   type McpServer,
-} from '../familiar.ts'
+} from '../index.ts'
 import { createHttpApi } from '../http/index.ts'
 import { testHost } from '../testing.ts'
 

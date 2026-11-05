@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
-import { can, type AccessEnv } from '../http/access.ts'
-import { ConnectionError } from '../plugins/connections.ts'
+import { can, type AccessEnv } from '../access.ts'
+import { ConnectionError } from '../connections/index.ts'
 import { McpConfigError, parseServer } from './servers.ts'
 import type { McpApi } from './servers.ts'
 

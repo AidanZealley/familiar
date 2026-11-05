@@ -71,4 +71,4 @@ export * from '@earendil-works/pi-durable/tools'
 export * from '@earendil-works/pi-durable/tool-search'
 export * from '@earendil-works/pi-durable/codemode'
 
-export { defineTool, type FamiliarToolApi } from './plugins/tools.ts'
+export { defineTool, type FamiliarToolApi } from './tools.ts'

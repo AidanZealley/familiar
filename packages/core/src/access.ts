@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 import { createMiddleware } from 'hono/factory'
-import type { Author } from '../conversation/message.ts'
+import type { Author } from './conversation/message.ts'
 
 /** Everything the HTTP API can do, each named for `allow`. */
 export type Operation =

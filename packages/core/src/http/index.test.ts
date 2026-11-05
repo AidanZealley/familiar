@@ -3,7 +3,7 @@ import type { DocumentWatch } from '@earendil-works/pi-durable'
 import { testClient } from 'hono/testing'
 import { expect, test, vi } from 'vitest'
 import type { Author } from '../conversation/message.ts'
-import { MESSAGE_LIMITS, type Familiar } from '../familiar.ts'
+import { MESSAGE_LIMITS, type Familiar } from '../index.ts'
 import { storageWith } from '../memory/testing.ts'
 import { fauxModels, testFamiliar } from '../testing.ts'
 import {

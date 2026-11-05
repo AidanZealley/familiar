@@ -7,11 +7,7 @@ import {
 import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
 import { onTestFinished } from 'vitest'
 import type { Author } from './conversation/message.ts'
-import {
-  summonFamiliar,
-  type Familiar,
-  type FamiliarOptions,
-} from './familiar.ts'
+import { summonFamiliar, type Familiar, type FamiliarOptions } from './index.ts'
 import { parseMinute } from './time.ts'
 
 /** Test helpers; not part of Familiar. */

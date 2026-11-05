@@ -11,7 +11,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { summonFamiliar } from '../familiar.ts'
+import { summonFamiliar } from '../index.ts'
 import { createAccount, type AccountState } from './index.ts'
 
 const credential = { type: 'oauth' } as unknown as Credential

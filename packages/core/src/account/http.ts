@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
-import { can, type AccessEnv } from '../http/access.ts'
+import { can, type AccessEnv } from '../access.ts'
 import type { AccountApi } from './index.ts'
 
 const unavailable = (c: Context) =>

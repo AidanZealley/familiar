@@ -11,8 +11,7 @@ import {
   type Tool,
   type Transport,
 } from '@modelcontextprotocol/client'
-import type { SecretStore } from '../plugins/secrets.ts'
-import type { PluginFetch } from '../plugins/types.ts'
+import type { PluginFetch, SecretStore } from '../connections/index.ts'
 import { httpTransport } from './http-transport.ts'
 import type {
   McpConnectionInfo,

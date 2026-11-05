@@ -1,21 +1,14 @@
 import type { Extension } from '@earendil-works/pi-durable'
-import type { Notify } from '../schedules/index.ts'
-import { authorizedFetch } from './authorized-fetch.ts'
+import type { Notify } from '../notify.ts'
+import {
+  authorizedFetch,
+  type PluginFetch,
+  type SecretStore,
+} from '../connections/index.ts'
 import { createConnections } from './connections.ts'
-import type { SecretStore } from './secrets.ts'
-import type { FamiliarPlugin, PluginFetch } from './types.ts'
+import type { FamiliarPlugin } from './types.ts'
 
-export { allConnections, ConnectionError, secretValue } from './connections.ts'
-export { memorySecrets, type Connection, type SecretStore } from './secrets.ts'
-export type {
-  ConnectionInfo,
-  ConnectionsApi,
-  FamiliarPlugin,
-  PluginContext,
-  PluginExtension,
-  PluginFetch,
-  PluginSecret,
-} from './types.ts'
+export type { FamiliarPlugin, PluginContext, PluginExtension } from './types.ts'
 
 /** Identity, so a plugin's types are checked where it's written. */
 export const definePlugin = (plugin: FamiliarPlugin) => plugin

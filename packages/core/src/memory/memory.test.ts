@@ -25,7 +25,7 @@ import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../harness.ts'
 import { expect, test, vi } from 'vitest'
-import { type Familiar, type FamiliarOptions } from '../familiar.ts'
+import { type Familiar, type FamiliarOptions } from '../index.ts'
 
 type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
   contextWindow?: number

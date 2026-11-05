@@ -1,9 +1,13 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { createToolSearchExtension } from '@earendil-works/pi-durable/tool-search'
 import type { Harness, Registry } from '@earendil-works/pi-durable'
-import { ConnectionError } from '../plugins/connections.ts'
-import type { ConnectionsApi, PluginFetch } from '../plugins/types.ts'
-import type { Connection, SecretStore } from '../plugins/secrets.ts'
+import {
+  ConnectionError,
+  type Connection,
+  type ConnectionsApi,
+  type PluginFetch,
+  type SecretStore,
+} from '../connections/index.ts'
 import { openConnection } from './connection.ts'
 import {
   McpServers,

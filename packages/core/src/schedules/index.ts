@@ -11,7 +11,8 @@ import {
   Schedules,
   type SchedulesState,
 } from './schedules.ts'
-import { createScheduleTask, type Notify } from './task.ts'
+import type { Notify } from '../notify.ts'
+import { createScheduleTask } from './task.ts'
 import { scheduleTools } from './tools.ts'
 
 export type { Schedule, SchedulesState } from './schedules.ts'
@@ -20,7 +21,6 @@ export {
   SCHEDULE_LIMITS,
   ScheduleError,
 } from './schedules.ts'
-export type { Notification, NotificationContext, Notify } from './task.ts'
 
 export type SchedulesApi = {
   watch(): Promise<DocumentWatch<SchedulesState>>
