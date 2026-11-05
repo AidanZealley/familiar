@@ -1,5 +1,12 @@
-import { useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/badge'
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 import { useFamiliar } from '@familiar-ai/client/react'
 import { Composer } from './components/composer'
 import { TranscriptItem } from './components/transcript-item'
@@ -7,17 +14,6 @@ import { TranscriptItem } from './components/transcript-item'
 export const AssistantPanel = () => {
   const transcript = useFamiliar((state) => state.transcript)
   const items = transcript?.items ?? []
-  const scroller = useRef<HTMLDivElement>(null)
-
-  // Follow the conversation as it streams. Scrolling the list itself, not
-  // scrollIntoView, keeps a page that embeds this one where it is.
-  const last = items.at(-1)
-  useEffect(() => {
-    const element = scroller.current
-    if (element) {
-      element.scrollTop = element.scrollHeight
-    }
-  }, [items.length, last])
 
   return (
     <section
@@ -28,21 +24,36 @@ export const AssistantPanel = () => {
         <h2 className="font-heading text-sm font-medium">Familiar</h2>
         <Badge variant="outline">Scripted model</Badge>
       </div>
-      <div
-        ref={scroller}
-        aria-live="polite"
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
-      >
-        {items.length === 0 && (
-          <p className="text-muted-foreground">
-            Ask about the board or change it. Familiar's tools call the same
-            board operations as the cards, so changes show up both ways.
-          </p>
-        )}
-        {items.map((item) => (
-          <TranscriptItem key={item.id} item={item} />
-        ))}
-      </div>
+      {/* The scroller moves only its own viewport, so a page embedding this
+          one stays where it is. */}
+      <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+        <MessageScroller className="min-h-0 flex-1">
+          <MessageScrollerViewport aria-label="Conversation">
+            <MessageScrollerContent
+              aria-busy={transcript?.busy}
+              className="gap-3 p-4"
+            >
+              {items.length === 0 && (
+                <p className="text-muted-foreground">
+                  Ask about the board or change it. Familiar's tools call the
+                  same board operations as the cards, so changes show up both
+                  ways.
+                </p>
+              )}
+              {items.map((item) => (
+                <MessageScrollerItem
+                  key={item.id}
+                  messageId={item.id}
+                  className="[content-visibility:visible]"
+                >
+                  <TranscriptItem item={item} />
+                </MessageScrollerItem>
+              ))}
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton />
+        </MessageScroller>
+      </MessageScrollerProvider>
       <Composer />
     </section>
   )
