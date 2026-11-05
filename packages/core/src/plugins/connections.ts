@@ -66,16 +66,10 @@ export function createConnections(
           ),
         })),
       ),
+    // allConnections has checked the value and that there is a store.
     setSecret: async (connection, name, value) => {
       declared(connection, name)
-      if (!store) {
-        throw new Error('This host keeps no secrets.')
-      }
-      const sendable = secretValue(value)
-      if (sendable === undefined) {
-        throw new Error('A secret must be visible ASCII characters.')
-      }
-      await store.set(connection, name, sendable)
+      await store?.set(connection, name, value)
     },
     deleteSecret: async (connection, name) => {
       declared(connection, name)
@@ -97,5 +91,33 @@ export function createConnections(
       }
       return value
     },
+  }
+}
+
+/**
+ * Plugins' and MCP servers' connections as one API. Checks each secret once,
+ * for both: it must be sendable, and the host must keep secrets at all.
+ */
+export function allConnections(
+  plugins: ConnectionsApi,
+  mcp: ConnectionsApi,
+  store: SecretStore | undefined,
+): ConnectionsApi {
+  const owner = (connection: Connection) =>
+    connection.kind === 'mcp' ? mcp : plugins
+  return {
+    list: async () => [...(await plugins.list()), ...(await mcp.list())],
+    setSecret: async (connection, name, input) => {
+      const value = secretValue(input)
+      if (value === undefined) {
+        throw new Error('A secret must be visible ASCII characters.')
+      }
+      if (!store) {
+        throw new Error('This host keeps no secrets.')
+      }
+      await owner(connection).setSecret(connection, name, value)
+    },
+    deleteSecret: (connection, name) =>
+      owner(connection).deleteSecret(connection, name),
   }
 }

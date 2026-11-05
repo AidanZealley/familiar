@@ -1,7 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { createToolSearchExtension } from '@earendil-works/pi-durable/tool-search'
 import type { Harness, Registry } from '@earendil-works/pi-durable'
-import { ConnectionError, secretValue } from '../plugins/connections.ts'
+import { ConnectionError } from '../plugins/connections.ts'
 import type { ConnectionsApi, PluginFetch } from '../plugins/types.ts'
 import type { Connection, SecretStore } from '../plugins/secrets.ts'
 import { openConnection } from './connection.ts'
@@ -143,21 +143,11 @@ export async function createMcp(
           return info
         }),
       ),
-    setSecret: (connection, secret, input) => {
-      const value = secretValue(input)
-      if (!value) {
-        return Promise.reject(
-          new Error('A secret must be visible ASCII characters.'),
-        )
-      }
-      if (!options.secrets) {
-        return Promise.reject(new Error('This host keeps no secrets.'))
-      }
-      const store = options.secrets
-      return changeSecret(connection, secret, () =>
-        store.set(connection, secret, value),
-      )
-    },
+    // allConnections has checked the value and that there is a store.
+    setSecret: (connection, secret, value) =>
+      changeSecret(connection, secret, async () => {
+        await options.secrets?.set(connection, secret, value)
+      }),
     deleteSecret: (connection, secret) =>
       changeSecret(connection, secret, async () => {
         await options.secrets?.delete(connection, secret)
