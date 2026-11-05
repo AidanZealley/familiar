@@ -1,7 +1,7 @@
-import { MESSAGE_KIND } from './conversation/message.ts'
+import { MESSAGE_KIND } from './transcript.ts'
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
-import { carryOver, startOf } from './conversation.ts'
+import { carryOver } from './conversation.ts'
 import type { History } from './store.ts'
 import { toTranscript } from './transcript.ts'
 
@@ -154,11 +154,6 @@ test('a reply keeps its identity from streaming through completion or stopping',
   expect(replies).toHaveLength(2)
   expect(replies[0]!.id).not.toBe(replies[1]!.id)
   expect(replies[1]!.id).toBe(streaming.id)
-})
-
-test('a view starts at the entry its head marker heads', () => {
-  expect(startOf(view)).toBe(8)
-  expect(startOf(viewOf(said(4, 'hi'), said(5, 'there')))).toBe(4)
 })
 
 test('what compaction takes out of the view joins history', () => {

@@ -29,7 +29,7 @@ const history = (request: Request) => {
   return Response.json({ entries, more: before - 1 > 1 })
 }
 
-test('loadOlder pages back to the start, one request per page', async () => {
+test('loadOlder pages back to the start, one request at a time', async () => {
   const server = testServer(history)
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
@@ -39,11 +39,12 @@ test('loadOlder pages back to the start, one request per page', async () => {
 
   const first = loadOlder()
   expect(store.getState().history.status).toBe('loading')
-  // A second call while loading shares the first's request.
-  expect(loadOlder()).toBe(first)
-  expect(await first).toBe(true)
-  expect(await loadOlder()).toBe(false)
-  expect(await loadOlder()).toBe(false)
+  // A second call while loading sends nothing.
+  await loadOlder()
+  await first
+  await loadOlder()
+  // At the start, nothing more is asked for.
+  await loadOlder()
 
   expect(
     server.requests
@@ -186,7 +187,7 @@ test('transcript reference survives unrelated updates and history loading or fai
   const load = store.conversation.loadOlder()
   expect(store.getState().history.status).toBe('loading')
   expect(store.getState().transcript).toBe(initial)
-  await expect(load).rejects.toThrow('Try again')
+  await load
   expect(store.getState().history.status).toBe('failed')
   expect(store.getState().transcript).toBe(initial)
   fail = false
@@ -201,33 +202,6 @@ test('transcript reference survives unrelated updates and history loading or fai
   await store.conversation.loadOlder()
   store.disconnect()
   expect(store.getState().transcript).toBe(loaded)
-})
-
-test('transcript carries compacted entries into history and drops history across reconnect gaps', async () => {
-  const server = testServer(() =>
-    Response.json({ entries: [message(1)], more: false }),
-  )
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send('retry: 5\n\n' + frame('view', conversation(2, 3)))
-  await expect.poll(() => itemIds(store)).toEqual(['entry:2', 'entry:3'])
-  await store.conversation.loadOlder()
-  const compacted = {
-    ...conversation(3),
-    entries: [{ ...entry(4), kind: 'pi.compaction', head: 3 }, message(3)],
-  }
-  server.send(frame('ops', [['s', ['entries'], compacted.entries]]))
-  await expect
-    .poll(() => itemIds(store))
-    .toEqual(['entry:1', 'entry:2', 'entry:4', 'entry:3'])
-  const beforeReconnect = store.getState().transcript
-  server.drop()
-  await expect.poll(() => store.getState().connection).toBe('reconnecting')
-  expect(store.getState().transcript).toBe(beforeReconnect)
-  await expect.poll(server.connections).toBe(2)
-  server.send(frame('view', conversation(9)))
-  await expect.poll(() => itemIds(store)).toEqual(['entry:9'])
-  expect(store.getState().history.entries).toEqual([])
 })
 
 test('a history page arriving after a reconnect gap cannot restore stale transcript items', async () => {

@@ -24,7 +24,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
   // the next. A failure waits for Retry rather than looping.
   useEffect(() => {
     if (nearTop && status === 'more') {
-      void loadOlder().catch(() => {})
+      void loadOlder()
     }
   }, [loadOlder, nearTop, status])
 
@@ -49,7 +49,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         variant="secondary"
         size="sm"
         className={cn(floating, 'border')}
-        onClick={() => void loadOlder().catch(() => {})}
+        onClick={() => void loadOlder()}
       >
         Couldn't load earlier messages. Retry
       </Button>
