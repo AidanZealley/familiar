@@ -2,11 +2,12 @@ import {
   MessageScroller,
   MessageScrollerButton,
   MessageScrollerContent,
+  MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
 import { useFamiliar } from '@familiar-ai/client/react'
-import { TranscriptItems } from './components/transcript-items'
+import { TranscriptItem } from './components/transcript-item'
 import type { ChatProps } from './types'
 
 /**
@@ -38,7 +39,22 @@ export const Chat = ({ viewer }: ChatProps) => {
                 someone else and reply.
               </p>
             )}
-            <TranscriptItems items={items} viewer={viewer} />
+            {items.map((item, index) => (
+              <MessageScrollerItem
+                key={item.id}
+                messageId={item.id}
+                className="[content-visibility:visible]"
+              >
+                <TranscriptItem
+                  item={item}
+                  viewer={viewer}
+                  // A tool call and the reply after it read as one turn.
+                  continued={
+                    item.type === 'reply' && items[index - 1]?.type === 'reply'
+                  }
+                />
+              </MessageScrollerItem>
+            ))}
           </MessageScrollerContent>
         </MessageScrollerViewport>
         <MessageScrollerButton />
