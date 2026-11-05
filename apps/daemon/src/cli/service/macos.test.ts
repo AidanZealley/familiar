@@ -91,18 +91,6 @@ test('install loads once and repeat setup leaves a running agent alone', () => {
   expect(calls().some((call) => /bootstrap|bootout/.test(call))).toBe(false)
 })
 
-test('suspension unloads KeepAlive and restores the agent after failed work', async () => {
-  const host = service()
-  host.install()
-  await expect(
-    host.withStopped(async () => {
-      expect(loaded).toBe(false)
-      throw new Error('cancelled')
-    }),
-  ).rejects.toThrow('cancelled')
-  expect(loaded).toBe(true)
-})
-
 test('restart waits for bootout to finish before loading the agent again', () => {
   const host = service()
   host.install()
@@ -117,14 +105,12 @@ test('restart waits for bootout to finish before loading the agent again', () =>
   ])
 })
 
-test('a different data directory cannot replace or unload this agent', async () => {
+test('a different data directory cannot see, replace or unload this agent', () => {
   service().install()
   vi.mocked(execFileSync).mockClear()
   const other = service(resolve(temporary, 'other'))
+  // So sign-in for it leaves this one running.
   expect(other.isRunning()).toBe(false)
-  await other.withStopped(async () => {
-    expect(loaded).toBe(true)
-  })
   expect(() => other.install()).toThrow('different data directory')
   expect(() => other.uninstall()).toThrow('different data directory')
   expect(calls()).toEqual([])

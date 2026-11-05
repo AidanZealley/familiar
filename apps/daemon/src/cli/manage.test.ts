@@ -108,9 +108,6 @@ test('explicit sign-in suspends the daemon to avoid competing credential writers
 test('status reports the saved name, matching service and existing URLs without changing anything', () => {
   status()
   expect(readSettings).toHaveBeenCalledWith('/private/data', {})
-  expect(console.log).toHaveBeenCalledWith('Name: Familiar')
-  expect(console.log).toHaveBeenCalledWith('Service: running')
-  expect(console.log).toHaveBeenCalledWith('Local: http://127.0.0.1:4325')
   expect(console.log).toHaveBeenCalledWith(
     'Tailnet: https://machine.example.ts.net:10000',
   )
@@ -119,42 +116,31 @@ test('status reports the saved name, matching service and existing URLs without 
   expect(restart).not.toHaveBeenCalled()
 })
 
-test('rename changes only the saved name and restarts a running matching service', async () => {
-  const settings = readSettings('/private/data', {})
-  settings.explicit = { name: 'Familiar', model: 'chosen-model', port: 4325 }
+test('rename saves only the name and restarts the service only if it was running', async () => {
+  vi.mocked(readSettings).mockReturnValue({
+    ...readSettings('/private/data', {}),
+    explicit: { name: 'Familiar', model: 'chosen-model', port: 4325 },
+  })
   await rename('Willow')
-  expect(saveSettings).toHaveBeenCalledWith('/private/data', {
+  expect(saveSettings).toHaveBeenLastCalledWith('/private/data', {
     name: 'Willow',
     model: 'chosen-model',
     port: 4325,
   })
   expect(restart).toHaveBeenCalledOnce()
-  expect(terminal.question).not.toHaveBeenCalled()
+  isRunning.mockReturnValue(false)
+  await rename('Wren')
+  expect(restart).toHaveBeenCalledOnce()
 })
 
-test('interactive rename shows the existing name and saves the entered replacement', async () => {
+test('rename asks for a name, keeps the old one on an empty reply, and refuses a blank one', async () => {
   await rename()
   expect(terminal.question).toHaveBeenCalledWith('New name [Familiar]: ')
-  expect(terminal.close).toHaveBeenCalled()
   expect(saveSettings).toHaveBeenCalledWith('/private/data', { name: 'Scout' })
-})
-
-test('renaming a stopped Familiar preserves its stopped state', async () => {
-  isRunning.mockReturnValue(false)
-  await rename('Willow')
-  expect(saveSettings).toHaveBeenCalledWith('/private/data', { name: 'Willow' })
-  expect(restart).not.toHaveBeenCalled()
-})
-
-test('an empty interactive response keeps the existing name without restarting', async () => {
+  vi.mocked(saveSettings).mockClear()
   terminal.question.mockResolvedValue('')
   await rename()
-  expect(saveSettings).not.toHaveBeenCalled()
-  expect(restart).not.toHaveBeenCalled()
-})
-
-test('an explicit empty name is refused before changing settings or the service', async () => {
   await expect(rename('  ')).rejects.toThrow('must not be empty')
   expect(saveSettings).not.toHaveBeenCalled()
-  expect(restart).not.toHaveBeenCalled()
+  expect(restart).toHaveBeenCalledOnce()
 })

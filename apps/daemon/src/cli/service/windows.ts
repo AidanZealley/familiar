@@ -9,17 +9,83 @@ import {
 import { homedir } from 'node:os'
 import { dirname, resolve, win32 } from 'node:path'
 import { ensureDataDir } from '../../paths.ts'
-import {
-  powershell,
-  powershellString as quote,
-} from '../../windows-powershell.ts'
+import { powershell, powershellString as quote } from './powershell.ts'
 import type { ServiceOptions } from './types.ts'
-import {
-  hiddenLaunch,
-  renderHiddenLauncher,
-  renderLauncher,
-  renderTask,
-} from './windows-render.ts'
+import { xml } from './xml.ts'
+
+/**
+ * The task and the Startup shortcut both start Familiar through this console-free command.
+ * Microsoft is retiring VBScript. To replace the wrapper, change this and
+ * renderHiddenLauncher.
+ */
+export function hiddenLaunch({ dataDir }: Pick<ServiceOptions, 'dataDir'>) {
+  const path = resolve(dataDir, 'service.vbs')
+  return {
+    path,
+    command: resolve(
+      process.env.SystemRoot ?? 'C:\\Windows',
+      'System32/wscript.exe',
+    ),
+    args: `"${path}"`,
+  }
+}
+
+/**
+ * WScript has no console and waits so Task Scheduler retains crash recovery.
+ * UTF-16 with a byte order mark is the one script encoding it reads on every locale.
+ */
+export function renderHiddenLauncher({
+  dataDir,
+  node = process.execPath,
+}: ServiceOptions) {
+  const command = `"${node}" "${resolve(dataDir, 'service.cjs')}"`
+  return Buffer.from(
+    `\ufeffWScript.Quit CreateObject("WScript.Shell").Run("${command.replaceAll('"', '""')}", 0, True)\r\n`,
+    'utf16le',
+  )
+}
+
+/** A separate process gives Task Scheduler an exit code and a tree to stop. */
+export function renderLauncher({
+  dataDir,
+  cliPath,
+  workDir = dirname(cliPath),
+  node = process.execPath,
+}: ServiceOptions) {
+  return `const { openSync, writeSync } = require('node:fs');
+const { spawn } = require('node:child_process');
+process.env.FAMILIAR_DATA_DIR = ${JSON.stringify(dataDir)};
+process.env.FAMILIAR_HOST = '127.0.0.1';
+process.env.PATH = ${JSON.stringify(`${win32.dirname(node)};`)} + (process.env.PATH || '');
+const log = openSync(${JSON.stringify(resolve(dataDir, 'service.log'))}, 'a', 0o600);
+const child = spawn(${JSON.stringify(node)}, [${JSON.stringify(cliPath)}, 'serve'], {
+  cwd: ${JSON.stringify(workDir)}, env: process.env, stdio: ['ignore', log, log], windowsHide: true,
+});
+child.on('error', (error) => { writeSync(log, String(error) + '\\n'); process.exitCode = 1; });
+child.on('exit', (code) => { process.exitCode = code ?? 1; });
+`
+}
+
+export function renderTask(
+  { dataDir, cliPath, workDir = dirname(cliPath) }: ServiceOptions,
+  userId: string,
+) {
+  const launch = hiddenLaunch({ dataDir })
+  // Omit a byte encoding so the XML also works as a Unicode COM string.
+  return `<?xml version="1.0"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+<Triggers><LogonTrigger><Enabled>true</Enabled><UserId>${xml(userId)}</UserId></LogonTrigger></Triggers>
+<Principals><Principal id="Owner"><UserId>${xml(userId)}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+<Settings>
+<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+<StartWhenAvailable>true</StartWhenAvailable><ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+<RestartOnFailure><Interval>PT1M</Interval><Count>3</Count></RestartOnFailure>
+</Settings>
+<Actions Context="Owner"><Exec><Command>${xml(launch.command)}</Command><Arguments>${xml(launch.args)}</Arguments><WorkingDirectory>${xml(workDir)}</WorkingDirectory></Exec></Actions>
+</Task>
+`
+}
 
 type WindowsOptions = ServiceOptions & { startupDir?: string; userId?: string }
 type Action = { node: string; args: string }
@@ -48,13 +114,10 @@ export function windowsService(options: WindowsOptions) {
       ),
     'Familiar.lnk',
   )
+  // How the running daemon's node process names its launcher.
   const args = `"${launcher}"`
-  // Older installs ran the launcher directly. When the hidden wrapper changes,
-  // keep its previous arguments here so setup recognises and migrates them.
   const matches = (action: Action) =>
-    [args, hidden.args].some(
-      (expected) => action.args.toLowerCase() === expected.toLowerCase(),
-    )
+    action.args.toLowerCase() === hidden.args.toLowerCase()
   const schtasks = (...command: string[]) =>
     execFileSync('schtasks.exe', command, {
       encoding: 'utf8',
@@ -139,32 +202,21 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
   }
   return {
     isRunning,
+    stop,
+    start,
     restart,
-    async withStopped<T>(run: () => Promise<T>) {
-      const running = isRunning()
-      if (running) {
-        stop()
-      }
-      try {
-        return await run()
-      } finally {
-        if (running) {
-          start()
-        }
-      }
-    },
     install(forceRestart = false) {
       const current = registration()
       const source = renderLauncher(options)
       const hiddenSource = renderHiddenLauncher(options)
-      const xml = renderTask(options, userId)
+      const taskXml = renderTask(options, userId)
       const changed =
         !existsSync(launcher) ||
         readFileSync(launcher, 'utf8') !== source ||
         !existsSync(hidden.path) ||
         !readFileSync(hidden.path).equals(hiddenSource) ||
         !existsSync(taskFile) ||
-        readFileSync(taskFile, 'utf8') !== xml
+        readFileSync(taskFile, 'utf8') !== taskXml
       const running = isRunning()
       if (changed || forceRestart || (!current.task && !current.link)) {
         if (running) {
@@ -173,7 +225,7 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
         ensureDataDir(options.dataDir)
         writeFileSync(launcher, source, { mode: 0o600 })
         writeFileSync(hidden.path, hiddenSource, { mode: 0o600 })
-        writeFileSync(taskFile, xml, { mode: 0o600 })
+        writeFileSync(taskFile, taskXml, { mode: 0o600 })
         try {
           schtasks('/Create', '/TN', name, '/XML', taskFile, '/F')
           if (current.link) {

@@ -116,20 +116,9 @@ export function macosService(options: MacOptions) {
   }
   return {
     isRunning,
+    stop,
+    start,
     restart,
-    async withStopped<T>(run: () => Promise<T>) {
-      const running = isRunning()
-      if (running) {
-        stop()
-      }
-      try {
-        return await run()
-      } finally {
-        if (running) {
-          start()
-        }
-      }
-    },
     install(forceRestart = false) {
       checkOwnership()
       const content = renderAgent(options)

@@ -10,13 +10,14 @@ import {
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { powershell, powershellString } from './powershell.ts'
 import {
   hiddenLaunch,
   renderHiddenLauncher,
   renderLauncher,
   renderTask,
-} from './windows-render.ts'
-import { windowsService } from './windows.ts'
+  windowsService,
+} from './windows.ts'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 const userId = 'S-1-5-21-1000'
@@ -25,6 +26,8 @@ let running: boolean
 let refused: boolean
 let task: { node: string; args: string; enabled: boolean } | null
 const launcher = () => resolve(temporary, 'data/service.cjs')
+/** What the task and the shortcut run: the hidden wrapper. */
+const wrapper = () => `"${resolve(temporary, 'data/service.vbs')}"`
 const shortcut = () => resolve(temporary, 'startup/Familiar.lnk')
 const service = () =>
   windowsService({
@@ -63,7 +66,7 @@ beforeEach(() => {
           }
           return JSON.stringify({
             node: process.execPath,
-            args: `"${launcher()}"`,
+            args: wrapper(),
           }) as never
         }
         if (source.includes('Start-Process')) {
@@ -81,7 +84,7 @@ beforeEach(() => {
           }
           task = {
             node: process.execPath,
-            args: `"${launcher()}"`,
+            args: wrapper(),
             enabled: true,
           }
         }
@@ -137,19 +140,16 @@ test('install registers once and repeat setup preserves a running instance', () 
   )
 })
 
-test('failed work disables restart, kills only the launcher tree and resumes the task', async () => {
+test('stopping disables restart and kills only the launcher tree; starting resumes the task', () => {
   const host = service()
   host.install()
-  await expect(
-    host.withStopped(async () => {
-      expect(running).toBe(false)
-      expect(task?.enabled).toBe(false)
-      throw new Error('cancelled')
-    }),
-  ).rejects.toThrow('cancelled')
+  host.stop()
+  expect(running).toBe(false)
+  expect(task?.enabled).toBe(false)
+  expect(calls()).toContain('taskkill.exe /PID 123 /T /F')
+  host.start()
   expect(running).toBe(true)
   expect(task?.enabled).toBe(true)
-  expect(calls()).toContain('taskkill.exe /PID 123 /T /F')
 })
 
 test('refused registration uses a Startup shortcut with an explicit recovery limitation', () => {
@@ -226,7 +226,8 @@ test.skipIf(process.platform !== 'win32')(
   async () => {
     const host = service()
     host.install()
-    await host.withStopped(async () => {})
+    host.stop()
+    host.start()
     host.logs()
     host.uninstall()
     refused = true
@@ -278,3 +279,16 @@ $definition = $service.NewTask(0); $definition.XmlText = $xml;
   // Starting Windows PowerShell alone can take most of Vitest's 5s default on CI.
   30000,
 )
+
+test('PowerShell runs encoded Unicode scripts without profiles or PowerShell 7 module paths', () => {
+  vi.stubEnv('PSModulePath', 'C:\\Program Files\\PowerShell\\7\\Modules')
+  powershell(
+    `Get-Item -LiteralPath ${powershellString("C:\\Users\\Owner's files & 家")}`,
+  )
+  const [command, args, options] = vi.mocked(execFileSync).mock.calls[0]
+  expect(command).toBe('powershell.exe')
+  expect(args).toContain('-NoProfile')
+  expect(script(args)).toContain("Owner''s files & 家")
+  expect(options?.env).not.toHaveProperty('PSModulePath')
+  vi.unstubAllEnvs()
+})

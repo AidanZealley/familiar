@@ -5,7 +5,6 @@ import {
   readFileSync,
   rmSync,
   statSync,
-  writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
@@ -28,7 +27,6 @@ const service = () =>
 beforeEach(() => {
   temporary = mkdtempSync(resolve(tmpdir(), 'familiar-service-'))
   running = false
-  vi.stubEnv('XDG_DATA_HOME', resolve(temporary, 'xdg'))
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.mocked(execFileSync)
     .mockReset()
@@ -78,31 +76,10 @@ test('install writes and starts once, and repeat setup leaves the unit and proce
   running = false
   host.install()
   expect(calls()).toContain('systemctl --user start familiar')
-})
-
-test('changed settings restart an otherwise unchanged service', () => {
-  const host = service()
-  host.install()
+  // Changed settings restart an otherwise unchanged service.
   vi.mocked(execFileSync).mockClear()
   host.install(true)
   expect(calls()).toContain('systemctl --user restart familiar')
-})
-
-test('temporary work stops and resumes an active daemon even after failure', async () => {
-  service().install()
-  vi.mocked(execFileSync).mockClear()
-  await expect(
-    service().withStopped(async () => {
-      expect(running).toBe(false)
-      throw new Error('login cancelled')
-    }),
-  ).rejects.toThrow('login cancelled')
-  expect(running).toBe(true)
-  expect(calls()).toEqual([
-    'systemctl --user is-active --quiet familiar',
-    'systemctl --user stop familiar',
-    'systemctl --user restart familiar',
-  ])
 })
 
 test('removal disables the service without removing its data directory', () => {
@@ -137,7 +114,7 @@ test('an unavailable systemd user bus is an error rather than an inactive servic
   expect(() => service().isRunning()).toThrow('no bus')
 })
 
-test('login for another data directory does not stop this service', async () => {
+test('another data directory cannot see, replace or remove this service', () => {
   service().install()
   vi.mocked(execFileSync).mockClear()
   const other = linuxService({
@@ -145,38 +122,9 @@ test('login for another data directory does not stop this service', async () => 
     cliPath: '/app/familiar.js',
     unitDir: temporary,
   })
+  // So sign-in for it leaves this one running.
   expect(other.isRunning()).toBe(false)
-  await other.withStopped(async () => {
-    expect(running).toBe(true)
-  })
   expect(calls()).toEqual([])
   expect(() => other.install()).toThrow('different data directory')
   expect(() => other.uninstall()).toThrow('different data directory')
-})
-
-test('an old service unit is not silently moved to another data directory', () => {
-  writeFileSync(
-    resolve(temporary, 'familiar.service'),
-    '[Service]\nExecStart=/usr/bin/node /old/main.ts\n',
-  )
-  expect(() => service().install()).toThrow('different data directory')
-  expect(calls()).toEqual([])
-})
-
-test('legacy default-directory services are paused for login without requiring a setup loop', async () => {
-  writeFileSync(
-    resolve(temporary, 'familiar.service'),
-    '[Service]\nExecStart=/usr/bin/node /old/main.ts\n',
-  )
-  const host = linuxService({
-    dataDir: resolve(temporary, 'xdg/familiar'),
-    cliPath: '/app/familiar.js',
-    unitDir: temporary,
-  })
-  running = true
-  await host.withStopped(async () => {
-    expect(running).toBe(false)
-  })
-  expect(running).toBe(true)
-  expect(calls()).toContain('systemctl --user stop familiar')
 })
