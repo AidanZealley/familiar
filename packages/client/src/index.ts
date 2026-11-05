@@ -12,7 +12,6 @@ export type { ToolCall, Transcript, TranscriptItem } from './transcript.ts'
 export type {
   Author,
   AccountState,
-  HttpApi,
   ConnectionInfo,
   Episode,
   EpisodesState,
@@ -26,18 +25,8 @@ export type {
   SchedulesState,
 } from '@familiar-ai/core/http'
 export type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-export type { ModelRef } from '@earendil-works/pi-durable'
 export type {
-  AgentState,
   ConversationView,
   EntryRecord,
-  EntryId,
-  TaskId,
-  InboxState,
-  LiveState,
+  ModelRef,
 } from '@earendil-works/pi-durable'
-export type {
-  AssistantMessage,
-  UserMessage,
-  ToolResultMessage,
-} from '@earendil-works/pi-ai'
