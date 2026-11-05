@@ -7,18 +7,24 @@ import {
   scriptedModels,
   type ScriptedMessage,
 } from '@familiar-ai/core/models/scripted'
-import { NOTES } from './people.ts'
+import { PEOPLE } from './people.ts'
+
+/** Something each person might tell the group, offered as a suggestion. */
+const NOTES: Record<string, string> = {
+  ana: 'I can bring dessert',
+  ben: "I'll book a table for 7pm",
+  chloe: "I'm vegetarian",
+}
 
 /** Prompts the script recognises, for one person, offered in their chat. */
-export const suggestedPrompts = (author: Author, people: Author[]) => {
+export const suggestedPrompts = (author: Author) => {
   // The person before them, who has likely said something already.
-  const index = people.findIndex((person) => person.id === author.id)
-  const previous = people.at(index - 1)
+  const previous = PEOPLE.at(
+    PEOPLE.findIndex(({ id }) => id === author.id) - 1,
+  )!
   return [
     `Note for the group: ${NOTES[author.id]}`,
-    ...(previous && previous.id !== author.id
-      ? [`What did ${previous.name} say?`]
-      : []),
+    `What did ${previous.name} say?`,
     'Who am I?',
     'Count me in',
   ]

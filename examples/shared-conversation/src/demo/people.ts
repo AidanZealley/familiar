@@ -9,10 +9,3 @@ export const PEOPLE: Author[] = [
   { id: 'ben', name: 'Ben' },
   { id: 'chloe', name: 'Chloe' },
 ]
-
-/** Something each person might tell the group, offered as a suggestion. */
-export const NOTES: Record<string, string> = {
-  ana: 'I can bring dessert',
-  ben: "I'll book a table for 7pm",
-  chloe: "I'm vegetarian",
-}

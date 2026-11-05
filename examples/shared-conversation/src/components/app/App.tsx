@@ -1,31 +1,23 @@
 import { RotateCcwIcon } from 'lucide-react'
-import { startTransition, useState, useTransition } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Chat } from '@/components/chat'
 import { Composer } from '@/components/composer'
 import { PersonSwitcher } from '@/components/person-switcher'
 import { Suggestions } from '@/components/suggestions'
-import { startDemo } from '@/demo/demo'
 import { PEOPLE } from '@/demo/people'
 import { FamiliarProvider } from '@familiar-ai/client/react'
 import { suggestedPrompts } from '@/demo/script'
 import type { AppProps } from './types'
 
-export const App = ({ initialDemo }: AppProps) => {
-  // Every client, session and message lives in this one demo, and this is
-  // the one place that decides whose client is in front.
-  const [demo, setDemo] = useState(initialDemo)
+// Everything lives in this page's memory, so a reload starts over.
+const reset = () => window.location.reload()
+
+export const App = ({ demo }: AppProps) => {
+  // The one place that decides whose client is in front.
   const [active, setActive] = useState(PEOPLE[0].id)
-  const [resetting, startReset] = useTransition()
   const [reader] = demo.clients
   const sender = demo.clients.find(({ author }) => author.id === active)!
-
-  const reset = () =>
-    startReset(async () => {
-      await demo.stop()
-      const next = await startDemo(PEOPLE)
-      startTransition(() => setDemo(next))
-    })
 
   return (
     <div className="flex h-svh flex-col">
@@ -36,13 +28,7 @@ export const App = ({ initialDemo }: AppProps) => {
         <span className="hidden text-muted-foreground sm:inline">
           A Familiar demo that runs in your browser
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto"
-          disabled={resetting}
-          onClick={reset}
-        >
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={reset}>
           <RotateCcwIcon data-icon="inline-start" />
           Reset
         </Button>
@@ -56,13 +42,13 @@ export const App = ({ initialDemo }: AppProps) => {
         {/* One shared transcript, read through the first person's client.
             Every client is connected and mirrors the same conversation; the
             person sending only decides whose messages sit on the right. */}
-        <FamiliarProvider key={reader.sessionId} store={reader.store}>
+        <FamiliarProvider store={reader.store}>
           <Chat viewer={sender.author} />
         </FamiliarProvider>
         <div className="flex shrink-0 flex-col gap-3 border-t p-3">
           {/* Only the sender's suggestions, through the sender's client. */}
-          <FamiliarProvider key={sender.sessionId} store={sender.store}>
-            <Suggestions prompts={suggestedPrompts(sender.author, PEOPLE)} />
+          <FamiliarProvider store={sender.store}>
+            <Suggestions prompts={suggestedPrompts(sender.author)} />
           </FamiliarProvider>
           <PersonSwitcher
             people={PEOPLE}
@@ -70,9 +56,9 @@ export const App = ({ initialDemo }: AppProps) => {
             onValueChange={setActive}
           />
           {/* Each person's message box, bound to their own client, keeps its
-              draft while hidden. A new session on Reset remounts it. */}
-          {demo.clients.map(({ sessionId, author, store }) => (
-            <FamiliarProvider key={sessionId} store={store}>
+              draft while hidden. */}
+          {demo.clients.map(({ author, store }) => (
+            <FamiliarProvider key={author.id} store={store}>
               <div hidden={author.id !== active}>
                 <Composer name={author.name} />
               </div>

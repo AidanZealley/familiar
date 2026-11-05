@@ -1,8 +1,7 @@
 import { definePlugin, defineTool, Type, type Author } from '@familiar-ai/core'
 
-const result = (text: string, going: Author[], isError = false) => ({
+const result = (text: string, isError = false) => ({
   output: [{ type: 'text' as const, text }],
-  details: { going },
   ...(isError && { isError }),
 })
 
@@ -14,7 +13,6 @@ const result = (text: string, going: Author[], isError = false) => ({
 export const guestListPlugin = () => {
   // The host's data for this page: who's coming, by stable ID.
   const going = new Map<string, Author>()
-  const names = () => [...going.values()].map((author) => author.name)
 
   return definePlugin({
     name: 'guest-list',
@@ -30,9 +28,8 @@ export const guestListPlugin = () => {
             author
               ? result(
                   `You're signed in as ${author.name} (ID "${author.id}").`,
-                  [...going.values()],
                 )
-              : result('Nobody asked.', [], true),
+              : result('Nobody asked.', true),
         }),
         defineTool({
           name: 'count_me_in',
@@ -40,17 +37,12 @@ export const guestListPlugin = () => {
           parameters: Type.Object({}),
           execute: async (_args, { author }) => {
             if (!author) {
-              return result(
-                'Nobody asked, so there is no one to add.',
-                [],
-                true,
-              )
+              return result('Nobody asked, so there is no one to add.', true)
             }
-            const already = going.has(author.id)
             going.set(author.id, author)
+            const names = [...going.values()].map(({ name }) => name)
             return result(
-              `${already ? `${author.name} was already counted in` : `Counted ${author.name} in`}. Going: ${names().join(', ')}.`,
-              [...going.values()],
+              `Counted ${author.name} in. Going: ${names.join(', ')}.`,
             )
           },
         }),
