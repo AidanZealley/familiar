@@ -1,4 +1,4 @@
-import { useFamiliarStore } from '@/lib/familiar'
+import { familiar } from '@/lib/familiar'
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -13,9 +13,6 @@ import type { BrowserSignInProps } from './types'
  * so the owner brings that last address back here.
  */
 export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
-  const {
-    account: { answerSignIn },
-  } = useFamiliarStore()
   const [step, setStep] = useState<'open' | 'paste' | 'sent'>('open')
   const [address, setAddress] = useState('')
 
@@ -66,7 +63,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
       return
     }
     setStep('sent')
-    void answerSignIn(text).catch(() => setStep('paste'))
+    void familiar.account.answerSignIn(text).catch(() => setStep('paste'))
   }
 
   return (

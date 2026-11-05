@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { AppError } from './components/app-error'
 import { AppLoader } from './components/app-loader'
-import { FamiliarProvider, familiar } from './lib/familiar'
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({
@@ -26,8 +25,6 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <FamiliarProvider store={familiar}>
-      <RouterProvider router={router} />
-    </FamiliarProvider>
+    <RouterProvider router={router} />
   </StrictMode>,
 )

@@ -1,4 +1,4 @@
-import { useFamiliarStore } from '@/lib/familiar'
+import { familiar } from '@/lib/familiar'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -25,9 +25,6 @@ export const CredentialsForm = ({
   error: initialError,
   onDone,
 }: CredentialsFormProps) => {
-  const {
-    connections: { setSecret, deleteSecret },
-  } = useFamiliarStore()
   const router = useRouter()
   const id = useId()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -59,7 +56,11 @@ export const CredentialsForm = ({
         event.preventDefault()
         const saved = await change(async () => {
           for (const secret of changed) {
-            await setSecret(connection, secret.name, drafts[secret.name].trim())
+            await familiar.connections.setSecret(
+              connection,
+              secret.name,
+              drafts[secret.name].trim(),
+            )
           }
         })
         if (saved) {
@@ -95,7 +96,12 @@ export const CredentialsForm = ({
                   variant="outline"
                   disabled={busy}
                   onClick={() =>
-                    void change(() => deleteSecret(connection, secret.name))
+                    void change(() =>
+                      familiar.connections.deleteSecret(
+                        connection,
+                        secret.name,
+                      ),
+                    )
                   }
                 >
                   Remove

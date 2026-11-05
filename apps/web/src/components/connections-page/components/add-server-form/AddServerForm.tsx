@@ -1,4 +1,4 @@
-import { useFamiliarStore } from '@/lib/familiar'
+import { familiar } from '@/lib/familiar'
 import type { McpServer } from '@familiar-ai/client'
 import { useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
@@ -59,10 +59,6 @@ function read(
 }
 
 export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
-  const {
-    mcp: { add: addServer },
-    connections: { setSecret },
-  } = useFamiliarStore()
   const router = useRouter()
   const id = useId()
   const [transport, setTransport] = useState<'http' | 'stdio'>('http')
@@ -80,7 +76,7 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
     setErrors({})
     setBusy(true)
     try {
-      await addServer(server)
+      await familiar.mcp.add(server)
     } catch (failure) {
       setErrors({ form: (failure as Error).message })
       setBusy(false)
@@ -91,7 +87,11 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
     let tokenError: string | undefined
     if (token) {
       try {
-        await setSecret({ kind: 'mcp', name: server.name }, 'token', token)
+        await familiar.connections.setSecret(
+          { kind: 'mcp', name: server.name },
+          'token',
+          token,
+        )
       } catch (failure) {
         tokenError = `${server.name} was added, but its token wasn't saved: ${(failure as Error).message}`
       }

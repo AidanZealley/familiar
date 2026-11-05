@@ -2,7 +2,7 @@ import { LoaderCircleIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
-import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
+import { familiar, useFamiliar } from '@/lib/familiar'
 import { cn } from '@/lib/utils'
 import type { OlderMessagesProps } from './types'
 
@@ -13,9 +13,6 @@ import type { OlderMessagesProps } from './types'
  * first child was an item.
  */
 export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
-  const {
-    conversation: { loadOlder },
-  } = useFamiliarStore()
   const status = useFamiliar((state) => state.history.status)
   const { visibleMessageIds } = useMessageScrollerVisibility()
   const nearTop = firstItemIds.some((id) => visibleMessageIds.includes(id))
@@ -24,9 +21,9 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
   // the next. A failure waits for Retry rather than looping.
   useEffect(() => {
     if (nearTop && status === 'more') {
-      void loadOlder()
+      void familiar.conversation.loadOlder()
     }
-  }, [loadOlder, nearTop, status])
+  }, [nearTop, status])
 
   const floating = 'absolute top-3 left-1/2 -translate-x-1/2 text-xs shadow-sm'
   if (status === 'loading') {
@@ -49,7 +46,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         variant="secondary"
         size="sm"
         className={cn(floating, 'border')}
-        onClick={() => void loadOlder()}
+        onClick={() => void familiar.conversation.loadOlder()}
       >
         Couldn't load earlier messages. Retry
       </Button>

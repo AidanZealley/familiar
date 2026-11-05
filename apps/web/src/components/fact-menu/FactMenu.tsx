@@ -1,4 +1,4 @@
-import { useFamiliarStore } from '@/lib/familiar'
+import { familiar } from '@/lib/familiar'
 import {
   ArchiveIcon,
   EllipsisIcon,
@@ -18,9 +18,6 @@ import type { FactMenuProps } from './types'
 
 /** A current fact's actions. Past facts are history, so they have none. */
 export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
-  const {
-    memory: { setPinned, retire },
-  } = useFamiliarStore()
   const run = (action: Promise<void>) =>
     action.catch((cause) =>
       onError(cause instanceof Error ? cause.message : String(cause)),
@@ -46,11 +43,13 @@ export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
             Edit
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => run(setPinned(fact.id, !fact.pinned))}>
+        <DropdownMenuItem
+          onClick={() => run(familiar.memory.setPinned(fact.id, !fact.pinned))}
+        >
           {fact.pinned ? <PinOffIcon /> : <PinIcon />}
           {fact.pinned ? 'Unpin from core' : 'Pin to core'}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => run(retire(fact.id))}>
+        <DropdownMenuItem onClick={() => run(familiar.memory.retire(fact.id))}>
           <ArchiveIcon />
           No longer true
         </DropdownMenuItem>
