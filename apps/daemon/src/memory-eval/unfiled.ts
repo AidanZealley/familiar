@@ -3,12 +3,6 @@ import { join } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Message, TranscriptContext } from '@earendil-works/pi-ai'
-import { createModels } from '@earendil-works/pi-ai/models'
-import {
-  fauxAssistantMessage,
-  fauxProvider,
-  type FauxResponseFactory,
-} from '@earendil-works/pi-ai/providers/faux'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import {
   ROOT_CONVERSATION_ID,
@@ -18,6 +12,8 @@ import {
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar, type FamiliarOptions } from '@familiar-ai/core'
 import { nextUpkeep, type UpkeepState } from '@familiar-ai/core/diagnostics'
+import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
 import { isSkipped, unquoted } from './recall.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
@@ -67,9 +63,6 @@ const textOf = (message: Message) =>
     : message.content
         .map((part) => ('text' in part ? String(part.text) : ''))
         .join('')
-
-const isSummaryRequest = (context: TranscriptContext) =>
-  JSON.stringify(context.messages[0]).includes('context summarization')
 
 const context = BACKGROUND_CONTEXT
 
@@ -144,27 +137,19 @@ async function entriesIn(storage: Storage) {
   return entries
 }
 
-/**
- * A scripted model that records every conversation request and replies
- * briefly. The provider answers from a queue, so each step queues itself
- * again and the script never runs out.
- */
-function scriptedModels() {
-  const faux = fauxProvider({
-    models: [{ id: 'faux-1', contextWindow: CONTEXT_WINDOW }],
-  })
+/** A scripted model that records every conversation request and replies briefly. */
+function recordingModels() {
   const requests: TranscriptContext[] = []
-  const respond: FauxResponseFactory = (context) => {
-    faux.appendResponses([respond])
-    if (isSummaryRequest(context)) {
-      return fauxAssistantMessage("## Goal\nRowan's year.")
-    }
-    requests.push(context)
-    return fauxAssistantMessage('Noted.')
-  }
-  faux.setResponses([respond])
-  const models = createModels()
-  models.setProvider(faux.provider)
+  const models = scriptedModels(
+    (request) => {
+      if (request.type === 'background') {
+        return fauxAssistantMessage("## Goal\nRowan's year.")
+      }
+      requests.push(request.context)
+      return fauxAssistantMessage('Noted.')
+    },
+    { models: [{ id: 'faux-1', contextWindow: CONTEXT_WINDOW }] },
+  )
   return { models, requests }
 }
 
@@ -177,7 +162,7 @@ export async function runUnfiledEval(
   if (!sent.length) {
     throw new Error('The unfiled eval needs at least one day with text.')
   }
-  const { models, requests } = scriptedModels()
+  const { models, requests } = recordingModels()
   const options = {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
