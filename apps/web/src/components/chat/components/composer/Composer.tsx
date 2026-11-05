@@ -83,7 +83,9 @@ export const Composer = ({ busy }: ComposerProps) => {
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      {error && <p className="mt-2 text-xs text-destructive">{error.message}</p>}
+      {error && (
+        <p className="mt-2 text-xs text-destructive">{error.message}</p>
+      )}
     </form>
   )
 }

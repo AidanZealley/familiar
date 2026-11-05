@@ -3,7 +3,10 @@ import {
   useRouter,
   type ErrorComponentProps,
 } from '@tanstack/react-router'
-import { ConnectionsPage } from '@/components/connections-page'
+import {
+  ConnectionsPage,
+  connectionsQuery,
+} from '@/components/connections-page'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -13,7 +16,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
-import { familiar } from '@/lib/familiar'
+import { queryClient } from '@/lib/familiar'
 
 type ConnectionsSearch = {
   /** The selected connection, as `kind:name`. */
@@ -41,14 +44,12 @@ const ConnectionsError = ({ error }: ErrorComponentProps) => {
   )
 }
 
-// Fetched, not mirrored: the page reloads them after each change, and polls
-// while it's open, because servers connect and drop in the background.
 export const Route = createFileRoute('/connections')({
   validateSearch: (search): ConnectionsSearch => ({
     id: text(search.id),
     q: text(search.q),
   }),
-  loader: () => familiar.connections.list(),
+  loader: () => queryClient.ensureQueryData(connectionsQuery),
   component: ConnectionsPage,
   pendingComponent: () => (
     <Empty>

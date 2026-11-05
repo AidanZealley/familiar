@@ -2,27 +2,65 @@ import type { ConnectionInfo } from '@familiar-ai/client'
 
 export type Tone = 'ok' | 'busy' | 'warn' | 'bad' | 'off'
 
-/** How a connection reads to the owner. Lower ranks need them sooner. */
+/**
+ * How a connection reads to the owner, and what they can do about it, if
+ * anything. Lower ranks need them sooner.
+ */
 export function statusOf(connection: ConnectionInfo): {
   label: string
   tone: Tone
   rank: number
+  advice?: string
 } {
   if (connection.kind === 'plugin') {
     return connection.secrets.some((secret) => !secret.set)
-      ? { label: 'Key not set', tone: 'warn', rank: 3 }
-      : { label: 'Ready', tone: 'ok', rank: 5 }
+      ? {
+          label: 'Key not set',
+          tone: 'warn',
+          rank: 3,
+          advice: 'Set its key so Familiar can use it.',
+        }
+      : {
+          label: 'Ready',
+          tone: 'ok',
+          rank: 5,
+          advice: "Installed with Familiar, so it can't be removed here.",
+        }
   }
   switch (connection.status.type) {
     case 'failed':
-      return { label: 'Failed', tone: 'bad', rank: 0 }
+      return {
+        label: 'Failed',
+        tone: 'bad',
+        rank: 0,
+        advice: 'Reconnect to try again.',
+      }
     case 'needs-auth':
       // The server only asks again for a token it was given if it refused it.
       return connection.secrets.some((secret) => secret.set)
-        ? { label: 'Token refused', tone: 'warn', rank: 1 }
-        : { label: 'Needs a token', tone: 'warn', rank: 1 }
+        ? {
+            label: 'Token refused',
+            tone: 'warn',
+            rank: 1,
+            advice:
+              'The server refused the saved token. Replace it to try again.',
+          }
+        : {
+            label: 'Needs a token',
+            tone: 'warn',
+            rank: 1,
+            advice: 'Add its bearer token to connect.',
+          }
     case 'disconnected':
-      return { label: 'Disconnected', tone: 'off', rank: 2 }
+      return {
+        label: 'Disconnected',
+        tone: 'off',
+        rank: 2,
+        advice:
+          connection.transport.type === 'stdio'
+            ? 'The process exited. Reconnect starts it again.'
+            : 'The connection closed. Reconnect to try again.',
+      }
     case 'connecting':
       return { label: 'Connecting', tone: 'busy', rank: 4 }
     case 'connected':

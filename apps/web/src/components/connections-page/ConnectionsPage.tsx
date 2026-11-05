@@ -1,6 +1,7 @@
-import { getRouteApi, useRouter } from '@tanstack/react-router'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { PlusIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
 import { AddServerForm } from './components/add-server-form'
@@ -8,6 +9,7 @@ import { ConnectionDetail } from './components/connection-detail'
 import { ConnectionDrawer } from './components/connection-drawer'
 import { ConnectionList } from './components/connection-list'
 import { CredentialsForm } from './components/credentials-form'
+import { connectionsQuery } from './query'
 import { idOf, statusOf } from './status'
 import type { DrawerState } from './types'
 
@@ -18,9 +20,8 @@ const route = getRouteApi('/connections')
  * selection in the URL decides which, so Back returns to the list.
  */
 export const ConnectionsPage = () => {
-  const router = useRouter()
   const navigate = route.useNavigate()
-  const connections = route.useLoaderData()
+  const { data: connections } = useSuspenseQuery(connectionsQuery)
   const { id, q = '' } = route.useSearch()
   const [drawer, setDrawer] = useState<DrawerState>()
   const editing =
@@ -34,19 +35,6 @@ export const ConnectionsPage = () => {
   )
   const selected =
     sorted.find((connection) => idOf(connection) === id) ?? sorted[0]
-
-  // Fast while a server connects, so its outcome shows promptly.
-  const connecting = connections.some(
-    (connection) =>
-      connection.kind === 'mcp' && connection.status.type === 'connecting',
-  )
-  useEffect(() => {
-    const timer = setInterval(
-      () => void router.invalidate(),
-      connecting ? 1000 : 5000,
-    )
-    return () => clearInterval(timer)
-  }, [router, connecting])
 
   return (
     <main className="mx-auto flex w-full max-w-(--page-width) flex-1 flex-col md:fixed md:inset-x-0 md:top-(--chrome) md:bottom-0 md:min-h-0 md:overflow-hidden">

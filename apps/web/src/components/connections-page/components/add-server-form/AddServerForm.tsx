@@ -1,6 +1,5 @@
-import { familiar } from '@/lib/familiar'
 import type { McpServer } from '@familiar-ai/client'
-import { useRouter } from '@tanstack/react-router'
+import { useMutation } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DrawerClose, DrawerFooter } from '@/components/ui/drawer'
@@ -16,13 +15,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
+import { familiar } from '@/lib/familiar'
 import type { AddServerFormProps } from './types'
 
-type Errors = Partial<Record<'name' | 'url' | 'command' | 'form', string>>
+type Errors = Partial<Record<'name' | 'url' | 'command', string>>
 
 /**
  * Checks what the owner can fix field by field; the server checks the rest,
- * and its reason shows below the form.
+ * and its reason shows below the form. The name rule is core's server
+ * schema's, whose own message isn't written for the owner.
  */
 function read(
   form: FormData,
@@ -58,46 +59,47 @@ function read(
     : { server: { name, transport } }
 }
 
+/** Adds the server, then its token; resolves with why the token failed. */
+async function addServer(server: McpServer, token: string) {
+  await familiar.mcp.add(server)
+  if (!token) {
+    return undefined
+  }
+  // The server exists now, so a failed token is retried from Edit, not here.
+  try {
+    await familiar.connections.setSecret(
+      { kind: 'mcp', name: server.name },
+      'token',
+      token,
+    )
+  } catch (failure) {
+    return `${server.name} was added, but its token wasn't saved: ${(failure as Error).message}`
+  }
+}
+
 export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
-  const router = useRouter()
   const id = useId()
   const [transport, setTransport] = useState<'http' | 'stdio'>('http')
   const [auth, setAuth] = useState<'none' | 'bearer'>('none')
   const [errors, setErrors] = useState<Errors>({})
-  const [busy, setBusy] = useState(false)
+  const add = useMutation({
+    mutationKey: ['connections'],
+    mutationFn: ({ server, token }: { server: McpServer; token: string }) =>
+      addServer(server, token),
+    onSuccess: (tokenError, { server }) => onAdded(server.name, tokenError),
+  })
 
-  const add = async (form: FormData) => {
+  const submit = (form: FormData) => {
     const result = read(form, transport, auth)
     if ('errors' in result) {
       setErrors(result.errors)
       return
     }
-    const { server } = result
     setErrors({})
-    setBusy(true)
-    try {
-      await familiar.mcp.add(server)
-    } catch (failure) {
-      setErrors({ form: (failure as Error).message })
-      setBusy(false)
-      return
-    }
-    // The server exists now, so a failed token is retried from Edit, not here.
-    const token = String(form.get('token') ?? '').trim()
-    let tokenError: string | undefined
-    if (token) {
-      try {
-        await familiar.connections.setSecret(
-          { kind: 'mcp', name: server.name },
-          'token',
-          token,
-        )
-      } catch (failure) {
-        tokenError = `${server.name} was added, but its token wasn't saved: ${(failure as Error).message}`
-      }
-    }
-    await router.invalidate()
-    await onAdded(server.name, tokenError)
+    add.mutate({
+      server: result.server,
+      token: String(form.get('token') ?? '').trim(),
+    })
   }
 
   const field = (key: keyof Errors) => ({
@@ -117,7 +119,7 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
       className="flex min-h-0 flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault()
-        void add(new FormData(event.currentTarget))
+        submit(new FormData(event.currentTarget))
       }}
     >
       <FieldGroup className="flex-1 overflow-y-auto p-4">
@@ -226,10 +228,10 @@ export const AddServerForm = ({ onAdded }: AddServerFormProps) => {
             </Field>
           </>
         )}
-        <FieldError>{errors.form}</FieldError>
+        <FieldError>{add.error?.message}</FieldError>
       </FieldGroup>
       <DrawerFooter>
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={add.isPending}>
           Add server
         </Button>
         <DrawerClose render={<Button variant="outline" />}>Cancel</DrawerClose>

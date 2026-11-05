@@ -1,10 +1,9 @@
-import { familiar } from '@/lib/familiar'
-import type { ConnectionInfo } from '@familiar-ai/client'
-import { Link, useRouter } from '@tanstack/react-router'
+import { useMutation } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { familiar } from '@/lib/familiar'
 import { cn } from 'cn'
 import { statusOf } from '../../status'
 import { StatusDot } from '../status-dot'
@@ -13,50 +12,16 @@ import { RemoveServer } from './components/remove-server'
 import { ToolList } from './components/tool-list'
 import type { ConnectionDetailProps } from './types'
 
-/** What the owner can do about the state it's in, if anything. */
-function advice(connection: ConnectionInfo) {
-  if (connection.kind === 'plugin') {
-    return connection.secrets.some((secret) => !secret.set)
-      ? 'Set its key so Familiar can use it.'
-      : "Installed with Familiar, so it can't be removed here."
-  }
-  const { status, transport } = connection
-  switch (status.type) {
-    case 'needs-auth':
-      return connection.secrets.some((secret) => secret.set)
-        ? 'The server refused the saved token. Replace it to try again.'
-        : 'Add its bearer token to connect.'
-    case 'disconnected':
-      return transport.type === 'stdio'
-        ? 'The process exited. Reconnect starts it again.'
-        : 'The connection closed. Reconnect to try again.'
-    case 'failed':
-      return 'Reconnect to try again.'
-  }
-}
-
 export const ConnectionDetail = ({
   className,
   connection,
   onEdit,
 }: ConnectionDetailProps) => {
-  const router = useRouter()
-  const [reconnecting, setReconnecting] = useState(false)
-  const [error, setError] = useState<string>()
   const status = statusOf(connection)
-  const hint = advice(connection)
-
-  const reconnect = async () => {
-    setReconnecting(true)
-    setError(undefined)
-    try {
-      await familiar.mcp.reconnect(connection.name)
-      await router.invalidate()
-    } catch (failure) {
-      setError((failure as Error).message)
-    }
-    setReconnecting(false)
-  }
+  const reconnect = useMutation({
+    mutationKey: ['connections'],
+    mutationFn: () => familiar.mcp.reconnect(connection.name),
+  })
 
   return (
     <section
@@ -100,9 +65,9 @@ export const ConnectionDetail = ({
               <Button
                 variant="outline"
                 disabled={
-                  reconnecting || connection.status.type === 'connecting'
+                  reconnect.isPending || connection.status.type === 'connecting'
                 }
-                onClick={() => void reconnect()}
+                onClick={() => reconnect.mutate()}
               >
                 <RefreshCwIcon
                   className={cn(
@@ -127,10 +92,12 @@ export const ConnectionDetail = ({
             {connection.status.error}
           </p>
         )}
-        {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
-        {error && (
+        {status.advice && (
+          <p className="text-sm text-muted-foreground">{status.advice}</p>
+        )}
+        {reconnect.error && (
           <p role="alert" className="text-sm text-destructive">
-            {error}
+            {reconnect.error.message}
           </p>
         )}
       </div>
@@ -163,12 +130,6 @@ export const ConnectionDetail = ({
           <section className="flex flex-col gap-3">
             <h3 className="text-sm font-medium">Server</h3>
             <TransportDetails transport={connection.transport} />
-            <p className="text-xs text-muted-foreground">
-              {connection.transport.type === 'stdio' &&
-                "Runs on this machine as the Familiar service's user. "}
-              The name and these settings are fixed. To change them, remove the
-              server and add it again.
-            </p>
           </section>
           <ToolList connection={connection} />
         </>
