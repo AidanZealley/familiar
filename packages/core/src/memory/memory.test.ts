@@ -20,6 +20,7 @@ import {
   testHost,
   timeAt,
 } from '../testing.ts'
+import { RECALL_HEADING } from './recall.ts'
 import { nextUpkeep } from './upkeep/schedule.ts'
 import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
@@ -172,7 +173,7 @@ const recalledIn = (context: TranscriptContext) =>
         ? [message.content]
         : [],
     )
-    .find((content) => content.startsWith('Recalled from memory'))
+    .find((content) => content.startsWith(RECALL_HEADING))
 
 test('a relevant fact outside core reaches the model, and the prompt stays the same', async () => {
   const storage = await storageWith(

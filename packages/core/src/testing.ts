@@ -8,6 +8,7 @@ import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
 import { onTestFinished } from 'vitest'
 import type { Author } from './conversation/message.ts'
 import { summonFamiliar, type Familiar, type FamiliarOptions } from './index.ts'
+import { RECALL_HEADING } from './memory/recall.ts'
 import { parseMinute } from './time.ts'
 
 /** Test helpers; not part of Familiar. */
@@ -155,4 +156,4 @@ export const inputOf = (context: TranscriptContext) =>
               .map((part) => (part.type === 'text' ? part.text : ''))
               .join(''),
     )
-    .findLast((text) => text && !text.startsWith('Recalled from memory')) ?? ''
+    .findLast((text) => text && !text.startsWith(RECALL_HEADING)) ?? ''

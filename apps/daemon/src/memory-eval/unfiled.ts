@@ -11,7 +11,11 @@ import {
 } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar, type FamiliarOptions } from '@familiar-ai/core'
-import { nextUpkeep, type UpkeepState } from '@familiar-ai/core/diagnostics'
+import {
+  nextUpkeep,
+  RECALL_HEADING,
+  type UpkeepState,
+} from '@familiar-ai/core/diagnostics'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
@@ -34,7 +38,6 @@ import { categories, type Category, type Scenario } from './scenario.ts'
 /** As the memory eval, so compaction happens as often. */
 const CONTEXT_BUDGET = 4_000
 const CONTEXT_WINDOW = 16_000
-const RECALL_NOTE = 'Recalled from memory'
 
 export type UnfiledScore = {
   category: Category
@@ -264,7 +267,7 @@ export async function runUnfiledEval(
     }
     const last = request.messages.at(-1)
     const note =
-      last?.role === 'user' && textOf(last).startsWith(RECALL_NOTE)
+      last?.role === 'user' && textOf(last).startsWith(RECALL_HEADING)
         ? textOf(last)
         : null
     const view = request.messages

@@ -287,6 +287,10 @@ function describeUnfiled(
   }
 }
 
+/** The first line of automatic recall's note, which follows the latest message. */
+export const RECALL_HEADING =
+  'Recalled from memory for the latest message; use it only if relevant:'
+
 export type RecallNote = {
   /** Facts the message was about, to record as recalled. */
   facts: string[]
@@ -318,9 +322,7 @@ export function recallNote(
   ]
   return {
     facts: used,
-    note: lines.length
-      ? `Recalled from memory for the latest message; use it only if relevant:\n${lines.join('\n')}`
-      : null,
+    note: lines.length ? `${RECALL_HEADING}\n${lines.join('\n')}` : null,
   }
 }
 
