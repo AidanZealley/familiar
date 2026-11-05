@@ -1,6 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { useStore } from 'zustand'
-import type { Board, Task } from './board.ts'
+import type { Board } from './board.ts'
 
 const BoardContext = createContext<Board | undefined>(undefined)
 
@@ -20,5 +19,3 @@ export const useBoard = () => {
   }
   return board
 }
-
-export const useTasks = (): Task[] => useStore(useBoard().store, (s) => s.tasks)

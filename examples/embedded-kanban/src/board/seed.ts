@@ -10,7 +10,7 @@ export const CURRENT_AUTHOR: Author = { id: 'sam', name: 'Sam' }
 const priya: Author = { id: 'priya', name: 'Priya' }
 const marcus: Author = { id: 'marcus', name: 'Marcus' }
 
-export const seedTasks = (): Task[] => [
+export const SEED_TASKS: Task[] = [
   { id: 'T-1', title: 'Draft the launch checklist', status: 'todo' },
   {
     id: 'T-2',

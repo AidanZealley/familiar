@@ -27,20 +27,13 @@ export class BoardError extends Error {}
  */
 export function createBoard(seed: Task[]) {
   const store = createStore<{ tasks: Task[] }>(() => ({ tasks: seed }))
-  let next = Math.max(0, ...seed.map((task) => Number(task.id.slice(2)))) + 1
 
   const tasks = () => store.getState().tasks
   const find = (id: string) => {
-    const task = tasks().find((task) => task.id === id.toUpperCase())
+    const task = tasks().find((task) => task.id === id)
     if (!task) {
       throw new BoardError(`There is no task ${id}.`)
     }
-    return task
-  }
-  const replace = (task: Task) => {
-    store.setState({
-      tasks: tasks().map((other) => (other.id === task.id ? task : other)),
-    })
     return task
   }
 
@@ -49,18 +42,27 @@ export function createBoard(seed: Task[]) {
     tasks,
     find,
 
-    create(title: string, status: Status = 'todo') {
+    create(title: string) {
       const trimmed = title.trim()
       if (!trimmed) {
         throw new BoardError('A task needs a title.')
       }
-      const task: Task = { id: `T-${next++}`, title: trimmed, status }
+      // Tasks are never deleted, so the count numbers the next one.
+      const task: Task = {
+        id: `T-${tasks().length + 1}`,
+        title: trimmed,
+        status: 'todo',
+      }
       store.setState({ tasks: [...tasks(), task] })
       return task
     },
 
-    assign(id: string, assignee: Author | undefined) {
-      return replace({ ...find(id), assignee })
+    assign(id: string, assignee: Author) {
+      const task = { ...find(id), assignee }
+      store.setState({
+        tasks: tasks().map((other) => (other.id === id ? task : other)),
+      })
+      return task
     },
 
     /** Moves a task to `status`, at `index` among that column's tasks. */

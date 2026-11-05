@@ -9,7 +9,8 @@ import {
   KanbanOverlay,
 } from '@/components/reui/kanban'
 import { STATUS_LABELS, STATUSES, type Status, type Task } from '@/board/board'
-import { useBoard, useTasks } from '@/board/react'
+import { useStore } from 'zustand'
+import { useBoard } from '@/board/react'
 import { NewTaskForm } from './components/new-task-form'
 import { TaskCard } from './components/task-card'
 import type { TaskBoardProps } from './types'
@@ -21,7 +22,7 @@ const ignoreArrangement = () => {}
 
 export const TaskBoard = ({ author }: TaskBoardProps) => {
   const board = useBoard()
-  const tasks = useTasks()
+  const tasks = useStore(board.store, (state) => state.tasks)
   const columns = useMemo(
     () =>
       Object.fromEntries(

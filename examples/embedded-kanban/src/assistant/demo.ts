@@ -3,7 +3,7 @@ import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore } from '@familiar-ai/client'
 import { createBoard } from '../board/board.ts'
-import { CURRENT_AUTHOR, seedTasks } from '../board/seed.ts'
+import { CURRENT_AUTHOR, SEED_TASKS } from '../board/seed.ts'
 import { boardPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
@@ -27,7 +27,7 @@ const CHAT = new Set<Operation>([
  * credentials never reach the browser.
  */
 export async function startDemo() {
-  const board = createBoard(seedTasks())
+  const board = createBoard(SEED_TASKS)
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
