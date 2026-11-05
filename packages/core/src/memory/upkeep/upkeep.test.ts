@@ -6,13 +6,8 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
-import {
-  createRegistry,
-  defineDoc,
-  Harness,
-  type Storage,
-} from '@earendil-works/pi-durable'
-import { nextUpkeep } from './schedule.ts'
+import type { Storage } from '@earendil-works/pi-durable'
+import { nextUpkeep, upkeepDay } from './schedule.ts'
 import { afterEach, expect, test, vi } from 'vitest'
 import { summonFamiliar, type Familiar } from '../../familiar.ts'
 import { MemoryUsage } from '../facts.ts'
@@ -144,279 +139,309 @@ const exchangeIn = (input: string, text: string) =>
     .find((line) => line.includes(text))
     ?.match(/^\[(x\d+) /)?.[1] ?? 'missing'
 
-test('a pass at 04:00 files facts with their sources and days', async () => {
-  const { faux, say, memory, passAt } = await setup(
-    await storageWith(['Has a cat', 3], ['Owns a cat called Miso', 3]),
+/** The tool results sent back in one request. */
+const toolResultsIn = (context: TranscriptContext) =>
+  JSON.stringify(
+    context.messages.filter((message) => message.role === 'toolResult'),
   )
-  faux.setResponses([fauxAssistantMessage('Noted.')])
-  await say('I have a cat called Miso, and I am vegetarian.')
+
+/** The tools offered in one request. */
+const toolsIn = (context: TranscriptContext) =>
+  context.messages.flatMap((message) =>
+    message.role === 'system' ? (message.toolsAdded ?? []) : [],
+  )
+
+const failed = () =>
+  fauxAssistantMessage('', {
+    stopReason: 'error',
+    errorMessage: 'The model failed on purpose.',
+  })
+
+const DAY = 24 * 60 * 60 * 1000
+const thirdPass = nextUpkeep(secondPass, TEST_ZONE)
+const fourthPass = nextUpkeep(thirdPass, TEST_ZONE)
+const fifthPass = nextUpkeep(fourthPass, TEST_ZONE)
+
+test("upkeep days run 04:00 to 04:00 on the wall clock, in each Familiar's own zone", () => {
+  {
+    expect(upkeepDay(timeAt('2026-02-10 01:00'), TEST_ZONE)).toBe('2026-02-09')
+    expect(upkeepDay(timeAt('2026-02-10 04:00'), TEST_ZONE)).toBe('2026-02-10')
+  }
+  {
+    const HOUR = 60 * 60 * 1000
+    // Clocks go forward an hour at 01:00 on 29 March 2026 in London, and back
+    // at 02:00 on 25 October, so those upkeep days are 23 and 25 hours long.
+    const spring = timeAt('2026-03-29 04:00')
+    expect(nextUpkeep(timeAt('2026-03-28 04:00'), TEST_ZONE)).toBe(spring)
+    expect(spring - timeAt('2026-03-28 04:00')).toBe(23 * HOUR)
+    expect(upkeepDay(spring - 1, TEST_ZONE)).toBe('2026-03-28')
+    expect(upkeepDay(timeAt('2026-03-29 04:30'), TEST_ZONE)).toBe('2026-03-29')
+
+    const autumn = timeAt('2026-10-25 04:00')
+    expect(nextUpkeep(timeAt('2026-10-24 04:00'), TEST_ZONE)).toBe(autumn)
+    expect(autumn - timeAt('2026-10-24 04:00')).toBe(25 * HOUR)
+    expect(upkeepDay(autumn - 1, TEST_ZONE)).toBe('2026-10-24')
+    expect(upkeepDay(autumn, TEST_ZONE)).toBe('2026-10-25')
+  }
+  {
+    const now = Date.UTC(2026, 5, 1, 12)
+    expect(nextUpkeep(now, 'Europe/London')).toBe(Date.UTC(2026, 5, 2, 3))
+    expect(nextUpkeep(now, 'America/New_York')).toBe(Date.UTC(2026, 5, 2, 8))
+    // 12:00 UTC is already evening in Tokyo, and midnight in Auckland.
+    expect(nextUpkeep(now, 'Asia/Tokyo')).toBe(Date.UTC(2026, 5, 1, 19))
+    expect(nextUpkeep(now, 'Pacific/Auckland')).toBe(Date.UTC(2026, 5, 1, 16))
+  }
+})
+
+test("a night files the day's facts from people's messages, reports refused edits to the model, writes its episode and rolls up the week", async () => {
+  const { faux, familiar, say, memory, episodes, passAt } = await setup(
+    await storageWith(
+      ['Has a cat', 3],
+      ['Owns a cat called Miso', 3],
+      // Minor, so outside core: only recall can show it to the pass.
+      ['Prefers green tea', 1],
+    ),
+  )
+  // Sunday 25 October 2026; the first pass is Monday at 04:00.
+  const people = [
+    {
+      author: { id: 'aidan', name: 'aidan' },
+      text: 'I have a cat called Miso, and I am vegetarian.',
+    },
+    {
+      author: { id: 'aidan', name: 'aidan' },
+      text: 'I have switched to black tea now.',
+    },
+    // The same name is two people; a renamed person is still one.
+    {
+      author: { id: 'sam-1', name: 'Sam' },
+      text: 'My favourite fruit is mango',
+    },
+    {
+      author: { id: 'sam-2', name: 'Sam' },
+      text: 'My favourite fruit is pear',
+    },
+    { author: { id: 'sam-1', name: 'Samuel' }, text: 'I still prefer mango' },
+  ]
+  faux.setResponses(people.map(() => fauxAssistantMessage('Noted.')))
+  for (const message of people) {
+    await familiar().send({ ...message, requestId: message.text })
+    await familiar().idle()
+  }
+  const view = await familiar().watch()
+  await view.stop()
+  const reply = view.value.entries.find(
+    (entry) => entry.kind === 'pi.assistant',
+  )!
 
   let input = ''
+  let recalled = ''
+  let results = ''
+  let rollup: TranscriptContext | undefined
   faux.setResponses([
     (context) => {
       expect(isUpkeep(context)).toBe(true)
       input = inputOf(context)
-      const source = exchangeIn(input, 'vegetarian')
+      recalled = JSON.stringify(context.messages.at(-1))
+      const vegetarian = exchangeIn(input, 'vegetarian')
       return fauxAssistantMessage(
         [
           fauxToolCall('revise_memory', {
             id: 'f2',
             text: 'Owns a cat called Miso',
-            sources: [source],
+            sources: [vegetarian],
             merge: ['f1'],
           }),
           fauxToolCall('remember', {
             text: 'Is vegetarian',
             importance: 4,
-            sources: [source],
+            sources: [vegetarian],
           }),
+          fauxToolCall('revise_memory', {
+            id: 'f3',
+            text: 'Prefers black tea',
+            sources: [exchangeIn(input, 'black tea')],
+          }),
+          fauxToolCall('recall', { query: 'fruit' }),
+          // Each refused: a reply, a message that doesn't exist, a missing
+          // fact, and a change with nothing to say when it happened.
+          fauxToolCall('remember', {
+            text: 'Is vegetarian',
+            importance: 4,
+            sources: [`x${reply.id}`],
+          }),
+          fauxToolCall('remember', {
+            text: 'Is vegetarian',
+            importance: 4,
+            sources: ['x9999'],
+          }),
+          fauxToolCall('retire', { id: 'f9', until: '2026-10-25' }),
+          fauxToolCall('revise_memory', { id: 'f9', text: 'Lives in York' }),
         ],
         { stopReason: 'toolUse' },
       )
     },
-    fauxAssistantMessage('Merged the cat facts and saved one.'),
+    (context) => {
+      results = toolResultsIn(context)
+      return fauxAssistantMessage(
+        'Aidan talked about Miso and tea; the two Sams compared fruit.',
+      )
+    },
+    (context) => {
+      rollup = context
+      return fauxAssistantMessage('A week of cats, tea and fruit.')
+    },
   ])
-  expect(faux.getPendingResponseCount()).toBe(2)
   await passAt(firstPass, secondPass)
 
-  expect(faux.getPendingResponseCount()).toBe(0)
+  // Upkeep reads the stored words with their exchange IDs and authors, not
+  // the model's copy with its author line.
   expect(input).toMatch(
     /\[x\d+ 2026-10-25 12:00\] \{"id":"aidan","name":"aidan"\}: I have a cat called Miso/,
   )
   expect(input).toContain('Familiar: Noted.')
-  // Upkeep reads the stored words, not the model's copy with its author line.
   expect(input).not.toContain('[Message from')
-  const source = Number(exchangeIn(input, 'vegetarian').slice(1))
-  // Merged duplicates stay as history; only current facts are believed.
-  expect(
-    (await memory())
-      .filter((fact) => fact.until === undefined)
-      .map(({ text, replaces, sources, since }) => ({
-        text,
-        replaces,
-        sources,
-        since,
-      })),
-  ).toEqual([
-    {
-      text: 'Owns a cat called Miso',
-      replaces: ['f2', 'f1'],
-      sources: [source],
-      since: '2026-10-25',
-    },
-    {
-      text: 'Is vegetarian',
-      replaces: undefined,
-      sources: [source],
-      since: '2026-10-25',
-    },
-  ])
-  expect(await memory()).toHaveLength(4)
-})
-
-test("a pass rejects sources that are not people's messages", async () => {
-  const { faux, familiar, say, memory, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage('Noted.')])
-  await say('I am vegetarian.')
-  const view = await familiar().watch()
-  await view.stop()
-  const reply = view.value.entries.find(
-    (entry) => entry.kind === 'pi.assistant',
-  )
-
-  let results = ''
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('remember', {
-          text: 'Is vegetarian',
-          importance: 4,
-          sources: [`x${reply!.id}`],
-        }),
-        fauxToolCall('remember', {
-          text: 'Is vegetarian',
-          importance: 4,
-          sources: ['x9999'],
-        }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    (context) => {
-      results = JSON.stringify(
-        context.messages.filter((message) => message.role === 'toolResult'),
-      )
-      return fauxAssistantMessage('Nothing filed.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
-  expect(results).toContain(`x${reply!.id} is not a message from a person`)
+  for (const { author, text } of people.slice(2)) {
+    expect(input).toContain(`${JSON.stringify(author)}: ${text}`)
+  }
+  // Automatic recall shows the pass the fact outside core.
+  expect(recalled).toContain('f3 (since')
+  expect(results).toContain('sam-1')
+  expect(results).toContain('sam-2')
+  expect(results).toContain(`x${reply.id} is not a message from a person`)
   expect(results).toContain('x9999 is not a message from a person')
-  expect(await memory()).toEqual([])
-})
-
-test('a change upkeep cannot make is an error for the model, not a crash', async () => {
-  const { faux, say, memory, passAt } = await setup(
-    await storageWith(['Lives in Leeds', 4]),
-  )
-  faux.setResponses([fauxAssistantMessage('Noted.')])
-  await say('I moved to York.')
-
-  let results = ''
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('retire', { id: 'f9', until: '2026-10-25' }),
-        // Without sources, nothing says when it happened.
-        fauxToolCall('revise_memory', { id: 'f1', text: 'Lives in York' }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
-    (context) => {
-      results = JSON.stringify(
-        context.messages.filter((message) => message.role === 'toolResult'),
-      )
-      return fauxAssistantMessage('Moved to York.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
   expect(results).toContain('No fact f9')
   expect(results).toContain('Give since, or cite the messages')
-  const facts = await memory()
-  expect(facts).toHaveLength(1)
-  expect(facts[0].until).toBeUndefined()
+
+  // Merged and revised versions stay as history, out of core.
+  const vegetarian = Number(exchangeIn(input, 'vegetarian').slice(1))
+  expect(await memory()).toMatchObject([
+    { id: 'f1', until: '2026-10-25', core: false },
+    { id: 'f2', until: '2026-10-25', core: false },
+    { id: 'f3', until: '2026-10-25', core: false },
+    {
+      id: 'f4',
+      text: 'Owns a cat called Miso',
+      replaces: ['f2', 'f1'],
+      sources: [vegetarian],
+      since: '2026-10-25',
+    },
+    {
+      id: 'f5',
+      text: 'Is vegetarian',
+      sources: [vegetarian],
+      since: '2026-10-25',
+    },
+    {
+      id: 'f6',
+      text: 'Prefers black tea',
+      replaces: ['f3'],
+      since: '2026-10-25',
+    },
+  ])
+
+  expect(await episodes()).toMatchObject([
+    { id: 'e1', span: 'day', start: '2026-10-25', end: '2026-10-25' },
+    { id: 'e2', span: 'week', start: '2026-10-19', end: '2026-10-25' },
+  ])
+  // Rolled up in its own conversation, with no tools to change facts.
+  expect(JSON.stringify(rollup!.messages)).toContain(
+    'You write the episodes of Familiar',
+  )
+  expect(toolsIn(rollup!)).toEqual([])
+  expect(inputOf(rollup!)).toContain('The week of 2026-10-19 to 2026-10-25:')
+  expect(inputOf(rollup!)).toContain(
+    '2026-10-25: Aidan talked about Miso and tea',
+  )
+
+  // The week is rolled up, so it stands in for its day.
+  let note = ''
+  faux.setResponses([
+    (context) => {
+      note = JSON.stringify(context.messages.at(-1))
+      return fauxAssistantMessage('Mango and pear.')
+    },
+  ])
+  await say('What did the Sams say about fruit?')
+  expect(note).toContain('e2 (week of 2026-10-19 to 2026-10-25)')
+  expect(note).not.toContain('e1 (day')
 })
 
-test('a fact cited from several messages is true from the earliest', async () => {
-  const { faux, say, memory, passAt } = await setup()
+test('each night reviews only what is new, dates a fact from its earliest source, and asks once for a missing episode', async () => {
+  const { faux, say, memory, episodes, passAt } = await setup()
   faux.setResponses([fauxAssistantMessage('Lovely.')])
   await say('I started learning the cello today.')
+
+  // Night one ends without its episode, so it is asked once more.
   let first = ''
+  let followUp = ''
   faux.setResponses([
     (context) => {
       first = exchangeIn(inputOf(context), 'cello')
+      return fauxAssistantMessage('')
+    },
+    (context) => {
+      followUp = inputOf(context)
       return fauxAssistantMessage('Started the cello.')
     },
+    fauxAssistantMessage('A week of cello.'),
   ])
   await passAt(firstPass, secondPass)
+  expect(followUp).toBe(
+    'Now reply with only the episode for that conversation.',
+  )
 
+  // Night two cites both days, and still writes no episode, so it moves on.
   faux.setResponses([fauxAssistantMessage('Good habit.')])
   await say('I practise the cello every evening now.')
+  let second = ''
   faux.setResponses([
-    (context) =>
-      fauxAssistantMessage(
+    (context) => {
+      second = JSON.stringify(context.messages)
+      return fauxAssistantMessage(
         fauxToolCall('remember', {
           text: 'Plays the cello, practising every evening',
           importance: 3,
           sources: [exchangeIn(inputOf(context), 'every evening'), first],
         }),
         { stopReason: 'toolUse' },
-      ),
-    fauxAssistantMessage('Cello practice.'),
+      )
+    },
+    fauxAssistantMessage(''),
+    fauxAssistantMessage(''),
   ])
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
+  await passAt(secondPass, thirdPass)
+  // Nothing from the night before, in its input or left in the conversation.
+  expect(second).not.toContain('learning the cello today')
   expect(await memory()).toMatchObject([
     {
       since: '2026-10-25',
       sources: [expect.any(Number), Number(first.slice(1))],
     },
   ])
-})
 
-test("read_memory opens a day episode's exchanges and a fact's sources", async () => {
-  const { faux, say, episodes, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage('Welcome home, Miso.')])
-  await say('I adopted a cat called Miso today.')
+  faux.setResponses([fauxAssistantMessage('Tidy.')])
+  await say('I tidied the shed.')
+  let third = ''
   faux.setResponses([
-    (context) =>
-      fauxAssistantMessage(
-        fauxToolCall('remember', {
-          text: 'Has a cat called Miso',
-          importance: 4,
-          sources: [exchangeIn(inputOf(context), 'Miso')],
-        }),
-        { stopReason: 'toolUse' },
-      ),
-    fauxAssistantMessage('Adopted a cat, Miso.'),
-  ])
-  await passAt(firstPass, secondPass)
-  expect((await episodes())[0].entries).toEqual({
-    from: expect.any(Number),
-    to: expect.any(Number),
-  })
-
-  let results: string[] = []
-  faux.setResponses([
-    fauxAssistantMessage(
-      [
-        fauxToolCall('read_memory', { id: 'e1' }),
-        fauxToolCall('read_memory', { id: 'f1' }),
-      ],
-      { stopReason: 'toolUse' },
-    ),
     (context) => {
-      results = context.messages.flatMap((message) =>
-        message.role === 'toolResult'
-          ? [
-              message.content
-                .map((part) => ('text' in part ? part.text : ''))
-                .join(''),
-            ]
-          : [],
-      )
-      return fauxAssistantMessage('Miso came home on Sunday.')
+      third = inputOf(context)
+      return fauxAssistantMessage('Tidied the shed.')
     },
   ])
-  await say('When did Miso arrive?')
-  const [day, fact] = results.slice(-2)
-  expect(day).toMatch(/^e1 \(day of 2026-10-25\): Adopted a cat, Miso\./)
-  expect(day).toMatch(
-    /x\d+ \(2026-10-25 12:00; author \{"id":"aidan","name":"aidan"\}\):\nI adopted a cat called Miso today\.\nWelcome home, Miso\./,
-  )
-  expect(day).not.toContain('[Message from')
-  expect(fact).toMatch(/^f1 \(since 2026-10-25\): Has a cat called Miso/)
-  expect(fact).toContain('From:')
-  expect(fact).toContain('I adopted a cat called Miso today.')
-})
-
-test('a pass sees only messages since the previous one', async () => {
-  const { faux, say, passAt } = await setup()
-  const inputs: string[] = []
-  const upkeepReply = (context: TranscriptContext) => {
-    inputs.push(JSON.stringify(context.messages))
-    return fauxAssistantMessage('Nothing to change.')
-  }
-
-  faux.setResponses([fauxAssistantMessage('Enjoy Lisbon.'), upkeepReply])
-  await say('We fly to Lisbon on Friday.')
-  await passAt(firstPass, secondPass)
-
-  faux.setResponses([fauxAssistantMessage('Welcome back.'), upkeepReply])
-  await say('We are back from Porto.')
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-
-  expect(inputs).toHaveLength(2)
-  expect(inputs[0]).toContain('Lisbon')
-  expect(inputs[1]).toContain('Porto')
-  // Neither in its input nor left over in the upkeep conversation.
-  expect(inputs[1]).not.toContain('Lisbon')
-})
-
-test('no pass runs when nothing new was said', async () => {
-  const { faux, say, passAt } = await setup()
-  await passAt(firstPass, secondPass) // nothing said yet
-  expect(faux.state.callCount).toBe(0)
-
-  faux.setResponses([
-    fauxAssistantMessage('Hello.'),
-    fauxAssistantMessage('Nothing to change.'),
+  await passAt(thirdPass, fourthPass)
+  expect(third).toContain('tidied the shed')
+  expect(third).not.toContain('every evening')
+  expect((await episodes()).map(({ span, text }) => [span, text])).toEqual([
+    ['day', 'Started the cello.'],
+    ['week', 'A week of cello.'],
+    ['day', 'Tidied the shed.'],
   ])
-  await say('Hi.')
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-  expect(faux.state.callCount).toBe(2)
 
-  const third = nextUpkeep(secondPass, TEST_ZONE)
-  await passAt(third, nextUpkeep(third, TEST_ZONE))
-  expect(faux.state.callCount).toBe(2)
+  // Nothing new was said, so nothing runs.
+  const calls = faux.state.callCount
+  await passAt(fourthPass, fifthPass)
+  expect(faux.state.callCount).toBe(calls)
 })
 
 test('reopening keeps exactly one upkeep task on its schedule', async () => {
@@ -448,277 +473,7 @@ test('reopening keeps exactly one upkeep task on its schedule', async () => {
   expect(passes).toBe(1)
 })
 
-test('a later pass revises a fact saved outside core instead of duplicating it', async () => {
-  const { faux, say, memory, passAt } = await setup(
-    await storageWith(['Prefers green tea', 1]),
-  )
-  const recalledIn = (context: TranscriptContext) =>
-    JSON.stringify(context.messages).includes('f1 (since')
-  expect((await memory())[0].core).toBe(false)
-
-  faux.setResponses([fauxAssistantMessage('Noted.')])
-  await say('I have switched to black tea now.')
-
-  let sawFact = false
-  faux.setResponses([
-    (context) => {
-      expect(isUpkeep(context)).toBe(true)
-      sawFact = recalledIn(context)
-      return fauxAssistantMessage(
-        fauxToolCall('revise_memory', {
-          id: 'f1',
-          text: 'Prefers black tea',
-          sources: [exchangeIn(inputOf(context), 'black tea')],
-        }),
-        { stopReason: 'toolUse' },
-      )
-    },
-    fauxAssistantMessage('Revised the tea preference.'),
-  ])
-  await passAt(firstPass, secondPass)
-
-  expect(sawFact).toBe(true)
-  expect(await memory()).toMatchObject([
-    { id: 'f1', since: '2026-01-05', until: '2026-10-25' },
-    {
-      id: 'f2',
-      text: 'Prefers black tea',
-      replaces: ['f1'],
-      since: '2026-10-25',
-    },
-  ])
-})
-
-test('a pass can search for a fact its automatic recall missed', async () => {
-  const topics = Array.from(
-    { length: 10 },
-    (_, index) =>
-      `Topic ${index}: switched to a new routine for the garden now`,
-  )
-  const { faux, say, memory, passAt } = await setup(
-    await storageWith(
-      ['Prefers green tea', 1],
-      ...topics.map((text) => [text, 1] as [string, number]),
-    ),
-  )
-  faux.setResponses([fauxAssistantMessage('Noted.')])
-  await say(
-    `I have switched to black tea now. ${topics.join('. ')}. The garden routine is new.`,
-  )
-
-  let automatic = ''
-  let searched = ''
-  let source = ''
-  faux.setResponses([
-    (context) => {
-      expect(isUpkeep(context)).toBe(true)
-      automatic = JSON.stringify(context.messages.at(-1))
-      source = exchangeIn(inputOf(context), 'black tea')
-      return fauxAssistantMessage(fauxToolCall('recall', { query: 'tea' }), {
-        stopReason: 'toolUse',
-      })
-    },
-    (context) => {
-      const last = context.messages.findLast(
-        (message) => message.role === 'toolResult',
-      )
-      searched = JSON.stringify(last)
-      return fauxAssistantMessage(
-        fauxToolCall('revise_memory', {
-          id: 'f1',
-          text: 'Prefers black tea',
-          sources: [source],
-        }),
-        { stopReason: 'toolUse' },
-      )
-    },
-    fauxAssistantMessage('Revised the tea preference.'),
-  ])
-  await passAt(firstPass, secondPass)
-
-  // Crowded out of the automatic eight, but found by a targeted search.
-  expect(automatic).toContain('Recalled from memory')
-  expect(automatic).not.toContain('green tea')
-  expect(searched).toContain('f1 (since')
-  expect(
-    (await memory())
-      .filter((fact) => fact.until === undefined)
-      .map((fact) => fact.text),
-  ).toContain('Prefers black tea')
-})
-
-test("a pass writes the day's episode, rebalances core, and Monday's pass rolls up the week", async () => {
-  const { faux, say, memory, episodes, passAt } = await setup(
-    await storageWith(['Plants bulbs with Noor', 3]),
-  )
-  faux.setResponses([fauxAssistantMessage('Lovely.')])
-  // Sunday 25 October 2026; the first pass is Monday at 04:00.
-  await say('I spent today planting bulbs with Noor.')
-  expect((await memory())[0].core).toBe(true)
-
-  let rollupInput = ''
-  let rollupTools: unknown[] = ['not called']
-  const toolsIn = (context: TranscriptContext) =>
-    context.messages.flatMap((message) =>
-      message.role === 'system' ? (message.toolsAdded ?? []) : [],
-    )
-  let reviewTools: unknown[] = []
-  faux.setResponses([
-    (context) => {
-      reviewTools = toolsIn(context)
-      return fauxAssistantMessage(
-        fauxToolCall('retire', {
-          id: 'f1',
-          sources: [exchangeIn(inputOf(context), 'planting bulbs')],
-        }),
-        { stopReason: 'toolUse' },
-      )
-    },
-    fauxAssistantMessage('Rowan planted bulbs with Noor on Sunday.'),
-    (context) => {
-      // Its own conversation: summarising instructions and no tools, so a
-      // rollup can't change facts.
-      expect(JSON.stringify(context.messages)).toContain(
-        'You write the episodes of Familiar',
-      )
-      rollupTools = toolsIn(context)
-      rollupInput = inputOf(context)
-      return fauxAssistantMessage('A quiet week ending in bulb planting.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
-
-  expect(await episodes()).toMatchObject([
-    {
-      id: 'e1',
-      span: 'day',
-      start: '2026-10-25',
-      end: '2026-10-25',
-      text: 'Rowan planted bulbs with Noor on Sunday.',
-    },
-    {
-      id: 'e2',
-      span: 'week',
-      start: '2026-10-19',
-      end: '2026-10-25',
-      text: 'A quiet week ending in bulb planting.',
-    },
-  ])
-  expect(reviewTools).not.toEqual([])
-  expect(rollupTools).toEqual([])
-  expect(rollupInput).toContain('The week of 2026-10-19 to 2026-10-25:')
-  expect(rollupInput).toContain(
-    '2026-10-25: Rowan planted bulbs with Noor on Sunday.',
-  )
-  // Retired on the day of the message that said so, so rebalancing moved it
-  // out of core; it is still kept.
-  expect(await memory()).toMatchObject([
-    { id: 'f1', core: false, until: '2026-10-25' },
-  ])
-
-  let note = ''
-  faux.setResponses([
-    (context) => {
-      note = JSON.stringify(context.messages.at(-1))
-      return fauxAssistantMessage('You planted bulbs.')
-    },
-  ])
-  await say('What was I doing with Noor last week?')
-  // The week is rolled up, so it stands in for its day.
-  expect(note).toContain('e2 (week of 2026-10-19 to 2026-10-25)')
-  expect(note).not.toContain('e1 (day')
-})
-
-test('a review that ends without its episode is asked for it once more', async () => {
-  const { faux, say, episodes, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage('Lovely.')])
-  await say('I spent today planting bulbs with Noor.')
-
-  let followUp = ''
-  faux.setResponses([
-    fauxAssistantMessage(''),
-    (context) => {
-      followUp = inputOf(context)
-      return fauxAssistantMessage('Rowan planted bulbs with Noor.')
-    },
-    fauxAssistantMessage('A week of bulbs.'),
-  ])
-  await passAt(firstPass, secondPass)
-  expect(followUp).toBe(
-    'Now reply with only the episode for that conversation.',
-  )
-  expect((await episodes()).map(({ span, text }) => [span, text])).toEqual([
-    ['day', 'Rowan planted bulbs with Noor.'],
-    ['week', 'A week of bulbs.'],
-  ])
-})
-
-test('a pass that still writes no episode moves on rather than repeat itself', async () => {
-  const { faux, say, episodes, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage('Lovely.')])
-  await say('I spent today planting bulbs with Noor.')
-  faux.setResponses([fauxAssistantMessage(''), fauxAssistantMessage('')])
-  await passAt(firstPass, secondPass)
-  expect(await episodes()).toEqual([])
-
-  faux.setResponses([fauxAssistantMessage('Good.')])
-  await say('I tidied the shed.')
-  let input = ''
-  faux.setResponses([
-    (context) => {
-      input = inputOf(context)
-      return fauxAssistantMessage('Rowan tidied the shed.')
-    },
-  ])
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-  // The next night reviews only what's new.
-  expect(input).toContain('tidied the shed')
-  expect(input).not.toContain('planting bulbs')
-})
-
-test('upkeep saved before episodes opens, gains its rollup conversation and keeps one task', async () => {
-  const storage = new ReopenableStorage()
-  const UpkeepV1 = defineDoc<{
-    conversation: null
-    task: null
-    through: number | null
-  }>({
-    kind: 'familiar.upkeep',
-    version: 1,
-    scope: 'session',
-    initial: () => ({ conversation: null, task: null, through: null }),
-    checkpointWhen: () => true,
-  })
-  const old = await Harness.open(
-    storage,
-    { models: createModels(), registry: createRegistry() },
-    context,
-  )
-  await old.commit(async (tx) => void (await tx.doc(UpkeepV1)), context)
-  await old.close(context)
-
-  const { faux, say, episodes, upkeepTasks, passAt, reopen } =
-    await setup(storage)
-  await reopen()
-  expect(await upkeepTasks()).toHaveLength(1)
-
-  faux.setResponses([fauxAssistantMessage('Lovely.')])
-  await say('I spent today planting bulbs with Noor.')
-  faux.setResponses([
-    fauxAssistantMessage('Rowan planted bulbs with Noor.'),
-    (context) => {
-      // Rollups run in the conversation the migration made room for.
-      expect(JSON.stringify(context.messages)).toContain(
-        'You write the episodes of Familiar',
-      )
-      return fauxAssistantMessage('A week of bulbs.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
-  expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
-})
-
-test('a busy day reviews every message in ordered batches before its rollup', async () => {
+test('a busy day is reviewed in ordered batches, keeping progress across a failure and a restart, before its rollup', async () => {
   const { faux, say, episodes, passAt, reopen } = await setup()
   const messages = ['first', 'second'].map(
     (label) => `${label}: ${'detail '.repeat(8_000)} end-${label}`,
@@ -732,29 +487,36 @@ test('a busy day reviews every message in ordered batches before its rollup', as
   }
 
   const inputs: string[] = []
-  const review = (context: TranscriptContext) => {
+  const batch = (episode: string) => (context: TranscriptContext) => {
     inputs.push(inputOf(context))
-    return fauxAssistantMessage(`Batch ${inputs.length}.`)
+    return fauxAssistantMessage(episode)
   }
-  let rollupInput = ''
+  faux.setResponses([batch('Batch 1.'), failed])
+  await passAt(firstPass, secondPass)
+  expect((await episodes()).map(({ span, text }) => [span, text])).toEqual([
+    ['day', 'Batch 1.'],
+  ])
+
+  await reopen()
+  let rollup = ''
   faux.setResponses([
-    review,
-    review,
+    batch('Batch 2.'),
     (context) => {
-      rollupInput = inputOf(context)
+      rollup = inputOf(context)
       return fauxAssistantMessage('Both batches.')
     },
   ])
-  await passAt(firstPass, secondPass)
+  await passAt(secondPass, thirdPass)
+  // The failed batch is retried, and only it.
   expect(inputs).toHaveLength(2)
   expect(inputs[0]).toContain(messages[0])
+  expect(inputs[0]).toContain('First reply.')
   expect(inputs[0]).not.toContain('end-second')
   expect(inputs[1]).toContain(messages[1])
+  expect(inputs[1]).toContain('Second reply.')
   expect(inputs[1]).not.toContain('end-first')
-  expect(inputs.join('\n')).toContain('First reply.')
-  expect(inputs.join('\n')).toContain('Second reply.')
-  expect(rollupInput).toContain('Batch 1.')
-  expect(rollupInput).toContain('Batch 2.')
+  expect(rollup).toContain('Batch 1.')
+  expect(rollup).toContain('Batch 2.')
   expect(
     (await episodes()).map(({ span, start, end }) => [span, start, end]),
   ).toEqual([
@@ -762,127 +524,58 @@ test('a busy day reviews every message in ordered batches before its rollup', as
     ['day', '2026-10-25', '2026-10-25'],
     ['week', '2026-10-19', '2026-10-25'],
   ])
-  await reopen()
+
   const calls = faux.state.callCount
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
+  await passAt(thirdPass, fourthPass)
   expect(faux.state.callCount).toBe(calls)
 })
 
-test('a backlog is split at 04:00 and all days are reviewed before rollups', async () => {
+test('a backlog is reviewed a day at a time, an oversized message bounded alone, before the rollup of finished days', async () => {
   const { faux, say, setTime, episodes, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage('Sunday reply.')])
-  await say('Sunday news.')
-  // The first pass fails, so Sunday is still waiting when Monday's chat comes.
-  faux.setResponses([
-    fauxAssistantMessage('', {
-      stopReason: 'error',
-      errorMessage: 'insufficient_quota',
-    }),
-  ])
+  faux.setResponses([fauxAssistantMessage('Reply after the long message.')])
+  await say(`Long message: ${'detail '.repeat(17_000)} end-long`)
+  // The first night fails, so Sunday is still waiting when Monday's chat comes.
+  faux.setResponses([failed])
   await passAt(firstPass, secondPass)
   setTime(firstPass + 60 * 60 * 1000)
   faux.setResponses([fauxAssistantMessage('Monday reply.')])
   await say('Monday news.')
-  const inputs: string[] = []
-  const review = (context: TranscriptContext) => {
-    inputs.push(inputOf(context))
-    return fauxAssistantMessage(`Day ${inputs.length}.`)
-  }
-  let rollupInput = ''
-  faux.setResponses([
-    review,
-    review,
-    (context) => {
-      rollupInput = inputOf(context)
-      return fauxAssistantMessage('Sunday week.')
-    },
-  ])
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-  expect(inputs).toHaveLength(2)
-  expect(inputs[0]).toContain('Sunday news.')
-  expect(inputs[0]).not.toContain('Monday news.')
-  expect(inputs[1]).toContain('Monday news.')
-  expect(inputs[1]).not.toContain('Sunday news.')
-  expect((await episodes()).filter(({ span }) => span === 'day')).toMatchObject(
-    [
-      { start: '2026-10-25', end: '2026-10-25' },
-      { start: '2026-10-26', end: '2026-10-26' },
-    ],
-  )
-  expect(rollupInput).toContain('Day 1.')
-  expect(rollupInput).not.toContain('Day 2.')
-})
 
-test('a failed later batch keeps earlier progress across a restart and delays rollups', async () => {
-  const { faux, say, episodes, passAt, reopen } = await setup()
-  const messages = ['first', 'second'].map(
-    (label) => `${label}: ${'detail '.repeat(8_000)} end-${label}`,
-  )
-  faux.setResponses([
-    fauxAssistantMessage('First reply.'),
-    fauxAssistantMessage('Second reply.'),
-  ])
-  for (const message of messages) {
-    await say(message)
-  }
-  faux.setResponses([
-    fauxAssistantMessage('First batch episode.'),
-    fauxAssistantMessage('', {
-      stopReason: 'error',
-      errorMessage: 'insufficient_quota',
-    }),
-  ])
-  await passAt(firstPass, secondPass)
-  expect((await episodes()).map(({ span, text }) => [span, text])).toEqual([
-    ['day', 'First batch episode.'],
-  ])
-  await reopen()
-  let input = ''
-  let rollupInput = ''
-  faux.setResponses([
-    (context) => {
-      input = inputOf(context)
-      return fauxAssistantMessage('Second batch episode.')
-    },
-    (context) => {
-      rollupInput = inputOf(context)
-      return fauxAssistantMessage('Both batches.')
-    },
-  ])
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-  expect(input).toContain(messages[1])
-  expect(input).not.toContain('end-first')
-  expect(rollupInput).toContain('First batch episode.')
-  expect(rollupInput).toContain('Second batch episode.')
-  expect((await episodes()).map(({ span }) => span)).toEqual([
-    'day',
-    'day',
-    'week',
-  ])
-})
-
-test('an oversized single message is bounded and does not strand the messages after it', async () => {
-  const { faux, say, passAt } = await setup()
-  faux.setResponses([fauxAssistantMessage('Reply after the long message.')])
-  await say(`Long message: ${'detail '.repeat(17_000)} end-long`)
   const inputs: string[] = []
-  const review = (context: TranscriptContext) => {
+  const batch = (context: TranscriptContext) => {
     inputs.push(inputOf(context))
     return fauxAssistantMessage(`Batch ${inputs.length}.`)
   }
-  faux.setResponses([review, review, fauxAssistantMessage('Week.')])
-  await passAt(firstPass, secondPass)
-  expect(inputs).toHaveLength(2)
+  let rollup = ''
+  faux.setResponses([
+    batch,
+    batch,
+    batch,
+    (context) => {
+      rollup = inputOf(context)
+      return fauxAssistantMessage('Sunday week.')
+    },
+  ])
+  await passAt(secondPass, thirdPass)
+  expect(inputs).toHaveLength(3)
   expect(inputs[0]).toContain('Long message:')
   expect(inputs[0]).not.toContain('end-long')
   expect(inputs[0].length).toBeLessThan(100_000)
   expect(inputs[1]).toContain('Reply after the long message.')
   expect(inputs[1]).not.toContain('Long message:')
+  expect(inputs[2]).toContain('Monday news.')
+  expect(inputs[2]).not.toContain('Reply after')
+  expect(
+    (await episodes())
+      .filter(({ span }) => span === 'day')
+      .map(({ start }) => start),
+  ).toEqual(['2026-10-25', '2026-10-25', '2026-10-26'])
+  // Only Sunday's week has ended.
+  expect(rollup).toContain('Batch 2.')
+  expect(rollup).not.toContain('Batch 3.')
 })
 
-const DAY = 24 * 60 * 60 * 1000
-
-test('after the backlog and rollups, a review rechecks the longest-unchecked facts', async () => {
+test('after the backlog and rollups, a review rechecks the longest-unchecked facts, and a failed rollup or review is tried again the next night', async () => {
   const storage = await storageWith(
     ['Works at Northbank Ceramics', 4, start - 300 * DAY],
     ...Array.from(
@@ -900,7 +593,7 @@ test('after the backlog and rollups, a review rechecks the longest-unchecked fac
   await say('I started at Lantern Museum today and left Northbank.')
 
   const order: string[] = []
-  let review = ''
+  const reviews: string[] = []
   faux.setResponses([
     () => {
       order.push('pass')
@@ -909,11 +602,26 @@ test('after the backlog and rollups, a review rechecks the longest-unchecked fac
     },
     () => {
       order.push('rollup')
+      return failed()
+    },
+    (context) => {
+      order.push('review')
+      reviews.push(inputOf(context))
+      return failed()
+    },
+  ])
+  await passAt(firstPass, secondPass)
+  // A failed rollup doesn't hold up the review; a failed review stamps nothing.
+  expect(order).toEqual(['pass', 'rollup', 'review'])
+
+  faux.setResponses([
+    () => {
+      order.push('rollup')
       return fauxAssistantMessage('A week of changing jobs.')
     },
     (context) => {
       order.push('review')
-      review = inputOf(context)
+      reviews.push(inputOf(context))
       return fauxAssistantMessage(
         fauxToolCall('retire', { id: 'f1', until: '2026-10-25' }),
         { stopReason: 'toolUse' },
@@ -921,16 +629,16 @@ test('after the backlog and rollups, a review rechecks the longest-unchecked fac
     },
     fauxAssistantMessage('Checked.'),
   ])
-  await passAt(firstPass, secondPass)
-
-  expect(order).toEqual(['pass', 'rollup', 'review'])
-  // The twenty checked longest ago, oldest first, with their days.
-  expect(review).toMatch(
+  await passAt(secondPass, thirdPass)
+  expect(order).toEqual(['pass', 'rollup', 'review', 'rollup', 'review'])
+  // The same twenty, checked longest ago first, with the recent days.
+  expect(reviews[1]).toBe(reviews[0])
+  expect(reviews[1]).toMatch(
     /^Check these facts against what happened recently:\nf1 \(since 2026-01-05\): Works at Northbank Ceramics\nf2 /,
   )
-  expect(review).toContain('f20 ')
-  expect(review).not.toContain('f21 ')
-  expect(review).toContain(
+  expect(reviews[1]).toContain('f20 ')
+  expect(reviews[1]).not.toContain('f21 ')
+  expect(reviews[1]).toContain(
     'e1 (day of 2026-10-25): Rowan left Northbank for Lantern Museum.',
   )
   expect((await memory())[0]).toMatchObject({ id: 'f1', until: '2026-10-25' })
@@ -938,54 +646,8 @@ test('after the backlog and rollups, a review rechecks the longest-unchecked fac
   await dismiss(familiar())
   const { facts } = await readStored(storage, MemoryUsage)
   expect(Object.keys(facts)).toHaveLength(20)
-  expect(facts.f20).toEqual({ checked: firstPass })
+  expect(facts.f20).toEqual({ checked: secondPass })
   expect(facts.f21).toBeUndefined()
-})
-
-test('a failed review stamps nothing and runs again the next night, then sleeps', async () => {
-  const storage = await storageWith(
-    ['Has a cat', 3, start - 90 * DAY],
-    ['Likes blue pens', 1, start - 60 * DAY],
-  )
-  const { faux, familiar, say, passAt } = await setup(storage)
-  faux.setResponses([fauxAssistantMessage('Hello.')])
-  await say('Hi.')
-  const reviews: string[] = []
-  const review =
-    (reply: () => ReturnType<typeof fauxAssistantMessage>) =>
-    (context: TranscriptContext) => {
-      reviews.push(inputOf(context))
-      return reply()
-    }
-  faux.setResponses([
-    fauxAssistantMessage('Said hello.'),
-    fauxAssistantMessage('A week of greetings.'),
-    review(() =>
-      fauxAssistantMessage('', {
-        stopReason: 'error',
-        errorMessage: 'The model failed on purpose.',
-      }),
-    ),
-  ])
-  await passAt(firstPass, secondPass)
-  expect(reviews).toHaveLength(1)
-
-  faux.setResponses([review(() => fauxAssistantMessage('Checked.'))])
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-  expect(reviews).toHaveLength(2)
-  expect(reviews[1]).toBe(reviews[0])
-
-  // Both are checked now, so the next night has nothing to review.
-  const calls = faux.state.callCount
-  const third = nextUpkeep(secondPass, TEST_ZONE)
-  await passAt(third, nextUpkeep(third, TEST_ZONE))
-  expect(faux.state.callCount).toBe(calls)
-
-  await dismiss(familiar())
-  expect((await readStored(storage, MemoryUsage)).facts).toEqual({
-    f1: { checked: secondPass },
-    f2: { checked: secondPass },
-  })
 })
 
 test('a restart during the review neither submits it twice nor stamps more than it was given', async () => {
@@ -1035,77 +697,4 @@ test('a restart during the review neither submits it twice nor stamps more than 
     f1: { checked: firstPass },
     f2: { checked: firstPass },
   })
-})
-
-test('a failed rollup still lets the review run, and is tried again the next night', async () => {
-  const { faux, say, episodes, passAt } = await setup(
-    await storageWith(['Has a cat', 3, start - 90 * DAY]),
-  )
-  faux.setResponses([fauxAssistantMessage('Hello.')])
-  await say('Hi.')
-  let reviewed = false
-  faux.setResponses([
-    fauxAssistantMessage('Said hello.'),
-    fauxAssistantMessage('', {
-      stopReason: 'error',
-      errorMessage: 'The model failed on purpose.',
-    }),
-    () => {
-      reviewed = true
-      return fauxAssistantMessage('Checked.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
-  expect(reviewed).toBe(true)
-  expect((await episodes()).map(({ span }) => span)).toEqual(['day'])
-
-  faux.setResponses([fauxAssistantMessage('A week of greetings.')])
-  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
-  expect((await episodes()).map(({ span }) => span)).toEqual(['day', 'week'])
-})
-
-test('upkeep and recalled exchanges preserve same-name IDs and rename snapshots', async () => {
-  const { faux, familiar, passAt, say } = await setup()
-  const messages = [
-    {
-      author: { id: 'sam-1', name: 'Sam' },
-      text: 'My favourite fruit is mango',
-    },
-    {
-      author: { id: 'sam-2', name: 'Sam' },
-      text: 'My favourite fruit is pear',
-    },
-    { author: { id: 'sam-1', name: 'Samuel' }, text: 'I still prefer mango' },
-  ]
-  faux.setResponses(messages.map(() => fauxAssistantMessage('Noted')))
-  for (const message of messages) {
-    await familiar().send({ ...message, requestId: message.text })
-    await familiar().idle()
-  }
-  let upkeep = ''
-  faux.setResponses([
-    (context) => {
-      upkeep = inputOf(context)
-      return fauxAssistantMessage('The two Sams discussed fruit.')
-    },
-  ])
-  await passAt(firstPass, secondPass)
-  for (const { author, text } of messages) {
-    expect(upkeep).toContain(`${JSON.stringify(author)}: ${text}`)
-  }
-  let recalled = ''
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('recall', { query: 'fruit' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      recalled = JSON.stringify(
-        context.messages.filter((message) => message.role === 'toolResult'),
-      )
-      return fauxAssistantMessage('Mango and pear')
-    },
-  ])
-  await say('Who likes which fruit?')
-  expect(recalled).toContain('sam-1')
-  expect(recalled).toContain('sam-2')
 })

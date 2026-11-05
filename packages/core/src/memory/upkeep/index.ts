@@ -54,12 +54,8 @@ type UpkeepStep =
       oldest: EntryId
       newest: EntryId
       input: string
-      /**
-       * The days the messages span, for the day's episode. Absent on a pass
-       * checkpointed before episodes existed, which then writes none.
-       */
-      start?: string
-      end?: string
+      /** The day the messages belong to, for the day's episode. */
+      day: string
     }
   /** Rolls up the next finished week or month, if any, else sleeps. */
   | { phase: 'rollup' }
@@ -233,14 +229,13 @@ export function createUpkeep(options: UpkeepOptions) {
               oldest: found.oldest,
               newest: found.newest,
               input,
-              start: found.start,
-              end: found.end,
+              day: found.day,
             },
           }
         }, context),
 
       consolidate: async (task, runtime, context) => {
-        const { conversation, reset, oldest, newest, input, start, end } =
+        const { conversation, reset, oldest, newest, input, day } =
           task.state.checkpoint
         let episode = await ask(
           runtime,
@@ -278,11 +273,11 @@ export function createUpkeep(options: UpkeepOptions) {
           const upkeep = await tx.doc(Upkeep)
           upkeep.through = newest
 
-          if (episode && start && end) {
+          if (episode) {
             addEpisode(await tx.doc(Episodes), {
               span: 'day',
-              start,
-              end,
+              start: day,
+              end: day,
               text: episode,
               at: runtime.now(),
               entries: { from: oldest, to: newest },

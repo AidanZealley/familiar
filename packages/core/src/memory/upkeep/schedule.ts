@@ -48,11 +48,5 @@ export const Upkeep = defineDoc<UpkeepState>({
     task: null,
     through: null,
   }),
-  migrate: (value, fromVersion) => {
-    if (fromVersion !== 1) {
-      throw new Error(`No migration from upkeep version ${fromVersion}.`)
-    }
-    return { ...(value as Omit<UpkeepState, 'rollups'>), rollups: null }
-  },
   checkpointWhen: () => true, // tiny: always store it whole
 })
