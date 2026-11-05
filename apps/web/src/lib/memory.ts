@@ -26,13 +26,13 @@ const line = (fact: Fact) => `${fact.id}: ${fact.text}`
 
 export const factSize = (fact: Fact) => line(fact).length
 
-/** The characters core takes of `CORE_BUDGET`. */
-export const coreSize = (facts: readonly Fact[]) =>
-  coreFacts(facts).map(line).join('\n').length
+/** The characters core's facts take of `CORE_BUDGET`. */
+export const coreSize = (core: readonly Fact[]) =>
+  core.map(line).join('\n').length
 
 /**
- * Every fact that has changed, as a chain of its versions from oldest to
- * newest: one per fact that is the latest of its line and either replaced
+ * Every fact that has changed, as a chain of its versions from newest to
+ * oldest: one per fact that is the latest of its line and either replaced
  * something or was retired. Chains come most recently changed first.
  */
 export const historyChains = (facts: readonly Fact[]) => {
@@ -51,12 +51,12 @@ export const historyChains = (facts: readonly Fact[]) => {
     let previous = head.replaces?.[0]
     while (previous && byId.has(previous)) {
       const fact = byId.get(previous)!
-      chain.unshift(fact)
+      chain.push(fact)
       previous = fact.replaces?.[0]
     }
     chains.push(chain)
   }
-  const changed = (chain: Fact[]) => chain.at(-1)!.until ?? chain.at(-1)!.since
+  const changed = ([latest]: Fact[]) => latest.until ?? latest.since
   return chains.toSorted((a, b) => changed(b).localeCompare(changed(a)))
 }
 

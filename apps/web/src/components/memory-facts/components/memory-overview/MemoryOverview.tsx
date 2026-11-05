@@ -1,7 +1,7 @@
 import { CORE_BUDGET, type Fact } from '@familiar-ai/client'
 import { cn } from 'cn'
 import { useState } from 'react'
-import { coreFacts, coreSize, factSize, reserveFacts } from '@/lib/memory'
+import { coreSize, factSize } from '@/lib/memory'
 import type { MemoryOverviewProps } from './types'
 
 const number = new Intl.NumberFormat()
@@ -13,12 +13,14 @@ const groups = [
   {
     key: 'pinned',
     label: 'Pinned',
+    legend: 'Pinned',
     shade: 'bg-primary',
     has: (fact: Fact) => !!fact.pinned,
   },
   ...[5, 4, 3, 2, 1].map((importance, index) => ({
     key: `importance-${importance}`,
     label: `Importance ${importance}`,
+    legend: String(importance),
     shade: [
       'bg-primary/85',
       'bg-primary/70',
@@ -49,16 +51,16 @@ type Block = ReturnType<typeof blocksOf>[number]
  * measured against its budget; reserve has none, so its bar shows only how
  * it splits by importance. Tap a block to see its facts.
  */
-export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
-  const core = coreFacts(facts)
-  const reserve = reserveFacts(facts)
-  const size = coreSize(facts)
+export const MemoryOverview = ({ core, reserve }: MemoryOverviewProps) => {
+  const size = coreSize(core)
   const coreBlocks = blocksOf(core)
   const reserveBlocks = blocksOf(reserve)
   const reserveSize = reserveBlocks.reduce((sum, block) => sum + block.size, 0)
   // Measured when shown, not live: a fact ageing past 30 days can wait.
   const [now] = useState(Date.now)
-  const recent = facts.filter((fact) => now - fact.saved < MONTH).length
+  const recent = [...core, ...reserve].filter(
+    (fact) => now - fact.saved < MONTH,
+  ).length
 
   // `core:pinned`, `reserve:importance-2`…: the open block, if any.
   const [selected, setSelected] = useState<string>()
@@ -136,7 +138,7 @@ export const MemoryOverview = ({ facts }: MemoryOverviewProps) => {
         {groups.map((group) => (
           <span key={group.key} className="inline-flex items-center gap-1.5">
             <span className={cn('size-2.5', group.shade)} />
-            {group.key === 'pinned' ? 'Pinned' : group.label.slice(-1)}
+            {group.legend}
           </span>
         ))}
         <span className="ml-auto">{recent} new in 30 days</span>

@@ -14,7 +14,7 @@ export const MemoryHistory = () => {
         </p>
       )}
       {chains.map((chain) => (
-        <HistoryChain key={chain.at(-1)!.id} chain={chain} />
+        <HistoryChain key={chain[0].id} chain={chain} />
       ))}
     </div>
   )

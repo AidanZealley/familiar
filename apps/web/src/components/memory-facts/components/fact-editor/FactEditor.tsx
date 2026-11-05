@@ -1,27 +1,25 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { familiar } from '@/lib/familiar'
 import type { FactEditorProps } from './types'
 
+/** Rewrites a fact. A failure shows under it, with the fact's others. */
 export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
   const [draft, setDraft] = useState(fact.text)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string>()
+  const revise = useMutation({
+    mutationKey: ['fact', fact.id],
+    mutationFn: (text: string) => familiar.memory.revise(fact.id, text),
+    onSuccess: onDone,
+  })
 
-  const save = async () => {
+  const save = () => {
     const text = draft.trim()
     if (!text || text === fact.text) {
-      return onDone()
-    }
-    setSaving(true)
-    setError(undefined)
-    try {
-      await familiar.memory.revise(fact.id, text)
       onDone()
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-      setSaving(false)
+    } else {
+      revise.mutate(text)
     }
   }
 
@@ -34,7 +32,7 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault()
-            void save()
+            save()
           }
           if (event.key === 'Escape') {
             onDone()
@@ -42,7 +40,6 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
         }}
         className="min-h-16"
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex items-center gap-2">
         <p className="mr-auto text-xs text-muted-foreground">
           Saving keeps the old wording as history.
@@ -50,7 +47,7 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
         <Button size="sm" variant="ghost" onClick={onDone}>
           Cancel
         </Button>
-        <Button size="sm" disabled={saving} onClick={() => void save()}>
+        <Button size="sm" disabled={revise.isPending} onClick={save}>
           Save
         </Button>
       </div>

@@ -1,4 +1,4 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation } from '@tanstack/react-query'
 import {
   ArchiveIcon,
   EllipsisIcon,
@@ -13,19 +13,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { isPast } from '@/lib/memory'
+import { familiar } from '@/lib/familiar'
 import type { FactMenuProps } from './types'
 
-/** A current fact's actions. Past facts are history, so they have none. */
-export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
-  const run = (action: Promise<void>) =>
-    action.catch((cause) =>
-      onError(cause instanceof Error ? cause.message : String(cause)),
-    )
-
-  if (isPast(fact)) {
-    return null
-  }
+/** A current fact's actions. Their failures show under the fact. */
+export const FactMenu = ({ fact, onEdit }: FactMenuProps) => {
+  const setPinned = useMutation({
+    mutationKey: ['fact', fact.id],
+    mutationFn: (pinned: boolean) => familiar.memory.setPinned(fact.id, pinned),
+  })
+  const retire = useMutation({
+    mutationKey: ['fact', fact.id],
+    mutationFn: () => familiar.memory.retire(fact.id),
+  })
 
   return (
     <DropdownMenu>
@@ -37,19 +37,15 @@ export const FactMenu = ({ fact, onEdit, onError }: FactMenuProps) => {
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        {onEdit && (
-          <DropdownMenuItem onClick={onEdit}>
-            <PencilIcon />
-            Edit
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem
-          onClick={() => run(familiar.memory.setPinned(fact.id, !fact.pinned))}
-        >
+        <DropdownMenuItem onClick={onEdit}>
+          <PencilIcon />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setPinned.mutate(!fact.pinned)}>
           {fact.pinned ? <PinOffIcon /> : <PinIcon />}
           {fact.pinned ? 'Unpin from core' : 'Pin to core'}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => run(familiar.memory.retire(fact.id))}>
+        <DropdownMenuItem onClick={() => retire.mutate()}>
           <ArchiveIcon />
           No longer true
         </DropdownMenuItem>
