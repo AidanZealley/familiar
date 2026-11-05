@@ -25,12 +25,6 @@ export type Schedule = {
   /** When it is next due. */
   next: number
   created: number
-  /**
-   * Why it no longer runs: its repeat isn't one Familiar reads now. It
-   * stays, so the owner sees it and can cancel it, but never runs again.
-   * Set when Familiar opens.
-   */
-  refused?: string
 }
 
 /** Schedules by ID. The source of truth: a schedule's task does nothing once it's gone. */
@@ -162,22 +156,6 @@ export function addSchedule(
   return schedule
 }
 
-/**
- * Marks each stored repeat Familiar can't read now as refused, so it never
- * runs, yet doesn't stop Familiar opening.
- */
-export function refuseIneligible(schedules: SchedulesState, timeZone: string) {
-  for (const schedule of Object.values(schedules)) {
-    const problem =
-      schedule.repeat === undefined
-        ? undefined
-        : repeatProblem(schedule.repeat, timeZone)
-    if (problem && schedule.refused === undefined) {
-      schedule.refused = problem
-    }
-  }
-}
-
 export function cancelSchedule(schedules: SchedulesState, id: string) {
   if (!schedules[id]) {
     throw new ScheduleError(`No schedule ${id}.`)
@@ -200,8 +178,7 @@ export const dueAt = (schedule: Schedule, now: number, timeZone: string) =>
 /**
  * After delivering the occurrence due at `due`, at `now`: removes a one-off
  * or a finished repeat, or moves a repeat to its next occurrence. Returns
- * the schedule if it continues. A refused schedule stays as it is and
- * doesn't continue.
+ * the schedule if it continues.
  */
 export function advance(
   schedules: SchedulesState,
@@ -211,9 +188,6 @@ export function advance(
   timeZone: string,
 ) {
   const schedule = schedules[id]
-  if (schedule?.refused !== undefined) {
-    return undefined
-  }
   const next =
     schedule?.repeat === undefined
       ? undefined
@@ -226,7 +200,7 @@ export function advance(
   return schedule
 }
 
-/** Up to `count` times a schedule is due, from `next`. Not for a refused one. */
+/** Up to `count` times a schedule is due, from `next`. */
 export function upcoming(schedule: Schedule, count: number, timeZone: string) {
   const times = [schedule.next]
   const { repeat } = schedule
