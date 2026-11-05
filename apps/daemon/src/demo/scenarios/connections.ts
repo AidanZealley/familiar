@@ -8,7 +8,7 @@ import type {
   PluginFetch,
   PluginSecret,
 } from '@familiar-ai/core'
-import type { Scenario } from '../scenario.ts'
+import type { Scenario } from './scenario.ts'
 
 // A pretend service verifies that a key arrived without returning its value.
 const DEMO_SERVICE = 'https://demo.invalid'
