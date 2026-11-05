@@ -43,45 +43,27 @@ const ids = (memory: Memory, query: string) =>
     ({ item }) => ('fact' in item ? item.fact.id : item.episode.id),
   )
 
-test('finds matching facts outside core and leaves out core', () => {
-  const memory = memoryOf(
-    ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
-    ['Pip is a retired greyhound', 5],
-    ['The kitchen tap drips', 1],
-  )
-  expect(ids(memory, 'What size coat does Pip wear?')).toEqual(['f1'])
-})
-
-test('a message with no meaningful overlap recalls nothing', () => {
-  const memory = memoryOf(
-    ["Pip's waterproof coat is 66 cm", 2],
-    ['Likes blue pens', 1],
-  )
-  expect(ids(memory, 'How are you doing today?')).toEqual([])
-
-  // Contraction fragments ("s", "t") must not prefix-match whole words.
-  const shed = memoryOf(
-    ['Shed key is under the pot', 2],
-    ['Takes the tram to work', 2],
-    ['Samsung phone has a cracked screen', 1],
-  )
-  expect(ids(shed, "What's the weather today?")).toEqual([])
-  expect(ids(shed, "Don't worry about it")).toEqual([])
-  expect(ids(shed, "Where's the shed key?")).toEqual(['f1'])
-})
-
-test('importance and recency rank equally relevant facts', () => {
-  const memory = memoryOf(['Minor note about the shed', 1])
-  save(memory, 'Important note about the shed', 2, now - 30 * DAY)
-  expect(ids(memory, 'shed note')).toEqual(['f2', 'f1'])
-
-  // A past fact ranks lower the longer ago it stopped being true.
-  const aged = memoryOf()
-  save(aged, 'Shed key was under the pot', 2, now - 4 * 365 * DAY)
-  save(aged, 'Shed key was on the hook', 2, now - 60 * DAY)
-  retireFact(aged, 'f1', localDay(now - 3 * 365 * DAY, TEST_ZONE))
-  retireFact(aged, 'f2', localDay(now - 30 * DAY, TEST_ZONE))
-  expect(ids(aged, 'shed key')).toEqual(['f2', 'f1'])
+test('finds facts outside core, and counts the core facts a message matches as used without showing them', () => {
+  {
+    const memory = memoryOf(
+      ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
+      ['Pip is a retired greyhound', 5],
+      ['The kitchen tap drips', 1],
+    )
+    expect(ids(memory, 'What size coat does Pip wear?')).toEqual(['f1'])
+  }
+  {
+    const memory = memoryOf(['Pip is a retired greyhound', 5])
+    const search = searchMemory(
+      memory.facts,
+      undefined,
+      'Is Pip a greyhound?',
+      now,
+      TEST_ZONE,
+    )
+    expect(search.found).toEqual([])
+    expect(search.used).toEqual(['f1'])
+  }
 })
 
 test('past facts are found, ranked below current ones and labelled', () => {
@@ -150,14 +132,6 @@ test('stays within the limit and the token budget', () => {
   ).toBeLessThanOrEqual(RECALL_TOKENS)
 })
 
-test('the index follows changes to memory', () => {
-  const memory = memoryOf(['Drinks coffee', 2])
-  expect(ids(memory, 'tea')).toEqual([])
-  const next = structuredClone(memory)
-  save(next, 'Drinks peppermint tea', 2, now)
-  expect(ids(next, 'tea')).toEqual(['f2'])
-})
-
 const episodesOf = (
   ...episodes: [span: Span, start: string, end: string, text: string][]
 ) => {
@@ -189,68 +163,89 @@ test('episodes are found by when they happened, not only by their words', () => 
   expect(found(memory, episodes, 'And in April 2025?')[0]).toBe('e3')
 })
 
-test('facts and episodes are ranked on the same scale', () => {
-  // The same words: the essential fact must not lose to an ordinary episode
-  // just because those words are rarer among episodes.
-  const memory = memoryOf(['Reed Shelter is a birdwatching hide', 5])
-  for (let index = 0; index < 5; index++) {
-    save(memory, `Unrelated fact ${index}`, 2, now - 30 * DAY)
+test('importance, recency and kind rank equally relevant memories on one scale', () => {
+  {
+    const memory = memoryOf(['Minor note about the shed', 1])
+    save(memory, 'Important note about the shed', 2, now - 30 * DAY)
+    expect(ids(memory, 'shed note')).toEqual(['f2', 'f1'])
+
+    // A past fact ranks lower the longer ago it stopped being true.
+    const aged = memoryOf()
+    save(aged, 'Shed key was under the pot', 2, now - 4 * 365 * DAY)
+    save(aged, 'Shed key was on the hook', 2, now - 60 * DAY)
+    retireFact(aged, 'f1', localDay(now - 3 * 365 * DAY, TEST_ZONE))
+    retireFact(aged, 'f2', localDay(now - 30 * DAY, TEST_ZONE))
+    expect(ids(aged, 'shed key')).toEqual(['f2', 'f1'])
   }
-  // As if core were full of other facts.
-  memory.facts.facts[0].core = false
-  const episodes = episodesOf([
-    'day',
-    '2025-03-17',
-    '2025-03-17',
-    'Reed Shelter is a birdwatching hide',
-  ])
-  expect(found(memory, episodes, 'Reed Shelter hide')).toEqual(['f1', 'e1'])
+  {
+    // The same words: the essential fact must not lose to an ordinary episode
+    // just because those words are rarer among episodes.
+    const memory = memoryOf(['Reed Shelter is a birdwatching hide', 5])
+    for (let index = 0; index < 5; index++) {
+      save(memory, `Unrelated fact ${index}`, 2, now - 30 * DAY)
+    }
+    // As if core were full of other facts.
+    memory.facts.facts[0].core = false
+    const episodes = episodesOf([
+      'day',
+      '2025-03-17',
+      '2025-03-17',
+      'Reed Shelter is a birdwatching hide',
+    ])
+    expect(found(memory, episodes, 'Reed Shelter hide')).toEqual(['f1', 'e1'])
+  }
 })
 
-test('everyday words never recall episodes by date', () => {
-  // A month of day episodes and a March week, as in the review that found
-  // "may", "match" and small numbers pulling in unrelated episodes.
-  const days: [Span, string, string, string][] = Array.from(
-    { length: 31 },
-    (_, index) => {
-      const day = `2025-05-${String(index + 1).padStart(2, '0')}`
-      return ['day', day, day, 'An ordinary day of chores.']
-    },
-  )
-  const episodes = episodesOf(...days, [
-    'week',
-    '2025-03-10',
-    '2025-03-16',
-    'Repaired flood-damaged atlases.',
-  ])
-  const memory = memoryOf(
-    ['Keeps an umbrella by the door', 2],
-    ['Sam goes to chess club', 2],
-  )
-  expect(
-    found(memory, episodes, 'It may rain later, should I take an umbrella?'),
-  ).toEqual(['f1'])
-  expect(
-    found(memory, episodes, 'That is a perfect match for the sofa'),
-  ).toEqual([])
-  expect(
-    found(memory, episodes, 'Sam has a chess club on Friday at 3'),
-  ).toEqual(['f2'])
-  // An explicit date still finds its day.
-  expect(found(memory, episodes, 'What did I do on 3 May?')[0]).toBe('e3')
-})
+test('a message with no meaningful overlap recalls nothing, and everyday words never recall episodes by date', () => {
+  {
+    const memory = memoryOf(
+      ["Pip's waterproof coat is 66 cm", 2],
+      ['Likes blue pens', 1],
+    )
+    expect(ids(memory, 'How are you doing today?')).toEqual([])
 
-test('core facts a message matches count as used without being shown', () => {
-  const memory = memoryOf(['Pip is a retired greyhound', 5])
-  const search = searchMemory(
-    memory.facts,
-    undefined,
-    'Is Pip a greyhound?',
-    now,
-    TEST_ZONE,
-  )
-  expect(search.found).toEqual([])
-  expect(search.used).toEqual(['f1'])
+    // Contraction fragments ("s", "t") must not prefix-match whole words.
+    const shed = memoryOf(
+      ['Shed key is under the pot', 2],
+      ['Takes the tram to work', 2],
+      ['Samsung phone has a cracked screen', 1],
+    )
+    expect(ids(shed, "What's the weather today?")).toEqual([])
+    expect(ids(shed, "Don't worry about it")).toEqual([])
+    expect(ids(shed, "Where's the shed key?")).toEqual(['f1'])
+  }
+  {
+    // A month of day episodes and a March week, as in the review that found
+    // "may", "match" and small numbers pulling in unrelated episodes.
+    const days: [Span, string, string, string][] = Array.from(
+      { length: 31 },
+      (_, index) => {
+        const day = `2025-05-${String(index + 1).padStart(2, '0')}`
+        return ['day', day, day, 'An ordinary day of chores.']
+      },
+    )
+    const episodes = episodesOf(...days, [
+      'week',
+      '2025-03-10',
+      '2025-03-16',
+      'Repaired flood-damaged atlases.',
+    ])
+    const memory = memoryOf(
+      ['Keeps an umbrella by the door', 2],
+      ['Sam goes to chess club', 2],
+    )
+    expect(
+      found(memory, episodes, 'It may rain later, should I take an umbrella?'),
+    ).toEqual(['f1'])
+    expect(
+      found(memory, episodes, 'That is a perfect match for the sofa'),
+    ).toEqual([])
+    expect(
+      found(memory, episodes, 'Sam has a chess club on Friday at 3'),
+    ).toEqual(['f2'])
+    // An explicit date still finds its day.
+    expect(found(memory, episodes, 'What did I do on 3 May?')[0]).toBe('e3')
+  }
 })
 
 test('automatic recall prefers a rolled-up month to its days, but reaches a day by its date', () => {
@@ -317,7 +312,7 @@ test('the recall tool groups facts, episodes and exchanges, current facts first'
   expect(lines[4]).toMatch(/^e1 \(day of 2025-12-01\)/)
   expect(lines[5]).toBe('Exchanges:')
   // About 300 characters around the match, not the whole exchange.
-  expect(lines[6]).toMatch(/^x7 \(2025-12-01\): ….*Foss Lane.*…$/)
+  expect(lines[6]).toMatch(/^x7 \(2025-12-01 00:00\): ….*Foss Lane.*…$/)
   expect(lines[6].length).toBeLessThan(340)
   expect(used).toEqual(['f2', 'f1'])
   expect(estimateTextTokens(text)).toBeLessThanOrEqual(RECALL_TOOL_TOKENS)

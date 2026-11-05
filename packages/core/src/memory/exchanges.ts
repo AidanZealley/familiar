@@ -102,6 +102,8 @@ export function createExchangeIndex(timeZone: string): ExchangeIndex {
         }
       }
 
+      // An exchange a boundary splits still counts: it starts before
+      // `before` and ends after `after`.
       const inRange = (exchange: Exchange) => {
         if (!within) {
           return true
@@ -111,7 +113,7 @@ export function createExchangeIndex(timeZone: string): ExchangeIndex {
         return (
           first !== undefined &&
           first < before &&
-          (after === null || (exchange.last > after && after < before))
+          (after === null || exchange.last > after)
         )
       }
 

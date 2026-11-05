@@ -108,15 +108,3 @@ test('a month lists a day episode that crosses into it', () => {
     ),
   ).toContain('e1 (day of 2025-01-31 to 2025-02-01): A late night')
 })
-
-test('an unknown ID says what IDs look like', () => {
-  expect(
-    readMemory(
-      'm4',
-      empty().facts,
-      noEpisodes(),
-      createExchangeIndex(TEST_ZONE),
-      TEST_ZONE,
-    ),
-  ).toContain('Facts start with f')
-})

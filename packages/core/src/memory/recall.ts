@@ -275,7 +275,7 @@ function describeUnfiled(
 ) {
   const { kept, left } = within(
     exchanges.map((exchange) => ({
-      line: `${exchange.id} (${localMinute(exchange.at, timeZone)}): ${exchange.author ? `${formatAuthor(exchange.author)}: ` : ''}${excerpt(exchange.text, query)}`,
+      line: describeExchange(exchange, query, timeZone),
       shorten: false,
     })),
     UNFILED.limit,
@@ -396,7 +396,7 @@ export function recallAll(
       })
       .map((exchange) => ({
         item: exchange,
-        line: `${exchange.id} (${localDay(exchange.at, timeZone)}): ${exchange.author ? `${formatAuthor(exchange.author)}: ` : ''}${excerpt(exchange.text, query)}`,
+        line: describeExchange(exchange, query, timeZone),
         shorten: false,
       })),
     RECALL_TOOL.exchanges,
@@ -427,6 +427,14 @@ export function describe(memory: FactsState, item: Recalled) {
   const { fact } = item
   return `${fact.id} (${factDays(memory, fact)}): ${fact.text}`
 }
+
+/** An exchange with when it was said and by whom, around what matched `query`. */
+const describeExchange = (
+  exchange: Exchange,
+  query: string,
+  timeZone: string,
+) =>
+  `${exchange.id} (${localMinute(exchange.at, timeZone)}): ${exchange.author ? `${formatAuthor(exchange.author)}: ` : ''}${excerpt(exchange.text, query)}`
 
 /** An episode with the days it covers. */
 export const describeEpisode = ({ id, span, start, end, text }: Episode) =>
