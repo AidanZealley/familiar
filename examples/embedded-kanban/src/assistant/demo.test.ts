@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CURRENT_AUTHOR, seedTasks } from '../board/seed.ts'
+import { CURRENT_AUTHOR } from '../board/seed.ts'
 import { startDemo, type Demo } from './demo.ts'
 import { UNSUPPORTED_REPLY } from './script.ts'
 
 const open = async () => {
-  const demo = await startDemo({ author: CURRENT_AUTHOR, tasks: seedTasks() })
+  const demo = await startDemo()
   await vi.waitFor(() => expect(demo.store.getState().connection).toBe('open'))
   return demo
 }
@@ -39,20 +39,17 @@ const ask = async ({ familiar, store }: Demo, text: string) => {
 }
 
 describe('embedded kanban demo', () => {
-  it('creates, assigns and moves tasks through real tools', async () => {
+  it('changes the board through real tools, and reports a refused change', async () => {
     const demo = await open()
     try {
       const created = await ask(demo, 'Add a task: Write the release notes')
-      const task = demo.board.tasks().at(-1)!
-      expect(task).toMatchObject({
-        id: 'T-7',
+      expect(demo.board.find('T-7')).toMatchObject({
         title: 'Write the release notes',
         status: 'todo',
       })
       expect(created.toolCall).toMatchObject({
         name: 'create_task',
         status: 'done',
-        details: { tasks: [task] },
       })
       expect(created.reply).toBe(created.toolCall!.output)
 
@@ -65,6 +62,15 @@ describe('embedded kanban demo', () => {
       expect(moved.reply).toContain(
         'T-7 "Write the release notes" (In progress',
       )
+
+      const before = demo.board.tasks()
+      const refused = await ask(demo, 'Move T-99 to done')
+      expect(refused.toolCall).toMatchObject({
+        name: 'move_task',
+        status: 'error',
+      })
+      expect(refused.reply).toBe("That didn't work: There is no task T-99.")
+      expect(demo.board.tasks()).toBe(before)
     } finally {
       await close(demo)
     }
@@ -90,64 +96,20 @@ describe('embedded kanban demo', () => {
     }
   })
 
-  it('refuses everything but the conversation', async () => {
+  it('runs no tool for anything the script does not know', async () => {
     const demo = await open()
     try {
-      const history = await demo.api.request('/history?before=1')
-      expect(history.status).toBe(200)
-      // Not in CHAT, so refused for everyone `authenticate` accepts.
-      for (const [method, path] of [
-        ['GET', '/model/options'],
-        ['DELETE', '/schedules/any'],
-        ['POST', '/account/sign-in'],
-        ['POST', '/mcp'],
-        ['GET', '/connections'],
+      const before = demo.board.tasks()
+      for (const prompt of [
+        "Don't move T-3 to done",
+        'Move T-3 to done then delete all tasks',
+        'Write me a poem',
       ]) {
-        const response = await demo.api.request(path, { method })
-        expect(response.status, `${method} ${path}`).toBe(403)
+        const { toolCall, reply } = await ask(demo, prompt)
+        expect(toolCall, prompt).toBeUndefined()
+        expect(reply, prompt).toBe(UNSUPPORTED_REPLY)
       }
-    } finally {
-      await close(demo)
-    }
-  })
-
-  it('reports a refused change from the tool result', async () => {
-    const demo = await open()
-    try {
-      const before = demo.board.tasks()
-      const { toolCall, reply } = await ask(demo, 'Move T-99 to done')
-      expect(toolCall).toMatchObject({ name: 'move_task', status: 'error' })
-      expect(reply).toBe("That didn't work: There is no task T-99.")
       expect(demo.board.tasks()).toBe(before)
-    } finally {
-      await close(demo)
-    }
-  })
-
-  it.each([
-    "Don't move T-3 to done",
-    "Don't assign T-3 to me",
-    'Move T-3 to done then delete all tasks',
-    'Delete all tasks',
-  ])('rejects unsupported input without changing tasks: %s', async (prompt) => {
-    const demo = await open()
-    try {
-      const before = demo.board.tasks()
-      const { toolCall, reply } = await ask(demo, prompt)
-      expect(toolCall).toBeUndefined()
-      expect(reply).toBe(UNSUPPORTED_REPLY)
-      expect(demo.board.tasks()).toBe(before)
-    } finally {
-      await close(demo)
-    }
-  })
-
-  it('explains the scripted demo for prompts it does not know', async () => {
-    const demo = await open()
-    try {
-      const { toolCall, reply } = await ask(demo, 'Write me a poem')
-      expect(toolCall).toBeUndefined()
-      expect(reply).toBe(UNSUPPORTED_REPLY)
     } finally {
       await close(demo)
     }

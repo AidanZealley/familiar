@@ -4,7 +4,7 @@ import '@/index.css'
 import { startDemo } from '@/assistant/demo'
 import { FamiliarProvider } from '@familiar-ai/client/react'
 import { BoardProvider } from '@/board/react'
-import { CURRENT_AUTHOR, seedTasks } from '@/board/seed'
+import { CURRENT_AUTHOR } from '@/board/seed'
 import { App } from '@/components/app'
 
 // Follow the system's light or dark setting.
@@ -14,10 +14,7 @@ const applyScheme = () =>
 applyScheme()
 dark.addEventListener('change', applyScheme)
 
-const { board, store } = await startDemo({
-  author: CURRENT_AUTHOR,
-  tasks: seedTasks(),
-})
+const { board, store } = await startDemo()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

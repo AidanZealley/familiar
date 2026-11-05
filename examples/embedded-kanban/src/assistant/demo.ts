@@ -1,8 +1,9 @@
-import { summonFamiliar, type Author, type Familiar } from '@familiar-ai/core'
+import { summonFamiliar } from '@familiar-ai/core'
 import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore } from '@familiar-ai/client'
-import { createBoard, type Task } from '../board/board.ts'
+import { createBoard } from '../board/board.ts'
+import { CURRENT_AUTHOR, seedTasks } from '../board/seed.ts'
 import { boardPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
@@ -17,21 +18,6 @@ const CHAT = new Set<Operation>([
 ])
 
 /**
- * The host's HTTP API. `allow` permits sending, history, stopping a reply and
- * the conversation's event stream; every other operation, such as memory,
- * schedules, sign-in or MCP, answers 403.
- *
- * The demo has one fixed person and nobody signs in, so `authenticate`
- * names them for every request. That is a demo identity, not
- * authentication: a real host checks each request's session here.
- */
-const createHostApi = (familiar: Familiar, author: Author) =>
-  createHttpApi(familiar, {
-    authenticate: () => author,
-    allow: (_, operation) => CHAT.has(operation),
-  })
-
-/**
  * Everything one page needs, all in memory: the host's board, a Familiar with
  * tools over it, the host's HTTP API, and a client store that talks to it.
  * Reloading the page starts again from the seed.
@@ -40,14 +26,8 @@ const createHostApi = (familiar: Familiar, author: Author) =>
  * `models` on a server you control and serve this API from there, so
  * credentials never reach the browser.
  */
-export async function startDemo({
-  author,
-  tasks,
-}: {
-  author: Author
-  tasks: Task[]
-}) {
-  const board = createBoard(tasks)
+export async function startDemo() {
+  const board = createBoard(seedTasks())
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
@@ -55,18 +35,21 @@ export async function startDemo({
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     persona: PERSONA,
     plugins: [boardPlugin(board)],
-    // The board tools never reach the network.
-    fetch: async () => {
-      throw new Error('This demo has no network access.')
-    },
   })
-  const api = createHostApi(familiar, author)
+  const api = createHttpApi(familiar, {
+    // Nobody signs in to this demo, so every request is from its one person.
+    // That is a demo identity, not authentication: a real host checks each
+    // request's session here.
+    authenticate: () => CURRENT_AUTHOR,
+    // Every other operation, such as memory, schedules or MCP, answers 403.
+    allow: (_, operation) => CHAT.has(operation),
+  })
   // In-page requests: the client's usual HTTP and SSE calls reach the API
   // without leaving the browser. A real host passes its API's URL instead.
   const store = createFamiliarStore('https://demo.invalid', {
     fetch: async (input, init) => api.fetch(new Request(input, init)),
   })
-  return { author, board, familiar, api, store }
+  return { board, familiar, store }
 }
 
 export type Demo = Awaited<ReturnType<typeof startDemo>>
