@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/index.css'
-import { startDemo } from '@/demo/demo'
+import { startDemo } from '@/familiar/demo'
 import { App } from '@/components/app'
 
 // Follow the system's light or dark setting.

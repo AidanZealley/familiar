@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/index.css'
-import { startDemo } from '@/assistant/demo'
+import { startDemo } from '@/familiar/demo'
 import { FamiliarProvider } from '@familiar-ai/client/react'
 import { BoardProvider } from '@/board/react'
 import { App } from '@/components/app'

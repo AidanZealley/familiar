@@ -5,9 +5,9 @@ import { Chat } from '@/components/chat'
 import { Composer } from '@/components/composer'
 import { PersonSwitcher } from '@/components/person-switcher'
 import { Suggestions } from '@/components/suggestions'
-import { PEOPLE } from '@/demo/people'
+import { PEOPLE } from '@/people'
 import { FamiliarProvider } from '@familiar-ai/client/react'
-import { suggestedPrompts } from '@/demo/script'
+import { suggestedPrompts } from '@/familiar/script'
 import type { AppProps } from './types'
 
 // Everything lives in this page's memory, so a reload starts over.

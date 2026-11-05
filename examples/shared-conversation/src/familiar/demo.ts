@@ -2,7 +2,7 @@ import { summonFamiliar, type Author } from '@familiar-ai/core'
 import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { createFamiliarStore } from '@familiar-ai/client'
-import { PEOPLE } from './people.ts'
+import { PEOPLE } from '../people.ts'
 import { guestListPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
