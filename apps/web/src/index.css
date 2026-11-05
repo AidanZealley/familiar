@@ -81,8 +81,10 @@
 }
 
 /*
- * The app's height, and the room the header leaves for the status bar. Kept
- * below shadcn's own :root and .dark, which `shadcn apply` rewrites.
+ * The app's layout: its height, the room the header leaves for the status
+ * bar, the header's own height (`--chrome`, so pages can size and stick
+ * things below it) and the content's width. Kept below shadcn's own :root
+ * and .dark, which `shadcn apply` rewrites.
  *
  * In the browser, the small viewport keeps the composer above Safari's
  * toolbars. iOS home-screen apps can report a viewport the status bar's height
@@ -93,6 +95,8 @@
 :root {
   --app-height: 100svh;
   --status-bar: env(safe-area-inset-top);
+  --chrome: calc(3.5rem + var(--status-bar));
+  --page-width: 48rem;
 }
 @media (display-mode: standalone) {
   :root {
