@@ -9,8 +9,7 @@ import type { HistoryChainProps } from './types'
  * on the Facts page; old ones are history and don't change.
  */
 export const HistoryChain = ({ chain }: HistoryChainProps) => {
-  const latest = chain.at(-1)!
-  const steps = chain.toReversed()
+  const [latest] = chain
 
   return (
     <article>
@@ -20,11 +19,11 @@ export const HistoryChain = ({ chain }: HistoryChainProps) => {
         </p>
       )}
       <ol>
-        {steps.map((fact, index) => {
+        {chain.map((fact, index) => {
           const current = !isPast(fact)
           return (
             <li key={fact.id} className="relative flex gap-3 pb-3 last:pb-0">
-              {index < steps.length - 1 && (
+              {index < chain.length - 1 && (
                 <span className="absolute top-4 bottom-0 left-[5px] w-px bg-border" />
               )}
               <span

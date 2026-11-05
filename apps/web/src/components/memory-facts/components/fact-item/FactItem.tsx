@@ -1,19 +1,28 @@
+import { useMutationState } from '@tanstack/react-query'
 import { HistoryIcon, PinIcon } from 'lucide-react'
 import { useState } from 'react'
-import { FactMenu } from '@/components/fact-menu'
 import { formatDate } from '@/lib/format'
 import { FactEditor } from '../fact-editor'
+import { FactMenu } from '../fact-menu'
 import { ImportanceDots } from '../importance-dots'
 import type { FactItemProps } from './types'
 
 export const FactItem = ({ fact }: FactItemProps) => {
   const [editing, setEditing] = useState(false)
-  const [error, setError] = useState<string>()
+  // The latest change to this fact that was refused, from its menu or editor.
+  const error = useMutationState({
+    filters: { mutationKey: ['fact', fact.id] },
+    select: (mutation) => mutation.state.error,
+  }).at(-1)
+  const failure = error && (
+    <p className="mt-1 text-xs text-destructive">{error.message}</p>
+  )
 
   if (editing) {
     return (
       <li className="py-3">
         <FactEditor fact={fact} onDone={() => setEditing(false)} />
+        {failure}
       </li>
     )
   }
@@ -41,16 +50,9 @@ export const FactItem = ({ fact }: FactItemProps) => {
           ) : null}
           <span>Since {formatDate(fact.since)}</span>
         </p>
-        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+        {failure}
       </div>
-      <FactMenu
-        fact={fact}
-        onEdit={() => {
-          setError(undefined)
-          setEditing(true)
-        }}
-        onError={setError}
-      />
+      <FactMenu fact={fact} onEdit={() => setEditing(true)} />
     </li>
   )
 }

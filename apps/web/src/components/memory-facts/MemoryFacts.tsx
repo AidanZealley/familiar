@@ -22,7 +22,7 @@ export const MemoryFacts = () => {
 
   return (
     <div className="flex flex-col gap-10">
-      <MemoryOverview facts={facts} />
+      <MemoryOverview core={core} reserve={reserve} />
       <FactList
         title="Pinned"
         icon={PinIcon}
