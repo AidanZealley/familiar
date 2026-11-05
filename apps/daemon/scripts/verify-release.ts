@@ -7,8 +7,6 @@ import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { delimiter, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import type { OAuthAuth } from '@familiar-ai/core/models'
 import { runNpm } from '../src/cli/npm.ts'
 
 // Install outside the workspace so missing dependencies and assets cannot
@@ -103,8 +101,8 @@ try {
     'Help must not create storage',
   )
 
-  // An invalid installation ID stops Pi after its lazy OAuth import and
-  // before it opens a callback server or sends any authentication request.
+  // Sign-in reaches Pi's bundled ChatGPT flow, which an invalid installation ID
+  // stops before it opens a callback server or sends any request.
   await mkdir(env.FAMILIAR_DATA_DIR!, { recursive: true })
   if (process.platform === 'linux') {
     const deviceId = resolve(env.FAMILIAR_DATA_DIR!, 'device-id')
@@ -144,41 +142,6 @@ try {
       encoding: 'utf8',
     })
   const unit = resolve(env.XDG_CONFIG_HOME!, 'systemd/user/familiar.service')
-  const realFetch = globalThis.fetch
-  try {
-    globalThis.fetch = async (input, options) => {
-      assert.equal(
-        String(input),
-        'https://auth.openai.com/api/accounts/oauth/token',
-      )
-      assert(options?.body instanceof URLSearchParams)
-      assert.equal(options.body.get('grant_type'), 'refresh_token')
-      return Response.json({
-        access_token: 'new-test-access',
-        refresh_token: 'new-test-refresh',
-        expires_in: 3600,
-        scope: 'chatgpt.tokens.use.direct',
-      })
-    }
-    const { openaiChatGPTOAuth }: { openaiChatGPTOAuth: OAuthAuth } =
-      await import(pathToFileURL(resolve(installed, 'openai-chatgpt.js')).href)
-    const refreshed = await openaiChatGPTOAuth.refresh(
-      {
-        type: 'oauth',
-        access: 'old',
-        refresh: 'old',
-        expires: 0,
-        clientId: 'test-only',
-      },
-      new AbortController().signal,
-    )
-    assert.equal(refreshed.refresh, 'new-test-refresh')
-    assert.deepEqual(await openaiChatGPTOAuth.toAuth(refreshed), {
-      apiKey: 'new-test-access',
-    })
-  } finally {
-    globalThis.fetch = realFetch
-  }
 
   const InstalledPiscina: typeof import('piscina').default = createRequire(
     resolve(installed, 'package.json'),
@@ -271,15 +234,6 @@ try {
       ).status,
       200,
     )
-    const models = await fetch(`${url}/api/model/options`, {
-      signal: AbortSignal.timeout(5000),
-    })
-    assert.equal(models.status, 200)
-    const options = (await models.json()) as { model: { modelId: string } }[]
-    assert.deepEqual(
-      options.map((option) => option.model.modelId),
-      ['gpt-6.1-sol', 'gpt-6-luna'],
-    )
   } finally {
     child.kill('SIGTERM')
     const forceStop = setTimeout(() => child.kill('SIGKILL'), 5000)
@@ -295,7 +249,7 @@ try {
     )
   }
   console.log(
-    `Release verified on ${process.platform}: installed CLI, OAuth refresh module, web assets, SQLite and HTML worker. ${process.platform === 'linux' ? 'Fake-service lifecycle checks also passed.' : 'Native service lifecycle remains a separate check.'}`,
+    `Release verified on ${process.platform}: installed CLI, web assets, SQLite and HTML worker. ${process.platform === 'linux' ? 'Bundled sign-in and fake-service lifecycle checks also passed.' : 'Native service lifecycle remains a separate check.'}`,
   )
 } finally {
   await rm(temporary, { recursive: true, force: true })

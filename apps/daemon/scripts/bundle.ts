@@ -8,7 +8,6 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { build } from 'rolldown'
 import { runNpm } from '../src/cli/npm.ts'
 
@@ -27,15 +26,6 @@ await build({
   input: {
     familiar: resolve(daemon, 'src/cli.ts'),
     'page-worker': resolve(daemon, 'src/tools/page-worker.ts'),
-    // This depends on the pinned Pi version's internal layout. Its opaque
-    // loader expects this filename beside the provider's bundled code. Keep
-    // the entry in sync with Pi upgrades; test:release checks both login and refresh.
-    'openai-chatgpt': fileURLToPath(
-      new URL(
-        '../auth/oauth/openai-chatgpt.js',
-        import.meta.resolve('@earendil-works/pi-ai/providers/openai'),
-      ),
-    ),
   },
   platform: 'node',
   external: ['piscina'],
