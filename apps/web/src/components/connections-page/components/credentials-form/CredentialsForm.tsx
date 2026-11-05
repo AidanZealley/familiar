@@ -12,7 +12,8 @@ import {
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { familiar } from '@/lib/familiar'
+import { familiar, queryClient } from '@/lib/familiar'
+import { connectionsQuery } from '../../query'
 import { TransportDetails } from '../transport-details'
 import type { CredentialsFormProps } from './types'
 
@@ -40,6 +41,9 @@ export const CredentialsForm = ({
           : familiar.connections.setSecret(connection, name, value))
       }
     },
+    // Secrets saved before one failed are still saved, so refresh anyway.
+    onError: () =>
+      queryClient.invalidateQueries({ queryKey: connectionsQuery.queryKey }),
   })
   const error = change.isIdle ? initialError : change.error?.message
 
