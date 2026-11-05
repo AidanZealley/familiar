@@ -6,12 +6,12 @@ import { webPersona } from '../persona.ts'
 import { openPush } from '../push.ts'
 import { serveFamiliar } from '../serve.ts'
 import { createDemoModels, demoChatModels } from './model.ts'
-import { seedMemory, seedEpisodes } from './seed.ts'
+import { seedMemory, seedEpisodes } from './scenarios/seed.ts'
 import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
 import { demoMcpFetch, demoMcpStdio, seedMcp } from './scenarios/mcp.ts'
 import { seedDemo } from './scenarios/memory.ts'
-import { DEMO_TIME_ZONE } from './scenario.ts'
+import { DEMO_TIME_ZONE } from './scenarios/scenario.ts'
 
 const demoPlugin = definePlugin({
   name: 'demo',

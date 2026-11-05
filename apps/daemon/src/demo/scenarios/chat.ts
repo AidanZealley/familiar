@@ -5,7 +5,7 @@ import {
   fauxToolCall,
   fauxText,
 } from '@familiar-ai/core/models/faux'
-import type { Scenario } from '../scenario.ts'
+import type { Scenario } from './scenario.ts'
 
 export const markdownReply = `## A quick tour
 
