@@ -32,6 +32,9 @@ const finished = {
   outcome: { status: 'completed', result: null },
 } as const
 
+/** How a due prompt starts, as the model reads it. */
+export const SCHEDULED_PREFIX = '[Scheduled for '
+
 /** Woken more than this after its time, a delivery says it's late. */
 const LATE_MS = 60_000
 
@@ -123,7 +126,7 @@ export function createScheduleTask(
         const submission = await conversation!.submit(
           {
             type: 'input',
-            content: `[Scheduled for ${when}${creator ? `; requested by ${formatAuthor(creator)}` : ''}] ${prompt}`,
+            content: `${SCHEDULED_PREFIX}${when}${creator ? `; requested by ${formatAuthor(creator)}` : ''}] ${prompt}`,
             requestId: `schedule:${id}:${due}`,
             entry: {
               kind: SCHEDULED_KIND,

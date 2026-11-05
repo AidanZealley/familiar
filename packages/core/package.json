@@ -17,7 +17,8 @@
     "./models": "./src/models/index.ts",
     "./models/openai": "./src/models/openai.ts",
     "./models/openrouter": "./src/models/openrouter.ts",
-    "./models/faux": "./src/models/faux.ts"
+    "./models/faux": "./src/models/faux.ts",
+    "./models/scripted": "./src/models/scripted.ts"
   },
   "files": [
     "dist"
@@ -33,7 +34,8 @@
       "./models": "./dist/models/index.js",
       "./models/openai": "./dist/models/openai.js",
       "./models/openrouter": "./dist/models/openrouter.js",
-      "./models/faux": "./dist/models/faux.js"
+      "./models/faux": "./dist/models/faux.js",
+      "./models/scripted": "./dist/models/scripted.js"
     }
   },
   "scripts": {

@@ -1,10 +1,8 @@
-import { createModels, type TranscriptContext } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
-  fauxProvider,
   fauxToolCall,
-  type FauxResponseFactory,
 } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import type { Status } from '../board/board.ts'
 
 /** Prompts the script recognises, offered as suggestions in the chat. */
@@ -27,13 +25,6 @@ const STATUS_WORDS: Record<string, Status> = {
   done: 'done',
 }
 const status = '(todo|to do|in progress|done)'
-
-const textOf = (content: string | readonly object[] | undefined) =>
-  typeof content === 'string'
-    ? content
-    : (content ?? [])
-        .map((part) => ('text' in part ? String(part.text) : ''))
-        .join('')
 
 const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
   fauxAssistantMessage(fauxToolCall(name, args), { stopReason: 'toolUse' })
@@ -67,64 +58,33 @@ function plan(words: string) {
   return fauxAssistantMessage(UNSUPPORTED_REPLY)
 }
 
-/**
- * Stands in for a model: reads the conversation Familiar sends and answers
- * the way a model would, with a tool call or with words about a tool's result.
- * Familiar runs the tools; this only decides what to say.
- */
-export function reply(context: TranscriptContext) {
-  // Background work, compaction and memory upkeep, gets a plain answer.
-  if (
-    context.messages.some(
-      (message) =>
-        message.role === 'system' &&
-        /context summarization|long-term memory of/.test(
-          textOf(message.content),
-        ),
-    )
-  ) {
-    return fauxAssistantMessage('The person tried the task board demo.')
-  }
-  // System updates and recall notes are not new messages from the person.
-  const messages = context.messages.filter(
-    (message) =>
-      message.role !== 'system' &&
-      !(
-        message.role === 'user' &&
-        textOf(message.content).startsWith('Recalled from memory')
-      ),
-  )
-  const last = messages.at(-1)
-  if (last?.role === 'toolResult') {
-    const output = textOf(last.content)
-    return fauxAssistantMessage(
-      last.isError ? `That didn't work: ${output}` : output,
-    )
-  }
-  const words = textOf(
-    messages.findLast((message) => message.role === 'user')?.content,
-  )
-    // Only the person's words, after the line naming them.
-    .replace(/^\[Message from .*\n/, '')
-  return plan(words)
-}
-
 export const SCRIPTED_MODEL = { provider: 'faux', modelId: 'scripted' }
 
-/** A model registry whose only model is the script above. */
-export function createScriptedModels() {
-  // Slow enough to see the reply stream, fast enough not to drag.
-  const faux = fauxProvider({
-    tokensPerSecond: 80,
-    models: [{ id: SCRIPTED_MODEL.modelId, name: 'Scripted demo' }],
-  })
-  // The provider answers from a queue; this step queues itself again.
-  const respond: FauxResponseFactory = (context) => {
-    faux.appendResponses([respond])
-    return reply(context)
-  }
-  faux.setResponses([respond])
-  const models = createModels()
-  models.setProvider(faux.provider)
-  return models
-}
+/**
+ * A model registry whose only model stands in for a real one: it answers the
+ * person with a tool call, or with words about a tool's result. Familiar runs
+ * the tools; the script only decides what to say.
+ */
+export const createScriptedModels = () =>
+  scriptedModels(
+    (request) => {
+      switch (request.type) {
+        case 'message':
+          return plan(request.text)
+        case 'tool-result':
+          return fauxAssistantMessage(
+            request.isError
+              ? `That didn't work: ${request.output}`
+              : request.output,
+          )
+        default:
+          // Compaction and memory upkeep get a plain answer.
+          return fauxAssistantMessage('The person tried the task board demo.')
+      }
+    },
+    {
+      // Slow enough to see the reply stream, fast enough not to drag.
+      tokensPerSecond: 80,
+      models: [{ id: SCRIPTED_MODEL.modelId, name: 'Scripted demo' }],
+    },
+  )

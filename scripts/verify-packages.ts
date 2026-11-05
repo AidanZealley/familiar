@@ -427,7 +427,8 @@ new DurableFamiliar(ok, 1)
     `
 import assert from 'node:assert/strict'
 import { createModels } from '@familiar-ai/core/models'
-import { fauxProvider, fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { summonFamiliar } from '@familiar-ai/core'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
@@ -447,17 +448,17 @@ for (const provider of ['openai', 'openrouter', 'faux']) {
 assert.equal(GenerationTask, durable.GenerationTask)
 const chord = await import(import.meta.resolve('@earendil-works/chord/context', coreUrl))
 assert.equal(createContextKey, chord.createContextKey)
-const models = createModels()
-const faux = fauxProvider({ models: [{ id: 'packed' }] })
-models.setProvider(faux.provider)
-faux.setResponses([fauxAssistantMessage('Packed host works')])
+const models = scriptedModels(
+  (request) => fauxAssistantMessage(request.type === 'message' ? 'Packed host works, ' + request.author.name : 'Background'),
+  { models: [{ id: 'packed' }] },
+)
 const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
   assert.equal(familiar.account?.state().status, 'signed-in')
   await familiar.send({ author: { id: 'Consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
   await familiar.idle()
   const view = await familiar.watch()
-  assert.match(JSON.stringify(view.value), /Packed host works/)
+  assert.match(JSON.stringify(view.value), /Packed host works, Consumer/)
   await view.stop()
 } finally {
   await familiar.dismiss()

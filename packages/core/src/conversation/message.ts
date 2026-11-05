@@ -115,6 +115,14 @@ export const formatAuthor = (author: Author) =>
 export const formatMessage = ({ author, text }: MessageData) =>
   `[Message from ${formatAuthor(author)}]\n${text}`
 
+/** `formatMessage` read back, or undefined for text it didn't write. */
+export const readMessage = (text: string): MessageData | undefined => {
+  const match = /^\[Message from (.*)\]\n([\s\S]*)$/.exec(text)
+  return match
+    ? { author: JSON.parse(match[1]) as Author, text: match[2] }
+    : undefined
+}
+
 /**
  * The person's message a generation request answers, read from its entry so
  * the words are exactly as sent. Undefined outside a request, or when the
