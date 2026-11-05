@@ -8,12 +8,11 @@ import {
 } from '@/components/ui/sheet'
 import { AssistantPanel } from '@/components/assistant-panel'
 import { TaskBoard } from '@/components/task-board'
-import type { AppProps } from './types'
 
 // Everything lives in this page's memory, so a reload starts over.
 const reset = () => window.location.reload()
 
-export const App = ({ author }: AppProps) => (
+export const App = () => (
   <div className="flex h-svh flex-col">
     <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
       <h1 className="font-heading text-sm font-medium">Task board</h1>
@@ -39,7 +38,7 @@ export const App = ({ author }: AppProps) => (
     </header>
     <div className="flex min-h-0 flex-1">
       <main className="min-w-0 flex-1 overflow-y-auto p-4">
-        <TaskBoard author={author} />
+        <TaskBoard />
       </main>
       <aside className="hidden w-96 shrink-0 border-l lg:flex">
         <AssistantPanel />

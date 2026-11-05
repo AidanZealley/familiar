@@ -13,14 +13,12 @@ import { useStore } from 'zustand'
 import { useBoard } from '@/board/react'
 import { NewTaskForm } from './components/new-task-form'
 import { TaskCard } from './components/task-card'
-import type { TaskBoardProps } from './types'
 
-const getTaskId = (task: Task) => task.id
 // Item drops arrive through onMove, and columns have no drag handle, so the
 // board never hands back a whole new arrangement.
 const ignoreArrangement = () => {}
 
-export const TaskBoard = ({ author }: TaskBoardProps) => {
+export const TaskBoard = () => {
   const board = useBoard()
   const tasks = useStore(board.store, (state) => state.tasks)
   const columns = useMemo(
@@ -38,7 +36,7 @@ export const TaskBoard = ({ author }: TaskBoardProps) => {
     <Kanban
       value={columns}
       onValueChange={ignoreArrangement}
-      getItemValue={getTaskId}
+      getItemValue={(task) => task.id}
       onMove={({ event, overContainer, overIndex }) =>
         board.move(String(event.active.id), overContainer as Status, overIndex)
       }
@@ -59,6 +57,8 @@ export const TaskBoard = ({ author }: TaskBoardProps) => {
             {status === 'todo' && <NewTaskForm />}
             <KanbanColumnContent value={status} className="min-h-16">
               {columns[status].map((task) => (
+                // The grip handle is the card's only drag control, so the
+                // item isn't a focusable button too.
                 <KanbanItem
                   key={task.id}
                   value={task.id}
@@ -67,7 +67,7 @@ export const TaskBoard = ({ author }: TaskBoardProps) => {
                   aria-roledescription={undefined}
                   aria-describedby={undefined}
                 >
-                  <TaskCard task={task} author={author} />
+                  <TaskCard task={task} />
                 </KanbanItem>
               ))}
             </KanbanColumnContent>

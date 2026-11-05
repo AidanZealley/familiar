@@ -4,11 +4,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useBoard } from '@/board/react'
+import { CURRENT_AUTHOR } from '@/board/seed'
 import type { TaskCardProps } from './types'
 
-export const TaskCard = ({ task, author }: TaskCardProps) => {
+export const TaskCard = ({ task }: TaskCardProps) => {
   const board = useBoard()
-  const mine = task.assignee?.id === author.id
+  const mine = task.assignee?.id === CURRENT_AUTHOR.id
 
   return (
     <Card size="sm" className="gap-2 px-3">
@@ -42,7 +43,7 @@ export const TaskCard = ({ task, author }: TaskCardProps) => {
             variant="ghost"
             size="xs"
             className="ml-auto"
-            onClick={() => board.assign(task.id, author)}
+            onClick={() => board.assign(task.id, CURRENT_AUTHOR)}
           >
             Assign to me
           </Button>
