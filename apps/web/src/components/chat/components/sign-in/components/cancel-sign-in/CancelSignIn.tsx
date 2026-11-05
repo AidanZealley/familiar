@@ -1,12 +1,19 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+import { familiar } from '@/lib/familiar'
 
 /** Stops the sign-in, back to the button that starts one. */
 export const CancelSignIn = () => {
+  const cancel = useMutation({
+    mutationKey: ['sign-in'],
+    mutationFn: () => familiar.account.cancelSignIn(),
+  })
+
   return (
     <Button
       variant="ghost"
-      onClick={() => void familiar.account.cancelSignIn().catch(() => {})}
+      disabled={cancel.isPending}
+      onClick={() => cancel.mutate()}
     >
       Cancel
     </Button>

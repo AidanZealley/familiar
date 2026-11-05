@@ -3,7 +3,7 @@ import {
   MessageScrollerItem,
   useMessageScrollerScrollable,
 } from '@/components/ui/message-scroller'
-import { turnTimes } from '../../times'
+import { turnTimes } from './times'
 import { TranscriptItem } from '../transcript-item'
 import type { TranscriptItemsProps } from './types'
 

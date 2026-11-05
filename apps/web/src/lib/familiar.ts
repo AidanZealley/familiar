@@ -15,11 +15,14 @@ export const useFamiliar = <T>(selector: (state: FamiliarState) => T): T =>
 
 /**
  * Owns request state: what the app fetches instead of mirroring, such as
- * connections, and each command's progress and failure. Any command can
- * change what was fetched, so each one that succeeds refreshes it all.
+ * connections, and each command's progress and failure. A command that
+ * succeeds refreshes the queries that share its key: one with
+ * `mutationKey: ['connections']` refreshes `['connections']`.
  */
-export const queryClient: QueryClient = new QueryClient({
+export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
-    onSuccess: () => queryClient.invalidateQueries(),
+    onSuccess: (_data, _variables, _result, mutation, { client }) =>
+      mutation.options.mutationKey &&
+      client.invalidateQueries({ queryKey: mutation.options.mutationKey }),
   }),
 })

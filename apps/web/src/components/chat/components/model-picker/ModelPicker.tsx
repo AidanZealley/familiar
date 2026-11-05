@@ -1,11 +1,10 @@
 import {
   agentOf,
-  type ModelOption,
   type ModelRef,
   type ModelThinkingLevel,
 } from '@familiar-ai/client'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { BrainIcon, ChevronDownIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,19 +30,22 @@ const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
 const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
 
 export const ModelPicker = () => {
-  // Fixed for each store's daemon lifetime, so fetched rather than mirrored.
-  const [options, setOptions] = useState<ModelOption[]>()
-  useEffect(() => {
-    let active = true
-    void familiar.conversation.modelOptions().then((options) => {
-      if (active) {
-        setOptions(options)
-      }
-    })
-    return () => {
-      active = false
-    }
-  }, [])
+  // Fixed for the daemon's lifetime, so fetched once rather than mirrored.
+  const { data: options } = useQuery({
+    queryKey: ['models'],
+    queryFn: () => familiar.conversation.modelOptions(),
+    staleTime: Infinity,
+  })
+  // The composer shows their failures; see its `['composer']` key.
+  const setModel = useMutation({
+    mutationKey: ['composer'],
+    mutationFn: (model: ModelRef) => familiar.conversation.setModel(model),
+  })
+  const setLevel = useMutation({
+    mutationKey: ['composer'],
+    mutationFn: (level: ModelThinkingLevel) =>
+      familiar.conversation.setThinkingLevel(level),
+  })
   // Live from the conversation, so a change on another device shows here.
   const agent = useFamiliar((state) => agentOf(state.view))
   const current =
@@ -71,7 +73,7 @@ export const ModelPicker = () => {
                   (option) => keyOf(option.model) === value,
                 )
                 if (chosen) {
-                  void familiar.conversation.setModel(chosen.model)
+                  setModel.mutate(chosen.model)
                 }
               }}
             >
@@ -100,7 +102,7 @@ export const ModelPicker = () => {
             <DropdownMenuRadioGroup
               value={agent.thinkingLevel}
               onValueChange={(level: ModelThinkingLevel) =>
-                void familiar.conversation.setThinkingLevel(level)
+                setLevel.mutate(level)
               }
             >
               {current.thinkingLevels.map((level) => (
