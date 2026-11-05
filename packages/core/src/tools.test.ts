@@ -14,13 +14,24 @@ import {
 import { expect, test, vi } from 'vitest'
 import { harnessOptions } from './harness.ts'
 import type { Author } from './conversation/message.ts'
-import { type FamiliarPlugin } from './index.ts'
+import { definePlugin, type FamiliarPlugin } from './index.ts'
+import {
+  defineDoc,
+  defineExtension,
+  defineTask,
+  GenerationTask,
+  hook,
+  section,
+  ToolTask,
+  wrapSection,
+  wrapTool,
+} from './extensions.ts'
 import { ReopenableStorage, testHost } from './testing.ts'
 import { defineTool, Type } from './tools.ts'
 
-// Who a tool call runs for: a message's author, through nesting, queued
-// messages and restarts; a scheduled run's creator is checked in
-// schedules/task.test.ts.
+// Tools and extensions as plugins use them. Who a tool call runs for: a
+// message's author, through nesting, queued messages and restarts; a
+// scheduled run's creator is checked in schedules/task.test.ts.
 
 const first = { id: 'person-1', name: 'Sam' }
 const second = { id: 'person-2', name: 'Sam' }
@@ -223,5 +234,233 @@ test('the author reaches the tool through live API getters', async () => {
 
   expect(await tool.execute({}, api, BACKGROUND_CONTEXT)).toEqual({
     output: [],
+  })
+})
+
+test('a tool keeps its last reported details unless its result replaces them, after a restart too', async () => {
+  const { faux, familiar, reopen } = await setup({
+    name: 'example',
+    title: 'Example',
+    extension: () => ({
+      tools: [
+        defineTool({
+          name: 'lookup',
+          description: 'Look up a value.',
+          parameters: Type.Object({ value: Type.String() }),
+          execute: async ({ value }, api, context) => {
+            await api.details({ source: value }, context)
+            return output
+          },
+        }),
+        defineTool({
+          name: 'override',
+          description: 'Return final details.',
+          parameters: Type.Object({}),
+          execute: async (_args, api, context) => {
+            await api.details({ stale: true }, context)
+            return { ...output, details: { final: true } }
+          },
+        }),
+      ],
+    }),
+  })
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall('lookup', { value: 'answer' }),
+        fauxToolCall('override', {}),
+      ],
+      { stopReason: 'toolUse' },
+    ),
+    fauxAssistantMessage('Done.'),
+  ])
+  await familiar().send({ author: first, text: 'Go', requestId: 'go' })
+  await familiar().idle()
+
+  const watch = await (await reopen()).watch()
+  await watch.stop()
+  const details = watch.value.entries
+    .filter((entry) => entry.kind === 'pi.tool-result')
+    .map((entry) => (entry.model?.[0] as { details?: unknown }).details)
+  expect(details).toEqual([{ source: 'answer' }, { final: true }])
+})
+
+test('Stop aborts a running tool', async () => {
+  let started!: (signal: AbortSignal) => void
+  const running = new Promise<AbortSignal>((resolve) => {
+    started = resolve
+  })
+  const { faux, familiar } = await setup({
+    name: 'test',
+    title: 'Test',
+    extension: () => ({
+      tools: [
+        defineTool({
+          name: 'wait',
+          description: 'Wait for cancellation.',
+          parameters: Type.Object({}),
+          execute: async (_args, _api, context) => {
+            const signal = context.abortSignal!
+            started(signal)
+            await new Promise((resolve) =>
+              signal.addEventListener('abort', resolve, { once: true }),
+            )
+            signal.throwIfAborted()
+            return output
+          },
+        }),
+      ],
+    }),
+  })
+  faux.setResponses([call('wait')])
+  await familiar().send({ author: first, text: 'Go', requestId: 'go' })
+  const signal = await running
+  await familiar().abort()
+  await familiar().idle()
+  expect(signal.aborted).toBe(true)
+})
+
+test('extensions run through Familiar with their sections, hooks, wrappers, tasks and transactional nested calls', async () => {
+  const Counter = defineDoc({
+    kind: 'plugin.counter',
+    version: 1,
+    scope: 'session',
+    initial: () => ({ value: 0 }),
+    checkpointWhen: () => true,
+  })
+  const Increment = defineTask<{ amount: number }, { phase: 'run' }, number>({
+    name: 'plugin.increment',
+    version: 1,
+    initial: () => ({ phase: 'run' }),
+    phases: {
+      run: (task, runtime, context) =>
+        runtime.commit(async (tx) => {
+          const state = await tx.doc(Counter)
+          state.value += task.input.amount
+          return {
+            status: 'terminal',
+            outcome: { status: 'completed', result: state.value },
+          }
+        }, context),
+    },
+    abort: (_task, runtime, context) =>
+      runtime.commit(
+        () => ({ status: 'terminal', outcome: { status: 'aborted' } }),
+        context,
+      ),
+  })
+  const events: string[] = []
+  const read = defineTool({
+    name: 'read_counter',
+    description: 'Read the plugin counter.',
+    parameters: Type.Object({}),
+    callers: ['tools'],
+    structuredOutputSchema: Type.Object({ value: Type.Number() }),
+    execute: async (_args, api, context) => {
+      const state = await api.snapshot(Counter, context)
+      return { structuredOutput: { value: state?.value ?? 0 } }
+    },
+  })
+  const increment = defineTool({
+    name: 'increment',
+    description: 'Increment and read back.',
+    parameters: Type.Object({ amount: Type.Number() }),
+    replay: 'safe',
+    prepareArguments: (args) => ({
+      amount: Number((args as { amount: unknown }).amount),
+    }),
+    execute: async ({ amount }, api, context) => {
+      await api.commit(async (tx) => {
+        ;(await tx.doc(Counter)).value = 10
+      }, context)
+      const task = await api.createTask(
+        Increment,
+        { amount },
+        { ownership: { kind: 'task', taskId: api.taskId } },
+        context,
+      )
+      const settled = await api.waitForTask(task, context)
+      expect(settled.state.outcome).toEqual({ status: 'completed', result: 12 })
+      await api.memo('saved', { amount }, context)
+      expect(await api.memo('saved', context)).toEqual({ amount })
+      const nested = await api.executeTool(read.name, {}, context, {
+        key: 'read',
+      })
+      expect(nested.structuredOutput).toEqual({ value: 12 })
+      return {
+        output: [{ type: 'text', text: 'Committed 12' }],
+        details: { value: 12 },
+      }
+    },
+  })
+  const { faux, familiar: current } = await testHost({
+    plugins: [
+      definePlugin({
+        name: 'full',
+        title: 'Full extension',
+        extension: () =>
+          defineExtension({
+            name: 'replaced-by-familiar',
+            tools: [read, increment],
+            tasks: [Increment],
+            sections: [section('plugin_test', () => 'Original section')],
+            wraps: [
+              wrapSection('plugin_test', (original) => ({
+                ...original,
+                render: () => 'Wrapped section',
+              })),
+              wrapTool(increment, (original) => ({
+                ...original,
+                execute: async (args, api, context) => {
+                  events.push('wrapper')
+                  return original.execute(args, api, context)
+                },
+              })),
+            ],
+            hooks: [
+              hook(GenerationTask, {
+                beforeRequest: (request) => {
+                  expect(JSON.stringify(request.messages)).toContain(
+                    'Wrapped section',
+                  )
+                  events.push('request')
+                },
+              }),
+              hook(ToolTask, {
+                beforeTool: (call) => {
+                  events.push(call.parent ? 'nested' : 'tool')
+                },
+              }),
+            ],
+          }),
+      }),
+    ],
+  })
+  const familiar = current()
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('increment', { amount: '2' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      expect(JSON.stringify(context.messages)).toContain('Committed 12')
+      return fauxAssistantMessage('Done.')
+    },
+  ])
+  await familiar.send({
+    author: { id: 'test', name: 'test' },
+    text: 'Go',
+    requestId: 'full',
+  })
+  await familiar.idle()
+  expect(events).toEqual(['request', 'tool', 'wrapper', 'nested', 'request'])
+  const watch = await familiar.watch()
+  await watch.stop()
+  const result = watch.value.entries.find(
+    (entry) => entry.kind === 'pi.tool-result',
+  )?.model?.[0]
+  expect(result).toMatchObject({
+    isError: false,
+    content: [{ type: 'text', text: 'Committed 12' }],
+    details: { value: 12 },
   })
 })

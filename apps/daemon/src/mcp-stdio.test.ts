@@ -1,30 +1,25 @@
 import { fileURLToPath } from 'node:url'
-import { createModels } from '@familiar-ai/core/models'
-import {
-  fauxProvider,
-  fauxAssistantMessage,
-  fauxToolCall,
-} from '@familiar-ai/core/models/faux'
-import type { ToolResultMessage } from '@familiar-ai/core/models'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
   summonFamiliar,
-  memorySecrets,
   type Familiar,
   type McpConnectionInfo,
   type McpServer,
 } from '@familiar-ai/core'
-import { createHttpApi } from '@familiar-ai/core/http'
-import { afterEach, expect, test, vi } from 'vitest'
+import { createModels, type ToolResultMessage } from '@familiar-ai/core/models'
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxToolCall,
+} from '@familiar-ai/core/models/faux'
+import { afterEach, expect, onTestFinished, test, vi } from 'vitest'
 import { stdioTransport } from './mcp-stdio.ts'
 
-const opened = new Set<Familiar>()
-const close = async (familiar: Familiar) => {
-  opened.delete(familiar)
-  await familiar.dismiss()
-}
-afterEach(async () => {
-  await Promise.all([...opened].map(close))
+// Owner-configured commands run as the daemon's user, through the daemon's
+// stdio transport. Core owns the connection; these check what the child
+// process sees and that none outlives the server that started it.
+
+afterEach(() => {
   vi.unstubAllEnvs()
 })
 
@@ -34,13 +29,15 @@ const server = {
     type: 'stdio',
     command: process.execPath,
     args: [
-      fileURLToPath(new URL('./testing/stdio-server.ts', import.meta.url)),
+      fileURLToPath(new URL('./mcp-stdio-server.ts', import.meta.url)),
       'literal argument; $HOME',
     ],
   },
 } satisfies McpServer
-const info = async (familiar: Familiar) =>
-  (await familiar.connections.list())[0] as McpConnectionInfo
+
+const status = async (familiar: Familiar) =>
+  ((await familiar.connections.list())[0] as McpConnectionInfo).status.type
+
 const exited = (pid: number) => {
   try {
     process.kill(pid, 0)
@@ -53,6 +50,7 @@ const exited = (pid: number) => {
   }
 }
 
+/** A Familiar whose stdio servers start through the daemon's transport. */
 async function setup() {
   const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
   const models = createModels()
@@ -60,7 +58,6 @@ async function setup() {
   const children: ReturnType<typeof stdioTransport>[] = []
   const familiar = await summonFamiliar({
     storage: new MemoryStorage(),
-    secrets: memorySecrets(),
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
@@ -70,36 +67,18 @@ async function setup() {
       return child
     },
   })
-  opened.add(familiar)
+  onTestFinished(() => familiar.dismiss())
   return { familiar, faux, children }
 }
 
-test('owner-configured stdio tools run through Familiar with filtered environment and literal arguments', async () => {
+test("a command gets literal arguments and none of the daemon's private environment, and no process outlives it", async () => {
   vi.stubEnv('FAMILIAR_TEST_SECRET', 'private-test-value')
   vi.stubEnv('FAMILIAR_DATA_DIR', '/private-test-data')
   vi.stubEnv('NODE_OPTIONS', '--expose-internals')
   const { familiar, faux, children } = await setup()
-  const api = createHttpApi(familiar, {
-    allow: () => true,
-    authenticate: () => ({ id: 'owner', name: 'owner' }),
-  })
-  const added = await api.request('/mcp', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(server),
-  })
-  expect(added.status).toBe(201)
-  await expect
-    .poll(async () => (await info(familiar)).status.type)
-    .toBe('connected')
-  expect((await info(familiar)).secrets).toEqual([])
-  await expect(
-    familiar.connections.setSecret(
-      { kind: 'mcp', name: 'local' },
-      'token',
-      'not-for-stdio',
-    ),
-  ).rejects.toThrow('has no secret')
+  await familiar.mcp.add(server)
+  await expect.poll(() => status(familiar)).toBe('connected')
+
   let reply: ToolResultMessage | undefined
   faux.setResponses([
     fauxAssistantMessage(fauxToolCall('tool_search', { query: 'echo' }), {
@@ -134,57 +113,24 @@ test('owner-configured stdio tools run through Familiar with filtered environmen
   expect(result.environment).not.toContain('FAMILIAR_TEST_SECRET')
   expect(result.environment).not.toContain('FAMILIAR_DATA_DIR')
   expect(result.environment).not.toContain('NODE_OPTIONS')
-  await familiar.mcp.remove('local')
-  await expect.poll(() => exited(result.pid)).toBe(true)
-  expect(await familiar.connections.list()).toEqual([])
-})
 
-test('process exit removes tools, reconnect launches a fresh process, and dismissal reaps it', async () => {
-  const { familiar, faux, children } = await setup()
-  await familiar.mcp.add(server)
-  await expect
-    .poll(async () => (await info(familiar)).status.type)
-    .toBe('connected')
-  const firstPid = children[0].pid!
-  process.kill(firstPid, 'SIGTERM')
-  await expect
-    .poll(async () => (await info(familiar)).status.type)
-    .toBe('disconnected')
-  expect((await info(familiar)).tools).toEqual([])
-  let search: ToolResultMessage | undefined
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('tool_search', { query: 'echo' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      search = context.messages.findLast(
-        (message) => message.role === 'toolResult',
-      )
-      return fauxAssistantMessage('No tools.')
-    },
-  ])
-  await familiar.send({
-    author: { id: 'owner', name: 'owner' },
-    text: 'Find echo.',
-    requestId: 'stdio-exited',
-  })
-  await familiar.idle()
-  expect(search).toMatchObject({
-    content: [
-      { type: 'text', text: expect.stringContaining('No matching tools') },
-    ],
-  })
+  // A process that exits takes its tools; reconnecting starts a new one.
+  process.kill(result.pid, 'SIGTERM')
+  await expect.poll(() => status(familiar)).toBe('disconnected')
+  expect(
+    ((await familiar.connections.list())[0] as McpConnectionInfo).tools,
+  ).toEqual([])
   await familiar.mcp.reconnect('local')
-  await expect
-    .poll(async () => (await info(familiar)).status.type)
-    .toBe('connected')
-  const secondPid = children[1].pid!
-  expect(secondPid).not.toBe(firstPid)
-  await close(familiar)
-  await expect.poll(() => exited(secondPid)).toBe(true)
+  await expect.poll(() => status(familiar)).toBe('connected')
+  const second = children[1].pid!
+  expect(second).not.toBe(result.pid)
+
+  // Dismissal reaps it.
+  await familiar.dismiss()
+  await expect.poll(() => exited(second)).toBe(true)
 })
 
-test('removing a server during initialization closes the child process', async () => {
+test('removing a server during startup closes its process', async () => {
   const { familiar, children } = await setup()
   await familiar.mcp.add({
     ...server,
@@ -197,29 +143,5 @@ test('removing a server during initialization closes the child process', async (
   const pid = children[0].pid!
   await familiar.mcp.remove('local')
   await expect.poll(() => exited(pid)).toBe(true)
-  expect(await familiar.connections.list()).toEqual([])
-})
-
-test('a server that cannot start reports failure without blocking chat, and can be removed', async () => {
-  const { familiar, faux } = await setup()
-  await familiar.mcp.add({
-    name: 'local',
-    transport: {
-      type: 'stdio',
-      command: '/nonexistent-familiar-mcp-command',
-      args: [],
-    },
-  })
-  await expect
-    .poll(async () => (await info(familiar)).status.type)
-    .toBe('failed')
-  faux.setResponses([fauxAssistantMessage('Still here.')])
-  await familiar.send({
-    author: { id: 'owner', name: 'owner' },
-    text: 'Hello.',
-    requestId: 'unavailable',
-  })
-  await familiar.idle()
-  await familiar.mcp.remove('local')
   expect(await familiar.connections.list()).toEqual([])
 })

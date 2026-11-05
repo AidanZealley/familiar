@@ -11,7 +11,9 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { summonFamiliar } from '../index.ts'
+import { createHttpApi } from '../http/index.ts'
+import { summonFamiliar, type Familiar } from '../index.ts'
+import { testHost } from '../testing.ts'
 import { createAccount, type AccountState } from './index.ts'
 
 const credential = { type: 'oauth' } as unknown as Credential
@@ -192,4 +194,62 @@ test('a reply failing on a login that stopped working marks it expired, and a wo
   } finally {
     await familiar.dismiss()
   }
+})
+
+test('without an account a host gets no account routes; with one, dismissal stops a sign-in without signing out', async () => {
+  const api = (familiar: Familiar) =>
+    createHttpApi(familiar, {
+      allow: () => true,
+      authenticate: () => ({ id: 'aidan', name: 'aidan' }),
+    })
+  /** The event stream's first `account` event, parsed. */
+  const firstAccountEvent = async (familiar: Familiar) => {
+    const response = await api(familiar).request('/events')
+    const reader = response
+      .body!.pipeThrough(new TextDecoderStream())
+      .getReader()
+    const event = /^event: account\ndata: (.+)$/m
+    let text = ''
+    while (!event.test(text)) {
+      text += (await reader.read()).value
+    }
+    await reader.cancel()
+    return JSON.parse(text.match(event)![1]!) as unknown
+  }
+
+  // A host that keeps its credentials working itself.
+  const unattached = (await testHost()).familiar()
+  expect(unattached.account).toBeUndefined()
+  expect((await api(unattached).request('/account')).status).toBe(404)
+  expect(await firstAccountEvent(unattached)).toBeNull()
+
+  // A host owners sign in through.
+  const host = await testHost({ account: {} })
+  const familiar = host.familiar()
+  let interaction: AuthInteraction | undefined
+  vi.spyOn(host.models, 'login').mockImplementation(
+    (_provider, _type, next) => {
+      interaction = next
+      next.notify({ type: 'auth_url', url: 'https://example.com/authorize' })
+      return new Promise<Credential>((_resolve, reject) =>
+        next.signal?.addEventListener('abort', () =>
+          reject(new Error('aborted')),
+        ),
+      )
+    },
+  )
+  const logout = vi.spyOn(host.models, 'logout')
+  expect(
+    (await api(familiar).request('/account/sign-in', { method: 'POST' }))
+      .status,
+  ).toBe(202)
+  await vi.waitFor(() =>
+    expect(familiar.account?.state()).toEqual({
+      status: 'signing-in',
+      url: 'https://example.com/authorize',
+    }),
+  )
+  await host.dismiss()
+  expect(interaction?.signal?.aborted).toBe(true)
+  expect(logout).not.toHaveBeenCalled()
 })
