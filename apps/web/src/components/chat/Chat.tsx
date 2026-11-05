@@ -6,7 +6,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useTranscript } from '@/lib/familiar'
+import { useFamiliar } from '@/lib/familiar'
 import { Composer } from './components/composer'
 import { OlderMessages } from './components/older-messages'
 import { SignIn } from './components/sign-in'
@@ -27,7 +27,7 @@ export const Chat = () => {
     observer.observe(content)
     return () => observer.disconnect()
   }, [])
-  const transcript = useTranscript()
+  const transcript = useFamiliar((state) => state.transcript)
   const firstItemIds = useMemo(
     () => transcript?.items.slice(0, 3).map((item) => item.id) ?? [],
     [transcript],

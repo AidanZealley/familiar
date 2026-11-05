@@ -107,8 +107,8 @@ try {
   await writeFile(
     resolve(consumer, 'react.js'),
     `
-import { FamiliarProvider, useFamiliar, useFamiliarStore, useTranscript } from '@familiar-ai/client/react'
-if (![FamiliarProvider, useFamiliar, useFamiliarStore, useTranscript].every(value => typeof value === 'function')) {
+import { FamiliarProvider, useFamiliar, useFamiliarStore } from '@familiar-ai/client/react'
+if (![FamiliarProvider, useFamiliar, useFamiliarStore].every(value => typeof value === 'function')) {
   throw new Error('React bindings missing from the packed client')
 }
 `,
@@ -312,7 +312,7 @@ precise.execute({ query: 'value' })
     [],
     `import { createElement } from 'react'
 import type { FamiliarStore } from '@familiar-ai/client'
-import { FamiliarProvider, useFamiliar, useFamiliarStore, useTranscript } from '@familiar-ai/client/react'
+import { FamiliarProvider, useFamiliar, useFamiliarStore } from '@familiar-ai/client/react'
 declare const store: FamiliarStore
 store.conversation.send('Hello')
 store.conversation.setModel({ provider: 'test', modelId: 'test' })
@@ -349,8 +349,8 @@ createElement(FamiliarProvider, {})
 useFamiliar(state => state.notAField)
 // @ts-expect-error selection preserves the return type
 const count: number = useFamiliar(state => state.connection)
-// @ts-expect-error transcript is typed
-const transcript: number = useTranscript()
+// @ts-expect-error commands are typed
+useFamiliarStore().conversation.send(1)
 `,
   )
   await typeCheck(

@@ -5,7 +5,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useFamiliar, useTranscript } from '@familiar-ai/client/react'
+import { useFamiliar } from '@familiar-ai/client/react'
 import { TranscriptItems } from './components/transcript-items'
 import type { ChatProps } from './types'
 
@@ -16,7 +16,7 @@ import type { ChatProps } from './types'
  */
 export const Chat = ({ viewer }: ChatProps) => {
   const connection = useFamiliar((state) => state.connection)
-  const transcript = useTranscript()
+  const transcript = useFamiliar((state) => state.transcript)
   const items = transcript?.items ?? []
 
   return (

@@ -4,7 +4,6 @@ export {
   FamiliarProvider,
   useFamiliar,
   useFamiliarStore,
-  useTranscript,
 } from '@familiar-ai/client/react'
 
 /** The app owns this connection for its lifetime. */

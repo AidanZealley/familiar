@@ -23,4 +23,4 @@ store.disconnect()
 
 The host assigns the message author. Pass `{ fetch }` to attach credentials to every request, including stream reconnects. `unauthorized`, `failed` and `outdated` connections stop retrying; disconnect and create a new store after those, after sign-out or after an identity change. The library never reloads the page.
 
-Commands live on the store, and its state is plain data. Every command is present; one the host's `allow` refuses rejects with its 403. React 18 or 19 bindings, `FamiliarProvider`, `useFamiliar`, `useFamiliarStore` and `useTranscript`, come from `@familiar-ai/client/react`. The vanilla entry loads neither React nor core's server runtime.
+Commands live on the store, and its state is plain data. Every command is present; one the host's `allow` refuses rejects with its 403. React 18 or 19 bindings, `FamiliarProvider`, `useFamiliar` and `useFamiliarStore`, come from `@familiar-ai/client/react`. The vanilla entry loads neither React nor core's server runtime.

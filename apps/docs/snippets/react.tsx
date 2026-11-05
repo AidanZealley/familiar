@@ -2,7 +2,6 @@ import { createFamiliarStore } from '@familiar-ai/client'
 import {
   FamiliarProvider,
   useFamiliar,
-  useTranscript,
   useFamiliarStore,
 } from '@familiar-ai/client/react'
 
@@ -14,7 +13,7 @@ const Chat = () => {
   const {
     conversation: { send },
   } = useFamiliarStore()
-  const transcript = useTranscript()
+  const transcript = useFamiliar((state) => state.transcript)
 
   if (connection !== 'open') {
     return <p>{connection}…</p>
