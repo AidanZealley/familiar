@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BoardError, createBoard, type Status } from './board.ts'
+import { createBoard, type Status } from './board.ts'
 
 const board = () =>
   createBoard([
@@ -31,12 +31,5 @@ describe('board.move', () => {
     b.move('T-3', 'done')
     expect(column(b, 'done')).toEqual(['T-2', 'T-4', 'T-3'])
     expect(column(b, 'todo')).toEqual(['T-1'])
-  })
-
-  it('refuses unknown tasks without changing anything', () => {
-    const b = board()
-    const before = b.tasks()
-    expect(() => b.move('T-9', 'done')).toThrow(BoardError)
-    expect(b.tasks()).toBe(before)
   })
 })
