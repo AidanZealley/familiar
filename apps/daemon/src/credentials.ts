@@ -1,25 +1,16 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import type { Credential, CredentialStore } from '@familiar-ai/core/models'
+import { jsonFile } from './json-file.ts'
 
 /**
- * Credentials in one JSON file (pi's auth.json shape), kept in memory and
- * rewritten atomically on change. pi-ai refreshes OAuth tokens through
- * `modify`, so a rotated token is saved before it is used.
- *
- * One process owns the file, so serializing writes in memory is enough.
+ * Credentials in one JSON file (pi's auth.json shape). pi-ai refreshes OAuth
+ * tokens through `modify`, so a rotated token is saved before it is used.
+ * `modify` awaits the refresh, so changes queue to keep one refresh from
+ * overwriting another.
  */
 export function fileCredentialStore(path: string): CredentialStore {
-  const credentials: Record<string, Credential> = existsSync(path)
-    ? JSON.parse(readFileSync(path, 'utf8'))
-    : {}
+  const file = jsonFile<Record<string, Credential>>(path, () => ({}))
+  const credentials = file.value
   let queue = Promise.resolve()
-
-  const save = () => {
-    writeFileSync(`${path}.tmp`, JSON.stringify(credentials, null, 2), {
-      mode: 0o600,
-    })
-    renameSync(`${path}.tmp`, path)
-  }
 
   const serialized = <T>(work: () => Promise<T>) => {
     const result = queue.then(work)
@@ -42,14 +33,14 @@ export function fileCredentialStore(path: string): CredentialStore {
         const next = await fn(credentials[providerId])
         if (next !== undefined) {
           credentials[providerId] = next
-          save()
+          file.save()
         }
         return credentials[providerId]
       }),
     delete: (providerId) =>
       serialized(async () => {
         delete credentials[providerId]
-        save()
+        file.save()
       }),
   }
 }

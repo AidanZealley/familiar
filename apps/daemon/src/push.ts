@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import type { Notification } from '@familiar-ai/core'
 import type { PushHost, PushSubscriptionJson } from '@familiar-ai/core/http'
 import webpush from 'web-push'
+import { jsonFile } from './json-file.ts'
 
 export type PushOptions = {
   /**
@@ -34,24 +34,6 @@ type Stored = PushSubscriptionJson & { subscriber?: string }
 /** Push services answer these for a subscription that no longer exists. */
 const GONE = [404, 410]
 
-/** Reads a JSON file, or creates it from `initial` if it's missing. */
-function stored<T>(path: string | undefined, initial: () => T) {
-  const save = (value: T) => {
-    if (path) {
-      writeFileSync(`${path}.tmp`, JSON.stringify(value, null, 2), {
-        mode: 0o600,
-      })
-      renameSync(`${path}.tmp`, path)
-    }
-  }
-  if (path && existsSync(path)) {
-    return { value: JSON.parse(readFileSync(path, 'utf8')) as T, save }
-  }
-  const value = initial()
-  save(value)
-  return { value, save }
-}
-
 /**
  * Web Push for Familiar's notifications: the routes' host, and `notify`,
  * which sends to every subscribed browser and forgets the ones that are gone.
@@ -60,11 +42,16 @@ function stored<T>(path: string | undefined, initial: () => T) {
  */
 export function openPush(options: PushOptions) {
   const send = options.send ?? webpush.sendNotification
-  // Generated once: every subscription is tied to this key.
-  const vapid = stored(options.path?.('vapid.json'), () =>
+  // Generated once and saved at once: every subscription is tied to this key.
+  const keys = jsonFile(options.path?.('vapid.json'), () =>
     webpush.generateVAPIDKeys(),
-  ).value
-  const subscriptions = stored<Stored[]>(options.path?.('push.json'), () => [])
+  )
+  keys.save()
+  const vapid = keys.value
+  const subscriptions = jsonFile<Stored[]>(
+    options.path?.('push.json'),
+    () => [],
+  )
 
   /**
    * Whether `subscriber` may change this subscription: their own, or one
@@ -87,11 +74,11 @@ export function openPush(options: PushOptions) {
     subscribe: async (subscription, { id }) => {
       remove(subscription.endpoint, id)
       subscriptions.value.push({ ...subscription, subscriber: id })
-      subscriptions.save(subscriptions.value)
+      subscriptions.save()
     },
     unsubscribe: async ({ endpoint }, { id }) => {
       remove(endpoint, id)
-      subscriptions.save(subscriptions.value)
+      subscriptions.save()
     },
   }
 
@@ -123,7 +110,7 @@ export function openPush(options: PushOptions) {
     if (gone.length) {
       // The push service says the endpoint is gone, for whoever saved it.
       gone.forEach((endpoint) => remove(endpoint))
-      subscriptions.save(subscriptions.value)
+      subscriptions.save()
     }
     // Core reports it: other browsers still got the notification.
     if (failures.length) {
