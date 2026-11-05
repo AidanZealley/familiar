@@ -1,8 +1,5 @@
-import { createModels } from '@earendil-works/pi-ai/models'
 import { expect, test } from 'vitest'
-import { summonFamiliar } from '../familiar.ts'
-import { ReopenableStorage } from '../memory/testing.ts'
-import { TEST_ZONE, timeAt } from '../testing.ts'
+import { TEST_ZONE, testHost, timeAt } from '../testing.ts'
 import { parseMinute } from '../time.ts'
 import { latestOccurrence, nextOccurrence, repeatProblem } from './repeat.ts'
 import {
@@ -376,14 +373,8 @@ test('a schedule is refused past the quota or with an oversized prompt or repeat
 test.each([0, -1, 1.5, Infinity, Number.NaN])(
   'maxSchedules %s is refused when Familiar opens',
   async (maxSchedules) => {
-    await expect(
-      summonFamiliar({
-        storage: new ReopenableStorage(),
-        models: createModels(),
-        model: { provider: 'faux', modelId: 'faux-1' },
-        timeZone: TEST_ZONE,
-        maxSchedules,
-      }),
-    ).rejects.toThrow('maxSchedules must be a positive whole number')
+    await expect(testHost({ maxSchedules })).rejects.toThrow(
+      'maxSchedules must be a positive whole number',
+    )
   },
 )

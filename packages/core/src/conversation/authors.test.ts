@@ -1,41 +1,14 @@
-import { createModels } from '@earendil-works/pi-ai/models'
-import {
-  fauxAssistantMessage,
-  fauxProvider,
-} from '@earendil-works/pi-ai/providers/faux'
-import { afterEach, expect, test } from 'vitest'
+import { fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux'
+import { expect, test } from 'vitest'
 import type { Author } from '../index.ts'
-import { summonFamiliar, type Familiar } from '../familiar.ts'
-import { ReopenableStorage } from '../memory/testing.ts'
+import { testHost } from '../testing.ts'
 import { MESSAGE_KIND, MESSAGE_LIMITS, MessageError } from './message.ts'
 
 const first = { id: 'person-1', name: 'Sam' }
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
-async function setup() {
-  const storage = new ReopenableStorage()
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const open = async () => {
-    const familiar = await summonFamiliar({
-      storage,
-      models,
-      model: { provider: 'faux', modelId: 'faux-1' },
-      timeZone: 'UTC',
-    })
-    opened.push(familiar)
-    return familiar
-  }
-  return { faux, open }
-}
 
 test('each message keeps its author as sent, quoted for the model, and only the same author retries', async () => {
-  const { faux, open } = await setup()
-  const familiar = await open()
+  const { faux, familiar: current, reopen } = await testHost()
+  const familiar = current()
   faux.setResponses(
     Array.from({ length: 4 }, () => fauxAssistantMessage('Hello')),
   )
@@ -67,9 +40,8 @@ test('each message keeps its author as sent, quoted for the model, and only the 
     requestId: 'b:c',
   })
   await familiar.idle()
-  await familiar.dismiss()
 
-  const watch = await (await open()).watch()
+  const watch = await (await reopen()).watch()
   await watch.stop()
   const entries = watch.value.entries.filter(
     (entry) => entry.kind === MESSAGE_KIND,
@@ -86,8 +58,7 @@ test('each message keeps its author as sent, quoted for the model, and only the 
 })
 
 test('send refuses messages outside the bounds for every caller, sending nothing', async () => {
-  const { open } = await setup()
-  const familiar = await open()
+  const familiar = (await testHost()).familiar()
   const valid = { author: first, text: 'Hi', requestId: 'ok' }
   for (const invalid of [
     { ...valid, author: 'Sam' as unknown as Author },

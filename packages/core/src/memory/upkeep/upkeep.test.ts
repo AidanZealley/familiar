@@ -1,18 +1,21 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
-  fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import type { Storage } from '@earendil-works/pi-durable'
 import { nextUpkeep, upkeepDay } from './schedule.ts'
-import { afterEach, expect, test, vi } from 'vitest'
-import { summonFamiliar, type Familiar } from '../../familiar.ts'
+import { expect, test, vi } from 'vitest'
 import { MemoryUsage } from '../facts.ts'
-import { fakeClock, TEST_ZONE, timeAt } from '../../testing.ts'
-import { readStored, ReopenableStorage, storageWith } from '../testing.ts'
+import {
+  fakeClock,
+  inputOf,
+  TEST_ZONE,
+  testHost,
+  timeAt,
+} from '../../testing.ts'
+import { readStored, storageWith } from '../testing.ts'
 
 const context = BACKGROUND_CONTEXT
 
@@ -20,53 +23,27 @@ const start = timeAt('2026-10-25 12:00')
 const firstPass = nextUpkeep(start, TEST_ZONE)
 const secondPass = nextUpkeep(firstPass, TEST_ZONE)
 
-async function setup(storage: Storage = new ReopenableStorage()) {
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
+async function setup(storage?: Storage) {
   const clock = fakeClock(start)
-
-  const open = async () => {
-    const familiar = await summonFamiliar({
-      storage,
-      models,
-      model: { provider: 'faux', modelId: 'faux-1' },
-      timeZone: TEST_ZONE,
-      now: clock.now,
-      setTimer: clock.setTimer,
-    })
-    opened.push(familiar)
-    return familiar
-  }
-  let familiar = await open()
-  const reopen = async () => {
-    await familiar.dismiss()
-    opened.splice(opened.indexOf(familiar), 1)
-    familiar = await open()
-  }
-
-  const say = async (text: string) => {
-    await familiar.send({
-      author: { id: 'aidan', name: 'aidan' },
-      text,
-      // Each test message starts differently; a request ID has a bound.
-      requestId: text.slice(0, 128),
-    })
-    await familiar.idle()
-  }
+  const host = await testHost({
+    storage,
+    timeZone: TEST_ZONE,
+    now: clock.now,
+    setTimer: clock.setTimer,
+  })
   const memory = async () => {
-    const watch = await familiar.memory.watch()
+    const watch = await host.familiar().memory.watch()
     await watch.stop()
     return watch.value?.facts ?? []
   }
   const episodes = async () => {
-    const watch = await familiar.memory.watchEpisodes()
+    const watch = await host.familiar().memory.watchEpisodes()
     await watch.stop()
     return watch.value?.episodes ?? []
   }
   const upkeepTasks = async () =>
     (
-      await storage.scanTasks(
+      await host.storage.scanTasks(
         { kind: 'familiar.upkeep' },
         10,
         undefined,
@@ -86,47 +63,21 @@ async function setup(storage: Storage = new ReopenableStorage()) {
     await sleepingUntil(next)
   }
   return {
-    faux,
-    familiar: () => familiar,
-    say,
+    faux: host.faux,
+    familiar: host.familiar,
+    say: host.say,
     setTime: clock.setTime,
     memory,
     episodes,
     upkeepTasks,
     sleepingUntil,
     passAt,
-    reopen,
+    reopen: async () => {
+      await host.reopen()
+    },
+    /** Dismisses it before the test ends, so its storage can be read. */
+    dismiss: host.dismiss,
   }
-}
-
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
-/** Dismisses a Familiar before the test ends, so its storage can be read. */
-const dismiss = async (familiar: Familiar) => {
-  opened.splice(opened.indexOf(familiar), 1)
-  await familiar.dismiss()
-}
-
-/** The pass's input: the last user message of an upkeep request, before any recall note. */
-const inputOf = (context: TranscriptContext) => {
-  const text = (message: TranscriptContext['messages'][number]) =>
-    message.role !== 'user'
-      ? ''
-      : typeof message.content === 'string'
-        ? message.content
-        : message.content
-            .map((part) => (part.type === 'text' ? part.text : ''))
-            .join('')
-  return (
-    context.messages
-      .map(text)
-      .findLast(
-        (input) => input && !input.startsWith('Recalled from memory'),
-      ) ?? ''
-  )
 }
 
 const isUpkeep = (context: TranscriptContext) =>
@@ -588,7 +539,7 @@ test('after the backlog and rollups, a review rechecks the longest-unchecked fac
         ],
     ),
   )
-  const { faux, familiar, say, memory, passAt } = await setup(storage)
+  const { faux, say, memory, passAt, dismiss } = await setup(storage)
   faux.setResponses([fauxAssistantMessage('Congratulations!')])
   await say('I started at Lantern Museum today and left Northbank.')
 
@@ -643,7 +594,7 @@ test('after the backlog and rollups, a review rechecks the longest-unchecked fac
   )
   expect((await memory())[0]).toMatchObject({ id: 'f1', until: '2026-10-25' })
 
-  await dismiss(familiar())
+  await dismiss()
   const { facts } = await readStored(storage, MemoryUsage)
   expect(Object.keys(facts)).toHaveLength(20)
   expect(facts.f20).toEqual({ checked: secondPass })
@@ -655,7 +606,7 @@ test('a restart during the review neither submits it twice nor stamps more than 
     ['Has a cat', 3, start - 90 * DAY],
     ['Likes blue pens', 1, start - 60 * DAY],
   )
-  const { faux, familiar, say, passAt, reopen } = await setup(storage)
+  const { faux, say, passAt, reopen, dismiss } = await setup(storage)
   faux.setResponses([fauxAssistantMessage('Hello.')])
   await say('Hi.')
   const reviews: string[][] = []
@@ -692,7 +643,7 @@ test('a restart during the review neither submits it twice nor stamps more than 
   // Answered again after the restart, but asked only once.
   expect(reviews).toEqual([[expect.any(String)], [expect.any(String)]])
 
-  await dismiss(familiar())
+  await dismiss()
   expect((await readStored(storage, MemoryUsage)).facts).toEqual({
     f1: { checked: firstPass },
     f2: { checked: firstPass },

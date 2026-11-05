@@ -3,19 +3,14 @@ import { createModels } from '@earendil-works/pi-ai/models'
 import {
   createRegistry,
   Harness,
-  MemoryStorage,
   type JsonObject,
   type SessionDocToken,
   type Storage,
 } from '@earendil-works/pi-durable'
+import { ReopenableStorage } from '../testing.ts'
 import { openMemory, rememberFact } from './facts.ts'
 
 /** Test helpers for memory; not part of Familiar. */
-
-/** Keeps committed state available after Familiar closes its storage. */
-export class ReopenableStorage extends MemoryStorage {
-  override async close() {}
-}
 
 /** Opens a bare Harness on `storage`, runs `use`, and closes it again. */
 export async function withHarness<T>(
