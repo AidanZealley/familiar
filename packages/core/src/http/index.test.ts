@@ -12,6 +12,7 @@ import {
   type Allow,
   type FactsState,
   type HttpOptions,
+  type Operation,
   type PushHost,
 } from './index.ts'
 
@@ -93,6 +94,73 @@ test('a request is authenticated, then bounded, then allowed, before any route r
   ).toBe(403)
   expect(allow).toHaveBeenCalledWith(sam, 'conversation.send')
   expect(send).not.toHaveBeenCalled()
+})
+
+// Every route and the one operation it asks about. Keyed by Operation, so
+// an operation added without a route here is a type error.
+const ROUTES = {
+  'conversation.history': ['GET', '/history?before=1'],
+  'conversation.send': ['POST', '/messages'],
+  'conversation.abort': ['POST', '/abort'],
+  'conversation.modelOptions': ['GET', '/model/options'],
+  'conversation.setModel': ['PUT', '/model'],
+  'conversation.setThinkingLevel': ['PUT', '/model/thinking-level'],
+  'account.state': ['GET', '/account'],
+  'account.signIn': ['POST', '/account/sign-in'],
+  'account.answerSignIn': ['POST', '/account/sign-in/answer'],
+  'account.cancelSignIn': ['DELETE', '/account/sign-in'],
+  'account.signOut': ['POST', '/account/sign-out'],
+  'memory.revise': ['PUT', '/memory/f1'],
+  'memory.retire': ['POST', '/memory/f1/retire'],
+  'memory.setPinned': ['PUT', '/memory/f1/pin'],
+  'schedules.cancel': ['DELETE', '/schedules/s1'],
+  'push.key': ['GET', '/push/key'],
+  'push.subscribe': ['POST', '/push/subscriptions'],
+  'push.unsubscribe': ['DELETE', '/push/subscriptions'],
+  'connections.list': ['GET', '/connections'],
+  'connections.setSecret': ['PUT', '/connections/plugin/notes/secrets/token'],
+  'connections.deleteSecret': [
+    'DELETE',
+    '/connections/plugin/notes/secrets/token',
+  ],
+  'mcp.add': ['POST', '/mcp'],
+  'mcp.remove': ['DELETE', '/mcp/notes'],
+  'mcp.reconnect': ['POST', '/mcp/notes/reconnect'],
+} satisfies Record<
+  Exclude<Operation, `events.${string}`>,
+  [method: string, path: string]
+>
+
+test('each route asks about its own operation alone, and is refused before it runs', async () => {
+  const asked: Operation[] = []
+  const app = api(await testFamiliar(), {
+    allow: (_, operation) => {
+      asked.push(operation)
+      return false
+    },
+  })
+  for (const [operation, [method, path]] of Object.entries(ROUTES)) {
+    asked.length = 0
+    const response = await app.request(path, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      ...(method === 'GET' ? {} : { body: '{}' }),
+    })
+    expect([response.status, asked], `${method} ${path}`).toEqual([
+      403,
+      [operation],
+    ])
+  }
+
+  asked.length = 0
+  expect((await app.request('/events')).status).toBe(403)
+  expect(asked).toEqual([
+    'events.conversation',
+    'events.memory',
+    'events.episodes',
+    'events.schedules',
+    'events.account',
+  ])
 })
 
 test('messages and history validate what clients send, and the author comes from the host', async () => {
