@@ -16,82 +16,30 @@ import {
   type AccountOptions,
 } from './account/index.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './harness.ts'
+import { conversationExtension } from './conversation/extension.ts'
 import {
-  conversationExtension,
-  findChatModel,
   installConversation,
-  modelKey,
-  type ChatModel,
   type ConversationApi,
 } from './conversation/index.ts'
+import {
+  findChatModel,
+  modelKey,
+  type ChatModel,
+} from './conversation/models.ts'
 import { createMemory, type MemoryApi } from './memory/index.ts'
 import { createPersona, defaultPersona } from './persona.ts'
 import { createMcp } from './mcp/manager.ts'
 import type { McpApi, McpStdioFactory } from './mcp/servers.ts'
 import {
   allConnections,
-  createPlugins,
   type ConnectionsApi,
-  type FamiliarPlugin,
   type PluginFetch,
   type SecretStore,
-} from './plugins/index.ts'
-import {
-  createSchedules,
-  type Notify,
-  type SchedulesApi,
-} from './schedules/index.ts'
+} from './connections/index.ts'
+import type { Notify } from './notify.ts'
+import { createPlugins, type FamiliarPlugin } from './plugins/index.ts'
+import { createSchedules, type SchedulesApi } from './schedules/index.ts'
 import { checkTimeZone, createTime } from './time.ts'
-
-// The types in Familiar's own signatures, so hosts can name them.
-export type {
-  AccountApi,
-  AccountOptions,
-  AccountState,
-} from './account/index.ts'
-export {
-  MESSAGE_LIMITS,
-  MessageError,
-  ModelError,
-  type Author,
-  type ChatModel,
-  type HistoryPage,
-  type Message,
-  type ModelOption,
-} from './conversation/index.ts'
-export type { MemoryApi } from './memory/index.ts'
-export { defaultPersona } from './persona.ts'
-export {
-  McpConfigError,
-  type McpApi,
-  type McpConnectionInfo,
-  type McpServer,
-  type McpStdioFactory,
-  type McpStdioTransport,
-} from './mcp/servers.ts'
-export {
-  DEFAULT_MAX_SCHEDULES,
-  SCHEDULE_LIMITS,
-  type Notification,
-  type NotificationContext,
-  type Notify,
-  type SchedulesApi,
-} from './schedules/index.ts'
-export {
-  ConnectionError,
-  definePlugin,
-  memorySecrets,
-  type Connection,
-  type ConnectionInfo,
-  type ConnectionsApi,
-  type FamiliarPlugin,
-  type PluginContext,
-  type PluginFetch,
-  type PluginSecret,
-  type SecretStore,
-} from './plugins/index.ts'
-export { localMinute } from './time.ts'
-export type { UsageState as Usage, Wake } from '@earendil-works/pi-durable'
 
 export type FamiliarOptions = {
   storage: Storage
@@ -195,8 +143,6 @@ export type FamiliarOptions = {
  * A Familiar is one assistant with one owner and one never-ending conversation.
  * A host that serves many owners (households, users) opens one Familiar each.
  */
-export type { SessionEnd as FamiliarEnd } from '@earendil-works/pi-durable'
-
 export type Familiar = ConversationApi & {
   /** Settles on dismissal or a storage failure. Failed instances must be reopened. */
   readonly closed: Promise<SessionEnd>

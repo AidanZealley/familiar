@@ -1,8 +1,11 @@
 import { z } from 'zod'
 import { defineDoc } from '@earendil-works/pi-durable'
-import { ConnectionError } from '../plugins/connections.ts'
+import {
+  ConnectionError,
+  type PluginConnectionInfo,
+  type PluginSecret,
+} from '../connections/index.ts'
 import type { Transport } from '@modelcontextprotocol/client'
-import type { PluginConnectionInfo, PluginSecret } from '../plugins/types.ts'
 
 /** A server Familiar won't save, because its shape is wrong. */
 export class McpConfigError extends ConnectionError {}

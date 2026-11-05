@@ -13,10 +13,10 @@ export type {
   Author,
   MESSAGE_KIND,
   MessageData,
-  ModelOption,
   SCHEDULED_KIND,
   ScheduledData,
-} from '../conversation/index.ts'
+} from '../conversation/message.ts'
+export type { ModelOption } from '../conversation/models.ts'
 export type { AgentState } from '@earendil-works/pi-durable'
 export type { AccountState } from '../account/index.ts'
 export type { Schedule, SchedulesState } from '../schedules/index.ts'
@@ -26,7 +26,7 @@ export type {
   Connection,
   ConnectionInfo,
   PluginSecret,
-} from '../plugins/index.ts'
+} from '../connections/index.ts'
 export type {
   Episode,
   EpisodesState,

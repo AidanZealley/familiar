@@ -1,9 +1,12 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
-import { can, type AccessEnv } from '../http/access.ts'
-import { ConnectionError, secretValue } from './connections.ts'
-import type { ConnectionsApi } from './types.ts'
-import type { Connection } from './secrets.ts'
+import { can, type AccessEnv } from '../access.ts'
+import {
+  ConnectionError,
+  secretValue,
+  type Connection,
+  type ConnectionsApi,
+} from './index.ts'
 
 const KINDS: readonly string[] = [
   'plugin',

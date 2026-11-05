@@ -1,6 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
-import { defineTool } from '../plugins/tools.ts'
+import { defineTool } from '../tools.ts'
 import { weekdayMinute } from '../time.ts'
 import {
   addSchedule,

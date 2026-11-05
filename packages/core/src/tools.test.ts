@@ -5,17 +5,22 @@ import {
   fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import { configure, createRegistry, Harness } from '@earendil-works/pi-durable'
+import {
+  configure,
+  createRegistry,
+  Harness,
+  type ToolExecutionApi,
+} from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { harnessOptions } from '../harness.ts'
-import type { Author } from '../conversation/message.ts'
-import { type FamiliarPlugin } from '../familiar.ts'
-import { ReopenableStorage, testHost } from '../testing.ts'
+import { harnessOptions } from './harness.ts'
+import type { Author } from './conversation/message.ts'
+import { type FamiliarPlugin } from './index.ts'
+import { ReopenableStorage, testHost } from './testing.ts'
 import { defineTool, Type } from './tools.ts'
 
 // Who a tool call runs for: a message's author, through nesting, queued
 // messages and restarts; a scheduled run's creator is checked in
-// schedules.test.ts.
+// schedules/task.test.ts.
 
 const first = { id: 'person-1', name: 'Sam' }
 const second = { id: 'person-2', name: 'Sam' }
@@ -188,4 +193,35 @@ test('input with no person behind it, such as an upkeep pass, has no author', as
     await harness.close(context)
   }
   expect(seen).toEqual([undefined])
+})
+
+test('the author reaches the tool through live API getters', async () => {
+  const first = createModels()
+  const second = createModels()
+  let current = first
+  // Only author lookup (no such task) and the live getter are exercised.
+  const api = {
+    taskId: 1,
+    commit: async (change: (tx: unknown) => unknown) =>
+      change({ task: async () => undefined }),
+    get models() {
+      return current
+    },
+  } as unknown as ToolExecutionApi
+  const tool = defineTool({
+    name: 'live_models',
+    description: 'Check the current models during a call.',
+    parameters: Type.Object({}),
+    execute: async (_args, invocation) => {
+      expect(invocation.author).toBeUndefined()
+      expect(invocation.models).toBe(first)
+      current = second
+      expect(invocation.models).toBe(second)
+      return { output: [] }
+    },
+  })
+
+  expect(await tool.execute({}, api, BACKGROUND_CONTEXT)).toEqual({
+    output: [],
+  })
 })

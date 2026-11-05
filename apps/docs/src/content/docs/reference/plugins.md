@@ -3,7 +3,7 @@ title: Plugin API
 description: definePlugin, defineTool, the plugin context and secret declarations.
 ---
 
-Declarations live in [`packages/core/src/plugins`](https://github.com/AidanZealley/familiar/tree/main/packages/core/src/plugins). [Customise your assistant](/familiar/build/customise/) has worked examples.
+Declarations live in [`plugins`](https://github.com/AidanZealley/familiar/tree/main/packages/core/src/plugins), [`connections`](https://github.com/AidanZealley/familiar/tree/main/packages/core/src/connections) for secrets and `authorizedFetch`, and [`tools.ts`](https://github.com/AidanZealley/familiar/blob/main/packages/core/src/tools.ts) for `defineTool`, all in `packages/core/src`. [Customise your assistant](/familiar/build/customise/) has worked examples.
 
 ## definePlugin(plugin)
 

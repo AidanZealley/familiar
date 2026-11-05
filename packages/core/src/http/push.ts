@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import type { Author } from '../conversation/message.ts'
-import { can, type AccessEnv } from './access.ts'
+import { can, type AccessEnv } from '../access.ts'
 
 /** A browser's push subscription, as `PushSubscription.toJSON()` gives it. */
 export type PushSubscriptionJson = {

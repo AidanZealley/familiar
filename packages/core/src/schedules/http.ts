@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { can, type AccessEnv } from '../http/access.ts'
+import { can, type AccessEnv } from '../access.ts'
 import { ScheduleError, type SchedulesApi } from './index.ts'
 
 /** The owner's schedule actions, mounted at `/schedules`. */

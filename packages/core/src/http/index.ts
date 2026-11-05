@@ -6,15 +6,15 @@ import { conversationRoutes } from '../conversation/http.ts'
 import type { Familiar } from '../familiar.ts'
 import { mcpRoutes } from '../mcp/http.ts'
 import { memoryRoutes } from '../memory/http.ts'
-import { connectionRoutes } from '../plugins/http.ts'
+import { connectionRoutes } from '../connections/http.ts'
 import { scheduleRoutes } from '../schedules/http.ts'
-import type { AccessEnv, Allow } from './access.ts'
+import type { AccessEnv, Allow } from '../access.ts'
 import { eventRoutes } from './events.ts'
 import { pushRoutes, type PushHost } from './push.ts'
 
 // The wire contract every client speaks, and the names `allow` is asked about.
 export type * from './contract.ts'
-export type { Allow, Operation } from './access.ts'
+export type { Allow, Operation } from '../access.ts'
 
 export type HttpOptions = {
   /**

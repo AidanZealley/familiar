@@ -1,6 +1,5 @@
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
-import { authorizedFetch } from '../plugins/authorized-fetch.ts'
-import type { PluginFetch } from '../plugins/types.ts'
+import { authorizedFetch, type PluginFetch } from '../connections/index.ts'
 import { tokenDeclaration, type McpHttpTransport } from './servers.ts'
 
 /** Only this owner-chosen endpoint may use the host's private-network access. */

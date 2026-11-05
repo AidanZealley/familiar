@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
-import { can, type AccessEnv } from '../http/access.ts'
+import { can, type AccessEnv } from '../access.ts'
 import type { MemoryApi } from './api.ts'
 import { FactError } from './facts.ts'
 
