@@ -17,9 +17,9 @@ const CHAT = new Set<Operation>([
 ])
 
 /**
- * The routes this page serves: sending, history and the conversation's event
- * stream. Every other route, such as memory, schedules, sign-in or MCP,
- * isn't mounted and answers 404.
+ * The host's HTTP API. `allow` permits sending, history, stopping a reply and
+ * the conversation's event stream; every other operation, such as memory,
+ * schedules, sign-in or MCP, answers 403.
  *
  * The demo has one fixed person and nobody signs in, so `authenticate`
  * names them for every request. That is a demo identity, not
@@ -33,11 +33,11 @@ const createHostApi = (familiar: Familiar, author: Author) =>
 
 /**
  * Everything one page needs, all in memory: the host's board, a Familiar with
- * tools over it, the host's HTTP routes, and a client store that talks to
- * those routes. Reloading the page starts again from the seed.
+ * tools over it, the host's HTTP API, and a client store that talks to it.
+ * Reloading the page starts again from the seed.
  *
  * Only the model is scripted. To use a real one, register a provider in
- * `models` on a server you control and serve these routes from there, so
+ * `models` on a server you control and serve this API from there, so
  * credentials never reach the browser.
  */
 export async function startDemo({
@@ -61,7 +61,7 @@ export async function startDemo({
     },
   })
   const api = createHostApi(familiar, author)
-  // In-page requests: the client's usual HTTP and SSE calls reach the routes
+  // In-page requests: the client's usual HTTP and SSE calls reach the API
   // without leaving the browser. A real host passes its API's URL instead.
   const store = createFamiliarStore('https://demo.invalid', {
     fetch: async (input, init) => api.fetch(new Request(input, init)),
