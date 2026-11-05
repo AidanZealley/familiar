@@ -1,32 +1,15 @@
-import { familiar } from '@/lib/familiar'
+import { useMutation } from '@tanstack/react-query'
 import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { familiar } from '@/lib/familiar'
+import { formatNext } from '@/lib/format'
 import type { ScheduleItemProps } from './types'
 
-const nextFormat = new Intl.DateTimeFormat(undefined, {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-
 export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
-  const [cancelling, setCancelling] = useState(false)
-  const [error, setError] = useState<string>()
-
-  const cancel = async () => {
-    setCancelling(true)
-    setError(undefined)
-    try {
-      // The mirrored document drops it, which removes this item.
-      await familiar.schedules.cancel(schedule.id)
-    } catch (failure) {
-      setError((failure as Error).message)
-      setCancelling(false)
-    }
-  }
+  // The mirrored document drops a cancelled schedule, removing this item.
+  const cancel = useMutation({
+    mutationFn: () => familiar.schedules.cancel(schedule.id),
+  })
 
   return (
     <li className="flex items-start gap-2 py-3">
@@ -35,7 +18,7 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1 text-foreground">
             <AlarmClockIcon className="size-3" />
-            {nextFormat.format(schedule.next)}
+            {formatNext(schedule.next)}
           </span>
           {schedule.repeat && (
             <span className="inline-flex items-center gap-1">
@@ -44,15 +27,19 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
             </span>
           )}
         </p>
-        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+        {cancel.error && (
+          <p className="mt-1 text-xs text-destructive">
+            {cancel.error.message}
+          </p>
+        )}
       </div>
       <Button
         variant="ghost"
         size="icon-sm"
         aria-label="Cancel"
         title="Cancel"
-        disabled={cancelling}
-        onClick={cancel}
+        disabled={cancel.isPending}
+        onClick={() => cancel.mutate()}
         className="text-muted-foreground"
       >
         <XIcon />

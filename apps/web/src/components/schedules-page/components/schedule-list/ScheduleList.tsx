@@ -7,6 +7,7 @@ export const ScheduleList = () => {
   if (schedules === undefined) {
     return null
   }
+  // Null when the host keeps no schedules: nothing to list.
   const sorted = Object.values(schedules ?? {}).toSorted(
     (a, b) => a.next - b.next,
   )
