@@ -1,18 +1,12 @@
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import { createModels } from '@earendil-works/pi-ai/models'
-import {
-  fauxAssistantMessage,
-  fauxProvider,
-} from '@earendil-works/pi-ai/providers/faux'
+import { fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux'
 import {
   createRegistry,
   type HarnessSettings,
-  type Storage,
 } from '@earendil-works/pi-durable'
-import { afterEach, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 import { harnessOptions } from '../harness.ts'
-import { summonFamiliar, type Familiar } from '../familiar.ts'
-import { ReopenableStorage } from '../memory/testing.ts'
+import { fauxModels, testHost } from '../testing.ts'
 import { ModelError, type ChatModel } from './models.ts'
 
 const sol = { provider: 'faux', modelId: 'sol' }
@@ -22,58 +16,36 @@ const both: ChatModel[] = [
   { model: luna, thinkingLevel: 'medium' },
 ]
 
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
-const fauxModels = () => {
-  const faux = fauxProvider({
-    models: [
-      { id: 'sol', reasoning: true, contextWindow: 16_000 },
-      { id: 'luna', reasoning: true, contextWindow: 64_000 },
-    ],
-  })
-  const models = createModels()
-  models.setProvider(faux.provider)
-  return { faux, models }
-}
+const solAndLuna = [
+  { id: 'sol', reasoning: true, contextWindow: 16_000 },
+  { id: 'luna', reasoning: true, contextWindow: 64_000 },
+]
 
 // Each reply records the model and level its request was sent with.
-async function open(storage: Storage, chatModels = both) {
-  const { faux, models } = fauxModels()
-  const familiar = await summonFamiliar({
-    storage,
-    models,
-    model: sol,
-    timeZone: 'UTC',
-    chatModels,
-  })
-  opened.push(familiar)
-
+async function open(chatModels = both) {
+  const host = await testHost({ faux: solAndLuna, model: sol, chatModels })
   const requests: [string, ModelThinkingLevel | undefined][] = []
-  faux.setResponses(
+  host.faux.setResponses(
     Array.from({ length: 20 }, () => (_context, options, _state, model) => {
       requests.push([model.id, options?.reasoning])
       return fauxAssistantMessage('Hello.')
     }),
   )
-
-  /** Sends `text` and returns the model and level that answered it. */
-  const say = async (text: string) => {
-    await familiar.send({
-      author: { id: 'aidan', name: 'aidan' },
-      text,
-      requestId: text,
-    })
-    await familiar.idle()
-    return requests.at(-1)
+  return {
+    familiar: host.familiar,
+    reopen: host.reopen,
+    /** Sends `text` and returns the model and level that answered it. */
+    say: async (text: string) => {
+      await host.say(text)
+      return requests.at(-1)
+    },
   }
-  return { familiar, say }
 }
 
 test('each model keeps the level last picked for it', async () => {
-  const { familiar, say } = await open(new ReopenableStorage())
+  const f = await open()
+  const familiar = f.familiar()
+  const say = f.say
   await familiar.setModel(luna)
   await familiar.setThinkingLevel('high')
   // Sol was never changed, so it starts on its own default.
@@ -85,28 +57,22 @@ test('each model keeps the level last picked for it', async () => {
 })
 
 test('the model and level survive a restart', async () => {
-  const storage = new ReopenableStorage()
-  const first = await open(storage)
-  await first.familiar.setModel(luna)
-  await first.familiar.setThinkingLevel('high')
-  await opened.pop()!.dismiss()
-
-  const second = await open(storage)
-  expect(await second.say('hello')).toEqual(['luna', 'high'])
+  const f = await open()
+  await f.familiar().setModel(luna)
+  await f.familiar().setThinkingLevel('high')
+  await f.reopen()
+  expect(await f.say('hello')).toEqual(['luna', 'high'])
 })
 
 test('a model no longer offered falls back to the default', async () => {
-  const storage = new ReopenableStorage()
-  const first = await open(storage)
-  await first.familiar.setModel(luna)
-  await opened.pop()!.dismiss()
-
-  const second = await open(storage, [both[0]])
-  expect(await second.say('hello')).toEqual(['sol', 'low'])
+  const f = await open()
+  await f.familiar().setModel(luna)
+  await f.reopen({ chatModels: [both[0]] })
+  expect(await f.say('hello')).toEqual(['sol', 'low'])
 })
 
 test('models and levels outside the chat models are refused', async () => {
-  const { familiar } = await open(new ReopenableStorage())
+  const familiar = (await open()).familiar()
   await expect(
     familiar.setModel({ provider: 'faux', modelId: 'other' }),
   ).rejects.toThrow(ModelError)
@@ -114,7 +80,7 @@ test('models and levels outside the chat models are refused', async () => {
 })
 
 test('every chat model compacts at the same budget', () => {
-  const { models } = fauxModels()
+  const { models } = fauxModels(solAndLuna)
   // Familiar passes settings as an object, not Pi's function form.
   const settings = harnessOptions(
     { models, model: sol, chatModels: both },

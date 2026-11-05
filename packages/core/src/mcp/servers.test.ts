@@ -1,55 +1,28 @@
-import { createModels } from '@earendil-works/pi-ai/models'
-import { fauxProvider } from '@earendil-works/pi-ai/providers/faux'
-import { afterEach, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 import {
   McpConfigError,
   memorySecrets,
-  summonFamiliar,
   type Familiar,
   type McpConnectionInfo,
   type McpServer,
 } from '../familiar.ts'
 import { createHttpApi } from '../http/index.ts'
-import { ReopenableStorage } from '../memory/testing.ts'
+import { testHost } from '../testing.ts'
 
 // Familiar saves any well-formed server and connects through the transport
 // the host passed. Which protocols, destinations and commands are allowed is
 // the host's to decide in that transport. Every transport here is a mock.
 
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
-function setup() {
-  const storage = new ReopenableStorage()
+async function setup() {
   const secrets = memorySecrets()
   const requests: Request[] = []
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
   // Nothing answers, so a server that is tried fails.
   const mcpFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     requests.push(new Request(input, init))
     return new Response(null, { status: 503 })
   }
-  const open = async () => {
-    const familiar = await summonFamiliar({
-      storage,
-      secrets,
-      models,
-      model: { provider: 'faux', modelId: 'faux-1' },
-      timeZone: 'UTC',
-      mcpFetch,
-    })
-    opened.push(familiar)
-    return familiar
-  }
-  const close = async (familiar: Familiar) => {
-    opened.splice(opened.indexOf(familiar), 1)
-    await familiar.dismiss()
-  }
-  return { storage, secrets, requests, faux, open, close }
+  const host = await testHost({ secrets, mcpFetch })
+  return { requests, familiar: host.familiar() }
 }
 
 const home: McpServer = {
@@ -70,8 +43,8 @@ const statuses = async (familiar: Familiar) =>
   )
 
 test('a bearer server over plain HTTP waits for its token, then is tried with it', async () => {
-  const f = setup()
-  const familiar = await f.open()
+  const f = await setup()
+  const familiar = f.familiar
   await familiar.mcp.add(home)
   await expect
     .poll(() => statuses(familiar))
@@ -106,8 +79,8 @@ test.each([
 ])(
   'a malformed server is rejected and nothing is saved: %o',
   async (server) => {
-    const f = setup()
-    const familiar = await f.open()
+    const f = await setup()
+    const familiar = f.familiar
     await expect(
       familiar.mcp.add(server as unknown as McpServer),
     ).rejects.toBeInstanceOf(McpConfigError)

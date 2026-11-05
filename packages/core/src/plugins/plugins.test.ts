@@ -1,16 +1,13 @@
 import { Type, defineTool } from '../index.ts'
-import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
-  fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import { MemoryStorage } from '@earendil-works/pi-durable'
-import { afterEach, expect, test } from 'vitest'
-import { summonFamiliar, type Familiar } from '../familiar.ts'
+import { expect, test } from 'vitest'
 import { createHttpApi } from '../http/index.ts'
 import { authorizedFetch, checkDeclaration } from './authorized-fetch.ts'
 import { definePlugin, memorySecrets, type PluginFetch } from './index.ts'
+import { testHost } from '../testing.ts'
 
 const KEY = 'sk-test-0123456789'
 const ENDPOINT = 'https://api.test/echo'
@@ -51,15 +48,7 @@ const echo = definePlugin({
   },
 })
 
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
 async function setup() {
-  const faux = fauxProvider({ models: [{ id: 'faux-1' }] })
-  const models = createModels()
-  models.setProvider(faux.provider)
   const secrets = memorySecrets()
 
   // Records requests without using the network.
@@ -69,16 +58,9 @@ async function setup() {
     return new Response('Connected.')
   }
 
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
-    plugins: [echo],
-    secrets,
-    fetch,
-  })
-  opened.push(familiar)
+  const host = await testHost({ plugins: [echo], secrets, fetch })
+  const { faux } = host
+  const familiar = host.familiar()
   const api = createHttpApi(familiar, {
     allow: () => true,
     authenticate: () => ({ id: 'owner', name: 'owner' }),

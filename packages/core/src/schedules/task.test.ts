@@ -1,23 +1,16 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
-  fauxProvider,
   fauxToolCall,
   type FauxResponseFactory,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
+import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { InboxState, Wake } from '@earendil-works/pi-durable'
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { SCHEDULED_KIND } from '../conversation/index.ts'
-import {
-  summonFamiliar,
-  type Familiar,
-  type Notification,
-  type NotificationContext,
-} from '../familiar.ts'
-import { ReopenableStorage, withHarness } from '../memory/testing.ts'
-import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
+import { type Notification, type NotificationContext } from '../familiar.ts'
+import { withHarness } from '../memory/testing.ts'
+import { fakeClock, inputOf, TEST_ZONE, testHost, timeAt } from '../testing.ts'
 import { defineTool, Type, type Author, type FamiliarPlugin } from '../index.ts'
 import { Schedules } from './schedules.ts'
 
@@ -34,39 +27,15 @@ const at = (day: number, hour: number, minute = 0) =>
 /** Wednesday 21 October 2026, local noon. */
 const start = at(21, 12)
 
-/** The input a request answers: its last user message, before any recall note. */
-const inputOf = (context: TranscriptContext) =>
-  context.messages
-    .map((message) =>
-      message.role !== 'user'
-        ? ''
-        : typeof message.content === 'string'
-          ? message.content
-          : message.content
-              .map((part) => (part.type === 'text' ? part.text : ''))
-              .join(''),
-    )
-    .findLast((text) => text && !text.startsWith('Recalled from memory')) ?? ''
-
 /** How the model answers a scheduled input: a reply, or a scripted message. */
 type Answer =
   | string
   | ((signal?: AbortSignal) => AssistantMessage | Promise<AssistantMessage>)
 
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
 async function setup(
   options: { onWake?: (wake: Wake) => void; plugins?: FamiliarPlugin[] } = {},
 ) {
-  const storage = new ReopenableStorage()
-  const faux = fauxProvider()
-  const models = createModels()
-  models.setProvider(faux.provider)
   const clock = fakeClock(start)
-  let timeZone = TEST_ZONE
   const notifications: Notification[] = []
   const contexts: (NotificationContext | undefined)[] = []
 
@@ -91,25 +60,18 @@ async function setup(
       : next(options?.signal)
   }
 
-  const open = async () => {
-    const familiar = await summonFamiliar({
-      storage,
-      models,
-      model: { provider: 'faux', modelId: 'faux-1' },
-      timeZone,
-      now: clock.now,
-      setTimer: clock.setTimer,
-      notify: async (notification, context) => {
-        notifications.push(notification)
-        contexts.push(context)
-      },
-      onWake: options.onWake,
-      plugins: options.plugins,
-    })
-    opened.push(familiar)
-    return familiar
-  }
-  let familiar = await open()
+  const host = await testHost({
+    timeZone: TEST_ZONE,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    notify: async (notification, context) => {
+      notifications.push(notification)
+      contexts.push(context)
+    },
+    onWake: options.onWake,
+    plugins: options.plugins,
+  })
+  const { faux, storage } = host
 
   let asks = 0
   /** Asks for a reminder, as the model would, and returns its ID. */
@@ -132,25 +94,25 @@ async function setup(
       },
       ...Array.from({ length: 100 }, () => respond),
     ])
-    await familiar.send({
+    await host.familiar().send({
       author,
       text: 'Remind me to call Mum',
       requestId: `ask:${++asks}`,
     })
-    await familiar.idle()
+    await host.familiar().idle()
     const id = /Scheduled (s\d+)/.exec(result)?.[1]
     expect(id, result).toBeDefined()
     return id!
   }
 
   const schedules = async () => {
-    const watch = await familiar.schedules.watch()
+    const watch = await host.familiar().schedules.watch()
     await watch.stop()
     return watch.value ?? {}
   }
 
   const scheduledEntries = async () => {
-    const watch = await familiar.watch()
+    const watch = await host.familiar().watch()
     await watch.stop()
     return watch.value.entries.filter((entry) => entry.kind === SCHEDULED_KIND)
   }
@@ -187,7 +149,7 @@ async function setup(
       for (const task of tasks) {
         expect(['sleeping', 'terminal']).toContain(task.state.status)
       }
-      await familiar.idle()
+      await host.familiar().idle()
     })
 
   /** Moves the clock to `time`, then waits for the task to settle at `next`. */
@@ -205,18 +167,16 @@ async function setup(
     zone?: string,
     meanwhile?: () => Promise<void>,
   ) => {
-    opened.splice(opened.indexOf(familiar), 1)
-    await familiar.dismiss()
-    await meanwhile?.()
-    if (time !== undefined) {
-      clock.setTime(time)
-    }
-    timeZone = zone ?? timeZone
-    familiar = await open()
+    await host.reopen(zone ? { timeZone: zone } : {}, async () => {
+      await meanwhile?.()
+      if (time !== undefined) {
+        clock.setTime(time)
+      }
+    })
   }
 
   return {
-    familiar: () => familiar,
+    familiar: host.familiar,
     storage,
     clock,
     inputs,
@@ -224,7 +184,7 @@ async function setup(
     /** Sends a message from the owner, which the model answers with `answer`. */
     say: (text: string, answer: Answer) => {
       ownerAnswers.set(text, answer)
-      return familiar.send({
+      return host.familiar().send({
         author: { id: 'aidan', name: 'aidan' },
         text,
         requestId: text,

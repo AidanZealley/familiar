@@ -1,7 +1,6 @@
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
-  fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
@@ -13,23 +12,20 @@ import {
   ROOT_CONVERSATION_ID,
 } from '@earendil-works/pi-durable'
 import { CORE_BUDGET, coreFacts, listFacts, MemoryUsage } from './facts.ts'
+import { readStored, storageWith, withHarness } from './testing.ts'
 import {
-  readStored,
+  fakeClock,
   ReopenableStorage,
-  storageWith,
-  withHarness,
-} from './testing.ts'
-import { fakeClock, TEST_ZONE, timeAt } from '../testing.ts'
+  TEST_ZONE,
+  testHost,
+  timeAt,
+} from '../testing.ts'
 import { nextUpkeep } from './upkeep/schedule.ts'
 import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../harness.ts'
-import { afterEach, expect, test, vi } from 'vitest'
-import {
-  summonFamiliar,
-  type Familiar,
-  type FamiliarOptions,
-} from '../familiar.ts'
+import { expect, test, vi } from 'vitest'
+import { type Familiar, type FamiliarOptions } from '../familiar.ts'
 
 type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
   contextWindow?: number
@@ -38,44 +34,24 @@ type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
 async function setup({ contextWindow, ...options }: SetupOptions = {}) {
-  const faux = fauxProvider({ models: [{ id: 'faux-1', contextWindow }] })
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
+  const host = await testHost({
+    faux: [{ id: 'faux-1', contextWindow }],
     timeZone: TEST_ZONE,
     ...options,
   })
-  opened.push(familiar)
-
-  const say = async (text: string) => {
-    await familiar.send({
-      author: { id: 'aidan', name: 'aidan' },
-      text,
-      // Each test message starts differently; a request ID has a bound.
-      requestId: text.slice(0, 128),
-    })
-    await familiar.idle()
-  }
+  const familiar = host.familiar()
   const memory = async () => {
     const watch = await familiar.memory.watch()
     await watch.stop()
     return watch.value
   }
-  return { faux, familiar, say, memory }
-}
-
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
-
-/** Dismisses a Familiar before the test ends, so its storage can be read. */
-const dismiss = async (familiar: Familiar) => {
-  opened.splice(opened.indexOf(familiar), 1)
-  await familiar.dismiss()
+  return {
+    faux: host.faux,
+    familiar,
+    say: host.say,
+    memory,
+    dismiss: host.dismiss,
+  }
 }
 
 /** The system prompt sections of one request. */
@@ -203,7 +179,7 @@ test('a relevant fact outside core reaches the model, and the prompt stays the s
     ['Lives in Leeds', 4],
     ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
   )
-  const { faux, familiar, say, memory } = await setup({ storage })
+  const { faux, say, memory, dismiss } = await setup({ storage })
   const seen: { note?: string; memory?: string | null }[] = []
   const capture = (reply: string) => (context: TranscriptContext) => {
     seen.push({
@@ -230,7 +206,7 @@ test('a relevant fact outside core reaches the model, and the prompt stays the s
   expect(seen[1].memory).not.toContain('Pip')
   // Recalling a fact records its use apart from the facts clients receive.
   expect(await memory()).toEqual(before)
-  await dismiss(familiar)
+  await dismiss()
   expect((await readStored(storage, MemoryUsage)).facts).toEqual({
     f2: { recalled: expect.any(Number) },
   })
@@ -444,7 +420,7 @@ test('automatic recall leaves out what is still in view and what upkeep has revi
   expect(note).toBeUndefined()
 
   await compactAway(first.familiar, first.say)
-  await dismiss(first.familiar)
+  await first.dismiss()
   // As if tonight's pass had reviewed everything so far.
   await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {

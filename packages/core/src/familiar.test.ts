@@ -1,21 +1,15 @@
-import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
-  fauxProvider,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { MESSAGE_KIND, type MessageData } from './conversation/index.ts'
-import {
-  summonFamiliar,
-  type Familiar,
-  type FamiliarOptions,
-} from './familiar.ts'
+import { type FamiliarOptions } from './familiar.ts'
 import { defaultPersona } from './index.ts'
-import { TEST_ZONE } from './testing.ts'
+import { TEST_ZONE, testHost } from './testing.ts'
 
 type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
   contextWindow?: number
@@ -24,39 +18,19 @@ type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
 async function setup({ contextWindow, ...options }: SetupOptions = {}) {
-  const faux = fauxProvider({ models: [{ id: 'faux-1', contextWindow }] })
-  const models = createModels()
-  models.setProvider(faux.provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
+  const host = await testHost({
+    faux: [{ id: 'faux-1', contextWindow }],
     timeZone: TEST_ZONE,
     ...options,
   })
-  opened.push(familiar)
-
-  const say = async (text: string) => {
-    await familiar.send({
-      author: { id: 'aidan', name: 'aidan' },
-      text,
-      // Each test message starts differently; a request ID has a bound.
-      requestId: text.slice(0, 128),
-    })
-    await familiar.idle()
-  }
+  const familiar = host.familiar()
   const memory = async () => {
     const watch = await familiar.memory.watch()
     await watch.stop()
     return watch.value
   }
-  return { faux, familiar, say, memory }
+  return { faux: host.faux, familiar, say: host.say, memory }
 }
-
-const opened: Familiar[] = []
-afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
-})
 
 /** Pi's own estimate of a request's size, the one its thresholds use. */
 const tokensOf = (context: TranscriptContext) =>
