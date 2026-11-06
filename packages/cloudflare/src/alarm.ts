@@ -10,11 +10,10 @@ export function alarmTime(
   now: number,
   heartbeatMs: number,
 ): number | null {
-  const heartbeat = wake.active ? now + heartbeatMs : undefined
-  if (heartbeat === undefined || wake.at === undefined) {
-    return heartbeat ?? wake.at ?? null
+  if (!wake.active) {
+    return wake.at ?? null
   }
-  return Math.min(heartbeat, wake.at)
+  return Math.min(now + heartbeatMs, wake.at ?? Infinity)
 }
 
 /**

@@ -7,7 +7,7 @@ import { alarmTime, alarmWriter } from './alarm.ts'
 // queued behind a commit in progress.
 
 /** The parts of a Durable Object the writer touches, recording what it does. */
-function fakeObject(setAlarm: (at: number) => Promise<void> = async () => {}) {
+function fakeObject(setAlarm: (at: number) => Promise<void>) {
   const log: string[] = []
   const storage = {
     transaction: <T>(callback: () => Promise<T>) => callback(),
@@ -39,31 +39,26 @@ test('the alarm is a heartbeat while work runs, never later than a sleep', () =>
   expect(alarmTime({ active: true, at: 1_010 }, 1_000, 60)).toBe(1_010)
 })
 
-test('writes wait for a commit in progress, then land in the order asked', async () => {
-  const { log, database, write } = fakeObject()
+test('writes wait for a commit in progress and land in the order asked; a failed one resets the object', async () => {
+  const { log, ctx, database, write } = fakeObject(async (at) => {
+    if (at === 1) {
+      throw new Error('storage reset')
+    }
+  })
   let finishCommit!: () => void
   const commit = database.transaction(async () => {
     await new Promise<void>((resolve) => (finishCommit = resolve))
     log.push('commit')
   })
 
-  const writes = [write(1), write(null), write(3)]
+  const failed = write(1)
+  const writes = [write(null), write(3)]
   await Promise.resolve()
   expect(log).toEqual([])
 
   finishCommit()
+  await expect(failed).rejects.toThrow('storage reset')
   await Promise.all([commit, ...writes])
-  expect(log).toEqual(['commit', 'set 1', 'delete', 'set 3'])
-})
-
-test('a failed write resets the object, and later writes still land', async () => {
-  const { log, ctx, write } = fakeObject(async (at) => {
-    if (at === 1) {
-      throw new Error('storage reset')
-    }
-  })
-  await expect(write(1)).rejects.toThrow('storage reset')
   expect(ctx.abort).toHaveBeenCalledWith('Alarm write failed')
-  await write(2)
-  expect(log).toEqual(['set 2'])
+  expect(log).toEqual(['commit', 'delete', 'set 3'])
 })
