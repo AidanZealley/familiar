@@ -1,5 +1,24 @@
 ---
-import Landing from '../landing/Landing.astro'
+import Features from '../landing/Features.astro'
+import Footer from '../landing/Footer.astro'
+import Header from '../landing/Header.astro'
+import Hero from '../landing/Hero.astro'
+import Install from '../landing/Install.astro'
+import Paths from '../landing/Paths.astro'
+import Shell from '../landing/Shell.astro'
+
+// The hero's headline, without its highlights.
+const description =
+  'A portable AI assistant with memory you can run anywhere and build into your app.'
 ---
 
-<Landing />
+<Shell title="Familiar" description={description}>
+  <Header />
+  <main id="main">
+    <Hero />
+    <Install />
+    <Features />
+    <Paths />
+  </main>
+  <Footer />
+</Shell>

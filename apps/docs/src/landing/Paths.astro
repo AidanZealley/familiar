@@ -1,0 +1,95 @@
+---
+import { ArrowRight } from '@lucide/astro'
+import { links } from './links'
+
+// The two ways to use Familiar.
+const paths = [
+  {
+    label: 'Use Familiar',
+    line: 'Install it, chat, and manage its memory and tools.',
+    href: links.install,
+  },
+  {
+    label: 'Build with Familiar',
+    line: 'Embed the npm packages in an app of your own.',
+    href: links.build,
+  },
+]
+---
+
+<section class="wrap paths" aria-labelledby="paths-title">
+  <h2 id="paths-title" class="sr-only">Where to next</h2>
+  <ul>
+    {
+      paths.map((path) => (
+        <li>
+          <a href={path.href}>
+            <span class="path-label">
+              <span class="path-text">{path.label}</span>
+              <ArrowRight class="arrow" aria-hidden="true" />
+            </span>
+            <span class="path-line">{path.line}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .paths {
+    padding-block: clamp(4rem, 9vw, 7rem);
+  }
+
+  ul {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    border-top: 1px solid var(--text);
+  }
+
+  a {
+    display: block;
+    padding: 1.75rem 0 0.5rem;
+    text-decoration: none;
+  }
+
+  .path-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    font-size: clamp(1.25rem, 2.6vw, 1.875rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .path-line {
+    display: block;
+    margin-top: 0.5rem;
+    color: var(--muted);
+  }
+
+  .paths :global(.arrow) {
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    color: inherit;
+  }
+
+  a:hover .path-text {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+
+  @media (max-width: 40rem) {
+    ul {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,70 @@
+---
+import { Download } from '@lucide/astro'
+import { links } from './links'
+---
+
+<header class="wrap top">
+  <a class="wordmark" href="/familiar/">familiar</a>
+  <nav aria-label="Primary">
+    <a href={links.docs}>Docs</a>
+    <a href={links.build}>Build</a>
+    <a href={links.github}>GitHub</a>
+    <a class="nav-install" href="#install">
+      <Download size={16} />
+      Install
+    </a>
+  </nav>
+</header>
+
+<style>
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    padding-block: 1.5rem;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.5rem;
+    font-size: 0.875rem;
+  }
+
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  nav a:hover {
+    color: var(--text);
+  }
+
+  nav .nav-install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    background: var(--block);
+    color: var(--on-block);
+    font-weight: 600;
+  }
+
+  nav .nav-install:hover {
+    color: var(--on-block);
+  }
+
+  @media (max-width: 36rem) {
+    nav {
+      width: 100%;
+      column-gap: 1rem;
+    }
+
+    nav .nav-install {
+      margin-left: auto;
+    }
+  }
+</style>

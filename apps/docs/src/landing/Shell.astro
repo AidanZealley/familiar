@@ -1,13 +1,9 @@
 ---
 import '@fontsource-variable/jetbrains-mono/wght.css'
-import { headline } from './content'
 
-type Props = { title: string; description?: string }
+type Props = { title: string; description: string }
 
-const {
-  title,
-  description = headline,
-} = Astro.props
+const { title, description } = Astro.props
 ---
 
 <!doctype html>
@@ -31,48 +27,13 @@ const {
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <slot />
-    <script>
-      // Prefer the Clipboard API; HTTP review still supports user-initiated copy.
-      async function copyCommand(text: string) {
-        try {
-          if (navigator.clipboard) {
-            await navigator.clipboard.writeText(text)
-            return true
-          }
-        } catch {
-          // Browser permissions can refuse clipboard access even over HTTPS.
-        }
-        const active = document.activeElement
-        const input = document.createElement('textarea')
-        input.value = text
-        input.readOnly = true
-        input.style.cssText = 'position:fixed;left:-9999px;top:0'
-        document.body.append(input)
-        try {
-          input.select()
-          return document.execCommand('copy')
-        } finally {
-          input.remove()
-          if (active instanceof HTMLElement) active.focus({ preventScroll: true })
-        }
-      }
-
-      for (const button of document.querySelectorAll<HTMLButtonElement>(
-        'button[data-copy]',
-      )) {
-        button.hidden = false
-        button.setAttribute('aria-live', 'polite')
-        button.addEventListener('click', async () => {
-          const copied = await copyCommand(button.dataset.copy ?? '')
-          button.textContent = copied ? 'Copied' : 'Copy failed'
-          setTimeout(() => (button.textContent = 'Copy'), 1600)
-        })
-      }
-    </script>
   </body>
 </html>
 
 <style is:global>
+  /* Layered, so each component's scoped styles win over this reset and these
+     shared classes whatever order the stylesheets load in. */
+  @layer shell {
   :root {
     color-scheme: light;
     --bg: oklch(1 0 0);
@@ -179,6 +140,23 @@ const {
     font-family: inherit;
   }
 
+  .wrap {
+    max-width: 78rem;
+    margin-inline: auto;
+    padding-inline: clamp(1rem, 4vw, 3rem);
+  }
+
+  .wordmark {
+    font-size: 1.0625rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+  }
+
+  .lucide {
+    flex: none;
+  }
+
   .skip {
     position: absolute;
     left: 1rem;
@@ -201,4 +179,5 @@ const {
     clip-path: inset(50%);
     white-space: nowrap;
   }
+}
 </style>

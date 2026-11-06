@@ -1,0 +1,64 @@
+---
+import { GitBranch } from '@lucide/astro'
+import { links } from './links'
+
+// Examples that run in the browser, in the docs.
+const demos = [
+  {
+    label: 'Embedded assistant',
+    href: '/familiar/examples/embedded-assistant/',
+  },
+  {
+    label: 'Shared conversation',
+    href: '/familiar/examples/shared-conversation/',
+  },
+]
+---
+
+<footer class="wrap foot">
+  <span class="wordmark">familiar</span>
+  <p>
+    <a href={links.docs}>Docs</a> ·
+    <a class="with-icon" href={links.github}><GitBranch size={14} />GitHub</a> ·
+    MIT licensed · Built on <a href={links.piDurable}>Pi Durable</a>
+  </p>
+  <p class="demos">
+    Try it in your browser:{' '}
+    {
+      demos.map((demo, index) => (
+        <>
+          {index > 0 && ' · '}
+          <a href={demo.href}>{demo.label}</a>
+        </>
+      ))
+    }
+  </p>
+</footer>
+
+<style>
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem 2rem;
+    padding-block: 1.75rem 3rem;
+    border-top: 1px solid var(--rule-strong);
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .wordmark {
+    color: var(--text);
+  }
+
+  .with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    vertical-align: bottom;
+  }
+
+  .demos {
+    margin-left: auto;
+  }
+</style>
