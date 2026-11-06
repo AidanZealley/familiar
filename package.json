@@ -22,7 +22,7 @@
     "dev:demo": "pnpm --parallel --filter @familiar-ai/daemon --filter @familiar-ai/web dev:demo",
     "dev:docs": "pnpm --filter @familiar-ai/docs dev",
     "service:install": "pnpm build && node apps/daemon/src/cli/install-service.ts",
-    "service:logs": "journalctl --user -u familiar -f",
+    "service:logs": "node apps/daemon/src/cli.ts logs",
     "test": "vitest run",
     "test:cloudflare": "pnpm --filter @familiar-ai/cloudflare test",
     "bundle": "pnpm --filter @familiar-ai/daemon bundle",
@@ -30,11 +30,11 @@
     "test:packages": "node scripts/verify-packages.ts"
   },
   "devDependencies": {
+    "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
