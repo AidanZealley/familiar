@@ -23,8 +23,6 @@ const tenantApi = (familiar: Familiar, author: Author) =>
     allow: (_, operation) => CHAT.has(operation),
   })
 
-export type TenantApi = ReturnType<typeof tenantApi>
-
 /**
  * One Familiar per tenant, each over that tenant's own storage. The session
  * chooses the tenant, never the request, so members reach only their own
