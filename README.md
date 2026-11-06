@@ -2,7 +2,7 @@
 
 A personal AI assistant built on [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable), with one ongoing conversation, long-term memory, reminders and tools. Your conversation stays on your machine and resumes after restarts.
 
-**[Website](https://aidanzealley.github.io/familiar/) · [Documentation](https://aidanzealley.github.io/familiar/docs/)** (publishes once GitHub Pages deployment is enabled; until then, run `pnpm dev:docs` or read [`apps/docs`](apps/docs/src/content/docs/)).
+**[Website](https://aidanzealley.github.io/familiar/) · [Documentation](https://aidanzealley.github.io/familiar/docs/)**
 
 ## Install
 
@@ -35,7 +35,7 @@ The npm packages let you embed Familiar in your own app. Installing a library do
 | [Web app](apps/web/README.md)                                     | Chat, memory, schedules and Connections UI                          |
 | [Cloudflare Worker example](examples/cloudflare-worker/README.md) | A Worker hosting one Familiar per name on Durable Objects           |
 | [Docs site](apps/docs/README.md)                                  | This project's documentation                                        |
-| [Examples](examples/README.md)                                    | Embedded task board, shared conversation and typed host fixture     |
+| [Examples](examples/README.md)                                    | Embedded task board and shared conversation                         |
 
 Start building with [Your first Familiar](https://aidanzealley.github.io/familiar/build/first-familiar/).
 
