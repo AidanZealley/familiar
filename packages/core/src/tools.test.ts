@@ -144,23 +144,28 @@ test('input with no person behind it, such as an upkeep pass, has no author', as
   const model = { provider: 'faux', modelId: 'faux-1' }
   const seen: (Author | undefined)[] = []
   const registry = createRegistry()
-  // As Familiar installs core's own tools.
-  registry.install(
-    createPlugins({ plugins: [], timeZone: 'UTC' }).provide({
-      name: 'identity',
-      tools: [
-        defineTool({
-          name: 'identify',
-          description: 'Report attribution',
-          parameters: Type.Object({}),
-          execute: async (_args, _api, context) => {
-            seen.push(await services(context).author())
-            return { output: [] }
-          },
-        }),
-      ],
-    }),
-  )
+  // As Familiar installs a plugin's tools.
+  const [identity] = createPlugins({
+    plugins: [
+      {
+        name: 'identity',
+        title: 'Identity',
+        tools: [
+          defineTool({
+            name: 'identify',
+            description: 'Report attribution',
+            parameters: Type.Object({}),
+            execute: async (_args, _api, context) => {
+              seen.push(await services(context).author())
+              return { output: [] }
+            },
+          }),
+        ],
+      },
+    ],
+    timeZone: 'UTC',
+  }).extensions
+  registry.install(identity)
   const harness = await Harness.open(
     new ReopenableStorage(),
     harnessOptions({ models, model, chatModels: [] }, registry, 64_000),

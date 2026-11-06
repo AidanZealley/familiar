@@ -9,6 +9,8 @@ const required = (name: string) => {
   return value
 }
 
+const port = Number(process.env.PORT ?? 4320)
+
 export const config = {
   name: process.env.FAMILIAR_NAME ?? 'Familiar',
   owner: process.env.FAMILIAR_OWNER ?? 'Owner',
@@ -17,7 +19,12 @@ export const config = {
   // Pi reads it from the environment itself; checked here for a clear error.
   openRouterKey: required('OPENROUTER_API_KEY'),
   dataDir: resolve(process.env.FAMILIAR_DATA_DIR ?? 'data'),
-  port: Number(process.env.PORT ?? 4320),
+  port,
+  /**
+   * Where browsers reach this server. Behind an HTTPS proxy the server only
+   * sees HTTP, so this, not the request, decides whether cookies are Secure.
+   */
+  origin: new URL(process.env.FAMILIAR_ORIGIN ?? `http://localhost:${port}`),
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 }
 

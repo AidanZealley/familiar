@@ -51,7 +51,7 @@ export const authRoutes = new Hono()
     await setSignedCookie(c, COOKIE, String(Date.now()), config.sessionSecret, {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: new URL(c.req.url).protocol === 'https:',
+      secure: config.origin.protocol === 'https:',
       path: '/',
       maxAge: MAX_AGE,
     })

@@ -44,6 +44,8 @@ pnpm --filter @familiar-example/node-server dev:web   # the UI
 
 <Code code={auth} lang="ts" title="src/auth.ts" />
 
+The cookie is `Secure` when `FAMILIAR_ORIGIN` is an `https://` address. It's set from configuration rather than the request because, behind an HTTPS proxy, the server only sees HTTP.
+
 `authenticate` is what `createHttpApi` asks about every request. It returns the person, or `undefined` for a 401. Here there's one owner, so the answer is either the owner or nobody.
 
 ## What the owner may do

@@ -18,6 +18,10 @@ type FamiliarPlugin = {
 
 `definePlugin` returns the object you pass it. It's there so TypeScript checks the plugin where you write it.
 
+## checkPlugins(plugins)
+
+Throws, naming the plugin, unless the plugins can run together: unique plugin names, secret declarations that can be sent, and tool names that aren't core's or another plugin's. `summonFamiliar` runs it on its `plugins`. A host that loads plugins one at a time, as the daemon does, can run it on each to skip a bad one instead of failing to start.
+
 ## defineTool(tool)
 
 Pi Durable's `defineTool`, re-exported from `@familiar-ai/core` at the version Familiar runs. Familiar adds nothing to the tool itself.
