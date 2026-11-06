@@ -57,8 +57,10 @@ test('push keeps its keys and subscriptions, and forgets gone browsers', async (
     'https://push.example/phone {"title":"Familiar","body":"Call Mum.","url":"/"}',
   ])
   expect(endpoints(path)).toEqual(['owner https://push.example/phone'])
-  expect(statSync(path('vapid.json')).mode & 0o777).toBe(0o600)
-  expect(statSync(path('push.json')).mode & 0o777).toBe(0o600)
+  if (process.platform !== 'win32') {
+    expect(statSync(path('vapid.json')).mode & 0o777).toBe(0o600)
+    expect(statSync(path('push.json')).mode & 0o777).toBe(0o600)
+  }
 
   // A restart keeps the key browsers subscribed with.
   const again = openPush({ path, contact, send })

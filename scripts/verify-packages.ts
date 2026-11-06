@@ -216,11 +216,8 @@ defineTool({
     return { output: [{ type: 'text', text: String(query) }] }
   },
 })
-createHttpApi(ok, {
-  authenticate: ok,
-  // @ts-expect-error
-  allow: (_, operation) => operation === 'conversation.sned',
-})
+// @ts-expect-error
+createHttpApi(1, ok)
 // Core's route types read through Hono's client, as the client reads them.
 declare const api: ReturnType<typeof hc<HttpApi>>
 declare const page: InferResponseType<typeof api.history.$get, 200>
@@ -250,7 +247,7 @@ scriptedModels(1)
 // @ts-expect-error
 createFamiliarStore(1)
 // @ts-expect-error
-useFamiliar((state) => state.notAField)
+useFamiliar(1)
 `,
   )
   await typeCheck(
