@@ -18,4 +18,4 @@ Neither needs Cloudflare credentials. For `dev`, put a token in the git-ignored 
 - `src/bot.ts` is the Durable Object. `DurableFamiliar` owns its storage, its alarm and recovery after eviction. The object reaches the Familiar only through `use()`, forwards its `alarm()`, and serves Familiar's HTTP API with `createHttpApi`. Everyone the Worker lets through is the owner, so `allow` permits everything.
 - `src/model.ts` is the scripted model. A real host registers its provider and credentials in the `familiar` factory, and delivers notifications where `notify` logs them.
 
-The package's own tests, of reminders after eviction, recovery after a reload and termination, run against a separate test Worker in `packages/cloudflare/test`.
+The package's own tests, of reminders with and without eviction, recovery after a reload and termination, run against a separate test Worker in `packages/cloudflare/test`.

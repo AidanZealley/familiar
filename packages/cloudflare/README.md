@@ -11,25 +11,18 @@ Use this package only in Workers. Inside your Durable Object, construct the adap
 ```ts
 import { DurableObject } from 'cloudflare:workers'
 import { DurableFamiliar } from '@familiar-ai/cloudflare'
-import { createModels } from '@familiar-ai/core/models'
-import {
-  fauxProvider,
-  fauxAssistantMessage,
-} from '@familiar-ai/core/models/faux'
+import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
 
 export class Bot extends DurableObject {
   readonly familiar = new DurableFamiliar(this.ctx, {
-    familiar: () => {
-      const faux = fauxProvider({ models: [{ id: 'demo' }] })
-      const models = createModels()
-      models.setProvider(faux.provider)
-      faux.setResponses([fauxAssistantMessage('Hello from a Worker.')])
-      return {
-        models,
-        model: { provider: 'faux', modelId: 'demo' },
-        timeZone: 'Europe/London',
-      }
-    },
+    familiar: () => ({
+      models: scriptedModels(() =>
+        fauxAssistantMessage('Hello from a Worker.'),
+      ),
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'Europe/London',
+    }),
   })
 
   override alarm() {
@@ -37,8 +30,8 @@ export class Bot extends DurableObject {
   }
 
   async greet() {
-    return this.familiar.use((assistant) =>
-      assistant.send({
+    return this.familiar.use((familiar) =>
+      familiar.send({
         author: { id: 'owner', name: 'Sam' },
         text: 'Hello',
         requestId: crypto.randomUUID(),
@@ -48,8 +41,8 @@ export class Bot extends DurableObject {
 }
 ```
 
-This scripted model supplies one response per object opening. A lasting host configures its own provider, credentials, notifications, network policy and tools in the factory. Configure a SQLite Durable Object binding and migration in Wrangler; see the [example's configuration](../../examples/cloudflare-worker/wrangler.jsonc).
+This scripted model answers every request alike. A lasting host configures its own provider, credentials, notifications, network policy and tools in the factory. Configure a SQLite Durable Object binding and migration in Wrangler; see the [example's configuration](../../examples/cloudflare-worker/wrangler.jsonc).
 
 Reach the assistant through `use()` so recovery is armed before work starts, and don't call its `dismiss()`. `terminate()` permanently refuses that object ID while keeping history.
 
-Local workerd tests cover reminder delivery after eviction, interrupted-reply recovery and persistent termination. ChatGPT sign-in and real-model operation on Workers have not been verified.
+Local workerd tests cover reminder delivery, whether the object was evicted or stayed in memory, interrupted-reply recovery and persistent termination. ChatGPT sign-in and real-model operation on Workers have not been verified.
