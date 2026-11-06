@@ -74,9 +74,6 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
               Familiar won't run it again. To get it back, ask in chat.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <p className="line-clamp-4 border bg-muted/40 p-2 text-xs leading-relaxed">
-            {schedule.prompt}
-          </p>
           {cancel.error && (
             <p className="text-sm text-destructive">{cancel.error.message}</p>
           )}
