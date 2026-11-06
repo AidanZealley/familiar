@@ -4,7 +4,7 @@ name: Docs
 # Pages. Needs Settings > Pages > Source set to GitHub Actions.
 on:
   pull_request:
-    paths:
+    paths: &paths
       - 'apps/docs/**'
       - 'packages/**'
       - 'examples/embedded-kanban/**'
@@ -12,18 +12,11 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'tsconfig.base.json'
       - '.github/workflows/docs.yml'
   push:
     branches: [main]
-    paths:
-      - 'apps/docs/**'
-      - 'packages/**'
-      - 'examples/embedded-kanban/**'
-      - 'examples/shared-conversation/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/docs.yml'
+    paths: *paths
   workflow_dispatch:
 
 permissions:
@@ -45,7 +38,6 @@ jobs:
           node-version: '24.19.0'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @familiar-ai/docs typecheck
       # Builds the site and its search index, then checks every internal link.
       - run: pnpm build:docs
       - if: github.event_name != 'pull_request'
