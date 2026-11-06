@@ -7,6 +7,7 @@ on:
       - 'install.ps1'
       - 'apps/daemon/**'
       - 'packages/**'
+      - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/cli-platforms.yml'
@@ -29,7 +30,6 @@ jobs:
           node-version: '24.19.0'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @familiar-ai/daemon typecheck
-      - run: pnpm exec vitest run apps/daemon/scripts/installers.test.ts apps/daemon/src/cli apps/daemon/src/paths.test.ts apps/daemon/src/settings.test.ts
+      - run: pnpm exec vitest run apps/daemon
       - run: pnpm bundle
       - run: pnpm test:release

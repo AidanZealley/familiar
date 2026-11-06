@@ -20,7 +20,7 @@ jobs:
           node-version: '24.19.0'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
+      - run: pnpm typecheck && pnpm lint && pnpm test && pnpm exec prettier --check .
       - run: pnpm test:cloudflare
       - run: pnpm --filter @familiar-example/cloudflare-worker build
       - run: pnpm bundle

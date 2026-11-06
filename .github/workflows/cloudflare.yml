@@ -8,12 +8,8 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
-      - 'vitest.config.ts'
-      - 'eslint.config.js'
+      - 'tsconfig.base.json'
       - '.github/workflows/cloudflare.yml'
-      - '.github/workflows/release.yml'
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +26,5 @@ jobs:
           node-version: '24.19.0'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
       - run: pnpm test:cloudflare
       - run: pnpm --filter @familiar-example/cloudflare-worker build
