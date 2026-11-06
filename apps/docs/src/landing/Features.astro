@@ -1,0 +1,208 @@
+---
+import { Cloud, House, NotebookPen, PackageOpen, Puzzle } from '@lucide/astro'
+
+// The first two take the wide cells; the grid styles go by position.
+const features = [
+  {
+    label: 'Self-hosted',
+    line: 'Run Familiar on your computer and access it over your private network.',
+    Icon: House,
+  },
+  {
+    label: 'Long-term memory',
+    line: 'Stores conversation history and organises lasting facts each night.',
+    Icon: NotebookPen,
+  },
+  {
+    label: 'Tools and plugins',
+    line: 'Connect web tools, custom plugins and MCP servers.',
+    Icon: Puzzle,
+  },
+  {
+    label: 'Portable',
+    line: 'Host the same core on Node.js or Cloudflare Workers.',
+    Icon: Cloud,
+  },
+  {
+    label: 'Embeddable',
+    line: "Add an assistant to your app with Familiar's core and client packages.",
+    Icon: PackageOpen,
+  },
+]
+---
+
+<section class="wrap features" aria-labelledby="features-title">
+  <div class="section-head">
+    <h2 id="features-title">Features</h2>
+  </div>
+  <ol class="grid">
+    {
+      features.map(({ label, line, Icon }, index) => (
+        <li class={`cell cell-${index + 1}`}>
+          <span class="cell-top" aria-hidden="true">
+            <Icon size={20} class="cell-icon" />
+          </span>
+          <h3>{label}</h3>
+          <p>{line}</p>
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style>
+  .features {
+    padding-top: clamp(4.5rem, 10vw, 8rem);
+  }
+
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--text);
+  }
+
+  .section-head h2 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    margin-top: 2rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 1.75rem 1.5rem 2rem;
+    border-top: 1px solid var(--rule-strong);
+  }
+
+  .cell-1,
+  .cell-2 {
+    grid-column: span 3;
+    min-height: 17rem;
+    padding: 2rem;
+  }
+
+  .cell-3,
+  .cell-4,
+  .cell-5 {
+    grid-column: span 2;
+  }
+
+  .cell-1 {
+    background: var(--block);
+    color: var(--on-block);
+    border-top-color: var(--block);
+  }
+
+  .cell-2 {
+    background: var(--surface);
+  }
+
+  .cell-4,
+  .cell-5 {
+    border-left: 1px solid var(--rule);
+  }
+
+  .cell-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cell :global(.cell-icon) {
+    color: currentColor;
+    opacity: 0.65;
+  }
+
+  .cell-1 :global(.cell-icon) {
+    color: var(--on-block-muted);
+    opacity: 1;
+  }
+
+  .cell h3 {
+    margin-top: 1.5rem;
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .cell-1 h3,
+  .cell-2 h3 {
+    margin-top: auto;
+    font-size: clamp(1.75rem, 3.6vw, 2.75rem);
+  }
+
+  .cell p {
+    max-width: 30rem;
+    color: var(--muted);
+  }
+
+  .cell-1 p {
+    color: var(--on-block-muted);
+  }
+
+  @media (max-width: 56rem) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .cell-1,
+    .cell-2,
+    .cell-3,
+    .cell-4 {
+      grid-column: span 1;
+    }
+
+    .cell-1,
+    .cell-2 {
+      min-height: 14rem;
+    }
+
+    .cell-3 {
+      border-left: 0;
+    }
+
+    .cell-5 {
+      grid-column: 1 / -1;
+      border-left: 0;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .features {
+      padding-inline: 0;
+    }
+
+    .section-head {
+      margin-inline: clamp(1rem, 4vw, 3rem);
+    }
+
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .grid .cell {
+      grid-column: 1;
+      min-height: 0;
+      padding: 1.5rem 1.25rem;
+      border-left: 0;
+    }
+
+    .cell-1 h3,
+    .cell-2 h3 {
+      margin-top: 1.5rem;
+    }
+  }
+</style>

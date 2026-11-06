@@ -1,0 +1,281 @@
+---
+import { ArrowRight, SquareTerminal } from '@lucide/astro'
+import { links } from './links'
+
+// Exact commands from the repository README.
+const installers = [
+  {
+    id: 'unix',
+    os: 'macOS and Linux',
+    short: 'macOS / Linux',
+    prompt: '$',
+    command:
+      'curl -fsSL https://github.com/AidanZealley/familiar/releases/latest/download/install.sh | sh',
+  },
+  {
+    id: 'windows',
+    os: 'Windows',
+    short: 'Windows',
+    prompt: 'PS>',
+    command:
+      'irm https://github.com/AidanZealley/familiar/releases/latest/download/install.ps1 | iex',
+  },
+]
+---
+
+<section class="wrap install" id="install" aria-labelledby="install-title">
+  <div class="panel">
+    <div class="panel-head">
+      <h2 id="install-title">
+        <SquareTerminal size={16} />
+        Install
+      </h2>
+      <fieldset class="tabs">
+        <legend class="sr-only">Operating system</legend>
+        {
+          installers.map((installer, index) => (
+            <label>
+              <input
+                type="radio"
+                name="os-sheet"
+                value={installer.id}
+                checked={index === 0}
+              />
+              {installer.short}
+            </label>
+          ))
+        }
+      </fieldset>
+      <a class="guide" href={links.install}>
+        Install guide
+        <ArrowRight size={16} />
+      </a>
+    </div>
+    {
+      installers.map((installer) => (
+        <div class="command" data-os={installer.id}>
+          <span class="sr-only">{installer.os}:</span>
+          <span class="prompt" aria-hidden="true">
+            {installer.prompt}
+          </span>
+          <code>{installer.command}</code>
+          <button type="button" data-copy={installer.command} hidden>
+            Copy
+          </button>
+        </div>
+      ))
+    }
+    <p class="panel-foot">
+      The installer signs you in with your ChatGPT subscription. No API key
+      needed.
+    </p>
+  </div>
+</section>
+
+<script>
+  // Preselect Windows for Windows visitors; the CSS default works without it.
+  if (navigator.userAgent.includes('Windows')) {
+    const windows = document.querySelector<HTMLInputElement>(
+      'input[name="os-sheet"][value="windows"]',
+    )
+    if (windows) windows.checked = true
+  }
+
+  // Prefer the Clipboard API; HTTP review still supports user-initiated copy.
+  async function copyCommand(text: string) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text)
+        return true
+      }
+    } catch {
+      // Browser permissions can refuse clipboard access even over HTTPS.
+    }
+    const active = document.activeElement
+    const input = document.createElement('textarea')
+    input.value = text
+    input.readOnly = true
+    input.style.cssText = 'position:fixed;left:-9999px;top:0'
+    document.body.append(input)
+    try {
+      input.select()
+      return document.execCommand('copy')
+    } finally {
+      input.remove()
+      if (active instanceof HTMLElement) active.focus({ preventScroll: true })
+    }
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    'button[data-copy]',
+  )) {
+    button.hidden = false
+    button.setAttribute('aria-live', 'polite')
+    button.addEventListener('click', async () => {
+      const copied = await copyCommand(button.dataset.copy ?? '')
+      button.textContent = copied ? 'Copied' : 'Copy failed'
+      setTimeout(() => (button.textContent = 'Copy'), 1600)
+    })
+  }
+</script>
+
+<style>
+  .install {
+    padding-top: clamp(2.5rem, 6vw, 4rem);
+  }
+
+  .panel {
+    border: 1px solid var(--text);
+    background: var(--bg);
+  }
+
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .panel-head h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .tabs {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .tabs label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+    border-right: 1px solid var(--rule);
+    cursor: pointer;
+  }
+
+  .tabs input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .tabs label:has(:checked) {
+    color: var(--text);
+    font-weight: 700;
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+
+  .tabs label:has(:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: -4px;
+  }
+
+  .guide {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  .guide:hover {
+    text-decoration: underline;
+  }
+
+  .command {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: clamp(1.25rem, 3vw, 2rem) 1.25rem;
+    font-size: clamp(0.875rem, 1.4vw, 1.0625rem);
+  }
+
+  .prompt {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .command code {
+    flex: 1;
+    min-width: 0;
+    word-break: break-all;
+  }
+
+  /* Without :has, both commands stay visible. */
+  @supports selector(:has(*)) {
+    .panel:has([value='unix']:checked) [data-os='windows'],
+    .panel:has([value='windows']:checked) [data-os='unix'] {
+      display: none;
+    }
+  }
+
+  .command button {
+    flex: none;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: var(--block);
+    color: var(--on-block);
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .panel-foot {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--muted);
+    background: var(--surface);
+    border-top: 1px solid var(--rule);
+  }
+
+  @media (max-width: 40rem) {
+    .panel-head h2 {
+      width: 100%;
+    }
+
+    .tabs {
+      flex: 1;
+    }
+
+    .tabs label {
+      flex: 1;
+      justify-content: center;
+      padding-inline: 0.75rem;
+    }
+
+    .tabs label:last-child {
+      border-right: 0;
+    }
+
+    .guide {
+      margin-left: 0;
+      width: 100%;
+      border-top: 1px solid var(--rule);
+    }
+
+    .command {
+      flex-wrap: wrap;
+    }
+
+    .command code {
+      flex-basis: calc(100% - 3rem);
+    }
+  }
+</style>
