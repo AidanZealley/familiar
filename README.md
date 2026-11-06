@@ -50,10 +50,4 @@ pnpm dev:demo
 
 The demo runs a scripted model with disposable in-memory storage, without sign-in or the installed assistant's data. Try `tool`, `memory`, `remind` or `slow` in chat. Leave the running service and its data alone during development.
 
-Before submitting changes, run:
-
-```sh
-pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec prettier --check .
-```
-
-Core and Cloudflare changes also need `pnpm test:cloudflare`; package export or dependency changes need `pnpm test:packages`; documentation changes need `pnpm build:docs`. The [development guide](https://aidanzealley.github.io/familiar/contribute/development/) covers the rest. Local coding conventions are in [AGENTS.md](AGENTS.md).
+Before opening a pull request, run the checks in the [development guide](https://aidanzealley.github.io/familiar/contribute/development/#checks), which also covers the rest. Local coding conventions are in [AGENTS.md](AGENTS.md).
