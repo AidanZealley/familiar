@@ -16,7 +16,7 @@ pnpm install
 ## Run the demo
 
 ```sh
-pnpm dev:demo
+pnpm dev
 ```
 
 This starts a daemon on port 4318 with a scripted model and in-memory storage, and the web app on port 5174. It needs no sign-in and touches no installed assistant's data. Vite accepts LAN and tailnet connections, so you can open it from another device.
@@ -24,7 +24,7 @@ This starts a daemon on port 4318 with a scripted model and in-memory storage, a
 Type one of these words in the chat to run a scripted scenario: `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error`. Only the model and external services are simulated. Add scenarios under `apps/daemon/src/demo/scenarios/` and register them in `apps/daemon/src/demo/model.ts`.
 
 :::caution
-`pnpm dev`, `pnpm dev:web`, `pnpm start` and `pnpm sign-in` work with the real installed assistant on port 4317 and its data. Use them only when you mean to. Never run a second daemon over the same storage.
+`pnpm dev:live`, `pnpm start` and `pnpm sign-in` work with the real installed assistant on port 4317 and its data. Use them only when you mean to. Never run a second daemon over the same storage.
 :::
 
 ## Workspace

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @familiar-ai/daemon --filter @familiar-ai/web dev",
+    "dev:live": "pnpm --filter @familiar-ai/web dev:live",
     "build": "pnpm --filter @familiar-ai/web build",
     "build:packages": "pnpm --filter \"./packages/*\" build",
     "build:docs": "pnpm --filter @familiar-ai/docs build",
@@ -18,8 +19,6 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "dev:web": "pnpm --filter @familiar-ai/web dev",
-    "dev:demo": "pnpm --parallel --filter @familiar-ai/daemon --filter @familiar-ai/web dev:demo",
     "dev:docs": "pnpm --filter @familiar-ai/docs dev",
     "service:install": "pnpm build && node apps/daemon/src/cli/install-service.ts",
     "service:logs": "node apps/daemon/src/cli.ts logs",
