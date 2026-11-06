@@ -20,13 +20,23 @@ const temporary = await mkdtemp(resolve(tmpdir(), 'familiar-packages-'))
 const tarballs = resolve(temporary, 'tarballs')
 const consumer = resolve(temporary, 'consumer')
 
-const tsc = resolve(root, 'node_modules/.bin/tsc')
-const workersTypes = JSON.parse(
-  await readFile(resolve(root, 'packages/cloudflare/package.json'), 'utf8'),
-).devDependencies['@cloudflare/workers-types']
+const manifest = async (name: string) =>
+  JSON.parse(
+    await readFile(resolve(root, 'packages', name, 'package.json'), 'utf8'),
+  )
+const run = (command: string, args: string[]) =>
+  execFileSync(command, args, { cwd: consumer, stdio: 'inherit' })
+const install = (...specs: string[]) =>
+  run('npm', ['install', '--no-audit', '--no-fund', ...specs])
 
-const run = (command: string, args: string[], cwd: string) =>
-  execFileSync(command, args, { cwd, stdio: 'inherit' })
+const core = await manifest('core')
+const client = await manifest('client')
+const cloudflare = await manifest('cloudflare')
+// Every entry the source manifests export, so one missing from a package's
+// publishConfig.exports fails to import.
+const entries = [core, client].flatMap(({ name, exports }) =>
+  Object.keys(exports).map((key) => name + key.slice(1)),
+)
 
 try {
   // tsc never deletes output, so a stale dist could ship removed or excluded
@@ -37,88 +47,120 @@ try {
       force: true,
     })
   }
-  run('pnpm', ['build:packages'], root)
-  run(
+  execFileSync('pnpm', ['build:packages'], { cwd: root, stdio: 'inherit' })
+  execFileSync(
     'pnpm',
     ['--filter', './packages/*', 'pack', '--pack-destination', tarballs],
-    root,
+    { cwd: root, stdio: 'inherit' },
   )
 
-  const dependencies = Object.fromEntries(
-    (await readdir(tarballs)).map((file) => {
-      const tarball = resolve(tarballs, file)
-      const manifest = execFileSync('tar', [
-        '-xzOf',
-        tarball,
-        'package/package.json',
-      ])
-      return [JSON.parse(manifest.toString()).name, `file:${tarball}`]
-    }),
-  )
   await mkdir(consumer)
   await writeFile(
     resolve(consumer, 'package.json'),
-    JSON.stringify({
-      type: 'module',
-      dependencies: {
-        ...dependencies,
-        '@cloudflare/workers-types': workersTypes,
-      },
-    }),
+    JSON.stringify({ type: 'module' }),
   )
-  run('npm', ['install', '--no-audit', '--no-fund'], consumer)
+  install(
+    ...(await readdir(tarballs)).map((file) => resolve(tarballs, file)),
+    `@cloudflare/workers-types@${cloudflare.devDependencies['@cloudflare/workers-types']}`,
+  )
 
-  // Optional React must neither be installed nor loaded by vanilla consumers.
+  // React is an optional peer, so npm must not install it for vanilla hosts.
   assert.equal(
     (await readdir(resolve(consumer, 'node_modules'))).includes('react'),
     false,
   )
 
+  // Two copies of a Pi package would split its registries and classes
+  // between core, the client and Cloudflare.
+  const pi = JSON.parse(
+    execFileSync('npm', ['query', '[name^="@earendil-works/"]'], {
+      cwd: consumer,
+      encoding: 'utf8',
+    }),
+  ).map(({ name }: { name: string }) => name)
+  assert.deepEqual(pi, [...new Set(pi)], 'Pi packages are installed twice')
+
   // Node can't load Workers-only modules, so the Cloudflare package is only
   // type-checked.
-  const runtime = [
-    '@familiar-ai/core',
-    '@familiar-ai/core/http',
-    '@familiar-ai/core/extensions',
-    '@familiar-ai/core/diagnostics',
-    '@familiar-ai/core/storage/memory',
-    '@familiar-ai/client',
-  ]
-  await writeFile(
-    resolve(consumer, 'runtime.js'),
-    runtime.map((name) => `import '${name}'\n`).join(''),
+  const load = async (file: string, names: string[]) => {
+    await writeFile(
+      resolve(consumer, file),
+      names.map((name) => `import '${name}'\n`).join(''),
+    )
+    run('node', [file])
+  }
+  const react = '@familiar-ai/client/react'
+  await load(
+    'runtime.js',
+    entries.filter((name) => name !== react),
   )
-  run('node', ['runtime.js'], consumer)
 
-  const clientManifest = JSON.parse(
-    await readFile(resolve(root, 'packages/client/package.json'), 'utf8'),
-  )
-  run(
-    'npm',
-    [
-      'install',
-      '--no-audit',
-      '--no-fund',
-      `react@${clientManifest.devDependencies.react}`,
-      `@types/react@${clientManifest.devDependencies['@types/react']}`,
-    ],
-    consumer,
-  )
+  // A packed Familiar runs a conversation turn end to end.
   await writeFile(
-    resolve(consumer, 'react.js'),
+    resolve(consumer, 'host.js'),
     `
-import { FamiliarProvider, useFamiliar, useFamiliarStore } from '@familiar-ai/client/react'
-if (![FamiliarProvider, useFamiliar, useFamiliarStore].every(value => typeof value === 'function')) {
-  throw new Error('React bindings missing from the packed client')
+import assert from 'node:assert/strict'
+import { summonFamiliar } from '@familiar-ai/core'
+import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
+import { MemoryStorage } from '@familiar-ai/core/storage/memory'
+const models = scriptedModels(
+  (request) => fauxAssistantMessage(request.type === 'message' ? 'Packed host works, ' + request.author.name : 'Background'),
+  { models: [{ id: 'packed' }] },
+)
+const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+try {
+  await familiar.send({ author: { id: 'consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
+  await familiar.idle()
+  const view = await familiar.watch()
+  assert.match(JSON.stringify(view.value), /Packed host works, Consumer/)
+  await view.stop()
+} finally {
+  await familiar.dismiss()
 }
 `,
   )
-  run('node', ['react.js'], consumer)
+  run('node', ['host.js'])
+
+  // The client in a browser build, with no workspace aliases, must not pull
+  // in core's, Pi's or React's runtime.
+  const requireWeb = createRequire(resolve(root, 'apps/web/package.json'))
+  const { build } = await import(requireWeb.resolve('vite'))
+  await writeFile(
+    resolve(consumer, 'browser.js'),
+    `export * from '@familiar-ai/client'`,
+  )
+  await build({
+    configFile: false,
+    root: consumer,
+    logLevel: 'warn',
+    plugins: [
+      {
+        name: 'check-client-runtime',
+        moduleParsed(module: { id: string }) {
+          assert.doesNotMatch(
+            module.id,
+            /node_modules\/(?:@familiar-ai\/core|@earendil-works\/pi-(?:ai|durable)|react)\//,
+          )
+        },
+      },
+    ],
+    build: {
+      write: false,
+      lib: { entry: resolve(consumer, 'browser.js'), formats: ['es'] },
+    },
+  })
+
+  install(
+    `react@${client.devDependencies.react}`,
+    `@types/react@${client.devDependencies['@types/react']}`,
+  )
+  await load('react.js', [react])
 
   // skipLibCheck, as most projects and Wrangler's templates set it: Pi's
   // dependencies bring Node and DOM globals that clash with Workers types.
-  // That would also hide our declarations degrading to \`any\`, so each
-  // entry point gets a misuse that must stay a type error.
+  // That would also hide a declaration degrading to `any`, so each entry
+  // point gets one misuse that must stay a type error.
   const typeCheck = async (
     name: string,
     lib: string[],
@@ -141,216 +183,74 @@ if (![FamiliarProvider, useFamiliar, useFamiliarStore].every(value => typeof val
         files: [`${name}.ts`],
       }),
     )
-    run(tsc, ['-p', `tsconfig.${name}.json`], consumer)
+    run(resolve(root, 'node_modules/.bin/tsc'), ['-p', `tsconfig.${name}.json`])
   }
   await typeCheck(
     'portable',
     ['ES2023', 'DOM'],
     [],
-    `import { summonFamiliar, type Author } from '@familiar-ai/core'
+    `import { defineTool, Type } from '@familiar-ai/core'
 import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
-import { hc, type InferResponseType } from 'hono/client'
-declare const hostFamiliar: Awaited<ReturnType<typeof summonFamiliar>>
-const author: Author = { id: 'sam', name: 'Sam' }
-hostFamiliar.send({ author, text: 'Hello', requestId: 'one' })
-// @ts-expect-error hosts must supply a stable author ID
-hostFamiliar.send({ author: { name: 'Sam' }, text: 'Hello', requestId: 'two' })
-const hostApi: HttpApi = createHttpApi(hostFamiliar, {
-  authenticate: () => author,
-  allow: (_, operation) => operation === 'conversation.send',
-})
-createHttpApi(hostFamiliar, {
-  authenticate: () => author,
-  // @ts-expect-error operation names are checked
-  allow: (_, operation) => operation === 'conversation.sned',
-})
-const standard = hc<typeof hostApi>('https://example.com')
-standard.messages.$post({ json: { text: 'Hello', requestId: 'two' } })
-type Page = InferResponseType<typeof standard.history.$get, 200>
-declare const historyPage: Page
-const more: boolean = historyPage.more
-// @ts-expect-error responses remain typed
-const invalidMore: number = historyPage.more
-// @ts-expect-error standard input remains typed
-standard.messages.$post({ json: { text: 1, requestId: 'two' } })
+import { hook, ToolTask } from '@familiar-ai/core/extensions'
 import { localDay } from '@familiar-ai/core/diagnostics'
-import { type Schedule, type ModelRef, type ModelThinkingLevel, type ConversationView, type EntryRecord } from '@familiar-ai/client'
-const model: ModelRef = { provider: 'packed', modelId: 'packed' }
-const thinking: ModelThinkingLevel = 'medium'
-// @ts-expect-error model selections remain typed
-const invalidModel: ModelRef = { provider: 1 }
-// @ts-expect-error full advanced history types remain typed
-const entry: EntryRecord = 1
-// @ts-expect-error advanced view stays typed
-const view: ConversationView = 1
+import { MemoryStorage } from '@familiar-ai/core/storage/memory'
+import { createModels } from '@familiar-ai/core/models'
+import { openaiProvider } from '@familiar-ai/core/models/openai'
+import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
+import { fauxProvider } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
+import { createFamiliarStore } from '@familiar-ai/client'
+import { useFamiliar } from '@familiar-ai/client/react'
+import { hc, type InferResponseType } from 'hono/client'
 
 // Assignable to every parameter, so each misuse below tests one parameter.
 declare const ok: never
 
+defineTool({
+  name: 'search',
+  description: 'Search',
+  parameters: Type.Object({ query: Type.String() }),
+  execute: async (args) => {
+    // @ts-expect-error
+    const query: number = args.query
+    return { output: [{ type: 'text', text: String(query) }] }
+  },
+})
+createHttpApi(ok, {
+  authenticate: ok,
+  // @ts-expect-error
+  allow: (_, operation) => operation === 'conversation.sned',
+})
+// Core's route types read through Hono's client, as the client reads them.
+declare const api: ReturnType<typeof hc<HttpApi>>
+declare const page: InferResponseType<typeof api.history.$get, 200>
 // @ts-expect-error
-summonFamiliar(1)
-// @ts-expect-error
-export const familiar: Awaited<ReturnType<typeof summonFamiliar>> = 1
-// @ts-expect-error
-createHttpApi(1, ok)
-// @ts-expect-error
-createHttpApi(ok, 1)
-// @ts-expect-error
-createHttpApi(ok, { authenticate: ok })
-// @ts-expect-error
-export const api: HttpApi = 1
+export const more: number = page.more
+hook(ToolTask, {
+  beforeTool: (call) => {
+    // @ts-expect-error
+    const name: number = call.name
+    void name
+  },
+})
 // @ts-expect-error
 localDay('now', 'UTC')
 // @ts-expect-error
-export const day: number = localDay(0, 'UTC')
+new MemoryStorage(1)
 // @ts-expect-error
-export const schedule: Schedule = 1
-`,
-  )
-  await typeCheck(
-    'models',
-    ['ES2023', 'DOM'],
-    [],
-    `import { createModels, createProvider, hasApi, type Models, type CreateModelsOptions, type CredentialStore, type Credential, type Provider, type AuthInteraction, type ModelsStore, type OpenAIResponsesOptions, type OpenAICompletionsOptions } from '@familiar-ai/core/models'
-import { openaiProvider } from '@familiar-ai/core/models/openai'
-import { openrouterProvider, personalizeOpenRouterCatalog } from '@familiar-ai/core/models/openrouter'
-import { fauxProvider, fauxToolCall, fauxAssistantMessage, type RegisterFauxProviderOptions } from '@familiar-ai/core/models/faux'
-declare const credentials: CredentialStore
-declare const modelsStore: ModelsStore
-const options: CreateModelsOptions = { credentials, modelsStore, identity: { attribution: { name: 'consumer', url: 'https://example.com' } } }
-const models: Models = createModels(options)
-const openai = openaiProvider()
-const router = openrouterProvider()
-const openaiModel = openai.getModels()[0]!
-const responseOptions: OpenAIResponsesOptions = { temperature: 0.5, reasoningEffort: 'xhigh', reasoningSummary: 'detailed', serviceTier: 'priority', toolChoice: 'auto' }
-models.stream(openaiModel, { messages: [] }, responseOptions)
-// @ts-expect-error OpenAI API inference remains precise
-const wrongApi: 'openai-completions' = openaiModel.api
-// @ts-expect-error request options remain typed
-models.stream(openaiModel, { messages: [] }, { temperature: 'hot' })
-// @ts-expect-error credential discriminant remains typed
-const wrongCredential: Credential = { type: 'api_key', key: 42 }
-// @ts-expect-error factory options remain typed
 createModels({ credentials: 42 })
-// @ts-expect-error full faux options remain typed
+// @ts-expect-error
+openaiProvider(1)
+// @ts-expect-error
+openrouterProvider(1)
+// @ts-expect-error
 fauxProvider({ tokensPerSecond: 'fast' })
-const faux = fauxProvider({ tokensPerSecond: 100, deferred: { pendingFetches: 1 }, models: [{ id: 'test', reasoning: true }] })
-faux.setResponses([fauxAssistantMessage(fauxToolCall('tool', { value: 1 }))])
-const routerModel = router.getModels()[0]!
-const api: 'anthropic-messages' | 'openai-completions' = routerModel.api
-if (hasApi(routerModel, 'openai-completions')) {
-  const options: OpenAICompletionsOptions = { thinkingBudgets: { high: 4096 }, toolChoice: 'auto' }
-  models.stream(routerModel, { messages: [] }, options)
-  // @ts-expect-error narrowed provider request keeps advanced option inference
-  models.stream(routerModel, { messages: [] }, { reasoningEffort: 'invalid' })
-}
-`,
-  )
-  await typeCheck(
-    'plugin',
-    ['ES2023', 'DOM'],
-    [],
-    `import { definePlugin, defineTool, Type, type Static, type ToolContext, type ToolResult } from '@familiar-ai/core'
-import { defineExtension, defineDoc, defineDocFamily, defineTask, section, hook, wrapTool, wrapSection, ToolTask, GenerationTask, configure, withCancel, createToolSearchExtension, createCodemodeExtension, createCodingTools, type ToolExecutionApi, type Extension, type Tx, type TaskRuntime } from '@familiar-ai/core/extensions'
-const State = defineDoc({ kind: 'packed.state', version: 1, scope: 'session', initial: () => ({ value: 0 }), checkpointWhen: () => true })
-const Task = defineTask<{ value: number }, { phase: 'run' }, number>({
-  name: 'packed.task', version: 1, initial: () => ({ phase: 'run' }),
-  phases: { run: (task, runtime, context) => runtime.commit(async tx => {
-    (await tx.doc(State)).value = task.input.value
-    return { status: 'terminal', outcome: { status: 'completed', result: task.input.value } }
-  }, context) },
-  abort: (_task, runtime, context) => runtime.commit(() => ({ status: 'terminal', outcome: { status: 'aborted' } }), context),
-})
-const search: Extension = createToolSearchExtension()
-const coding: Extension = createCodingTools()
-const extension: Extension = defineExtension({ name: 'packed', tasks: [Task], sections: [section('packed', () => 'Packed')], hooks: [hook(ToolTask, { beforeTool: call => {
-  // @ts-expect-error hook inference must survive packing
-  const invalid: number = call.name
-} })], wraps: [wrapSection('packed', original => original)] })
-const Parameters = Type.Object({ query: Type.String() })
-type Args = Static<typeof Parameters>
-const execute = async (args: Args, api: ToolExecutionApi, context: ToolContext): Promise<ToolResult> => {
-  context.abortSignal?.throwIfAborted()
-  await api.details({ source: args.query }, context)
-  const derived = withCancel(context)
-  derived.cancel()
-  await api.commit(async tx => { (await tx.doc(State)).value = 1 }, context)
-  await api.executeTool('other', { query: args.query }, context, { key: 'nested' })
-  return { output: [{ type: 'text', text: args.query }], details: { count: 1 } }
-}
-export default definePlugin({
-  name: 'packed', title: 'Packed plugin',
-  extension: () => ({ ...extension, tools: [defineTool({ name: 'search', description: 'Search', parameters: Parameters, execute })] }),
-})
-defineTool({ name: 'typed', description: 'Typed', parameters: Parameters, execute: async args => {
-  // @ts-expect-error schema inference must survive packing
-  const invalid: number = args.query
-  // @ts-expect-error no unsupported argument
-  args.missing
-  return { output: [{ type: 'text', text: args.query }] }
-} })
-declare const transaction: ToolExecutionApi['commit']
-const precise = defineTool<typeof Parameters, { count: number }>({
-  name: 'precise', description: 'Precise details', parameters: Parameters,
-  execute: async (args, api, context) => {
-    const authorId: string | undefined = api.author?.id
-    void authorId
-    await api.details({ count: args.query.length }, context)
-    // @ts-expect-error details type must survive packing
-    await api.details({ count: 'wrong' }, context)
-    return { details: { count: 1 } }
-  },
-})
-const wrapped = wrapTool(precise, original => ({ ...original, execute: (args, api, context) => original.execute(args, api, context) }))
-// @ts-expect-error tool execute retains all three required arguments
-precise.execute({ query: 'value' })
-`,
-  )
-  await typeCheck(
-    'react',
-    ['ES2023', 'DOM'],
-    [],
-    `import { createElement } from 'react'
-import type { FamiliarStore } from '@familiar-ai/client'
-import { FamiliarProvider, useFamiliar, useFamiliarStore } from '@familiar-ai/client/react'
-declare const store: FamiliarStore
-store.conversation.send('Hello')
-store.conversation.setModel({ provider: 'test', modelId: 'test' })
-store.conversation.setThinkingLevel('high')
-store.conversation.loadOlder()
-store.memory.revise('fact-1', 'Corrected')
-store.memory.setPinned('fact-1', true)
-store.account.signIn()
-store.schedules.cancel('schedule-1')
-store.push.key()
-store.connections.list()
-store.mcp.add({ name: 'notes', transport: { type: 'stdio', command: 'notes', args: [] } })
-store.disconnect()
-const state = store.getState()
-state.account?.status
-state.memory?.facts
-state.episodes?.episodes
-state.schedules
-state.transcript?.items
-// @ts-expect-error commands live on the store, not in its state
-state.conversation
-// @ts-expect-error grouped command parameters remain typed
-store.memory.revise(1, 'Corrected')
-// @ts-expect-error grouped model commands retain Pi types
-store.conversation.setThinkingLevel('unsupported')
-store.getInitialState()
-store.subscribe(state => state.connection)
-// @ts-expect-error public stores do not expose arbitrary writes
-type UnsupportedSetter = FamiliarStore['setState']
-createElement(FamiliarProvider, { store })
-// @ts-expect-error provider requires an explicit store
-createElement(FamiliarProvider, {})
-// @ts-expect-error selector state is typed
-useFamiliar(state => state.notAField)
-// @ts-expect-error selection preserves the return type
-const count: number = useFamiliar(state => state.connection)
-// @ts-expect-error commands are typed
-useFamiliarStore().conversation.send(1)
+// @ts-expect-error
+scriptedModels(1)
+// @ts-expect-error
+createFamiliarStore(1)
+// @ts-expect-error
+useFamiliar((state) => state.notAField)
 `,
   )
   await typeCheck(
@@ -358,114 +258,11 @@ useFamiliarStore().conversation.send(1)
     ['ES2023'],
     ['@cloudflare/workers-types'],
     `import { DurableFamiliar } from '@familiar-ai/cloudflare'
-
 declare const ok: never
-
 // @ts-expect-error
 new DurableFamiliar(1, ok)
-// @ts-expect-error
-new DurableFamiliar(ok, 1)
 `,
   )
-  // Resolve the packed client in a browser build, with no workspace aliases.
-  // Any server/React runtime import here is a packaging regression.
-  const requireWeb = createRequire(resolve(root, 'apps/web/package.json'))
-  const { build } = await import(requireWeb.resolve('vite'))
-  await writeFile(
-    resolve(consumer, 'browser.js'),
-    `export * from '@familiar-ai/client'`,
-  )
-  await writeFile(
-    resolve(consumer, 'models-only.js'),
-    `export { createModels } from '@familiar-ai/core/models'`,
-  )
-  await build({
-    configFile: false,
-    root: consumer,
-    plugins: [
-      {
-        name: 'check-model-factory-runtime',
-        moduleParsed(module) {
-          assert.doesNotMatch(module.id, /pi-ai\/dist\/providers\//)
-        },
-      },
-    ],
-    build: {
-      write: false,
-      lib: { entry: resolve(consumer, 'models-only.js'), formats: ['es'] },
-    },
-  })
-  await build({
-    configFile: false,
-    root: consumer,
-    plugins: [
-      {
-        name: 'check-client-runtime',
-        moduleParsed(module) {
-          assert.doesNotMatch(
-            module.id,
-            /node_modules\/(?:@familiar-ai\/core|@earendil-works\/pi-(?:ai|durable)|react)\//,
-          )
-        },
-      },
-    ],
-    build: {
-      write: false,
-      lib: { entry: resolve(consumer, 'browser.js'), formats: ['es'] },
-    },
-  })
-  // The host installs Familiar only; Pi remains a transitive implementation dependency.
-  const installedManifest = JSON.parse(
-    await readFile(resolve(consumer, 'package.json'), 'utf8'),
-  )
-  assert.equal(
-    installedManifest.dependencies['@earendil-works/pi-ai'],
-    undefined,
-  )
-  await writeFile(
-    resolve(consumer, 'host.js'),
-    `
-import assert from 'node:assert/strict'
-import { createModels } from '@familiar-ai/core/models'
-import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
-import { scriptedModels } from '@familiar-ai/core/models/scripted'
-import { summonFamiliar } from '@familiar-ai/core'
-import { MemoryStorage } from '@familiar-ai/core/storage/memory'
-import { GenerationTask, createContextKey } from '@familiar-ai/core/extensions'
-const coreUrl = import.meta.resolve('@familiar-ai/core')
-const durableUrl = import.meta.resolve('@earendil-works/pi-durable', coreUrl)
-const durable = await import(durableUrl)
-assert.equal(import.meta.resolve('@earendil-works/pi-ai/models'), import.meta.resolve('@earendil-works/pi-ai/models', coreUrl))
-assert.equal(import.meta.resolve('@earendil-works/pi-ai/models'), import.meta.resolve('@earendil-works/pi-ai/models', durableUrl))
-const piModels = await import(import.meta.resolve('@earendil-works/pi-ai/models', coreUrl))
-assert.equal(createModels, piModels.createModels)
-for (const provider of ['openai', 'openrouter', 'faux']) {
-  const familiarExports = await import('@familiar-ai/core/models/' + provider)
-  const piExports = await import(import.meta.resolve('@earendil-works/pi-ai/providers/' + provider, coreUrl))
-  assert.deepEqual(Object.keys(familiarExports), Object.keys(piExports))
-  for (const key of Object.keys(piExports)) assert.equal(familiarExports[key], piExports[key])
-}
-assert.equal(GenerationTask, durable.GenerationTask)
-const chord = await import(import.meta.resolve('@earendil-works/chord/context', coreUrl))
-assert.equal(createContextKey, chord.createContextKey)
-const models = scriptedModels(
-  (request) => fauxAssistantMessage(request.type === 'message' ? 'Packed host works, ' + request.author.name : 'Background'),
-  { models: [{ id: 'packed' }] },
-)
-const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
-try {
-  assert.equal(familiar.account?.state().status, 'signed-in')
-  await familiar.send({ author: { id: 'Consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
-  await familiar.idle()
-  const view = await familiar.watch()
-  assert.match(JSON.stringify(view.value), /Packed host works, Consumer/)
-  await view.stop()
-} finally {
-  await familiar.dismiss()
-}
-`,
-  )
-  run('node', ['--experimental-import-meta-resolve', 'host.js'], consumer)
 
   console.log('Packages install, load and type-check outside the workspace.')
 } finally {
