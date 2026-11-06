@@ -45,9 +45,9 @@ Use Node 24.19 or newer and the pnpm version in `package.json`:
 
 ```sh
 pnpm install
-pnpm dev:demo
+pnpm dev
 ```
 
-The demo runs a scripted model with disposable in-memory storage, without sign-in or the installed assistant's data. Try `tool`, `memory`, `remind` or `slow` in chat. Leave the running service and its data alone during development.
+This runs a demo daemon with a scripted model and disposable in-memory storage, without sign-in or the installed assistant's data. Try `tool`, `memory`, `remind` or `slow` in chat. Only `pnpm dev:live` reaches the installed assistant.
 
 Before opening a pull request, run the checks in the [development guide](https://aidanzealley.github.io/familiar/contribute/development/#checks), which also covers the rest. Local coding conventions are in [AGENTS.md](AGENTS.md).

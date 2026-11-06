@@ -20,12 +20,12 @@ From the repository root:
 
 ```sh
 pnpm install
-pnpm dev:demo
+pnpm dev
 ```
 
 This starts the scripted daemon on port 4318 and the UI on 5174 with disposable in-memory data. Try `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error` in chat. Only the model and external services are simulated. Add scenarios under `src/demo/scenarios/` and register them in `src/demo/model.ts`.
 
-`pnpm start` serves the real assistant; `pnpm sign-in` changes its saved provider login. `pnpm dev` starts a real daemon too. Use these only when you intend to work with that installation. Never run a second daemon over its storage. Leave the running service, port 4317 and its data untouched during ordinary development.
+`pnpm start` serves the real assistant; `pnpm sign-in` changes its saved provider login. In this package, `pnpm dev:live` starts a real daemon too. Use these only when you intend to work with that installation. Never run a second daemon over its storage. Leave the running service, port 4317 and its data untouched during ordinary development.
 
 `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval against a scripted year of conversation, in [src/memory-eval](src/memory-eval/), without a model. Results are saved under `eval/results`.
 
