@@ -61,7 +61,6 @@ Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudfl
 
 - Reach the assistant through `use()`. It arms recovery before any work starts.
 - Don't call the assistant's `dismiss()` yourself.
-- `status()` reports the lifecycle and alarm state.
 - `terminate()` permanently refuses that object ID. Its history stays in storage.
 
 While work is running, the adapter keeps a heartbeat alarm. While the assistant sleeps, the alarm is set for its next wake time, such as a reminder.

@@ -28,11 +28,7 @@ const send = (bot: string, text: string) =>
     body: JSON.stringify({ text, requestId: crypto.randomUUID() }),
   })
 
-type Status = {
-  status: 'open' | 'terminated'
-  alarm: number | null
-  wake?: { active: boolean; at?: number }
-}
+type Status = { alarm: number | null; instance: string }
 
 const status = async (bot: string) =>
   (await (await server.fetch(`/${bot}/status`)).json()) as Status
@@ -67,20 +63,20 @@ const notifications = async (bot: string) =>
   (await (await server.fetch(`/${bot}/notifications`)).json()) as string[]
 
 /**
- * Nothing running, and the alarm exactly what the Familiar needs. A request
- * arms a heartbeat first, which its alarm then settles.
+ * The alarm once nothing runs: a sleep, not a heartbeat. A request arms a
+ * heartbeat first, which its alarm then settles.
  */
 const settled = async (bot: string) => {
   await expect
     .poll(
       async () => {
-        const { status: state, alarm, wake } = await status(bot)
-        return { state, active: wake?.active, matches: alarm === wake?.at }
+        const { alarm } = await status(bot)
+        return alarm !== null && alarm > Date.now() + 5 * HEARTBEAT_MS
       },
       { timeout: 15_000, interval: 200 },
     )
-    .toEqual({ state: 'open', active: false, matches: true })
-  return status(bot)
+    .toBe(true)
+  return (await status(bot)).alarm!
 }
 
 const evict = (bot: string) =>
@@ -90,38 +86,43 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 test('a reply settles the alarm on the next upkeep pass', async () => {
   expect((await send('fresh', 'hello')).status).toBe(202)
-  const { wake } = await settled('fresh')
+  const alarm = await settled('fresh')
   expect((await replies('fresh')).map(textOf)).toEqual(['You said: hello'])
   // Upkeep's nightly pass is the only sleep a new Familiar has.
-  expect(localMinute(wake!.at!, ZONE)).toMatch(/ 04:00$/)
-  expect(wake!.at).toBeGreaterThan(Date.now())
+  expect(localMinute(alarm, ZONE)).toMatch(/ 04:00$/)
 })
 
-test('a reminder fires from its alarm after the object is evicted', async () => {
+test('a reminder fires from its alarm, whether the object was evicted or stayed in memory', async () => {
   // Whole minutes, far enough ahead to evict before it's due.
   const due = Math.ceil((Date.now() + 15_000) / 60_000) * 60_000
-  await send('reminder', `remind ${localMinute(due, ZONE)} stretch`)
-  expect((await settled('reminder')).alarm).toBe(due)
+  for (const bot of ['evicted', 'live']) {
+    await send(bot, `remind ${localMinute(due, ZONE)} stretch`)
+    expect(await settled(bot)).toBe(due)
+  }
+  const { instance } = await status('live')
 
-  await evict('reminder')
-  // The outbox is its own object: polling it doesn't start the bot.
+  await evict('evicted')
+  // The outbox is its own object: polling it doesn't start the evicted bot.
+  // Polling the live bot's status keeps it in memory, so its alarm finds
+  // the Familiar already open and must resume the reminder itself.
   await expect
-    .poll(() => notifications('reminder'), {
-      timeout: due - Date.now() + 30_000,
-      interval: 1_000,
-    })
-    .toEqual(['Reminder: stretch'])
+    .poll(
+      async () => [
+        await notifications('evicted'),
+        await notifications('live'),
+        (await status('live')).instance,
+      ],
+      { timeout: due - Date.now() + 30_000, interval: 1_000 },
+    )
+    .toEqual([['Reminder: stretch'], ['Reminder: stretch'], instance])
 
-  const after = await settled('reminder')
-  expect(localMinute(after.alarm!, ZONE)).toMatch(/ 04:00$/)
-  expect(textOf((await replies('reminder')).at(-1)!)).toBe('Reminder: stretch')
+  expect(localMinute(await settled('evicted'), ZONE)).toMatch(/ 04:00$/)
+  expect(textOf((await replies('evicted')).at(-1)!)).toBe('Reminder: stretch')
 })
 
 test('work cut off by a reload resumes from the heartbeat alarm', async () => {
   await send('interrupted', 'slow')
-  await expect
-    .poll(() => status('interrupted'), { interval: 100 })
-    .toMatchObject({ wake: { active: true } })
+  // The request armed a heartbeat before its reply started.
   expect((await status('interrupted')).alarm).toBeLessThanOrEqual(
     Date.now() + HEARTBEAT_MS,
   )
@@ -158,14 +159,14 @@ test('a terminated bot stays terminated, keeps its history and has no alarm', as
   expect(
     (await server.fetch('/ended/terminate', { method: 'POST' })).status,
   ).toBe(204)
-  expect(await status('ended')).toEqual({ status: 'terminated', alarm: null })
+  expect((await status('ended')).alarm).toBeNull()
   expect((await send('ended', 'hello?')).status).toBe(410)
   expect((await server.fetch('/ended/api/history?before=1')).status).toBe(410)
 
   // A new instance reads the record and opens nothing.
   await evict('ended')
   expect((await send('ended', 'hello again?')).status).toBe(410)
-  expect(await status('ended')).toEqual({ status: 'terminated', alarm: null })
+  expect((await status('ended')).alarm).toBeNull()
 
   const storage = await server
     .getWorker()
@@ -189,5 +190,5 @@ test('termination wins over requests racing it', async () => {
   }
   expect((await send('race', 'after')).status).toBe(410)
   await sleep(2 * HEARTBEAT_MS)
-  expect(await status('race')).toEqual({ status: 'terminated', alarm: null })
+  expect((await status('race')).alarm).toBeNull()
 })

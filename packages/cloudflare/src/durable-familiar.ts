@@ -1,5 +1,7 @@
-import { SqliteStorage } from '@earendil-works/pi-durable/storage/sqlite'
-import { DurableObjectSqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite/cloudflare'
+import {
+  DurableObjectSqliteDatabase,
+  openDurableObjectSqliteStorage,
+} from '@earendil-works/pi-durable/storage/sqlite/cloudflare'
 import {
   summonFamiliar,
   type Familiar,
@@ -27,14 +29,6 @@ export type DurableFamiliarOptions = {
   heartbeatMs?: number
 }
 
-export type DurableFamiliarStatus = {
-  status: 'open' | 'terminated'
-  /** The armed alarm, epoch milliseconds. */
-  alarm: number | null
-  /** What the Familiar says it needs; absent once terminated. */
-  wake?: Wake
-}
-
 /** Refused because the Familiar was terminated. Its ID never opens again. */
 export class FamiliarTerminated extends Error {
   constructor() {
@@ -55,8 +49,11 @@ type Runtime =
 
 const HEARTBEAT_MS = 60_000
 
-/** Pi's tables, apart from the adapter's own. */
+/** Pi's tables, apart from any the host keeps in the same object. */
 const PI_PREFIX = 'pi_'
+
+/** The object's key-value record that it was terminated, and when. */
+const TERMINATED = 'familiar.terminated'
 
 /**
  * One Familiar in one SQLite-backed Durable Object. Construct it in the
@@ -66,7 +63,10 @@ const PI_PREFIX = 'pi_'
 export class DurableFamiliar {
   readonly #ctx: DurableObjectState
   readonly #heartbeatMs: number
-  /** Shared with Pi, so its transactions and the adapter's queries never interleave. */
+  /**
+   * Pi's database on the same storage shares this one's queue, so alarm
+   * writes and termination wait for Pi's commits instead of interleaving.
+   */
   readonly #database: DurableObjectSqliteDatabase
   readonly #writeAlarm: (at: number | null) => Promise<void>
   #runtime: Runtime = { status: 'opening' }
@@ -118,11 +118,8 @@ export class DurableFamiliar {
     // Refuses new calls at once; any late alarm write becomes a delete.
     this.#runtime = { status: 'terminated' }
     try {
-      await this.#database.transaction(async (transaction) => {
-        await transaction.run(
-          'INSERT INTO familiar_terminated (at) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM familiar_terminated)',
-          Date.now(),
-        )
+      await this.#database.transaction(async () => {
+        this.#ctx.storage.kv.put(TERMINATED, Date.now())
         await this.#ctx.storage.deleteAlarm()
       })
     } catch (error) {
@@ -139,21 +136,10 @@ export class DurableFamiliar {
     }
   }
 
-  async status(): Promise<DurableFamiliarStatus> {
-    const runtime = this.#runtime
-    const alarm = await this.#ctx.storage.getAlarm()
-    return runtime.status === 'open'
-      ? { status: 'open', alarm, wake: runtime.familiar.wake() }
-      : { status: 'terminated', alarm }
-  }
-
   async #open(options: DurableFamiliarOptions) {
-    await this.#database.exec(
-      'CREATE TABLE IF NOT EXISTS familiar_terminated (at INTEGER NOT NULL)',
-    )
-    if (await this.#database.get('SELECT at FROM familiar_terminated')) {
+    // A stray alarm left behind is deleted by alarm() when it fires.
+    if (this.#ctx.storage.kv.get(TERMINATED) !== undefined) {
       this.#runtime = { status: 'terminated' }
-      await this.#writeAlarm(null)
       return
     }
 
@@ -166,7 +152,9 @@ export class DurableFamiliar {
 
     const familiar = await summonFamiliar({
       ...(await options.familiar()),
-      storage: await SqliteStorage.open(this.#database, { prefix: PI_PREFIX }),
+      storage: await openDurableObjectSqliteStorage(this.#ctx.storage, {
+        prefix: PI_PREFIX,
+      }),
       onWake: (wake) => void this.#arm(wake).catch(() => {}),
     })
     void familiar.closed.then((end) => {

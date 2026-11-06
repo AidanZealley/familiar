@@ -15,6 +15,8 @@ type Env = {
 }
 
 export class Bot extends DurableObject<Env> {
+  /** Changes whenever the object restarts. */
+  readonly instance = crypto.randomUUID()
   readonly familiar = new DurableFamiliar(this.ctx, {
     familiar: () => ({
       models: scriptedModels(),
@@ -52,8 +54,8 @@ export class Bot extends DurableObject<Env> {
     return this.familiar.terminate()
   }
 
-  status() {
-    return this.familiar.status()
+  async status() {
+    return { alarm: await this.ctx.storage.getAlarm(), instance: this.instance }
   }
 }
 
