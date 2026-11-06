@@ -38,7 +38,8 @@ const problems: string[] = []
 if (!existsSync(join(dist, 'pagefind/pagefind.js'))) {
   problems.push('dist has no Pagefind search index')
 }
-for (const page of pages(dist)) {
+const built = pages(dist)
+for (const page of built) {
   const html = readFileSync(page, 'utf8')
   const from = relative(dist, page)
   for (const [, url] of html.matchAll(/\s(?:href|src)="([^"]+)"/g)) {
@@ -61,4 +62,4 @@ if (problems.length) {
   console.error(problems.join('\n'))
   process.exit(1)
 }
-console.log(`Checked links in ${pages(dist).length} pages.`)
+console.log(`Checked links in ${built.length} pages.`)

@@ -23,7 +23,6 @@
     "@familiar-ai/client": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "@types/react": "^19",
-    "hono": "catalog:",
     "react": "^19.3.1",
     "typescript": "~6.0.3"
   }
