@@ -46,6 +46,7 @@ test.skipIf(process.platform === 'win32').each([
       'if [ "$TEST_NEEDS_NODE" = 1 ]; then exit 1; fi\n',
     )
     executable(resolve(runtime, 'node'), 'exit 0\n')
+    // The fake setup lets the installer run it with or without a terminal.
     const npm = `printf '%s\\n' "$@" >> "$HOME/npm.log"
 mkdir -p "$HOME/.local/bin"
 printf '#!/bin/sh\\necho setup >> "$HOME/setup.log"\\n' > "$HOME/.local/bin/familiar"
@@ -84,7 +85,6 @@ cp "$HOME/\${url##*/}" "$2"
       TEST_ARCH: arch,
       TEST_NEEDS_NODE: needsNode ? '1' : '0',
       FAMILIAR_VERSION: 'v1.2.3',
-      FAMILIAR_NO_SETUP: '1',
     }
     const run = () =>
       spawnSync('sh', [resolve(root, 'install.sh')], { env, encoding: 'utf8' })
@@ -133,12 +133,15 @@ $homeDir = ${quote(home)}
 $env:LOCALAPPDATA = Join-Path $homeDir 'local'
 $env:APPDATA = Join-Path $homeDir 'roaming'
 $env:FAMILIAR_VERSION = 'v1.2.3'
-$env:FAMILIAR_NO_SETUP = '1'
 $oldPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $global:LASTEXITCODE = 0
 function node { if (Test-Path (Join-Path $env:APPDATA 'npm/node.exe')) { 'v24.19.0' } else { 'v20.0.0' } }
 function Get-Command { param($Name, $ErrorAction) @{ Source = (Join-Path $env:APPDATA 'npm/node.exe') } }
-function npm.cmd { $args | Set-Content (Join-Path $homeDir 'npm.log'); $global:LASTEXITCODE = 0 }
+function npm.cmd {
+  $args | Set-Content (Join-Path $homeDir 'npm.log')
+  Set-Content (Join-Path $env:APPDATA 'npm/familiar.cmd') ('@echo setup>> "' + (Join-Path $homeDir 'setup.log') + '"')
+  $global:LASTEXITCODE = 0
+}
 function Invoke-WebRequest {
   param($Uri, $OutFile, [switch]$UseBasicParsing)
   Add-Content (Join-Path $homeDir 'downloads.log') $Uri
@@ -180,6 +183,7 @@ try {
     )
     expect(result.status, result.stderr + result.stdout).toBe(0)
     expect(readFileSync(resolve(home, 'npm.log'), 'utf8')).toContain('--prefix')
+    expect(readFileSync(resolve(home, 'setup.log'), 'utf8')).toContain('setup')
     expect(readFileSync(resolve(home, 'downloads.log'), 'utf8')).toContain(
       '/releases/download/v1.2.3/familiar.tgz',
     )
