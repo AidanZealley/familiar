@@ -9,6 +9,26 @@ export default defineConfig({
   site: 'https://aidanzealley.github.io',
   base: '/familiar',
   trailingSlash: 'always',
+  vite: {
+    plugins: [
+      {
+        // GitHub Pages serves public/demos/<example>/index.html at the folder
+        // URL the example pages embed; Astro's dev server doesn't. Astro has
+        // removed the base path by the time this sees the URL.
+        name: 'serve-demo-index',
+        apply: 'serve',
+        configureServer(server) {
+          server.middlewares.use((request, _response, next) => {
+            request.url = request.url?.replace(
+              /^(\/demos\/[^/?]+\/)(?=\?|$)/,
+              '$1index.html',
+            )
+            next()
+          })
+        },
+      },
+    ],
+  },
   integrations: [
     starlight({
       title: 'Familiar',
