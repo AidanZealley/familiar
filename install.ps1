@@ -22,12 +22,10 @@ try {
     $package = Join-Path $temporary 'familiar.tgz'
     Invoke-WebRequest "$release/familiar.tgz" -OutFile $package -UseBasicParsing
     $prefix = Join-Path $env:APPDATA 'npm'
-    # npm's shim prefers an adjacent node.exe, even with an older system Node on PATH.
-    $nodeDir = $prefix
-    if (Test-Path (Join-Path $nodeDir 'node.exe')) { $env:PATH = "$nodeDir;$env:PATH" }
+    # Node goes into npm's prefix: npm's shim prefers an adjacent node.exe, even with an older system Node on PATH.
+    if (Test-Path (Join-Path $prefix 'node.exe')) { $env:PATH = "$prefix;$env:PATH" }
     $node = Get-Command node -ErrorAction SilentlyContinue
     $current = if ($node) { [version]((& node --version).TrimStart('v')) } else { [version]'0.0.0' }
-    if ($LASTEXITCODE -and $node) { throw 'Could not run the existing Node installation.' }
     if ($current -lt [version]'24.19.0') {
         $archive = "node-v24.19.0-win-$arch.zip"
         $base = 'https://nodejs.org/dist/v24.19.0'
@@ -38,9 +36,9 @@ try {
         $expected = (Get-Content $checksums | Where-Object { ($_ -split '\s+')[1] -eq $archive }) -split '\s+'
         if (!$expected[0] -or (Get-FileHash $zip -Algorithm SHA256).Hash -ne $expected[0]) { throw 'Node checksum verification failed.' }
         Expand-Archive -LiteralPath $zip -DestinationPath $temporary
-        New-Item -ItemType Directory -Force -Path $nodeDir | Out-Null
-        Copy-Item -Path (Join-Path $temporary "node-v24.19.0-win-$arch\*") -Destination $nodeDir -Recurse -Force
-        $env:PATH = "$nodeDir;$env:PATH"
+        New-Item -ItemType Directory -Force -Path $prefix | Out-Null
+        Copy-Item -Path (Join-Path $temporary "node-v24.19.0-win-$arch\*") -Destination $prefix -Recurse -Force
+        $env:PATH = "$prefix;$env:PATH"
     }
     $nodeBin = Split-Path (Get-Command node).Source
     $env:PATH = "$nodeBin;$prefix;$env:PATH"
@@ -53,12 +51,8 @@ try {
     }
     [Environment]::SetEnvironmentVariable('Path', ($entries -join ';'), 'User')
     Write-Host 'Installed Familiar. PATH is saved for new terminals.'
-    if ($env:FAMILIAR_NO_SETUP -eq '1') {
-        Write-Host 'Run familiar to start guided setup.'
-    } else {
-        & (Join-Path $prefix 'familiar.cmd')
-        if ($LASTEXITCODE -ne 0) { throw 'Setup did not finish. Run familiar to resume.' }
-    }
+    & (Join-Path $prefix 'familiar.cmd')
+    if ($LASTEXITCODE -ne 0) { throw 'Setup did not finish. Run familiar to resume.' }
 } finally {
     Remove-Item -LiteralPath $temporary -Recurse -Force
 }

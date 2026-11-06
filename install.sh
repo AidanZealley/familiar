@@ -58,9 +58,7 @@ main() {
     printf '\n%s\n' "$line" >> "$profile"
   fi
   echo "Installed Familiar. New terminals load PATH from $profile."
-  if [ "${FAMILIAR_NO_SETUP:-0}" = 1 ]; then
-    echo 'Run familiar to start guided setup.'
-  elif [ -r /dev/tty ] && ( : </dev/tty ) 2>/dev/null; then
+  if [ -r /dev/tty ] && ( : </dev/tty ) 2>/dev/null; then
     "$prefix/bin/familiar" </dev/tty
   else
     echo 'No interactive terminal. Open a terminal and run familiar to finish setup.'
