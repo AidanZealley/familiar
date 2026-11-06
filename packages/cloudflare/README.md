@@ -50,6 +50,6 @@ export class Bot extends DurableObject {
 
 This scripted model supplies one response per object opening. A lasting host configures its own provider, credentials, notifications, network policy and tools in the factory. Configure a SQLite Durable Object binding and migration in Wrangler; see the [example's configuration](../../examples/cloudflare-worker/wrangler.jsonc).
 
-Reach the assistant through `use()` so recovery is armed before work starts, and don't call its `dismiss()`. `terminate()` permanently refuses that object ID while keeping history; `status()` reports lifecycle and alarm state.
+Reach the assistant through `use()` so recovery is armed before work starts, and don't call its `dismiss()`. `terminate()` permanently refuses that object ID while keeping history.
 
 Local workerd tests cover reminder delivery after eviction, interrupted-reply recovery and persistent termination. ChatGPT sign-in and real-model operation on Workers have not been verified.
