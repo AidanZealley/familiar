@@ -16,25 +16,18 @@ Construct `DurableFamiliar` with a factory for the assistant's options, and forw
 ```ts
 import { DurableObject } from 'cloudflare:workers'
 import { DurableFamiliar } from '@familiar-ai/cloudflare'
-import { createModels } from '@familiar-ai/core/models'
-import {
-  fauxAssistantMessage,
-  fauxProvider,
-} from '@familiar-ai/core/models/faux'
+import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import { scriptedModels } from '@familiar-ai/core/models/scripted'
 
 export class Bot extends DurableObject {
   readonly familiar = new DurableFamiliar(this.ctx, {
-    familiar: () => {
-      const faux = fauxProvider({ models: [{ id: 'demo' }] })
-      const models = createModels()
-      models.setProvider(faux.provider)
-      faux.setResponses([fauxAssistantMessage('Hello from a Worker.')])
-      return {
-        models,
-        model: { provider: 'faux', modelId: 'demo' },
-        timeZone: 'Europe/London',
-      }
-    },
+    familiar: () => ({
+      models: scriptedModels(() =>
+        fauxAssistantMessage('Hello from a Worker.'),
+      ),
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'Europe/London',
+    }),
   })
 
   override alarm() {
@@ -42,8 +35,8 @@ export class Bot extends DurableObject {
   }
 
   async greet() {
-    return this.familiar.use((assistant) =>
-      assistant.send({
+    return this.familiar.use((familiar) =>
+      familiar.send({
         author: { id: 'owner', name: 'Sam' },
         text: 'Hello',
         requestId: crypto.randomUUID(),
@@ -53,7 +46,7 @@ export class Bot extends DurableObject {
 }
 ```
 
-The factory returns everything `summonFamiliar` takes except storage, the clock and wake handling, which the adapter supplies. The adapter calls it each time the object opens, including after eviction. This scripted model answers once per object opening. A real host registers its provider, credentials, notifications and network policy there.
+The factory returns everything `summonFamiliar` takes except storage, the clock and wake handling, which the adapter supplies. The adapter calls it each time the object opens, including after eviction. This scripted model answers every request alike. A real host registers its provider, credentials, notifications and network policy there.
 
 Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudflare Worker example's [`wrangler.jsonc`](https://github.com/AidanZealley/familiar/blob/main/examples/cloudflare-worker/wrangler.jsonc) is a working configuration.
 
@@ -63,7 +56,7 @@ Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudfl
 - Don't call the assistant's `dismiss()` yourself.
 - `terminate()` permanently refuses that object ID. Its history stays in storage.
 
-While work is running, the adapter keeps a heartbeat alarm. While the assistant sleeps, the alarm is set for its next wake time, such as a reminder.
+While work is running, the adapter keeps a heartbeat alarm, so work a lost process left resumes soon; `heartbeatMs` sets how often, default one minute. While the assistant sleeps, the alarm is set for its next wake time, such as a reminder.
 
 ## Serving HTTP
 
@@ -86,4 +79,4 @@ override fetch(request: Request) {
 
 ## What's been verified
 
-Local workerd tests cover reminder delivery after eviction, recovery of an interrupted reply and persistent termination, all with scripted models. ChatGPT sign-in and real models on Workers haven't been verified.
+Local workerd tests cover reminder delivery, whether the object was evicted or stayed in memory, recovery of an interrupted reply and persistent termination, all with scripted models. ChatGPT sign-in and real models on Workers haven't been verified.
