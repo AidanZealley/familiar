@@ -1,4 +1,4 @@
-import { Type, defineTool } from '../index.ts'
+import { Type, defineTool, familiar } from '../index.ts'
 import {
   fauxAssistantMessage,
   fauxToolCall,
@@ -32,25 +32,27 @@ const echo = definePlugin({
       },
     },
   ],
-  extension: (pluginContext) => {
-    const echoed = async () =>
-      (await pluginContext.authorizedFetch('key', ENDPOINT)).text()
-    return {
-      tools: [
-        defineTool({
-          name: 'echo_key',
-          description: 'Calls the echo service.',
-          parameters: Type.Object({}),
-          execute: async () => {
-            const body = await echoed()
-            return {
-              output: [{ type: 'text', text: `The service said ${body}.` }],
-            }
-          },
-        }),
-      ],
-    }
-  },
+  tools: [
+    defineTool({
+      name: 'echo_key',
+      description: 'Calls the echo service.',
+      parameters: Type.Object({}),
+      execute: async (_args, _api, context) => {
+        const response = await familiar(context).authorizedFetch(
+          'key',
+          ENDPOINT,
+        )
+        return {
+          output: [
+            {
+              type: 'text',
+              text: `The service said ${await response.text()}.`,
+            },
+          ],
+        }
+      },
+    }),
+  ],
 })
 
 async function setup() {

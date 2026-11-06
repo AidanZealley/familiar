@@ -42,21 +42,16 @@ export { localMinute } from './time.ts'
 // Extending Familiar: tools, plugins, their connections and MCP servers.
 export {
   defineTool,
+  familiar,
   Type,
   type Static,
   type TSchema,
-  type FamiliarTool,
-  type FamiliarToolApi,
   type ToolContext,
   type ToolResult,
   type ToolDetails,
+  type ToolServices,
 } from './tools.ts'
-export {
-  definePlugin,
-  type FamiliarPlugin,
-  type PluginContext,
-  type PluginExtension,
-} from './plugins/index.ts'
+export { definePlugin, type FamiliarPlugin } from './plugins/index.ts'
 export {
   ConnectionError,
   memorySecrets,

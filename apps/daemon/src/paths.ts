@@ -34,6 +34,8 @@ export function resolvePaths({
   const source = basename(codeDir) === 'src'
   return {
     dataDir,
+    /** The owner's own plugins, each a file the daemon loads at start. */
+    pluginsDir: resolve(dataDir, 'plugins'),
     // Saved stdio MCP commands inherit this directory, including relative script paths.
     workDir: source ? resolve(codeDir, '../../..') : codeDir,
     cliPath: resolve(codeDir, source ? 'cli.ts' : 'familiar.js'),

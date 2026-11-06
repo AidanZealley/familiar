@@ -1,13 +1,9 @@
-import { Type, defineTool } from '@familiar-ai/core'
+import { Type, defineTool, familiar } from '@familiar-ai/core'
 import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
-import type {
-  PluginContext,
-  PluginFetch,
-  PluginSecret,
-} from '@familiar-ai/core'
+import type { PluginFetch, PluginSecret } from '@familiar-ai/core'
 import type { Scenario } from './scenario.ts'
 
 // A pretend service verifies that a key arrived without returning its value.
@@ -25,26 +21,25 @@ export const demoFetch: PluginFetch = async (input, init) => {
   )
 }
 
-export const checkDemoKey = (context: PluginContext) =>
-  defineTool({
-    name: 'check_demo_key',
-    description: 'Demo only: checks the demo key from the Connections page.',
-    parameters: Type.Object({}),
-    execute: async () => {
-      const response = await context.authorizedFetch(
-        'key',
-        `${DEMO_SERVICE}/check`,
-      )
-      return {
-        output: [
-          {
-            type: 'text',
-            text: await response.text(),
-          },
-        ],
-      }
-    },
-  })
+export const checkDemoKey = defineTool({
+  name: 'check_demo_key',
+  description: 'Demo only: checks the demo key from the Connections page.',
+  parameters: Type.Object({}),
+  execute: async (_args, _api, context) => {
+    const response = await familiar(context).authorizedFetch(
+      'key',
+      `${DEMO_SERVICE}/check`,
+    )
+    return {
+      output: [
+        {
+          type: 'text',
+          text: await response.text(),
+        },
+      ],
+    }
+  },
+})
 
 export const demoSecret: PluginSecret = {
   name: 'key',

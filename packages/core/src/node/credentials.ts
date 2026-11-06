@@ -1,4 +1,4 @@
-import type { Credential, CredentialStore } from '@familiar-ai/core/models'
+import type { Credential, CredentialStore } from '../models/index.ts'
 import { jsonFile } from './json-file.ts'
 
 /**

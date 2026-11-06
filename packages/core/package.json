@@ -18,7 +18,16 @@
     "./models/openai": "./src/models/openai.ts",
     "./models/openrouter": "./src/models/openrouter.ts",
     "./models/faux": "./src/models/faux.ts",
-    "./models/scripted": "./src/models/scripted.ts"
+    "./models/scripted": "./src/models/scripted.ts",
+    "./node": "./src/node/index.ts"
+  },
+  "imports": {
+    "#default-fetch": {
+      "workerd": "./src/global-fetch.ts",
+      "browser": "./src/global-fetch.ts",
+      "node": "./src/node/fetch.ts",
+      "default": "./src/global-fetch.ts"
+    }
   },
   "files": [
     "dist"
@@ -35,7 +44,16 @@
       "./models/openai": "./dist/models/openai.js",
       "./models/openrouter": "./dist/models/openrouter.js",
       "./models/faux": "./dist/models/faux.js",
-      "./models/scripted": "./dist/models/scripted.js"
+      "./models/scripted": "./dist/models/scripted.js",
+      "./node": "./dist/node/index.js"
+    },
+    "imports": {
+      "#default-fetch": {
+        "workerd": "./dist/global-fetch.js",
+        "browser": "./dist/global-fetch.js",
+        "node": "./dist/node/fetch.js",
+        "default": "./dist/global-fetch.js"
+      }
     }
   },
   "scripts": {
@@ -47,9 +65,11 @@
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
     "@modelcontextprotocol/client": "catalog:",
-    "hono": "catalog:",
     "croner": "11.0.0",
+    "hono": "catalog:",
     "minisearch": "7.2.0",
+    "node-fetch": "3.3.2",
+    "request-filtering-agent": "3.2.1",
     "zod": "4.6.7"
   },
   "devDependencies": {

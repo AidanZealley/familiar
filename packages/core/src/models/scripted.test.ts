@@ -1,11 +1,10 @@
 import { expect, test } from 'vitest'
-import { GenerationTask, hook } from '../extensions.ts'
 import { definePlugin, defineTool, Type } from '../index.ts'
 import { testHost } from '../testing.ts'
 import { fauxAssistantMessage, fauxToolCall } from './faux.ts'
 import { scriptedModels, type ScriptedRequest } from './scripted.ts'
 
-test('a script reads who said what and tool results, past notes added after them', async () => {
+test('a script reads who said what and tool results', async () => {
   const requests: ScriptedRequest[] = []
   const models = scriptedModels(
     (request) => {
@@ -25,33 +24,16 @@ test('a script reads who said what and tool results, past notes added after them
       definePlugin({
         name: 'checks',
         title: 'Checks',
-        extension: () => ({
-          tools: [
-            defineTool({
-              name: 'check',
-              description: 'Checks.',
-              parameters: Type.Object({}),
-              execute: async () => ({
-                output: [{ type: 'text', text: 'Checked' }],
-              }),
+        tools: [
+          defineTool({
+            name: 'check',
+            description: 'Checks.',
+            parameters: Type.Object({}),
+            execute: async () => ({
+              output: [{ type: 'text', text: 'Checked' }],
             }),
-          ],
-          // Like recall, a note after whatever the request answers.
-          hooks: [
-            hook(GenerationTask, {
-              beforeRequest: ({ messages }) => ({
-                messages: [
-                  ...messages,
-                  {
-                    role: 'user',
-                    content: 'A note from a plugin',
-                    timestamp: messages.at(-1)!.timestamp,
-                  },
-                ],
-              }),
-            }),
-          ],
-        }),
+          }),
+        ],
       }),
     ],
   })
@@ -79,7 +61,4 @@ test('a script reads who said what and tool results, past notes added after them
       isError: false,
     },
   ])
-  expect(requests[3].context.messages.at(-1)?.content).toBe(
-    'A note from a plugin',
-  )
 })

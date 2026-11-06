@@ -7,9 +7,10 @@ description: Familiar's commands, settings file, data location, updates and remo
 
 ```sh
 familiar             # Guided setup, or resume it
-familiar status      # Name, service status and URLs
+familiar status      # Name, service status, URLs and the plugins folder
 familiar rename      # Change the assistant's name. Pass the new name or answer the prompt
 familiar sign-in     # Sign in with ChatGPT again
+familiar restart     # Restart the service, such as after changing your plugins
 familiar logs        # Follow the service logs
 familiar update      # Install the latest release and restart
 familiar uninstall   # Remove the service, keeping your data
@@ -44,7 +45,7 @@ The **Settings** menu in the web app switches between light, dark and system app
 | macOS    | `~/Library/Application Support/Familiar` |
 | Windows  | `%LOCALAPPDATA%\Familiar`                |
 
-It holds the conversation, memory, your ChatGPT login, connection keys and notification subscriptions. Keep it private.
+It holds the conversation, memory, your ChatGPT login, connection keys, notification subscriptions and [your own plugins](/familiar/use/extend/). Keep it private.
 
 Dates and reminders use the computer's time zone when Familiar starts. Restart it after you change time zones.
 

@@ -1,6 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
-import { defineTool } from '../tools.ts'
+import { defineTool, familiar } from '../tools.ts'
 import { weekdayMinute } from '../time.ts'
 import {
   addSchedule,
@@ -55,6 +55,7 @@ export function scheduleTools(
     replay: 'safe',
     execute: async (args, api, context) => {
       const id = `s${api.taskId}`
+      const creator = await familiar(context).author()
       const created = await api.commit(async (tx) => {
         const schedules = await tx.doc(Schedules)
         if (schedules[id]) {
@@ -62,7 +63,7 @@ export function scheduleTools(
         }
         const added = addSchedule(
           schedules,
-          { id, ...args, creator: api.author },
+          { id, ...args, creator },
           api.now(),
           timeZone,
           maxSchedules,

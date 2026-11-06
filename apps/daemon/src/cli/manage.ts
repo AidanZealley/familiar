@@ -62,6 +62,11 @@ export async function signIn() {
   }
 }
 
+export function restart() {
+  openService(resolvePaths()).restart()
+  console.log('Restarted Familiar.')
+}
+
 export function status() {
   const paths = resolvePaths()
   const settings = readSettings(paths.dataDir, {})
@@ -69,6 +74,7 @@ export function status() {
   console.log(`Name: ${settings.name}`)
   console.log(`Service: ${running ? 'running' : 'stopped'}`)
   console.log(`Local: http://127.0.0.1:${settings.port}`)
+  console.log(`Plugins: ${paths.pluginsDir}`)
   const url = publishedUrl(settings.port)
   if (url) {
     console.log(`Tailnet: ${url}`)

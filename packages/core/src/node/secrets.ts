@@ -1,4 +1,4 @@
-import type { SecretStore } from '@familiar-ai/core'
+import type { SecretStore } from '../connections/index.ts'
 import { jsonFile } from './json-file.ts'
 
 type SecretsFile = Record<string, Record<string, Record<string, string>>>

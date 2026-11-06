@@ -28,3 +28,5 @@ Connections shows each server's status, for example **Ready**, **Needs a token**
 :::caution
 A local command runs with the same permissions as Familiar's own user account. Only add servers you trust. Anyone who can reach your Familiar can add one.
 :::
+
+To give Familiar tools of your own, written in TypeScript, see [Extend your Familiar](/familiar/use/extend/).

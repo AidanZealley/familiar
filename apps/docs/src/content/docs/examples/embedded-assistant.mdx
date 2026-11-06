@@ -55,19 +55,21 @@ defineTool({
   name: 'assign_task_to_me',
   description: 'Assigns a task to the person asking.',
   parameters: Type.Object({ taskId }),
-  execute: ({ taskId }, api) =>
-    run(() => {
-      // The person who asked, never a tool argument. Undefined for
-      // work nobody asked for, such as memory upkeep.
-      if (!api.author) {
+  execute: async ({ taskId }, _api, context) => {
+    // The person who asked, never a tool argument. Undefined for
+    // work nobody asked for, such as memory upkeep.
+    const author = await familiar(context).author()
+    return run(() => {
+      if (!author) {
         throw new BoardError('Nobody asked, so there is no one to assign.')
       }
-      return `Assigned ${describeTask(board.assign(taskId, api.author))}.`
-    }),
+      return `Assigned ${describeTask(board.assign(taskId, author))}.`
+    })
+  },
 })
 ```
 
-Every board tool is available to everyone in the conversation. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory upkeep. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against `api.author`, so the same rules apply to the UI and the tools.
+Every board tool is available to everyone in the conversation. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory upkeep. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against the author, so the same rules apply to the UI and the tools.
 
 ## Only what it needs
 

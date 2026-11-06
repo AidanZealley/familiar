@@ -11,7 +11,13 @@ import { SCHEDULED_KIND } from '../conversation/message.ts'
 import { type Notification, type NotificationContext } from '../index.ts'
 import { withHarness } from '../memory/testing.ts'
 import { fakeClock, inputOf, TEST_ZONE, testHost, timeAt } from '../testing.ts'
-import { defineTool, Type, type Author, type FamiliarPlugin } from '../index.ts'
+import {
+  defineTool,
+  familiar,
+  Type,
+  type Author,
+  type FamiliarPlugin,
+} from '../index.ts'
 import { Schedules } from './schedules.ts'
 
 // Each schedule's task, end to end through a Familiar: the model, the
@@ -229,19 +235,17 @@ test('a one-off runs at its time for whoever asked, whatever request IDs people 
       {
         name: 'identity',
         title: 'Identity',
-        extension: () => ({
-          tools: [
-            defineTool({
-              name: 'identify',
-              description: 'Report the creator',
-              parameters: Type.Object({}),
-              execute: async (_args, api) => {
-                seen.push(api.author)
-                return { output: [{ type: 'text', text: 'Identified' }] }
-              },
-            }),
-          ],
-        }),
+        tools: [
+          defineTool({
+            name: 'identify',
+            description: 'Report the creator',
+            parameters: Type.Object({}),
+            execute: async (_args, _api, context) => {
+              seen.push(await familiar(context).author())
+              return { output: [{ type: 'text', text: 'Identified' }] }
+            },
+          }),
+        ],
       },
     ],
   })
@@ -318,19 +322,7 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
 })
 
 test('a reminder still notifies once through a restart, a failed run and a busy conversation, and a cancelled one never runs', async () => {
-  let pluginNotify!: (notification: Notification) => Promise<void>
-  const f = await setup({
-    plugins: [
-      {
-        name: 'notifier',
-        title: 'Notifier',
-        extension: (context) => {
-          pluginNotify = context.notify
-          return {}
-        },
-      },
-    ],
-  })
+  const f = await setup()
   const six = await f.schedule({ at: '2026-10-21 18:00' })
   const half = await f.schedule({ at: '2026-10-21 18:30' })
   const seven = await f.schedule({ at: '2026-10-21 19:00' })
@@ -401,15 +393,6 @@ test('a reminder still notifies once through a restart, a failed run and a busy 
   expect(f.notifications).toHaveLength(2)
   expect(await f.scheduledEntries()).toHaveLength(3)
   expect(await f.schedules()).toEqual({})
-
-  // A plugin's notification carries no schedule context, even when it tries
-  // to claim one.
-  await (pluginNotify as (...args: unknown[]) => Promise<void>)(
-    { title: 'Parcel', body: 'Delivered' },
-    { scheduleId: six, creator: { id: 'mallory', name: 'Mallory' } },
-  )
-  expect(f.notifications.at(-1)).toEqual({ title: 'Parcel', body: 'Delivered' })
-  expect(f.contexts.at(-1)).toBeUndefined()
 })
 
 test('a daily repeat woken late delivers once, marked late, keeps its local time across the clock change, and follows a new zone', async () => {

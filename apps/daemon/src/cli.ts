@@ -8,6 +8,7 @@ Run familiar without a command for guided setup.
 Commands:
   status    Show the name, service status and URLs
   rename    Change Familiar's name, optionally passing the new name
+  restart   Restart the service, such as after changing your plugins
   serve     Run Familiar in the foreground
   sign-in   Sign in with ChatGPT
   update    Update the installed app and restart its service
@@ -38,6 +39,9 @@ try {
         break
       case 'rename':
         await (await import('./cli/manage.ts')).rename(positionals[1])
+        break
+      case 'restart':
+        ;(await import('./cli/manage.ts')).restart()
         break
       case 'logs':
         ;(await import('./cli/manage.ts')).logs()

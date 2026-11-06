@@ -1,7 +1,7 @@
 import type { Notification } from '@familiar-ai/core'
 import type { PushHost, PushSubscriptionJson } from '@familiar-ai/core/http'
 import webpush from 'web-push'
-import { jsonFile } from './json-file.ts'
+import { jsonFile } from '@familiar-ai/core/node'
 
 export type PushOptions = {
   /**
