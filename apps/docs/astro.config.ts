@@ -3,12 +3,6 @@ import { defineConfig } from 'astro/config'
 
 const repository = 'https://github.com/AidanZealley/familiar'
 
-// The site reads from outside apps/docs: the packages, the example demos it
-// builds and example source pages import with `?raw`. The deploy workflow
-// only rebuilds when its `paths` change, so reading from a new folder means
-// adding it to `paths` in .github/workflows/docs.yml, or that folder's
-// changes never reach the live site.
-
 // GitHub Pages serves this project site from /familiar/. Markdown links
 // include that base; `pnpm build:docs` fails on any that don't resolve.
 export default defineConfig({
