@@ -45,12 +45,12 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className={cn(
-            'block w-full text-left text-sm leading-relaxed',
-            !expanded && 'line-clamp-2',
-          )}
+          className="block w-full text-left text-sm leading-relaxed"
         >
-          {schedule.prompt}
+          {/* Clamped inside: the button's own `block` would override it. */}
+          <span className={cn(!expanded && 'line-clamp-2')}>
+            {schedule.prompt}
+          </span>
         </button>
       </div>
       <AlertDialog>
