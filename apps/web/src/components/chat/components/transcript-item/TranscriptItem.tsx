@@ -1,26 +1,15 @@
-import { AlarmClockIcon } from 'lucide-react'
-import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
+import { Marker, MarkerContent } from '@/components/ui/marker'
 import { formatTime } from '@/lib/format'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
 import { Thinking } from '../thinking'
+import { ScheduledPrompt } from './components/scheduled-prompt'
 import type { TranscriptItemProps } from './types'
 
 /** One item, with the time a turn was answered under its answer. */
 export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
-  // Familiar's own earlier prompt, not the owner's words: a quiet line.
   if (item.type === 'scheduled') {
-    return (
-      <Marker className="justify-center text-xs">
-        <MarkerIcon>
-          <AlarmClockIcon />
-        </MarkerIcon>
-        <MarkerContent className="min-w-0 text-center">
-          Scheduled · {item.prompt}
-          {item.queued && ' (waiting)'}
-        </MarkerContent>
-      </Marker>
-    )
+    return <ScheduledPrompt item={item} />
   }
 
   if (item.type === 'compaction') {
