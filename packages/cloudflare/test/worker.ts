@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers'
 import type { Notification } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { DurableFamiliar, FamiliarTerminated } from '../src/index.ts'
-import { scriptedModels } from './model.ts'
+import { testModels } from './model.ts'
 
 // The Worker the workerd tests run: one DurableFamiliar per name on a
 // scripted model, reached without auth because only the tests can reach it.
@@ -19,7 +19,7 @@ export class Bot extends DurableObject<Env> {
   readonly instance = crypto.randomUUID()
   readonly familiar = new DurableFamiliar(this.ctx, {
     familiar: () => ({
-      models: scriptedModels(),
+      models: testModels(),
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: this.env.TIME_ZONE,
       notify: (notification) =>
