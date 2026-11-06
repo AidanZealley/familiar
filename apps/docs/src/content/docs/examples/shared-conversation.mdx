@@ -88,14 +88,15 @@ In a real app each person's browser signs in to your host and sends its own cook
 
 ## Tools act for the person who asked
 
-A tool never takes the person as an argument. It reads `api.author`, which Familiar resolves from the message that started the run. When Ben sends while Ana's run is going, Ana's tool still runs as Ana, and Ben's as Ben:
+A tool never takes the person as an argument. It reads `familiar(context).author()`, which Familiar resolves from the message that started the run. When Ben sends while Ana's run is going, Ana's tool still runs as Ana, and Ben's as Ben:
 
 ```ts
 defineTool({
   name: 'count_me_in',
   description: 'Adds the person asking to the guest list.',
   parameters: Type.Object({}),
-  execute: async (_args, { author }) => {
+  execute: async (_args, _api, context) => {
+    const author = await familiar(context).author()
     if (!author) {
       return result('Nobody asked, so there is no one to add.', true)
     }

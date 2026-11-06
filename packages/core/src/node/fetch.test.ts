@@ -1,6 +1,6 @@
 import { PassThrough, Readable } from 'node:stream'
 import { expect, test } from 'vitest'
-import { guardedFetch, responseBody } from './fetch.ts'
+import { defaultFetch, responseBody } from './fetch.ts'
 
 test('bodies stream every byte, and a download error fails the read rather than the process', async () => {
   const response = new Response(
@@ -31,5 +31,5 @@ test.each([
   'http://100.100.1.1/', // The tailnet
   'http://localhost/',
 ])('refuses %s', async (url) => {
-  await expect(guardedFetch(url)).rejects.toThrow(/not allowed/)
+  await expect(defaultFetch(url)).rejects.toThrow(/not allowed/)
 })

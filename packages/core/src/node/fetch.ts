@@ -1,5 +1,5 @@
 import type { Readable } from 'node:stream'
-import type { PluginFetch } from '@familiar-ai/core'
+import type { PluginFetch } from '../connections/index.ts'
 import nodeFetch, { type RequestInit as NodeRequestInit } from 'node-fetch'
 import { useAgent } from 'request-filtering-agent'
 
@@ -32,13 +32,14 @@ export function responseBody(source: Readable): ReadableStream<Uint8Array> {
 }
 
 /**
- * The fetch plugins get. The daemon can reach the owner's LAN and tailnet, so
- * this refuses every address that isn't public unicast, checked on the
- * address each connection actually uses, and again on every redirect.
+ * Plugins' fetch on Node, unless the host passes its own. A Node process can
+ * usually reach its owner's LAN and tailnet, so this refuses every address
+ * that isn't public unicast, checked on the address each connection actually
+ * uses, and again on every redirect.
  * request-filtering-agent does the checking, as an http.Agent; Node's own
  * fetch can't take one, hence node-fetch, converted back to a web Response.
  */
-export const guardedFetch: PluginFetch = async (input, init) => {
+export const defaultFetch: PluginFetch = async (input, init) => {
   const response = await nodeFetch(String(input), {
     ...(init as NodeRequestInit),
     agent: (url) => useAgent(url.href),

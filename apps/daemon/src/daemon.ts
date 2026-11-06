@@ -1,20 +1,22 @@
+import { mkdirSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar } from '@familiar-ai/core'
+import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
-import { guardedFetch } from './fetch.ts'
 import { stdioTransport } from './mcp-stdio.ts'
-import { lockDataDir } from './lock.ts'
 import { ensureDataDir } from './paths.ts'
 import { openModels } from './models.ts'
 import { webPersona } from './persona.ts'
+import { loadPlugins } from './plugins.ts'
 import { openPush } from './push.ts'
-import { fileSecretStore } from './secrets.ts'
 import { serveFamiliar } from './serve.ts'
-import { webTools } from './tools/index.ts'
+import { webPlugin } from './web/plugin.ts'
 
 export async function serve() {
   ensureDataDir(config.dataDir)
   lockDataDir(dataPath('daemon.lock'))
+  // Created so the owner can find where their own plugins go.
+  mkdirSync(config.pluginsDir, { recursive: true })
 
   const push = openPush({ path: dataPath, contact: config.pushContact })
 
@@ -31,9 +33,8 @@ export async function serve() {
     // Owners sign in to ChatGPT from the web UI, through the Models requests use.
     account: { login: { getDeviceId: deviceId, agentName: config.name } },
     notify: push.notify,
-    plugins: [webTools],
+    plugins: [webPlugin, ...(await loadPlugins(config.pluginsDir))],
     secrets: fileSecretStore(dataPath('secrets.json')),
-    fetch: guardedFetch,
     mcpFetch: fetch,
     mcpStdio: stdioTransport,
   })

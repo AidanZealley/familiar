@@ -1,0 +1,40 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+header,
+form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+header {
+  justify-content: space-between;
+}
+input {
+  flex: 1;
+  padding: 0.4rem;
+}
+#sign-in {
+  flex-direction: column;
+  align-items: stretch;
+}
+#transcript {
+  list-style: none;
+  padding: 0;
+}
+#transcript li {
+  white-space: pre-wrap;
+  margin: 0.75rem 0;
+}
+.author {
+  font-weight: 600;
+}
+.error {
+  color: crimson;
+}

@@ -1,0 +1,65 @@
+---
+title: Node server
+description: One Familiar in a Node process with its own sign-in, UI and a plugin with a secret, built from the same pieces as the daemon.
+---
+
+import { Code, LinkButton } from '@astrojs/starlight/components'
+import server from '../../../../../../examples/node-server/src/server.ts?raw'
+import auth from '../../../../../../examples/node-server/src/auth.ts?raw'
+import access from '../../../../../../examples/node-server/src/access.ts?raw'
+import github from '../../../../../../examples/node-server/src/plugins/github.ts?raw'
+
+This is Familiar from scratch on Node: a server you own, a password sign-in, a small UI and one plugin that uses a secret. The installable daemon is built from the same pieces, plus its own opinions: web tools, its UI, network-as-auth and an installer.
+
+<LinkButton
+  href="https://github.com/AidanZealley/familiar/tree/main/examples/node-server"
+  target="_blank"
+  rel="noopener noreferrer"
+  variant="minimal"
+  icon="github"
+  iconPlacement="start"
+>
+  View code
+</LinkButton>
+
+## Run it
+
+```sh
+cp .env.example .env    # set a password, a session secret and an OpenRouter key
+pnpm install
+pnpm --filter @familiar-example/node-server dev       # the server
+pnpm --filter @familiar-example/node-server dev:web   # the UI
+```
+
+## The server
+
+<Code code={server} lang="ts" title="src/server.ts" />
+
+- **Storage** is Pi Durable's SQLite, in a data directory. `lockDataDir` from `@familiar-ai/core/node` stops a second process opening it, which Pi Durable doesn't allow.
+- **Secrets** the owner sets go in a private file through `fileSecretStore`. Plugins never read them.
+- **The network.** There's no `fetch` option. On Node, Familiar's default refuses every address that isn't public, so the model can't steer a tool to your router.
+- **CSRF.** The session is a cookie, and a browser sends cookies with requests from any site. `csrf()` refuses cross-site requests before anything reads them. A host that signs requests with a bearer token instead doesn't need it.
+
+## Signing in
+
+<Code code={auth} lang="ts" title="src/auth.ts" />
+
+`authenticate` is what `createHttpApi` asks about every request. It returns the person, or `undefined` for a 401. Here there's one owner, so the answer is either the owner or nobody.
+
+## What the owner may do
+
+<Code code={access} lang="ts" title="src/access.ts" />
+
+A list rather than `() => true`, so an operation Familiar adds later is refused until you choose to allow it.
+
+## A plugin with a secret
+
+<Code code={github} lang="ts" title="src/plugins/github.ts" />
+
+The tool is a plain Pi Durable tool. `familiar(context).authorizedFetch` adds the GitHub token only to `GET https://api.github.com/issues`, and refuses anything else without sending it. The token's value never reaches the tool's code.
+
+## Not covered
+
+- Sign-in attempts aren't rate-limited. Add that before exposing the server to the internet.
+- Signing out clears one browser's cookie. Changing `FAMILIAR_SESSION_SECRET` signs every browser out.
+- One person. For several, return your real users from `authenticate` and narrow `allow` for each. See [Serve the API](/familiar/build/serve-the-api/).

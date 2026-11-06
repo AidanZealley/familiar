@@ -13,7 +13,7 @@ The installer gives you a complete assistant. The npm packages give you the same
 | `@familiar-ai/client`     | A browser-safe store that mirrors the API, derives a chat transcript and offers React bindings    |
 | `@familiar-ai/cloudflare` | Runs one Familiar in a SQLite-backed Cloudflare Durable Object                                    |
 
-Core is portable. It has no Node-only code, starts no server and renders nothing. The repository's Node daemon and Cloudflare Worker are two hosts built on it.
+Core is portable. It starts no server and renders nothing. Its Node-only building blocks, file-backed secrets and a data-directory lock, are a separate entry, `@familiar-ai/core/node`. The installable daemon, the [Node server example](/familiar/examples/node-server/) and the Cloudflare Worker are hosts built from the same pieces.
 
 ## What your host owns
 
@@ -24,8 +24,8 @@ A host opens one Familiar over one storage. It supplies:
 - **Time zone.** An IANA zone such as `Europe/London`. Memory dates, upkeep and schedules use it.
 - **Identity.** Who sent each message. Familiar records an `Author` with a stable `id` and a display `name`. It doesn't authenticate anyone.
 - **Audience.** Which Familiar each person reaches. Everyone a Familiar serves shares its conversation, memory, tools and schedules, so separate audiences, such as tenants, get separate Familiars over separate storage.
-- **Authorization.** Which operations each person may use, with `createHttpApi`'s `allow`, and narrower rules about your app's data and actions, which tools check against `api.author`. Attribution grants nothing.
-- **Network policy.** A `fetch` for plugins that refuses private addresses your process can reach, and the MCP transports, `mcpFetch` and `mcpStdio`, which decide what MCP servers may reach or run. Familiar only checks an MCP server's shape.
+- **Authorization.** Which operations each person may use, with `createHttpApi`'s `allow`, and narrower rules about your app's data and actions, which tools check against the call's author, `familiar(context).author()`. Attribution grants nothing.
+- **Network policy.** Tools' `fetch`. On Node it defaults to one that refuses private addresses, and in Workers and browsers to the runtime's. Pass your own to change that. Also the MCP transports, `mcpFetch` and `mcpStdio`, which decide what MCP servers may reach or run. Familiar only checks an MCP server's shape.
 - **Notifications.** An optional `notify` for scheduled replies. Your host chooses who receives each one, and stores and authorizes any Web Push subscriptions.
 - **Browser protection.** Cross-site request protection if you authenticate browsers with cookies, and your pages' own framing and content policies. `createHttpApi` adds neither.
 
@@ -44,3 +44,4 @@ Familiar bounds what it admits: request bodies, message and schedule sizes, how 
 3. [Serve the API](/familiar/build/serve-the-api/) puts it behind HTTP with your own auth.
 4. [Connect a frontend](/familiar/build/connect-a-frontend/) renders it in a browser.
 5. [Customise your assistant](/familiar/build/customise/) adds a persona, plugins and tools.
+6. The [Node server example](/familiar/examples/node-server/) puts all of it together in one runnable app.

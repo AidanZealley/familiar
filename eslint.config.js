@@ -7,22 +7,24 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 // The packages are what other apps embed, so they must run anywhere a host can
-// (Node, Cloudflare Workers, browsers). Node-only code belongs in apps/daemon.
+// (Node, Cloudflare Workers, browsers). Node-only code belongs in core's
+// `node` entry, the building blocks for Node hosts, or in apps/daemon.
 const nodeOnly = [
   {
     group: ['node:*'],
-    message: 'Packages must stay portable; Node-only code goes in apps/daemon.',
+    message:
+      'Packages must stay portable; Node-only code goes in packages/core/src/node or apps/daemon.',
   },
   {
     regex: '^@earendil-works/[^/]+/(.+/)?node$',
-    message: 'Packages must stay portable; Node-only code goes in apps/daemon.',
+    message:
+      'Packages must stay portable; Node-only code goes in packages/core/src/node or apps/daemon.',
   },
 ]
 
 // Workers-only code belongs in packages/cloudflare, the one package that
 // targets a single runtime.
-const portable = [
-  ...nodeOnly,
+const workersOnly = [
   {
     group: ['cloudflare:*', '@familiar-ai/cloudflare'],
     message:
@@ -34,6 +36,8 @@ const portable = [
       'Packages must stay portable; Workers-only code goes in packages/cloudflare.',
   },
 ]
+
+const portable = [...nodeOnly, ...workersOnly]
 
 // The client ships to browsers, so it shares core's and Pi's types but never
 // their code. Chord is the exception: the client applies its ops.
@@ -93,6 +97,15 @@ export default defineConfig([
       '@typescript-eslint/no-restricted-imports': [
         'error',
         { patterns: nodeOnly },
+      ],
+    },
+  },
+  {
+    files: ['packages/core/src/node/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { patterns: workersOnly },
       ],
     },
   },

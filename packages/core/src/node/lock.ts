@@ -1,9 +1,10 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 /**
- * Claim the data directory for this process. Pi Durable allows one process
- * per storage and has no cross-process locking, so a second daemon (say,
- * `pnpm dev` while the service runs) must stop before it opens anything.
+ * Claim a data directory for this process, through a lock file at `path`.
+ * Pi Durable allows one process per storage and has no cross-process
+ * locking, so a second process must stop before it opens anything. Throws
+ * while another live process holds it; a crashed one's lock is taken over.
  */
 export function lockDataDir(path: string) {
   try {
@@ -14,10 +15,10 @@ export function lockDataDir(path: string) {
     }
     const owner = Number(readFileSync(path, 'utf8'))
     if (isRunning(owner)) {
-      console.error(
-        `Familiar is already running (process ${owner}). Stop it first, e.g. systemctl --user stop familiar.`,
+      throw new Error(
+        `Familiar is already running (process ${owner}). Stop it first.`,
+        { cause: error },
       )
-      process.exit(1)
     }
     // Left behind by a process that crashed.
     writeFileSync(path, String(process.pid), { mode: 0o600 })

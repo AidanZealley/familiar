@@ -44,6 +44,7 @@ beforeEach(() => {
         : 'lib/node_modules/familiar/familiar.js',
     ),
     dataDir: '/private/data',
+    pluginsDir: '/private/data/plugins',
     webDir: '/web',
     workDir: '/app',
   })
@@ -83,6 +84,7 @@ test('source checkouts cannot accidentally install a second copy through update'
   vi.mocked(resolvePaths).mockReturnValue({
     cliPath: '/repo/apps/daemon/src/cli.ts',
     dataDir: '/private',
+    pluginsDir: '/private/plugins',
     webDir: '/web',
     workDir: '/app',
   })

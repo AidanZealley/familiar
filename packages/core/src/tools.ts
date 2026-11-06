@@ -1,14 +1,14 @@
-import type { Context, JsonValue } from '@earendil-works/chord'
-import type { Static, TSchema } from '@earendil-works/pi-ai'
-import {
-  defineTool as piDefineTool,
-  type TaskId,
-  type ToolExecutionApi,
-  type ToolExecutionResult,
-  type ToolRegistration,
-  type ToolTaskInput,
-  type Tx,
+import type { Context, ContextKey, JsonValue } from '@earendil-works/chord'
+import { withContextValue } from '@earendil-works/chord/context'
+import type { TSchema } from '@earendil-works/pi-ai'
+import type {
+  TaskId,
+  ToolExecutionResult,
+  ToolRegistration,
+  ToolTaskInput,
+  Tx,
 } from '@earendil-works/pi-durable'
+import type { PluginFetch } from './connections/index.ts'
 import {
   entriesOf,
   MESSAGE_KIND,
@@ -17,13 +17,14 @@ import {
   type MessageData,
   type ScheduledData,
 } from './conversation/message.ts'
+import type { Notification } from './notify.ts'
 
 /**
- * Familiar's tools: Pi's tool definition, plus the person each call runs for,
- * read from the stored input that started it. Hosts' tools and core's own
- * tools that act for a person are defined with this.
+ * Familiar's tools are plain Pi tools. What Familiar adds reaches each call
+ * through Pi's context, where `familiar(context)` reads it.
  */
 
+export { defineTool } from '@earendil-works/pi-durable'
 export { Type } from '@earendil-works/pi-ai'
 export type { Static, TSchema } from '@earendil-works/pi-ai'
 
@@ -32,51 +33,69 @@ export type ToolContext = Context
 export type ToolResult<TDetails extends JsonValue = JsonValue> =
   ToolExecutionResult<TDetails>
 
-/** Pi's tool API, plus who the call runs for. */
-export type FamiliarToolApi<TDetails extends JsonValue = JsonValue> =
-  ToolExecutionApi<TDetails> & {
-    /**
-     * The person this call runs for: the author of the message that started
-     * it, or the creator of a scheduled run, read from storage, never from
-     * the tool's arguments. Undefined for other work, such as memory upkeep.
-     * A tool that narrows what someone
-     * may do with its data or actions checks it against this.
-     */
-    readonly author: Author | undefined
-  }
-
-export type FamiliarTool<
-  TParameters extends TSchema = TSchema,
-  TDetails extends JsonValue = JsonValue,
-> = Omit<ToolRegistration<TParameters, TDetails>, 'execute'> & {
-  execute(
-    args: Static<TParameters>,
-    api: FamiliarToolApi<TDetails>,
-    context: Context,
-  ): Promise<ToolResult<TDetails>>
+/** What Familiar gives each tool call. */
+export type ToolServices = {
+  /** The owner's IANA time zone. Write times with `localMinute`. */
+  timeZone: string
+  notify(notification: Notification): Promise<void>
+  /** The host's network access. On Node it refuses private addresses. */
+  fetch: PluginFetch
+  /**
+   * `fetch`, with the named secret attached, only if the request matches what
+   * the plugin declared for it; otherwise throws without sending. The tool
+   * never sees the value. Throws a message the model reads as "not
+   * connected" when it isn't set. Redirects come back unfollowed.
+   */
+  authorizedFetch(
+    secret: string,
+    input: string | URL,
+    init?: RequestInit,
+  ): Promise<Response>
+  /**
+   * The person this call runs for: the author of the message that started
+   * it, or the creator of a scheduled run, read from storage, never from the
+   * tool's arguments. Undefined for other work, such as memory upkeep. A
+   * tool that narrows what someone may do checks it against this.
+   */
+  author(): Promise<Author | undefined>
 }
 
-/** Pi owns execution; Familiar adds the person the call runs for. */
-export function defineTool<
-  TParameters extends TSchema,
-  TDetails extends JsonValue = JsonValue,
->(
-  tool: FamiliarTool<TParameters, TDetails>,
-): ToolRegistration<TParameters, TDetails> {
-  return piDefineTool({
+// A global symbol, so a plugin's own copy of core finds the same services.
+const servicesKey: ContextKey<ToolServices> = {
+  token: Symbol.for('familiar.toolServices'),
+}
+
+/** The services for the call `context` belongs to. */
+export function familiar(context: Context): ToolServices {
+  const services = context.value(servicesKey)
+  if (!services) {
+    throw new Error('This tool needs a Familiar to run it.')
+  }
+  return services
+}
+
+/** `tool`, given `services` and its call's author whenever it runs. */
+export function withServices<P extends TSchema, D extends JsonValue>(
+  tool: ToolRegistration<P, D>,
+  services: Omit<ToolServices, 'author'>,
+): ToolRegistration<P, D> {
+  return {
     ...tool,
-    execute: async (args, api, context) => {
-      const author = await api.commit(
-        (tx) => toolAuthor(tx, api.taskId),
-        context,
-      )
-      // Inherit Pi's live getters rather than evaluating them into snapshots.
-      const invocation = Object.create(api, {
-        author: { value: author, enumerable: true },
-      }) as FamiliarToolApi<TDetails>
-      return tool.execute(args, invocation, context)
-    },
-  })
+    execute: (args, api, context) =>
+      tool.execute(
+        args,
+        api,
+        withContextValue(
+          servicesKey,
+          {
+            ...services,
+            author: () =>
+              api.commit((tx) => toolAuthor(tx, api.taskId), context),
+          },
+          context,
+        ),
+      ),
+  }
 }
 
 /**

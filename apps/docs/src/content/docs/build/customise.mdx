@@ -18,26 +18,32 @@ import connected from '../../../../snippets/connected-plugin.ts?raw'
 
 ## Plugins
 
-The daemon includes web search and page reading by default. Embedded core has no web tools. Add native tools through the existing plugin API. A plugin has a stable `name`, a `title` for the Connections page, optional `secrets` and an `extension` function that returns tools and anything else Pi extensions support.
+The daemon includes web search and page reading. Core has no tools of its own beyond time, memory and schedules. A plugin adds yours: plain Pi Durable tools, grouped under a stable `name` with a `title` for the Connections page and any `secrets` they share.
 
-Import the helpers from `@familiar-ai/core` rather than installing your own copy of Pi:
+Import `defineTool` and `Type` from `@familiar-ai/core` rather than installing your own copy of Pi, so they match the Pi version Familiar runs:
 
 <Code code={plugin} lang="ts" title="greeting.ts" />
 
 Inside `execute`:
 
-- `api.author` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author. Familiar reads it from the stored message, never from the tool's arguments.
-- Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against `api.author`, or the app API's behind it.
-- The third argument is the call's context. Pass its `abortSignal` to anything you can cancel.
+- `familiar(context)` gives the call what Familiar provides: `fetch`, `authorizedFetch`, `notify`, `timeZone` and `author()`.
+- `await familiar(context).author()` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author. Familiar reads it from the stored message, never from the tool's arguments.
+- Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against the author, or the app API's behind it.
+- `context.abortSignal` is set when the call can be cancelled. Pass it to anything you can cancel.
 - `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.
 
 ## Secrets and network access
 
-A plugin declares its secrets and where each may be sent. The owner sets the value through the Connections API. Familiar never passes the value to plugin code. `authorizedFetch` attaches the secret only to a request whose origin, method and path match the declaration, and throws otherwise:
+A plugin declares its secrets and where each may be sent. The owner sets the value through the Connections API. Familiar never passes the value to plugin code.
+
+`familiar(context)` has two ways to make a request:
+
+- `fetch(url, init?)` is the host's network access, for requests that need no secret.
+- `authorizedFetch(secret, url, init?)` is the same `fetch` with the named secret attached, only if the request's origin, method and path match the declaration. Otherwise it throws without sending.
 
 <Code code={connected} lang="ts" title="tasks.ts" />
 
-The context's `fetch` and `authorizedFetch` are the host's `fetch`. If your process can reach private, loopback or tailnet addresses, that `fetch` must refuse them, both when it connects and on every redirect. A model can be talked into fetching any URL. The daemon's [guarded fetch](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/fetch.ts) is a Node example. A Cloudflare Worker can't reach those addresses, so it can pass its own `fetch`.
+A model can be talked into fetching any URL, so `fetch` must refuse private, loopback and tailnet addresses the process can reach, both when it connects and on every redirect. On Node, Familiar's default does. In Workers and browsers, which can't reach those addresses, the default is the runtime's `fetch`. Pass `fetch` to `summonFamiliar` only to replace that policy.
 
 Familiar doesn't scrub authenticated responses or tool output. Whatever a tool returns, the model reads.
 
@@ -53,8 +59,8 @@ The owner can add MCP servers at runtime through `familiar.mcp` or the `/mcp` ro
 
 ## Data that belongs to your host
 
-Keep your app's own records in your app. Familiar's storage holds the conversation, memory, schedules and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check `api.author` for permission there.
+Keep your app's own records in your app. Familiar's storage holds the conversation, memory, schedules and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check the call's author for permission there.
 
-## Advanced extensions
+## Pi's own types and helpers
 
-`@familiar-ai/core/extensions` exports Pi Durable's extension types and helpers: tasks, hooks, documents, tool search and code mode. They follow the bundled Pi version. Familiar doesn't wrap them in its own compatibility layer, and hosts never receive Familiar's running harness.
+`@familiar-ai/core/extensions` exports Pi Durable's types and helpers, such as `ToolExecutionApi` and documents for a tool's state. They follow the bundled Pi version. A plugin contributes tools only, and hosts never receive Familiar's running harness.

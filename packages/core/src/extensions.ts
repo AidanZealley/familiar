@@ -22,6 +22,7 @@ export type {
 } from '@earendil-works/pi-ai'
 export {
   defineExtension,
+  defineTool,
   section,
   hook,
   wrapTool,
@@ -71,4 +72,4 @@ export * from '@earendil-works/pi-durable/tools'
 export * from '@earendil-works/pi-durable/tool-search'
 export * from '@earendil-works/pi-durable/codemode'
 
-export { defineTool, type FamiliarToolApi } from './tools.ts'
+export { familiar, type ToolServices } from './tools.ts'

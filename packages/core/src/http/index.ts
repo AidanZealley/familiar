@@ -75,7 +75,7 @@ export type HttpApi = ReturnType<typeof routes>
  * all read its history and whatever the model says, which can include
  * anything it remembers: refusing `events.memory` doesn't make memory
  * private. They also share every tool installed on the Familiar; a tool or
- * the app API behind it narrows what each may do, using `api.author`.
+ * the app API behind it narrows what each may do, using `familiar(context).author()`.
  */
 export function createHttpApi(
   familiar: Familiar,

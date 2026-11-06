@@ -85,16 +85,16 @@ export type FamiliarOptions = {
    * any other.
    */
   account?: AccountOptions
-  /** Everything beyond core: tools, sections and hooks, with their secrets. */
+  /** Tools beyond core's, grouped with the secrets they share. */
   plugins?: readonly FamiliarPlugin[]
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
   secrets?: SecretStore
   /**
-   * How plugins reach the network. A model can be talked into fetching any
+   * How tools reach the network. A model can be talked into fetching any
    * URL, so if this process can reach private, loopback or tailnet addresses,
-   * this must refuse them, at connection time and on every redirect. A
-   * Cloudflare Worker can't reach them, so it passes its own `fetch`.
-   * Without one, plugins' fetches fail.
+   * this must refuse them, at connection time and on every redirect. Default:
+   * on Node, a fetch that refuses every address that isn't public; elsewhere,
+   * such as a Worker or a browser, which can't reach them, the runtime's.
    */
   fetch?: PluginFetch
   /** Owner-configured MCP endpoints, including private networks. Never used by plugins. */
@@ -227,18 +227,19 @@ export async function summonFamiliar(
       secrets: options.secrets,
       fetch: options.fetch,
       notify: options.notify,
-      now: options.now ?? Date.now,
       timeZone: options.timeZone,
     })
 
     // Plugins last, so core's tools and sections come first.
     const extensions = [
-      createPersona(options.persona ?? defaultPersona(name)),
-      conversationExtension,
-      ...(account ? [account.extension] : []),
-      createTime(options.timeZone),
-      ...memory.extensions,
-      schedules.extension,
+      ...[
+        createPersona(options.persona ?? defaultPersona(name)),
+        conversationExtension,
+        ...(account ? [account.extension] : []),
+        createTime(options.timeZone),
+        ...memory.extensions,
+        schedules.extension,
+      ].map(plugins.provide),
       ...plugins.extensions,
     ]
 

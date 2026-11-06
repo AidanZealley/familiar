@@ -1,4 +1,4 @@
-import { definePlugin, defineTool, Type } from '@familiar-ai/core'
+import { definePlugin, defineTool, familiar, Type } from '@familiar-ai/core'
 import {
   BoardError,
   STATUS_LABELS,
@@ -41,58 +41,58 @@ export const boardPlugin = (board: Board) =>
   definePlugin({
     name: 'task-board',
     title: 'Task board',
-    extension: () => ({
-      tools: [
-        defineTool({
-          name: 'list_tasks',
-          description:
-            'Lists the tasks on the board, optionally only those with one status.',
-          parameters: Type.Object({ status: Type.Optional(status) }),
-          replay: 'safe',
-          execute: ({ status }) =>
-            run(() => {
-              // Column by column, in board order.
-              const tasks = STATUSES.filter(
-                (column) => !status || column === status,
-              ).flatMap((column) =>
-                board.tasks().filter((task) => task.status === column),
+    tools: [
+      defineTool({
+        name: 'list_tasks',
+        description:
+          'Lists the tasks on the board, optionally only those with one status.',
+        parameters: Type.Object({ status: Type.Optional(status) }),
+        replay: 'safe',
+        execute: ({ status }) =>
+          run(() => {
+            // Column by column, in board order.
+            const tasks = STATUSES.filter(
+              (column) => !status || column === status,
+            ).flatMap((column) =>
+              board.tasks().filter((task) => task.status === column),
+            )
+            const heading = status ? STATUS_LABELS[status] : 'Board'
+            return tasks.length
+              ? `${heading}:\n${tasks.map((task) => `- ${describeTask(task)}`).join('\n')}`
+              : `${heading}: no tasks.`
+          }),
+      }),
+      defineTool({
+        name: 'create_task',
+        description: 'Adds a task to the board, in Todo.',
+        parameters: Type.Object({ title: Type.String() }),
+        execute: ({ title }) =>
+          run(() => `Created ${describeTask(board.create(title))}.`),
+      }),
+      defineTool({
+        name: 'assign_task_to_me',
+        description: 'Assigns a task to the person asking.',
+        parameters: Type.Object({ taskId }),
+        execute: async ({ taskId }, _api, context) => {
+          // The person who asked, never a tool argument. Undefined for
+          // work nobody asked for, such as memory upkeep.
+          const author = await familiar(context).author()
+          return run(() => {
+            if (!author) {
+              throw new BoardError(
+                'Nobody asked, so there is no one to assign.',
               )
-              const heading = status ? STATUS_LABELS[status] : 'Board'
-              return tasks.length
-                ? `${heading}:\n${tasks.map((task) => `- ${describeTask(task)}`).join('\n')}`
-                : `${heading}: no tasks.`
-            }),
-        }),
-        defineTool({
-          name: 'create_task',
-          description: 'Adds a task to the board, in Todo.',
-          parameters: Type.Object({ title: Type.String() }),
-          execute: ({ title }) =>
-            run(() => `Created ${describeTask(board.create(title))}.`),
-        }),
-        defineTool({
-          name: 'assign_task_to_me',
-          description: 'Assigns a task to the person asking.',
-          parameters: Type.Object({ taskId }),
-          execute: ({ taskId }, api) =>
-            run(() => {
-              // The person who asked, never a tool argument. Undefined for
-              // work nobody asked for, such as memory upkeep.
-              if (!api.author) {
-                throw new BoardError(
-                  'Nobody asked, so there is no one to assign.',
-                )
-              }
-              return `Assigned ${describeTask(board.assign(taskId, api.author))}.`
-            }),
-        }),
-        defineTool({
-          name: 'move_task',
-          description: 'Moves a task to another status column.',
-          parameters: Type.Object({ taskId, status }),
-          execute: ({ taskId, status }) =>
-            run(() => `Moved ${describeTask(board.move(taskId, status))}.`),
-        }),
-      ],
-    }),
+            }
+            return `Assigned ${describeTask(board.assign(taskId, author))}.`
+          })
+        },
+      }),
+      defineTool({
+        name: 'move_task',
+        description: 'Moves a task to another status column.',
+        parameters: Type.Object({ taskId, status }),
+        execute: ({ taskId, status }) =>
+          run(() => `Moved ${describeTask(board.move(taskId, status))}.`),
+      }),
+    ],
   })

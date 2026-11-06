@@ -56,6 +56,7 @@ export default defineConfig({
             'use/conversation-and-memory',
             'use/reminders-and-notifications',
             'use/tools-and-connections',
+            'use/extend',
             'use/settings-and-maintenance',
           ],
         },
@@ -74,6 +75,7 @@ export default defineConfig({
         {
           label: 'Examples',
           items: [
+            'examples/node-server',
             'examples/shared-conversation',
             'examples/embedded-assistant',
           ],

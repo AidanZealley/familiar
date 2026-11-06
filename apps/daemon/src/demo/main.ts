@@ -17,9 +17,7 @@ const demoPlugin = definePlugin({
   name: 'demo',
   title: 'Demo',
   secrets: [demoSecret],
-  extension: (context) => ({
-    tools: [fillContext, seedMemory, seedEpisodes, checkDemoKey(context)],
-  }),
+  tools: [fillContext, seedMemory, seedEpisodes, checkDemoKey],
 })
 
 // Keys and subscriptions last only until the demo restarts.

@@ -1,0 +1,22 @@
+{
+  "name": "@familiar-example/node-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env --watch src/server.ts",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "node --env-file=.env src/server.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@earendil-works/pi-durable": "catalog:",
+    "@familiar-ai/client": "workspace:*",
+    "@familiar-ai/core": "workspace:*",
+    "@hono/node-server": "2.1.5",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "vite": "^8"
+  }
+}

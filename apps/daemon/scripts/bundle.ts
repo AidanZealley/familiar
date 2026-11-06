@@ -25,7 +25,7 @@ await mkdir(dist, { recursive: true })
 await build({
   input: {
     familiar: resolve(daemon, 'src/cli.ts'),
-    'page-worker': resolve(daemon, 'src/tools/page-worker.ts'),
+    'page-worker': resolve(daemon, 'src/web/page-worker.ts'),
   },
   platform: 'node',
   external: ['piscina'],

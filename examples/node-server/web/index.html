@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Familiar</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <form id="sign-in" hidden>
+      <h1>Sign in</h1>
+      <input name="password" type="password" placeholder="Password" required />
+      <button>Sign in</button>
+      <p class="error"></p>
+    </form>
+
+    <main id="app" hidden>
+      <header>
+        <span id="status"></span>
+        <button id="sign-out" type="button">Sign out</button>
+      </header>
+      <ol id="transcript"></ol>
+      <form id="send">
+        <input name="text" placeholder="Message" autocomplete="off" required />
+        <button>Send</button>
+      </form>
+      <section>
+        <h2>Connections</h2>
+        <ul id="connections"></ul>
+      </section>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

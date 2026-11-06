@@ -56,7 +56,7 @@ Familiar records who said what and shows the model each author. It doesn't decid
 - choose who receives each notification, and store and authorize push subscriptions
 - decide which MCP transports, destinations and commands it allows
 
-Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `api.author`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep.
+Every tool installed on a Familiar is available to everyone who chats with it, just as its conversation is. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `familiar(context).author()`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep.
 
 Nested calls, and calls rerun after a crash, keep the author of the input that started them, and a message queued while a call runs can't take its place. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 
@@ -73,9 +73,9 @@ execute: async ({ taskId }, { author }) => {
 }
 ```
 
-`api.author` is for native tools made with `defineTool`. An MCP server's tools receive only their arguments, so an MCP server can't tell who asked.
+The author is for native tools. An MCP server's tools receive only their arguments, so an MCP server can't tell who asked.
 
-Schedules are shared controls, like the conversation: anyone who chats with a Familiar can see and cancel any of its schedules, so Alice can cancel Bob's reminder. That's the group's contract, not a missing check. A scheduled run's tools see the schedule's creator as `api.author`. Give people who mustn't share tools or schedules separate Familiars.
+Schedules are shared controls, like the conversation: anyone who chats with a Familiar can see and cancel any of its schedules, so Alice can cancel Bob's reminder. That's the group's contract, not a missing check. A scheduled run's tools see the schedule's creator as the author. Give people who mustn't share tools or schedules separate Familiars.
 
 Native tools are code you install, trusted like any other dependency. They run in your process with its privileges. Familiar doesn't sandbox them. The host's `fetch` and `authorizedFetch`'s declarations limit where a well-behaved tool sends requests and secrets, whatever the model asks for, not what the tool's own code can do.
 
