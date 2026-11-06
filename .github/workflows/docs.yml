@@ -4,9 +4,6 @@ name: Docs
 # Pages. Needs Settings > Pages > Source set to GitHub Actions.
 on:
   pull_request:
-    # Everything the site is built from. A change outside these paths doesn't
-    # redeploy it, so add any folder the docs start reading (see the note at
-    # the top of apps/docs/astro.config.ts).
     paths: &paths
       - 'apps/docs/**'
       - 'packages/**'
