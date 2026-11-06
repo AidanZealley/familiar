@@ -1,12 +1,7 @@
 pnpm-lock.yaml
-data/
-dist/
-.wrangler/
 apps/web/src/components/ui/
 examples/embedded-kanban/src/components/ui/
 examples/embedded-kanban/src/components/reui/
 examples/shared-conversation/src/components/ui/
 apps/web/src/routeTree.gen.ts
-.claude/
 eval/results/
-.astro/

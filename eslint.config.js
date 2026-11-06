@@ -1,7 +1,8 @@
+import { resolve } from 'node:path'
+import { includeIgnoreFile } from '@eslint/compat'
 import js from '@eslint/js'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
@@ -58,13 +59,8 @@ const typesOnlyFromCore = [
 }))
 
 export default defineConfig([
+  includeIgnoreFile(resolve(import.meta.dirname, '.gitignore')),
   globalIgnores([
-    '**/dist',
-    '**/.wrangler',
-    '**/.astro',
-    'data',
-    '.claude',
-    'apps/docs/public/demos',
     'apps/web/src/routeTree.gen.ts',
     // Copied in by the shadcn CLI and updated through it, like apps/web's ui.
     'examples/embedded-kanban/src/components/ui',
@@ -76,6 +72,8 @@ export default defineConfig([
     extends: [js.configs.recommended, tseslint.configs.recommended],
     rules: { curly: ['error', 'all'] },
   },
+  // typescript-eslint turns off no-undef for TypeScript, so only the
+  // service worker, the one script, needs its globals named.
   {
     files: ['apps/web/public/sw.js'],
     languageOptions: { globals: globals.serviceworker },
@@ -109,12 +107,6 @@ export default defineConfig([
   },
   {
     files: ['apps/web/**/*.{ts,tsx}', 'examples/*/src/**/*.tsx'],
-    extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
-    languageOptions: { globals: globals.browser },
-    rules: { 'react-refresh/only-export-components': 'off' },
-  },
-  {
-    files: ['apps/daemon/**/*.ts', '*.js'],
-    languageOptions: { globals: globals.node },
+    extends: [reactHooks.configs.flat.recommended],
   },
 ])
