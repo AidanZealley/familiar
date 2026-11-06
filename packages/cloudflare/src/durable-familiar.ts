@@ -115,7 +115,8 @@ export class DurableFamiliar {
    */
   async terminate(): Promise<void> {
     const runtime = this.#runtime
-    // Refuses new calls at once; any late alarm write becomes a delete.
+    // Refuses new calls at once, without relying on the object holding
+    // requests back during the commit; any late alarm write becomes a delete.
     this.#runtime = { status: 'terminated' }
     try {
       await this.#database.transaction(async () => {

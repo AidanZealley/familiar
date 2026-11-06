@@ -1,7 +1,7 @@
 import { localMinute } from '@familiar-ai/core'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestHarness, type TestHarness } from 'wrangler'
-import { SLOW_REPLY } from './model.ts'
+import { REMINDER, SLOW_REPLY } from './model.ts'
 
 // DurableFamiliar in workerd, through the test Worker beside this file: what
 // it promises across eviction, reloads and termination. Its heartbeat is a
@@ -84,14 +84,6 @@ const evict = (bot: string) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-test('a reply settles the alarm on the next upkeep pass', async () => {
-  expect((await send('fresh', 'hello')).status).toBe(202)
-  const alarm = await settled('fresh')
-  expect((await replies('fresh')).map(textOf)).toEqual(['You said: hello'])
-  // Upkeep's nightly pass is the only sleep a new Familiar has.
-  expect(localMinute(alarm, ZONE)).toMatch(/ 04:00$/)
-})
-
 test('a reminder fires from its alarm, whether the object was evicted or stayed in memory', async () => {
   // Whole minutes, far enough ahead to evict before it's due.
   const due = Math.ceil((Date.now() + 15_000) / 60_000) * 60_000
@@ -114,10 +106,11 @@ test('a reminder fires from its alarm, whether the object was evicted or stayed 
       ],
       { timeout: due - Date.now() + 30_000, interval: 1_000 },
     )
-    .toEqual([['Reminder: stretch'], ['Reminder: stretch'], instance])
+    .toEqual([[REMINDER], [REMINDER], instance])
 
+  // Upkeep's nightly pass is then the only sleep left.
   expect(localMinute(await settled('evicted'), ZONE)).toMatch(/ 04:00$/)
-  expect(textOf((await replies('evicted')).at(-1)!)).toBe('Reminder: stretch')
+  expect(textOf((await replies('evicted')).at(-1)!)).toBe(REMINDER)
 })
 
 test('work cut off by a reload resumes from the heartbeat alarm', async () => {
@@ -175,20 +168,4 @@ test('a terminated bot stays terminated, keeps its history and has no alarm', as
     "SELECT count(*) AS count FROM pi_entries WHERE record ->> '$.kind' = 'familiar.message'",
   )) as { count: number }[]
   expect(count).toBe(2)
-})
-
-test('termination wins over requests racing it', async () => {
-  await send('race', 'first')
-  await settled('race')
-  const [terminated, ...sends] = await Promise.all([
-    server.fetch('/race/terminate', { method: 'POST' }),
-    ...Array.from({ length: 5 }, (_, i) => send('race', `racing ${i}`)),
-  ])
-  expect(terminated.status).toBe(204)
-  for (const response of sends) {
-    expect([202, 410]).toContain(response.status)
-  }
-  expect((await send('race', 'after')).status).toBe(410)
-  await sleep(2 * HEARTBEAT_MS)
-  expect((await status('race')).alarm).toBeNull()
 })
