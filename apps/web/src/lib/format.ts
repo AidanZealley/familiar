@@ -17,12 +17,10 @@ const dayYearFormat = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
-const nextFormat = new Intl.DateTimeFormat(undefined, {
+const weekdayDayFormat = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   day: 'numeric',
   month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
 })
 
 /** A short date, with the year only when it isn't this year. */
@@ -36,8 +34,71 @@ export const formatDate = (day: string) => formatDay(localDate(day))
 
 export const formatTime = (ms: number) => timeFormat.format(ms)
 
-/** When a schedule next fires: `Tue 7 Jan, 09:00`. */
-export const formatNext = (ms: number) => nextFormat.format(ms)
+const startOfDay = (ms: number) => new Date(ms).setHours(0, 0, 0, 0)
+
+/** A day near now: `Today`, `Tomorrow`, or `Tue 7 Jan`. */
+export const formatRelativeDay = (ms: number) => {
+  const days = Math.round(
+    (startOfDay(ms) - startOfDay(Date.now())) / 86_400_000,
+  )
+  if (days === 0) {
+    return 'Today'
+  }
+  if (days === 1) {
+    return 'Tomorrow'
+  }
+  return weekdayDayFormat.format(ms)
+}
+
+const weekdays = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+]
+
+const ordinal = (n: number) =>
+  n % 100 >= 11 && n % 100 <= 13
+    ? `${n}th`
+    : `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+
+/**
+ * A schedule's cron repeat in words: `0 7 * * 1-5` is `Weekdays at 07:00`.
+ * Shapes Familiar rarely makes fall back to `Repeats`.
+ */
+export const formatRepeat = (cron: string) => {
+  const [minute = '', hour = '', date = '', month, weekday = ''] = cron
+    .trim()
+    .split(/\s+/)
+  if (!/^\d+$/.test(minute) || !/^\d+$/.test(hour) || month !== '*') {
+    return 'Repeats'
+  }
+  const at = `at ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+  if (date === '*') {
+    if (weekday === '*') {
+      return `Every day ${at}`
+    }
+    if (weekday === '1-5') {
+      return `Weekdays ${at}`
+    }
+    if (weekday === '0,6' || weekday === '6,0') {
+      return `Weekends ${at}`
+    }
+    if (/^[0-7](,[0-7])*$/.test(weekday)) {
+      const names = weekday.split(',').map((day) => weekdays[Number(day) % 7]!)
+      return names.length === 1
+        ? `Every ${names[0]} ${at}`
+        : `${names.map((name) => name.slice(0, 3)).join(', ')} ${at}`
+    }
+  }
+  if (/^\d+$/.test(date) && weekday === '*') {
+    return `Monthly on the ${ordinal(Number(date))} ${at}`
+  }
+  return 'Repeats'
+}
 
 /** An episode's dates: `7 Jan` for a day, `22–28 Dec` for a week. */
 export const formatSpan = (episode: Episode) => {

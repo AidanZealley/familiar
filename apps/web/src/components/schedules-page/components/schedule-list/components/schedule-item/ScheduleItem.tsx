@@ -1,32 +1,44 @@
 import { useMutation } from '@tanstack/react-query'
-import { AlarmClockIcon, RepeatIcon, XIcon } from 'lucide-react'
+import { RepeatIcon, XIcon } from 'lucide-react'
+import { useState } from 'react'
+import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { familiar } from '@/lib/familiar'
-import { formatNext } from '@/lib/format'
+import { formatRepeat, formatTime } from '@/lib/format'
 import type { ScheduleItemProps } from './types'
 
+/** One row of a day: the time, how often, and the instruction to expand. */
 export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
+  const [expanded, setExpanded] = useState(false)
   // The mirrored document drops a cancelled schedule, removing this item.
   const cancel = useMutation({
     mutationFn: () => familiar.schedules.cancel(schedule.id),
   })
 
   return (
-    <li className="flex items-start gap-2 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="text-[0.95rem] leading-snug">{schedule.prompt}</p>
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 text-foreground">
-            <AlarmClockIcon className="size-3" />
-            {formatNext(schedule.next)}
-          </span>
-          {schedule.repeat && (
-            <span className="inline-flex items-center gap-1">
-              <RepeatIcon className="size-3" />
-              Repeats
-            </span>
-          )}
+    <li className="group col-span-3 grid grid-cols-subgrid gap-x-3 py-3">
+      <time
+        dateTime={new Date(schedule.next).toISOString()}
+        className="pt-px font-mono text-lg leading-tight tabular-nums"
+      >
+        {formatTime(schedule.next)}
+      </time>
+      <div className="min-w-0">
+        <p className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+          {schedule.repeat && <RepeatIcon className="size-3" />}
+          {schedule.repeat ? formatRepeat(schedule.repeat) : 'Once'}
         </p>
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          className={cn(
+            'block w-full text-left text-sm leading-relaxed',
+            !expanded && 'line-clamp-2',
+          )}
+        >
+          {schedule.prompt}
+        </button>
         {cancel.error && (
           <p className="mt-1 text-xs text-destructive">
             {cancel.error.message}
@@ -40,7 +52,7 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
         title="Cancel"
         disabled={cancel.isPending}
         onClick={() => cancel.mutate()}
-        className="text-muted-foreground"
+        className="text-muted-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
       >
         <XIcon />
       </Button>
