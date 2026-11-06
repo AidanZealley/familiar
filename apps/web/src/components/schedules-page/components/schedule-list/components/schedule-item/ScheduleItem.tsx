@@ -75,7 +75,9 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {cancel.error && (
-            <p className="text-sm text-destructive">{cancel.error.message}</p>
+            <p className="text-sm wrap-anywhere text-destructive">
+              {cancel.error.message}
+            </p>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
