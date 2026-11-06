@@ -33,7 +33,7 @@ export async function serve() {
     // Owners sign in to ChatGPT from the web UI, through the Models requests use.
     account: { login: { getDeviceId: deviceId, agentName: config.name } },
     notify: push.notify,
-    plugins: [webPlugin, ...(await loadPlugins(config.pluginsDir))],
+    plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
     secrets: fileSecretStore(dataPath('secrets.json')),
     mcpFetch: fetch,
     mcpStdio: stdioTransport,

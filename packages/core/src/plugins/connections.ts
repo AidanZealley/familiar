@@ -1,5 +1,4 @@
 import {
-  checkDeclaration,
   ConnectionError,
   type Connection,
   type ConnectionsApi,
@@ -7,21 +6,15 @@ import {
 } from '../connections/index.ts'
 import type { FamiliarPlugin } from './types.ts'
 
-/** Plugins' half of the Connections API: their declared secrets and values. */
+/**
+ * Plugins' half of the Connections API: their declared secrets and values.
+ * `checkPlugins` has accepted the plugins.
+ */
 export function createConnections(
   plugins: readonly FamiliarPlugin[],
   store?: SecretStore,
 ) {
-  const byName = new Map<string, FamiliarPlugin>()
-  for (const plugin of plugins) {
-    if (byName.has(plugin.name)) {
-      throw new Error(`Two plugins are named ${plugin.name}.`)
-    }
-    byName.set(plugin.name, plugin)
-    for (const secret of plugin.secrets ?? []) {
-      checkDeclaration(plugin.name, secret)
-    }
-  }
+  const byName = new Map(plugins.map((plugin) => [plugin.name, plugin]))
 
   const declared = (connection: Connection, name: string) => {
     const plugin =

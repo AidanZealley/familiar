@@ -118,7 +118,7 @@ The [Plugin API](/familiar/reference/plugins/) has the details.
 
 ## When something's wrong
 
-If a plugin file fails to load, Familiar skips it and keeps running. `familiar logs` shows which file and why. Fix it and run `familiar restart`.
+If a plugin file fails to load, or clashes with another plugin, such as sharing its name or a tool name, Familiar skips it and keeps running. `familiar logs` shows which file and why. Fix it and run `familiar restart`.
 
 ## Trust
 

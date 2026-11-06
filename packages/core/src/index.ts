@@ -51,7 +51,11 @@ export {
   type ToolDetails,
   type ToolServices,
 } from './tools.ts'
-export { definePlugin, type FamiliarPlugin } from './plugins/index.ts'
+export {
+  checkPlugins,
+  definePlugin,
+  type FamiliarPlugin,
+} from './plugins/index.ts'
 export {
   ConnectionError,
   memorySecrets,

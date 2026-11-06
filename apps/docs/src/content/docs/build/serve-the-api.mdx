@@ -61,8 +61,9 @@ Every tool installed on a Familiar is available to everyone who chats with it, j
 Nested calls, and calls rerun after a crash, keep the author of the input that started them, and a message queued while a call runs can't take its place. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 
 ```ts
-execute: async ({ taskId }, { author }) => {
+execute: async ({ taskId }, _api, context) => {
   // Your API checks, as it runs, whether this person may change the task.
+  const author = await familiar(context).author()
   if (!author) {
     return {
       output: [{ type: 'text', text: 'Only a person can do this.' }],
