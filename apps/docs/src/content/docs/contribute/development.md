@@ -57,6 +57,8 @@ Also run:
 - `pnpm test:packages` for package exports or dependencies. It packs the libraries and installs them outside the workspace.
 - `pnpm build:docs` for documentation changes. It builds this site and fails on broken internal links.
 
+CI runs the main checks and `pnpm test:packages` on every pull request. The workerd tests, the CLI on macOS, Linux and Windows, and the docs build run when a pull request changes their files.
+
 Use the faux provider, or `scriptedModels` for a script that answers every request, to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model.
 
 ## The docs site
