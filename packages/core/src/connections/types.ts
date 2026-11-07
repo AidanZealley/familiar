@@ -36,6 +36,7 @@ export type PluginConnectionInfo = {
   kind: 'plugin'
   name: string
   title: string
+  tools: { name: string }[]
   secrets: {
     name: string
     label: string

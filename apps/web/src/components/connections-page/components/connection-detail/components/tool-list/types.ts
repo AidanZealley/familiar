@@ -1,3 +1,3 @@
-import type { McpConnectionInfo } from '@familiar-ai/client'
+import type { ConnectionInfo } from '@familiar-ai/client'
 
-export type ToolListProps = { connection: McpConnectionInfo }
+export type ToolListProps = { connection: ConnectionInfo }
