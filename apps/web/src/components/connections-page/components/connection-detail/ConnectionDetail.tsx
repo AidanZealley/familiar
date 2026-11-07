@@ -126,14 +126,12 @@ export const ConnectionDetail = ({
       )}
 
       {connection.kind === 'mcp' && (
-        <>
-          <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium">Server</h3>
-            <TransportDetails transport={connection.transport} />
-          </section>
-          <ToolList connection={connection} />
-        </>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium">Server</h3>
+          <TransportDetails transport={connection.transport} />
+        </section>
       )}
+      <ToolList connection={connection} />
     </section>
   )
 }

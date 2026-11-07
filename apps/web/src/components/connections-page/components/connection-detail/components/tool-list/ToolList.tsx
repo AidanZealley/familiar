@@ -12,7 +12,7 @@ const absent = {
 
 export const ToolList = ({ connection }: ToolListProps) => {
   const [filter, setFilter] = useState('')
-  const { tools, status } = connection
+  const { tools } = connection
   const shown = tools.filter((tool) =>
     tool.name.toLowerCase().includes(filter.trim().toLowerCase()),
   )
@@ -39,8 +39,12 @@ export const ToolList = ({ connection }: ToolListProps) => {
           />
         )}
       </div>
-      {!tools.length && status.type !== 'connected' ? (
-        <p className="text-sm text-muted-foreground">{absent[status.type]}</p>
+      {!tools.length &&
+      connection.kind === 'mcp' &&
+      connection.status.type !== 'connected' ? (
+        <p className="text-sm text-muted-foreground">
+          {absent[connection.status.type]}
+        </p>
       ) : shown.length ? (
         <ul className="flex flex-col divide-y border">
           {shown.map((tool) => (
@@ -49,22 +53,28 @@ export const ToolList = ({ connection }: ToolListProps) => {
               className="flex items-center justify-between gap-3 px-3 py-2"
             >
               <span className="truncate font-mono text-sm">{tool.name}</span>
-              {tool.readOnly && <Badge variant="secondary">Reads only</Badge>}
+              {'readOnly' in tool && tool.readOnly === true && (
+                <Badge variant="secondary">Reads only</Badge>
+              )}
             </li>
           ))}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">
-          {tools.length ? 'No tools match.' : 'This server offers no tools.'}
+          {tools.length
+            ? 'No tools match.'
+            : 'This connection offers no tools.'}
         </p>
       )}
-      <p className="text-xs text-muted-foreground">
-        Familiar finds these with tool search and calls them as{' '}
-        <span className="font-mono">
-          mcp__{connection.name}__<em>tool</em>
-        </span>
-        . "Reads only" is the server's own claim.
-      </p>
+      {connection.kind === 'mcp' && (
+        <p className="text-xs text-muted-foreground">
+          Familiar finds these with tool search and calls them as{' '}
+          <span className="font-mono">
+            mcp__{connection.name}__<em>tool</em>
+          </span>
+          . "Reads only" is the server's own claim.
+        </p>
+      )}
     </section>
   )
 }
