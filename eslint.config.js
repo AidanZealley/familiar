@@ -101,7 +101,8 @@ export default defineConfig([
     },
   },
   {
-    files: ['packages/core/src/node/**/*.ts'],
+    // Node-only: core's Node helpers, and fixtures, which never ship.
+    files: ['packages/core/src/node/**/*.ts', 'packages/core/fixtures/**/*.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

@@ -1,0 +1,78 @@
+{
+  "commit": "82e974f1e4ffef75116456c2440a254a06a4caee",
+  "now": 1793700000000,
+  "entries": [
+    {
+      "id": 27,
+      "kind": "familiar.message"
+    },
+    {
+      "id": 30,
+      "kind": "pi.system"
+    },
+    {
+      "id": 31,
+      "kind": "pi.assistant"
+    },
+    {
+      "id": 32,
+      "kind": "familiar.message"
+    },
+    {
+      "id": 35,
+      "kind": "pi.assistant"
+    },
+    {
+      "id": 38,
+      "kind": "pi.tool-result"
+    },
+    {
+      "id": 40,
+      "kind": "pi.assistant"
+    },
+    {
+      "id": 52,
+      "kind": "familiar.message"
+    },
+    {
+      "id": 55,
+      "kind": "pi.system"
+    },
+    {
+      "id": 56,
+      "kind": "pi.assistant"
+    }
+  ],
+  "model": {
+    "provider": "faux",
+    "modelId": "luna"
+  },
+  "thinkingLevel": "high",
+  "facts": [
+    {
+      "id": "f1",
+      "text": "Has a cat called Miso",
+      "sources": [27]
+    }
+  ],
+  "episodes": [
+    {
+      "id": "e1",
+      "span": "day",
+      "start": "2026-11-02",
+      "end": "2026-11-02",
+      "text": "Aidan introduced Miso, their cat, and asked for a vet reminder.",
+      "entries": {
+        "from": 27,
+        "to": 40
+      }
+    }
+  ],
+  "schedules": [
+    {
+      "id": "s36",
+      "prompt": "Remind Aidan to book Miso in at the vet",
+      "next": 1799053200000
+    }
+  ]
+}
