@@ -22,10 +22,12 @@ export type FamiliarId = ConversationId
 export type FamiliarRecord = {
   /** What it's called: in notifications, and in memory upkeep's prompts. */
   name: string
-  /** Where memory upkeep files the chat each night, with the writing tools. */
+  /**
+   * Where memory upkeep works each night: filing the chat with the writing
+   * tools, and rolling up weeks and months with none. Each pass sets it up
+   * for its job and starts it from nothing.
+   */
   upkeep: ConversationId
-  /** Where upkeep writes week and month rollups, with no tools at all. */
-  rollups: ConversationId
 }
 
 export type FamiliarsState = {
@@ -73,8 +75,7 @@ export function familiarIn(
     return conversation
   }
   const owner = Object.entries(state.familiars).find(
-    ([, record]) =>
-      record.upkeep === conversation || record.rollups === conversation,
+    ([, record]) => record.upkeep === conversation,
   )
   return owner && (Number(owner[0]) as FamiliarId)
 }
@@ -116,18 +117,16 @@ export async function familiarRecord(tx: Tx, familiar: FamiliarId) {
 }
 
 /**
- * Creates a Familiar: its chat, whose ID is its own, and memory upkeep's two
- * conversations. Opening it sets each up.
+ * Creates a Familiar: its chat, whose ID is its own, and memory upkeep's
+ * conversation. Opening the Familiar sets its chat up; each pass, upkeep's.
  */
 export async function createFamiliar(tx: Tx, name: string) {
   const ownerless = { ownership: { kind: 'ownerless' } } as const
   const chat = await tx.createConversation(ownerless)
   const upkeep = await tx.createConversation(ownerless)
-  const rollups = await tx.createConversation(ownerless)
   ;(await tx.doc(Familiars)).familiars[chat.id] = {
     name,
     upkeep: upkeep.id,
-    rollups: rollups.id,
   }
   return chat.id as FamiliarId
 }
