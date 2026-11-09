@@ -10,9 +10,11 @@ import connected from '../../../../snippets/connected-plugin.ts?raw'
 
 ## Name and persona
 
-`name` is what Familiar is called outside the conversation: notification titles and memory upkeep's prompts. It defaults to `Familiar`.
+`name` is what Familiar is called: in its default persona, notification titles and memory upkeep's prompts. It defaults to `Familiar`.
 
-`persona` is who Familiar is in the conversation. It replaces the default, `defaultPersona(name)`, completely and is used as given, so include the name if the model should know it. Mention anything your UI can show, such as Markdown. Core still adds its own instructions for the conversation, memory, schedules and tools. Familiar reads the persona once when it opens, so the prompt stays cached.
+`persona` is who Familiar is in the conversation. It replaces the default, `defaultPersona(name)`, completely and is used as given, so include the name if the model should know it.
+
+`hostInstructions` is what your host adds after the persona, such as what your UI can show, like Markdown. Core still adds its own instructions for the conversation, memory, schedules and tools. Both change only when your options do, so the prompt stays cached.
 
 <Code code={customAssistant} lang="ts" title="assistant.ts" />
 

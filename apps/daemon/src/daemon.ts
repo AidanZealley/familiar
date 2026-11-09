@@ -6,7 +6,7 @@ import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
 import { ensureDataDir } from './paths.ts'
 import { openModels } from './models.ts'
-import { webPersona } from './persona.ts'
+import { WEB_RENDERING } from './rendering.ts'
 import { loadPlugins } from './plugins.ts'
 import { openPush } from './push.ts'
 import { serveFamiliar } from './serve.ts'
@@ -29,7 +29,7 @@ export async function serve() {
     // The machine's zone, so the owner's calendar is the one their clock shows.
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     name: config.name,
-    persona: webPersona(config.name),
+    hostInstructions: WEB_RENDERING,
     // Owners sign in to ChatGPT from the web UI, through the Models requests use.
     account: { login: { getDeviceId: deviceId, agentName: config.name } },
     notify: push.notify,
