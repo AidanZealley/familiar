@@ -14,6 +14,11 @@ import {
 import type { Notify } from '../notify.ts'
 import { createScheduleTask } from './task.ts'
 import { scheduleTools } from './tools.ts'
+import {
+  familiarDoc,
+  watchFamiliarDoc,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
 
 export type { Schedule, SchedulesState } from './schedules.ts'
 export {
@@ -35,12 +40,11 @@ const guidance = `Some messages start with [Scheduled for …]. They are prompts
 const context = BACKGROUND_CONTEXT
 
 /**
- * Schedules: prompts Familiar runs in the main conversation at a time, once
- * or repeating, notifying the host with each reply. Install `extension`,
- * then call `start` once the Harness is open.
+ * Schedules: prompts a Familiar runs in its chat at a time, once or
+ * repeating, notifying the host with each reply. Install `extension`, then
+ * call `open` for each Familiar once the Harness is open.
  */
 export function createSchedules(options: {
-  name: string
   notify?: Notify
   timeZone: string
   /** Default `DEFAULT_MAX_SCHEDULES`. */
@@ -50,11 +54,7 @@ export function createSchedules(options: {
   if (!Number.isSafeInteger(maxSchedules) || maxSchedules < 1) {
     throw new Error('maxSchedules must be a positive whole number.')
   }
-  const task = createScheduleTask(
-    options.name,
-    options.notify,
-    options.timeZone,
-  )
+  const task = createScheduleTask(options.notify, options.timeZone)
   const extension = defineExtension({
     name: 'familiar.schedules',
     tasks: [task],
@@ -64,17 +64,23 @@ export function createSchedules(options: {
 
   return {
     extension,
-    start: async (harness: Harness): Promise<SchedulesApi> => {
+    /** `familiar`'s schedules. */
+    open: async (
+      harness: Harness,
+      familiar: FamiliarId,
+    ): Promise<SchedulesApi> => {
       // Watches only attach to documents that exist.
       await harness.commit(async (tx) => {
-        await tx.doc(Schedules)
+        await familiarDoc(tx, Schedules, familiar)
       }, context)
       return {
-        watch: async () => (await harness.watchDoc(Schedules, context))!,
+        watch: async () =>
+          (await watchFamiliarDoc(harness, Schedules, familiar, context))!,
         // The schedule's task wakes to find it gone and finishes.
         cancel: (id) =>
           harness.commit(
-            async (tx) => cancelSchedule(await tx.doc(Schedules), id),
+            async (tx) =>
+              cancelSchedule(await familiarDoc(tx, Schedules, familiar), id),
             context,
           ),
       }

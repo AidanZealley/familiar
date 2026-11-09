@@ -5,6 +5,7 @@ import { Type, defineTool } from '@familiar-ai/core'
 import {
   Episodes,
   Facts,
+  familiarDoc,
   localDay,
   type Episode,
   type Fact,
@@ -209,7 +210,8 @@ export const seedMemory = defineTool({
   parameters: Type.Object({}),
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
-      const memory = await tx.doc(Facts)
+      // Run in the Familiar's chat, whose ID is the Familiar's.
+      const memory = await familiarDoc(tx, Facts, api.conversationId)
       memory.facts = factsAsOf(todayAt(api.now()))
       memory.next = memory.facts.length + 1
       return { output: [{ type: 'text', text: 'Memory written.' }] }
@@ -292,7 +294,7 @@ export const seedEpisodes = defineTool({
   parameters: Type.Object({}),
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
-      const state = await tx.doc(Episodes)
+      const state = await familiarDoc(tx, Episodes, api.conversationId)
       for (const episode of episodesUntil(todayAt(api.now()))) {
         state.episodes.push({ id: `e${state.next++}`, ...episode })
       }

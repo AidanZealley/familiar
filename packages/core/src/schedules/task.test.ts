@@ -9,7 +9,8 @@ import type { InboxState, Wake } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
 import { SCHEDULED_KIND } from '../conversation/message.ts'
 import { type Notification, type NotificationContext } from '../index.ts'
-import { withHarness } from '../memory/testing.ts'
+import { onlyFamiliar, withHarness } from '../memory/testing.ts'
+import { familiarDoc } from '../workspace/familiars.ts'
 import { fakeClock, inputOf, TEST_ZONE, testHost, timeAt } from '../testing.ts'
 import {
   defineTool,
@@ -385,7 +386,7 @@ test('a reminder still notifies once through a restart, a failed run and a busy 
   await f.reopen(undefined, undefined, () =>
     withHarness(f.storage, (harness) =>
       harness.commit(async (tx) => {
-        delete (await tx.doc(Schedules))[eight]
+        delete (await familiarDoc(tx, Schedules, await onlyFamiliar(tx)))[eight]
       }, BACKGROUND_CONTEXT),
     ),
   )

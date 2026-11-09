@@ -1,7 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import {
   defineTool,
-  ROOT_CONVERSATION_ID,
   type EntryId,
   type ToolExecutionApi,
   type Tx,
@@ -18,6 +17,7 @@ import {
   reviseFact,
   type Memory,
 } from '../facts.ts'
+import { familiarFor, type FamiliarId } from '../../workspace/familiars.ts'
 
 /**
  * The tools that write facts. Only upkeep has them: it reads a whole day at
@@ -25,16 +25,19 @@ import {
  * writer means one owner for every rule. Each change goes through facts.ts.
  */
 
-/** Checks that every ID names a person's message in the conversation. */
-async function sourcesOf(tx: Tx, ids: string[], timeZone: string) {
+/** Checks that every ID names a person's message in `familiar`'s chat. */
+async function sourcesOf(
+  tx: Tx,
+  familiar: FamiliarId,
+  ids: string[],
+  timeZone: string,
+) {
   const sources = new Map<string, { entry: EntryId; day: string }>()
   for (const id of ids) {
     const entry = entryOf(id)
     const record = entry === undefined ? undefined : await tx.entry(entry)
     const said =
-      record?.conversationId === ROOT_CONVERSATION_ID
-        ? saidBy(record)
-        : undefined
+      record?.conversationId === familiar ? saidBy(record) : undefined
     if (entry === undefined || said?.role !== 'person') {
       throw new FactError(
         `${id} is not a message from a person. Cite the [x…] IDs of the conversation's messages.`,
@@ -66,8 +69,9 @@ const entries = (sources: Sources) =>
   [...sources.values()].map(({ entry }) => entry)
 
 /**
- * Commits one change. Sources are read first, since a transaction can't
- * read after writing; a refused change throws and changes nothing.
+ * Commits one change to the memory of the Familiar whose upkeep calls it.
+ * Sources are read first, since a transaction can't read after writing; a
+ * refused change throws and changes nothing.
  */
 const change = (
   api: ToolExecutionApi,
@@ -78,8 +82,9 @@ const change = (
 ) =>
   api
     .commit(async (tx) => {
-      const sources = await sourcesOf(tx, ids, timeZone)
-      return edit(await openMemory(tx), sources)
+      const familiar = await familiarFor(tx, api.conversationId)
+      const sources = await sourcesOf(tx, familiar, ids, timeZone)
+      return edit(await openMemory(tx, familiar), sources)
     }, context)
     .then((text) => ({ output: [{ type: 'text' as const, text }] }))
 

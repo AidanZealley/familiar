@@ -1,6 +1,5 @@
 import {
-  defineDoc,
-  type ConversationId,
+  defineDocFamily,
   type EntryId,
   type TaskId,
 } from '@earendil-works/pi-durable'
@@ -27,26 +26,21 @@ export function nextUpkeep(now: number, timeZone: string) {
 }
 
 export type UpkeepState = {
-  /** Where passes run: a conversation of its own, never shown to people. */
-  conversation: ConversationId | null
-  /** Where rollups are written: no tools, so summarising can't change facts. */
-  rollups: ConversationId | null
   /** The one task that schedules passes. */
   task: TaskId | null
-  /** The newest main-conversation entry a pass has reviewed. */
+  /** The newest chat entry a pass has reviewed. */
   through: EntryId | null
 }
 
-/** How Familiar finds its memory upkeep again after a restart. */
-export const Upkeep = defineDoc<UpkeepState>({
+/**
+ * How a Familiar finds its memory upkeep again after a restart. Its
+ * conversations are in the Familiar's registry record, with its others.
+ */
+export const Upkeep = defineDocFamily<UpkeepState, null>({
   kind: 'familiar.upkeep',
-  version: 2,
+  version: 1,
   scope: 'session',
-  initial: () => ({
-    conversation: null,
-    rollups: null,
-    task: null,
-    through: null,
-  }),
+  family: true,
+  initial: () => ({ task: null, through: null }),
   checkpointWhen: () => true, // tiny: always store it whole
 })

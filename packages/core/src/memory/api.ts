@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
 import { localDay } from '../time.ts'
+import { watchFamiliarDoc, type FamiliarId } from '../workspace/familiars.ts'
 import { Episodes, type EpisodesState } from './episodes.ts'
 import {
   Facts,
@@ -27,19 +28,22 @@ export type MemoryApi = {
 
 const context = BACKGROUND_CONTEXT
 
-/** `now` is Familiar's clock, so the owner's edits are dated like everything else. */
+/** `familiar`'s memory. `now` is Familiar's clock, so the owner's edits are dated like everything else. */
 export function memoryApi(
   harness: Harness,
+  familiar: FamiliarId,
   now: () => number,
   timeZone: string,
 ): MemoryApi {
   const editMemory = (edit: (memory: Memory) => void) =>
-    harness.commit(async (tx) => edit(await openMemory(tx)), context)
+    harness.commit(async (tx) => edit(await openMemory(tx, familiar)), context)
 
   return {
     // Memory's start() creates the documents, so a watch always attaches.
-    watch: async () => (await harness.watchDoc(Facts, context))!,
-    watchEpisodes: async () => (await harness.watchDoc(Episodes, context))!,
+    watch: async () =>
+      (await watchFamiliarDoc(harness, Facts, familiar, context))!,
+    watchEpisodes: async () =>
+      (await watchFamiliarDoc(harness, Episodes, familiar, context))!,
     revise: (id, text) =>
       editMemory((memory) =>
         reviseFact(

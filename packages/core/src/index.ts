@@ -5,6 +5,14 @@ export {
   type Familiar,
   type FamiliarOptions,
 } from './familiar.ts'
+export {
+  openWorkspace,
+  type FamiliarId,
+  type FamiliarSummary,
+  type Workspace,
+  type WorkspaceFamiliar,
+  type WorkspaceOptions,
+} from './workspace/index.ts'
 export type {
   SessionEnd as FamiliarEnd,
   UsageState as Usage,

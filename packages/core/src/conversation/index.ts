@@ -26,6 +26,7 @@ import {
   type ModelOption,
   type ThinkingLevelsState,
 } from './models.ts'
+import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 
 /** One message from a person. Hosts authenticate; Familiar only records who spoke. */
 export type Message = {
@@ -91,21 +92,26 @@ const context = BACKGROUND_CONTEXT
 const levelOf = (levels: ThinkingLevelsState, chatModel: ChatModel) =>
   levels[modelKey(chatModel.model)] ?? chatModel.thinkingLevel
 
+/** `familiar`'s chat, which its ID names. */
 export async function installConversation(
   harness: Harness,
+  familiar: FamiliarId,
   { models, model, chatModels }: ConversationOptions,
 ): Promise<ConversationApi> {
   // Every chat model resolved once, so a catalog missing one fails at startup.
   const options = modelOptions(models, chatModels)
-  // summonFamiliar checked that `model` is one of them.
+  // openWorkspace checked that `model` is one of them.
   const fallback = findChatModel(options, model)!
 
-  const conversation = await harness.root(context)
+  const conversation = await harness.conversation(familiar, context)
+  if (!conversation) {
+    throw new Error(`No chat for Familiar ${familiar}.`)
+  }
   // The conversation owns its model and level. A new one, or one whose model
   // is no longer offered, starts on the fallback.
   await conversation.commit(async (tx) => {
     const agent = await tx.doc(AgentDoc, conversation.id)
-    const levels = await tx.doc(ThinkingLevels)
+    const levels = await familiarDoc(tx, ThinkingLevels, familiar)
     const kept = findChatModel(options, agent.model)
     const chosen = kept ?? fallback
     await configure(tx, conversation.id, {
@@ -164,7 +170,7 @@ export async function installConversation(
         throw new ModelError(`${modelKey(model)} is not a chat model.`)
       }
       await conversation.commit(async (tx) => {
-        const levels = await tx.doc(ThinkingLevels)
+        const levels = await familiarDoc(tx, ThinkingLevels, familiar)
         await configure(tx, conversation.id, {
           model: chosen.model,
           thinkingLevel: levelOf(levels, chosen),
@@ -175,7 +181,7 @@ export async function installConversation(
       await conversation.commit(async (tx) => {
         // Reads before writes: a transaction cannot read tables after writing.
         const agent = await tx.doc(AgentDoc, conversation.id)
-        const levels = await tx.doc(ThinkingLevels)
+        const levels = await familiarDoc(tx, ThinkingLevels, familiar)
         // Startup always leaves the conversation on a chat model.
         const current = findChatModel(options, agent.model)!
         if (!current.thinkingLevels.includes(level)) {
