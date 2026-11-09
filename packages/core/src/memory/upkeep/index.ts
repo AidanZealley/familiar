@@ -175,22 +175,23 @@ export function createUpkeep(options: UpkeepOptions) {
   }
 
   /**
-   * Sets up one of a Familiar's upkeep conversations for a pass and starts
-   * it from nothing, so the conversation never grows. Set up at each pass,
-   * so a change of model, name or wording applies to the next. The reset is
-   * appended directly: nothing else runs there, and the last pass settled.
+   * Sets up a Familiar's upkeep conversation for a pass's job and starts it
+   * from nothing, so it never grows and no job sees another's. Set up at each
+   * pass, so a change of model, name or wording applies to the next. Passes
+   * run one at a time, in this task. The reset is appended directly: nothing
+   * else runs there, and the last pass settled.
    */
   const startPass = async (
     tx: Tx,
     record: FamiliarRecord,
-    which: 'upkeep' | 'rollups',
+    job: 'filing' | 'rollup',
   ) => {
-    const conversation = record[which]
+    const conversation = record.upkeep
     await configure(tx, conversation, {
       model: options.model,
       thinkingLevel: options.thinkingLevel,
       // Rollups summarise, with no tools, so they can't change facts.
-      ...(which === 'upkeep'
+      ...(job === 'filing'
         ? {
             extensions: [options.extension, extension],
             instructions: instructions(record.name),
@@ -258,7 +259,7 @@ export function createUpkeep(options: UpkeepOptions) {
             status: 'running',
             checkpoint: {
               phase: 'consolidate',
-              ...(await startPass(tx, record, 'upkeep')),
+              ...(await startPass(tx, record, 'filing')),
               oldest: found.oldest,
               newest: found.newest,
               input,
@@ -345,7 +346,7 @@ export function createUpkeep(options: UpkeepOptions) {
             status: 'running',
             checkpoint: {
               phase: 'summarize',
-              ...(await startPass(tx, record, 'rollups')),
+              ...(await startPass(tx, record, 'rollup')),
               span: due.span,
               start: due.start,
               end: due.end,
@@ -406,7 +407,7 @@ export function createUpkeep(options: UpkeepOptions) {
             status: 'running',
             checkpoint: {
               phase: 'recheck',
-              ...(await startPass(tx, record, 'upkeep')),
+              ...(await startPass(tx, record, 'filing')),
               facts: due.map((fact) => fact.id),
               input,
             },
