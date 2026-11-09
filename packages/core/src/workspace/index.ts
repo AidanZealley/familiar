@@ -41,14 +41,16 @@ import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
 import { createSchedules, type SchedulesApi } from '../schedules/index.ts'
 import { checkTimeZone, createTime } from '../time.ts'
 import {
+  checkIdentity,
   createFamiliar,
   Familiars,
   familiarRecord,
   type FamiliarId,
+  type FamiliarIdentity,
 } from './familiars.ts'
 import { adoptPreWorkspaceFamiliar } from './migrate.ts'
 
-export type { FamiliarId } from './familiars.ts'
+export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
 
 export type WorkspaceOptions = {
   storage: Storage
@@ -72,13 +74,11 @@ export type WorkspaceOptions = {
    */
   chatModels?: readonly ChatModel[]
   /**
-   * Who every Familiar is in conversation: its identity, tone and anything
-   * the host's UI can show, such as how replies render. It replaces the
-   * default, `defaultPersona(name)` with each Familiar's own name,
-   * completely and is used exactly as given. Core still adds what its own
+   * What every Familiar should know about this host, after its own persona,
+   * such as how the host's UI renders replies. Core still adds what its own
    * features need: how the conversation, memory, schedules and tools work.
    */
-  persona?: string
+  hostInstructions?: string
   /**
    * Lets the owner sign in and out of `model`'s provider through `models`,
    * and notices when the login stops working. Without it, the host keeps
@@ -147,7 +147,13 @@ export type WorkspaceFamiliar = ConversationApi & {
   schedules: SchedulesApi
 }
 
-export type FamiliarSummary = { id: FamiliarId; name: string }
+export type FamiliarSummary = FamiliarIdentity & { id: FamiliarId }
+
+/** A change to who a Familiar is. A `null` persona returns it to the default. */
+export type FamiliarChange = {
+  name?: string
+  persona?: string | null
+}
 
 /**
  * Familiars, with what they share: the store, plugins, MCP connections and
@@ -158,9 +164,13 @@ export type Workspace = {
     list(): Promise<FamiliarSummary[]>
     /** An open Familiar, or undefined if there's no such Familiar. */
     get(id: FamiliarId): WorkspaceFamiliar | undefined
-    create(options: { name: string }): Promise<WorkspaceFamiliar>
-    /** What it's called in its persona, notifications and upkeep, from its next request. */
-    rename(id: FamiliarId, name: string): Promise<void>
+    /** Throws a TypeError for a blank name or persona. */
+    create(identity: FamiliarIdentity): Promise<WorkspaceFamiliar>
+    /**
+     * Changes who it is, from its next request. Throws a TypeError for a
+     * blank name or persona.
+     */
+    update(id: FamiliarId, change: FamiliarChange): Promise<void>
   }
   /** Settles on dismissal or a storage failure. Failed instances must be reopened. */
   readonly closed: Promise<SessionEnd>
@@ -253,7 +263,7 @@ export async function openWorkspace(
     // tools and sections come first.
     const extensions = [
       ...[
-        createPersona(options.persona),
+        createPersona(options.hostInstructions),
         conversationExtension,
         ...(account ? [account.extension] : []),
         createTime(options.timeZone),
@@ -297,7 +307,11 @@ export async function openWorkspace(
     const list = async () =>
       Object.entries(
         (await harness.snapshot(Familiars, context))?.familiars ?? {},
-      ).map(([id, { name }]) => ({ id: Number(id) as FamiliarId, name }))
+      ).map(([id, { name, persona }]) => ({
+        id: Number(id) as FamiliarId,
+        name,
+        ...(persona !== undefined && { persona }),
+      }))
 
     for (const { id } of await list()) {
       await open(id)
@@ -310,11 +324,22 @@ export async function openWorkspace(
       familiars: {
         list,
         get: (id) => opened.get(id),
-        create: async ({ name }) =>
-          open(await harness.commit((tx) => createFamiliar(tx, name), context)),
-        rename: async (id, name) => {
+        create: async (identity) =>
+          open(
+            await harness.commit((tx) => createFamiliar(tx, identity), context),
+          ),
+        update: async (id, { name, persona }) => {
+          checkIdentity({ name, persona: persona ?? undefined })
           await harness.commit(async (tx) => {
-            ;(await familiarRecord(tx, id)).name = name
+            const record = await familiarRecord(tx, id)
+            if (name !== undefined) {
+              record.name = name
+            }
+            if (persona === null) {
+              delete record.persona
+            } else if (persona !== undefined) {
+              record.persona = persona
+            }
           }, context)
         },
       },

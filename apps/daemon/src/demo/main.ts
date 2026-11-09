@@ -2,7 +2,7 @@
 // installation's config or data.
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { definePlugin, memorySecrets, summonFamiliar } from '@familiar-ai/core'
-import { webPersona } from '../persona.ts'
+import { WEB_RENDERING } from '../rendering.ts'
 import { openPush } from '../push.ts'
 import { serveFamiliar } from '../serve.ts'
 import { createDemoModels, demoChatModels } from './model.ts'
@@ -30,7 +30,7 @@ const familiar = await summonFamiliar({
   chatModels: demoChatModels,
   timeZone: DEMO_TIME_ZONE,
   name,
-  persona: webPersona(name),
+  hostInstructions: WEB_RENDERING,
   notify: async (notification) => {
     console.log('Notification:', JSON.stringify(notification))
     await push.notify(notification)

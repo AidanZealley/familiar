@@ -58,7 +58,10 @@ export async function storageWith(
   const storage = new ReopenableStorage()
   await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
-      const memory = await openMemory(tx, await createFamiliar(tx, 'Familiar'))
+      const memory = await openMemory(
+        tx,
+        await createFamiliar(tx, { name: 'Familiar' }),
+      )
       for (const [text, importance, saved = now] of facts) {
         rememberFact(
           memory,

@@ -1,37 +1,38 @@
 import { defineExtension, section } from '@earendil-works/pi-durable'
-import { Familiars, familiarIn } from './workspace/familiars.ts'
+import { familiarIn, Familiars } from './workspace/familiars.ts'
 
 /**
- * Who Familiar is when the host doesn't say: its name, its role and its tone.
- * Hosts that add to it, such as with what their UI renders, start from this.
+ * Who a Familiar is when it has no persona of its own: its name, its role
+ * and its tone.
  */
 export const defaultPersona = (name: string) =>
   `You are ${name}, a personal assistant. Be warm, brief and direct.`
 
 /**
- * Who Familiar is: the start of every prompt. The host's `persona` exactly
- * as given, or else the default for the Familiar the conversation belongs to.
+ * The start of every prompt: who the Familiar whose conversation it is is,
+ * its own persona or the default for its name, then what the host says
+ * every Familiar should know, such as what its UI renders.
  */
-export const createPersona = (persona: string | undefined) =>
+export const createPersona = (hostInstructions: string | undefined) =>
   defineExtension({
     name: 'familiar.persona',
-    // Changes only with the Familiar's name: a prompt section that changes
-    // resends the prompt and loses the provider's prompt cache.
+    // Change only when the Familiar's identity or the host's options do: a
+    // prompt section that changes resends the prompt and loses the
+    // provider's prompt cache.
     sections: [
       section(
         'preamble',
         async (input, context) => {
-          if (persona !== undefined) {
-            return persona
+          const state = await input.read.snapshot(Familiars, context)
+          const familiar = state && familiarIn(state, input.conversationId)
+          if (familiar === undefined) {
+            return undefined
           }
-          const familiars = await input.read.snapshot(Familiars, context)
-          const familiar =
-            familiars && familiarIn(familiars, input.conversationId)
-          return familiar === undefined
-            ? undefined
-            : defaultPersona(familiars!.familiars[familiar].name)
+          const { name, persona } = state!.familiars[familiar]
+          return persona ?? defaultPersona(name)
         },
         { tag: false },
       ),
+      section('host', () => hostInstructions, { tag: false }),
     ],
   })

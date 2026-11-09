@@ -19,9 +19,18 @@ import {
 /** A Familiar's ID: its chat conversation's, where it does its work. */
 export type FamiliarId = ConversationId
 
-export type FamiliarRecord = {
-  /** What it's called: in notifications, and in memory upkeep's prompts. */
+/** Who a Familiar is. */
+export type FamiliarIdentity = {
+  /** What it's called: in its default persona, its notifications and memory upkeep's prompts. */
   name: string
+  /**
+   * Who it is in conversation, in place of `defaultPersona(name)`, used
+   * exactly as given, so it includes the name if the model should know it.
+   */
+  persona?: string
+}
+
+export type FamiliarRecord = FamiliarIdentity & {
   /**
    * Where memory upkeep works each night: filing the chat with the writing
    * tools, and rolling up weeks and months with none. Each pass sets it up
@@ -116,16 +125,28 @@ export async function familiarRecord(tx: Tx, familiar: FamiliarId) {
   return record
 }
 
+/** A Familiar's identity, if its name and any persona aren't blank. */
+export function checkIdentity<T extends Partial<FamiliarIdentity>>(
+  identity: T,
+) {
+  for (const [field, value] of Object.entries(identity)) {
+    if (typeof value === 'string' && !value.trim()) {
+      throw new TypeError(`A Familiar's ${field} must not be blank.`)
+    }
+  }
+  return identity
+}
+
 /**
  * Creates a Familiar: its chat, whose ID is its own, and memory upkeep's
  * conversation. Opening the Familiar sets its chat up; each pass, upkeep's.
  */
-export async function createFamiliar(tx: Tx, name: string) {
+export async function createFamiliar(tx: Tx, identity: FamiliarIdentity) {
   const ownerless = { ownership: { kind: 'ownerless' } } as const
   const chat = await tx.createConversation(ownerless)
   const upkeep = await tx.createConversation(ownerless)
   ;(await tx.doc(Familiars)).familiars[chat.id] = {
-    name,
+    ...checkIdentity(identity),
     upkeep: upkeep.id,
   }
   return chat.id as FamiliarId

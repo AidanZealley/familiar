@@ -13,8 +13,8 @@ export const familiar = await summonFamiliar({
   model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
   timeZone: 'Europe/London',
   name: 'Willow',
-  persona:
-    'You are Willow, a helpful assistant for a family kitchen. Replies render as Markdown.',
+  persona: 'You are Willow, a helpful assistant for a family kitchen.',
+  hostInstructions: 'Replies render as Markdown.',
   plugins: [greeting],
   secrets,
   fetch: publicOnlyFetch,
