@@ -29,7 +29,7 @@ import {
   type RoomScheduledData,
   type TurnResult,
 } from '../rooms/log.ts'
-import { membersOf, Rooms, type RoomId } from '../rooms/rooms.ts'
+import { dmWith, membersOf, Rooms, type RoomId } from '../rooms/rooms.ts'
 
 type Delivery = {
   prompt: string
@@ -198,15 +198,23 @@ export function createScheduleTask(
             }
           }
           // A room that was archived, or that its Familiar left, takes no
-          // reminders; the chat and the notification still do.
-          const room =
+          // reminders. One goes instead to the Familiar's DM with whoever
+          // made it, where they'll see it; with no one behind it, to the
+          // chat, and the notification still goes either way.
+          const made =
             schedule.room === undefined
               ? undefined
               : (await tx.doc(Rooms)).rooms[schedule.room]
           const open =
-            room &&
-            !(room.kind === 'room' && room.archived) &&
-            membersOf(room).includes(familiar)
+            made &&
+            !(made.kind === 'room' && made.archived) &&
+            membersOf(made).includes(familiar)
+          // Reads before writes: a new DM is the commit's last change.
+          const room = open
+            ? schedule.room
+            : made && schedule.creator
+              ? await dmWith(tx, familiar, schedule.creator.id)
+              : undefined
           const due = dueAt(schedule, now, timeZone)
           return {
             status: 'running',
@@ -216,7 +224,7 @@ export function createScheduleTask(
               ...(schedule.creator && { creator: schedule.creator }),
               due,
               ...(now - due >= LATE_MS && { late: now }),
-              ...(open && { room: schedule.room }),
+              ...(room !== undefined && { room }),
             },
           }
         }, context),

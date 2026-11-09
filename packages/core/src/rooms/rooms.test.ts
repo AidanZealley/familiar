@@ -398,3 +398,48 @@ test('a schedule made in a room runs there when due, and notifies with its reply
     .poll(() => notifications)
     .toEqual([{ title: 'Ada', body: 'Time to buy milk, Aidan!', url: '/' }])
 })
+
+test("a schedule whose room was archived runs in its Familiar's DM with whoever made it", async () => {
+  const clock = fakeClock(timeAt('2030-01-01 08:00', 'UTC'))
+  const { workspace, create, room } = await open(
+    (request) =>
+      request.type === 'scheduled'
+        ? fauxAssistantMessage('Time to buy milk, Aidan!')
+        : request.type === 'tool-result'
+          ? fauxAssistantMessage('I will remind you.')
+          : fauxAssistantMessage(
+              [
+                fauxToolCall('schedule', {
+                  prompt: 'Remind Aidan to buy milk',
+                  at: '2030-01-01 09:00',
+                }),
+              ],
+              { stopReason: 'toolUse' },
+            ),
+    { now: clock.now, setTimer: clock.setTimer },
+  )
+  const ada = await create('Ada')
+  const id = await workspace.rooms.create({
+    name: 'kitchen',
+    familiars: [ada],
+    lead: ada,
+  })
+  const kitchen = await room(id)
+  await kitchen.post({
+    author: AIDAN,
+    text: 'Remind me to buy milk at 9.',
+    requestId: 'm1',
+  })
+  await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
+  await workspace.rooms.archive(id)
+
+  clock.advanceTo(timeAt('2030-01-01 09:00', 'UTC'))
+  const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
+  await expect.poll(async () => (await replies(dm)).length).toBe(1)
+  expect((await log(dm)).map((entry) => entry.kind)).toEqual([
+    SCHEDULED_KIND,
+    REPLY_KIND,
+  ])
+  expect(said((await replies(dm))[0])).toBe('Time to buy milk, Aidan!')
+  expect(await replies(kitchen)).toHaveLength(1)
+})
