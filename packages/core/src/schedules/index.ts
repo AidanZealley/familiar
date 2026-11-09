@@ -12,7 +12,7 @@ import {
   type SchedulesState,
 } from './schedules.ts'
 import type { Notify } from '../notify.ts'
-import { createScheduleTask } from './task.ts'
+import { createScheduleTask, type PostScheduled } from './task.ts'
 import { scheduleTools } from './tools.ts'
 import {
   familiarDoc,
@@ -39,6 +39,14 @@ const guidance = `Some messages start with [Scheduled for …]. They are prompts
 
 const context = BACKGROUND_CONTEXT
 
+/** `maxSchedules`, defaulted, or throws if it isn't a positive whole number. */
+export function checkMaxSchedules(maxSchedules = DEFAULT_MAX_SCHEDULES) {
+  if (!Number.isSafeInteger(maxSchedules) || maxSchedules < 1) {
+    throw new Error('maxSchedules must be a positive whole number.')
+  }
+  return maxSchedules
+}
+
 /**
  * Schedules: prompts a Familiar runs in its chat at a time, once or
  * repeating, notifying the host with each reply. Install `extension`, then
@@ -47,14 +55,17 @@ const context = BACKGROUND_CONTEXT
 export function createSchedules(options: {
   notify?: Notify
   timeZone: string
-  /** Default `DEFAULT_MAX_SCHEDULES`. */
-  maxSchedules?: number
+  /** Checked by `checkMaxSchedules`. */
+  maxSchedules: number
+  /** Posts a due schedule to its room (see rooms/log.ts). */
+  post: PostScheduled
 }) {
-  const maxSchedules = options.maxSchedules ?? DEFAULT_MAX_SCHEDULES
-  if (!Number.isSafeInteger(maxSchedules) || maxSchedules < 1) {
-    throw new Error('maxSchedules must be a positive whole number.')
-  }
-  const task = createScheduleTask(options.notify, options.timeZone)
+  const { maxSchedules } = options
+  const task = createScheduleTask(
+    options.notify,
+    options.timeZone,
+    options.post,
+  )
   const extension = defineExtension({
     name: 'familiar.schedules',
     tasks: [task],

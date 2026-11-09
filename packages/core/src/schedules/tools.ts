@@ -1,7 +1,8 @@
 import { Type } from '@earendil-works/pi-ai'
 import type { Context } from '@earendil-works/chord'
 import type { ToolExecutionApi, Tx } from '@earendil-works/pi-durable'
-import { defineTool, familiar } from '../tools.ts'
+import type { InRoom } from '../conversation/message.ts'
+import { callInput, defineTool, familiar } from '../tools.ts'
 import {
   familiarDoc,
   familiarFor,
@@ -85,9 +86,12 @@ export function scheduleTools(
           if (schedules[id]) {
             return schedules[id]
           }
+          // Destinations are data: it runs in the room this call's input
+          // came from, if any.
+          const room = ((await callInput(tx, api.taskId))?.data as InRoom)?.room
           const added = addSchedule(
             schedules,
-            { id, ...args, creator },
+            { id, ...args, creator, ...(room !== undefined && { room }) },
             api.now(),
             timeZone,
             maxSchedules,
