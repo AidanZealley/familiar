@@ -28,5 +28,9 @@ apps/docs/public/demos/
 # such as READMEs and the docs site, is committed as usual.
 /.plans/
 
+# Design variants and mock-ups explored before choosing one, kept out of the
+# repo; the chosen design is built into the app itself.
+/.design/
+
 # Local environment files, such as the Node example's secrets.
 .env
