@@ -66,7 +66,6 @@ export {
   ReadAfterWrite,
   SessionFailed,
   StorageRequestError,
-  ROOT_CONVERSATION_ID,
 } from '@earendil-works/pi-durable'
 export * from '@earendil-works/pi-durable/tools'
 export * from '@earendil-works/pi-durable/tool-search'

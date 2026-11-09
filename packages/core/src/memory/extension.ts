@@ -3,15 +3,19 @@ import {
   defineExtension,
   GenerationTask,
   hook,
-  ROOT_CONVERSATION_ID,
   section,
   type TaskId,
 } from '@earendil-works/pi-durable'
 import { textOf } from '../conversation/message.ts'
 import { coreFacts, Facts, listFacts, type FactsState } from './facts.ts'
 import type { RecallNote } from './recall.ts'
-import type { TranscriptExchanges } from './exchanges.ts'
+import type { ExchangesOf } from './exchanges.ts'
 import { createMemoryTools } from './tools.ts'
+import {
+  familiarOf,
+  readFamiliarDoc,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
 
 const render = (facts: FactsState | undefined) => {
   const listed = facts ? listFacts(coreFacts(facts)) : ''
@@ -21,9 +25,9 @@ ${listed || '(nothing yet)'}`
 
 export type MemoryExtensionOptions = {
   /** Records that facts reached the model. Hooks can't commit, so the owner of the Harness does. */
-  recalled: (ids: string[]) => Promise<void>
-  /** The exchange index the tools search. */
-  exchanges: TranscriptExchanges
+  recalled: (familiar: FamiliarId, ids: string[]) => Promise<void>
+  /** Each Familiar's exchange index, which the tools search. */
+  exchangesOf: ExchangesOf
   /**
    * Automatic recall's note for the input `request` answers, read in one
    * transaction so upkeep can't file something between reads and leave it in
@@ -33,6 +37,7 @@ export type MemoryExtensionOptions = {
    * the Harness does.
    */
   recall: (
+    familiar: FamiliarId,
     query: string,
     request: TaskId,
     unfiled: boolean,
@@ -49,12 +54,20 @@ export type MemoryExtensionOptions = {
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: createMemoryTools(options.exchanges, options.timeZone),
+    tools: createMemoryTools(options.exchangesOf, options.timeZone),
     sections: [
       // Changes only when core does, so the provider's prompt cache holds between.
-      section('memory', async (input, context) =>
-        render(await input.read.snapshot(Facts, context)),
-      ),
+      section('memory', async (input, context) => {
+        const familiar = await familiarOf(
+          input.read,
+          input.conversationId,
+          context,
+        )
+        return (
+          familiar &&
+          render(await readFamiliarDoc(input.read, Facts, familiar, context))
+        )
+      }),
     ],
     hooks: [
       hook(GenerationTask, {
@@ -63,10 +76,14 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
         // byte for byte the same, so the provider's prompt cache holds.
         beforeRequest: async ({ messages }, api, context) => {
           const latest = messages.findLast((message) => message.role === 'user')
+          const familiar = await familiarOf(api, api.conversationId, context)
 
-          if (!latest) {
+          if (!latest || familiar === undefined) {
             return
           }
+          // A Familiar's chat is the conversation its ID names; the others
+          // are upkeep's.
+          const chat = api.conversationId === familiar
 
           // Searched once per run and memoised, so a retried or follow-up
           // request shows exactly what the first one did, even if memory has
@@ -77,11 +94,12 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
             recalled = await api.memo(
               'familiar.recall',
               await options.recall(
+                familiar,
                 textOf(latest),
                 api.taskId,
-                // Only the main conversation's own past: upkeep's passes
-                // review a batch and must not be shown other messages.
-                api.conversationId === ROOT_CONVERSATION_ID,
+                // Only the chat's own past: upkeep's passes review a batch
+                // and must not be shown other messages.
+                chat,
               ),
               context,
             )
@@ -89,11 +107,8 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
             // Only conversation counts as use; upkeep's recall is housekeeping.
             // Recorded even when nothing is shown: core facts the message
             // matched were used too.
-            if (
-              recalled.facts.length &&
-              api.conversationId === ROOT_CONVERSATION_ID
-            ) {
-              await options.recalled(recalled.facts)
+            if (recalled.facts.length && chat) {
+              await options.recalled(familiar, recalled.facts)
             }
           }
 

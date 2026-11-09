@@ -4,10 +4,17 @@ import {
   createRegistry,
   Harness,
   type JsonObject,
-  type SessionDocToken,
+  type SessionDocFamilyToken,
   type Storage,
+  type Tx,
 } from '@earendil-works/pi-durable'
 import { ReopenableStorage } from '../testing.ts'
+import {
+  createFamiliar,
+  familiarDoc,
+  Familiars,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
 import { openMemory, rememberFact } from './facts.ts'
 
 /** Test helpers for memory; not part of Familiar. */
@@ -29,11 +36,20 @@ export async function withHarness<T>(
   }
 }
 
+/** The one Familiar a test's store holds. */
+export async function onlyFamiliar(tx: Tx) {
+  const [id] = Object.keys((await tx.doc(Familiars)).familiars)
+  if (id === undefined) {
+    throw new Error('This store has no Familiar.')
+  }
+  return Number(id) as FamiliarId
+}
+
 /**
- * Storage that already holds these facts, as nightly upkeep would have
- * saved them; the conversation model can't save facts itself. Each is saved
- * now unless given a time, so none is due for review. Closing the storage
- * does nothing, so a test can read it after dismissing Familiar.
+ * Storage with a Familiar that already holds these facts, as nightly upkeep
+ * would have saved them; the conversation model can't save facts itself.
+ * Each is saved now unless given a time, so none is due for review. Closing
+ * the storage does nothing, so a test can read it after dismissing Familiar.
  */
 export async function storageWith(
   ...facts: [text: string, importance: number, saved?: number][]
@@ -42,7 +58,7 @@ export async function storageWith(
   const storage = new ReopenableStorage()
   await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
-      const memory = await openMemory(tx)
+      const memory = await openMemory(tx, await createFamiliar(tx, 'Familiar'))
       for (const [text, importance, saved = now] of facts) {
         rememberFact(
           memory,
@@ -55,14 +71,17 @@ export async function storageWith(
   return storage
 }
 
-/** A stored memory document's value, read once Familiar has been dismissed. */
+/** The store's one Familiar's document, read once it has been dismissed. */
 export const readStored = <T extends JsonObject>(
   storage: Storage,
-  doc: SessionDocToken<T>,
+  family: SessionDocFamilyToken<T, null>,
 ) =>
-  withHarness(storage, async (harness) => {
-    const watch = (await harness.watchDoc(doc, BACKGROUND_CONTEXT))!
-    await watch.stop()
-    // Memory's start() creates its documents, so this one exists.
-    return watch.value!
-  })
+  withHarness(storage, (harness) =>
+    harness.commit(
+      async (tx) =>
+        JSON.parse(
+          JSON.stringify(await familiarDoc(tx, family, await onlyFamiliar(tx))),
+        ) as T,
+      BACKGROUND_CONTEXT,
+    ),
+  )

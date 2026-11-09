@@ -1,21 +1,23 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
-import {
-  ROOT_CONVERSATION_ID,
-  type EntryId,
-  type Tx,
-} from '@earendil-works/pi-durable'
+import type { EntryId, Tx } from '@earendil-works/pi-durable'
 import { entriesOf, formatAuthor, saidBy } from '../../conversation/message.ts'
 import { localMinute } from '../../time.ts'
 import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
+import type { FamiliarId } from '../../workspace/familiars.ts'
 
 /** A reply belongs to the person's turn, even when a batch splits that turn. */
-async function precedingDay(tx: Tx, through: EntryId | null, timeZone: string) {
+async function precedingDay(
+  tx: Tx,
+  familiar: FamiliarId,
+  through: EntryId | null,
+  timeZone: string,
+) {
   if (through === null) {
     return undefined
   }
   for await (const entry of entriesOf(tx, {
-    conversationId: ROOT_CONVERSATION_ID,
+    conversationId: familiar,
     maxEntryId: through,
     order: 'descending',
   })) {
@@ -27,9 +29,13 @@ async function precedingDay(tx: Tx, through: EntryId | null, timeZone: string) {
   return undefined
 }
 
-/** The oldest unreviewed day, split further only when its text exceeds `budget`. */
+/**
+ * The oldest unreviewed day of `familiar`'s chat, split further only when
+ * its text exceeds `budget`. `name` is what the Familiar's lines are called.
+ */
 export async function newMessages(
   tx: Tx,
+  familiar: FamiliarId,
   through: EntryId | null,
   budget: number,
   name: string,
@@ -44,7 +50,7 @@ export async function newMessages(
   let truncated = false
 
   for await (const entry of entriesOf(tx, {
-    conversationId: ROOT_CONVERSATION_ID,
+    conversationId: familiar,
     order: 'ascending',
     ...(through !== null && { minEntryId: (through + 1) as EntryId }),
   })) {
@@ -58,7 +64,7 @@ export async function newMessages(
     if (said.role !== 'assistant') {
       turnDay = upkeepDay(said.at, timeZone)
     } else if (day === undefined) {
-      turnDay = await precedingDay(tx, through, timeZone)
+      turnDay = await precedingDay(tx, familiar, through, timeZone)
     }
     const messageDay = turnDay ?? upkeepDay(said.at, timeZone)
     if (day !== undefined && messageDay !== day) {

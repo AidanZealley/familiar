@@ -9,10 +9,15 @@ import {
   createRegistry,
   Harness,
   MemoryStorage,
-  ROOT_CONVERSATION_ID,
 } from '@earendil-works/pi-durable'
 import { CORE_BUDGET, coreFacts, listFacts, MemoryUsage } from './facts.ts'
-import { readStored, storageWith, withHarness } from './testing.ts'
+import {
+  onlyFamiliar,
+  readStored,
+  storageWith,
+  withHarness,
+} from './testing.ts'
+import { createFamiliar, familiarDoc } from '../workspace/familiars.ts'
 import {
   fakeClock,
   ReopenableStorage,
@@ -73,7 +78,7 @@ const toolResultsOf = (context: TranscriptContext) =>
       : [],
   )
 
-test("only upkeep's conversation is given the tools that write facts, whatever another chooses", async () => {
+test('neither the chat nor a conversation that chooses nothing is given the tools that write facts', async () => {
   const registry = createRegistry()
   const model = { provider: 'faux', modelId: 'faux-1' }
   const harness = await Harness.open(
@@ -90,23 +95,22 @@ test("only upkeep's conversation is given the tools that write facts, whatever a
       now: Date.now,
       model,
       thinkingLevel: 'low',
-      name: 'Familiar',
       transcriptTokens: 1_000,
       timeZone: TEST_ZONE,
     })
     for (const extension of memory.extensions) {
       registry.install(extension)
     }
-    const root = await harness.root(BACKGROUND_CONTEXT)
-    await memory.start()
+    const chat = await harness.commit(
+      (tx) => createFamiliar(tx, 'Familiar'),
+      BACKGROUND_CONTEXT,
+    )
+    await memory.open(chat)
     // As a host's own extension might: a conversation that chooses nothing.
-    const { other, upkeep } = await harness.commit(
-      async (tx) => ({
-        upkeep: (await tx.doc(Upkeep)).conversation!,
-        other: (
-          await tx.createConversation({ ownership: { kind: 'ownerless' } })
-        ).id,
-      }),
+    // Upkeep's passes select them; upkeep.test.ts files facts with them.
+    const other = await harness.commit(
+      async (tx) =>
+        (await tx.createConversation({ ownership: { kind: 'ownerless' } })).id,
       BACKGROUND_CONTEXT,
     )
     const toolsIn = async (id: typeof other) =>
@@ -116,11 +120,10 @@ test("only upkeep's conversation is given the tools that write facts, whatever a
         )
       ).tools.map((tool) => tool.name)
     const writers = ['remember', 'revise_memory', 'retire']
-    for (const tools of [await toolsIn(other), await toolsIn(root.id)]) {
+    for (const tools of [await toolsIn(other), await toolsIn(chat)]) {
       expect(tools).toContain('recall')
       expect(tools.filter((name) => writers.includes(name))).toEqual([])
     }
-    expect(await toolsIn(upkeep)).toEqual(expect.arrayContaining(writers))
   } finally {
     await harness.close(BACKGROUND_CONTEXT)
   }
@@ -425,11 +428,12 @@ test('automatic recall leaves out what is still in view and what upkeep has revi
   // As if tonight's pass had reviewed everything so far.
   await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
+      const familiar = await onlyFamiliar(tx)
       const { items } = await tx.scanEntries(
-        { conversationId: ROOT_CONVERSATION_ID, order: 'descending' },
+        { conversationId: familiar, order: 'descending' },
         1,
       )
-      ;(await tx.doc(Upkeep)).through = items[0].id
+      ;(await familiarDoc(tx, Upkeep, familiar)).through = items[0].id
     }, BACKGROUND_CONTEXT),
   )
 
