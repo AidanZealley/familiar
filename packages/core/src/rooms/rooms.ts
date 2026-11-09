@@ -1,0 +1,190 @@
+import {
+  defineDoc,
+  type ConversationId,
+  type EntryId,
+  type SubmissionId,
+  type Tx,
+} from '@earendil-works/pi-durable'
+import { MESSAGE_LIMITS } from '../conversation/message.ts'
+import { Familiars, type FamiliarId } from '../workspace/familiars.ts'
+
+/**
+ * Which rooms a workspace has, and which Familiars are in each. People talk
+ * to Familiars in rooms: a DM is one Familiar and one person, a named room
+ * one or more Familiars. People aren't members in core; the host decides
+ * who may open which room.
+ */
+
+/** A room's ID: its log's conversation ID, as a Familiar's is its chat's. */
+export type RoomId = ConversationId
+
+export type DmRoom = {
+  kind: 'dm'
+  familiar: FamiliarId
+  /** The person's host author ID. */
+  person: string
+}
+
+export type NamedRoom = {
+  kind: 'room'
+  name: string
+  /** In the room, in display order. */
+  familiars: FamiliarId[]
+  /** Answers messages that address no one; one of `familiars`. */
+  lead: FamiliarId
+  /** Hidden and closed to new messages; its history is kept. */
+  archived?: true
+}
+
+export type Room = DmRoom | NamedRoom
+
+export type RoomsState = {
+  /** By RoomId. Object keys are strings, so a key is `String(id)`. */
+  rooms: Record<string, Room>
+}
+
+export const Rooms = defineDoc<RoomsState>({
+  kind: 'familiar.rooms',
+  version: 1,
+  scope: 'session',
+  initial: () => ({ rooms: {} }),
+  checkpointWhen: () => true, // small: always store it whole
+})
+
+/** A turn a Familiar is taking in a room, by its task's ID (see turn.ts). */
+export type TurnRecord = {
+  familiar: FamiliarId
+  /** The room entry it answers. */
+  cause: EntryId
+  /** Its input in the Familiar's chat, once delivered. */
+  submission?: SubmissionId
+}
+
+/**
+ * The turns a room has in progress, by turn task ID. Written only by turn
+ * tasks, in the commits that change their phase, so a room's stream can show
+ * who is working on it and follow each one's input in its Familiar's chat.
+ */
+export const Turns = defineDoc<Record<string, TurnRecord>>({
+  kind: 'familiar.turns',
+  version: 1,
+  scope: 'conversation',
+  history: 'latest',
+  fork: 'initial',
+  initial: () => ({}),
+  checkpointWhen: () => true, // a handful of turns at most
+})
+
+/** A change to the rooms the rules refuse; nothing was changed. */
+export class RoomError extends TypeError {}
+
+/** The longest name a room may have. */
+const NAME_LENGTH = 100
+
+/** The Familiars in `room`. */
+export const membersOf = (room: Room) =>
+  room.kind === 'dm' ? [room.familiar] : room.familiars
+
+/** What a named room is set up with. */
+export type RoomSetup = Pick<NamedRoom, 'name' | 'familiars' | 'lead'>
+
+/** `setup`, checked against the Familiars that exist; throws a RoomError. */
+async function checkSetup(tx: Tx, setup: RoomSetup): Promise<RoomSetup> {
+  const { name, familiars, lead } = setup
+  if (typeof name !== 'string' || !name.trim() || name.length > NAME_LENGTH) {
+    throw new RoomError(
+      `A room needs a name of at most ${NAME_LENGTH} characters.`,
+    )
+  }
+  const registry = (await tx.doc(Familiars)).familiars
+  if (
+    !Array.isArray(familiars) ||
+    !familiars.length ||
+    new Set(familiars).size !== familiars.length ||
+    familiars.some((familiar) => !registry[familiar])
+  ) {
+    throw new RoomError('A room needs one or more distinct Familiars.')
+  }
+  if (!familiars.includes(lead)) {
+    throw new RoomError("A room's lead must be one of its Familiars.")
+  }
+  return { name, familiars: [...familiars], lead }
+}
+
+/** A new room's log, with its turns document, so watches can attach to it. */
+async function createLog(tx: Tx) {
+  const log = await tx.createConversation({ ownership: { kind: 'ownerless' } })
+  await tx.doc(Turns, log.id)
+  return log.id as RoomId
+}
+
+/** A named room, by ID; throws a RoomError for a DM or no room. */
+async function namedRoom(tx: Tx, id: RoomId) {
+  const room = (await tx.doc(Rooms)).rooms[id]
+  if (room?.kind !== 'room') {
+    throw new RoomError(`No named room ${id}.`)
+  }
+  return room
+}
+
+export async function createRoom(tx: Tx, setup: RoomSetup) {
+  const checked = await checkSetup(tx, setup)
+  const rooms = await tx.doc(Rooms)
+  const id = await createLog(tx)
+  rooms.rooms[id] = { kind: 'room', ...checked }
+  return id
+}
+
+/** Changes a named room's setup; what's left out stays as it is. */
+export async function updateRoom(
+  tx: Tx,
+  id: RoomId,
+  change: Partial<RoomSetup>,
+) {
+  const room = await namedRoom(tx, id)
+  Object.assign(
+    room,
+    await checkSetup(tx, {
+      name: change.name ?? room.name,
+      familiars: change.familiars ?? room.familiars,
+      lead: change.lead ?? room.lead,
+    }),
+  )
+}
+
+export async function archiveRoom(tx: Tx, id: RoomId) {
+  ;(await namedRoom(tx, id)).archived = true
+}
+
+/**
+ * The DM between `familiar` and `person`, created if they have none. One per
+ * pair: found by a scan in the same commit that would create it, as a
+ * household has tens of rooms, not thousands.
+ */
+export async function dmWith(tx: Tx, familiar: FamiliarId, person: string) {
+  if (
+    typeof person !== 'string' ||
+    !person.trim() ||
+    person.length > MESSAGE_LIMITS.authorId
+  ) {
+    throw new RoomError(
+      `A DM needs a person's ID of at most ${MESSAGE_LIMITS.authorId} characters.`,
+    )
+  }
+  if (!(await tx.doc(Familiars)).familiars[familiar]) {
+    throw new RoomError(`No Familiar ${familiar}.`)
+  }
+  const rooms = await tx.doc(Rooms)
+  const found = Object.entries(rooms.rooms).find(
+    ([, room]) =>
+      room.kind === 'dm' &&
+      room.familiar === familiar &&
+      room.person === person,
+  )
+  if (found) {
+    return Number(found[0]) as RoomId
+  }
+  const id = await createLog(tx)
+  rooms.rooms[id] = { kind: 'dm', familiar, person }
+  return id
+}

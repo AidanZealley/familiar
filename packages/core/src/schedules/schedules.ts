@@ -1,5 +1,6 @@
 import { defineDocFamily } from '@earendil-works/pi-durable'
 import type { Author } from '../conversation/message.ts'
+import type { RoomId } from '../rooms/rooms.ts'
 import { parseMinute } from '../time.ts'
 import {
   latestOccurrence,
@@ -18,6 +19,11 @@ export type Schedule = {
   creator?: Author
   /** An instruction to Familiar's future self, e.g. "Remind Aidan to call Mum". */
   prompt: string
+  /**
+   * The room it was made in, where it runs when due. Absent for schedules
+   * made before rooms, which run in the chat.
+   */
+  room?: RoomId
   /** A one-off's time. Exactly one of `at` and `repeat` is set. */
   at?: number
   /** A five-field cron expression in Familiar's time zone, e.g. `0 7 * * 1-5`. */
@@ -87,6 +93,7 @@ export type NewSchedule = {
   id: string
   /** Snapshot of the person who requested it, when there is one. */
   creator?: Author
+  room?: RoomId
   prompt: string
   /** `YYYY-MM-DD HH:MM` in Familiar's time zone. */
   at?: string
@@ -100,7 +107,7 @@ export type NewSchedule = {
  */
 export function addSchedule(
   schedules: SchedulesState,
-  { id, prompt, at, repeat, creator }: NewSchedule,
+  { id, prompt, at, repeat, creator, room }: NewSchedule,
   now: number,
   timeZone: string,
   maxSchedules: number,
@@ -127,6 +134,7 @@ export function addSchedule(
     prompt: prompt.trim(),
     created: now,
     ...(creator && { creator }),
+    ...(room !== undefined && { room }),
   }
   let schedule: Schedule
   if (at !== undefined) {

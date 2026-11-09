@@ -3,6 +3,7 @@ import type { Models, ModelThinkingLevel } from '@earendil-works/pi-ai'
 import {
   AgentDoc,
   configure,
+  type Conversation,
   type ConversationWatch,
   type Cursor,
   type EntryId,
@@ -92,6 +93,39 @@ const context = BACKGROUND_CONTEXT
 const levelOf = (levels: ThinkingLevelsState, chatModel: ChatModel) =>
   levels[modelKey(chatModel.model)] ?? chatModel.thinkingLevel
 
+/**
+ * Up to `limit` committed entries of `conversation` older than entry
+ * `before`, newest first, including those compaction took out of the view.
+ */
+export async function historyOf(
+  conversation: Conversation,
+  before: EntryId,
+  limit: number,
+): Promise<HistoryPage> {
+  // Entry IDs are ascending integers, and the bound is inclusive.
+  const query = { maxEntryId: (before - 1) as EntryId }
+  const entries: EntryRecord[] = []
+
+  let cursor: Cursor | undefined
+
+  // One past the limit tells whether more exist.
+  do {
+    const page = await conversation.entries(
+      query,
+      limit + 1 - entries.length,
+      cursor,
+      context,
+    )
+    entries.push(...page.items)
+    cursor = page.next
+  } while (cursor && entries.length <= limit)
+
+  return {
+    entries: entries.slice(0, limit),
+    more: entries.length > limit,
+  }
+}
+
 /** `familiar`'s chat, which its ID names. */
 export async function installConversation(
   harness: Harness,
@@ -139,30 +173,7 @@ export async function installConversation(
     },
     idle: () => conversation.waitForIdle(context),
     watch: () => conversation.watch(context),
-    history: async (before, limit) => {
-      // Entry IDs are ascending integers, and the bound is inclusive.
-      const query = { maxEntryId: (before - 1) as EntryId }
-      const entries: EntryRecord[] = []
-
-      let cursor: Cursor | undefined
-
-      // One past the limit tells whether more exist.
-      do {
-        const page = await conversation.entries(
-          query,
-          limit + 1 - entries.length,
-          cursor,
-          context,
-        )
-        entries.push(...page.items)
-        cursor = page.next
-      } while (cursor && entries.length <= limit)
-
-      return {
-        entries: entries.slice(0, limit),
-        more: entries.length > limit,
-      }
-    },
+    history: (before, limit) => historyOf(conversation, before, limit),
     models: () => options,
     setModel: async (model) => {
       const chosen = findChatModel(options, model)
