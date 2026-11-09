@@ -1,4 +1,8 @@
-import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
+import type {
+  AssistantMessage,
+  Message,
+  TranscriptContext,
+} from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxProvider,
@@ -11,11 +15,10 @@ import {
 } from '../conversation/message.ts'
 import { SCHEDULED_PREFIX } from '../schedules/task.ts'
 
+type Said = Pick<MessageData, 'author' | 'text'>
+
 /** A person's message, after the people's earlier messages in this request. */
-export type ScriptedMessage = {
-  type: 'message'
-  earlier: MessageData[]
-} & MessageData
+export type ScriptedMessage = { type: 'message'; earlier: Said[] } & Said
 
 /** What a scripted model is asked, read from the request Familiar sends. */
 export type ScriptedRequest = { context: TranscriptContext } & (
@@ -27,6 +30,15 @@ export type ScriptedRequest = { context: TranscriptContext } & (
   /** Work nobody is waiting on, such as compaction or memory upkeep. */
   | { type: 'background' }
 )
+
+/**
+ * The input itself: a room's input carries what the Familiar was shown from
+ * the room first, as an earlier part (see rooms/turn.ts), so it's the last.
+ */
+const inputText = (message: Message) =>
+  typeof message.content === 'string'
+    ? message.content
+    : (message.content.findLast((part) => part.type === 'text')?.text ?? '')
 
 /**
  * Reads the input a request answers: its newest person's message, schedule or
@@ -50,7 +62,7 @@ function readRequest(context: TranscriptContext): ScriptedRequest {
     if (message.role !== 'user') {
       continue
     }
-    const text = textOf(message)
+    const text = inputText(message)
     if (text.startsWith(SCHEDULED_PREFIX)) {
       return { type: 'scheduled', context }
     }
@@ -59,7 +71,7 @@ function readRequest(context: TranscriptContext): ScriptedRequest {
       const earlier = messages
         .slice(0, index)
         .flatMap((other) =>
-          other.role === 'user' ? (readMessage(textOf(other)) ?? []) : [],
+          other.role === 'user' ? (readMessage(inputText(other)) ?? []) : [],
         )
       return { type: 'message', ...said, earlier, context }
     }
@@ -76,14 +88,19 @@ function readRequest(context: TranscriptContext): ScriptedRequest {
 export function scriptedModels(
   respond: (
     request: ScriptedRequest,
+    /** Aborted when the request is, such as when its run is stopped. */
+    signal?: AbortSignal,
   ) => AssistantMessage | Promise<AssistantMessage>,
   options?: RegisterFauxProviderOptions,
 ) {
   const faux = fauxProvider(options)
   // The provider answers from a queue, so each answer queues the next.
-  const step = (context: TranscriptContext) => {
+  const step = (
+    context: TranscriptContext,
+    options?: { signal?: AbortSignal },
+  ) => {
     faux.appendResponses([step])
-    return respond(readRequest(context))
+    return respond(readRequest(context), options?.signal)
   }
   faux.setResponses([step])
   const models = createModels()

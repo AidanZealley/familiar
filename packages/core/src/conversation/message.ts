@@ -1,5 +1,6 @@
 import type { Message } from '@earendil-works/pi-ai'
 import type {
+  ConversationId,
   Cursor,
   EntryId,
   EntryQuery,
@@ -21,7 +22,14 @@ export type Author = {
 }
 
 /** A person's message as stored, without parsing the model's copy. */
-export type MessageData = { author: Author; text: string }
+export type MessageData = { author: Author; text: string } & InRoom
+
+/**
+ * Where a Familiar was shown an input: the room it came from, and what the
+ * Familiar was shown from that room with it (see rooms/turn.ts). Absent for
+ * input sent straight to its chat, as before rooms.
+ */
+export type InRoom = { room?: ConversationId; context?: string }
 
 /**
  * Bounds on what a message may carry, enforced by `admitMessage` for every
@@ -112,11 +120,16 @@ export const formatAuthor = (author: Author) =>
  * then their words unchanged. The author is a JSON string, with Unicode line
  * breaks escaped too, so no name can end the line or the quotes early.
  */
-export const formatMessage = ({ author, text }: MessageData) =>
+export const formatMessage = ({
+  author,
+  text,
+}: Pick<MessageData, 'author' | 'text'>) =>
   `[Message from ${formatAuthor(author)}]\n${text}`
 
 /** `formatMessage` read back, or undefined for text it didn't write. */
-export const readMessage = (text: string): MessageData | undefined => {
+export const readMessage = (
+  text: string,
+): Pick<MessageData, 'author' | 'text'> | undefined => {
   const match = /^\[Message from (.*)\]\n([\s\S]*)$/.exec(text)
   return match
     ? { author: JSON.parse(match[1]) as Author, text: match[2] }
@@ -168,7 +181,7 @@ export async function answeredMessage(tx: Tx, taskId: TaskId) {
 /** The entry kind a schedule's prompt is submitted as when it falls due. */
 export const SCHEDULED_KIND = 'familiar.scheduled'
 
-export type ScheduledData = {
+export type ScheduledData = InRoom & {
   scheduleId: string
   creator?: Author
   prompt: string

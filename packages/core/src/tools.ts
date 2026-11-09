@@ -2,6 +2,7 @@ import type { Context, ContextKey, JsonValue } from '@earendil-works/chord'
 import { withContextValue } from '@earendil-works/chord/context'
 import type { TSchema } from '@earendil-works/pi-ai'
 import type {
+  EntryRecord,
   TaskId,
   ToolExecutionResult,
   ToolRegistration,
@@ -101,28 +102,42 @@ export function withServices<P extends TSchema, D extends JsonValue>(
 /**
  * The person a tool call runs for, resolved through its persisted call
  * ancestry, never from its arguments: a message's author, or the creator of
- * a scheduled run. Nested calls follow their parent. The assistant entry
- * bounds the search, so later queued or placed messages cannot steal it.
- * Undefined for any other input, such as memory upkeep.
+ * a scheduled run. Undefined for any other input, such as memory upkeep.
  */
 async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
+  const input = await callInput(tx, taskId)
+  return input?.kind === MESSAGE_KIND
+    ? (input.data as MessageData).author
+    : input?.kind === SCHEDULED_KIND
+      ? (input.data as ScheduledData).creator
+      : undefined
+}
+
+/**
+ * The input a tool call's run answers: a person's message or a scheduled
+ * prompt, whose data says who it's for and which room it came from.
+ * Nested calls follow their parent. The assistant entry bounds the search,
+ * so later queued or placed messages cannot steal it. Undefined for any
+ * other input, such as memory upkeep.
+ */
+export async function callInput(
+  tx: Tx,
+  taskId: TaskId,
+): Promise<EntryRecord | undefined> {
   const task = await tx.task(taskId)
   if (!task || task.kind !== 'pi.tool') {
     return undefined
   }
   const input = task.input as ToolTaskInput
   if (input.kind === 'nested') {
-    return toolAuthor(tx, input.parent)
+    return callInput(tx, input.parent)
   }
   for await (const entry of entriesOf(tx, {
     conversationId: task.conversationId,
     maxEntryId: input.assistant,
   })) {
-    if (entry.kind === MESSAGE_KIND) {
-      return (entry.data as MessageData).author
-    }
-    if (entry.kind === SCHEDULED_KIND) {
-      return (entry.data as ScheduledData).creator
+    if (entry.kind === MESSAGE_KIND || entry.kind === SCHEDULED_KIND) {
+      return entry
     }
     // Other input, e.g. upkeep, has no person behind it. Compaction summaries
     // are history markers, not inputs, and must not hide the original input.

@@ -38,7 +38,12 @@ import { createMemory, type MemoryApi } from '../memory/index.ts'
 import type { Notify } from '../notify.ts'
 import { createPersona } from '../persona.ts'
 import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
-import { createSchedules, type SchedulesApi } from '../schedules/index.ts'
+import { createRooms, type RoomsApi } from '../rooms/index.ts'
+import {
+  checkMaxSchedules,
+  createSchedules,
+  type SchedulesApi,
+} from '../schedules/index.ts'
 import { checkTimeZone, createTime } from '../time.ts'
 import {
   checkIdentity,
@@ -172,6 +177,11 @@ export type Workspace = {
      */
     update(id: FamiliarId, change: FamiliarChange): Promise<void>
   }
+  /**
+   * Where people talk to Familiars: DMs, one per Familiar and person, and
+   * named rooms with one or more Familiars.
+   */
+  rooms: RoomsApi
   /** Settles on dismissal or a storage failure. Failed instances must be reopened. */
   readonly closed: Promise<SessionEnd>
   /** The owner's login with the models' provider, if the host passed `account`. */
@@ -217,12 +227,8 @@ export async function openWorkspace(
   if (!model) {
     throw new Error(`${modelKey(options.model)} must be one of chatModels.`)
   }
-  // Checks its options, so before storage opens, like the zone.
-  const schedules = createSchedules({
-    notify: options.notify,
-    timeZone: options.timeZone,
-    maxSchedules: options.maxSchedules,
-  })
+  // Checked before storage opens, like the zone.
+  const maxSchedules = checkMaxSchedules(options.maxSchedules)
   const account =
     options.account &&
     (await createAccount(
@@ -240,6 +246,14 @@ export async function openWorkspace(
       harnessOptions({ ...options, chatModels }, registry, budget),
       context,
     )
+
+    const rooms = createRooms(harness, { timeZone: options.timeZone })
+    const schedules = createSchedules({
+      notify: options.notify,
+      timeZone: options.timeZone,
+      maxSchedules,
+      post: rooms.postScheduled,
+    })
 
     // Half the budget leaves room for the prompt, memory and the pass's tool calls.
     const memory = createMemory(harness, {
@@ -269,6 +283,7 @@ export async function openWorkspace(
         createTime(options.timeZone),
         ...memory.extensions,
         schedules.extension,
+        rooms.extension,
       ].map(plugins.provide),
       ...plugins.extensions,
     ]
@@ -343,6 +358,7 @@ export async function openWorkspace(
           }, context)
         },
       },
+      rooms: rooms.api,
       account: account?.api,
       mcp: mcp.api,
       connections: allConnections(

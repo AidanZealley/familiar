@@ -1,8 +1,12 @@
+import type { Context } from '@earendil-works/chord'
 import {
   AssistantEntry,
   defineTask,
   ROOT_CONVERSATION_ID,
   type EntryRecord,
+  type TaskId,
+  type TaskRuntime,
+  type Tx,
 } from '@earendil-works/pi-durable'
 import {
   SCHEDULED_KIND,
@@ -19,18 +23,43 @@ import {
   familiarRecord,
   type FamiliarId,
 } from '../workspace/familiars.ts'
+import {
+  replyText,
+  type ReplyData,
+  type RoomScheduledData,
+  type TurnResult,
+} from '../rooms/log.ts'
+import { membersOf, Rooms, type RoomId } from '../rooms/rooms.ts'
+
+type Delivery = {
+  prompt: string
+  creator?: Author
+  due: number
+}
 
 type ScheduleStep =
   | { phase: 'wait' }
-  /** Built in `wait`, so a rerun after a restart submits the same input. */
-  | {
+  /** Built in `wait`, so a rerun after a restart delivers the same thing. */
+  | (Delivery & {
       phase: 'deliver'
-      prompt: string
-      creator?: Author
-      due: number
       /** When it was delivered, if late. */
       late?: number
-    }
+      /**
+       * The room it was made in, if it's still open to it. Schedules made
+       * before rooms have none, and go straight to the chat.
+       */
+      room?: RoomId
+    })
+  /** Waits for the turn its room entry caused, then notifies with its reply. */
+  | (Delivery & { phase: 'notify'; turns: TaskId<TurnResult>[] })
+
+/** Records a reminder falling due in `room`, returning the turns it causes. */
+export type PostScheduled = (
+  tx: Tx,
+  room: RoomId,
+  entry: RoomScheduledData,
+  requestId: string,
+) => Promise<TaskId<TurnResult>[]>
 
 const finished = {
   status: 'terminal',
@@ -42,6 +71,23 @@ export const SCHEDULED_PREFIX = '[Scheduled for '
 
 /** Woken more than this after its time, a delivery says it's late. */
 const LATE_MS = 60_000
+
+/** A due prompt as the model reads it: when it was for, who asked, and what. */
+export function scheduledInput(
+  {
+    prompt,
+    due,
+    late,
+    creator,
+  }: Pick<RoomScheduledData, 'prompt' | 'due' | 'late' | 'creator'>,
+  timeZone: string,
+) {
+  const when =
+    late === undefined
+      ? localMinute(due, timeZone)
+      : `${localMinute(due, timeZone)}, delivered ${localMinute(late, timeZone)}`
+  return `${SCHEDULED_PREFIX}${when}${creator ? `; requested by ${formatAuthor(creator)}` : ''}] ${prompt}`
+}
 
 /** Roughly what a notification shows before the system cuts it off. */
 const BODY_LENGTH = 180
@@ -65,16 +111,63 @@ export function notificationBody(text: string) {
 type ScheduleInput = { familiar: FamiliarId; id: string }
 
 /**
- * One task per schedule: it sleeps until the schedule is due, submits its
- * prompt to its Familiar's chat, and notifies the host with the reply, or
- * with the prompt if there was none, so a reminder is never lost. A task
- * that wakes to find its schedule gone finishes without doing anything:
- * cancelling is removing the schedule.
+ * One task per schedule: it sleeps until the schedule is due, posts it to
+ * the room it was made in, where its Familiar takes a turn, and notifies the
+ * host with the reply, or with the prompt if there was none, so a reminder
+ * is never lost. A schedule made before rooms submits its prompt straight to
+ * the chat instead. A task that wakes to find its schedule gone finishes
+ * without doing anything: cancelling is removing the schedule.
  */
 export function createScheduleTask(
   notify: Notify | undefined,
   timeZone: string,
+  post: PostScheduled,
 ) {
+  type Runtime = TaskRuntime<ScheduleInput, ScheduleStep, null, object>
+
+  /**
+   * Notifies the host with `reply`, or the prompt if it's empty, then
+   * sleeps until the next occurrence or finishes.
+   */
+  const notifyAndAdvance = async (
+    { familiar, id }: ScheduleInput,
+    { prompt, creator, due }: Delivery,
+    name: string,
+    reply: string,
+    runtime: Runtime,
+    context: Context,
+  ) => {
+    // A crash between notifying and the commit below notifies again on
+    // rerun: better twice than never.
+    if (notify) {
+      await notify(
+        {
+          title: name,
+          body: notificationBody(reply || prompt),
+          url: '/',
+        },
+        { scheduleId: id, creator },
+      ).catch((error: unknown) => runtime.report(error))
+    }
+
+    await runtime.commit(async (tx) => {
+      const next = advance(
+        await familiarDoc(tx, Schedules, familiar),
+        id,
+        due,
+        runtime.now(),
+        timeZone,
+      )
+      return next
+        ? {
+            status: 'sleeping',
+            until: next.next,
+            checkpoint: { phase: 'wait' },
+          }
+        : finished
+    }, context)
+  }
+
   return defineTask<ScheduleInput, ScheduleStep, null>({
     name: 'familiar.schedule',
     version: 2,
@@ -104,6 +197,16 @@ export function createScheduleTask(
               checkpoint: { phase: 'wait' },
             }
           }
+          // A room that was archived, or that its Familiar left, takes no
+          // reminders; the chat and the notification still do.
+          const room =
+            schedule.room === undefined
+              ? undefined
+              : (await tx.doc(Rooms)).rooms[schedule.room]
+          const open =
+            room &&
+            !(room.kind === 'room' && room.archived) &&
+            membersOf(room).includes(familiar)
           const due = dueAt(schedule, now, timeZone)
           return {
             status: 'running',
@@ -113,38 +216,57 @@ export function createScheduleTask(
               ...(schedule.creator && { creator: schedule.creator }),
               due,
               ...(now - due >= LATE_MS && { late: now }),
+              ...(open && { room: schedule.room }),
             },
           }
         }, context),
 
       deliver: async (task, runtime, context) => {
         const { familiar, id } = task.input
-        const { prompt, due, late, creator } = task.state.checkpoint
+        const { phase: _, room, ...delivery } = task.state.checkpoint
+        const { prompt, due, creator } = delivery
         // Rerun after a restart, this may come after the schedule was
         // cancelled, so it checks again first. Its name titles the
-        // notification.
+        // notification. In a room, posting it and waiting for the turn it
+        // causes are one commit, so a rerun can't post it twice.
         let name: string | undefined
+        let posted = false
         await runtime.commit(async (tx) => {
-          const runnable =
-            (await familiarDoc(tx, Schedules, familiar))[id] !== undefined
-          name = runnable
-            ? (await familiarRecord(tx, familiar)).name
-            : undefined
-          return runnable ? undefined : finished
+          if ((await familiarDoc(tx, Schedules, familiar))[id] === undefined) {
+            return finished
+          }
+          name = (await familiarRecord(tx, familiar)).name
+          if (room === undefined) {
+            return undefined
+          }
+          const turns = await post(
+            tx,
+            room,
+            { familiar, scheduleId: id, ...delivery },
+            `schedule:${id}:${due}`,
+          )
+          posted = true
+          const checkpoint = {
+            phase: 'notify',
+            prompt,
+            due,
+            ...(creator && { creator }),
+            turns,
+          } as const
+          return turns.length
+            ? { status: 'waiting', on: turns, policy: 'allSettled', checkpoint }
+            : { status: 'running', checkpoint }
         }, context)
-        if (name === undefined) {
+        if (name === undefined || posted) {
           return
         }
-        const conversation = await runtime.conversation(familiar, context)
-        const when =
-          late === undefined
-            ? localMinute(due, timeZone)
-            : `${localMinute(due, timeZone)}, delivered ${localMinute(late, timeZone)}`
+
         // Queues like any message if the conversation is busy.
+        const conversation = await runtime.conversation(familiar, context)
         const submission = await conversation!.submit(
           {
             type: 'input',
-            content: `${SCHEDULED_PREFIX}${when}${creator ? `; requested by ${formatAuthor(creator)}` : ''}] ${prompt}`,
+            content: scheduledInput(delivery, timeZone),
             requestId: `schedule:${id}:${due}`,
             entry: {
               kind: SCHEDULED_KIND,
@@ -169,36 +291,41 @@ export function createScheduleTask(
           }, context)
           reply = (answer && saidBy(answer)?.text.trim()) ?? ''
         }
+        await notifyAndAdvance(
+          task.input,
+          delivery,
+          name,
+          reply,
+          runtime,
+          context,
+        )
+      },
 
-        // A crash between notifying and the commit below notifies again on
-        // rerun: better twice than never.
-        if (notify) {
-          await notify(
-            {
-              title: name,
-              body: notificationBody(reply || prompt),
-              url: '/',
-            },
-            { scheduleId: id, creator },
-          ).catch((error: unknown) => runtime.report(error))
-        }
-
+      notify: async (task, runtime, context) => {
+        const { turns, phase: _, ...delivery } = task.state.checkpoint
+        const replies = (await runtime.outcomes(turns, context)).flatMap(
+          (outcome) => outcome.result?.reply ?? [],
+        )
+        // A task commit returns its next state, not values, so read into these.
+        let name = ''
+        let reply = ''
         await runtime.commit(async (tx) => {
-          const next = advance(
-            await familiarDoc(tx, Schedules, familiar),
-            id,
-            due,
-            runtime.now(),
-            timeZone,
-          )
-          return next
-            ? {
-                status: 'sleeping',
-                until: next.next,
-                checkpoint: { phase: 'wait' },
-              }
-            : finished
+          name = (await familiarRecord(tx, task.input.familiar)).name
+          for (const id of replies) {
+            const data = (await tx.entry(id))?.data as ReplyData | undefined
+            if (data?.outcome === 'answered') {
+              reply = replyText(data).trim()
+            }
+          }
         }, context)
+        await notifyAndAdvance(
+          task.input,
+          delivery,
+          name,
+          reply,
+          runtime,
+          context,
+        )
       },
     },
     abort: (_task, runtime, context) =>

@@ -40,6 +40,21 @@ export {
   type ModelOption,
 } from './conversation/models.ts'
 export type { MemoryApi } from './memory/index.ts'
+export {
+  REPLY_KIND,
+  RoomError,
+  type Mention,
+  type ReplyData,
+  type Room,
+  type RoomApi,
+  type RoomId,
+  type RoomMessage,
+  type RoomMessageData,
+  type RoomSetup,
+  type RoomsApi,
+  type RoomSummary,
+  type TurnRecord,
+} from './rooms/index.ts'
 export { defaultPersona } from './persona.ts'
 export {
   DEFAULT_MAX_SCHEDULES,
