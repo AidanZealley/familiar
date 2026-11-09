@@ -47,7 +47,10 @@ async function move<T extends JsonObject>(
   await tx.retireDoc(old)
 }
 
-/** Upkeep's conversations move to the Familiar's registry record. */
+/**
+ * Upkeep's conversation moves to the Familiar's registry record, and does
+ * the rollups too, so its old rollup conversation is left unused.
+ */
 const UpkeepBefore = defineDoc<{
   conversation: ConversationId | null
   rollups: ConversationId | null
@@ -97,12 +100,12 @@ export async function adoptPreWorkspaceFamiliar(
     task: upkeep.task,
     through: upkeep.through,
   })
-  // A store opened at least once has both; created here if it never was.
-  const ownerless = { ownership: { kind: 'ownerless' } } as const
+  // A store opened at least once has one; created here if it never was.
   registry.familiars[familiar] = {
     name,
-    upkeep: upkeep.conversation ?? (await tx.createConversation(ownerless)).id,
-    rollups: upkeep.rollups ?? (await tx.createConversation(ownerless)).id,
+    upkeep:
+      upkeep.conversation ??
+      (await tx.createConversation({ ownership: { kind: 'ownerless' } })).id,
   }
   return familiar
 }
