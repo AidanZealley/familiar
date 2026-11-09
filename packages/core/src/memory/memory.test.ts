@@ -102,7 +102,7 @@ test('neither the chat nor a conversation that chooses nothing is given the tool
       registry.install(extension)
     }
     const chat = await harness.commit(
-      (tx) => createFamiliar(tx, 'Familiar'),
+      (tx) => createFamiliar(tx, { name: 'Familiar' }),
       BACKGROUND_CONTEXT,
     )
     await memory.open(chat)

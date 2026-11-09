@@ -10,6 +10,7 @@ import { scriptedModels } from '../models/scripted.ts'
 import { ReopenableStorage } from '../testing.ts'
 import { createFamiliar } from './familiars.ts'
 import { openWorkspace } from './index.ts'
+import { defaultPersona } from '../persona.ts'
 
 const read = async <T>(
   watch: () => Promise<{ value: T; stop(): Promise<unknown> }>,
@@ -19,13 +20,17 @@ const read = async <T>(
   return opened.value
 }
 
-test('Familiars in one workspace each keep their own chat, memory, schedules, model level and name', async () => {
+test('Familiars in one workspace each keep their own chat, memory, schedules, model level and identity', async () => {
   const storage = new ReopenableStorage()
-  // Ada remembers Miso, as her upkeep would have filed it; Bo knows nothing.
+  // Ada remembers Miso, as her upkeep would have filed it; Bo knows nothing
+  // but has a persona of his own.
   const { ada, bo } = await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
-      const ada = await createFamiliar(tx, 'Ada')
-      const bo = await createFamiliar(tx, 'Bo')
+      const ada = await createFamiliar(tx, { name: 'Ada' })
+      const bo = await createFamiliar(tx, {
+        name: 'Bo',
+        persona: 'You are Bo, a gardener.',
+      })
       rememberFact(
         await openMemory(tx, ada),
         {
@@ -66,6 +71,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
     ),
     model: { provider: 'faux', modelId: 'sol' },
     timeZone: 'UTC',
+    hostInstructions: 'Replies render as plain text.',
   })
   onTestFinished(() => workspace.dismiss())
 
@@ -84,10 +90,18 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   await say(bo, 'Hi Bo.')
 
   const [toAda, toBo] = requests
-  expect(toAda).toContain('You are Ada')
+  expect(toAda).toContain(defaultPersona('Ada'))
   expect(toAda).toContain('Has a cat called Miso')
-  expect(toBo).toContain('You are Bo')
+  expect(toBo).toContain('You are Bo, a gardener.')
   expect(toBo).not.toContain('Miso')
+  for (const request of [toAda, toBo]) {
+    expect(request).toContain('Replies render as plain text.')
+  }
+
+  // A change of identity reaches the next request.
+  await workspace.familiars.update(ada, { persona: 'You are Ada, a vet.' })
+  await say(ada, 'Hello again.')
+  expect(requests.at(-1)).toContain('You are Ada, a vet.')
 
   expect(
     (await read(() => familiar(bo).watch())).entries.some((entry) =>
@@ -109,7 +123,10 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   ).toBe('medium')
 
   expect(await workspace.familiars.list()).toEqual([
-    { id: ada, name: 'Ada' },
-    { id: bo, name: 'Bo' },
+    { id: ada, name: 'Ada', persona: 'You are Ada, a vet.' },
+    { id: bo, name: 'Bo', persona: 'You are Bo, a gardener.' },
   ])
+  await expect(workspace.familiars.update(bo, { name: ' ' })).rejects.toThrow(
+    'must not be blank',
+  )
 })

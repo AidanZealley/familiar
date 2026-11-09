@@ -12,6 +12,12 @@ export type FamiliarOptions = WorkspaceOptions & {
    * Default `Familiar`.
    */
   name?: string
+  /**
+   * Who this Familiar is in conversation, in place of `defaultPersona(name)`,
+   * used exactly as given, so include the name if the model should know it.
+   * Set on every open. Core still adds what its own features need.
+   */
+  persona?: string
 }
 
 /**
@@ -29,16 +35,23 @@ export type Familiar = Omit<Workspace, 'familiars'> & WorkspaceFamiliar
 export async function summonFamiliar(
   options: FamiliarOptions,
 ): Promise<Familiar> {
-  const { name = 'Familiar', ...workspaceOptions } = options
+  const { name = 'Familiar', persona, ...workspaceOptions } = options
   const workspace = await openWorkspace(workspaceOptions)
   try {
+    // The host's options say who it is, so they're applied on every open.
     const [first] = await workspace.familiars.list()
-    if (first && first.name !== name) {
-      await workspace.familiars.rename(first.id, name)
+    if (first && (first.name !== name || first.persona !== persona)) {
+      await workspace.familiars.update(first.id, {
+        name,
+        persona: persona ?? null,
+      })
     }
     const familiar = first
       ? workspace.familiars.get(first.id)!
-      : await workspace.familiars.create({ name })
+      : await workspace.familiars.create({
+          name,
+          ...(persona !== undefined && { persona }),
+        })
     // A summoned Familiar is the workspace's only one.
     const { familiars, ...shared } = workspace
     return { ...shared, ...familiar }

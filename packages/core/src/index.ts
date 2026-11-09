@@ -7,7 +7,9 @@ export {
 } from './familiar.ts'
 export {
   openWorkspace,
+  type FamiliarChange,
   type FamiliarId,
+  type FamiliarIdentity,
   type FamiliarSummary,
   type Workspace,
   type WorkspaceFamiliar,
