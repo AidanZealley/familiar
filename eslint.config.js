@@ -74,7 +74,14 @@ export default defineConfig([
   {
     files: ['**/*.{ts,tsx,js}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
-    rules: { curly: ['error', 'all'] },
+    rules: {
+      curly: ['error', 'all'],
+      // Leaving a property out with a rest spread is a use.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { ignoreRestSiblings: true },
+      ],
+    },
   },
   // typescript-eslint turns off no-undef for TypeScript, so only the
   // service worker, the one script, needs its globals named.

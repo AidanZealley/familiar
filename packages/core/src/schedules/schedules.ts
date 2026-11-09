@@ -1,4 +1,4 @@
-import { defineDoc } from '@earendil-works/pi-durable'
+import { defineDocFamily } from '@earendil-works/pi-durable'
 import type { Author } from '../conversation/message.ts'
 import { parseMinute } from '../time.ts'
 import {
@@ -9,7 +9,7 @@ import {
 } from './repeat.ts'
 
 /**
- * A prompt Familiar runs in the main conversation at a time, once or
+ * A prompt a Familiar runs in its chat at a time, once or
  * repeating. A reminder is a schedule whose prompt says to remind the owner.
  */
 export type Schedule = {
@@ -30,10 +30,11 @@ export type Schedule = {
 /** Schedules by ID. The source of truth: a schedule's task does nothing once it's gone. */
 export type SchedulesState = Record<string, Schedule>
 
-export const Schedules = defineDoc<SchedulesState>({
+export const Schedules = defineDocFamily<SchedulesState, null>({
   kind: 'familiar.schedules',
   version: 1,
   scope: 'session',
+  family: true,
   initial: () => ({}),
   checkpointWhen: () => true, // small: always store it whole
 })

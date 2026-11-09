@@ -40,6 +40,15 @@ import { instructions, rollupInstructions } from './prompts.ts'
 import { nextUpkeep, Upkeep, upkeepDay } from './schedule.ts'
 import { upkeepTools } from './tools.ts'
 import { newMessages } from './transcript.ts'
+import {
+  familiarDoc,
+  familiarRecord,
+  type FamiliarId,
+  type FamiliarRecord,
+} from '../../workspace/familiars.ts'
+
+/** The Familiar whose memory a task keeps. */
+type UpkeepInput = { familiar: FamiliarId }
 
 type UpkeepStep =
   | { phase: 'schedule' }
@@ -85,7 +94,6 @@ export const UPKEEP_EXTENSION = 'familiar.upkeep'
 export type UpkeepOptions = {
   model: ModelRef
   thinkingLevel: ModelThinkingLevel
-  name: string
   transcriptTokens: number
   /** The IANA zone that sets upkeep's 04:00 and the days it files. */
   timeZone: string
@@ -138,7 +146,7 @@ export function createUpkeep(options: UpkeepOptions) {
    * submission if a restart reruns the phase.
    */
   const ask = async (
-    runtime: TaskRuntime<null, UpkeepStep, null, object>,
+    runtime: TaskRuntime<UpkeepInput, UpkeepStep, null, object>,
     conversation: ConversationId,
     requestId: string,
     input: string,
@@ -167,11 +175,33 @@ export function createUpkeep(options: UpkeepOptions) {
   }
 
   /**
-   * Passes start from nothing, so the upkeep conversation never grows.
-   * Appended directly: nothing else runs there, and the last pass settled.
+   * Sets up one of a Familiar's upkeep conversations for a pass and starts
+   * it from nothing, so the conversation never grows. Set up at each pass,
+   * so a change of model, name or wording applies to the next. The reset is
+   * appended directly: nothing else runs there, and the last pass settled.
    */
-  const resetIn = (tx: Tx, conversation: ConversationId) =>
-    tx.appendEntry(ResetEntry, conversation, { head: 'self' })
+  const startPass = async (
+    tx: Tx,
+    record: FamiliarRecord,
+    which: 'upkeep' | 'rollups',
+  ) => {
+    const conversation = record[which]
+    await configure(tx, conversation, {
+      model: options.model,
+      thinkingLevel: options.thinkingLevel,
+      // Rollups summarise, with no tools, so they can't change facts.
+      ...(which === 'upkeep'
+        ? {
+            extensions: [options.extension, extension],
+            instructions: instructions(record.name),
+          }
+        : { extensions: [], instructions: rollupInstructions(record.name) }),
+    })
+    const reset = await tx.appendEntry(ResetEntry, conversation, {
+      head: 'self',
+    })
+    return { conversation, reset: reset.id }
+  }
 
   /** Once the backlog is clear, write any rollups that are due. */
   const rollup = { status: 'running', checkpoint: { phase: 'rollup' } } as const
@@ -179,25 +209,30 @@ export function createUpkeep(options: UpkeepOptions) {
   /** Once rollups are written, recheck the facts that are due. */
   const review = { status: 'running', checkpoint: { phase: 'review' } } as const
 
-  const UpkeepTask = defineTask<null, UpkeepStep, null>({
+  const UpkeepTask = defineTask<UpkeepInput, UpkeepStep, null>({
     name: 'familiar.upkeep',
-    version: 1,
+    version: 2,
     initial: () => ({ phase: 'schedule' }),
+    // Version 1 ran before workspaces, for the one Familiar, on the root.
+    migrate: (_input, checkpoint) => ({
+      input: { familiar: ROOT_CONVERSATION_ID },
+      checkpoint: checkpoint as UpkeepStep,
+    }),
     phases: {
       schedule: (_task, runtime, context) =>
         runtime.commit(() => sleep(runtime.now()), context),
 
-      pass: (_task, runtime, context) =>
+      pass: (task, runtime, context) =>
         runtime.commit(async (tx) => {
-          const upkeep = await tx.doc(Upkeep)
-          if (upkeep.conversation === null) {
-            return sleep(runtime.now())
-          }
+          const { familiar } = task.input
+          const record = await familiarRecord(tx, familiar)
+          const upkeep = await familiarDoc(tx, Upkeep, familiar)
           const found = await newMessages(
             tx,
+            familiar,
             upkeep.through,
             options.transcriptTokens,
-            options.name,
+            record.name,
             options.timeZone,
           )
           // Rollups wait until every pending batch has been reviewed.
@@ -214,18 +249,16 @@ export function createUpkeep(options: UpkeepOptions) {
           }
 
           // The facts the pass sees in its prompt section.
-          const facts = coreFacts(await tx.doc(Facts))
+          const facts = coreFacts(await familiarDoc(tx, Facts, familiar))
           const dates = facts.length
             ? facts.map((fact) => `${fact.id}: since ${fact.since}`).join('\n')
             : '(no facts yet)'
           const input = `Recent conversation, oldest first:\n${found.transcript}\n\nWhen each fact became true:\n${dates}`
-          const reset = await resetIn(tx, upkeep.conversation)
           return {
             status: 'running',
             checkpoint: {
               phase: 'consolidate',
-              conversation: upkeep.conversation,
-              reset: reset.id,
+              ...(await startPass(tx, record, 'upkeep')),
               oldest: found.oldest,
               newest: found.newest,
               input,
@@ -270,11 +303,12 @@ export function createUpkeep(options: UpkeepOptions) {
             runtime.report(new Error('Memory upkeep wrote no episode.'))
           }
 
-          const upkeep = await tx.doc(Upkeep)
+          const { familiar } = task.input
+          const upkeep = await familiarDoc(tx, Upkeep, familiar)
           upkeep.through = newest
 
           if (episode) {
-            addEpisode(await tx.doc(Episodes), {
+            addEpisode(await familiarDoc(tx, Episodes, familiar), {
               span: 'day',
               start: day,
               end: day,
@@ -284,21 +318,19 @@ export function createUpkeep(options: UpkeepOptions) {
             })
           }
 
-          rebalanceCore(await openMemory(tx))
+          rebalanceCore(await openMemory(tx, familiar))
           return { status: 'running', checkpoint: { phase: 'pass' } } as const
         }, context)
       },
 
-      rollup: (_task, runtime, context) =>
+      rollup: (task, runtime, context) =>
         runtime.commit(async (tx) => {
-          const upkeep = await tx.doc(Upkeep)
+          const { familiar } = task.input
+          const record = await familiarRecord(tx, familiar)
           const due = dueRollup(
-            await tx.doc(Episodes),
+            await familiarDoc(tx, Episodes, familiar),
             upkeepDay(runtime.now(), options.timeZone),
           )
-          if (upkeep.rollups === null) {
-            return sleep(runtime.now())
-          }
           if (!due) {
             return review
           }
@@ -309,13 +341,11 @@ export function createUpkeep(options: UpkeepOptions) {
             )
             .join('\n\n')
           const input = `The ${due.span} of ${due.start} to ${due.end}:\n\n${days}`
-          const reset = await resetIn(tx, upkeep.rollups)
           return {
             status: 'running',
             checkpoint: {
               phase: 'summarize',
-              conversation: upkeep.rollups,
-              reset: reset.id,
+              ...(await startPass(tx, record, 'rollups')),
               span: due.span,
               start: due.start,
               end: due.end,
@@ -340,7 +370,7 @@ export function createUpkeep(options: UpkeepOptions) {
           if (!episode) {
             return review
           }
-          addEpisode(await tx.doc(Episodes), {
+          addEpisode(await familiarDoc(tx, Episodes, task.input.familiar), {
             span,
             start,
             end,
@@ -351,12 +381,13 @@ export function createUpkeep(options: UpkeepOptions) {
         }, context)
       },
 
-      review: (_task, runtime, context) =>
+      review: (task, runtime, context) =>
         runtime.commit(async (tx) => {
-          const upkeep = await tx.doc(Upkeep)
-          const memory = await openMemory(tx)
+          const { familiar } = task.input
+          const record = await familiarRecord(tx, familiar)
+          const memory = await openMemory(tx, familiar)
           const due = dueForReview(memory, runtime.now())
-          if (!due.length || upkeep.conversation === null) {
+          if (!due.length) {
             return sleep(runtime.now())
           }
           const facts = due
@@ -366,18 +397,16 @@ export function createUpkeep(options: UpkeepOptions) {
             )
             .join('\n')
           const days = recentDays(
-            await tx.doc(Episodes),
+            await familiarDoc(tx, Episodes, familiar),
             upkeepDay(runtime.now(), options.timeZone),
             options.transcriptTokens,
           )
           const input = `Check these facts against what happened recently:\n${facts}\n\nThe days of the last ${REVIEW_DAYS}, oldest first:\n${days || '(none recorded)'}`
-          const reset = await resetIn(tx, upkeep.conversation)
           return {
             status: 'running',
             checkpoint: {
               phase: 'recheck',
-              conversation: upkeep.conversation,
-              reset: reset.id,
+              ...(await startPass(tx, record, 'upkeep')),
               facts: due.map((fact) => fact.id),
               input,
             },
@@ -397,7 +426,11 @@ export function createUpkeep(options: UpkeepOptions) {
           // A failed review has been reported; unstamped, its facts are
           // first in line again the next night.
           if (reply !== undefined) {
-            markChecked(await tx.doc(MemoryUsage), facts, runtime.now())
+            markChecked(
+              await familiarDoc(tx, MemoryUsage, task.input.familiar),
+              facts,
+              runtime.now(),
+            )
           }
           return sleep(runtime.now())
         }, context)
@@ -421,10 +454,10 @@ export function createUpkeep(options: UpkeepOptions) {
   return {
     extension,
 
-    /** Ensures the upkeep conversation and exactly one live upkeep task exist. */
-    start: (harness: Harness, context: Context) =>
+    /** Ensures `familiar`'s exactly one live upkeep task. */
+    start: (harness: Harness, familiar: FamiliarId, context: Context) =>
       harness.commit(async (tx) => {
-        const upkeep = await tx.doc(Upkeep)
+        const upkeep = await familiarDoc(tx, Upkeep, familiar)
         // Reads before writes: a transaction cannot read tables after writing.
         const task =
           upkeep.task === null ? undefined : await tx.task(upkeep.task)
@@ -433,34 +466,17 @@ export function createUpkeep(options: UpkeepOptions) {
           task.state.status !== 'terminal' &&
           task.state.status !== 'completing'
 
-        const createConversation = async () =>
-          (await tx.createConversation({ ownership: { kind: 'ownerless' } })).id
-
-        upkeep.conversation ??= await createConversation()
-        upkeep.rollups ??= await createConversation()
-
-        // Every open, so a change of model or wording applies to the next pass.
-        await configure(tx, upkeep.conversation, {
-          model: options.model,
-          thinkingLevel: options.thinkingLevel,
-          extensions: [options.extension, extension],
-          instructions: instructions(options.name),
-        })
-        await configure(tx, upkeep.rollups, {
-          model: options.model,
-          thinkingLevel: options.thinkingLevel,
-          extensions: [],
-          instructions: rollupInstructions(options.name),
-        })
-
-        // Background, so it never keeps the main conversation busy or is
-        // stopped with it.
+        // Background, so it never keeps the chat busy or is stopped with it.
         if (!live) {
-          upkeep.task = await tx.createTask(UpkeepTask, null, {
-            ownership: { kind: 'conversation' },
-            conversationId: ROOT_CONVERSATION_ID,
-            background: true,
-          })
+          upkeep.task = await tx.createTask(
+            UpkeepTask,
+            { familiar },
+            {
+              ownership: { kind: 'conversation' },
+              conversationId: familiar,
+              background: true,
+            },
+          )
         }
       }, context),
   }

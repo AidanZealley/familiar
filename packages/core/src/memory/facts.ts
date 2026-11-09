@@ -1,4 +1,9 @@
-import { defineDoc, type EntryId, type Tx } from '@earendil-works/pi-durable'
+import {
+  defineDocFamily,
+  type EntryId,
+  type Tx,
+} from '@earendil-works/pi-durable'
+import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 import { formatDay, parseDay } from '../time.ts'
 
 /**
@@ -59,13 +64,14 @@ export type UsageState = {
 export type Memory = { facts: FactsState; usage: UsageState }
 
 /**
- * What Familiar knows about the people it helps. One document for the whole
+ * What a Familiar knows about the people it helps. One document per
  * Familiar, stored with the transcript, and streamed to clients as `memory`.
  */
-export const Facts = defineDoc<FactsState>({
+export const Facts = defineDocFamily<FactsState, null>({
   kind: 'familiar.facts',
   version: 1,
   scope: 'session',
+  family: true,
   initial: () => ({ facts: [], next: 1 }),
   // Store a full copy now and then, so reading it never replays a long history.
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
@@ -76,18 +82,22 @@ export const Facts = defineDoc<FactsState>({
  * change on nearly every reply, so they live apart from the facts clients
  * receive, and aren't streamed.
  */
-export const MemoryUsage = defineDoc<UsageState>({
+export const MemoryUsage = defineDocFamily<UsageState, null>({
   kind: 'familiar.memory-usage',
   version: 1,
   scope: 'session',
+  family: true,
   initial: () => ({ facts: {} }),
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
 })
 
-/** Both memory documents, for a transaction that changes facts. */
-export const openMemory = async (tx: Tx): Promise<Memory> => ({
-  facts: await tx.doc(Facts),
-  usage: await tx.doc(MemoryUsage),
+/** A Familiar's two memory documents, for a transaction that changes facts. */
+export const openMemory = async (
+  tx: Tx,
+  familiar: FamiliarId,
+): Promise<Memory> => ({
+  facts: await familiarDoc(tx, Facts, familiar),
+  usage: await familiarDoc(tx, MemoryUsage, familiar),
 })
 
 /** Core is at most this many characters as the model sees it, so the prompt stays small however long Familiar runs. */

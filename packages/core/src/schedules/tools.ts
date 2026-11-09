@@ -1,6 +1,12 @@
 import { Type } from '@earendil-works/pi-ai'
-import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
+import type { Context } from '@earendil-works/chord'
+import type { ToolExecutionApi, Tx } from '@earendil-works/pi-durable'
 import { defineTool, familiar } from '../tools.ts'
+import {
+  familiarDoc,
+  familiarFor,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
 import { weekdayMinute } from '../time.ts'
 import {
   addSchedule,
@@ -8,6 +14,7 @@ import {
   Schedules,
   upcoming,
   type Schedule,
+  type SchedulesState,
 } from './schedules.ts'
 import type { ScheduleTask } from './task.ts'
 
@@ -24,6 +31,21 @@ function describe(schedule: Schedule, timeZone: string) {
     ? `${schedule.id}: at ${when}: ${schedule.prompt}`
     : `${schedule.id}: ${schedule.repeat}, next ${when}: ${schedule.prompt}`
 }
+
+/** Commits `use` with the schedules of the Familiar whose chat calls it. */
+const withSchedules = <T>(
+  api: ToolExecutionApi,
+  context: Context,
+  use: (
+    schedules: SchedulesState,
+    familiar: FamiliarId,
+    tx: Tx,
+  ) => T | Promise<T>,
+) =>
+  api.commit(async (tx) => {
+    const owner = await familiarFor(tx, api.conversationId)
+    return use(await familiarDoc(tx, Schedules, owner), owner, tx)
+  }, context)
 
 /** schedule, list_schedules and cancel_schedule. */
 export function scheduleTools(
@@ -56,30 +78,33 @@ export function scheduleTools(
     execute: async (args, api, context) => {
       const id = `s${api.taskId}`
       const creator = await familiar(context).author()
-      const created = await api.commit(async (tx) => {
-        const schedules = await tx.doc(Schedules)
-        if (schedules[id]) {
-          return schedules[id]
-        }
-        const added = addSchedule(
-          schedules,
-          { id, ...args, creator },
-          api.now(),
-          timeZone,
-          maxSchedules,
-        )
-        // Background, so it never keeps the conversation busy while it sleeps.
-        await tx.createTask(
-          task,
-          { id },
-          {
-            ownership: { kind: 'conversation' },
-            conversationId: ROOT_CONVERSATION_ID,
-            background: true,
-          },
-        )
-        return added
-      }, context)
+      const created = await withSchedules(
+        api,
+        context,
+        async (schedules, owner, tx) => {
+          if (schedules[id]) {
+            return schedules[id]
+          }
+          const added = addSchedule(
+            schedules,
+            { id, ...args, creator },
+            api.now(),
+            timeZone,
+            maxSchedules,
+          )
+          // Background, so it never keeps the conversation busy while it sleeps.
+          await tx.createTask(
+            task,
+            { familiar: owner, id },
+            {
+              ownership: { kind: 'conversation' },
+              conversationId: owner,
+              background: true,
+            },
+          )
+          return added
+        },
+      )
       return text(`Scheduled ${describe(created, timeZone)}`)
     },
   })
@@ -91,9 +116,8 @@ export function scheduleTools(
     parameters: Type.Object({}),
     replay: 'safe',
     execute: async (_args, api, context) => {
-      const schedules = await api.commit(
-        async (tx) => Object.values(await tx.doc(Schedules)),
-        context,
+      const schedules = await withSchedules(api, context, (schedules) =>
+        Object.values(schedules),
       )
       return text(
         schedules.length
@@ -112,9 +136,8 @@ export function scheduleTools(
     parameters: Type.Object({ id: Type.String() }),
     replay: 'safe',
     execute: async ({ id }, api, context) => {
-      await api.commit(
-        async (tx) => cancelSchedule(await tx.doc(Schedules), id),
-        context,
+      await withSchedules(api, context, (schedules) =>
+        cancelSchedule(schedules, id),
       )
       return text(`Cancelled ${id}.`)
     },

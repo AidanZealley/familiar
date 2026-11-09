@@ -1,6 +1,5 @@
 import {
   CompactionEntry,
-  ROOT_CONVERSATION_ID,
   type EntryId,
   type Tx,
 } from '@earendil-works/pi-durable'
@@ -9,6 +8,7 @@ import { entriesOf, saidBy, type Author } from '../conversation/message.ts'
 import { localDay } from '../time.ts'
 import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
+import type { FamiliarId } from '../workspace/familiars.ts'
 
 /**
  * Exchanges: each person message (or scheduled prompt) with the replies after it, the smallest
@@ -158,8 +158,8 @@ export function createExchangeIndex(timeZone: string): ExchangeIndex {
 }
 
 /**
- * The index over the main conversation, kept by memory for as long as
- * Familiar runs. `catchUp` reads the transcript after the last entry it saw
+ * The index over a Familiar's chat, kept by memory for as long as the
+ * workspace runs. `catchUp` reads the transcript after the last entry it saw
  * and is called at the start of each search, so the index never needs
  * telling about new messages. An exchange is added only once the next
  * person message exists, so every indexed text is final; the newest is
@@ -168,7 +168,7 @@ export function createExchangeIndex(timeZone: string): ExchangeIndex {
  * model's view begins, from the latest compaction, so searches can find
  * what compaction took out of it.
  */
-export function transcriptExchanges(timeZone: string) {
+export function transcriptExchanges(familiar: FamiliarId, timeZone: string) {
   const index = createExchangeIndex(timeZone)
   let through: EntryId | undefined
   let open: Exchange | undefined
@@ -177,7 +177,7 @@ export function transcriptExchanges(timeZone: string) {
   return {
     async catchUp(tx: Tx) {
       for await (const entry of entriesOf(tx, {
-        conversationId: ROOT_CONVERSATION_ID,
+        conversationId: familiar,
         order: 'ascending',
         ...(through !== undefined && {
           minEntryId: (through + 1) as EntryId,
@@ -218,3 +218,18 @@ export function transcriptExchanges(timeZone: string) {
 }
 
 export type TranscriptExchanges = ReturnType<typeof transcriptExchanges>
+
+/** Each Familiar's index, made on first use. */
+export function exchangesByFamiliar(timeZone: string) {
+  const indexes = new Map<FamiliarId, TranscriptExchanges>()
+  return (familiar: FamiliarId) => {
+    let index = indexes.get(familiar)
+    if (!index) {
+      index = transcriptExchanges(familiar, timeZone)
+      indexes.set(familiar, index)
+    }
+    return index
+  }
+}
+
+export type ExchangesOf = ReturnType<typeof exchangesByFamiliar>

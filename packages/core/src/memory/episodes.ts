@@ -1,4 +1,4 @@
-import { defineDoc, type EntryId } from '@earendil-works/pi-durable'
+import { defineDocFamily, type EntryId } from '@earendil-works/pi-durable'
 import { addDays, formatDay, parseDay } from '../time.ts'
 
 /**
@@ -19,7 +19,7 @@ export type Episode = {
   text: string
   /** When it was written, in ms since the epoch. */
   at: number
-  /** A day's first and last entries in the main conversation, so its exchanges can be read. */
+  /** A day's first and last entries in the Familiar's chat, so its exchanges can be read. */
   entries?: { from: EntryId; to: EntryId }
 }
 
@@ -30,10 +30,11 @@ export type EpisodesState = {
 }
 
 /** Its own document: it grows every day for years, and the memory document is sent to clients whole. */
-export const Episodes = defineDoc<EpisodesState>({
+export const Episodes = defineDocFamily<EpisodesState, null>({
   kind: 'familiar.episodes',
   version: 1,
   scope: 'session',
+  family: true,
   initial: () => ({ episodes: [], next: 1 }),
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 50,
 })

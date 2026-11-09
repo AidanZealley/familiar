@@ -14,6 +14,11 @@ import {
 import type { Notify } from '../notify.ts'
 import { localMinute } from '../time.ts'
 import { advance, dueAt, Schedules } from './schedules.ts'
+import {
+  familiarDoc,
+  familiarRecord,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
 
 type ScheduleStep =
   | { phase: 'wait' }
@@ -56,26 +61,37 @@ export function notificationBody(text: string) {
   return `${space > BODY_LENGTH / 2 ? cut.slice(0, space) : cut}…`
 }
 
+/** The schedule a task runs, and the Familiar it belongs to. */
+type ScheduleInput = { familiar: FamiliarId; id: string }
+
 /**
  * One task per schedule: it sleeps until the schedule is due, submits its
- * prompt to the main conversation, and notifies the host with the reply, or
+ * prompt to its Familiar's chat, and notifies the host with the reply, or
  * with the prompt if there was none, so a reminder is never lost. A task
  * that wakes to find its schedule gone finishes without doing anything:
  * cancelling is removing the schedule.
  */
 export function createScheduleTask(
-  name: string,
   notify: Notify | undefined,
   timeZone: string,
 ) {
-  return defineTask<{ id: string }, ScheduleStep, null>({
+  return defineTask<ScheduleInput, ScheduleStep, null>({
     name: 'familiar.schedule',
-    version: 1,
+    version: 2,
     initial: () => ({ phase: 'wait' }),
+    // Version 1 ran before workspaces, for the one Familiar, on the root.
+    migrate: (input, checkpoint) => ({
+      input: {
+        familiar: ROOT_CONVERSATION_ID,
+        id: (input as { id: string }).id,
+      },
+      checkpoint: checkpoint as ScheduleStep,
+    }),
     phases: {
       wait: (task, runtime, context) =>
         runtime.commit(async (tx) => {
-          const schedule = (await tx.doc(Schedules))[task.input.id]
+          const { familiar, id } = task.input
+          const schedule = (await familiarDoc(tx, Schedules, familiar))[id]
           const now = runtime.now()
           // Cancelling removes the schedule.
           if (!schedule) {
@@ -102,22 +118,24 @@ export function createScheduleTask(
         }, context),
 
       deliver: async (task, runtime, context) => {
-        const { id } = task.input
+        const { familiar, id } = task.input
         const { prompt, due, late, creator } = task.state.checkpoint
         // Rerun after a restart, this may come after the schedule was
-        // cancelled, so it checks again first.
-        let runnable = false
+        // cancelled, so it checks again first. Its name titles the
+        // notification.
+        let name: string | undefined
         await runtime.commit(async (tx) => {
-          runnable = (await tx.doc(Schedules))[id] !== undefined
+          const runnable =
+            (await familiarDoc(tx, Schedules, familiar))[id] !== undefined
+          name = runnable
+            ? (await familiarRecord(tx, familiar)).name
+            : undefined
           return runnable ? undefined : finished
         }, context)
-        if (!runnable) {
+        if (name === undefined) {
           return
         }
-        const conversation = await runtime.conversation(
-          ROOT_CONVERSATION_ID,
-          context,
-        )
+        const conversation = await runtime.conversation(familiar, context)
         const when =
           late === undefined
             ? localMinute(due, timeZone)
@@ -167,7 +185,7 @@ export function createScheduleTask(
 
         await runtime.commit(async (tx) => {
           const next = advance(
-            await tx.doc(Schedules),
+            await familiarDoc(tx, Schedules, familiar),
             id,
             due,
             runtime.now(),

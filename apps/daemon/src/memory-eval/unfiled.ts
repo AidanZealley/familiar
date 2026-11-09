@@ -4,16 +4,13 @@ import { setTimeout } from 'node:timers/promises'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Message, TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
-import {
-  ROOT_CONVERSATION_ID,
-  type EntryRecord,
-  type Storage,
-} from '@earendil-works/pi-durable'
+import { type EntryRecord, type Storage } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { summonFamiliar, type FamiliarOptions } from '@familiar-ai/core'
 import {
   nextUpkeep,
   RECALL_HEADING,
+  type FamiliarId,
   type UpkeepState,
 } from '@familiar-ai/core/diagnostics'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
@@ -108,10 +105,10 @@ async function waitForUpkeep(
   }
 }
 
-/** How far upkeep has filed the conversation, or null if it never has. */
-async function upkeepThrough(storage: Storage) {
+/** How far upkeep has filed `chat`, or null if it never has. */
+async function upkeepThrough(storage: Storage, chat: FamiliarId) {
   const record = await storage.findDocument(
-    { kind: 'familiar.upkeep', scope: { kind: 'session' } },
+    { kind: 'familiar.upkeep', scope: { kind: 'session' }, key: String(chat) },
     'current',
     context,
   )
@@ -123,13 +120,13 @@ async function upkeepThrough(storage: Storage) {
   return (document.value as UpkeepState).through
 }
 
-/** Every entry in the conversation, oldest first. */
-async function entriesIn(storage: Storage) {
+/** Every entry in `chat`, oldest first. */
+async function entriesIn(storage: Storage, chat: FamiliarId) {
   const entries: EntryRecord[] = []
   let cursor: Parameters<Storage['scanEntries']>[2]
   do {
     const page = await storage.scanEntries(
-      { conversationId: ROOT_CONVERSATION_ID, order: 'ascending' },
+      { conversationId: chat, order: 'ascending' },
       200,
       cursor,
       context,
@@ -199,6 +196,7 @@ export async function runUnfiledEval(
     now: clock.now,
     setTimer: clock.setTimer,
   })
+  const chat = familiar.id
   try {
     for (const [index, day] of sent.entries()) {
       clock.advanceTo(noonOf(day.date))
@@ -219,10 +217,10 @@ export async function runUnfiledEval(
   const replay = await openNodeSqliteStorage(replayPath)
   let compactions: number
   try {
-    if ((await upkeepThrough(replay)) !== null) {
+    if ((await upkeepThrough(replay, chat)) !== null) {
       throw new Error('Upkeep ran during the replay, so nothing is unfiled.')
     }
-    compactions = (await entriesIn(replay)).filter(
+    compactions = (await entriesIn(replay, chat)).filter(
       (entry) => entry.kind === 'pi.compaction',
     ).length
   } finally {

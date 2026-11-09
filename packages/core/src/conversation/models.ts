@@ -1,6 +1,6 @@
 import type { Models, ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { getSupportedThinkingLevels } from '@earendil-works/pi-ai/models'
-import { defineDoc, type ModelRef } from '@earendil-works/pi-durable'
+import { defineDocFamily, type ModelRef } from '@earendil-works/pi-durable'
 
 /** A model the conversation may switch to, and the reasoning level it starts on. */
 export type ChatModel = {
@@ -27,10 +27,11 @@ export const modelKey = (model: ModelRef) =>
  */
 export type ThinkingLevelsState = Record<string, ModelThinkingLevel>
 
-export const ThinkingLevels = defineDoc<ThinkingLevelsState>({
+export const ThinkingLevels = defineDocFamily<ThinkingLevelsState, null>({
   kind: 'familiar.thinking-levels',
   version: 1,
   scope: 'session',
+  family: true,
   initial: () => ({}),
   checkpointWhen: () => true, // small: always store it whole
 })

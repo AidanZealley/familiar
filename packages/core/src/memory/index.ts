@@ -3,13 +3,14 @@ import type { Harness } from '@earendil-works/pi-durable'
 import { Facts, markRecalled, MemoryUsage } from './facts.ts'
 import { datesIn, Episodes } from './episodes.ts'
 import { createMemoryExtension } from './extension.ts'
-import { transcriptExchanges } from './exchanges.ts'
+import { exchangesByFamiliar } from './exchanges.ts'
 import { recallNote, UNFILED } from './recall.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { localDay } from '../time.ts'
 import { answeredMessage } from '../conversation/message.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
+import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 
 export type { MemoryApi } from './api.ts'
 export type { Fact, FactsState } from './facts.ts'
@@ -21,26 +22,28 @@ export type MemoryOptions = Omit<UpkeepOptions, 'extension'> & {
 }
 
 /**
- * Memory's extensions, to install, and `start`, to call once they are. Nothing
- * runs before the Harness resumes, so it can open before they're installed.
+ * Memory's extensions, to install, and `open`, to call for each Familiar once
+ * they are. Nothing runs before the Harness resumes, so it can open before
+ * they're installed.
  */
 export function createMemory(harness: Harness, options: MemoryOptions) {
-  // In memory for as long as Familiar runs: rebuilt from the transcript.
-  const exchanges = transcriptExchanges(options.timeZone)
+  // In memory for as long as the workspace runs: rebuilt from the transcripts.
+  const exchangesOf = exchangesByFamiliar(options.timeZone)
   const extension = createMemoryExtension({
-    exchanges,
+    exchangesOf,
     timeZone: options.timeZone,
-    recall: (model, request, unfiled) =>
+    recall: (familiar, model, request, unfiled) =>
       harness.commit(async (tx) => {
         // A person's words as sent, so their name on the model's copy
         // matches nothing.
         const query = (await answeredMessage(tx, request))?.text ?? model
-        const facts = await tx.doc(Facts)
-        const episodes = await tx.doc(Episodes)
+        const facts = await familiarDoc(tx, Facts, familiar)
+        const episodes = await familiarDoc(tx, Episodes, familiar)
         // What compaction took out of the view after the last entry upkeep
         // reviewed: nothing else would show it to the model until tonight.
+        const exchanges = exchangesOf(familiar)
         const index = unfiled ? await exchanges.catchUp(tx) : undefined
-        const { through } = await tx.doc(Upkeep)
+        const { through } = await familiarDoc(tx, Upkeep, familiar)
         const before = exchanges.viewStart
         const now = options.now()
         return recallNote(
@@ -58,10 +61,14 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
           options.timeZone,
         )
       }, BACKGROUND_CONTEXT),
-    recalled: async (ids) => {
+    recalled: async (familiar, ids) => {
       await harness.commit(
         async (tx) =>
-          markRecalled(await tx.doc(MemoryUsage), ids, options.now()),
+          markRecalled(
+            await familiarDoc(tx, MemoryUsage, familiar),
+            ids,
+            options.now(),
+          ),
         BACKGROUND_CONTEXT,
       )
     },
@@ -71,16 +78,17 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
 
   return {
     extensions: [extension, upkeep.extension],
-    start: async () => {
+    /** Starts `familiar`'s upkeep and returns its memory. */
+    open: async (familiar: FamiliarId) => {
       // Watches only attach to documents that exist.
       await harness.commit(async (tx) => {
-        await tx.doc(Facts)
-        await tx.doc(MemoryUsage)
-        await tx.doc(Episodes)
+        await familiarDoc(tx, Facts, familiar)
+        await familiarDoc(tx, MemoryUsage, familiar)
+        await familiarDoc(tx, Episodes, familiar)
       }, BACKGROUND_CONTEXT)
-      await upkeep.start(harness, BACKGROUND_CONTEXT)
+      await upkeep.start(harness, familiar, BACKGROUND_CONTEXT)
 
-      return memoryApi(harness, options.now, options.timeZone)
+      return memoryApi(harness, familiar, options.now, options.timeZone)
     },
   }
 }
