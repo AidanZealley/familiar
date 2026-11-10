@@ -53,7 +53,7 @@ export function roomRoutes(rooms: RoomsApi) {
     new Hono<AccessEnv>()
       // Every named room and the person's own DMs.
       .get('/', can('rooms.list'), async (c) =>
-        c.json(await rooms.list(c.get('author').id)),
+        c.json(await rooms.list(c.get('author').id), 200),
       )
       .post('/', can('rooms.create'), setup, (c) =>
         refusable(c, async () =>

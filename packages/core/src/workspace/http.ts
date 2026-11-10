@@ -37,7 +37,7 @@ export function familiarRoutes(workspace: Workspace) {
   return (
     new Hono<AccessEnv>()
       .get('/', can('familiars.list'), async (c) =>
-        c.json(await workspace.familiars.list()),
+        c.json(await workspace.familiars.list(), 200),
       )
       .post(
         '/',
@@ -83,9 +83,10 @@ export function familiarRoutes(workspace: Workspace) {
       // The DM between this Familiar and whoever asks, created if new.
       .post('/:familiar/dm', can('familiars.dm'), async (c) => {
         const { id } = familiarOf(c)
-        return c.json({
-          room: await workspace.rooms.dm(id, c.get('author').id),
-        })
+        return c.json(
+          { room: await workspace.rooms.dm(id, c.get('author').id) },
+          200,
+        )
       })
       .route(
         '/:familiar/memory',

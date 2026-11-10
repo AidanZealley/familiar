@@ -32,7 +32,7 @@ export const modelRoutes = (
   new Hono<AccessEnv>()
     // The models the Familiar may switch to.
     .get('/options', can('model.options'), (c) =>
-      c.json(familiarOf(c).models()),
+      c.json(familiarOf(c).models(), 200),
     )
     .put(
       '/',

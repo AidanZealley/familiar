@@ -6,32 +6,36 @@ import {
   type ReactElement,
 } from 'react'
 import { useStore } from 'zustand'
-import type { FamiliarStore, FamiliarState } from './store.ts'
+import type { RoomStore, RoomState } from './room.ts'
 
-export type FamiliarProviderProps = {
+export type RoomProviderProps = {
   /** Caller owns the store and its connection lifecycle. */
-  store: FamiliarStore
+  store: RoomStore
   children?: ReactNode
 }
 
-const Context = createContext<FamiliarStore | undefined>(undefined)
+const Context = createContext<RoomStore | undefined>(undefined)
 
-/** Gives its subtree `store`. Nested providers each give their own. */
-export const FamiliarProvider = ({
+/**
+ * Gives its subtree a room, as an embedded assistant has one. Nested
+ * providers each give their own. For the workspace's and Familiars'
+ * stores, use zustand's `useStore` directly.
+ */
+export const RoomProvider = ({
   store,
   children,
-}: FamiliarProviderProps): ReactElement =>
+}: RoomProviderProps): ReactElement =>
   createElement(Context.Provider, { value: store }, children)
 
-/** The nearest provider's store, for its commands. */
-export const useFamiliarStore = (): FamiliarStore => {
+/** The nearest provider's room store, for its commands. */
+export const useRoomStore = (): RoomStore => {
   const store = useContext(Context)
   if (!store) {
-    throw new Error('Familiar hooks must be used within a FamiliarProvider')
+    throw new Error('Room hooks must be used within a RoomProvider')
   }
   return store
 }
 
 /** Uses Zustand's standard subscription and Object.is selection. */
-export const useFamiliar = <T>(selector: (state: FamiliarState) => T): T =>
-  useStore(useFamiliarStore(), selector)
+export const useRoom = <T>(selector: (state: RoomState) => T): T =>
+  useStore(useRoomStore(), selector)

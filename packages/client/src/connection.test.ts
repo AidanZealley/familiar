@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { createFamiliarStore } from './store.ts'
-import type { FamiliarStore } from './store.ts'
+import { createRoomStore, type RoomStore } from './room.ts'
 import { frame, testServer, tick, view } from './testing.ts'
 
 // The page the client runs in, which relative URLs such as `/api` resolve against.
@@ -10,17 +9,19 @@ beforeEach(() => {
   vi.stubGlobal('document', { baseURI: 'http://familiar.test/chat' })
 })
 
-const opened: FamiliarStore[] = []
+const opened: RoomStore[] = []
 afterEach(() => {
   opened.splice(0).forEach((store) => store.disconnect())
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
+// Room 1's stream: every store's stream connects alike.
 const open = (
-  ...[baseUrl, options]: Parameters<typeof createFamiliarStore>
+  baseUrl: string,
+  options?: Parameters<typeof createRoomStore>[2],
 ) => {
-  const store = createFamiliarStore(baseUrl, options)
+  const store = createRoomStore(baseUrl, 1, options)
   opened.push(store)
   return store
 }
@@ -44,12 +45,12 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
       }
       await next()
     })
-    .get('/events', (c) =>
+    .get('/rooms/1/events', (c) =>
       streamSSE(c, async (stream) => {
         streams += 1
         await stream.writeSSE({
           event: 'protocol',
-          data: JSON.stringify({ version: 2 }),
+          data: JSON.stringify({ version: 3 }),
         })
         await stream.writeSSE({
           event: 'view',
@@ -62,7 +63,7 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
         }
       }),
     )
-    .post('/messages', async (c) => {
+    .post('/rooms/1/messages', async (c) => {
       sent.push((await c.req.json()).text)
       return c.body(null, 204)
     })
@@ -78,15 +79,15 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
 
   await expect.poll(() => store.getState().view).toEqual(view(2))
   expect(store.getState().connection).toBe('open')
-  await store.conversation.send('Hello')
-  await expect(store.conversation.send('Again')).rejects.toThrow('unauthorized')
+  await store.send('Hello')
+  await expect(store.send('Again')).rejects.toThrow('unauthorized')
 
   expect(sent).toEqual(['Hello'])
   expect(seen).toEqual([
-    'GET /api/events Bearer token-1',
-    'GET /api/events Bearer token-2',
-    'POST /api/messages Bearer token-3',
-    'POST /api/messages Bearer token-4',
+    'GET /api/rooms/1/events Bearer token-1',
+    'GET /api/rooms/1/events Bearer token-2',
+    'POST /api/rooms/1/messages Bearer token-3',
+    'POST /api/rooms/1/messages Bearer token-4',
   ])
 })
 
@@ -97,18 +98,25 @@ test('a dropped or ended stream reconnects and the fresh view replaces the old',
   server.send(retrySoon + frame('view', view(1)))
   await expect.poll(() => store.getState().connection).toBe('open')
 
+  // Each reconnect's handshake opens it again, after `reconnecting`.
+  const states: string[] = []
+  store.subscribe(({ connection }) => states.push(connection))
   server.drop()
-  await expect.poll(() => store.getState().connection).toBe('reconnecting')
   await expect.poll(server.connections).toBe(2)
   server.send(frame('view', view(2)))
   await expect.poll(() => store.getState().view).toEqual(view(2))
   expect(store.getState().connection).toBe('open')
 
   server.end()
-  await expect.poll(() => store.getState().connection).toBe('reconnecting')
   await expect.poll(server.connections).toBe(3)
   server.send(frame('view', view(3)))
   await expect.poll(() => store.getState().view).toEqual(view(3))
+  expect(states.filter((state, i) => state !== states[i - 1])).toEqual([
+    'reconnecting',
+    'open',
+    'reconnecting',
+    'open',
+  ])
 })
 
 test.each([
@@ -224,7 +232,7 @@ test('each reconnect needs its own handshake, and the last view stays without on
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
   server.send(
-    retrySoon + frame('protocol', { version: 2 }) + frame('view', view(1)),
+    retrySoon + frame('protocol', { version: 3 }) + frame('view', view(1)),
   )
   await expect.poll(() => store.getState().connection).toBe('open')
   server.end()
