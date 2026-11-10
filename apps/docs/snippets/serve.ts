@@ -28,16 +28,8 @@ const OWNER = new Set<Operation>([
 export const createApi = (workspace: Workspace) =>
   createHttpApi(workspace, {
     authenticate: sessionAuthor,
-    // A DM is its person's alone; anyone signed in shares the named rooms.
-    allow: async (author, operation, resource) => {
-      if (resource && 'room' in resource) {
-        const room = (await workspace.rooms.list()).find(
-          ({ id }) => id === resource.room,
-        )
-        if (room?.kind === 'dm' && room.person !== author.id) {
-          return false
-        }
-      }
-      return CHAT.has(operation) || (OWNER.has(operation) && isOwner(author))
-    },
+    // Familiar keeps each DM to its person; anyone signed in shares the
+    // named rooms.
+    allow: (author, operation) =>
+      CHAT.has(operation) || (OWNER.has(operation) && isOwner(author)),
   })

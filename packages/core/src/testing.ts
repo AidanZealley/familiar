@@ -88,6 +88,8 @@ export type TestHostOptions = Partial<WorkspaceOptions> & {
   persona?: string
   /** The faux provider's models, when a test needs particular ones. */
   faux?: FauxModelDefinition[]
+  /** Whose DM with Familiar #1 `dm` is. Default aidan. */
+  person?: Author
 }
 
 /** The reply in `room` that answers `entry`, once there is one. */
@@ -95,10 +97,11 @@ export const replyTo = (room: RoomApi, entry: EntryId) => room.replyTo(entry)
 
 /**
  * A workspace on faux models over storage a restart can reopen, dismissed
- * after the test, with one Familiar and aidan's DM with it.
+ * after the test, with one Familiar and a person's DM with it, aidan's
+ * unless a test says whose.
  */
 export async function testHost(options: TestHostOptions = {}) {
-  const { faux: definitions, ...rest } = options
+  const { faux: definitions, person = AIDAN, ...rest } = options
   const { faux, models } = fauxModels(definitions)
   let current: TestHostOptions & WorkspaceOptions = {
     models,
@@ -126,7 +129,7 @@ export async function testHost(options: TestHostOptions = {}) {
             ...(persona !== undefined && { persona }),
           })
       const dm = (await workspace.rooms.get(
-        await workspace.rooms.dm(familiar.id, AIDAN.id),
+        await workspace.rooms.dm(familiar.id, person.id),
       ))!
       return { workspace, familiar, dm }
     } catch (error) {
@@ -156,7 +159,7 @@ export async function testHost(options: TestHostOptions = {}) {
     storage: current.storage,
     workspace: () => live().workspace,
     familiar: () => live().familiar,
-    /** Aidan's DM with the Familiar. */
+    /** The person's DM with the Familiar. */
     dm: () => live().dm,
     /** Dismisses it before the test ends, such as to read its storage. */
     dismiss,

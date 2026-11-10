@@ -110,7 +110,7 @@ function events(response: Response) {
 }
 
 test('a request is authenticated, then bounded, then allowed, before any route reads it', async () => {
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   const room = host.dm()
   const posted = vi.spyOn(room, 'post')
   vi.spyOn(host.workspace().rooms, 'get').mockResolvedValue(room)
@@ -202,7 +202,7 @@ const resourceIn = (path: string): Resource | undefined =>
 
 test('each route asks about its own operation and resource alone, and is refused before it runs', async () => {
   const asked: [Operation, Resource | undefined][] = []
-  const app = api((await testHost()).workspace(), {
+  const app = api((await testHost({ person: sam })).workspace(), {
     allow: (_, operation, resource) => {
       asked.push([operation, resource])
       return false
@@ -241,7 +241,7 @@ test('each route asks about its own operation and resource alone, and is refused
 })
 
 test("posting to a room validates what clients send, takes the author from the host, and 404s a room that isn't there", async () => {
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   host.faux.setResponses([fauxAssistantMessage('Hello.')])
   const app = api(host.workspace())
   const client = testClient(app)
@@ -300,7 +300,7 @@ test("posting to a room validates what clients send, takes the author from the h
 })
 
 test("the DM endpoint gets or creates the asking person's DM with a Familiar", async () => {
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   const familiar = String(host.familiar().id)
   const as = (person: Author) =>
     testClient(api(host.workspace(), { authenticate: () => person }))
@@ -325,10 +325,28 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
   })
   const listed = await (await as(sam).rooms.$get()).json()
   expect(listed.map((room) => room.id).sort()).toEqual([sams, kitchen].sort())
+
+  // Nor can anyone else reach a DM, whatever the host allows: it's no such room.
+  const ann_ = as({ id: 'ann', name: 'Ann' }).rooms[':room']
+  const room = { room: String(sams) }
+  expect(
+    (await ann_.history.$get({ param: room, query: { before: '1000' } }))
+      .status,
+  ).toBe(404)
+  expect(
+    (
+      await ann_.messages.$post({
+        param: room,
+        json: { text: 'Hi Sam', requestId: 'peek' },
+      })
+    ).status,
+  ).toBe(404)
+  expect((await ann_.events.$get({ param: room })).status).toBe(404)
 })
 
 test('familiar routes reach that Familiar, and a missing one is 404', async () => {
   const host = await testHost({
+    person: sam,
     storage: await storageWith(['Lives in Leeds', 4]),
   })
   const app = api(host.workspace())
@@ -354,7 +372,7 @@ test('familiar routes reach that Familiar, and a missing one is 404', async () =
 })
 
 test('each stream sends what it is allowed whole first, and 403 when nothing is', async () => {
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   const workspace = host.workspace()
   const familiar = host.familiar().id
 
@@ -411,6 +429,7 @@ test("a room's stream shows its own turn's reply as it runs, and only that a Fam
   let release!: () => void
   const held = new Promise<void>((resolve) => (release = resolve))
   const host = await testHost({
+    person: sam,
     plugins: [
       {
         name: 'slow',
@@ -487,7 +506,7 @@ test("a room's stream shows its own turn's reply as it runs, and only that a Fam
 })
 
 test('a client leaving stops every watch, even one still opening', async () => {
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   const room = host.dm()
   vi.spyOn(host.workspace().rooms, 'get').mockResolvedValue(room)
   let stopView: ReturnType<typeof vi.fn> | undefined
@@ -519,7 +538,7 @@ test('a client leaving stops every watch, even one still opening', async () => {
 test('a watch closing ends the stream and stops everything else', async () => {
   const clear = vi.spyOn(globalThis, 'clearInterval')
   const stopAccount = vi.fn()
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   const workspace: Workspace = {
     ...host.workspace(),
     account: {
@@ -559,7 +578,7 @@ test('push hosts get the authenticated subscriber, whatever the body says', asyn
     unsubscribe: async (_, subscriber) =>
       void calls.push(['unsubscribe', subscriber]),
   }
-  const app = api((await testHost()).workspace(), { push })
+  const app = api((await testHost({ person: sam })).workspace(), { push })
   const subscription = {
     endpoint: 'https://push.example/alice-phone',
     keys: { p256dh: 'p', auth: 'a' },
@@ -579,7 +598,7 @@ test('push hosts get the authenticated subscriber, whatever the body says', asyn
 
 // Familiars and rooms can be set up over HTTP, with the rules' refusals as 400s.
 test('familiars and rooms are created and changed over HTTP', async () => {
-  const host = await testHost()
+  const host = await testHost({ person: sam })
   const client = testClient(api(host.workspace()))
   const created = await client.familiars.$post({ json: { name: 'Bo' } })
   expect(created.status).toBe(201)

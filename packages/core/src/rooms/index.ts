@@ -120,8 +120,12 @@ export type RoomsApi = {
   archive(id: RoomId): Promise<void>
   /** The DM between a Familiar and a person, by host author ID, created if new. */
   dm(familiar: FamiliarId, person: string): Promise<RoomId>
-  /** A room, or undefined if there's no such room. */
-  get(id: RoomId): Promise<RoomApi | undefined>
+  /**
+   * A room, or undefined if there's no such room. Given a `person`, by host
+   * author ID, someone else's DM is no such room too: a DM is one person's,
+   * whatever a host allows. Without one, every room, as for a host's own work.
+   */
+  get(id: RoomId, person?: string): Promise<RoomApi | undefined>
 }
 
 const context = BACKGROUND_CONTEXT
@@ -246,8 +250,8 @@ export function createRooms(
     archive: (id) => harness.commit((tx) => archiveRoom(tx, id), context),
     dm: (familiar, person) =>
       harness.commit((tx) => dmWith(tx, familiar, person), context),
-    get: async (id) =>
-      (await harness.snapshot(Rooms, context))?.rooms[id]
+    get: async (id, person) =>
+      seenBy((await harness.snapshot(Rooms, context)) ?? null, person).rooms[id]
         ? open(id)
         : undefined,
   }

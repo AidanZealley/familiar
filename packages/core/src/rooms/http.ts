@@ -47,7 +47,9 @@ const setup = validator('json', (body, c) => {
  */
 export function roomRoutes(rooms: RoomsApi) {
   const idOf = (c: Context) => Number(c.req.param('room')) as RoomId
-  const roomOf = async (c: Context) => found(await rooms.get(idOf(c)), 'room')
+  // Someone else's DM is no such room, so nobody learns it exists.
+  const roomOf = async (c: Context<AccessEnv>) =>
+    found(await rooms.get(idOf(c), c.get('author').id), 'room')
 
   return (
     new Hono<AccessEnv>()

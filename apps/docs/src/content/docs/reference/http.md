@@ -11,7 +11,7 @@ Paths are relative to wherever you mount the API, such as `/api`. Every request 
 
 ## Routes
 
-People talk to Familiars only in rooms. A DM is a room with one Familiar and one person; a named room has one or more Familiars and is open to everyone `allow` lets in.
+People talk to Familiars only in rooms. A DM is a room with one Familiar and one person, and only that person can reach it: to anyone else every `/rooms/:room` route answers 404, whatever `allow` says, as if it didn't exist. A named room has one or more Familiars and is open to everyone `allow` lets in.
 
 **Familiars**, `familiars.*` and each Familiar's `model.*`, asked with `{ familiar }` except `list` and `create`
 

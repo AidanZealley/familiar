@@ -18,7 +18,7 @@ import notify from '../../../../snippets/notify.ts?raw'
 
 Mount it under any path, such as `new Hono().route('/api', createApi(workspace))`. The client offers every command; one your policy refuses rejects with the 403, so show each person only the UI they may use.
 
-`allow(author, operation, resource)` is asked after authentication and the body limit, before the route reads anything or changes anything, and anything but `true` answers 403. `resource` is `{ familiar }` or `{ room }`, the ID in the path, for a Familiar's or a room's operations, so you can refuse per Familiar or per room, such as someone else's DM. `operation` names one of:
+`allow(author, operation, resource)` is asked after authentication and the body limit, before the route reads anything or changes anything, and anything but `true` answers 403. `resource` is `{ familiar }` or `{ room }`, the ID in the path, for a Familiar's or a room's operations, so you can refuse per Familiar or per room. You never need to refuse someone else's DM: Familiar answers 404 to anyone but its person, whatever `allow` says. `operation` names one of:
 
 | Group         | Operations                                                                                                              |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------- |

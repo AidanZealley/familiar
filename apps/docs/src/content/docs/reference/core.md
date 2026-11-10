@@ -79,15 +79,15 @@ Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. I
 
 **Rooms**
 
-| Member                       | Meaning                                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------------------- |
-| `rooms.list(person?)`        | `RoomSummary[]`; with a host author ID, only that person's DMs and every named room          |
-| `rooms.watch(person?)`       | Watch of the same                                                                            |
-| `rooms.create(setup)`        | A named room, `{ name, familiars, lead }`, returning its ID. Throws `RoomError` when refused |
-| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead                                                |
-| `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                          |
-| `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                    |
-| `rooms.get(id)`              | Its `RoomApi`, or `undefined`                                                                |
+| Member                       | Meaning                                                                                       |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| `rooms.list(person?)`        | `RoomSummary[]`; with a host author ID, only that person's DMs and every named room           |
+| `rooms.watch(person?)`       | Watch of the same                                                                             |
+| `rooms.create(setup)`        | A named room, `{ name, familiars, lead }`, returning its ID. Throws `RoomError` when refused  |
+| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead                                                 |
+| `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                           |
+| `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                     |
+| `rooms.get(id, person?)`     | A room's API; with a host author ID, undefined for someone else's DM, as the HTTP API uses it |
 
 `lead` answers a named room's messages that mention no Familiar. Each `RoomApi` has:
 
