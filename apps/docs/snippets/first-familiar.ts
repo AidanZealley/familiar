@@ -1,4 +1,4 @@
-import { toRoomTranscript } from '@familiar-ai/client'
+import { toRoomTranscript, type Transcript } from '@familiar-ai/client'
 import { openWorkspace } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import {
@@ -27,23 +27,32 @@ try {
     await workspace.rooms.dm(familiar.id, 'person-123'),
   ))!
 
-  const entry = await dm.post({
+  await dm.post({
     author: { id: 'person-123', name: 'Sam' },
     text: 'Hello',
     requestId: crypto.randomUUID(),
   })
-  await dm.replyTo(entry)
 
-  // The room's log, as a chat UI would show it.
+  // The room's log, as a chat UI would show it, once the reply is in.
   const watch = await dm.watch()
-  for (const item of toRoomTranscript(watch.value).items) {
+  const transcript = await new Promise<Transcript>((resolve) => {
+    const show = (view: typeof watch.value) => {
+      const shown = toRoomTranscript(view)
+      if (shown.items.some((item) => item.type === 'reply')) {
+        resolve(shown)
+      }
+    }
+    show(watch.value)
+    watch.start(async (view) => show(view))
+  })
+  await watch.stop()
+  for (const item of transcript.items) {
     if (item.type === 'message') {
       console.log(`${item.author.name}: ${item.text}`)
     } else if (item.type === 'reply') {
       console.log(`${item.name}: ${item.text}`)
     }
   }
-  await watch.stop()
 } finally {
   await workspace.dismiss()
 }

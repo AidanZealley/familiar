@@ -6,6 +6,7 @@ import type { FamiliarId, Workspace } from '@familiar-ai/core'
 import { OWNER_ID } from '../../serve.ts'
 import { SEED_MESSAGE, seedPinned } from './seed.ts'
 import type { Scenario } from './scenario.ts'
+import { replyTo } from '../../reply.ts'
 
 export const memory: Scenario = {
   start: () =>
@@ -40,7 +41,8 @@ export async function seedDemo(workspace: Workspace, id: FamiliarId) {
   const dm = (await workspace.rooms.get(
     await workspace.rooms.dm(id, OWNER_ID),
   ))!
-  await dm.replyTo(
+  await replyTo(
+    dm,
     await dm.post({
       author: { id: OWNER_ID, name: 'demo' },
       text: SEED_MESSAGE,

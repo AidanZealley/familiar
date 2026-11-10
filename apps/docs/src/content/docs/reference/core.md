@@ -94,7 +94,6 @@ Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. I
 | Member                                         | Meaning                                                                                                 |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `post({ author, text, requestId, mentions? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once |
-| `replyTo(entry)`                               | The first reply to an entry, once there is one, for a host that waits on an answer                      |
 | `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                |
 | `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far               |
 | `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                |

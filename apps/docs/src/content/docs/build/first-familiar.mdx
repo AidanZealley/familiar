@@ -31,8 +31,7 @@ Familiar: Hello, Sam.
 - **`familiars.create`** makes a Familiar. Familiars live in the storage, so a lasting host does this once, on the first open.
 - **`rooms.dm`** gets or creates the DM between a Familiar and a person, by your host's ID for them. People talk to Familiars only in rooms: DMs, and named rooms with one or more Familiars.
 - **`post`** records a message from `author` and starts the Familiar's turn. `requestId` should stay the same if you retry the same logical message, so it's posted once.
-- **`replyTo`** waits for the reply to that message, copied into the room when the turn ends.
-- **`watch`** returns the room's committed log, then streams each commit's changes. Stop it when you're done.
+- **`watch`** returns the room's committed log, then streams each commit's changes, so you see the reply arrive when the turn ends. Stop it when you're done.
 - **`toRoomTranscript`** turns the log into the items a chat UI shows. It comes from the client package and is pure, so it works on the server too.
 - **`dismiss`** closes the workspace. Always call it, so timers and connections stop.
 

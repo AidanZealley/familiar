@@ -9,6 +9,7 @@ import {
   type EntryId,
   type SetTimer,
 } from '@earendil-works/pi-durable'
+import type { ConversationView } from '@earendil-works/pi-durable'
 import { onTestFinished } from 'vitest'
 import type { Author } from './conversation/message.ts'
 import {
@@ -18,6 +19,7 @@ import {
   type WorkspaceOptions,
 } from './index.ts'
 import { RECALL_HEADING } from './memory/recall.ts'
+import { REPLY_KIND, type ReplyData } from './rooms/log.ts'
 import { parseMinute } from './time.ts'
 
 /** Test helpers; not part of Familiar. */
@@ -92,8 +94,37 @@ export type TestHostOptions = Partial<WorkspaceOptions> & {
   person?: Author
 }
 
-/** The reply in `room` that answers `entry`, once there is one. */
-export const replyTo = (room: RoomApi, entry: EntryId) => room.replyTo(entry)
+/**
+ * The reply in `room` that answers `entry`, once there is one. Never
+ * settles for a turn stopped before it said anything.
+ */
+export async function replyTo(room: RoomApi, entry: EntryId) {
+  const watch = await room.watch()
+  const find = (view: ConversationView) =>
+    view.entries.find(
+      (candidate) =>
+        candidate.kind === REPLY_KIND &&
+        (candidate.data as unknown as ReplyData).cause === entry,
+    )?.data as unknown as ReplyData | undefined
+  try {
+    return (
+      find(watch.value) ??
+      (await new Promise<ReplyData>((resolve, reject) => {
+        void watch.closed.then(() =>
+          reject(new Error('The room closed before a reply came.')),
+        )
+        watch.start(async (view) => {
+          const reply = find(view)
+          if (reply) {
+            resolve(reply)
+          }
+        })
+      }))
+    )
+  } finally {
+    await watch.stop()
+  }
+}
 
 /**
  * A workspace on faux models over storage a restart can reopen, dismissed

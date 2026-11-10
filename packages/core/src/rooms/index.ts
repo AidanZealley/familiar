@@ -1,7 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
-  type ConversationView,
   type ConversationWatch,
   type EntryId,
   type Harness,
@@ -18,7 +17,7 @@ import type { PostScheduled } from '../schedules/task.ts'
 import { viewWatch } from '../watch.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { watchActivity, type RoomActivity } from './activity.ts'
-import { post, REPLY_KIND, type Mention, type ReplyData } from './log.ts'
+import { post, type Mention } from './log.ts'
 import {
   archiveRoom,
   createRoom,
@@ -82,12 +81,6 @@ export type RoomApi = {
   history(before: EntryId, limit: number): Promise<HistoryPage>
   /** The log's committed view, then every commit's changes to it. */
   watch(): Promise<ConversationWatch>
-  /**
-   * The first reply to entry `cause`, once there is one, for a host that
-   * waits on an answer, such as a script. Never settles if none comes, as
-   * for a turn stopped before it said anything.
-   */
-  replyTo(cause: EntryId): Promise<ReplyData>
   /**
    * The turns in progress here, by task ID: whether each is waiting for its
    * Familiar or being answered, with the reply as it streams. Shows nothing
@@ -197,35 +190,6 @@ export function createRooms(
       historyOf((await harness.conversation(id, context))!, before, limit),
     watch: async () =>
       (await harness.conversation(id, context))!.watch(context),
-    replyTo: async (cause) => {
-      const watch = await (await harness.conversation(id, context))!.watch(
-        context,
-      )
-      const find = (view: ConversationView) =>
-        view.entries.find(
-          (entry) =>
-            entry.kind === REPLY_KIND &&
-            (entry.data as unknown as ReplyData).cause === cause,
-        )?.data as unknown as ReplyData | undefined
-      try {
-        return (
-          find(watch.value) ??
-          (await new Promise<ReplyData>((resolve, reject) => {
-            void watch.closed.then(() =>
-              reject(new Error('The room closed before a reply came.')),
-            )
-            watch.start(async (view) => {
-              const reply = find(view)
-              if (reply) {
-                resolve(reply)
-              }
-            })
-          }))
-        )
-      } finally {
-        await watch.stop()
-      }
-    },
     watchTurns: () => watchActivity(harness, id),
     // Its turns are background tasks, which only a background abort reaches.
     stop: async () =>

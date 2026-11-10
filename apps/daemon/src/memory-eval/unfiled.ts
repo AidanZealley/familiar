@@ -19,6 +19,7 @@ import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
 import { isSkipped, unquoted } from './recall.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
+import { replyTo } from '../reply.ts'
 
 /**
  * The unfiled test: how much of what was said, compacted out of the model's
@@ -167,7 +168,7 @@ async function openEval(options: WorkspaceOptions) {
     familiar,
     /** Says `text` in the DM and waits for the reply. */
     say: async (text: string, requestId: string) => {
-      await dm.replyTo(await dm.post({ author: ROWAN, text, requestId }))
+      await replyTo(dm, await dm.post({ author: ROWAN, text, requestId }))
     },
   }
 }

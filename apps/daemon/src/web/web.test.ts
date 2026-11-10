@@ -13,6 +13,7 @@ import {
 import { afterEach, expect, test } from 'vitest'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { webPlugin } from './plugin.ts'
+import { replyTo } from '../reply.ts'
 
 const KEY = 'BSA-test-0123456789'
 
@@ -70,7 +71,8 @@ async function setup(
         return fauxAssistantMessage('Done.')
       },
     ])
-    await dm.replyTo(
+    await replyTo(
+      dm,
       await dm.post({
         author: { id: 'owner', name: 'owner' },
         text: 'Go',

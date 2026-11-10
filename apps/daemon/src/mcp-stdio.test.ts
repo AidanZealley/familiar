@@ -14,6 +14,7 @@ import {
 import { afterEach, expect, onTestFinished, test, vi } from 'vitest'
 import { stdioTransport } from './mcp-stdio.ts'
 import { openDaemonWorkspace } from './workspace.ts'
+import { replyTo } from './reply.ts'
 
 // Owner-configured commands run as the daemon's user, through the daemon's
 // stdio transport. Core owns the connection; these check what the child
@@ -99,7 +100,8 @@ test("a command gets literal arguments and none of the daemon's private environm
       return fauxAssistantMessage('Done.')
     },
   ])
-  await dm.replyTo(
+  await replyTo(
+    dm,
     await dm.post({
       author: { id: 'owner', name: 'owner' },
       text: 'Echo.',

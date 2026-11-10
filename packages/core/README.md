@@ -37,12 +37,14 @@ try {
   const dm = (await workspace.rooms.get(
     await workspace.rooms.dm(familiar.id, 'person-123'),
   ))!
-  const entry = await dm.post({
+  await dm.post({
     author: { id: 'person-123', name: 'Sam' },
     text: 'Hello',
     requestId: crypto.randomUUID(),
   })
-  console.log(await dm.replyTo(entry))
+  // The room's log: the message now, the reply once the turn ends.
+  const watch = await dm.watch()
+  watch.start(async (view) => console.log(view.entries.at(-1)?.data))
 } finally {
   await workspace.dismiss()
 }
