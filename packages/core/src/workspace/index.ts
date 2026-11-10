@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
 import {
+  AgentDoc,
   createRegistry,
   Harness,
   type HarnessOptions,
@@ -58,8 +59,20 @@ import {
   type FamiliarsState as Registry,
 } from './familiars.ts'
 import { adoptPreWorkspaceFamiliar } from './migrate.ts'
+import {
+  capabilitiesOf,
+  setCapabilities,
+  type CapabilitiesChange,
+  type FamiliarCapabilities,
+} from './capabilities.ts'
+import { removeFamiliar } from './remove.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
+export type {
+  CapabilitiesChange,
+  FamiliarCapabilities,
+} from './capabilities.ts'
+export { CapabilityError } from './capabilities.ts'
 
 export type WorkspaceOptions = {
   storage: Storage
@@ -163,6 +176,17 @@ export type WorkspaceFamiliar = ConversationApi & {
   id: FamiliarId
   memory: MemoryApi
   schedules: SchedulesApi
+  /**
+   * Which of the workspace's plugins and MCP connections it uses. A new
+   * Familiar uses all of them, and every Familiar gets one added later,
+   * until it's turned off for that Familiar.
+   */
+  capabilities(): Promise<FamiliarCapabilities>
+  /**
+   * Changes what it uses, from its next request; each list given replaces
+   * that kind's. Throws a CapabilityError for a name the workspace hasn't.
+   */
+  setCapabilities(change: CapabilitiesChange): Promise<void>
 }
 
 export type FamiliarSummary = FamiliarIdentity & { id: FamiliarId }
@@ -204,6 +228,14 @@ export type Workspace = {
      * blank name or persona.
      */
     update(id: FamiliarId, change: FamiliarChange): Promise<void>
+    /**
+     * Removes it: stops its work and retires its configuration and memory.
+     * It leaves every named room, which opens one it led and archives one
+     * it leaves empty; its DMs stay readable but take no new messages.
+     * Rooms keep its replies, under its name then. Throws for no such
+     * Familiar.
+     */
+    remove(id: FamiliarId): Promise<void>
   }
   /**
    * Where people talk to Familiars: DMs, one per Familiar and person, and
@@ -341,6 +373,12 @@ export async function openWorkspace(
       await tx.doc(Rooms)
     }, context)
 
+    // What a Familiar can be given: the workspace's now.
+    const available = (): FamiliarCapabilities => ({
+      plugins: (options.plugins ?? []).map((plugin) => plugin.name),
+      mcp: mcp.names(),
+    })
+
     const opened = new Map<FamiliarId, WorkspaceFamiliar>()
     const open = async (id: FamiliarId) => {
       const familiar: WorkspaceFamiliar = {
@@ -352,6 +390,16 @@ export async function openWorkspace(
         })),
         memory: await memory.open(id),
         schedules: await schedules.open(harness, id),
+        capabilities: async () =>
+          capabilitiesOf(
+            await harness.snapshot(AgentDoc, id, context),
+            available(),
+          ),
+        setCapabilities: (change) =>
+          harness.commit(
+            (tx) => setCapabilities(tx, id, available(), change),
+            context,
+          ),
       }
       opened.set(id, familiar)
       return familiar
@@ -393,6 +441,10 @@ export async function openWorkspace(
               record.persona = persona
             }
           }, context)
+        },
+        remove: async (id) => {
+          await removeFamiliar(harness, id, context)
+          opened.delete(id)
         },
       },
       rooms: rooms.api,

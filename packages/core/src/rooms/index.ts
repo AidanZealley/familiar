@@ -85,7 +85,8 @@ export type RoomApi = {
    * Posts a message and starts the turns it causes; a retry with the same
    * request ID posts nothing. Returns its entry. Rejects with a MessageError
    * for a message `admitMessage` or the mention rules refuse, and a
-   * RoomError for an archived room.
+   * RoomError for a closed room: an archived one, or a DM whose Familiar
+   * was removed.
    */
   post(message: RoomMessage): Promise<EntryId>
   /**
@@ -93,7 +94,7 @@ export type RoomApi = {
    * next turn, with no turn of its own, so no one replies. For context such
    * as "Sam joined". Bounded as a message is; a retry with the same request
    * ID posts nothing. Rejects with a MessageError for a note `admitNote`
-   * refuses, and a RoomError for an archived room.
+   * refuses, and a RoomError for a closed room, as `post`.
    */
   note(note: { text: string; requestId: string }): Promise<EntryId>
   /**

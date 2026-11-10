@@ -7,9 +7,14 @@ import { expect, onTestFinished, test } from 'vitest'
 import { openMemory, rememberFact } from '../memory/facts.ts'
 import { withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
-import { ReopenableStorage, replyTo } from '../testing.ts'
+import { definePlugin, defineTool, Type } from '../index.ts'
+import { offeredTools, ReopenableStorage, replyTo } from '../testing.ts'
 import { createFamiliar } from './familiars.ts'
-import { openWorkspace } from './index.ts'
+import {
+  CapabilityError,
+  openWorkspace,
+  type WorkspaceFamiliar,
+} from './index.ts'
 import { defaultPersona } from '../persona.ts'
 
 const read = async <T>(
@@ -134,4 +139,62 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   await expect(workspace.familiars.update(bo, { name: ' ' })).rejects.toThrow(
     'must not be blank',
   )
+})
+
+test("a Familiar is offered only its own plugins' tools, from its next request", async () => {
+  // The tools each message's request offered, by the message.
+  const offered = new Map<string, string[]>()
+  const workspace = await openWorkspace({
+    storage: new ReopenableStorage(),
+    models: scriptedModels((request) => {
+      if (request.type === 'message') {
+        offered.set(request.text, offeredTools(request.context))
+      }
+      return fauxAssistantMessage('Hello.')
+    }),
+    model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    plugins: [
+      definePlugin({
+        name: 'weather',
+        title: 'Weather',
+        tools: [
+          defineTool({
+            name: 'forecast',
+            description: "Tomorrow's weather",
+            parameters: Type.Object({}),
+            execute: async () => ({ output: [{ type: 'text', text: 'Rain' }] }),
+          }),
+        ],
+      }),
+    ],
+  })
+  onTestFinished(() => workspace.dismiss())
+  const say = async (familiar: WorkspaceFamiliar, text: string) => {
+    const dm = (await workspace.rooms.get(
+      await workspace.rooms.dm(familiar.id, 'aidan'),
+    ))!
+    const author = { id: 'aidan', name: 'Aidan' }
+    await replyTo(dm, await dm.post({ author, text, requestId: text }))
+    return offered.get(text)!
+  }
+  const ada = await workspace.familiars.create({ name: 'Ada' })
+  const bo = await workspace.familiars.create({ name: 'Bo' })
+
+  // New Familiars get every plugin, until one is turned off.
+  expect(await ada.capabilities()).toEqual({ plugins: ['weather'], mcp: [] })
+  await ada.setCapabilities({ plugins: [] })
+  expect(await ada.capabilities()).toEqual({ plugins: [], mcp: [] })
+  await expect(ada.setCapabilities({ plugins: ['tides'] })).rejects.toThrow(
+    CapabilityError,
+  )
+
+  const toAda = await say(ada, 'Ada, will it rain?')
+  expect(toAda).not.toContain('forecast')
+  // Core's own tools are always on.
+  expect(toAda).toContain('recall')
+  expect(await say(bo, 'Bo, will it rain?')).toContain('forecast')
+
+  await ada.setCapabilities({ plugins: ['weather'] })
+  expect(await say(ada, 'Ada, and now?')).toContain('forecast')
 })

@@ -16,16 +16,13 @@ import {
   HANDOFF_KIND,
   MESSAGE_KIND,
   SCHEDULED_KIND,
+  type HandedOnData,
   type InRoom,
   type MessageData,
   type ScheduledData,
 } from '../conversation/message.ts'
 import { scheduledInput } from '../schedules/task.ts'
-import {
-  familiarRecord,
-  Familiars,
-  type FamiliarId,
-} from '../workspace/familiars.ts'
+import { Familiars, type FamiliarId } from '../workspace/familiars.ts'
 import { catchUp } from './catch-up.ts'
 import {
   formatHandoff,
@@ -63,15 +60,16 @@ type TurnStep =
 type ChatInput =
   | { kind: typeof MESSAGE_KIND; data: Required<MessageData> }
   | { kind: typeof SCHEDULED_KIND; data: ScheduledData & Required<InRoom> }
-  | {
-      kind: typeof HANDOFF_KIND
-      /** Who handed it over, by ID and by name then, and what they asked. */
-      data: {
-        from: HandoffData['from']
-        name: string
-        note: string
-      } & Required<InRoom>
-    }
+  | { kind: typeof HANDOFF_KIND; data: HandedOnData & Required<InRoom> }
+
+/** The turn task's name, by which removing a Familiar finds its turns. */
+export const TURN_TASK = 'familiar.turn'
+
+/** How a turn ends whose Familiar was removed after it was posted. */
+const removed = {
+  status: 'terminal',
+  outcome: { status: 'completed', result: { reply: null } },
+} as const
 
 /** The entry kind of the write that lets a stopped run's queue move on. */
 const WAKE_KIND = 'familiar.wake'
@@ -188,6 +186,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
   ) {
     // Reads before writes: a transaction cannot read tables after writing.
     const messages = settled ? await runMessages(tx, familiar, settled) : []
+    const turns = await tx.doc(Turns, room)
     const outcome: ReplyData['outcome'] =
       settled?.status === 'done'
         ? quiet(messages)
@@ -196,22 +195,24 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         : !settled || settled.reason === 'aborted'
           ? 'stopped'
           : 'failed'
-    const { name } = await familiarRecord(tx, familiar)
+    // Recorded as it was prepared, so a turn whose Familiar was removed
+    // since can still file what it said. Without it, nothing was delivered.
+    const turn = turns[taskId]
     let reply = null
-    if (outcome !== 'stopped' || messages.length) {
+    if (turn && (outcome !== 'stopped' || messages.length)) {
       const posted = await post(
         tx,
         Turn,
         room,
         {
           kind: REPLY_KIND,
-          data: { familiar, name, cause, outcome, messages },
+          data: { familiar, name: turn.name, cause, outcome, messages },
         },
         `reply:${taskId}`,
       )
       reply = posted.entry
     }
-    delete (await tx.doc(Turns, room))[taskId]
+    delete turns[taskId]
     return { reply }
   }
 
@@ -260,7 +261,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
   }
 
   const Turn = defineTask<TurnInput, TurnStep, TurnResult>({
-    name: 'familiar.turn',
+    name: TURN_TASK,
     version: 1,
     initial: (input) =>
       input.after === undefined ? { phase: 'prepare' } : { phase: 'wait' },
@@ -269,7 +270,15 @@ export function createTurnTask(harness: Harness, timeZone: string) {
       wait: (task, runtime, context) =>
         runtime.commit(async (tx) => {
           const { room, familiar, cause, after } = task.input
-          ;(await tx.doc(Turns, room))[task.id] = { familiar, cause }
+          const record = (await tx.doc(Familiars)).familiars[familiar]
+          if (!record) {
+            return removed
+          }
+          ;(await tx.doc(Turns, room))[task.id] = {
+            familiar,
+            name: record.name,
+            cause,
+          }
           return {
             status: 'waiting',
             checkpoint: { phase: 'prepare' },
@@ -287,6 +296,10 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             throw new Error(`No entry ${cause} in room ${room}.`)
           }
           const { familiars } = await tx.doc(Familiars)
+          if (!familiars[familiar]) {
+            delete (await tx.doc(Turns, room))[task.id]
+            return removed
+          }
           const shown = await catchUp(
             tx,
             familiar,
@@ -296,7 +309,11 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             dmPerson(record, entry),
             addressed,
           )
-          ;(await tx.doc(Turns, room))[task.id] = { familiar, cause }
+          ;(await tx.doc(Turns, room))[task.id] = {
+            familiar,
+            name: familiars[familiar].name,
+            cause,
+          }
           return {
             status: 'running',
             checkpoint: {

@@ -4,7 +4,8 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import MiniSearch from 'minisearch'
-import { saidBy, type Author } from '../conversation/message.ts'
+import { saidBy, type Author, type Said } from '../conversation/message.ts'
+import { formatHandoff } from '../rooms/log.ts'
 import { localDay } from '../time.ts'
 import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
@@ -12,19 +13,24 @@ import type { FamiliarId } from '../workspace/familiars.ts'
 import { entriesOf } from '../pi/entries.ts'
 
 /**
- * Exchanges: each person message (or scheduled prompt) with the replies after it, the smallest
+ * Exchanges: each input (a person's message, a scheduled prompt or a
+ * handoff) with the replies after it, the smallest
  * piece of the transcript worth finding. They are never stored. The index is
  * a view of the transcript, so losing it loses nothing: it is rebuilt.
  */
 
 /**
- * A person's text and, after it, what the Familiar was shown from the room
- * with it, so facts said only there can be found and read in their exchange.
+ * An input's words, a handoff's under whoever handed it on, and after them
+ * what the Familiar was shown from the room with it, so facts said only
+ * there can be found and read in their exchange.
  */
-const withContext = ({ text, context }: { text: string; context?: string }) =>
-  context
-    ? `${text}\n[Shown from the room with it, said by others]\n${context}`
+const inputText = (said: Exclude<Said, { role: 'assistant' }>) => {
+  const text =
+    said.role === 'handoff' ? formatHandoff(said.from, said.text) : said.text
+  return said.context
+    ? `${text}\n[Shown from the room with it, said by others]\n${said.context}`
     : text
+}
 
 /** An exchange's ID: `x` and its person message's entry ID. */
 export const exchangeId = (entry: EntryId) => `x${entry}`
@@ -198,7 +204,7 @@ export function transcriptExchanges(familiar: FamiliarId, timeZone: string) {
           viewStart = entry.head
         }
         const said = saidBy(entry)
-        // A scheduled prompt and its reply are an exchange of their own.
+        // Every input and its replies are an exchange of their own.
         if (said && said.role !== 'assistant') {
           if (open) {
             index.add(open)
@@ -206,8 +212,14 @@ export function transcriptExchanges(familiar: FamiliarId, timeZone: string) {
           open = {
             id: exchangeId(entry.id),
             at: said.at,
-            author: said.role === 'person' ? said.author : said.creator,
-            text: said.role === 'person' ? withContext(said) : said.text,
+            // A handoff's sender is a Familiar, named in its text.
+            author:
+              said.role === 'person'
+                ? said.author
+                : said.role === 'scheduled'
+                  ? said.creator
+                  : undefined,
+            text: inputText(said),
             last: entry.id,
           }
         } else if (said && open) {

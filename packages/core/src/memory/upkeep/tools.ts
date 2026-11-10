@@ -25,7 +25,11 @@ import { familiarFor, type FamiliarId } from '../../workspace/familiars.ts'
  * writer means one owner for every rule. Each change goes through facts.ts.
  */
 
-/** Checks that every ID names a person's message in `familiar`'s chat. */
+/**
+ * Checks that every ID names an input in `familiar`'s chat: a person's
+ * message, a reminder or a handoff. Facts from what a room showed with it
+ * cite it too.
+ */
 async function sourcesOf(
   tx: Tx,
   familiar: FamiliarId,
@@ -38,9 +42,9 @@ async function sourcesOf(
     const record = entry === undefined ? undefined : await tx.entry(entry)
     const said =
       record?.conversationId === familiar ? saidBy(record) : undefined
-    if (entry === undefined || said?.role !== 'person') {
+    if (entry === undefined || !said || said.role === 'assistant') {
       throw new FactError(
-        `${id} is not a message from a person. Cite the [x…] IDs of the conversation's messages.`,
+        `${id} is not an exchange. Cite the [x…] IDs of the conversation's lines.`,
       )
     }
     sources.set(id, { entry, day: localDay(said.at, timeZone) })

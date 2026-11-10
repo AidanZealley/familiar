@@ -21,7 +21,7 @@ import {
   type PluginFetch,
 } from '../index.ts'
 import { createHttpApi } from '../http/index.ts'
-import { replyTo, testHost, type TestHost } from '../testing.ts'
+import { offeredTools, replyTo, testHost, type TestHost } from '../testing.ts'
 
 // Familiar saves any well-formed server and connects through the transport
 // the host passed. Which protocols, destinations and commands are allowed is
@@ -304,11 +304,15 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
 
-  // Removal takes its tools and token with it, for good.
+  // Removal takes its tools, the last server's tool search and its token
+  // with it, for good.
   await familiar.mcp.remove('test')
   expect(await search(host, 'add')).toMatchObject({
     content: [
-      { type: 'text', text: expect.stringContaining('No matching tools') },
+      {
+        type: 'text',
+        text: expect.stringContaining('tool_search is not available'),
+      },
     ],
   })
   expect(await secrets.get(connection, 'token')).toBeUndefined()
@@ -538,4 +542,37 @@ test('an unavailable server neither blocks chat nor survives removal during star
   await converse(host, 'Hello.', [fauxAssistantMessage('Still here.')])
   await familiar.mcp.remove('test')
   expect(await familiar.connections.list()).toEqual([])
+})
+
+test('a Familiar with no MCP connection has no tool search', async () => {
+  const host = await connected(mcpServer())
+  const workspace = host.workspace()
+  const bo = await workspace.familiars.create({ name: 'Bo' })
+  await bo.setCapabilities({ mcp: [] })
+  expect(await bo.capabilities()).toEqual({ plugins: [], mcp: [] })
+  expect(await host.familiar().capabilities()).toEqual({
+    plugins: [],
+    mcp: ['test'],
+  })
+
+  const offered = async (
+    dm: Awaited<ReturnType<typeof workspace.rooms.get>>,
+  ) => {
+    let tools: string[] = []
+    host.faux.setResponses([
+      (context) => {
+        tools = offeredTools(context)
+        return fauxAssistantMessage('Hello.')
+      },
+    ])
+    const author = { id: 'aidan', name: 'Aidan' }
+    const text = `Hello ${crypto.randomUUID()}`
+    await replyTo(dm!, await dm!.post({ author, text, requestId: text }))
+    return tools
+  }
+  const boDm = await workspace.rooms.get(
+    await workspace.rooms.dm(bo.id, 'aidan'),
+  )
+  expect(await offered(boDm)).not.toContain('tool_search')
+  expect(await offered(host.dm())).toContain('tool_search')
 })

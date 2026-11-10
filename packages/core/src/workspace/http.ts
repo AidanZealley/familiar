@@ -9,7 +9,11 @@ import { scheduleRoutes } from '../schedules/http.ts'
 import type { FamiliarId } from './familiars.ts'
 import type { Workspace } from './index.ts'
 
-/** A blank name or persona: `familiars.create` and `update` throw TypeErrors for exactly these. */
+/**
+ * A blank name or persona, or a plugin or connection the workspace hasn't:
+ * `familiars.create`, `update` and `setCapabilities` throw TypeErrors for
+ * exactly these.
+ */
 async function identity(c: Context, run: () => Promise<Response>) {
   try {
     return await run()
@@ -24,9 +28,14 @@ async function identity(c: Context, run: () => Promise<Response>) {
 const optional = (value: unknown) =>
   value === undefined || typeof value === 'string'
 
+const names = (value: unknown) =>
+  value === undefined ||
+  (Array.isArray(value) && value.every((name) => typeof name === 'string'))
+
 /**
  * Familiars, mounted at `/familiars`: who they are, each one's DM with the
- * person asking, memory, schedules and model, and each one's `/events`.
+ * person asking, memory, schedules, model, plugins and MCP connections, and
+ * each one's `/events`.
  * People talk to them in rooms, never in their chats.
  */
 export function familiarRoutes(workspace: Workspace) {
@@ -78,6 +87,36 @@ export function familiarRoutes(workspace: Workspace) {
             const { name, persona } = c.req.valid('json')
             familiarOf(c)
             await workspace.familiars.update(idOf(c), { name, persona })
+            return c.body(null, 204)
+          }),
+      )
+      .delete('/:familiar', can('familiars.remove'), async (c) => {
+        familiarOf(c)
+        await workspace.familiars.remove(idOf(c))
+        return c.body(null, 204)
+      })
+      // Which of the workspace's plugins and MCP connections it uses.
+      .get('/:familiar/capabilities', can('capabilities.get'), async (c) =>
+        c.json(await familiarOf(c).capabilities(), 200),
+      )
+      // Each list given replaces what it uses of that kind.
+      .put(
+        '/:familiar/capabilities',
+        can('capabilities.set'),
+        validator('json', (body, c) => {
+          if (!names(body?.plugins) || !names(body.mcp)) {
+            return c.json(
+              { error: 'plugins and mcp must be lists of names' },
+              400,
+            )
+          }
+          // Inline, so the route's type names nothing outside the wire contract.
+          return body as { plugins?: string[]; mcp?: string[] }
+        }),
+        (c) =>
+          identity(c, async () => {
+            const { plugins, mcp } = c.req.valid('json')
+            await familiarOf(c).setCapabilities({ plugins, mcp })
             return c.body(null, 204)
           }),
       )

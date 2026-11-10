@@ -1,6 +1,6 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import type { EntryId, Tx } from '@earendil-works/pi-durable'
-import { formatAuthor, saidBy } from '../../conversation/message.ts'
+import { formatAuthor, saidBy, type Said } from '../../conversation/message.ts'
 import { localMinute } from '../../time.ts'
 import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
@@ -8,6 +8,14 @@ import type { FamiliarId } from '../../workspace/familiars.ts'
 import { entriesOf } from '../../pi/entries.ts'
 
 const indented = (text: string) => text.replace(/^/gm, '    ')
+
+/** An input's words, after whose they are. */
+const inputLine = (said: Exclude<Said, { role: 'assistant' }>) =>
+  said.role === 'person'
+    ? `${formatAuthor(said.author)}: ${said.text}`
+    : said.role === 'scheduled'
+      ? `(scheduled${said.creator ? `; requested by ${formatAuthor(said.creator)}` : ''}) ${said.text}`
+      : `(handed on by ${formatAuthor(said.from)}, another assistant) ${said.text}`
 
 /** A reply belongs to the person's turn, even when a batch splits that turn. */
 async function precedingDay(
@@ -74,17 +82,17 @@ export async function newMessages(
       break
     }
 
-    // People's lines carry their exchange ID, which facts cite as sources.
-    // Scheduled prompts are Familiar's own earlier words, so they can't be.
-    // What a room showed the Familiar with a message follows it, set apart:
-    // those are other people's and Familiars' words, not the author's. It
-    // comes last, so a cut for size never takes the message and its ID.
+    // Inputs' lines carry their exchange ID, which facts cite as sources. A
+    // reminder is the Familiar's own earlier words and a handoff's note
+    // another Familiar's, so each says whose. What a room showed the
+    // Familiar with an input follows it, set apart: those are other people's
+    // and Familiars' words, not its sender's. It comes last, so a cut for
+    // size never takes the input and its ID.
+    const when = localMinute(said.at, timeZone)
     const line =
-      said.role === 'person'
-        ? `[${exchangeId(entry.id)} ${localMinute(said.at, timeZone)}] ${formatAuthor(said.author)}: ${said.text}${said.context ? `\n  Shown to ${name} from the room with that message, said by others, not by its author (cite the message's ID for any fact in it):\n${indented(said.context)}` : ''}`
-        : said.role === 'scheduled'
-          ? `[${localMinute(said.at, timeZone)}] (scheduled${said.creator ? `; requested by ${formatAuthor(said.creator)}` : ''}) ${said.text}`
-          : `[${localMinute(said.at, timeZone)}] ${name}: ${said.text}`
+      said.role === 'assistant'
+        ? `[${when}] ${name}: ${said.text}`
+        : `[${exchangeId(entry.id)} ${when}] ${inputLine(said)}${said.context ? `\n  Shown to ${name} from the room with that input, said by others, not by its sender (cite the input's ID for any fact in it):\n${indented(said.context)}` : ''}`
     const size = estimateTextTokens(line)
     if (tokens + size > budget) {
       if (!lines.length) {

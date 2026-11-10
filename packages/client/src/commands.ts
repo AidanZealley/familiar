@@ -5,6 +5,8 @@ import type {
   HttpApi,
   Connection as ConnectionKey,
   ConnectionInfo,
+  CapabilitiesChange,
+  FamiliarCapabilities,
   FamiliarIdentity,
   FamiliarSummary,
   McpServer,
@@ -117,6 +119,16 @@ export const workspaceCommands = (api: Api) => ({
           json: change,
         }),
       ),
+    /**
+     * Removes a Familiar: stops its work and retires its configuration and
+     * memory. Rooms keep its history; its DMs close to new messages.
+     */
+    remove: (familiar: number) =>
+      succeed(
+        api.familiars[':familiar'].$delete({
+          param: { familiar: String(familiar) },
+        }),
+      ),
     /** The signed-in person's DM with a Familiar, created if new: its room ID. */
     dm: async (familiar: number): Promise<number> =>
       (
@@ -146,7 +158,7 @@ export const workspaceCommands = (api: Api) => ({
   },
 })
 
-/** What one Familiar does: its memory, schedules and model. */
+/** What one Familiar does: its memory, schedules, model and capabilities. */
 export const familiarCommands = (api: Api, id: number) => {
   const familiar = api.familiars[':familiar']
   const param = { familiar: String(id) }
@@ -190,6 +202,14 @@ export const familiarCommands = (api: Api, id: number) => {
         succeed(
           familiar.model['thinking-level'].$put({ param, json: { level } }),
         ),
+    },
+    /** Which of the workspace's plugins and MCP connections it uses. */
+    capabilities: {
+      get: (): Promise<FamiliarCapabilities> =>
+        read(familiar.capabilities.$get({ param })),
+      /** Each list given replaces what it uses of that kind. */
+      set: (change: CapabilitiesChange) =>
+        succeed(familiar.capabilities.$put({ param, json: change })),
     },
   }
 }

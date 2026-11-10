@@ -246,3 +246,15 @@ export const inputOf = (context: TranscriptContext) =>
               .join(''),
     )
     .findLast((text) => text && !text.startsWith(RECALL_HEADING)) ?? ''
+
+/** The tools a request offers, as its system messages add and remove them. */
+export const offeredTools = (context: TranscriptContext) => {
+  const tools = new Set<string>()
+  for (const message of context.messages) {
+    if (message.role === 'system') {
+      message.toolsAdded?.forEach((tool) => tools.add(tool.name))
+      message.toolsRemoved?.forEach((tool) => tools.delete(tool.name))
+    }
+  }
+  return [...tools]
+}

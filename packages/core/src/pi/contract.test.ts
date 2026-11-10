@@ -618,3 +618,42 @@ test('a commit reads tables before writing any, though documents may follow writ
   })
   await harness.close(context)
 })
+
+// Which plugins and MCP connections a Familiar uses (workspace/capabilities.ts),
+// and tool search coming with any MCP server's extension (mcp/connection.ts).
+test("a conversation's removed extensions stay off while ones installed later reach it, and a tool several extensions provide is offered once", async () => {
+  const tool = (name: string) =>
+    defineTool({
+      name,
+      description: name,
+      parameters: Type.Object({}),
+      execute: async () => ({ output: [] }),
+    })
+  const a = defineExtension({ name: 'a', tools: [tool('a'), tool('shared')] })
+  const b = defineExtension({ name: 'b', tools: [tool('b'), tool('shared')] })
+  const registry = createRegistry()
+  registry.install(a)
+  registry.install(b)
+  const harness = await Harness.open(
+    new ReopenableStorage(),
+    { models: fauxModels().models, registry },
+    context,
+  )
+  const root = await harness.root(context)
+  const offered = async () =>
+    (await root.agent(context)).tools.map(({ name }) => name).sort()
+
+  expect(await offered()).toEqual(['a', 'b', 'shared'])
+  await root.configure({ extensions: { remove: [a] } }, context)
+  expect(await offered()).toEqual(['b', 'shared'])
+  registry.install(
+    defineExtension({ name: 'c', tools: [tool('c'), tool('shared')] }),
+  )
+  expect(await offered()).toEqual(['b', 'c', 'shared'])
+  await root.configure(
+    { extensions: { remove: [a, b, { name: 'c' }] } },
+    context,
+  )
+  expect(await offered()).toEqual([])
+  await harness.close(context)
+})
