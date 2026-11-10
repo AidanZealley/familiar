@@ -7,9 +7,14 @@ import { expect, onTestFinished, test } from 'vitest'
 import { openMemory, rememberFact } from '../memory/facts.ts'
 import { withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
-import { ReopenableStorage, replyTo } from '../testing.ts'
+import { definePlugin, defineTool, Type } from '../index.ts'
+import { offeredTools, ReopenableStorage, replyTo } from '../testing.ts'
 import { createFamiliar } from './familiars.ts'
-import { openWorkspace } from './index.ts'
+import {
+  CapabilityError,
+  openWorkspace,
+  type WorkspaceFamiliar,
+} from './index.ts'
 import { defaultPersona } from '../persona.ts'
 
 const read = async <T>(
@@ -134,4 +139,98 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   await expect(workspace.familiars.update(bo, { name: ' ' })).rejects.toThrow(
     'must not be blank',
   )
+})
+
+test("a Familiar is offered only the plugins it opted in to, from its next request, and new ones start with the workspace's defaults", async () => {
+  // The tools each message's request offered, by the message.
+  const offered = new Map<string, string[]>()
+  const workspace = await openWorkspace({
+    storage: new ReopenableStorage(),
+    models: scriptedModels((request) => {
+      if (request.type === 'message') {
+        offered.set(request.text, offeredTools(request.context))
+      }
+      return fauxAssistantMessage('Hello.')
+    }),
+    model: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    plugins: [
+      definePlugin({
+        name: 'weather',
+        title: 'Weather',
+        tools: [
+          defineTool({
+            name: 'forecast',
+            description: "Tomorrow's weather",
+            parameters: Type.Object({}),
+            execute: async () => ({ output: [{ type: 'text', text: 'Rain' }] }),
+          }),
+        ],
+      }),
+    ],
+  })
+  onTestFinished(() => workspace.dismiss())
+  const say = async (familiar: WorkspaceFamiliar, text: string) => {
+    const dm = (await workspace.rooms.get(
+      await workspace.rooms.dm(familiar.id, 'aidan'),
+    ))!
+    const author = { id: 'aidan', name: 'Aidan' }
+    await replyTo(dm, await dm.post({ author, text, requestId: text }))
+    return offered.get(text)!
+  }
+  // A new Familiar opts in: none by default, or what its creator chose.
+  const ada = await workspace.familiars.create({ name: 'Ada' })
+  const bo = await workspace.familiars.create({
+    name: 'Bo',
+    capabilities: { plugins: ['weather'] },
+  })
+  expect(await ada.capabilities()).toEqual({ plugins: [], mcp: [] })
+  expect(await bo.capabilities()).toEqual({ plugins: ['weather'], mcp: [] })
+  await expect(ada.setCapabilities({ plugins: ['tides'] })).rejects.toThrow(
+    CapabilityError,
+  )
+
+  const toAda = await say(ada, 'Ada, will it rain?')
+  expect(toAda).not.toContain('forecast')
+  // Core's own tools are always on.
+  expect(toAda).toContain('recall')
+  expect(await say(bo, 'Bo, will it rain?')).toContain('forecast')
+
+  await ada.setCapabilities({ plugins: ['weather'] })
+  expect(await say(ada, 'Ada, and now?')).toContain('forecast')
+
+  // The workspace's defaults are what a Familiar made from now on starts with.
+  await workspace.setDefaultCapabilities({ plugins: ['weather'] })
+  const cy = await workspace.familiars.create({ name: 'Cy' })
+  expect(await cy.capabilities()).toEqual({ plugins: ['weather'], mcp: [] })
+})
+
+test("a host's default tools fill in on the first open only, so a change made later is kept", async () => {
+  const storage = new ReopenableStorage()
+  const open = () =>
+    openWorkspace({
+      storage,
+      models: scriptedModels(() => fauxAssistantMessage('Hello.')),
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      plugins: [
+        definePlugin({ name: 'weather', title: 'Weather', tools: [] }),
+        definePlugin({ name: 'web', title: 'Web', tools: [] }),
+      ],
+      defaultCapabilities: { plugins: ['web'] },
+    })
+  const first = await open()
+  expect(await first.defaultCapabilities()).toEqual({
+    plugins: ['web'],
+    mcp: [],
+  })
+  await first.setDefaultCapabilities({ plugins: ['weather'] })
+  await first.dismiss()
+
+  const reopened = await open()
+  onTestFinished(() => reopened.dismiss())
+  expect(await reopened.defaultCapabilities()).toEqual({
+    plugins: ['weather'],
+    mcp: [],
+  })
 })

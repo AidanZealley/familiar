@@ -13,19 +13,22 @@ Paths are relative to wherever you mount the API, such as `/api`. Every request 
 
 People talk to Familiars only in rooms. A DM is a room with one Familiar and one person, and only that person can reach it: to anyone else every `/rooms/:room` route answers 404, whatever `allow` says, as if it didn't exist. A named room has one or more Familiars and is open to everyone `allow` lets in.
 
-**Familiars**, `familiars.*` and each Familiar's `model.*`, asked with `{ familiar }` except `list` and `create`
+**Familiars**, `familiars.*` and each Familiar's `model.*` and `capabilities.*`, asked with `{ familiar }` except `list` and `create`
 
 | Operation                | Method and path                                 | Body                    | Success                 | Errors          |
 | ------------------------ | ----------------------------------------------- | ----------------------- | ----------------------- | --------------- |
 | `familiars.list`         | `GET /familiars`                                |                         | 200 `FamiliarSummary[]` |                 |
 | `familiars.create`       | `POST /familiars`                               | `{ name, persona? }`    | 201 `{ id }`            | 400 blank       |
 | `familiars.update`       | `PATCH /familiars/:familiar`                    | `{ name?, persona? }`   | 204                     | 400 blank       |
+| `familiars.remove`       | `DELETE /familiars/:familiar`                   |                         | 204                     | 404             |
 | `familiars.dm`           | `POST /familiars/:familiar/dm`                  |                         | 200 `{ room }`          |                 |
 | `model.options`          | `GET /familiars/:familiar/model/options`        |                         | 200 `ModelOption[]`     |                 |
 | `model.set`              | `PUT /familiars/:familiar/model`                | `{ provider, modelId }` | 204                     | 400 not offered |
 | `model.setThinkingLevel` | `PUT /familiars/:familiar/model/thinking-level` | `{ level }`             | 204                     | 400 unsupported |
+| `capabilities.get`       | `GET /familiars/:familiar/capabilities`         |                         | 200 `{ plugins, mcp }`  |                 |
+| `capabilities.set`       | `PUT /familiars/:familiar/capabilities`         | `{ plugins?, mcp? }`    | 204                     | 400 unknown     |
 
-`POST /familiars/:familiar/dm` gets or creates the DM between that Familiar and the person `authenticate` returned. A `null` persona returns a Familiar to its default.
+`POST /familiars/:familiar/dm` gets or creates the DM between that Familiar and the person `authenticate` returned. A `null` persona returns a Familiar to its default. `DELETE /familiars/:familiar` removes it and stops its work: it leaves its named rooms, its DMs stay readable but refuse new messages, and rooms keep its replies. Capabilities are plugin and MCP connection names; each list given replaces what the Familiar uses of that kind. Familiars opt in: `POST /familiars` takes optional `capabilities`, else the new Familiar uses the workspace's defaults (`GET` and `PUT /defaults/capabilities`, operations `defaults.get` and `defaults.set`), and one added to the workspace later is off for every Familiar until turned on. One MCP connection is one shared session, so Familiars using it share its account and state.
 
 **Rooms**, `rooms.*`, asked with `{ room }` except `list` and `create`
 

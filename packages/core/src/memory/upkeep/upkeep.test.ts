@@ -16,6 +16,7 @@ import {
   timeAt,
 } from '../../testing.ts'
 import { readStored, storageWith } from '../testing.ts'
+import { REPLY_KIND } from '../../rooms/log.ts'
 
 const context = BACKGROUND_CONTEXT
 
@@ -64,6 +65,7 @@ async function setup(storage?: Storage) {
   }
   return {
     faux: host.faux,
+    workspace: host.workspace,
     familiar: host.familiar,
     dm: host.dm,
     say: host.say,
@@ -260,8 +262,8 @@ test("a night files the day's facts from people's messages, reports refused edit
   expect(recalled).toContain('f3 (since')
   expect(results).toContain('sam-1')
   expect(results).toContain('sam-2')
-  expect(results).toContain(`x${reply.id} is not a message from a person`)
-  expect(results).toContain('x9999 is not a message from a person')
+  expect(results).toContain(`x${reply.id} is not an exchange`)
+  expect(results).toContain('x9999 is not an exchange')
   expect(results).toContain('No fact f9')
   expect(results).toContain('Give since, or cite the messages')
 
@@ -427,7 +429,80 @@ test("a fact said only in a turn's room context is filed, set apart from the mes
 
   // After the person's line, indented and labelled as others' words.
   expect(input).toMatch(
-    /Can you plan dinner\?\n {2}Shown to Familiar from the room with that message, said by others, not by its author[^\n]*:\n {4}\[In your DM with aidan\]\n {4}Said here before:\n {4}\[Note\]: Ann, the sister/,
+    /Can you plan dinner\?\n {2}Shown to Familiar from the room with that input, said by others, not by its sender[^\n]*:\n {4}\[In your DM with aidan\]\n {4}Said here before:\n {4}\[Note\]: Ann, the sister/,
+  )
+  expect(await memory()).toMatchObject([
+    {
+      text: 'Ann is visiting from Leeds until Friday',
+      sources: [Number(carrier.slice(1))],
+    },
+  ])
+})
+
+test("a fact said only in a handoff turn's context is filed by the Familiar it was handed to, citing the handoff, whose note is the other Familiar's", async () => {
+  const { faux, workspace, familiar, memory, passAt } = await setup()
+  const bo = await workspace().familiars.create({ name: 'Bo' })
+  const kitchen = (await workspace().rooms.get(
+    await workspace().rooms.create({
+      name: 'kitchen',
+      familiars: [familiar().id, bo.id],
+      lead: bo.id,
+    }),
+  ))!
+  await kitchen.note({
+    text: 'Ann, the sister, is visiting from Leeds until Friday.',
+    requestId: 'ann',
+  })
+  // Bo hands the message on; the Familiar answers the handoff.
+  const turn = (context: TranscriptContext) =>
+    context.messages.at(-1)?.role === 'toolResult'
+      ? fauxAssistantMessage('Asked Familiar.')
+      : inputOf(context).includes('[Handoff from')
+        ? fauxAssistantMessage('Garden party it is.')
+        : fauxAssistantMessage(
+            fauxToolCall('hand_off', {
+              to: 'Familiar',
+              note: 'Can you plan the garden party?',
+            }),
+            { stopReason: 'toolUse' },
+          )
+  faux.setResponses([turn, turn, turn])
+  await kitchen.post({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Who can plan something for the weekend?',
+    requestId: 'weekend',
+  })
+  await vi.waitFor(async () => {
+    const view = await kitchen.watch()
+    await view.stop()
+    expect(
+      view.value.entries.filter((entry) => entry.kind === REPLY_KIND),
+    ).toHaveLength(2)
+  })
+
+  let input = ''
+  let carrier = ''
+  faux.setResponses([
+    (context) => {
+      input = inputOf(context)
+      carrier = exchangeIn(input, 'garden party?')
+      return fauxAssistantMessage(
+        fauxToolCall('remember', {
+          text: 'Ann is visiting from Leeds until Friday',
+          importance: 3,
+          sources: [carrier],
+        }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage('A garden party was planned.'),
+    fauxAssistantMessage('A week of parties.'),
+  ])
+  await passAt(firstPass, secondPass)
+
+  // The note is Bo's, then what the room showed with it, set apart.
+  expect(input).toMatch(
+    /\(handed on by "Bo", another assistant\) Can you plan the garden party\?\n {2}Shown to Familiar from the room with that input[^\n]*:\n {4}\[In #kitchen, handed to you\]\n(.*\n)* {4}\[Note\]: Ann, the sister/,
   )
   expect(await memory()).toMatchObject([
     {

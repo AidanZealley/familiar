@@ -69,7 +69,7 @@ const EARLIER_TOKENS = 1_500
  * replies with nothing said, such as a quiet one, and `own` replies when the
  * Familiar's chat already has them. A note is a host's, so it has no
  * speaker. A handoff names both Familiars as they
- * are called now. Continuation lines are indented, so no one's words can
+ * are called now, or says one was removed. Continuation lines are indented, so no one's words can
  * pass for another line.
  */
 function line(
@@ -89,7 +89,9 @@ function line(
   }
   if (entry.kind === HANDOFF_KIND) {
     const { from, to, note } = entry.data as HandoffData
-    return said(`${familiars[from]?.name} → ${familiars[to]?.name}`, note)
+    const name = (familiar: FamiliarId) =>
+      familiars[familiar]?.name ?? 'a removed assistant'
+    return said(`${name(from)} → ${name(to)}`, note)
   }
   if (entry.kind === NOTE_KIND) {
     return said('Note', (entry.data as NoteData).text)

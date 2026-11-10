@@ -158,6 +158,12 @@ export async function testHost(options: TestHostOptions = {}) {
         : await workspace.familiars.create({
             name,
             ...(persona !== undefined && { persona }),
+            // Every plugin the test installs: each Familiar opts in.
+            capabilities: {
+              plugins: (workspaceOptions.plugins ?? []).map(
+                (plugin) => plugin.name,
+              ),
+            },
           })
       const dm = (await workspace.rooms.get(
         await workspace.rooms.dm(familiar.id, person.id),
@@ -246,3 +252,15 @@ export const inputOf = (context: TranscriptContext) =>
               .join(''),
     )
     .findLast((text) => text && !text.startsWith(RECALL_HEADING)) ?? ''
+
+/** The tools a request offers, as its system messages add and remove them. */
+export const offeredTools = (context: TranscriptContext) => {
+  const tools = new Set<string>()
+  for (const message of context.messages) {
+    if (message.role === 'system') {
+      message.toolsAdded?.forEach((tool) => tools.add(tool.name))
+      message.toolsRemoved?.forEach((tool) => tools.delete(tool.name))
+    }
+  }
+  return [...tools]
+}

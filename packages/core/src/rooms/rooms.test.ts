@@ -4,6 +4,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { EntryRecord, Storage } from '@earendil-works/pi-durable'
+import { BACKGROUND_CONTEXT as context } from '@earendil-works/chord/context'
 import { expect, onTestFinished, test } from 'vitest'
 import {
   HANDOFF_KIND,
@@ -19,7 +20,10 @@ import {
   familiar as services,
   Type,
 } from '../index.ts'
+import { Facts } from '../memory/facts.ts'
+import { withHarness } from '../memory/testing.ts'
 import type { Notification } from '../notify.ts'
+import { Schedules } from '../schedules/schedules.ts'
 import { fakeClock, ReopenableStorage, timeAt } from '../testing.ts'
 import {
   openWorkspace,
@@ -71,7 +75,15 @@ async function open(
   }
   onTestFinished(dismiss)
   const create = async (name: string) =>
-    (await workspace.familiars.create({ name })).id
+    (
+      await workspace.familiars.create({
+        name,
+        // Every plugin the test installs: each Familiar opts in.
+        capabilities: {
+          plugins: (options.plugins ?? []).map((plugin) => plugin.name),
+        },
+      })
+    ).id
   const room = async (id: number) => (await workspace.rooms.get(id as never))!
   return { workspace, dismiss, create, room }
 }
@@ -734,4 +746,103 @@ test('a handoff turn acts for the person whose message started it', async () => 
   )
   await kitchen.post({ author: AIDAN, text: 'Ask Bo.', requestId: 'm1' })
   await expect.poll(() => seen).toEqual(['Aidan'])
+})
+
+test("removing a Familiar stops its turns and schedules, retires its memory, opens the room it led and closes its DM, leaving others' work running", async () => {
+  // Messages saying "hold" take until they're released or stopped.
+  const held = new Map<string, () => void>()
+  const storage = new ReopenableStorage()
+  const { workspace, dismiss, create, room } = await open(
+    (request, signal) => {
+      if (request.type === 'tool-result') {
+        return fauxAssistantMessage('I will remind you.')
+      }
+      if (request.type === 'message' && request.text.startsWith('Remind')) {
+        return call('schedule', {
+          prompt: 'Remind Aidan to call Mum',
+          at: '2099-01-01 09:00',
+        })
+      }
+      if (request.type !== 'message' || !request.text.includes('hold')) {
+        return echo(request)
+      }
+      return new Promise((resolve, reject) => {
+        held.set(request.text, () => resolve(echo(request) as AssistantMessage))
+        signal?.addEventListener('abort', () => reject(new Error('aborted')))
+      })
+    },
+    { storage },
+  )
+  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const adaDm = await room(await workspace.rooms.dm(ada, AIDAN.id))
+  await adaDm.post({ author: AIDAN, text: 'Remind me at 9.', requestId: 'r' })
+  await expect.poll(async () => (await replies(adaDm)).length).toBe(1)
+  const kitchen = await room(
+    await workspace.rooms.create({
+      name: 'kitchen',
+      familiars: [ada, bo],
+      lead: ada,
+    }),
+  )
+  const post = (text: string, mentions?: ReturnType<typeof mention>[]) =>
+    kitchen.post({ author: AIDAN, text, requestId: text, mentions })
+  await post('@Bo hold on', [mention(bo)])
+  await post('hold the soup')
+  await post('queued for Ada')
+  await expect.poll(() => held.size).toBe(2)
+  await expect
+    .poll(
+      async () =>
+        (await read(() => workspace.familiars.get(ada)!.watch())).docs[
+          'pi.inbox'
+        ] as { items: unknown[] },
+    )
+    .toMatchObject({ items: [expect.anything()] })
+
+  await workspace.familiars.remove(ada)
+
+  // Gone from the workspace, and from the room it led, which is open now.
+  expect(workspace.familiars.get(ada)).toBeUndefined()
+  expect((await workspace.familiars.list()).map(({ id }) => id)).toEqual([bo])
+  const rooms = await workspace.rooms.list()
+  expect(rooms.find(({ id }) => id === kitchen.id)).toEqual({
+    id: kitchen.id,
+    kind: 'room',
+    name: 'kitchen',
+    familiars: [bo],
+  })
+  // Its running and queued turns are stopped; Bo's carries on.
+  expect(Object.values(await read(() => kitchen.watchTurns()))).toEqual([
+    expect.objectContaining({ familiar: bo }),
+  ])
+  held.get('@Bo hold on')!()
+  await expect
+    .poll(async () => (await replies(kitchen)).map((reply) => reply.familiar))
+    .toEqual([bo])
+  // Its DM keeps its history and takes nothing new.
+  expect((await replies(adaDm)).map(said)).toEqual(['I will remind you.'])
+  await expect(
+    adaDm.post({ author: AIDAN, text: 'Hello?', requestId: 'h' }),
+  ).rejects.toThrow('This Familiar was removed.')
+
+  // Its schedule and upkeep stopped, and its memory and schedules are retired.
+  await dismiss()
+  await withHarness(storage, async (harness) => {
+    const { items } = await storage.scanTasks({}, 100, undefined, context)
+    const ofAda = items.filter(
+      (task) =>
+        (task.kind === 'familiar.schedule' ||
+          task.kind === 'familiar.upkeep') &&
+        (task.input as { familiar: FamiliarId }).familiar === ada,
+    )
+    expect(ofAda.map((task) => [task.kind, task.state.status]).sort()).toEqual([
+      ['familiar.schedule', 'terminal'],
+      ['familiar.upkeep', 'terminal'],
+    ])
+    expect(await harness.snapshot(Facts, String(ada), context)).toBeUndefined()
+    expect(
+      await harness.snapshot(Schedules, String(ada), context),
+    ).toBeUndefined()
+    expect(await harness.snapshot(Facts, String(bo), context)).toBeDefined()
+  })
 })

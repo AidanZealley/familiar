@@ -13,6 +13,10 @@ import type { FamiliarPlugin } from './types.ts'
 
 export type { FamiliarPlugin } from './types.ts'
 
+/** The extension a plugin's tools are installed as, once for every Familiar. */
+export const pluginExtensionName = (plugin: string) =>
+  `familiar.plugin.${plugin}`
+
 /** Identity, so a plugin's types are checked where it's written. */
 export const definePlugin = (plugin: FamiliarPlugin) => plugin
 
@@ -126,7 +130,7 @@ export function createPlugins(options: PluginsOptions) {
     },
     extensions: options.plugins.map((plugin) =>
       provide(
-        { name: `familiar.plugin.${plugin.name}`, tools: plugin.tools },
+        { name: pluginExtensionName(plugin.name), tools: plugin.tools },
         plugin,
       ),
     ),

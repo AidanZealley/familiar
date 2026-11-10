@@ -7,7 +7,7 @@ import { exchangesByFamiliar } from './exchanges.ts'
 import { recallNote, UNFILED } from './recall.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { localDay } from '../time.ts'
-import { answeredMessage } from '../conversation/message.ts'
+import { answeredInput } from '../conversation/message.ts'
 import { createUpkeep, type UpkeepOptions } from './upkeep/index.ts'
 import { memoryApi } from './api.ts'
 import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
@@ -34,9 +34,10 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
     timeZone: options.timeZone,
     recall: (familiar, model, request, unfiled) =>
       harness.commit(async (tx) => {
-        // A person's words as sent, so their name on the model's copy
-        // matches nothing.
-        const query = (await answeredMessage(tx, request))?.text ?? model
+        // The input's own words, as sent: a person's message, a reminder's
+        // prompt or a handoff's note, so the model copy's header and the
+        // room's context, which the next turn may show again, match nothing.
+        const query = (await answeredInput(tx, request))?.text ?? model
         const facts = await familiarDoc(tx, Facts, familiar)
         const episodes = await familiarDoc(tx, Episodes, familiar)
         // What compaction took out of the view after the last entry upkeep

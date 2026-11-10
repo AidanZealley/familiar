@@ -1,7 +1,10 @@
 // Everything @familiar-ai/core exports from its root: opening a workspace,
 // the types in its signatures, and what hosts and plugins build with.
 export {
+  CapabilityError,
   openWorkspace,
+  type CapabilitiesChange,
+  type FamiliarCapabilities,
   type FamiliarChange,
   type FamiliarId,
   type FamiliarIdentity,

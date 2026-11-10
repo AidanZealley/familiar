@@ -172,11 +172,12 @@ export const readMessage = (
 }
 
 /**
- * The person's message a generation request answers, read from its entry so
- * the words are exactly as sent. Undefined outside a request, or when the
- * latest input came from no one in the moment, such as a schedule or upkeep.
+ * The input a generation request answers, read from its entry so the words
+ * are exactly as sent, without the room's context or the model copy's
+ * header. Undefined outside a request, or for an input `saidBy` doesn't
+ * read, such as upkeep's.
  */
-export async function answeredMessage(tx: Tx, taskId: TaskId) {
+export async function answeredInput(tx: Tx, taskId: TaskId) {
   const task = await tx.task(taskId)
   const checkpoint = task?.state.checkpoint as GenerationCheckpoint | undefined
 
@@ -204,9 +205,8 @@ export async function answeredMessage(tx: Tx, taskId: TaskId) {
     }
 
     if (entry.model?.some((message) => message.role === 'user')) {
-      return entry.kind === MESSAGE_KIND
-        ? (entry.data as MessageData)
-        : undefined
+      const said = saidBy(entry)
+      return said?.role === 'assistant' ? undefined : said
     }
   }
 
@@ -236,6 +236,16 @@ export type ScheduledData = InRoom & {
   due: number
 }
 
+/**
+ * A handoff as placed in the chat of the Familiar it asks: who handed it
+ * over, by ID and by name then, and what they asked (see rooms/turn.ts).
+ */
+export type HandedOnData = InRoom & {
+  from: ConversationId
+  name: string
+  note: string
+}
+
 /** The text of a model message, without its images, thinking or tool calls. */
 export const textOf = (message: Message) => {
   if (typeof message.content === 'string') {
@@ -248,21 +258,28 @@ export const textOf = (message: Message) => {
     .join('\n')
 }
 
+/**
+ * An input: what starts a Familiar's run, and an exchange in its memory.
+ * `context` is what it was shown from the room with the input, said by
+ * whoever each line names, never by the input's sender.
+ */
+type Input = { text: string; context?: string; at: number }
+
 export type Said =
-  | {
-      role: 'person'
-      author: Author
-      text: string
-      /**
-       * What the Familiar was shown from the room with this message: other
-       * people's and Familiars' words, never the author's own.
-       */
-      context?: string
-      at: number
-    }
-  | { role: 'assistant'; text: string; at: number }
+  | ({ role: 'person'; author: Author } & Input)
   /** A schedule's prompt, set up earlier and submitted when due. */
-  | { role: 'scheduled'; creator?: Author; text: string; at: number }
+  | ({ role: 'scheduled'; creator?: Author } & Input)
+  /** Another Familiar's note, handing a room's conversation on. */
+  | ({ role: 'handoff'; from: string } & Input)
+  | { role: 'assistant'; text: string; at: number }
+
+/**
+ * A room's context, if it shows anything: its first line says only where
+ * the turn was, then what was said there. Without the rest it has nothing
+ * to file.
+ */
+const shown = (data: InRoom | undefined) =>
+  data?.context?.includes('\n') ? { context: data.context } : {}
 
 /** Who said what, for the entries people and the assistant wrote. */
 export function saidBy(entry: EntryRecord): Said | undefined {
@@ -271,6 +288,7 @@ export function saidBy(entry: EntryRecord): Said | undefined {
   if (!message) {
     return undefined
   }
+  const at = message.timestamp
 
   if (entry.kind === MESSAGE_KIND) {
     const data = entry.data as MessageData
@@ -278,10 +296,8 @@ export function saidBy(entry: EntryRecord): Said | undefined {
       role: 'person',
       author: data.author,
       text: data.text,
-      // A context is its first line, saying only where the turn was, then
-      // what was said there. Without the rest it has nothing to file.
-      context: data.context?.includes('\n') ? data.context : undefined,
-      at: message.timestamp,
+      ...shown(data),
+      at,
     }
   }
 
@@ -290,9 +306,22 @@ export function saidBy(entry: EntryRecord): Said | undefined {
 
     return {
       role: 'scheduled',
-      creator: data?.creator,
+      ...(data?.creator && { creator: data.creator }),
       text: data?.prompt ?? textOf(message),
-      at: message.timestamp,
+      ...shown(data),
+      at,
+    }
+  }
+
+  if (entry.kind === HANDOFF_KIND) {
+    const data = entry.data as HandedOnData
+
+    return {
+      role: 'handoff',
+      from: data.name,
+      text: data.note,
+      ...shown(data),
+      at,
     }
   }
 

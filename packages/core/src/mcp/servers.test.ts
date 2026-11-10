@@ -21,7 +21,7 @@ import {
   type PluginFetch,
 } from '../index.ts'
 import { createHttpApi } from '../http/index.ts'
-import { replyTo, testHost, type TestHost } from '../testing.ts'
+import { offeredTools, replyTo, testHost, type TestHost } from '../testing.ts'
 
 // Familiar saves any well-formed server and connects through the transport
 // the host passed. Which protocols, destinations and commands are allowed is
@@ -161,6 +161,10 @@ const info = async (familiar: Workspace) =>
 const status = async (familiar: Workspace) => (await info(familiar)).status.type
 
 /** A Familiar over `fetch` with `home` connected by its token. */
+/** Turns `name` on for the host's Familiar, which opts in to each connection. */
+const use = (host: TestHost, name = home.name) =>
+  host.familiar().setCapabilities({ mcp: [name] })
+
 async function connected(
   server: ReturnType<typeof mcpServer>,
   fetch = server.fetch,
@@ -168,6 +172,7 @@ async function connected(
   const host = await testHost({ secrets: memorySecrets(), mcpFetch: fetch })
   const familiar = host.workspace()
   await familiar.mcp.add(home)
+  await use(host)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
   return host
@@ -259,6 +264,7 @@ test('a connection waits for its token, persists, follows tool changes and is cl
 
   // A bearer server sends nothing until it has its token.
   await familiar.mcp.add(home)
+  await use(host)
   await expect.poll(() => status(familiar)).toBe('needs-auth')
   expect(server.state.requests).toEqual([])
   await familiar.connections.setSecret(connection, 'token', server.state.token)
@@ -304,11 +310,15 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
 
-  // Removal takes its tools and token with it, for good.
+  // Removal takes its tools, the last server's tool search and its token
+  // with it, for good.
   await familiar.mcp.remove('test')
   expect(await search(host, 'add')).toMatchObject({
     content: [
-      { type: 'text', text: expect.stringContaining('No matching tools') },
+      {
+        type: 'text',
+        text: expect.stringContaining('tool_search is not available'),
+      },
     ],
   })
   expect(await secrets.get(connection, 'token')).toBeUndefined()
@@ -468,6 +478,7 @@ test('parallel expired calls do not reconnect a replacement session', async () =
   })
   const familiar = host.workspace()
   await familiar.mcp.add(home)
+  await use(host)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
 
@@ -535,7 +546,41 @@ test('an unavailable server neither blocks chat nor survives removal during star
     ...home,
     transport: { ...home.transport, auth: { type: 'none' } },
   })
+  await use(host)
   await converse(host, 'Hello.', [fauxAssistantMessage('Still here.')])
   await familiar.mcp.remove('test')
   expect(await familiar.connections.list()).toEqual([])
+})
+
+test('a Familiar with no MCP connection has no tool search', async () => {
+  const host = await connected(mcpServer())
+  const workspace = host.workspace()
+  // Bo opts in to nothing; the host's Familiar uses the connection.
+  const bo = await workspace.familiars.create({ name: 'Bo' })
+  expect(await bo.capabilities()).toEqual({ plugins: [], mcp: [] })
+  expect(await host.familiar().capabilities()).toEqual({
+    plugins: [],
+    mcp: ['test'],
+  })
+
+  const offered = async (
+    dm: Awaited<ReturnType<typeof workspace.rooms.get>>,
+  ) => {
+    let tools: string[] = []
+    host.faux.setResponses([
+      (context) => {
+        tools = offeredTools(context)
+        return fauxAssistantMessage('Hello.')
+      },
+    ])
+    const author = { id: 'aidan', name: 'Aidan' }
+    const text = `Hello ${crypto.randomUUID()}`
+    await replyTo(dm!, await dm!.post({ author, text, requestId: text }))
+    return tools
+  }
+  const boDm = await workspace.rooms.get(
+    await workspace.rooms.dm(bo.id, 'aidan'),
+  )
+  expect(await offered(boDm)).not.toContain('tool_search')
+  expect(await offered(host.dm())).toContain('tool_search')
 })

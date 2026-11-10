@@ -38,7 +38,11 @@ const workspace = await openWorkspace({
 })
 // One Familiar, made on the first run; the owner talks to it in their DM.
 if (!(await workspace.familiars.list()).length) {
-  await workspace.familiars.create({ name: config.name })
+  await workspace.familiars.create({
+    name: config.name,
+    // Each Familiar opts in to the plugins it uses.
+    capabilities: { plugins: [github.name] },
+  })
 }
 
 const app = new Hono()

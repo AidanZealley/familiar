@@ -36,6 +36,7 @@ const { workspace, familiar } = await openDaemonWorkspace(
       await push.notify(notification)
     },
     plugins: [demoPlugin],
+    defaultCapabilities: { plugins: [demoPlugin.name] },
     secrets: memorySecrets(),
     fetch: demoFetch,
     mcpFetch: demoMcpFetch,
