@@ -3,6 +3,7 @@ import {
   ROOT_CONVERSATION_ID,
   type ConversationId,
   type EntryId,
+  type EntryRecord,
   type JsonObject,
   type SessionDocFamilyToken,
   type TaskId,
@@ -13,6 +14,8 @@ import { Episodes } from '../memory/episodes.ts'
 import { Facts, MemoryUsage } from '../memory/facts.ts'
 import { Upkeep } from '../memory/upkeep/schedule.ts'
 import { Schedules } from '../schedules/schedules.ts'
+import { entriesOf } from '../conversation/message.ts'
+import { adoptChat } from '../rooms/adopt.ts'
 import { familiarDoc, Familiars, type FamiliarId } from './familiars.ts'
 
 /**
@@ -72,9 +75,11 @@ const UpkeepBefore = defineDoc<{
 /**
  * Adopts a pre-workspace store, in the commit `tx`, naming its Familiar
  * `name`. Does nothing to a store with Familiars already, or with no root
- * conversation, which only a pre-workspace Familiar made. It never reads the
- * old documents after retiring them: reading one again would create it anew,
- * empty. Returns the adopted Familiar, if any.
+ * conversation, which only a pre-workspace Familiar made. Its chat is
+ * copied into its DM with the person who wrote it, and its reminders run
+ * there from now on. It never reads the old documents after retiring them:
+ * reading one again would create it anew, empty. Returns the adopted
+ * Familiar, if any.
  */
 export async function adoptPreWorkspaceFamiliar(
   tx: Tx,
@@ -87,6 +92,13 @@ export async function adoptPreWorkspaceFamiliar(
     return undefined
   }
   const familiar = ROOT_CONVERSATION_ID as FamiliarId
+  const chat: EntryRecord[] = []
+  for await (const entry of entriesOf(tx, {
+    conversationId: familiar,
+    order: 'ascending',
+  })) {
+    chat.push(entry)
+  }
 
   await move(tx, Facts, 1, familiar)
   await move(tx, MemoryUsage, 1, familiar)
@@ -106,6 +118,15 @@ export async function adoptPreWorkspaceFamiliar(
     upkeep:
       upkeep.conversation ??
       (await tx.createConversation({ ownership: { kind: 'ownerless' } })).id,
+  }
+
+  const dm = await adoptChat(tx, familiar, name, chat)
+  if (dm !== undefined) {
+    for (const schedule of Object.values(
+      await familiarDoc(tx, Schedules, familiar),
+    )) {
+      schedule.room ??= dm
+    }
   }
   return familiar
 }
