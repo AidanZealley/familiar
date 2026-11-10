@@ -32,7 +32,7 @@ People talk to Familiars only in rooms. A DM is a room with one Familiar and one
 | Operation       | Method and path                   | Body                             | Success                           | Errors                  |
 | --------------- | --------------------------------- | -------------------------------- | --------------------------------- | ----------------------- |
 | `rooms.list`    | `GET /rooms`                      |                                  | 200 `RoomSummary[]`               |                         |
-| `rooms.create`  | `POST /rooms`                     | `{ name, familiars, lead }`      | 201 `{ id }`                      | 400 refused             |
+| `rooms.create`  | `POST /rooms`                     | `{ name, familiars, lead? }`     | 201 `{ id }`                      | 400 refused             |
 | `rooms.update`  | `PATCH /rooms/:room`              | `{ name?, familiars?, lead? }`   | 204                               | 400 refused             |
 | `rooms.archive` | `DELETE /rooms/:room`             |                                  | 204                               | 400 a DM                |
 | `rooms.post`    | `POST /rooms/:room/messages`      | `{ text, requestId, mentions? }` | 202                               | 400 refused or archived |
@@ -41,7 +41,7 @@ People talk to Familiars only in rooms. A DM is a room with one Familiar and one
 
 `GET /rooms` lists every named room and the person's own DMs, never anyone else's. Archiving hides a named room and closes it to new messages, keeping its history.
 
-The author of `POST /rooms/:room/messages` comes from `authenticate`, never the body. It answers 400 when the message is refused: see `MESSAGE_LIMITS` in [Core API](/familiar/reference/core/#types). A `requestId` is scoped to the authenticated author, so a retry from the same author is posted once and another author's same ID is a separate message. Each mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text, and a Familiar it names must be in the room. In a DM its Familiar answers; in a named room each Familiar mentioned answers, or the room's `lead` when none is. `POST /rooms/:room/stop` stops that room's turns, and nothing in other rooms.
+The author of `POST /rooms/:room/messages` comes from `authenticate`, never the body. It answers 400 when the message is refused: see `MESSAGE_LIMITS` in [Core API](/familiar/reference/core/#types). A `requestId` is scoped to the authenticated author, so a retry from the same author is posted once and another author's same ID is a separate message. Each mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text, and a Familiar it names must be in the room. In a DM its Familiar answers; in a named room each Familiar mentioned answers, or the room's `lead` when none is. A room with no `lead`, or one updated with `lead: null`, is open: each of its Familiars takes a turn in order. `POST /rooms/:room/stop` stops that room's turns, and nothing in other rooms.
 
 **Memory and schedules**, `memory.*` and `schedules.*`, asked with `{ familiar }`
 

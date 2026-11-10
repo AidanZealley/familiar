@@ -46,6 +46,7 @@ A workspace holds Familiars and the rooms where people talk to them. Each Famili
 | `contextBudget`    |          | Tokens per request before a Familiar's older context is compacted. Default 64,000                                                                                                           |
 | `notify`           |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)                                                                                        |
 | `maxSchedules`     |          | Most schedules each Familiar keeps at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50                                                                                    |
+| `maxHandoffs`      |          | Most handoffs in a row between a room's Familiars before `hand_off` refuses, a positive whole number. Default `DEFAULT_MAX_HANDOFFS`, 3                                                     |
 | `onWake`           |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)                                                                                      |
 | `now`, `setTimer`  |          | Clock and timer overrides, mainly for tests                                                                                                                                                 |
 
@@ -83,13 +84,13 @@ Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. I
 | ---------------------------- | --------------------------------------------------------------------------------------------- |
 | `rooms.list(person?)`        | `RoomSummary[]`; with a host author ID, only that person's DMs and every named room           |
 | `rooms.watch(person?)`       | Watch of the same                                                                             |
-| `rooms.create(setup)`        | A named room, `{ name, familiars, lead }`, returning its ID. Throws `RoomError` when refused  |
-| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead                                                 |
+| `rooms.create(setup)`        | A named room, `{ name, familiars, lead? }`, returning its ID. Throws `RoomError` when refused |
+| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead; `lead: null` opens it                          |
 | `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                           |
 | `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                     |
 | `rooms.get(id, person?)`     | A room's API; with a host author ID, undefined for someone else's DM, as the HTTP API uses it |
 
-`lead` answers a named room's messages that mention no Familiar. Each `RoomApi` has:
+`lead` answers a named room's messages that mention no Familiar. A room without one is open: every Familiar in it takes a turn on such a message, one after another in the room's order, each shown the replies before it. Each `RoomApi` has:
 
 | Member                                         | Meaning                                                                                                 |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -99,7 +100,9 @@ Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. I
 | `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                |
 | `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                 |
 
-A DM's Familiar answers every message; in a named room, each Familiar a message mentions answers it, else the lead. A mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text; `post` throws a `MessageError` for one that doesn't span an `@` or names a Familiar not in the room, and a `RoomError` for an archived room. A Familiar works one turn at a time, across all its rooms, and is shown what it missed in a room when it next takes a turn there. Its reply, with its tool calls, is copied into the room's log as a `familiar.reply` entry when the turn ends.
+A DM's Familiar answers every message; in a named room, each Familiar a message mentions answers it, else the lead, else, in an open room, each Familiar in turn. A mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text; `post` throws a `MessageError` for one that doesn't span an `@` or names a Familiar not in the room, and a `RoomError` for an archived room. A Familiar works one turn at a time, across all its rooms, and is shown what it missed in a room when it next takes a turn there. Its reply, with its tool calls, is copied into the room's log as a `familiar.reply` entry when the turn ends.
+
+Familiars take part with two tools of their own. `stay_quiet` ends a turn without a word, for one that wasn't addressed directly and has nothing to add; its reply's `outcome` is `quiet`, and it shows nothing in catch-up. `hand_off({ to, note })` asks another Familiar in the same room to take a turn: it posts a `familiar.handoff` entry, `{ from, to, note, hops, cause, at }`, and the Familiar it names answers the note in the room. A chain of handoffs longer than `maxHandoffs` is refused, and the room's Stop stops handoff turns like any other.
 
 **Each Familiar**, a `WorkspaceFamiliar`
 

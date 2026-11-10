@@ -13,24 +13,33 @@ import {
 } from '@earendil-works/pi-durable'
 import {
   formatMessage,
+  HANDOFF_KIND,
   MESSAGE_KIND,
   SCHEDULED_KIND,
+  type InRoom,
   type MessageData,
   type ScheduledData,
 } from '../conversation/message.ts'
 import { scheduledInput } from '../schedules/task.ts'
-import { familiarRecord, type FamiliarId } from '../workspace/familiars.ts'
+import {
+  familiarRecord,
+  Familiars,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
 import { catchUp } from './catch-up.ts'
 import {
+  formatHandoff,
   post,
   REPLY_KIND,
+  type HandoffData,
   type ReplyData,
   type RoomMessageData,
   type RoomScheduledData,
   type TurnInput,
   type TurnResult,
 } from './log.ts'
-import { Rooms, Turns, type Room, type RoomId } from './rooms.ts'
+import { Rooms, Turns, type Room } from './rooms.ts'
+import { STAY_QUIET } from './tools.ts'
 import { entriesOf } from '../pi/entries.ts'
 
 /**
@@ -41,6 +50,8 @@ import { entriesOf } from '../pi/entries.ts'
  */
 
 type TurnStep =
+  /** Waits for the turn before it in an open room to end. */
+  | { phase: 'wait' }
   /** Builds the input from the room log and moves the Familiar's cursor. */
   | { phase: 'prepare' }
   /** Built in `prepare`, so a rerun after a restart delivers the same input. */
@@ -51,9 +62,15 @@ type TurnStep =
 /** The chat entry a turn's input is placed as: what it says, and where from. */
 type ChatInput =
   | { kind: typeof MESSAGE_KIND; data: Required<MessageData> }
+  | { kind: typeof SCHEDULED_KIND; data: ScheduledData & Required<InRoom> }
   | {
-      kind: typeof SCHEDULED_KIND
-      data: ScheduledData & { room: RoomId; context: string }
+      kind: typeof HANDOFF_KIND
+      /** Who handed it over, by ID and by name then, and what they asked. */
+      data: {
+        from: HandoffData['from']
+        name: string
+        note: string
+      } & Required<InRoom>
     }
 
 /** The entry kind of the write that lets a stopped run's queue move on. */
@@ -69,8 +86,9 @@ const isInput = (entry: EntryRecord) =>
 
 /**
  * A settled input's run, as its assistant and tool-result messages: the
- * entries after its input, to its answer if it has one, else up to the next
- * input. Other kinds, such as `pi.system`, can sit among them.
+ * entries after its input, up to the next input. Not only to its answer: a
+ * run a tool ended, as `stay_quiet` does, has that tool's result after it.
+ * Other kinds, such as `pi.system`, can sit among them.
  */
 async function runMessages(
   tx: Tx,
@@ -84,7 +102,6 @@ async function runMessages(
   for await (const entry of entriesOf(tx, {
     conversationId: chat,
     minEntryId: (settled.entry + 1) as EntryId,
-    maxEntryId: settled.answer,
     order: 'ascending',
   })) {
     if (isInput(entry)) {
@@ -97,11 +114,22 @@ async function runMessages(
   return messages
 }
 
-/** The room entry `cause` as its turn's input, with what it was shown first. */
+/** Whether a run ended with `stay_quiet`: its last request called it. */
+const quiet = (messages: Message[]) =>
+  messages
+    .findLast((message) => message.role === 'assistant')
+    ?.content.some(
+      (part) => part.type === 'toolCall' && part.name === STAY_QUIET,
+    )
+
+/**
+ * The room entry `cause` as its turn's input, with `where` it came from and
+ * what it was shown first. `names` gives Familiars' names now.
+ */
 function chatInput(
   cause: EntryRecord,
-  room: RoomId,
-  context: string,
+  where: Required<InRoom>,
+  names: (familiar: FamiliarId) => string,
   timeZone: string,
 ): { input: string; entry: ChatInput } {
   if (cause.kind === SCHEDULED_KIND) {
@@ -115,16 +143,23 @@ function chatInput(
           prompt,
           due,
           ...(creator && { creator }),
-          room,
-          context,
+          ...where,
         },
       },
+    }
+  }
+  if (cause.kind === HANDOFF_KIND) {
+    const { from, note } = cause.data as HandoffData
+    const name = names(from)
+    return {
+      input: formatHandoff(name, note),
+      entry: { kind: HANDOFF_KIND, data: { from, name, note, ...where } },
     }
   }
   const { author, text } = cause.data as RoomMessageData
   return {
     input: formatMessage({ author, text }),
-    entry: { kind: MESSAGE_KIND, data: { author, text, room, context } },
+    entry: { kind: MESSAGE_KIND, data: { author, text, ...where } },
   }
 }
 
@@ -155,7 +190,9 @@ export function createTurnTask(harness: Harness, timeZone: string) {
     const messages = settled ? await runMessages(tx, familiar, settled) : []
     const outcome: ReplyData['outcome'] =
       settled?.status === 'done'
-        ? 'answered'
+        ? quiet(messages)
+          ? 'quiet'
+          : 'answered'
         : !settled || settled.reason === 'aborted'
           ? 'stopped'
           : 'failed'
@@ -225,16 +262,31 @@ export function createTurnTask(harness: Harness, timeZone: string) {
   const Turn = defineTask<TurnInput, TurnStep, TurnResult>({
     name: 'familiar.turn',
     version: 1,
-    initial: () => ({ phase: 'prepare' }),
+    initial: (input) =>
+      input.after === undefined ? { phase: 'prepare' } : { phase: 'wait' },
     phases: {
+      // Shown in the room from now, as waiting for its Familiar.
+      wait: (task, runtime, context) =>
+        runtime.commit(async (tx) => {
+          const { room, familiar, cause, after } = task.input
+          ;(await tx.doc(Turns, room))[task.id] = { familiar, cause }
+          return {
+            status: 'waiting',
+            checkpoint: { phase: 'prepare' },
+            on: [after!],
+            policy: 'allSettled',
+          }
+        }, context),
+
       prepare: (task, runtime, context) =>
         runtime.commit(async (tx) => {
-          const { room, familiar, cause } = task.input
+          const { room, familiar, cause, addressed } = task.input
           const record = (await tx.doc(Rooms)).rooms[room]
           const entry = await tx.entry(cause)
           if (!record || !entry) {
             throw new Error(`No entry ${cause} in room ${room}.`)
           }
+          const { familiars } = await tx.doc(Familiars)
           const shown = await catchUp(
             tx,
             familiar,
@@ -242,13 +294,19 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             record,
             cause,
             dmPerson(record, entry),
+            addressed,
           )
           ;(await tx.doc(Turns, room))[task.id] = { familiar, cause }
           return {
             status: 'running',
             checkpoint: {
               phase: 'deliver',
-              ...chatInput(entry, room, shown, timeZone),
+              ...chatInput(
+                entry,
+                { room, entry: cause, context: shown, addressed },
+                (id) => familiars[id]?.name ?? 'another assistant',
+                timeZone,
+              ),
             },
           }
         }, context),

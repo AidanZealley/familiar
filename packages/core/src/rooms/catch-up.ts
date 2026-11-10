@@ -5,11 +5,21 @@ import {
   type EntryRecord,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { MESSAGE_KIND } from '../conversation/message.ts'
-import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
+import {
+  HANDOFF_KIND,
+  MESSAGE_KIND,
+  type Addressed,
+} from '../conversation/message.ts'
+import {
+  familiarDoc,
+  Familiars,
+  type FamiliarId,
+  type FamiliarsState,
+} from '../workspace/familiars.ts'
 import {
   REPLY_KIND,
   replyText,
+  type HandoffData,
   type ReplyData,
   type RoomMessageData,
 } from './log.ts'
@@ -54,10 +64,16 @@ const EARLIER_TOKENS = 1_500
 
 /**
  * An entry as a catch-up line, or undefined for what isn't shown: reminders,
- * and `own` replies when the Familiar's chat already has them. Continuation
- * lines are indented, so no one's words can pass for another line.
+ * replies with nothing said, such as a quiet one, and `own` replies when the
+ * Familiar's chat already has them. A handoff names both Familiars as they
+ * are called now. Continuation lines are indented, so no one's words can
+ * pass for another line.
  */
-function line(entry: EntryRecord, own: FamiliarId | undefined) {
+function line(
+  entry: EntryRecord,
+  own: FamiliarId | undefined,
+  { familiars }: Readonly<FamiliarsState>,
+) {
   const said = (name: string, text: string) =>
     text ? `[${name}]: ${text.replace(/\n/g, '\n  ')}` : undefined
   if (entry.kind === MESSAGE_KIND) {
@@ -68,33 +84,42 @@ function line(entry: EntryRecord, own: FamiliarId | undefined) {
     const data = entry.data as unknown as ReplyData
     return data.familiar === own ? undefined : said(data.name, replyText(data))
   }
+  if (entry.kind === HANDOFF_KIND) {
+    const { from, to, note } = entry.data as HandoffData
+    return said(`${familiars[from]?.name} → ${familiars[to]?.name}`, note)
+  }
   return undefined
 }
 
 /**
- * The lines of `room`'s entries from `min` to `max`, newest kept within
- * `budget`, oldest first, with their entries' IDs, leaving out `skip`'s
- * replies.
+ * The lines of `room`'s entries from `min` to `max` (or the newest), newest
+ * kept within `budget`, oldest first, with their entries' IDs, leaving out
+ * `skip`'s replies.
  */
 async function lines(
   tx: Tx,
   room: RoomId,
   // Entry IDs are ascending integers.
-  range: { min?: number; max: number },
+  range: { min?: number; max?: number },
   budget: number,
   skip?: FamiliarId,
 ) {
-  if (range.min !== undefined && range.min > range.max) {
+  if (
+    range.min !== undefined &&
+    range.max !== undefined &&
+    range.min > range.max
+  ) {
     return []
   }
+  const registry = await tx.doc(Familiars)
   const kept: { id: EntryId; text: string }[] = []
   let tokens = 0
   for await (const entry of entriesOf(tx, {
     conversationId: room,
     minEntryId: range.min as EntryId | undefined,
-    maxEntryId: range.max as EntryId,
+    maxEntryId: range.max as EntryId | undefined,
   })) {
-    const text = line(entry, skip)
+    const text = line(entry, skip, registry)
     if (text === undefined) {
       continue
     }
@@ -107,19 +132,34 @@ async function lines(
   return kept
 }
 
-/** Where a turn is, as the first line of what the Familiar is shown. */
-const where = (room: Room, person: string | undefined) =>
+/** Why a Familiar has a turn in a named room, as its first line says it. */
+const why: Record<Addressed, string> = {
+  dm: '',
+  schedule: '',
+  mention: ', where you were mentioned',
+  lead: ', which you lead',
+  open: ', where everyone takes a turn',
+  handoff: ', handed to you',
+}
+
+/**
+ * Where a turn is, and why the Familiar has it, as the first line of what
+ * it's shown.
+ */
+const where = (room: Room, person: string | undefined, addressed: Addressed) =>
   room.kind === 'room'
-    ? `[In #${room.name}]`
+    ? `[In #${room.name}${why[addressed]}]`
     : person === undefined
       ? '[In your DM]'
       : `[In your DM with ${person}]`
 
 /**
- * What `familiar` is shown of `room` before `cause`, in the commit that
- * moves its cursor past `cause`, so a rerun can't show it twice. `person` is
- * the name of who the DM is with, when the cause says. A cursor only moves
- * forward, so a turn prepared after a later one shows nothing again.
+ * What `familiar` is shown of `room` for its turn on `cause`: what it missed
+ * before `cause`, and what was said after it before the turn began, such as
+ * an open room's earlier replies. Shown in the commit that moves its cursor
+ * past all of it, so a rerun can't show it twice. `person` is the name of
+ * who the DM is with, when the cause says. A cursor only moves forward, so a
+ * turn prepared after a later one shows nothing again.
  */
 export async function catchUp(
   tx: Tx,
@@ -128,6 +168,7 @@ export async function catchUp(
   record: Room,
   cause: EntryId,
   person: string | undefined,
+  addressed: Addressed,
 ) {
   // Reads before writes: a transaction cannot read tables after writing.
   const cursors = await familiarDoc(tx, RoomCursors, familiar)
@@ -150,12 +191,23 @@ export async function catchUp(
           EARLIER_TOKENS,
         )
       : []
+  const since = await lines(
+    tx,
+    room,
+    { min: Math.max(seen ?? 0, cause) + 1 },
+    UNSEEN_TOKENS,
+    familiar,
+  )
 
-  cursors.rooms[room] = Math.max(seen ?? 0, cause) as EntryId
+  cursors.rooms[room] = Math.max(
+    seen ?? 0,
+    cause,
+    since.at(-1)?.id ?? 0,
+  ) as EntryId
   cursors.last = room
 
   return [
-    where(record, person),
+    where(record, person, addressed),
     ...(earlier.length
       ? ['Earlier in this room:', ...earlier.map((line) => line.text)]
       : []),
@@ -165,6 +217,12 @@ export async function catchUp(
             ? 'Said here before:'
             : 'Said here since your last turn:',
           ...unseen.map((line) => line.text),
+        ]
+      : []),
+    ...(since.length
+      ? [
+          "Said here since what you're answering:",
+          ...since.map((line) => line.text),
         ]
       : []),
   ].join('\n')

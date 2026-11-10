@@ -39,7 +39,7 @@ import { createMemory, type MemoryApi } from '../memory/index.ts'
 import type { Notify } from '../notify.ts'
 import { createPersona } from '../persona.ts'
 import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
-import { createRooms, type RoomsApi } from '../rooms/index.ts'
+import { checkMaxHandoffs, createRooms, type RoomsApi } from '../rooms/index.ts'
 import { Rooms } from '../rooms/rooms.ts'
 import {
   checkMaxSchedules,
@@ -134,6 +134,12 @@ export type WorkspaceOptions = {
    * `DEFAULT_MAX_SCHEDULES`, 50.
    */
   maxSchedules?: number
+  /**
+   * How many times in a row Familiars may hand a room's conversation on to
+   * one another; `hand_off` refuses more, so two can't loop forever. A
+   * positive whole number. Default `DEFAULT_MAX_HANDOFFS`, 3.
+   */
+  maxHandoffs?: number
   now?: HarnessOptions['now']
   setTimer?: HarnessOptions['setTimer']
   /**
@@ -251,6 +257,7 @@ export async function openWorkspace(
   }
   // Checked before storage opens, like the zone.
   const maxSchedules = checkMaxSchedules(options.maxSchedules)
+  const maxHandoffs = checkMaxHandoffs(options.maxHandoffs)
   const account =
     options.account &&
     (await createAccount(
@@ -272,6 +279,7 @@ export async function openWorkspace(
     const rooms = createRooms(harness, {
       timeZone: options.timeZone,
       now: options.now ?? Date.now,
+      maxHandoffs,
     })
     const schedules = createSchedules({
       notify: options.notify,

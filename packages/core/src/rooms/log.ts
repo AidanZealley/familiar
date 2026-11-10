@@ -6,11 +6,14 @@ import type {
   Tx,
 } from '@earendil-works/pi-durable'
 import {
+  formatAuthor,
+  HANDOFF_KIND,
   MESSAGE_KIND,
   MESSAGE_LIMITS,
   MessageError,
   SCHEDULED_KIND,
   textOf,
+  type Addressed,
   type Author,
 } from '../conversation/message.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
@@ -57,9 +60,42 @@ export type ReplyData = {
   name: string
   /** The room entry it answers. */
   cause: EntryId
-  outcome: 'answered' | 'failed' | 'stopped'
+  /** `quiet` when it chose to say nothing, with `stay_quiet`. */
+  outcome: 'answered' | 'quiet' | 'failed' | 'stopped'
   /** Its run's assistant and tool-result messages, in order. */
   messages: Message[]
+}
+
+/**
+ * A Familiar asking another in the same room to take a turn, with
+ * `hand_off`. The one it asks answers it as it would a message.
+ */
+export type HandoffData = {
+  from: FamiliarId
+  to: FamiliarId
+  /** What it asks, for the one it asks. */
+  note: string
+  /** How many handoffs led here: one more than its cause's, if a handoff. */
+  hops: number
+  /** The room entry the handing-off turn answered. */
+  cause: EntryId
+  /** When it was posted, in ms since the epoch. */
+  at: number
+}
+
+/** How a handoff starts, as the model reads it. */
+const HANDOFF_PREFIX = '[Handoff from '
+
+/** A handoff as the model reads it: who asked, by name, then the note. */
+export const formatHandoff = (from: string, note: string) =>
+  `${HANDOFF_PREFIX}${formatAuthor(from)}]\n${note}`
+
+/** `formatHandoff` read back, or undefined for text it didn't write. */
+export const readHandoff = (text: string) => {
+  const match = /^\[Handoff from (.*)\]\n([\s\S]*)$/.exec(text)
+  return match
+    ? { from: JSON.parse(match[1]) as string, note: match[2] }
+    : undefined
 }
 
 /** A room's record of a reminder falling due; a turn answers it like a message. */
@@ -78,6 +114,7 @@ export type RoomEntry =
   | { kind: typeof MESSAGE_KIND; data: RoomMessageData }
   | { kind: typeof REPLY_KIND; data: ReplyData }
   | { kind: typeof SCHEDULED_KIND; data: RoomScheduledData }
+  | { kind: typeof HANDOFF_KIND; data: HandoffData }
 
 /** What a reply says, without its tool calls: what a room shows of it. */
 export const replyText = (reply: ReplyData) =>
@@ -123,26 +160,38 @@ export function checkMentions(
 }
 
 /**
- * Who takes a turn for `entry`, decided once, as it's posted: a DM's
- * Familiar; in a named room, each Familiar mentioned, once, in order, or the
- * lead if none is; a reminder's own Familiar. Replies never cause turns.
+ * Who takes a turn for `entry`, and why, decided once, as it's posted: a
+ * DM's Familiar; in a named room, each Familiar mentioned, once, in order,
+ * else the lead, else, in an open room, every Familiar in it; a reminder's
+ * own Familiar; the one a handoff asks. Replies never cause turns.
  */
-function recipients(room: Room, entry: RoomEntry): FamiliarId[] {
-  if (entry.kind === REPLY_KIND) {
-    return []
-  }
-  if (entry.kind === SCHEDULED_KIND) {
-    return [entry.data.familiar]
+function recipients(
+  room: Room,
+  entry: RoomEntry,
+): { familiar: FamiliarId; addressed: Addressed }[] {
+  const all = (familiars: FamiliarId[], addressed: Addressed) =>
+    familiars.map((familiar) => ({ familiar, addressed }))
+  switch (entry.kind) {
+    case REPLY_KIND:
+      return []
+    case SCHEDULED_KIND:
+      return all([entry.data.familiar], 'schedule')
+    case HANDOFF_KIND:
+      return all([entry.data.to], 'handoff')
   }
   if (room.kind === 'dm') {
-    return [room.familiar]
+    return all([room.familiar], 'dm')
   }
   const mentioned = new Set(
     (entry.data.mentions ?? [])
       .filter((mention) => mention.kind === 'familiar')
       .map((mention) => Number(mention.id) as FamiliarId),
   )
-  return mentioned.size ? [...mentioned] : [room.lead]
+  return mentioned.size
+    ? all([...mentioned], 'mention')
+    : room.lead !== undefined
+      ? all([room.lead], 'lead')
+      : all(room.familiars, 'open')
 }
 
 /**
@@ -168,8 +217,18 @@ export const viewStart = (entries: readonly EntryId[]) =>
 export const startView = (tx: Tx, room: RoomId, head: EntryId) =>
   tx.appendEntry(room, { kind: VIEW_KIND, head })
 
-/** What a turn task is given: whose turn, in which room, for which entry. */
-export type TurnInput = { room: RoomId; familiar: FamiliarId; cause: EntryId }
+/**
+ * What a turn task is given: whose turn, in which room, for which entry, and
+ * why. An open room's turns go one after another: each but the first waits
+ * for the turn `after` it to end, so it's shown that turn's reply.
+ */
+export type TurnInput = {
+  room: RoomId
+  familiar: FamiliarId
+  cause: EntryId
+  addressed: Addressed
+  after?: TaskId<TurnResult>
+}
 
 /** A turn's result: the reply it posted, if any. */
 export type TurnResult = { reply: EntryId | null }
@@ -236,12 +295,19 @@ export async function post(
   }
 
   const turns: TaskId<TurnResult>[] = []
-  for (const familiar of recipients(record, entry)) {
+  for (const { familiar, addressed } of recipients(record, entry)) {
+    const after = addressed === 'open' ? turns.at(-1) : undefined
     // Background: a room's Stop aborts them, and nothing waits for a room.
     turns.push(
       await tx.createTask(
         turn,
-        { room, familiar, cause: appended.id },
+        {
+          room,
+          familiar,
+          cause: appended.id,
+          addressed,
+          ...(after !== undefined && { after }),
+        },
         {
           ownership: { kind: 'conversation' },
           conversationId: room,

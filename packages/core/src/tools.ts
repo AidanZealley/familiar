@@ -11,6 +11,7 @@ import type {
 } from '@earendil-works/pi-durable'
 import type { PluginFetch } from './connections/index.ts'
 import {
+  HANDOFF_KIND,
   MESSAGE_KIND,
   SCHEDULED_KIND,
   type Author,
@@ -102,7 +103,8 @@ export function withServices<P extends TSchema, D extends JsonValue>(
 /**
  * The person a tool call runs for, resolved through its persisted call
  * ancestry, never from its arguments: a message's author, or the creator of
- * a scheduled run. Undefined for any other input, such as memory upkeep.
+ * a scheduled run. Undefined for any other input, such as another
+ * Familiar's handoff or memory upkeep.
  */
 async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
   const input = await callInput(tx, taskId)
@@ -114,11 +116,11 @@ async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
 }
 
 /**
- * The input a tool call's run answers: a person's message or a scheduled
- * prompt, whose data says who it's for and which room it came from.
- * Nested calls follow their parent. The assistant entry bounds the search,
- * so later queued or placed messages cannot steal it. Undefined for any
- * other input, such as memory upkeep.
+ * The input a tool call's run answers: a person's message, a scheduled
+ * prompt or another Familiar's handoff, whose data says who it's for and
+ * which room it came from (`InRoom`). Nested calls follow their parent. The
+ * assistant entry bounds the search, so later queued or placed messages
+ * cannot steal it. Undefined for any other input, such as memory upkeep.
  */
 export async function callInput(
   tx: Tx,
@@ -136,7 +138,11 @@ export async function callInput(
     conversationId: task.conversationId,
     maxEntryId: input.assistant,
   })) {
-    if (entry.kind === MESSAGE_KIND || entry.kind === SCHEDULED_KIND) {
+    if (
+      entry.kind === MESSAGE_KIND ||
+      entry.kind === SCHEDULED_KIND ||
+      entry.kind === HANDOFF_KIND
+    ) {
       return entry
     }
     // Other input, e.g. upkeep, has no person behind it. Compaction summaries
