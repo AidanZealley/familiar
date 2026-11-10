@@ -185,6 +185,7 @@ const ROUTES = {
   'rooms.update': ['PATCH', '/rooms/9'],
   'rooms.archive': ['DELETE', '/rooms/9'],
   'rooms.post': ['POST', '/rooms/9/messages'],
+  'rooms.note': ['POST', '/rooms/9/notes'],
   'rooms.history': ['GET', '/rooms/9/history?before=1'],
   'rooms.stop': ['POST', '/rooms/9/stop'],
 } satisfies Record<
@@ -341,7 +342,25 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
       })
     ).status,
   ).toBe(404)
+  expect(
+    (
+      await ann_.notes.$post({
+        param: room,
+        json: { text: 'Ann joined', requestId: 'peek' },
+      })
+    ).status,
+  ).toBe(404)
   expect((await ann_.events.$get({ param: room })).status).toBe(404)
+
+  // A note to one's own room is accepted.
+  expect(
+    (
+      await as(sam).rooms[':room'].notes.$post({
+        param: room,
+        json: { text: 'Sam joined', requestId: 'joined' },
+      })
+    ).status,
+  ).toBe(202)
 })
 
 test('familiar routes reach that Familiar, and a missing one is 404', async () => {

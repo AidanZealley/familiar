@@ -6,6 +6,7 @@ import { composeMessage } from './mentions.ts'
 import {
   HANDOFF_KIND,
   MESSAGE_KIND,
+  NOTE_KIND,
   REPLY_KIND,
   toRoomTranscript,
 } from './transcript.ts'
@@ -130,6 +131,15 @@ test('a handoff shows who asked whom, and a quiet reply says it passed', () => {
         expect.objectContaining({ name: 'stay_quiet', status: 'done' }),
       ],
     }),
+  ])
+})
+
+test("a host's note is an item of its own, with no author", () => {
+  const { items } = toRoomTranscript(
+    viewOf(entry(1, NOTE_KIND, { text: 'Sam joined.', at: 1000 })),
+  )
+  expect(items).toEqual([
+    { type: 'note', id: 'entry:1', text: 'Sam joined.', at: 1000 },
   ])
 })
 

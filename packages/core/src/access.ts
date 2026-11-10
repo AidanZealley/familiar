@@ -49,6 +49,7 @@ export type RoomOperation =
   | 'rooms.update'
   | 'rooms.archive'
   | 'rooms.post'
+  | 'rooms.note'
   | 'rooms.history'
   | 'rooms.stop'
   | 'events.room'

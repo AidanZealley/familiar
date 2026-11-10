@@ -15,12 +15,14 @@ export type {
   Author,
   HANDOFF_KIND,
   MESSAGE_KIND,
+  NOTE_KIND,
   SCHEDULED_KIND,
 } from '../conversation/message.ts'
 export type { HistoryPage } from '../pi/entries.ts'
 export type {
   HandoffData,
   Mention,
+  NoteData,
   REPLY_KIND,
   ReplyData,
   Room,
