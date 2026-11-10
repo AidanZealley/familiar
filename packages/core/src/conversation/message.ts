@@ -24,11 +24,26 @@ export type Author = {
 export type MessageData = { author: Author; text: string } & InRoom
 
 /**
- * Where a Familiar was shown an input: the room it came from, and what the
- * Familiar was shown from that room with it (see rooms/turn.ts). Absent for
- * input sent straight to its chat, as before rooms.
+ * Why a Familiar has a turn in a room, decided by routing as the entry is
+ * posted (see rooms/log.ts): its DM; a mention; as the room's lead; an open
+ * room, where every Familiar gets a turn on what addresses no one; another
+ * Familiar's handoff; or its own reminder.
  */
-export type InRoom = { room?: ConversationId; context?: string }
+export type Addressed =
+  'dm' | 'mention' | 'lead' | 'open' | 'handoff' | 'schedule'
+
+/**
+ * Where a Familiar was shown an input: the room it came from, the room entry
+ * it answers, what the Familiar was shown from that room with it (see
+ * rooms/turn.ts), and why it has the turn. Absent for input sent straight to
+ * its chat, as before rooms.
+ */
+export type InRoom = {
+  room?: ConversationId
+  entry?: EntryId
+  context?: string
+  addressed?: Addressed
+}
 
 /**
  * Bounds on what a message may carry, enforced by `admitMessage` for every
@@ -107,8 +122,11 @@ export function admitMessage(message: {
   }
 }
 
-/** JSON stays on one line even when a host supplies control characters. */
-export const formatAuthor = (author: Author) =>
+/**
+ * An author, or just a name, as JSON that stays on one line even when a host
+ * supplies control characters.
+ */
+export const formatAuthor = (author: Author | string) =>
   JSON.stringify(author).replace(
     /[\u007f-\u009f\u2028\u2029]/g,
     (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
@@ -176,6 +194,12 @@ export async function answeredMessage(tx: Tx, taskId: TaskId) {
 
   return undefined
 }
+
+/**
+ * The entry kind a Familiar's handoff to another is posted as in a room, and
+ * placed as in the chat of the one it asks (see rooms/tools.ts).
+ */
+export const HANDOFF_KIND = 'familiar.handoff'
 
 /** The entry kind a schedule's prompt is submitted as when it falls due. */
 export const SCHEDULED_KIND = 'familiar.scheduled'

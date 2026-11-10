@@ -30,8 +30,12 @@ export type NamedRoom = {
   name: string
   /** In the room, in display order. */
   familiars: FamiliarId[]
-  /** Answers messages that address no one; one of `familiars`. */
-  lead: FamiliarId
+  /**
+   * Answers messages that address no one; one of `familiars`. Without one,
+   * the room is open: every Familiar in it takes a turn on such a message,
+   * one after another, in order.
+   */
+  lead?: FamiliarId
   /** Hidden and closed to new messages; its history is kept. */
   archived?: true
 }
@@ -85,8 +89,13 @@ const NAME_LENGTH = 100
 export const membersOf = (room: Room) =>
   room.kind === 'dm' ? [room.familiar] : room.familiars
 
-/** What a named room is set up with. */
+/** What a named room is set up with; it's open without a `lead`. */
 export type RoomSetup = Pick<NamedRoom, 'name' | 'familiars' | 'lead'>
+
+/** A change to a named room's setup; a `null` lead opens the room. */
+export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
+  lead?: FamiliarId | null
+}
 
 /** `setup`, checked against the Familiars that exist; throws a RoomError. */
 async function checkSetup(tx: Tx, setup: RoomSetup): Promise<RoomSetup> {
@@ -105,10 +114,14 @@ async function checkSetup(tx: Tx, setup: RoomSetup): Promise<RoomSetup> {
   ) {
     throw new RoomError('A room needs one or more distinct Familiars.')
   }
-  if (!familiars.includes(lead)) {
+  if (lead !== undefined && !familiars.includes(lead)) {
     throw new RoomError("A room's lead must be one of its Familiars.")
   }
-  return { name, familiars: [...familiars], lead }
+  return {
+    name,
+    familiars: [...familiars],
+    ...(lead !== undefined && { lead }),
+  }
 }
 
 /** A new room's log, with its turns document, so watches can attach to it. */
@@ -136,20 +149,16 @@ export async function createRoom(tx: Tx, setup: RoomSetup) {
 }
 
 /** Changes a named room's setup; what's left out stays as it is. */
-export async function updateRoom(
-  tx: Tx,
-  id: RoomId,
-  change: Partial<RoomSetup>,
-) {
+export async function updateRoom(tx: Tx, id: RoomId, change: RoomChange) {
   const room = await namedRoom(tx, id)
-  Object.assign(
-    room,
-    await checkSetup(tx, {
-      name: change.name ?? room.name,
-      familiars: change.familiars ?? room.familiars,
-      lead: change.lead ?? room.lead,
-    }),
-  )
+  const lead = change.lead === null ? undefined : (change.lead ?? room.lead)
+  const checked = await checkSetup(tx, {
+    name: change.name ?? room.name,
+    familiars: change.familiars ?? room.familiars,
+    ...(lead !== undefined && { lead }),
+  })
+  delete room.lead
+  Object.assign(room, checked)
 }
 
 export async function archiveRoom(tx: Tx, id: RoomId) {

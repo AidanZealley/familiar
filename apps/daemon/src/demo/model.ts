@@ -25,6 +25,8 @@ export function reply(request: ScriptedRequest) {
       return fauxAssistantMessage('The person tried the demo scenarios.')
     case 'scheduled':
       return scheduledReply()
+    case 'handoff':
+      return fauxAssistantMessage(`${request.from} asked: ${request.note}`)
     case 'tool-result':
       return (
         replies[request.name]?.(request.output, request.context) ??

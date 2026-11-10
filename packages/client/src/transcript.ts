@@ -12,6 +12,8 @@ import type {
 } from '@earendil-works/pi-durable'
 import type {
   Author,
+  HANDOFF_KIND as CoreHandoffKind,
+  HandoffData,
   MESSAGE_KIND as CoreMessageKind,
   Mention,
   REPLY_KIND as CoreReplyKind,
@@ -27,6 +29,7 @@ import type {
 export const MESSAGE_KIND: typeof CoreMessageKind = 'familiar.message'
 export const REPLY_KIND: typeof CoreReplyKind = 'familiar.reply'
 const SCHEDULED_KIND: typeof CoreScheduledKind = 'familiar.scheduled'
+export const HANDOFF_KIND: typeof CoreHandoffKind = 'familiar.handoff'
 
 export type ToolCall = {
   id: string
@@ -67,7 +70,23 @@ export type TranscriptItem =
       streaming: boolean
       /** Someone stopped it before it finished. */
       stopped: boolean
+      /**
+       * It chose to say nothing, with `stay_quiet`: shown only as that tool
+       * call, so a client may leave it out.
+       */
+      quiet?: true
       error?: string
+    }
+  /** A Familiar asking another in the room to take a turn. A reply follows it. */
+  | {
+      type: 'handoff'
+      id: string
+      /** The Familiars asking and asked. */
+      from: number
+      to: number
+      note: string
+      /** When it was posted, in ms since the epoch. */
+      at: number
     }
   /** A schedule's prompt, arriving now that it's due. A reply follows it. */
   | {
@@ -149,6 +168,10 @@ function toItems(entry: EntryRecord): TranscriptItem[] {
         },
       ]
     }
+    case HANDOFF_KIND: {
+      const { from, to, note, at } = entry.data as unknown as HandoffData
+      return [{ type: 'handoff', id, from, to, note, at }]
+    }
     case REPLY_KIND:
       return toReplies(id, entry.data as unknown as ReplyData)
     default:
@@ -171,6 +194,7 @@ function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
       {
         ...toReply(`${id}:${index}`, reply.familiar, message, calls),
         name: reply.name,
+        ...(reply.outcome === 'quiet' && { quiet: true as const }),
       },
     ]
   })

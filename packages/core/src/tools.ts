@@ -2,6 +2,7 @@ import type { Context, ContextKey, JsonValue } from '@earendil-works/chord'
 import { withContextValue } from '@earendil-works/chord/context'
 import type { TSchema } from '@earendil-works/pi-ai'
 import type {
+  EntryId,
   EntryRecord,
   TaskId,
   ToolExecutionResult,
@@ -11,9 +12,11 @@ import type {
 } from '@earendil-works/pi-durable'
 import type { PluginFetch } from './connections/index.ts'
 import {
+  HANDOFF_KIND,
   MESSAGE_KIND,
   SCHEDULED_KIND,
   type Author,
+  type InRoom,
   type MessageData,
   type ScheduledData,
 } from './conversation/message.ts'
@@ -54,8 +57,8 @@ export type ToolServices = {
   ): Promise<Response>
   /**
    * The person this call runs for: the author of the message that started
-   * it, or the creator of a scheduled run, read from storage, never from the
-   * tool's arguments. Undefined for other work, such as memory upkeep. A
+   * it, or the creator of a scheduled run, followed back through any
+   * handoffs, read from storage, never from the tool's arguments. Undefined for other work, such as memory upkeep. A
    * tool that narrows what someone may do checks it against this.
    */
   author(): Promise<Author | undefined>
@@ -102,10 +105,16 @@ export function withServices<P extends TSchema, D extends JsonValue>(
 /**
  * The person a tool call runs for, resolved through its persisted call
  * ancestry, never from its arguments: a message's author, or the creator of
- * a scheduled run. Undefined for any other input, such as memory upkeep.
+ * a scheduled run. Undefined for any other input, such as another
+ * Familiar's handoff or memory upkeep.
  */
 async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
   const input = await callInput(tx, taskId)
+  // A handoff acts for whoever started its chain, as the Familiar that
+  // handed it on did: found from the room's record, never from a model.
+  if (input?.kind === HANDOFF_KIND) {
+    return startedBy(tx, (input.data as InRoom).entry)
+  }
   return input?.kind === MESSAGE_KIND
     ? (input.data as MessageData).author
     : input?.kind === SCHEDULED_KIND
@@ -114,12 +123,34 @@ async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
 }
 
 /**
- * The input a tool call's run answers: a person's message or a scheduled
- * prompt, whose data says who it's for and which room it came from.
- * Nested calls follow their parent. The assistant entry bounds the search,
- * so later queued or placed messages cannot steal it. Undefined for any
- * other input, such as memory upkeep.
+ * The input a tool call's run answers: a person's message, a scheduled
+ * prompt or another Familiar's handoff, whose data says who it's for and
+ * which room it came from (`InRoom`). Nested calls follow their parent. The
+ * assistant entry bounds the search, so later queued or placed messages
+ * cannot steal it. Undefined for any other input, such as memory upkeep.
  */
+/**
+ * The person behind a room entry: a message's author, or a reminder's
+ * creator, following handoffs back to whatever started them.
+ */
+async function startedBy(
+  tx: Tx,
+  entry: EntryId | undefined,
+): Promise<Author | undefined> {
+  const record = entry === undefined ? undefined : await tx.entry(entry)
+  switch (record?.kind) {
+    case MESSAGE_KIND:
+      return (record.data as MessageData).author
+    case SCHEDULED_KIND:
+      return (record.data as ScheduledData).creator
+    case HANDOFF_KIND:
+      // A handoff's cause is the room entry the handing-off turn answered.
+      return startedBy(tx, (record.data as { cause: EntryId }).cause)
+    default:
+      return undefined
+  }
+}
+
 export async function callInput(
   tx: Tx,
   taskId: TaskId,
@@ -136,7 +167,11 @@ export async function callInput(
     conversationId: task.conversationId,
     maxEntryId: input.assistant,
   })) {
-    if (entry.kind === MESSAGE_KIND || entry.kind === SCHEDULED_KIND) {
+    if (
+      entry.kind === MESSAGE_KIND ||
+      entry.kind === SCHEDULED_KIND ||
+      entry.kind === HANDOFF_KIND
+    ) {
       return entry
     }
     // Other input, e.g. upkeep, has no person behind it. Compaction summaries

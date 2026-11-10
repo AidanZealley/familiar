@@ -14,8 +14,13 @@ import type {
   RoomSummary,
 } from '@familiar-ai/core/http'
 
-/** A named room's setup, by Familiar IDs. */
-export type RoomSetup = { name: string; familiars: number[]; lead: number }
+/** A named room's setup, by Familiar IDs; open without a `lead`. */
+export type RoomSetup = { name: string; familiars: number[]; lead?: number }
+
+/** A change to a named room; a `null` lead opens it. */
+export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
+  lead?: number | null
+}
 
 export type Api = ReturnType<typeof hc<HttpApi>>
 
@@ -128,7 +133,7 @@ export const workspaceCommands = (api: Api) => ({
     /** Resolves to the new room's ID. */
     create: async (setup: RoomSetup): Promise<number> =>
       ((await read(api.rooms.$post({ json: setup }))) as { id: number }).id,
-    update: (room: number, change: Partial<RoomSetup>) =>
+    update: (room: number, change: RoomChange) =>
       succeed(
         api.rooms[':room'].$patch({
           param: { room: String(room) },

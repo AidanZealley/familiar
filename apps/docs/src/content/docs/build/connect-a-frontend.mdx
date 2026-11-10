@@ -29,7 +29,7 @@ Change things by calling the commands on the store itself: the workspace's `fami
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 
-`send(text, mentions?)` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, a Familiar mentioned answers, else the room's lead; `composeMessage` builds the text and mentions from what a composer picked, so `@Ada` typed without picking her addresses no one.
+`send(text, mentions?)` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, a Familiar mentioned answers, else the room's lead, or each Familiar in turn in a room without one; `composeMessage` builds the text and mentions from what a composer picked, so `@Ada` typed without picking her addresses no one.
 
 ## The transcript
 

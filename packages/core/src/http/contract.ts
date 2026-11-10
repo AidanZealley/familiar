@@ -13,11 +13,13 @@ import type { FamiliarsState } from '../workspace/index.ts'
 // with Pi's own types.
 export type {
   Author,
+  HANDOFF_KIND,
   MESSAGE_KIND,
   SCHEDULED_KIND,
 } from '../conversation/message.ts'
 export type { HistoryPage } from '../pi/entries.ts'
 export type {
+  HandoffData,
   Mention,
   REPLY_KIND,
   ReplyData,
