@@ -3,7 +3,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestHarness, type TestHarness } from 'wrangler'
 import { REMINDER, SLOW_REPLY } from './model.ts'
 
-// DurableFamiliar in workerd, through the test Worker beside this file: what
+// DurableWorkspace in workerd, through the test Worker beside this file: what
 // it promises across eviction, reloads and termination. Its heartbeat is a
 // second, so lost work resumes within seconds.
 const ZONE = 'Europe/London'
@@ -21,8 +21,26 @@ beforeAll(async () => {
 
 afterAll(() => server?.close())
 
-const send = (bot: string, text: string) =>
-  server.fetch(`/${bot}/api/messages`, {
+const api = (bot: string, path: string, method = 'GET') =>
+  server.fetch(`/${bot}/api${path}`, { method })
+
+/** The owner's DM with the bot's one Familiar, created on first use. */
+const dms = new Map<string, number>()
+const dm = async (bot: string) => {
+  if (!dms.has(bot)) {
+    const [familiar] = (await (await api(bot, '/familiars')).json()) as {
+      id: number
+    }[]
+    const { room } = (await (
+      await api(bot, `/familiars/${familiar.id}/dm`, 'POST')
+    ).json()) as { room: number }
+    dms.set(bot, room)
+  }
+  return dms.get(bot)!
+}
+
+const send = async (bot: string, text: string) =>
+  server.fetch(`/${bot}/api/rooms/${await dm(bot)}/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ text, requestId: crypto.randomUUID() }),
@@ -41,18 +59,19 @@ type Message = {
   durationMs?: number
 }
 
-/** Everything the bot's model said, oldest first. */
+/** Everything the bot's model said in the DM, oldest first, once copied there. */
 const replies = async (bot: string) => {
   const response = await server.fetch(
-    `/${bot}/api/history?before=${Number.MAX_SAFE_INTEGER}`,
+    `/${bot}/api/rooms/${await dm(bot)}/history?before=${Number.MAX_SAFE_INTEGER}`,
   )
   expect(response.status).toBe(200)
   const { entries } = (await response.json()) as {
-    entries: { model?: Message[] }[]
+    entries: { kind: string; data: { messages?: Message[] } }[]
   }
   return entries
     .toReversed()
-    .flatMap((entry) => entry.model ?? [])
+    .filter((entry) => entry.kind === 'familiar.reply')
+    .flatMap((entry) => entry.data.messages ?? [])
     .filter((message) => message.role === 'assistant')
 }
 
@@ -154,7 +173,13 @@ test('a terminated bot stays terminated, keeps its history and has no alarm', as
   ).toBe(204)
   expect((await status('ended')).alarm).toBeNull()
   expect((await send('ended', 'hello?')).status).toBe(410)
-  expect((await server.fetch('/ended/api/history?before=1')).status).toBe(410)
+  expect(
+    (
+      await server.fetch(
+        `/ended/api/rooms/${await dm('ended')}/history?before=1`,
+      )
+    ).status,
+  ).toBe(410)
 
   // A new instance reads the record and opens nothing.
   await evict('ended')
@@ -164,8 +189,10 @@ test('a terminated bot stays terminated, keeps its history and has no alarm', as
   const storage = await server
     .getWorker()
     .getDurableObjectStorage('Bot', { name: 'ended' })
+  // The two messages in the DM, which a room's copy dates; the chat's own
+  // copy of each has no date.
   const [{ count }] = (await storage.exec(
-    "SELECT count(*) AS count FROM pi_entries WHERE record ->> '$.kind' = 'familiar.message'",
+    "SELECT count(*) AS count FROM pi_entries WHERE record ->> '$.kind' = 'familiar.message' AND record ->> '$.data.at' IS NOT NULL",
   )) as { count: number }[]
   expect(count).toBe(2)
 })

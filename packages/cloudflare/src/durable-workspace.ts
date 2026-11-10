@@ -3,25 +3,30 @@ import {
   openDurableObjectSqliteStorage,
 } from '@earendil-works/pi-durable/storage/sqlite/cloudflare'
 import {
-  summonFamiliar,
-  type Familiar,
-  type FamiliarOptions,
+  openWorkspace,
   type Wake,
+  type Workspace,
+  type WorkspaceOptions,
 } from '@familiar-ai/core'
 import { alarmTime, alarmWriter } from './alarm.ts'
 
 /**
- * Everything a host chooses about its Familiar: models, zone, plugins,
+ * Everything a host chooses about its workspace: models, zone, plugins,
  * notifications, network and secrets. The adapter owns storage and waking.
  */
-export type HostFamiliarOptions = Omit<
-  FamiliarOptions,
+export type HostWorkspaceOptions = Omit<
+  WorkspaceOptions,
   'storage' | 'now' | 'setTimer' | 'onWake'
 >
 
-export type DurableFamiliarOptions = {
-  /** Called each time the object opens its Familiar, after a restart or eviction too. */
-  familiar: () => HostFamiliarOptions | Promise<HostFamiliarOptions>
+export type DurableWorkspaceOptions = {
+  /** Called each time the object opens its workspace, after a restart or eviction too. */
+  workspace: () => HostWorkspaceOptions | Promise<HostWorkspaceOptions>
+  /**
+   * Runs after each open, before any request or alarm reaches the
+   * workspace, such as to create its Familiars and rooms the first time.
+   */
+  setup?: (workspace: Workspace) => Promise<void>
   /**
    * How soon work a lost process left is resumed: the alarm while anything
    * runs, and the fallback while opening. Default one minute.
@@ -29,22 +34,22 @@ export type DurableFamiliarOptions = {
   heartbeatMs?: number
 }
 
-/** Refused because the Familiar was terminated. Its ID never opens again. */
-export class FamiliarTerminated extends Error {
+/** Refused because the workspace was terminated. Its object ID never opens again. */
+export class WorkspaceTerminated extends Error {
   constructor() {
-    super('This Familiar was terminated.')
-    this.name = 'FamiliarTerminated'
+    super('This workspace was terminated.')
+    this.name = 'WorkspaceTerminated'
   }
 }
 
 /**
- * The object's one runtime. `opening` lasts until the Familiar is summoned;
- * meanwhile only the fallback alarm stands, because summoning resumes work
+ * The object's one runtime. `opening` lasts until the workspace is open;
+ * meanwhile only the fallback alarm stands, because opening resumes work
  * before it returns.
  */
 type Runtime =
   | { status: 'opening' }
-  | { status: 'open'; familiar: Familiar }
+  | { status: 'open'; workspace: Workspace }
   | { status: 'terminated' }
 
 const HEARTBEAT_MS = 60_000
@@ -56,11 +61,11 @@ const PI_PREFIX = 'pi_'
 const TERMINATED = 'familiar.terminated'
 
 /**
- * One Familiar in one SQLite-backed Durable Object. Construct it in the
+ * One workspace in one SQLite-backed Durable Object. Construct it in the
  * object's constructor or a field, route `alarm()` to it, and reach the
- * Familiar only through `use()`, which arms recovery before work can start.
+ * workspace only through `use()`, which arms recovery before work can start.
  */
-export class DurableFamiliar {
+export class DurableWorkspace {
   readonly #ctx: DurableObjectState
   readonly #heartbeatMs: number
   /**
@@ -71,7 +76,7 @@ export class DurableFamiliar {
   readonly #writeAlarm: (at: number | null) => Promise<void>
   #runtime: Runtime = { status: 'opening' }
 
-  constructor(ctx: DurableObjectState, options: DurableFamiliarOptions) {
+  constructor(ctx: DurableObjectState, options: DurableWorkspaceOptions) {
     this.#ctx = ctx
     this.#heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
     this.#database = new DurableObjectSqliteDatabase(ctx.storage)
@@ -82,17 +87,17 @@ export class DurableFamiliar {
   }
 
   /**
-   * Runs `work` with the Familiar, after arming a recovery alarm, because
-   * any call can start work. Rejects with FamiliarTerminated once terminated.
-   * Leave closing to `terminate()`: don't call `dismiss()`.
+   * Runs `work` with the workspace, after arming a recovery alarm, because
+   * any call can start work. Rejects with WorkspaceTerminated once
+   * terminated. Leave closing to `terminate()`: don't call `dismiss()`.
    */
-  async use<T>(work: (familiar: Familiar) => T | Promise<T>): Promise<T> {
+  async use<T>(work: (workspace: Workspace) => T | Promise<T>): Promise<T> {
     const runtime = this.#runtime
     if (runtime.status !== 'open') {
-      throw new FamiliarTerminated()
+      throw new WorkspaceTerminated()
     }
-    await this.#arm({ ...runtime.familiar.wake(), active: true })
-    return work(runtime.familiar)
+    await this.#arm({ ...runtime.workspace.wake(), active: true })
+    return work(runtime.workspace)
   }
 
   /** The object's `alarm()`: runs whatever is due or was cut off. */
@@ -101,17 +106,17 @@ export class DurableFamiliar {
     if (runtime.status !== 'open') {
       return this.#writeAlarm(null)
     }
-    await this.#arm({ ...runtime.familiar.wake(), active: true })
-    runtime.familiar.resume()
+    await this.#arm({ ...runtime.workspace.wake(), active: true })
+    runtime.workspace.resume()
     // Pi tells onWake only of changes, and the heartbeat above wasn't one.
     // Due work already counts as active here.
-    await this.#arm(runtime.familiar.wake())
+    await this.#arm(runtime.workspace.wake())
   }
 
   /**
-   * Stops the Familiar for good, keeping its history: records that it's
-   * terminated and deletes the alarm in one transaction, then stops the
-   * current run and closes. Later requests, alarms and restarts are refused.
+   * Stops the workspace for good, keeping its history: records that it's
+   * terminated and deletes the alarm in one transaction, then closes it,
+   * cutting off any reply. Later requests, alarms and restarts are refused.
    */
   async terminate(): Promise<void> {
     const runtime = this.#runtime
@@ -129,15 +134,11 @@ export class DurableFamiliar {
       throw error
     }
     if (runtime.status === 'open') {
-      try {
-        await runtime.familiar.abort()
-      } finally {
-        await runtime.familiar.dismiss()
-      }
+      await runtime.workspace.dismiss()
     }
   }
 
-  async #open(options: DurableFamiliarOptions) {
+  async #open(options: DurableWorkspaceOptions) {
     // A stray alarm left behind is deleted by alarm() when it fires.
     if (this.#ctx.storage.kv.get(TERMINATED) !== undefined) {
       this.#runtime = { status: 'terminated' }
@@ -151,21 +152,23 @@ export class DurableFamiliar {
       await this.#writeAlarm(fallback)
     }
 
-    const familiar = await summonFamiliar({
-      ...(await options.familiar()),
+    const workspace = await openWorkspace({
+      ...(await options.workspace()),
       storage: await openDurableObjectSqliteStorage(this.#ctx.storage, {
         prefix: PI_PREFIX,
       }),
       onWake: (wake) => void this.#arm(wake).catch(() => {}),
     })
-    void familiar.closed.then((end) => {
+    void workspace.closed.then((end) => {
       if (end.reason === 'failed' && this.#runtime.status !== 'terminated') {
         // Keep the recovery alarm: the next instance reopens persisted work.
-        this.#ctx.abort('Familiar storage failed')
+        this.#ctx.abort('Workspace storage failed')
       }
     })
-    this.#runtime = { status: 'open', familiar }
-    await this.#arm(familiar.wake())
+    // Still under the fallback alarm: if setup throws, the object resets.
+    await options.setup?.(workspace)
+    this.#runtime = { status: 'open', workspace }
+    await this.#arm(workspace.wake())
   }
 
   /** Writes the alarm `wake` asks for, as the runtime allows. */
