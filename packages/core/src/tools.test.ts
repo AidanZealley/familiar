@@ -7,7 +7,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { configure, createRegistry, Harness } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { harnessOptions } from './harness.ts'
+import { harnessOptions } from './workspace/harness.ts'
 import type { Author } from './conversation/message.ts'
 import type { FamiliarPlugin } from './index.ts'
 import { ReopenableStorage, replyTo, testHost } from './testing.ts'

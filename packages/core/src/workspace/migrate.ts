@@ -14,9 +14,9 @@ import { Episodes } from '../memory/episodes.ts'
 import { Facts, MemoryUsage } from '../memory/facts.ts'
 import { Upkeep } from '../memory/upkeep/schedule.ts'
 import { Schedules } from '../schedules/schedules.ts'
-import { entriesOf } from '../conversation/message.ts'
 import { adoptChat } from '../rooms/adopt.ts'
 import { familiarDoc, Familiars, type FamiliarId } from './familiars.ts'
+import { entriesOf } from '../pi/entries.ts'
 
 /**
  * Before workspaces, a store held one Familiar: its chat was the root

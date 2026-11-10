@@ -2,13 +2,13 @@ import type { EntryId } from '@earendil-works/pi-durable'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
-import type { HistoryPage } from '../conversation/index.ts'
 import { MessageError } from '../conversation/message.ts'
 import { streamEvents } from '../http/events.ts'
 import { found } from '../http/found.ts'
 import type { Mention } from './log.ts'
 import { RoomError, type RoomId, type RoomSetup } from './rooms.ts'
 import type { RoomApi, RoomsApi } from './index.ts'
+import { type HistoryPage } from '../pi/entries.ts'
 
 /** Answers `run`'s response, or 400 when the rooms' or messages' rules refuse it. */
 async function refusable(c: Context, run: () => Promise<Response>) {

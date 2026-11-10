@@ -4,11 +4,12 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import MiniSearch from 'minisearch'
-import { entriesOf, saidBy, type Author } from '../conversation/message.ts'
+import { saidBy, type Author } from '../conversation/message.ts'
 import { localDay } from '../time.ts'
 import { dateFit, type DateRange } from './episodes.ts'
 import { RANKING, TERMS } from './recall.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
+import { entriesOf } from '../pi/entries.ts'
 
 /**
  * Exchanges: each person message (or scheduled prompt) with the replies after it, the smallest

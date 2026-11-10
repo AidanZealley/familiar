@@ -8,7 +8,7 @@ import {
   type LiveState,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
-import { derivedWatch } from '../watch.ts'
+import { derivedWatch } from '../pi/watch.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { Turns, type RoomId, type TurnRecord } from './rooms.ts'
 

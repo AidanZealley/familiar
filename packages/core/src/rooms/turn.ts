@@ -12,7 +12,6 @@ import {
   type Tx,
 } from '@earendil-works/pi-durable'
 import {
-  entriesOf,
   formatMessage,
   MESSAGE_KIND,
   SCHEDULED_KIND,
@@ -32,6 +31,7 @@ import {
   type TurnResult,
 } from './log.ts'
 import { Rooms, Turns, type Room, type RoomId } from './rooms.ts'
+import { entriesOf } from '../pi/entries.ts'
 
 /**
  * A turn: one Familiar's handling of one room entry, as a task the room

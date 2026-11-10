@@ -5,7 +5,7 @@ import {
   type HarnessSettings,
 } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
-import { harnessOptions } from '../harness.ts'
+import { harnessOptions } from '../workspace/harness.ts'
 import { fauxModels, testHost } from '../testing.ts'
 import { ModelError, type ChatModel } from './models.ts'
 
