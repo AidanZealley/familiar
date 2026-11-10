@@ -1,6 +1,5 @@
 import { mkdirSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { summonFamiliar } from '@familiar-ai/core'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -9,8 +8,9 @@ import { openModels } from './models.ts'
 import { WEB_RENDERING } from './rendering.ts'
 import { loadPlugins } from './plugins.ts'
 import { openPush } from './push.ts'
-import { serveFamiliar } from './serve.ts'
+import { serveWorkspace } from './serve.ts'
 import { webPlugin } from './web/plugin.ts'
+import { openDaemonWorkspace } from './workspace.ts'
 
 export async function serve() {
   ensureDataDir(config.dataDir)
@@ -21,25 +21,27 @@ export async function serve() {
   const push = openPush({ path: dataPath, contact: config.pushContact })
 
   const models = openModels()
-  const familiar = await summonFamiliar({
-    storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),
-    models,
-    model: config.model,
-    chatModels: config.chatModels,
-    // The machine's zone, so the owner's calendar is the one their clock shows.
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    name: config.name,
-    hostInstructions: WEB_RENDERING,
-    // Owners sign in to ChatGPT from the web UI, through the Models requests use.
-    account: { login: { getDeviceId: deviceId, agentName: config.name } },
-    notify: push.notify,
-    plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
-    secrets: fileSecretStore(dataPath('secrets.json')),
-    mcpFetch: fetch,
-    mcpStdio: stdioTransport,
-  })
+  const { workspace } = await openDaemonWorkspace(
+    {
+      storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),
+      models,
+      model: config.model,
+      chatModels: config.chatModels,
+      // The machine's zone, so the owner's calendar is the one their clock shows.
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      hostInstructions: WEB_RENDERING,
+      // Owners sign in to ChatGPT from the web UI, through the Models requests use.
+      account: { login: { getDeviceId: deviceId, agentName: config.name } },
+      notify: push.notify,
+      plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
+      secrets: fileSecretStore(dataPath('secrets.json')),
+      mcpFetch: fetch,
+      mcpStdio: stdioTransport,
+    },
+    config.name,
+  )
 
-  serveFamiliar(familiar, {
+  serveWorkspace(workspace, {
     host: config.host,
     port: config.port,
     owner: config.owner,

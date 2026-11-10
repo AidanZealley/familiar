@@ -15,7 +15,7 @@ pnpm --filter @familiar-example/embedded-kanban build   # Static files in dist/
 - `src/board/board.ts` owns the tasks. Its operations, `create`, `assign` and `move`, are the only way tasks change.
 - `src/familiar/plugin.ts` gives Familiar tools that call those operations. `assign_task_to_me` takes the person from `familiar(context).author()`, the author of the message that started the call, never from its arguments.
 - The cards, the new-task form and drag and drop call the same operations, so a change made either way shows up in the other.
-- `src/familiar/demo.ts` opens a real Familiar over `MemoryStorage`, serves it with `createHttpApi`, and points a client store at it through an in-page `fetch`. Its `allow` permits only sending, history, stopping a reply and the conversation's events; every other operation answers 403.
+- `src/familiar/demo.ts` opens a real workspace over `MemoryStorage` with one Familiar and one room, serves it with `createHttpApi`, and points a room store at that room through an in-page `fetch`. Its `allow` permits only posting, history, Stop and the events of that one room; every other operation answers 403.
 
 The demo has one fixed person, Sam (`src/board/seed.ts`), and nobody signs in: `authenticate` names Sam for every request. A real host checks each request's session there.
 
@@ -27,6 +27,6 @@ Only the model is fake. `src/familiar/script.ts` uses core's `scriptedModels` to
 
 ## Not shown
 
-Everything runs in one page. In a real app, Familiar, its tools and the board's data live on your server: the tools and your own API call the board's operations there, and the React board reads and changes tasks through that API. Familiar's events carry the conversation, not your data. To use a real model, register a provider on that server (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), so credentials never reach the browser.
+Everything runs in one page. In a real app, Familiar, its tools and the board's data live on your server: the tools and your own API call the board's operations there, and the React board reads and changes tasks through that API. Familiar's events carry the room, not your data. To use a real model, register a provider on that server (see [Models and sign-in](https://aidanzealley.github.io/familiar/build/models-and-sign-in/)), so credentials never reach the browser.
 
 `src/components/ui` and `src/components/reui` come from the shadcn CLI and the [ReUI Kanban](https://reui.io/components/kanban) registry. Update them through the CLI rather than by hand.

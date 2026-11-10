@@ -7,12 +7,12 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useRoom } from '@familiar-ai/client/react'
 import { Composer } from './components/composer'
 import { TranscriptItem } from './components/transcript-item'
 
 export const AssistantPanel = () => {
-  const transcript = useFamiliar((state) => state.transcript)
+  const transcript = useRoom((state) => state.transcript)
   const items = transcript?.items ?? []
 
   return (

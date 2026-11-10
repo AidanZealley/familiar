@@ -1,11 +1,12 @@
 import { DurableObject } from 'cloudflare:workers'
 import type { Notification } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
-import { DurableFamiliar, FamiliarTerminated } from '../src/index.ts'
+import { DurableWorkspace, WorkspaceTerminated } from '../src/index.ts'
 import { testModels } from './model.ts'
 
-// The Worker the workerd tests run: one DurableFamiliar per name on a
-// scripted model, reached without auth because only the tests can reach it.
+// The Worker the workerd tests run: one DurableWorkspace per name, with one
+// Familiar on a scripted model, reached without auth because only the tests
+// can reach it.
 
 type Env = {
   BOTS: DurableObjectNamespace<Bot>
@@ -17,8 +18,8 @@ type Env = {
 export class Bot extends DurableObject<Env> {
   /** Changes whenever the object restarts. */
   readonly instance = crypto.randomUUID()
-  readonly familiar = new DurableFamiliar(this.ctx, {
-    familiar: () => ({
+  readonly workspace = new DurableWorkspace(this.ctx, {
+    workspace: () => ({
       models: testModels(),
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: this.env.TIME_ZONE,
@@ -27,19 +28,25 @@ export class Bot extends DurableObject<Env> {
           this.env.OUTBOX.idFromName(this.ctx.id.toString()),
         ).add(notification),
     }),
+    // Its one Familiar, made on first open; the tests talk in the owner's DM.
+    setup: async (workspace) => {
+      if (!(await workspace.familiars.list()).length) {
+        await workspace.familiars.create({ name: 'Bot' })
+      }
+    },
     heartbeatMs: Number(this.env.HEARTBEAT_MS),
   })
 
   override async fetch(request: Request) {
     try {
-      return await this.familiar.use((familiar) =>
-        createHttpApi(familiar, {
+      return await this.workspace.use((workspace) =>
+        createHttpApi(workspace, {
           allow: () => true,
           authenticate: () => ({ id: 'owner', name: 'owner' }),
         }).fetch(request),
       )
     } catch (error) {
-      if (error instanceof FamiliarTerminated) {
+      if (error instanceof WorkspaceTerminated) {
         return Response.json({ error: 'terminated' }, { status: 410 })
       }
       throw error
@@ -47,11 +54,11 @@ export class Bot extends DurableObject<Env> {
   }
 
   override alarm() {
-    return this.familiar.alarm()
+    return this.workspace.alarm()
   }
 
   terminate() {
-    return this.familiar.terminate()
+    return this.workspace.terminate()
   }
 
   async status() {

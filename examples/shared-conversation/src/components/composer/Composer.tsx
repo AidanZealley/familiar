@@ -6,15 +6,13 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { useFamiliarStore } from '@familiar-ai/client/react'
+import { useRoomStore } from '@familiar-ai/client/react'
 import type { ComposerProps } from './types'
 
 /** As in Familiar's web UI: a textarea with its send button below, at the end. */
 export const Composer = ({ name }: ComposerProps) => {
   // This person's own client: its session decides who the message is from.
-  const {
-    conversation: { send },
-  } = useFamiliarStore()
+  const { send } = useRoomStore()
   const [text, setText] = useState('')
 
   const submit = (event: FormEvent) => {

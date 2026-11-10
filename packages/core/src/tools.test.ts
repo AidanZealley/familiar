@@ -10,7 +10,7 @@ import { expect, test, vi } from 'vitest'
 import { harnessOptions } from './harness.ts'
 import type { Author } from './conversation/message.ts'
 import type { FamiliarPlugin } from './index.ts'
-import { ReopenableStorage, testHost } from './testing.ts'
+import { ReopenableStorage, replyTo, testHost } from './testing.ts'
 import { createPlugins } from './plugins/index.ts'
 import { defineTool, familiar as services, Type } from './tools.ts'
 
@@ -22,7 +22,13 @@ const first = { id: 'person-1', name: 'Sam' }
 const second = { id: 'person-2', name: 'Sam' }
 async function setup(plugin: FamiliarPlugin) {
   const host = await testHost({ plugins: [plugin] })
-  return { faux: host.faux, familiar: host.familiar, reopen: host.reopen }
+  return {
+    faux: host.faux,
+    familiar: host.familiar,
+    dm: host.dm,
+    send: host.send,
+    reopen: host.reopen,
+  }
 }
 
 const call = (name: string) =>
@@ -36,7 +42,11 @@ test('tools and nested calls retain their author across rounds while another aut
   const held = new Promise<void>((resolve) => {
     release = resolve
   })
-  const { faux, familiar: current } = await setup({
+  const {
+    faux,
+    familiar: current,
+    dm,
+  } = await setup({
     name: 'identity',
     title: 'Identity',
     tools: [
@@ -70,25 +80,32 @@ test('tools and nested calls retain their author across rounds while another aut
     call('inner'),
     fauxAssistantMessage('Second done'),
   ])
-  await familiar.send({ author: first, text: 'First', requestId: 'first' })
+  const one = await dm().post({
+    author: first,
+    text: 'First',
+    requestId: 'first',
+  })
   await vi.waitFor(() => expect(seen).toEqual([first]))
-  await familiar.send({ author: second, text: 'Second', requestId: 'second' })
-  const queued = await familiar.watch()
-  await queued.stop()
-  expect(JSON.stringify(queued.value.docs['pi.inbox'])).toContain('person-2')
+  const two = await dm().post({
+    author: second,
+    text: 'Second',
+    requestId: 'second',
+  })
+  await vi.waitFor(async () => {
+    const queued = await familiar.watch()
+    await queued.stop()
+    expect(JSON.stringify(queued.value.docs['pi.inbox'])).toContain('person-2')
+  })
   release()
-  await familiar.idle()
+  await replyTo(dm(), one)
+  await replyTo(dm(), two)
   expect(seen).toEqual([first, first, first, second])
 })
 
 test('a replay-safe interrupted tool resolves the same author after reopening', async () => {
   const seen: (Author | undefined)[] = []
   let interrupted = false
-  const {
-    faux,
-    familiar: current,
-    reopen,
-  } = await setup({
+  const { faux, dm, reopen } = await setup({
     name: 'identity',
     title: 'Identity',
     tools: [
@@ -117,11 +134,18 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
       }),
     ],
   })
-  const familiar = current()
   faux.setResponses([call('identify')])
-  await familiar.send({ author: first, text: 'First', requestId: 'first' })
+  const one = await dm().post({
+    author: first,
+    text: 'First',
+    requestId: 'first',
+  })
   await vi.waitFor(() => expect(seen).toEqual([first]))
-  await familiar.send({ author: second, text: 'Second', requestId: 'second' })
+  const two = await dm().post({
+    author: second,
+    text: 'Second',
+    requestId: 'second',
+  })
   // Familiar stops mid-call; the next process finishes both runs.
   const reopened = await reopen({}, async () =>
     faux.setResponses([
@@ -130,7 +154,8 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
       fauxAssistantMessage('Second done'),
     ]),
   )
-  await reopened.idle()
+  await replyTo(reopened.dm, one)
+  await replyTo(reopened.dm, two)
   expect(seen).toEqual([first, first, second])
 })
 
@@ -196,7 +221,7 @@ test('input with no person behind it, such as an upkeep pass, has no author', as
 })
 
 test('a tool keeps its last reported details unless its result replaces them, after a restart too', async () => {
-  const { faux, familiar, reopen } = await setup({
+  const { faux, send, reopen } = await setup({
     name: 'example',
     title: 'Example',
     tools: [
@@ -230,10 +255,9 @@ test('a tool keeps its last reported details unless its result replaces them, af
     ),
     fauxAssistantMessage('Done.'),
   ])
-  await familiar().send({ author: first, text: 'Go', requestId: 'go' })
-  await familiar().idle()
+  await send({ author: first, text: 'Go', requestId: 'go' })
 
-  const watch = await (await reopen()).watch()
+  const watch = await (await reopen()).familiar.watch()
   await watch.stop()
   const details = watch.value.entries
     .filter((entry) => entry.kind === 'pi.tool-result')
@@ -246,7 +270,7 @@ test('Stop aborts a running tool', async () => {
   const running = new Promise<AbortSignal>((resolve) => {
     started = resolve
   })
-  const { faux, familiar } = await setup({
+  const { faux, dm } = await setup({
     name: 'test',
     title: 'Test',
     tools: [
@@ -267,9 +291,8 @@ test('Stop aborts a running tool', async () => {
     ],
   })
   faux.setResponses([call('wait')])
-  await familiar().send({ author: first, text: 'Go', requestId: 'go' })
+  await dm().post({ author: first, text: 'Go', requestId: 'go' })
   const signal = await running
-  await familiar().abort()
-  await familiar().idle()
-  expect(signal.aborted).toBe(true)
+  await dm().stop()
+  await expect.poll(() => signal.aborted).toBe(true)
 })

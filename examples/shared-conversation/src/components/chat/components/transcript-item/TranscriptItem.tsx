@@ -1,10 +1,9 @@
-import { ClockIcon, LoaderIcon } from 'lucide-react'
+import { LoaderIcon } from 'lucide-react'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import {
   Message,
   MessageAvatar,
   MessageContent,
-  MessageFooter,
   MessageHeader,
 } from '@/components/ui/message'
 import { PersonAvatar } from '@/components/person-avatar'
@@ -28,23 +27,14 @@ export const TranscriptItem = ({
           </MessageAvatar>
           <MessageContent>
             <MessageHeader>{author.name}</MessageHeader>
-            {/* Waiting for Familiar to reach it: an outline, not yet sent. */}
             <Bubble
               align={align}
-              variant={
-                item.queued ? 'outline' : align === 'end' ? 'default' : 'muted'
-              }
+              variant={align === 'end' ? 'default' : 'muted'}
             >
               <BubbleContent className="whitespace-pre-wrap">
                 {item.text}
               </BubbleContent>
             </Bubble>
-            {item.queued && (
-              <MessageFooter className="gap-1">
-                <ClockIcon className="size-3" aria-hidden />
-                Queued
-              </MessageFooter>
-            )}
           </MessageContent>
         </Message>
       )

@@ -3,20 +3,18 @@ import type { Models, ModelThinkingLevel } from '@earendil-works/pi-ai'
 import {
   AgentDoc,
   configure,
+  InboxDoc,
+  LiveDoc,
+  type AgentState,
   type Conversation,
   type ConversationWatch,
   type Cursor,
+  type DocumentWatch,
   type EntryId,
   type EntryRecord,
   type Harness,
   type ModelRef,
 } from '@earendil-works/pi-durable'
-import {
-  admitMessage,
-  formatMessage,
-  MESSAGE_KIND,
-  type Author,
-} from './message.ts'
 import {
   findChatModel,
   ModelError,
@@ -29,44 +27,21 @@ import {
 } from './models.ts'
 import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 
-/** One message from a person. Hosts authenticate; Familiar only records who spoke. */
-export type Message = {
-  /**
-   * Who sent it, with a stable host ID and the name at send time. The model
-   * sees both; pick a name it can address, such as a first name. It attributes words;
-   * it grants nothing.
-   */
-  author: Author
-  text: string
-  /**
-   * Stable per logical message from this author, so a retried send is
-   * admitted once. Scoped to the author: another author's same ID is a
-   * different message. At most `MESSAGE_LIMITS.requestId` characters.
-   */
-  requestId: string
-}
-
 export type HistoryPage = { entries: EntryRecord[]; more: boolean }
 
+/**
+ * A Familiar's chat: its one working context across every room, which only
+ * its rooms' turns write to. People see their rooms, never the chat itself.
+ */
 export type ConversationApi = {
-  /** Rejects with a MessageError, sending nothing, when `admitMessage` refuses it. */
-  send(message: Message): Promise<void>
-  /** Stop the current run and withdraw the messages queued behind it. */
-  abort(): Promise<void>
-  /** Resolves once nothing is running: every sent message is answered. */
-  idle(): Promise<void>
-  /** The conversation's committed view, then every commit's changes to it. */
+  /**
+   * The chat's committed view, then every commit's changes to it: what the
+   * Familiar was shown and did in all its rooms, so never for people.
+   */
   watch(): Promise<ConversationWatch>
-  /**
-   * Up to `limit` committed entries older than entry `before`, newest first,
-   * including those compaction took out of the view. `more` says whether
-   * older ones exist.
-   */
-  history(before: EntryId, limit: number): Promise<HistoryPage>
-  /**
-   * The models the conversation may switch to. Which it's on, and at what
-   * level, is the view's `pi.agent` document.
-   */
+  /** Which model the chat is on, and at what level, then every change. */
+  watchModel(): Promise<DocumentWatch<AgentState>>
+  /** The models the chat may switch to. */
   models(): ModelOption[]
   /**
    * Switch to one of `models()`, on the level last picked for it, else its
@@ -142,9 +117,12 @@ export async function installConversation(
     throw new Error(`No chat for Familiar ${familiar}.`)
   }
   // The conversation owns its model and level. A new one, or one whose model
-  // is no longer offered, starts on the fallback.
+  // is no longer offered, starts on the fallback. Its live documents are
+  // created too, so a room's stream can watch them before its first run.
   await conversation.commit(async (tx) => {
     const agent = await tx.doc(AgentDoc, conversation.id)
+    await tx.doc(LiveDoc, conversation.id)
+    await tx.doc(InboxDoc, conversation.id)
     const levels = await familiarDoc(tx, ThinkingLevels, familiar)
     const kept = findChatModel(options, agent.model)
     const chosen = kept ?? fallback
@@ -155,25 +133,10 @@ export async function installConversation(
   }, context)
 
   return {
-    send: async (message) => {
-      const { author, text, requestId } = admitMessage(message)
-      // The model's copy names the author; the entry keeps the words as sent.
-      await conversation.submit(
-        {
-          type: 'input',
-          content: formatMessage({ author, text }),
-          requestId,
-          entry: { kind: MESSAGE_KIND, data: { author, text } },
-        },
-        context,
-      )
-    },
-    abort: async () => {
-      await conversation.abort(context)
-    },
-    idle: () => conversation.waitForIdle(context),
     watch: () => conversation.watch(context),
-    history: (before, limit) => historyOf(conversation, before, limit),
+    // Configured above, so it exists.
+    watchModel: async () =>
+      (await harness.watchDoc(AgentDoc, familiar, context))!,
     models: () => options,
     setModel: async (model) => {
       const chosen = findChatModel(options, model)

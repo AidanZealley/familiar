@@ -1,19 +1,15 @@
-import { createFamiliarStore } from '@familiar-ai/client'
-import {
-  FamiliarProvider,
-  useFamiliar,
-  useFamiliarStore,
-} from '@familiar-ai/client/react'
+import { createRoomStore } from '@familiar-ai/client'
+import { RoomProvider, useRoom, useRoomStore } from '@familiar-ai/client/react'
 
-// Once, at module scope. The provider never opens or closes the store.
-const store = createFamiliarStore('/api')
+// Once, at module scope, for the room this page shows, such as one a host
+// made for everyone signed in. The provider never opens or closes the store.
+declare const roomId: number
+const store = createRoomStore('/api', roomId)
 
 const Chat = () => {
-  const connection = useFamiliar((state) => state.connection)
-  const {
-    conversation: { send },
-  } = useFamiliarStore()
-  const transcript = useFamiliar((state) => state.transcript)
+  const connection = useRoom((state) => state.connection)
+  const { send } = useRoomStore()
+  const transcript = useRoom((state) => state.transcript)
 
   if (connection !== 'open') {
     return <p>{connection}…</p>
@@ -34,7 +30,7 @@ const Chat = () => {
 }
 
 export const App = () => (
-  <FamiliarProvider store={store}>
+  <RoomProvider store={store}>
     <Chat />
-  </FamiliarProvider>
+  </RoomProvider>
 )

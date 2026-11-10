@@ -9,10 +9,9 @@ import {
   fauxAssistantMessage,
   fauxProvider,
 } from '@earendil-works/pi-ai/providers/faux'
-import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
 import { createHttpApi } from '../http/index.ts'
-import { summonFamiliar, type Familiar } from '../index.ts'
+import type { Workspace } from '../index.ts'
 import { testHost } from '../testing.ts'
 import { createAccount, type AccountState } from './index.ts'
 
@@ -160,51 +159,37 @@ const model = { provider: 'faux', modelId: 'faux-1' }
 
 test('a reply failing on a login that stopped working marks it expired, and a working one recovers', async () => {
   const { faux, models } = fauxModels()
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model,
-    timeZone: 'UTC',
-    account: {},
-  })
+  const host = await testHost({ models, model, account: {} })
+  const familiar = host.workspace()
   const say = async (text: string) => {
-    await familiar.send({
-      author: { id: 'aidan', name: 'aidan' },
-      text,
-      requestId: text,
-    })
-    await familiar.idle()
+    await host.say(text)
     await settled()
   }
 
-  try {
-    expect(familiar.account?.state()).toEqual({ status: 'signed-in' })
+  expect(familiar.account?.state()).toEqual({ status: 'signed-in' })
 
-    // As when the provider refuses to refresh the token: every request fails.
-    const getAuth = vi
-      .spyOn(models, 'getAuth')
-      .mockRejectedValue(new Error('refresh refused'))
-    await say('hello')
-    expect(familiar.account?.state()).toEqual({ status: 'expired' })
+  // As when the provider refuses to refresh the token: every request fails.
+  const getAuth = vi
+    .spyOn(models, 'getAuth')
+    .mockRejectedValue(new Error('refresh refused'))
+  await say('hello')
+  expect(familiar.account?.state()).toEqual({ status: 'expired' })
 
-    getAuth.mockRestore()
-    faux.setResponses([fauxAssistantMessage('Hi!')])
-    await say('hello again')
-    expect(familiar.account?.state()).toEqual({ status: 'signed-in' })
-  } finally {
-    await familiar.dismiss()
-  }
+  getAuth.mockRestore()
+  faux.setResponses([fauxAssistantMessage('Hi!')])
+  await say('hello again')
+  expect(familiar.account?.state()).toEqual({ status: 'signed-in' })
 })
 
 test('without an account a host gets no account routes; with one, dismissal stops a sign-in without signing out', async () => {
-  const api = (familiar: Familiar) =>
-    createHttpApi(familiar, {
+  const api = (workspace: Workspace) =>
+    createHttpApi(workspace, {
       allow: () => true,
       authenticate: () => ({ id: 'aidan', name: 'aidan' }),
     })
   /** The event stream's first `account` event, parsed. */
-  const firstAccountEvent = async (familiar: Familiar) => {
-    const response = await api(familiar).request('/events')
+  const firstAccountEvent = async (workspace: Workspace) => {
+    const response = await api(workspace).request('/events')
     const reader = response
       .body!.pipeThrough(new TextDecoderStream())
       .getReader()
@@ -218,14 +203,14 @@ test('without an account a host gets no account routes; with one, dismissal stop
   }
 
   // A host that keeps its credentials working itself.
-  const unattached = (await testHost()).familiar()
+  const unattached = (await testHost()).workspace()
   expect(unattached.account).toBeUndefined()
   expect((await api(unattached).request('/account')).status).toBe(404)
   expect(await firstAccountEvent(unattached)).toBeNull()
 
   // A host owners sign in through.
   const host = await testHost({ account: {} })
-  const familiar = host.familiar()
+  const familiar = host.workspace()
   let interaction: AuthInteraction | undefined
   vi.spyOn(host.models, 'login').mockImplementation(
     (_provider, _type, next) => {

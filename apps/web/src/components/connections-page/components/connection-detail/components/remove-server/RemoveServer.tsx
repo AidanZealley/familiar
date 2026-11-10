@@ -13,7 +13,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 import type { RemoveServerProps } from './types'
 
 const route = getRouteApi('/connections')
@@ -23,7 +23,7 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
   const { name, transport } = connection
   const remove = useMutation({
     mutationKey: ['connections'],
-    mutationFn: () => familiar.mcp.remove(name),
+    mutationFn: () => workspace.mcp.remove(name),
     onSuccess: () => navigate({ search: ({ q }) => ({ q }) }),
   })
 

@@ -1,8 +1,13 @@
-import type { DocumentWatch } from '@earendil-works/pi-durable'
-import { Hono } from 'hono'
+import type { ConversationWatch, WatchHandle } from '@earendil-works/pi-durable'
+import type { Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import type { Familiar } from '../familiar.ts'
-import { allows, forbidden, type AccessEnv } from '../access.ts'
+import {
+  allows,
+  forbidden,
+  type AccessEnv,
+  type Operation,
+  type Resource,
+} from '../access.ts'
 import {
   PROTOCOL_VERSION,
   type Documents,
@@ -12,63 +17,80 @@ import {
 
 type Watch = { stop(): Promise<unknown>; closed: Promise<unknown> }
 
-const SOURCES = [
-  'conversation',
-  'memory',
-  'episodes',
-  'schedules',
-  'account',
-] as const
+/** What a source sends with, for as long as the stream lasts. */
+export type Stream = {
+  send(message: StreamEvent): Promise<void>
+  /** Streams a document whole, then as each commit's changes. */
+  document<Name extends DocumentName>(
+    name: Name,
+    open: () => Promise<WatchHandle<Readonly<Documents[Name]> | null>>,
+  ): Promise<void>
+  /** Streams a conversation's view whole, then as each commit's changes. */
+  view(open: () => Promise<ConversationWatch>): Promise<void>
+  /** Runs `cleanup` when the stream ends, or now if it already has. */
+  onEnd(cleanup: () => void): void
+}
+
+/** One thing a stream can carry, sent only if `allow` agrees to `operation`. */
+export type Source = {
+  operation: Operation
+  open(stream: Stream): Promise<void>
+}
 
 /**
- * `/events`: a server-sent stream of every source the author is allowed,
- * each asked once as the stream connects, so revoking access later doesn't
- * close a stream that's already open. A stream every source refuses answers
- * 403. Each value arrives whole first, then as each commit's changes.
+ * A server-sent stream of every source the author is allowed, each asked
+ * once as the stream connects, so revoking access later doesn't close a
+ * stream that's already open. A stream every source refuses answers 403;
+ * then `check` can throw, such as a 404 for a resource that doesn't exist.
+ * Each value arrives whole first, then as each commit's changes.
  */
-export const eventRoutes = (familiar: Familiar) =>
-  new Hono<AccessEnv>().get('/events', async (c) => {
-    const allowed = new Set<(typeof SOURCES)[number]>()
-    for (const source of SOURCES) {
-      if (await allows(c, `events.${source}`)) {
-        allowed.add(source)
-      }
+export async function streamEvents(
+  c: Context<AccessEnv>,
+  sources: readonly Source[],
+  resource?: Resource,
+  check?: () => unknown,
+) {
+  const allowed: Source[] = []
+  for (const source of sources) {
+    if (await allows(c, source.operation, resource)) {
+      allowed.push(source)
     }
-    if (!allowed.size) {
-      return forbidden(c)
+  }
+  if (!allowed.length) {
+    return forbidden(c)
+  }
+  await check?.()
+
+  return streamSSE(c, async (sse) => {
+    // Owns the stream's lifetime: the client leaving, or any watch closing,
+    // ends it, and everything opened registers its cleanup here.
+    const done = new AbortController()
+    const { signal } = done
+    const end = () => done.abort()
+    sse.onAbort(end)
+
+    const send = (message: StreamEvent) =>
+      sse.writeSSE({
+        event: message.event,
+        data: JSON.stringify(message.data),
+      })
+
+    const onEnd = (cleanup: () => void) =>
+      signal.aborted
+        ? cleanup()
+        : signal.addEventListener('abort', cleanup, { once: true })
+
+    // Keeps `watch` until the stream ends. Returns whether it still runs.
+    const keep = (watch: Watch) => {
+      void watch.closed.then(end, end)
+      onEnd(() => void watch.stop())
+      return !signal.aborted
     }
 
-    return streamSSE(c, async (stream) => {
-      // Owns the stream's lifetime: the client leaving, or any watch closing,
-      // ends it, and everything opened registers its cleanup here.
-      const done = new AbortController()
-      const { signal } = done
-      const end = () => done.abort()
-      stream.onAbort(end)
-
-      const send = (message: StreamEvent) =>
-        stream.writeSSE({
-          event: message.event,
-          data: JSON.stringify(message.data),
-        })
-
-      // Runs `cleanup` when the stream ends, or now if it already has.
-      const onEnd = (cleanup: () => void) =>
-        signal.aborted
-          ? cleanup()
-          : signal.addEventListener('abort', cleanup, { once: true })
-
-      // Keeps `watch` until the stream ends. Returns whether it still runs.
-      const keep = (watch: Watch) => {
-        void watch.closed.then(end, end)
-        onEnd(() => void watch.stop())
-        return !signal.aborted
-      }
-
-      const document = async <Name extends DocumentName>(
-        name: Name,
-        open: () => Promise<DocumentWatch<Documents[Name]>>,
-      ) => {
+    const stream: Stream = {
+      send,
+      onEnd,
+      document: async (name, open) => {
         const watch = await open()
         if (!keep(watch)) {
           return
@@ -83,53 +105,35 @@ export const eventRoutes = (familiar: Familiar) =>
             send({ event: 'document.ops', data: { name, ops } }),
           )
         }
-      }
+      },
+      view: async (open) => {
+        const watch = await open()
+        if (!keep(watch)) {
+          return
+        }
+        await send({ event: 'view', data: watch.value })
+        if (!signal.aborted) {
+          watch.start((_value, ops) => send({ event: 'ops', data: ops }))
+        }
+      },
+    }
 
-      const setup = async () => {
-        await send({ event: 'protocol', data: { version: PROTOCOL_VERSION } })
-        if (allowed.has('conversation') && !signal.aborted) {
-          const watch = await familiar.watch()
-          if (keep(watch)) {
-            await send({ event: 'view', data: watch.value })
-            if (!signal.aborted) {
-              watch.start((_value, ops) => send({ event: 'ops', data: ops }))
-            }
-          }
+    const setup = async () => {
+      await send({ event: 'protocol', data: { version: PROTOCOL_VERSION } })
+      for (const source of allowed) {
+        if (!signal.aborted) {
+          await source.open(stream)
         }
-        const documents = {
-          memory: familiar.memory.watch,
-          episodes: familiar.memory.watchEpisodes,
-          schedules: familiar.schedules.watch,
-        }
-        for (const name of ['memory', 'episodes', 'schedules'] as const) {
-          if (allowed.has(name) && !signal.aborted) {
-            await document(name, documents[name])
-          }
-        }
-        if (allowed.has('account') && !signal.aborted) {
-          // Null once when the host manages credentials itself.
-          const account = familiar.account
-          await send({ event: 'account', data: account?.state() ?? null })
-          if (account) {
-            onEnd(
-              account.onChange(
-                (state) => void send({ event: 'account', data: state }),
-              ),
-            )
-          }
-        }
-        const heartbeat = setInterval(
-          () => void stream.write(': ping\n\n'),
-          15_000,
-        )
-        onEnd(() => clearInterval(heartbeat))
       }
+      const heartbeat = setInterval(() => void sse.write(': ping\n\n'), 15_000)
+      onEnd(() => clearInterval(heartbeat))
+    }
 
-      const ended = new Promise<void>((resolve) => onEnd(resolve))
-      try {
-        await Promise.race([setup().then(() => ended), ended])
-      } finally {
-        end()
-      }
-    })
+    const ended = new Promise<void>((resolve) => onEnd(resolve))
+    try {
+      await Promise.race([setup().then(() => ended), ended])
+    } finally {
+      end()
+    }
   })
+}

@@ -1,17 +1,90 @@
-import { createFamiliarStore, type FamiliarState } from '@familiar-ai/client'
+import {
+  createFamiliarStore,
+  createRoomStore,
+  createWorkspaceStore,
+  type FamiliarState,
+  type FamiliarStore,
+  type RoomState,
+  type RoomStore,
+  type WorkspaceState,
+} from '@familiar-ai/client'
 import { MutationCache, QueryClient } from '@tanstack/react-query'
 import { useStore } from 'zustand'
+import { createStore } from 'zustand/vanilla'
 
 /**
- * The app's one connection, open for its lifetime. It owns everything the
- * event stream sends. Call commands on it directly, such as
- * `familiar.conversation.send(text)`.
+ * The app's workspace connection, open for its lifetime: the login,
+ * connections and push, and which Familiars and rooms there are. Call
+ * commands on it directly, such as `workspace.account.signIn()`.
  */
-export const familiar = createFamiliarStore('/api')
+export const workspace = createWorkspaceStore('/api')
 
-/** Selects from the store's state, re-rendering when the selection changes. */
+/**
+ * Where the app is: finding the first Familiar and the signed-in person's
+ * DM with it, then their stores, open for the app's lifetime. The app has
+ * one chat, that DM, and its memory, schedules and model pages are that
+ * Familiar's.
+ */
+export type Home =
+  | { status: 'finding' }
+  | { status: 'ready'; familiar: FamiliarStore; room: RoomStore }
+  | { status: 'failed'; error: string }
+
+export const home = createStore<Home>()(() => ({ status: 'finding' }))
+
+const find = async (familiars: NonNullable<WorkspaceState['familiars']>) => {
+  const [first] = Object.keys(familiars.familiars)
+    .map(Number)
+    .sort((a, b) => a - b)
+  if (first === undefined) {
+    throw new Error('This workspace has no Familiar yet.')
+  }
+  const room = await workspace.familiars.dm(first)
+  home.setState({
+    status: 'ready',
+    familiar: createFamiliarStore('/api', first),
+    room: createRoomStore('/api', room),
+  })
+}
+
+// Found once, from the first list of Familiars the stream sends.
+const stop = workspace.subscribe(({ familiars }) => {
+  if (familiars) {
+    stop()
+    find(familiars).catch((error: unknown) =>
+      home.setState({
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    )
+  }
+})
+
+const ready = () => {
+  const state = home.getState()
+  if (state.status !== 'ready') {
+    throw new Error('The app has no Familiar yet.')
+  }
+  return state
+}
+
+/** The app's Familiar, for its commands, once `home` is ready. */
+export const familiar = () => ready().familiar
+
+/** The app's chat, the signed-in person's DM, once `home` is ready. */
+export const room = () => ready().room
+
+/** Selects from the workspace's state, re-rendering when the selection changes. */
+export const useWorkspace = <T>(selector: (state: WorkspaceState) => T): T =>
+  useStore(workspace, selector)
+
+/** Selects from the Familiar's state; only once `home` is ready. */
 export const useFamiliar = <T>(selector: (state: FamiliarState) => T): T =>
-  useStore(familiar, selector)
+  useStore(familiar(), selector)
+
+/** Selects from the chat's state; only once `home` is ready. */
+export const useRoom = <T>(selector: (state: RoomState) => T): T =>
+  useStore(room(), selector)
 
 /**
  * Owns request state: what the app fetches instead of mirroring, such as

@@ -36,7 +36,7 @@ export const CORE_TOOLS: ReadonlySet<string> = new Set([
 /**
  * Throws, naming the plugin, unless these can run together: unique plugin
  * names, sendable secret declarations, and tool names that are neither
- * core's nor another plugin's. `summonFamiliar` checks its plugins with it;
+ * core's nor another plugin's. `openWorkspace` checks its plugins with it;
  * a host that loads plugins one by one can check each before accepting it.
  */
 export function checkPlugins(plugins: readonly FamiliarPlugin[]) {

@@ -1,6 +1,6 @@
 export {
-  DurableFamiliar,
-  FamiliarTerminated,
-  type DurableFamiliarOptions,
-  type HostFamiliarOptions,
-} from './durable-familiar.ts'
+  DurableWorkspace,
+  WorkspaceTerminated,
+  type DurableWorkspaceOptions,
+  type HostWorkspaceOptions,
+} from './durable-workspace.ts'

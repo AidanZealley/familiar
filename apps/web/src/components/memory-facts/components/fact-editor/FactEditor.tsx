@@ -10,7 +10,7 @@ export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
   const [draft, setDraft] = useState(fact.text)
   const revise = useMutation({
     mutationKey: ['fact', fact.id],
-    mutationFn: (text: string) => familiar.memory.revise(fact.id, text),
+    mutationFn: (text: string) => familiar().memory.revise(fact.id, text),
     onSuccess: onDone,
   })
 

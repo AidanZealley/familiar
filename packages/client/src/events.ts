@@ -6,10 +6,11 @@ import type {
 
 // Core's version, typed against it without loading its runtime, so a bump
 // there fails this check until the client is updated to match.
-const PROTOCOL_VERSION: typeof CoreProtocolVersion = 2
+const PROTOCOL_VERSION: typeof CoreProtocolVersion = 3
 
 /**
- * The event stream's state. It goes `open` when a full view arrives.
+ * The event stream's state. It goes `open` when the server's handshake
+ * matches, before its first values arrive.
  * `reconnecting` follows a network error, a stream that ended, or a 5xx or
  * 429 answer, and retries after the server's `retry` delay (3 seconds unless
  * it sets one). `outdated` stops retrying on an incompatible or missing
@@ -27,8 +28,9 @@ export type Connection =
   | 'failed'
   | 'outdated'
 
+/** Opens the `/events` stream at `url` and mirrors its handshake into `connection`. */
 export const openEvents = (
-  baseUrl: string,
+  url: string,
   fetch: typeof globalThis.fetch,
   connection: (value: Connection) => void,
 ) => {
@@ -39,7 +41,7 @@ export const openEvents = (
     events.close()
     connection('outdated')
   }
-  const events = new EventSource(`${baseUrl}/events`, {
+  const events = new EventSource(url, {
     fetch: (url, init) => connect(fetch, url, init),
   })
   // EventSource fires open before reading each response, including reconnects.
@@ -58,7 +60,9 @@ export const openEvents = (
       } catch {
         // Unreadable, so not a version this client speaks.
       }
-      if (!accepted) {
+      if (accepted) {
+        connection('open')
+      } else {
         outdated()
       }
     },
@@ -81,7 +85,7 @@ export const openEvents = (
     )
 
   // EventSource reconnects by itself unless it has closed, and the server
-  // answers each reconnect with a fresh view and documents.
+  // answers each reconnect with fresh values.
   events.addEventListener(
     'error',
     ({ code }) =>

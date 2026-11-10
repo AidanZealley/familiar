@@ -1,10 +1,8 @@
-import type { EntryId } from '@earendil-works/pi-durable'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import { Hono, type Context, type TypedResponse } from 'hono'
+import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
-import type { ConversationApi, HistoryPage } from './index.ts'
+import type { ConversationApi } from './index.ts'
 import { can, type AccessEnv } from '../access.ts'
-import { MessageError } from './message.ts'
 import { ModelError } from './models.ts'
 
 /** Answers 204, or 400 when the chat models refuse the change. */
@@ -23,87 +21,22 @@ async function change(c: Context, run: () => Promise<void>) {
 }
 
 /**
- * Sending, history and aborting, and the conversation's model and reasoning
- * level under `/model`. The current model is in the view's `pi.agent`
- * document. Message attribution comes only from the host, never the body.
+ * A Familiar's model and reasoning level, mounted at `/familiars/:familiar/model`.
+ * The current ones stream from the Familiar's `/events` as `model`.
  */
-export const conversationRoutes = (
-  conversation: Pick<
-    ConversationApi,
-    'send' | 'history' | 'abort' | 'models' | 'setModel' | 'setThinkingLevel'
-  >,
+export const modelRoutes = (
+  familiarOf: (
+    c: Context,
+  ) => Pick<ConversationApi, 'models' | 'setModel' | 'setThinkingLevel'>,
 ) =>
   new Hono<AccessEnv>()
-    // A page of entries older than `before`, newest first.
-    .get(
-      '/history',
-      can('conversation.history'),
-      validator('query', (query, c) => {
-        const before = Number(query.before)
-
-        if (!Number.isSafeInteger(before)) {
-          return c.json({ error: 'before must be an entry ID' }, 400)
-        }
-
-        return { before: before as EntryId }
-      }),
-      async (c) => {
-        const { before } = c.req.valid('query')
-        const page = await conversation.history(before, 50)
-
-        // Pi's entries are already JSON, but their recursive types are too
-        // deep for Hono to convert, so the client gets the page's own type.
-        return c.json(page) as unknown as TypedResponse<
-          HistoryPage,
-          200,
-          'json'
-        >
-      },
-    )
-    .post(
-      '/messages',
-      can('conversation.send'),
-      // Only the shape here: `send` owns the bounds, for every caller.
-      validator('json', (body, c) => {
-        if (typeof body?.text !== 'string') {
-          return c.json({ error: 'text is required' }, 400)
-        }
-
-        if (typeof body.requestId !== 'string') {
-          return c.json({ error: 'requestId is required' }, 400)
-        }
-
-        return {
-          text: body.text as string,
-          requestId: body.requestId as string,
-        }
-      }),
-      async (c) => {
-        try {
-          await conversation.send({
-            author: c.get('author'),
-            ...c.req.valid('json'),
-          })
-        } catch (error) {
-          if (error instanceof MessageError) {
-            return c.json({ error: error.message }, 400)
-          }
-          throw error
-        }
-        return c.body(null, 202)
-      },
-    )
-    .post('/abort', can('conversation.abort'), async (c) => {
-      await conversation.abort()
-      return c.body(null, 202)
-    })
-    // The models the conversation may switch to.
-    .get('/model/options', can('conversation.modelOptions'), (c) =>
-      c.json(conversation.models()),
+    // The models the Familiar may switch to.
+    .get('/options', can('model.options'), (c) =>
+      c.json(familiarOf(c).models(), 200),
     )
     .put(
-      '/model',
-      can('conversation.setModel'),
+      '/',
+      can('model.set'),
       validator('json', (body, c) => {
         if (
           typeof body?.provider !== 'string' ||
@@ -117,11 +50,11 @@ export const conversationRoutes = (
           modelId: body.modelId as string,
         }
       }),
-      (c) => change(c, () => conversation.setModel(c.req.valid('json'))),
+      (c) => change(c, () => familiarOf(c).setModel(c.req.valid('json'))),
     )
     .put(
-      '/model/thinking-level',
-      can('conversation.setThinkingLevel'),
+      '/thinking-level',
+      can('model.setThinkingLevel'),
       validator('json', (body, c) => {
         if (typeof body?.level !== 'string') {
           return c.json({ error: 'level is required' }, 400)
@@ -132,6 +65,6 @@ export const conversationRoutes = (
       }),
       (c) =>
         change(c, () =>
-          conversation.setThinkingLevel(c.req.valid('json').level),
+          familiarOf(c).setThinkingLevel(c.req.valid('json').level),
         ),
     )

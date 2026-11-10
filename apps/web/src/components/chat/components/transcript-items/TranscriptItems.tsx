@@ -11,9 +11,7 @@ import type { TranscriptItemsProps } from './types'
 export const TranscriptItems = ({ items }: TranscriptItemsProps) => {
   const times = useMemo(() => turnTimes(items), [items])
   const { end: scrolledUp } = useMessageScrollerScrollable()
-  // A message, or a scheduled prompt, starts a turn once Familiar takes it
-  // up; a queued one would jump over the reply still streaming above it.
-  // When one item replaces another without the count changing, the scroller
+  // A message, or a scheduled prompt, starts a turn. When one item replaces another without the count changing, the scroller
   // jumps to the first anchor it hasn't handled, and it never marks loaded
   // history as handled. So only the newest turn is an anchor, and only while
   // the reader is at the end: anywhere else, that jump would pull them away
@@ -21,9 +19,7 @@ export const TranscriptItems = ({ items }: TranscriptItemsProps) => {
   const anchorId = useMemo(
     () =>
       items.findLast(
-        (item) =>
-          (item.type === 'message' || item.type === 'scheduled') &&
-          !item.queued,
+        (item) => item.type === 'message' || item.type === 'scheduled',
       )?.id,
     [items],
   )

@@ -1,8 +1,4 @@
-import {
-  agentOf,
-  type ModelRef,
-  type ModelThinkingLevel,
-} from '@familiar-ai/client'
+import { type ModelRef, type ModelThinkingLevel } from '@familiar-ai/client'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { BrainIcon, ChevronDownIcon } from 'lucide-react'
 import {
@@ -33,21 +29,21 @@ export const ModelPicker = () => {
   // Fixed for the daemon's lifetime, so fetched once rather than mirrored.
   const { data: options } = useQuery({
     queryKey: ['models'],
-    queryFn: () => familiar.conversation.modelOptions(),
+    queryFn: () => familiar().model.options(),
     staleTime: Infinity,
   })
   // The composer shows their failures; see its `['composer']` key.
   const setModel = useMutation({
     mutationKey: ['composer'],
-    mutationFn: (model: ModelRef) => familiar.conversation.setModel(model),
+    mutationFn: (model: ModelRef) => familiar().model.set(model),
   })
   const setLevel = useMutation({
     mutationKey: ['composer'],
     mutationFn: (level: ModelThinkingLevel) =>
-      familiar.conversation.setThinkingLevel(level),
+      familiar().model.setThinkingLevel(level),
   })
   // Live from the conversation, so a change on another device shows here.
-  const agent = useFamiliar((state) => agentOf(state.view))
+  const agent = useFamiliar((state) => state.model)
   const current =
     agent?.model &&
     options?.find((option) => keyOf(option.model) === keyOf(agent.model!))

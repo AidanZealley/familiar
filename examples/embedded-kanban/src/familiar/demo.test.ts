@@ -9,17 +9,19 @@ const open = async () => {
   return demo
 }
 
-const close = async ({ familiar, store }: Demo) => {
+const close = async ({ workspace, store }: Demo) => {
   store.disconnect()
-  await familiar.dismiss()
+  await workspace.dismiss()
 }
 
 /** Sends through the client and waits for the streamed transcript to settle. */
-const ask = async ({ familiar, store }: Demo, text: string) => {
-  await store.conversation.send(text)
-  await familiar.idle()
+const ask = async ({ store }: Demo, text: string) => {
+  const before = store.getState().transcript?.items.length ?? 0
+  await store.send(text)
   await vi.waitFor(() => {
     const transcript = store.getState().transcript
+    // The message, then its reply, copied in once the turn ends.
+    expect(transcript?.items.length).toBeGreaterThan(before + 1)
     expect(transcript?.busy).toBe(false)
     expect(transcript?.items.at(-1)).toMatchObject({
       type: 'reply',
@@ -27,7 +29,7 @@ const ask = async ({ familiar, store }: Demo, text: string) => {
       toolCalls: [],
     })
   })
-  const items = store.getState().transcript!.items
+  const items = store.getState().transcript!.items.slice(before)
   const toolCalls = items.flatMap((item) =>
     item.type === 'reply' ? item.toolCalls : [],
   )

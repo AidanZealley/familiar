@@ -1,13 +1,19 @@
-import type { Familiar } from '@familiar-ai/core'
+import type { Workspace } from '@familiar-ai/core'
 import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { isOwner, sessionAuthor } from './host.ts'
 
-// What anyone signed in may do: talk, read history, watch the conversation.
+// What anyone signed in may do: find the Familiars and rooms, open their
+// own DMs, and talk in rooms.
 const CHAT = new Set<Operation>([
-  'conversation.send',
-  'conversation.history',
-  'conversation.abort',
-  'events.conversation',
+  'familiars.list',
+  'familiars.dm',
+  'rooms.list',
+  'rooms.post',
+  'rooms.history',
+  'rooms.stop',
+  'events.familiars',
+  'events.rooms',
+  'events.room',
 ])
 
 // What only the owner may do on top of that: sign Familiar in and out.
@@ -19,9 +25,11 @@ const OWNER = new Set<Operation>([
   'events.account',
 ])
 
-export const createApi = (familiar: Familiar) =>
-  createHttpApi(familiar, {
+export const createApi = (workspace: Workspace) =>
+  createHttpApi(workspace, {
     authenticate: sessionAuthor,
+    // Familiar keeps each DM to its person; anyone signed in shares the
+    // named rooms.
     allow: (author, operation) =>
       CHAT.has(operation) || (OWNER.has(operation) && isOwner(author)),
   })

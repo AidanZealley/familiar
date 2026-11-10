@@ -12,11 +12,11 @@ const open = async () => {
   return demo
 }
 
-const close = async ({ familiar, clients }: Demo) => {
+const close = async ({ workspace, clients }: Demo) => {
   for (const { store } of clients) {
     store.disconnect()
   }
-  await familiar.dismiss()
+  await workspace.dismiss()
 }
 
 const items = ({ store }: Client) => store.getState().transcript?.items ?? []
@@ -25,11 +25,11 @@ const replies = (client: Client) =>
     item.type === 'reply' && item.text ? [item.text] : [],
   )
 
-/** Waits until Familiar and this client's mirror of it have both settled. */
-const settle = async ({ familiar }: Demo, client: Client) => {
-  await familiar.idle()
+/** Waits until this client's room has `count` replies and nothing in progress. */
+const settle = async (client: Client, count: number) => {
   await vi.waitFor(() => {
     const transcript = client.store.getState().transcript
+    expect(replies(client)).toHaveLength(count)
     expect(transcript?.busy).toBe(false)
     expect(transcript?.items.at(-1)).toMatchObject({
       type: 'reply',
@@ -39,9 +39,10 @@ const settle = async ({ familiar }: Demo, client: Client) => {
 }
 
 /** Sends as this client's person and waits for the reply. */
-const ask = async (demo: Demo, client: Client, text: string) => {
-  await client.store.conversation.send(text)
-  await settle(demo, client)
+const ask = async (_demo: Demo, client: Client, text: string) => {
+  const count = replies(client).length
+  await client.store.send(text)
+  await settle(client, count + 1)
   return replies(client).at(-1)
 }
 
@@ -69,11 +70,11 @@ describe('shared conversation demo', () => {
     const demo = await open()
     const [ana, ben] = demo.clients
     try {
-      await ana.store.conversation.send('Count me in')
-      // Sending resolves once Familiar has the message, so Ana's run is
+      await ana.store.send('Count me in')
+      // Sending resolves once the room has the message, so Ana's turn is
       // still going when Ben's arrives.
-      await ben.store.conversation.send('Count me in')
-      await settle(demo, ben)
+      await ben.store.send('Count me in')
+      await settle(ben, 2)
       expect(replies(ben).slice(-2)).toEqual([
         'Counted Ana in. Going: Ana.',
         'Counted Ben in. Going: Ana, Ben.',

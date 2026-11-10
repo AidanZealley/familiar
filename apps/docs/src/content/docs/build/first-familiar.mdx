@@ -6,7 +6,7 @@ description: Run the real assistant with a scripted model and disposable storage
 import { Code } from '@astrojs/starlight/components'
 import firstFamiliar from '../../../../snippets/first-familiar.ts?raw'
 
-This example runs the real assistant: its conversation, memory and tools. The model is scripted and the storage lives in memory, so you need no credentials or network.
+This example runs the real assistant: a workspace with one Familiar, its memory and tools, and a DM to talk to it in. The model is scripted and the storage lives in memory, so you need no credentials or network.
 
 ```sh
 npm install @familiar-ai/core @familiar-ai/client
@@ -16,7 +16,7 @@ Familiar needs Node 24.19 or newer. Save this as `first-familiar.ts` and run it 
 
 <Code code={firstFamiliar} lang="ts" title="first-familiar.ts" />
 
-It prints the conversation:
+It prints the DM:
 
 ```text
 Sam: Hello
@@ -27,12 +27,13 @@ Familiar: Hello, Sam.
 
 - **`fauxProvider`** is a scripted model provider. Each `setResponses` entry answers one model request. Use it in tests to drive the real harness without model calls. For a script that answers every request, such as a demo, `scriptedModels` from `@familiar-ai/core/models/scripted` hands it each request already read: a person's message, a tool's result, a due schedule or background work.
 - **`MemoryStorage`** keeps everything in memory and loses it when the process exits.
-- **`summonFamiliar`** opens the assistant over its storage, resumes any unfinished work and starts background work such as schedules and upkeep.
-- **`send`** records a message from `author`. `requestId` should stay the same if you retry the same logical message, so it's admitted once.
-- **`idle`** waits until every sent message has an answer.
-- **`watch`** returns the committed conversation view, then streams each commit's changes. Stop it when you're done.
-- **`toTranscript`** turns the view into the items a chat UI shows. It comes from the client package and is pure, so it works on the server too.
-- **`dismiss`** closes the assistant. Always call it, so timers and connections stop.
+- **`openWorkspace`** opens the workspace over its storage, resumes any unfinished work and starts background work such as schedules and upkeep.
+- **`familiars.create`** makes a Familiar. Familiars live in the storage, so a lasting host does this once, on the first open.
+- **`rooms.dm`** gets or creates the DM between a Familiar and a person, by your host's ID for them. People talk to Familiars only in rooms: DMs, and named rooms with one or more Familiars.
+- **`post`** records a message from `author` and starts the Familiar's turn. `requestId` should stay the same if you retry the same logical message, so it's posted once.
+- **`watch`** returns the room's committed log, then streams each commit's changes, so you see the reply arrive when the turn ends. Stop it when you're done.
+- **`toRoomTranscript`** turns the log into the items a chat UI shows. It comes from the client package and is pure, so it works on the server too.
+- **`dismiss`** closes the workspace. Always call it, so timers and connections stop.
 
 ## Make it last
 

@@ -69,28 +69,42 @@ defineTool({
 })
 ```
 
-Every board tool is available to everyone in the conversation. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory upkeep. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against the author, so the same rules apply to the UI and the tools.
+Every board tool is available to everyone in the board's room. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory upkeep. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against the author, so the same rules apply to the UI and the tools.
 
 ## Only what it needs
 
-The host allows sending, history, aborting and the conversation's event stream. Memory, schedules, sign-in, connections and MCP answer 403:
+The host opens a workspace with one Familiar and one room for the board, and allows only posting, history, Stop and the events of that room. Memory, schedules, other rooms, sign-in, connections and MCP answer 403:
 
 ```ts
+const familiar = await workspace.familiars.create({
+  name: 'Familiar',
+  persona: PERSONA,
+})
+const room = await workspace.rooms.create({
+  name: 'Board',
+  familiars: [familiar.id],
+  lead: familiar.id,
+})
+
 const CHAT = new Set<Operation>([
-  'conversation.send',
-  'conversation.history',
-  'conversation.abort',
-  'events.conversation',
+  'rooms.post',
+  'rooms.history',
+  'rooms.stop',
+  'events.room',
 ])
 
-const api = createHttpApi(familiar, {
+const api = createHttpApi(workspace, {
   // Nobody signs in to this demo, so every request is from its one person.
   authenticate: () => CURRENT_AUTHOR,
-  allow: (_, operation) => CHAT.has(operation),
+  allow: (_, operation, resource) =>
+    CHAT.has(operation) &&
+    !!resource &&
+    'room' in resource &&
+    resource.room === room,
 })
 
 // In-page requests. A real host passes its API's URL instead.
-const store = createFamiliarStore('https://demo.invalid', {
+const store = createRoomStore('https://demo.invalid', room, {
   fetch: async (input, init) => api.fetch(new Request(input, init)),
 })
 ```
@@ -99,4 +113,4 @@ The demo has one fixed person and nobody signs in, so `authenticate` names them 
 
 ## Using a real model
 
-The scripted model comes from core's `scriptedModels`, which answers a few phrases with the tool calls a model might make. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve its API as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The host must also provide an API and updates for its task data. Here, React and the tools share an in-page Zustand store. On a server, tools should use the host’s server-side task operations, while the React board uses the host’s API to read and change tasks. Familiar’s conversation events do not synchronise that data.
+The scripted model comes from core's `scriptedModels`, which answers a few phrases with the tool calls a model might make. To use a real one, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/), and serve its API as in [Serve the API](/familiar/build/serve-the-api/). Model credentials stay on that server. The host must also provide an API and updates for its task data. Here, React and the tools share an in-page Zustand store. On a server, tools should use the host’s server-side task operations, while the React board uses the host’s API to read and change tasks. Familiar’s room events do not synchronise that data.
