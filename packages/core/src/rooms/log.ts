@@ -39,6 +39,11 @@ export type Mention = {
 export type RoomMessageData = {
   author: Author
   text: string
+  /**
+   * When it was posted, in ms since the epoch, on the workspace's clock. A
+   * room's entries have no model message to carry a time, as a chat's do.
+   */
+  at: number
   mentions?: Mention[]
 }
 
