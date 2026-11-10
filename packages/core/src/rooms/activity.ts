@@ -83,7 +83,12 @@ export function activityOf(
       activity[task] = { familiar, cause, status: 'running' }
       continue
     }
-    const elsewhere = !!run && !run.inputs.some((input) => here.has(input))
+    // Only once its own input is known to wait: a run that starts as it's
+    // delivered would otherwise look like another room's for a commit.
+    const elsewhere =
+      submission !== undefined &&
+      !!run &&
+      !run.inputs.some((input) => here.has(input))
     activity[task] = {
       familiar,
       cause,

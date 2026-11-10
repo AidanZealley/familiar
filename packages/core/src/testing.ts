@@ -6,7 +6,6 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import {
   MemoryStorage,
-  type ConversationView,
   type EntryId,
   type SetTimer,
 } from '@earendil-works/pi-durable'
@@ -14,8 +13,6 @@ import { onTestFinished } from 'vitest'
 import type { Author } from './conversation/message.ts'
 import {
   openWorkspace,
-  REPLY_KIND,
-  type ReplyData,
   type RoomApi,
   type RoomMessage,
   type WorkspaceOptions,
@@ -94,30 +91,7 @@ export type TestHostOptions = Partial<WorkspaceOptions> & {
 }
 
 /** The reply in `room` that answers `entry`, once there is one. */
-export async function replyTo(room: RoomApi, entry: EntryId) {
-  const watch = await room.watch()
-  const find = (view: ConversationView) =>
-    view.entries.find(
-      (each) =>
-        each.kind === REPLY_KIND &&
-        (each.data as unknown as ReplyData).cause === entry,
-    )?.data as unknown as ReplyData | undefined
-  try {
-    return (
-      find(watch.value) ??
-      (await new Promise<ReplyData>((resolve) =>
-        watch.start(async (view) => {
-          const reply = find(view)
-          if (reply) {
-            resolve(reply)
-          }
-        }),
-      ))
-    )
-  } finally {
-    await watch.stop()
-  }
-}
+export const replyTo = (room: RoomApi, entry: EntryId) => room.replyTo(entry)
 
 /**
  * A workspace on faux models over storage a restart can reopen, dismissed
