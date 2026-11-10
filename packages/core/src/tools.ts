@@ -2,6 +2,7 @@ import type { Context, ContextKey, JsonValue } from '@earendil-works/chord'
 import { withContextValue } from '@earendil-works/chord/context'
 import type { TSchema } from '@earendil-works/pi-ai'
 import type {
+  EntryId,
   EntryRecord,
   TaskId,
   ToolExecutionResult,
@@ -15,6 +16,7 @@ import {
   MESSAGE_KIND,
   SCHEDULED_KIND,
   type Author,
+  type InRoom,
   type MessageData,
   type ScheduledData,
 } from './conversation/message.ts'
@@ -55,8 +57,8 @@ export type ToolServices = {
   ): Promise<Response>
   /**
    * The person this call runs for: the author of the message that started
-   * it, or the creator of a scheduled run, read from storage, never from the
-   * tool's arguments. Undefined for other work, such as memory upkeep. A
+   * it, or the creator of a scheduled run, followed back through any
+   * handoffs, read from storage, never from the tool's arguments. Undefined for other work, such as memory upkeep. A
    * tool that narrows what someone may do checks it against this.
    */
   author(): Promise<Author | undefined>
@@ -108,6 +110,11 @@ export function withServices<P extends TSchema, D extends JsonValue>(
  */
 async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
   const input = await callInput(tx, taskId)
+  // A handoff acts for whoever started its chain, as the Familiar that
+  // handed it on did: found from the room's record, never from a model.
+  if (input?.kind === HANDOFF_KIND) {
+    return startedBy(tx, (input.data as InRoom).entry)
+  }
   return input?.kind === MESSAGE_KIND
     ? (input.data as MessageData).author
     : input?.kind === SCHEDULED_KIND
@@ -122,6 +129,28 @@ async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
  * assistant entry bounds the search, so later queued or placed messages
  * cannot steal it. Undefined for any other input, such as memory upkeep.
  */
+/**
+ * The person behind a room entry: a message's author, or a reminder's
+ * creator, following handoffs back to whatever started them.
+ */
+async function startedBy(
+  tx: Tx,
+  entry: EntryId | undefined,
+): Promise<Author | undefined> {
+  const record = entry === undefined ? undefined : await tx.entry(entry)
+  switch (record?.kind) {
+    case MESSAGE_KIND:
+      return (record.data as MessageData).author
+    case SCHEDULED_KIND:
+      return (record.data as ScheduledData).creator
+    case HANDOFF_KIND:
+      // A handoff's cause is the room entry the handing-off turn answered.
+      return startedBy(tx, (record.data as { cause: EntryId }).cause)
+    default:
+      return undefined
+  }
+}
+
 export async function callInput(
   tx: Tx,
   taskId: TaskId,

@@ -31,7 +31,7 @@ Import `defineTool` and `Type` from `@familiar-ai/core` rather than installing y
 Inside `execute`:
 
 - `familiar(context)` gives the call what Familiar provides: `fetch`, `authorizedFetch`, `notify`, `timeZone` and `author()`.
-- `await familiar(context).author()` is the person whose message started this run, or the creator of a scheduled run. Background work, such as upkeep, has no author. Familiar reads it from the stored message, never from the tool's arguments.
+- `await familiar(context).author()` is the person whose message started this run, or the creator of a scheduled run, followed back through any handoffs between Familiars. Background work, such as upkeep, has no author. Familiar reads it from the stored message, never from the tool's arguments.
 - Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against the author, or the app API's behind it.
 - `context.abortSignal` is set when the call can be cancelled. Pass it to anything you can cancel.
 - `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.

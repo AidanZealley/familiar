@@ -60,7 +60,7 @@ Familiar never chooses recipients. Your host decides who sees each notification,
 
 ### Tool author
 
-Every tool in a workspace is available to every Familiar, for everyone who talks to it. A tool reads the person a call runs for with `await familiar(context).author()`, an `Author` or `undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep and any other input with no person behind it. MCP tools don't receive it.
+Every tool in a workspace is available to every Familiar, for everyone who talks to it. A tool reads the person a call runs for with `await familiar(context).author()`, an `Author` or `undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. A turn handed on with `hand_off` runs for whoever started the chain, since the Familiar that handed it on already acted for them. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep and any other input with no person behind it. MCP tools don't receive it.
 
 Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against that author. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
 

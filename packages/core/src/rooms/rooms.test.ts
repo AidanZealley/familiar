@@ -13,6 +13,12 @@ import {
   type Author,
 } from '../conversation/message.ts'
 import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
+import {
+  definePlugin,
+  defineTool,
+  familiar as services,
+  Type,
+} from '../index.ts'
 import type { Notification } from '../notify.ts'
 import { fakeClock, ReopenableStorage, timeAt } from '../testing.ts'
 import {
@@ -645,4 +651,46 @@ test("a schedule whose room was archived runs in its Familiar's DM with whoever 
   ])
   expect(said((await replies(dm))[0])).toBe('Time to buy milk, Aidan!')
   expect(await replies(kitchen)).toHaveLength(1)
+})
+
+test('a handoff turn acts for the person whose message started it', async () => {
+  const seen: (string | undefined)[] = []
+  const whoami = definePlugin({
+    name: 'whoami',
+    title: 'Who am I',
+    tools: [
+      defineTool({
+        name: 'whoami',
+        description: 'Who this turn is for',
+        parameters: Type.Object({}),
+        execute: async (_args, _api, context) => {
+          seen.push((await services(context).author())?.name)
+          return { output: [{ type: 'text', text: 'ok' }] }
+        },
+      }),
+    ],
+  })
+  const { workspace, create, room } = await open(
+    (request) => {
+      switch (request.type) {
+        case 'message':
+          return call('hand_off', { to: 'Bo', note: 'Who is this for?' })
+        case 'handoff':
+          return call('whoami', {})
+        default:
+          return fauxAssistantMessage('Done.')
+      }
+    },
+    { plugins: [whoami] },
+  )
+  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const kitchen = await room(
+    await workspace.rooms.create({
+      name: 'kitchen',
+      familiars: [ada, bo],
+      lead: ada,
+    }),
+  )
+  await kitchen.post({ author: AIDAN, text: 'Ask Bo.', requestId: 'm1' })
+  await expect.poll(() => seen).toEqual(['Aidan'])
 })
