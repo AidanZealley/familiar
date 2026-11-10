@@ -99,7 +99,10 @@ const context = BACKGROUND_CONTEXT
  * Rooms: where people talk to Familiars. Install `extension` before the
  * Harness resumes; schedules post due reminders with `postScheduled`.
  */
-export function createRooms(harness: Harness, options: { timeZone: string }) {
+export function createRooms(
+  harness: Harness,
+  options: { timeZone: string; now: () => number },
+) {
   const turn = createTurnTask(harness, options.timeZone)
 
   const postScheduled: PostScheduled = async (tx, room, entry, requestId) =>
@@ -128,6 +131,7 @@ export function createRooms(harness: Harness, options: { timeZone: string }) {
               data: {
                 author,
                 text,
+                at: options.now(),
                 ...(message.mentions && { mentions: message.mentions }),
               },
             },

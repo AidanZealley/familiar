@@ -247,7 +247,10 @@ export async function openWorkspace(
       context,
     )
 
-    const rooms = createRooms(harness, { timeZone: options.timeZone })
+    const rooms = createRooms(harness, {
+      timeZone: options.timeZone,
+      now: options.now ?? Date.now,
+    })
     const schedules = createSchedules({
       notify: options.notify,
       timeZone: options.timeZone,

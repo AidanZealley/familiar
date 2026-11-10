@@ -7,6 +7,12 @@ import { ROOT_CONVERSATION_ID } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { afterEach, expect, test } from 'vitest'
 import { openWorkspace, type Notification } from '../../src/index.ts'
+import {
+  MESSAGE_KIND,
+  SCHEDULED_KIND,
+  type MessageData,
+} from '../../src/conversation/message.ts'
+import { REPLY_KIND, type ReplyData } from '../../src/rooms/index.ts'
 import { nextUpkeep } from '../../src/memory/upkeep/schedule.ts'
 import { scriptedModels } from '../../src/models/scripted.ts'
 import { fakeClock, inputOf } from '../../src/testing.ts'
@@ -57,6 +63,8 @@ test('a pre-workspace store becomes a workspace whose one Familiar keeps everyth
   const path = copyOfStore()
   const clock = fakeClock(expected.now)
   const upkeepInputs: string[] = []
+  // What each reminder's turn was delivered with, as the model saw it.
+  const reminderInputs: string[] = []
   const notifications: Notification[] = []
   const sol = { provider: 'faux', modelId: 'sol' }
   const luna = { provider: 'faux', modelId: 'luna' }
@@ -65,6 +73,9 @@ test('a pre-workspace store becomes a workspace whose one Familiar keeps everyth
       storage: await openNodeSqliteStorage(path),
       models: scriptedModels(
         (request) => {
+          if (request.type === 'scheduled') {
+            reminderInputs.push(inputOf(request.context))
+          }
           if (request.type === 'background') {
             upkeepInputs.push(inputOf(request.context))
             return fauxAssistantMessage('Miso found the radiator.')
@@ -131,13 +142,50 @@ test('a pre-workspace store becomes a workspace whose one Familiar keeps everyth
       })),
     ).toEqual(expected.schedules)
 
+    // The chat, copied once into the Familiar's DM with the person who
+    // wrote it: each message as it was sent, and each run as one reply.
+    const [listed] = await workspace.rooms.list()
+    expect(listed).toMatchObject({
+      kind: 'dm',
+      familiar: ROOT_CONVERSATION_ID,
+      person: 'aidan',
+    })
+    const dm = (await workspace.rooms.get(listed.id))!
+    const dmLog = async () => (await read(() => dm.watch())).entries
+    const copied = await dmLog()
+    expect(copied.map((entry) => entry.kind)).toEqual([
+      MESSAGE_KIND,
+      REPLY_KIND,
+      MESSAGE_KIND,
+      REPLY_KIND,
+      MESSAGE_KIND,
+      REPLY_KIND,
+    ])
+    const sent = view.entries.filter((entry) => entry.kind === MESSAGE_KIND)
+    expect(
+      copied
+        .filter((entry) => entry.kind === MESSAGE_KIND)
+        .map((entry) => entry.data),
+    ).toEqual(
+      sent.map((entry) => ({
+        ...(entry.data as Pick<MessageData, 'author' | 'text'>),
+        at: entry.model![0].timestamp,
+      })),
+    )
+    // The reminder's run keeps its tool activity.
+    expect(
+      (copied[3].data as unknown as ReplyData).messages.map(
+        (message) => message.role,
+      ),
+    ).toEqual(['assistant', 'toolResult', 'assistant'])
+
     // Tonight's upkeep reviews only what last night's didn't.
     clock.advanceTo(nextUpkeep(expected.now, 'Europe/London'))
     await expect.poll(() => upkeepInputs.length).toBeGreaterThan(0)
     expect(upkeepInputs[0]).toContain('radiator')
     expect(upkeepInputs[0]).not.toContain('cat called Miso')
 
-    // The reminder set before workspaces fires into the Familiar's chat.
+    // The reminder set before workspaces fires into the DM now.
     const [reminder] = expected.schedules
     clock.advanceTo(reminder.next)
     await expect
@@ -148,6 +196,14 @@ test('a pre-workspace store becomes a workspace whose one Familiar keeps everyth
           body: 'Time to book the vet for Miso.',
         }),
       ])
+    expect((await dmLog()).map((entry) => entry.kind).slice(-2)).toEqual([
+      SCHEDULED_KIND,
+      REPLY_KIND,
+    ])
+
+    // Having seen the whole copy, the Familiar isn't shown it again.
+    expect(reminderInputs).toHaveLength(1)
+    expect(reminderInputs[0]).not.toContain('cat called Miso')
   } finally {
     await workspace.dismiss()
   }
