@@ -75,7 +75,15 @@ async function open(
   }
   onTestFinished(dismiss)
   const create = async (name: string) =>
-    (await workspace.familiars.create({ name })).id
+    (
+      await workspace.familiars.create({
+        name,
+        // Every plugin the test installs: each Familiar opts in.
+        capabilities: {
+          plugins: (options.plugins ?? []).map((plugin) => plugin.name),
+        },
+      })
+    ).id
   const room = async (id: number) => (await workspace.rooms.get(id as never))!
   return { workspace, dismiss, create, room }
 }

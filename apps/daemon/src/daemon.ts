@@ -34,6 +34,8 @@ export async function serve() {
       account: { login: { getDeviceId: deviceId, agentName: config.name } },
       notify: push.notify,
       plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
+      // Web search and pages are useful to any Familiar; others opt in.
+      defaultCapabilities: { plugins: [webPlugin.name] },
       secrets: fileSecretStore(dataPath('secrets.json')),
       mcpFetch: fetch,
       mcpStdio: stdioTransport,

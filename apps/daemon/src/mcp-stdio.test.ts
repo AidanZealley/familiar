@@ -73,15 +73,17 @@ async function setup() {
   )
   onTestFinished(() => workspace.dismiss())
   const dm = (await workspace.rooms.get(await workspace.rooms.dm(id, 'owner')))!
-  return { familiar: workspace, dm, faux, children }
+  return { familiar: workspace, id, dm, faux, children }
 }
 
 test("a command gets literal arguments and none of the daemon's private environment, and no process outlives it", async () => {
   vi.stubEnv('FAMILIAR_TEST_SECRET', 'private-test-value')
   vi.stubEnv('FAMILIAR_DATA_DIR', '/private-test-data')
   vi.stubEnv('NODE_OPTIONS', '--expose-internals')
-  const { familiar, dm, faux, children } = await setup()
+  const { familiar, id, dm, faux, children } = await setup()
   await familiar.mcp.add(server)
+  // Each Familiar opts in to the connections it uses.
+  await familiar.familiars.get(id)!.setCapabilities({ mcp: [server.name] })
   await expect.poll(() => status(familiar)).toBe('connected')
 
   let reply: ToolResultMessage | undefined

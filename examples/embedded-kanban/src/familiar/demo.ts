@@ -29,17 +29,20 @@ const CHAT = new Set<Operation>([
  */
 export async function startDemo() {
   const board = createBoard(SEED_TASKS)
+  const tools = boardPlugin(board)
   const workspace = await openWorkspace({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    plugins: [boardPlugin(board)],
+    plugins: [tools],
   })
   // A lasting host creates these once, on its store's first open.
   const familiar = await workspace.familiars.create({
     name: 'Familiar',
     persona: PERSONA,
+    // Each Familiar opts in to the plugins it uses.
+    capabilities: { plugins: [tools.name] },
   })
   const room = await workspace.rooms.create({
     name: 'Board',

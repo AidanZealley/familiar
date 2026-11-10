@@ -158,6 +158,12 @@ export async function testHost(options: TestHostOptions = {}) {
         : await workspace.familiars.create({
             name,
             ...(persona !== undefined && { persona }),
+            // Every plugin the test installs: each Familiar opts in.
+            capabilities: {
+              plugins: (workspaceOptions.plugins ?? []).map(
+                (plugin) => plugin.name,
+              ),
+            },
           })
       const dm = (await workspace.rooms.get(
         await workspace.rooms.dm(familiar.id, person.id),

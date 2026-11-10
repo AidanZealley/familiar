@@ -101,8 +101,13 @@ export const workspaceCommands = (api: Api) => ({
   },
   familiars: {
     list: (): Promise<FamiliarSummary[]> => read(api.familiars.$get()),
-    /** Resolves to the new Familiar's ID. */
-    create: async (identity: FamiliarIdentity): Promise<number> =>
+    /**
+     * Resolves to the new Familiar's ID. Without `capabilities`, it uses the
+     * workspace's default tools.
+     */
+    create: async (
+      identity: FamiliarIdentity & { capabilities?: CapabilitiesChange },
+    ): Promise<number> =>
       (
         (await read(api.familiars.$post({ json: identity }))) as {
           id: number
@@ -138,6 +143,14 @@ export const workspaceCommands = (api: Api) => ({
           }),
         )
       ).room,
+  },
+  /** The plugins and MCP connections a new Familiar uses by default. */
+  defaults: {
+    capabilities: (): Promise<FamiliarCapabilities> =>
+      read(api.defaults.capabilities.$get()),
+    /** Each list given replaces that kind's defaults. */
+    setCapabilities: (change: CapabilitiesChange) =>
+      succeed(api.defaults.capabilities.$put({ json: change })),
   },
   rooms: {
     /** Every named room and the signed-in person's own DMs. */

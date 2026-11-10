@@ -141,7 +141,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   )
 })
 
-test("a Familiar is offered only its own plugins' tools, from its next request", async () => {
+test("a Familiar is offered only the plugins it opted in to, from its next request, and new ones start with the workspace's defaults", async () => {
   // The tools each message's request offered, by the message.
   const offered = new Map<string, string[]>()
   const workspace = await openWorkspace({
@@ -178,13 +178,14 @@ test("a Familiar is offered only its own plugins' tools, from its next request",
     await replyTo(dm, await dm.post({ author, text, requestId: text }))
     return offered.get(text)!
   }
+  // A new Familiar opts in: none by default, or what its creator chose.
   const ada = await workspace.familiars.create({ name: 'Ada' })
-  const bo = await workspace.familiars.create({ name: 'Bo' })
-
-  // New Familiars get every plugin, until one is turned off.
-  expect(await ada.capabilities()).toEqual({ plugins: ['weather'], mcp: [] })
-  await ada.setCapabilities({ plugins: [] })
+  const bo = await workspace.familiars.create({
+    name: 'Bo',
+    capabilities: { plugins: ['weather'] },
+  })
   expect(await ada.capabilities()).toEqual({ plugins: [], mcp: [] })
+  expect(await bo.capabilities()).toEqual({ plugins: ['weather'], mcp: [] })
   await expect(ada.setCapabilities({ plugins: ['tides'] })).rejects.toThrow(
     CapabilityError,
   )
@@ -197,4 +198,39 @@ test("a Familiar is offered only its own plugins' tools, from its next request",
 
   await ada.setCapabilities({ plugins: ['weather'] })
   expect(await say(ada, 'Ada, and now?')).toContain('forecast')
+
+  // The workspace's defaults are what a Familiar made from now on starts with.
+  await workspace.setDefaultCapabilities({ plugins: ['weather'] })
+  const cy = await workspace.familiars.create({ name: 'Cy' })
+  expect(await cy.capabilities()).toEqual({ plugins: ['weather'], mcp: [] })
+})
+
+test("a host's default tools fill in on the first open only, so a change made later is kept", async () => {
+  const storage = new ReopenableStorage()
+  const open = () =>
+    openWorkspace({
+      storage,
+      models: scriptedModels(() => fauxAssistantMessage('Hello.')),
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      plugins: [
+        definePlugin({ name: 'weather', title: 'Weather', tools: [] }),
+        definePlugin({ name: 'web', title: 'Web', tools: [] }),
+      ],
+      defaultCapabilities: { plugins: ['web'] },
+    })
+  const first = await open()
+  expect(await first.defaultCapabilities()).toEqual({
+    plugins: ['web'],
+    mcp: [],
+  })
+  await first.setDefaultCapabilities({ plugins: ['weather'] })
+  await first.dismiss()
+
+  const reopened = await open()
+  onTestFinished(() => reopened.dismiss())
+  expect(await reopened.defaultCapabilities()).toEqual({
+    plugins: ['weather'],
+    mcp: [],
+  })
 })

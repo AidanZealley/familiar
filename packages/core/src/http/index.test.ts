@@ -171,6 +171,8 @@ const ROUTES = {
   'mcp.reconnect': ['POST', '/mcp/notes/reconnect'],
   'familiars.list': ['GET', '/familiars'],
   'familiars.create': ['POST', '/familiars'],
+  'defaults.get': ['GET', '/defaults/capabilities'],
+  'defaults.set': ['PUT', '/defaults/capabilities'],
   'rooms.list': ['GET', '/rooms'],
   'rooms.create': ['POST', '/rooms'],
   'familiars.update': ['PATCH', '/familiars/7'],

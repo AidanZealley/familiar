@@ -23,5 +23,7 @@ if (!(await workspace.familiars.list()).length) {
   await workspace.familiars.create({
     name: 'Willow',
     persona: 'You are Willow, a helpful assistant for a family kitchen.',
+    // Each Familiar opts in to the plugins and MCP connections it uses.
+    capabilities: { plugins: [greeting.name] },
   })
 }

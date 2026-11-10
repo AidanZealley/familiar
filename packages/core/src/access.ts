@@ -22,6 +22,8 @@ export type WorkspaceOperation =
   | 'mcp.reconnect'
   | 'familiars.list'
   | 'familiars.create'
+  | 'defaults.get'
+  | 'defaults.set'
   | 'rooms.list'
   | 'rooms.create'
   | 'events.familiars'
