@@ -9,7 +9,7 @@ Familiar has one conversation. It never starts a new chat. Every device shows th
 
 You can send while a reply is still running. Your message waits until the current step finishes, then Familiar reads it. The stop button ends the current reply and withdraws any messages waiting behind it.
 
-Long conversations don't fill up. When the model's context gets close to its budget, Familiar summarises older messages for the model and marks the spot in the chat. Nothing is deleted. Scroll up to load older messages.
+Long conversations don't fill up. When the model's context gets close to its budget, Familiar summarises older messages for the model. The chat keeps every message as it was.
 
 ## What it remembers
 

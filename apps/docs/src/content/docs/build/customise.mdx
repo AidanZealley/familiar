@@ -10,11 +10,13 @@ import connected from '../../../../snippets/connected-plugin.ts?raw'
 
 ## Name and persona
 
-`name` is what Familiar is called: in its default persona, notification titles and memory upkeep's prompts. It defaults to `Familiar`.
+Each Familiar has its own identity, given to `familiars.create` and changed with `familiars.update`. They live in the workspace's storage, so create them once, on the first open.
 
-`persona` is who Familiar is in the conversation. It replaces the default, `defaultPersona(name)`, completely and is used as given, so include the name if the model should know it.
+`name` is what a Familiar is called: in its default persona, notification titles and memory upkeep's prompts.
 
-`hostInstructions` is what your host adds after the persona, such as what your UI can show, like Markdown. Core still adds its own instructions for the conversation, memory, schedules and tools. Both change only when your options do, so the prompt stays cached.
+`persona` is who it is in conversation. It replaces the default, `defaultPersona(name)`, completely and is used as given, so include the name if the model should know it.
+
+`hostInstructions`, a workspace option, is what your host adds after every Familiar's persona, such as what your UI can show, like Markdown. Core still adds its own instructions for rooms, memory, schedules and tools. The prompt changes only when these do, so it stays cached.
 
 <Code code={customAssistant} lang="ts" title="assistant.ts" />
 
@@ -45,7 +47,7 @@ A plugin declares its secrets and where each may be sent. The owner sets the val
 
 <Code code={connected} lang="ts" title="tasks.ts" />
 
-A model can be talked into fetching any URL, so `fetch` must refuse private, loopback and tailnet addresses the process can reach, both when it connects and on every redirect. On Node, Familiar's default does. In Workers and browsers, which can't reach those addresses, the default is the runtime's `fetch`. Pass `fetch` to `summonFamiliar` only to replace that policy.
+A model can be talked into fetching any URL, so `fetch` must refuse private, loopback and tailnet addresses the process can reach, both when it connects and on every redirect. On Node, Familiar's default does. In Workers and browsers, which can't reach those addresses, the default is the runtime's `fetch`. Pass `fetch` to `openWorkspace` only to replace that policy.
 
 Familiar doesn't scrub authenticated responses or tool output. Whatever a tool returns, the model reads.
 
@@ -57,11 +59,11 @@ A tool result has two audiences. `output` is what the model reads. `details` is 
 
 ## MCP servers
 
-The owner can add MCP servers at runtime through `familiar.mcp` or the `/mcp` routes. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available: they're saved but show as failed. The host owns MCP transport and destination policy. Familiar checks a server's shape, then connects through `mcpFetch` or `mcpStdio`, so restrict protocols, destinations or commands there.
+The owner can add MCP servers at runtime through `workspace.mcp` or the `/mcp` routes. Every Familiar in the workspace shares them. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available: they're saved but show as failed. The host owns MCP transport and destination policy. Familiar checks a server's shape, then connects through `mcpFetch` or `mcpStdio`, so restrict protocols, destinations or commands there.
 
 ## Data that belongs to your host
 
-Keep your app's own records in your app. Familiar's storage holds the conversation, memory, schedules and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check the call's author for permission there.
+Keep your app's own records in your app. Familiar's storage holds rooms, each Familiar's working context, memory and schedules, and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check the call's author for permission there.
 
 ## Pi's own types and helpers
 

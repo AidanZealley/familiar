@@ -20,10 +20,11 @@ async function edit(c: Context, run: () => Promise<void>) {
 }
 
 /**
- * The owner's corrections, mounted at `/memory`. Each edit answers 404,
- * changing nothing, when the fact is missing or already past.
+ * The owner's corrections to a Familiar's memory, mounted at
+ * `/familiars/:familiar/memory`. Each edit answers 404, changing nothing,
+ * when the fact is missing or already past.
  */
-export const memoryRoutes = (memory: MemoryApi) =>
+export const memoryRoutes = (memoryOf: (c: Context) => MemoryApi) =>
   new Hono<AccessEnv>()
     // Saves a new version of a fact.
     .put(
@@ -38,12 +39,12 @@ export const memoryRoutes = (memory: MemoryApi) =>
       }),
       (c) =>
         edit(c, () =>
-          memory.revise(c.req.param('id'), c.req.valid('json').text),
+          memoryOf(c).revise(c.req.param('id'), c.req.valid('json').text),
         ),
     )
     // Marks a fact no longer true.
     .post('/:id/retire', can('memory.retire'), (c) =>
-      edit(c, () => memory.retire(c.req.param('id'))),
+      edit(c, () => memoryOf(c).retire(c.req.param('id'))),
     )
     // Pins a fact into core or unpins it.
     .put(
@@ -58,6 +59,6 @@ export const memoryRoutes = (memory: MemoryApi) =>
       }),
       (c) =>
         edit(c, () =>
-          memory.setPinned(c.req.param('id'), c.req.valid('json').pinned),
+          memoryOf(c).setPinned(c.req.param('id'), c.req.valid('json').pinned),
         ),
     )

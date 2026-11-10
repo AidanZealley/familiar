@@ -53,8 +53,14 @@ async function setup(
   const answers: Answer[] = []
   const ownerAnswers = new Map<string, Answer>()
   const respond: FauxResponseFactory = (context, options) => {
-    // Owners' messages by their words, without the line naming them.
-    const input = inputOf(context).replace(/^\[Message from .*\n/, '')
+    // Owners' messages by their words, without the line naming them, and
+    // either without what the room showed first.
+    const raw = inputOf(context)
+    const start = Math.max(
+      raw.lastIndexOf('[Scheduled for'),
+      raw.lastIndexOf('[Message from {'),
+    )
+    const input = raw.slice(start).replace(/^\[Message from .*\n/, '')
     let next: Answer
     if (input.startsWith('[Scheduled')) {
       inputs.push(input)
@@ -101,12 +107,11 @@ async function setup(
       },
       ...Array.from({ length: 100 }, () => respond),
     ])
-    await host.familiar().send({
+    await host.send({
       author,
       text: 'Remind me to call Mum',
       requestId: `ask:${++asks}`,
     })
-    await host.familiar().idle()
     const id = /Scheduled (s\d+)/.exec(result)?.[1]
     expect(id, result).toBeDefined()
     return id!
@@ -156,7 +161,9 @@ async function setup(
       for (const task of tasks) {
         expect(['sleeping', 'terminal']).toContain(task.state.status)
       }
-      await host.familiar().idle()
+      const turns = await host.dm().watchTurns()
+      await turns.stop()
+      expect(turns.value).toEqual({})
     })
 
   /** Moves the clock to `time`, then waits for the task to settle at `next`. */
@@ -184,6 +191,7 @@ async function setup(
 
   return {
     familiar: host.familiar,
+    workspace: host.workspace,
     storage,
     clock,
     inputs,
@@ -191,7 +199,7 @@ async function setup(
     /** Sends a message from the owner, which the model answers with `answer`. */
     say: (text: string, answer: Answer) => {
       ownerAnswers.set(text, answer)
-      return host.familiar().send({
+      return host.dm().post({
         author: { id: 'aidan', name: 'aidan' },
         text,
         requestId: text,
@@ -200,6 +208,7 @@ async function setup(
     notifications,
     /** Each notification's context, in the same order. */
     contexts,
+    send: host.send,
     schedule,
     schedules,
     scheduledEntries,
@@ -256,12 +265,11 @@ test('a one-off runs at its time for whoever asked, whatever request IDs people 
   await f.schedule({ at: '2026-10-21 19:00' }, { ...sam, name: 'Samuel' })
   await f.familiar().schedules.cancel(`${Object.keys(await f.schedules())[1]}`)
   // A person sends the ID the schedule's own delivery uses.
-  await f.familiar().send({
+  await f.send({
     author: { id: 'aidan', name: 'aidan' },
     text: 'Hello',
     requestId: `schedule:${id}:${at(21, 18)}`,
   })
-  await f.familiar().idle()
   await f.reopen()
   expect((await f.schedules())[id].creator).toEqual(sam)
 
@@ -284,14 +292,16 @@ test('a one-off runs at its time for whoever asked, whatever request IDs people 
   ])
   expect(f.contexts).toEqual([{ scheduleId: id, creator: sam }])
   expect(await f.schedules()).toEqual({})
-  expect((await f.scheduledEntries()).map((entry) => entry.data)).toEqual([
-    {
-      scheduleId: id,
-      prompt: 'Remind Aidan to call Mum',
-      due: at(21, 18),
-      creator: sam,
-    },
-  ])
+  expect((await f.scheduledEntries()).map((entry) => entry.data)).toMatchObject(
+    [
+      {
+        scheduleId: id,
+        prompt: 'Remind Aidan to call Mum',
+        due: at(21, 18),
+        creator: sam,
+      },
+    ],
+  )
 })
 
 test('with onWake, a reminder arms no timer and runs when the host resumes', async () => {
@@ -303,7 +313,7 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
   await vi.waitFor(() =>
     expect(wakes.at(-1)).toEqual({ active: false, at: at(21, 18) }),
   )
-  expect(f.familiar().wake()).toEqual({ active: false, at: at(21, 18) })
+  expect(f.workspace().wake()).toEqual({ active: false, at: at(21, 18) })
 
   f.answer('**Time to call Mum!**')
   f.clock.advanceTo(at(21, 18))
@@ -311,14 +321,14 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
   await f.sleepingUntil(at(21, 18))
   expect(f.notifications).toEqual([])
 
-  f.familiar().resume()
+  f.workspace().resume()
   await f.sleepingUntil('done')
   await vi.waitFor(() =>
     expect(bodies(f.notifications)).toEqual(['Time to call Mum!']),
   )
   // Next is upkeep's 04:00 pass.
   await vi.waitFor(() =>
-    expect(f.familiar().wake()).toEqual({ active: false, at: at(22, 4) }),
+    expect(f.workspace().wake()).toEqual({ active: false, at: at(22, 4) }),
   )
 })
 

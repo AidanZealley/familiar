@@ -26,7 +26,7 @@ test('the session chooses the tenant, and tenants never see each other', async (
   const opened: string[] = []
   const host = createTenantsHost({
     member: async (request) => sessions[request.headers.get('x-person') ?? ''],
-    familiar: (tenant) => {
+    workspace: (tenant) => {
       opened.push(tenant)
       const faux = fauxProvider({ models: [{ id: 'demo' }] })
       const models = createModels()
@@ -47,20 +47,27 @@ test('the session chooses the tenant, and tenants never see each other', async (
         headers: { 'content-type': 'application/json', 'x-person': person },
       }),
     )
-  const send = (person: string, text: string) =>
-    as(person, '/messages', {
+  /** The person's tenant's shared room. */
+  const room = async (person: string) =>
+    ((await (await as(person, '/rooms')).json()) as { id: number }[])[0].id
+  const send = async (person: string, text: string) =>
+    as(person, `/rooms/${await room(person)}/messages`, {
       method: 'POST',
       body: JSON.stringify({ text, requestId: text }),
     })
   const history = async (person: string) =>
-    JSON.stringify(await (await as(person, '/history?before=1000000')).json())
+    JSON.stringify(
+      await (
+        await as(person, `/rooms/${await room(person)}/history?before=1000000`)
+      ).json(),
+    )
 
   try {
     expect((await send('alice', 'Remind us about the bins')).status).toBe(202)
     expect((await send('carol', 'Hello')).status).toBe(202)
-    expect((await as('mallory', '/history?before=1')).status).toBe(401)
+    expect((await as('mallory', '/rooms')).status).toBe(401)
 
-    // Bob shares Alice's conversation; Carol, in south, never sees it.
+    // Bob shares Alice's room; Carol, in south, never sees it.
     await vi.waitFor(async () => {
       expect(await history('bob')).toContain('Will do.')
       expect(await history('carol')).toContain('Hello, Carol.')

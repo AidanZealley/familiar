@@ -1,5 +1,6 @@
 import type {
   AssistantMessage,
+  Message,
   ToolCall as ModelToolCall,
   ToolResultMessage,
   UserMessage,
@@ -7,25 +8,30 @@ import type {
 import type {
   ConversationView,
   EntryRecord,
-  InboxState,
-  LiveState,
-  TaskId,
+  ToolSlot,
 } from '@earendil-works/pi-durable'
 import type {
   Author,
   MESSAGE_KIND as CoreMessageKind,
-  MessageData,
+  Mention,
+  REPLY_KIND as CoreReplyKind,
+  ReplyData,
+  RoomActivity,
+  RoomMessageData,
+  RoomScheduledData,
   SCHEDULED_KIND as CoreScheduledKind,
-  ScheduledData,
+  TurnActivity,
 } from '@familiar-ai/core/http'
 
 // Core's entry kinds, typed against it without loading its runtime.
 export const MESSAGE_KIND: typeof CoreMessageKind = 'familiar.message'
+export const REPLY_KIND: typeof CoreReplyKind = 'familiar.reply'
 const SCHEDULED_KIND: typeof CoreScheduledKind = 'familiar.scheduled'
 
 export type ToolCall = {
   id: string
   name: string
+  /** What it was called with; empty for one still running in an unfinished reply. */
   arguments: ModelToolCall['arguments']
   status: 'running' | 'done' | 'error'
   output: string
@@ -38,187 +44,199 @@ export type TranscriptItem =
   | {
       type: 'message'
       id: string
-      author: MessageData['author']
+      author: Author
       text: string
-      /** When it was sent, in ms since the epoch; absent while queued. */
-      at?: number
-      /** Sent while busy; waiting for the current run to reach a boundary. */
-      queued: boolean
+      /** When it was posted, in ms since the epoch. */
+      at: number
+      /** Whom it addresses, by span of the text. */
+      mentions?: Mention[]
     }
   | {
       type: 'reply'
       id: string
+      /** The Familiar replying. */
+      familiar: number
+      /** Its name when it replied; absent while it's still replying. */
+      name?: string
       text: string
       thinking: string
       toolCalls: ToolCall[]
-      /** When it was generated, in ms since the epoch. */
-      at: number
+      /** When it was generated, in ms since the epoch; absent before it starts. */
+      at?: number
       /** Still being generated. */
       streaming: boolean
       /** Someone stopped it before it finished. */
       stopped: boolean
       error?: string
     }
-  /** A schedule's prompt, arriving now that it's due. Familiar's reply follows it. */
+  /** A schedule's prompt, arriving now that it's due. A reply follows it. */
   | {
       type: 'scheduled'
       id: string
+      /** The Familiar whose schedule it is. */
+      familiar: number
       prompt: string
       creator?: Author
       /** The time it was scheduled for, in ms since the epoch. */
       due: number
-      /** Waiting for the current run to reach a boundary. */
-      queued: boolean
     }
-  /** The run is active, but no reasoning, text or tool is visible yet. */
-  | { type: 'waiting'; id: string }
-  /** Older messages were summarised; they stay in storage but the model sees the summary. */
-  | { type: 'compaction'; id: string }
+  /**
+   * A Familiar has a turn here with nothing to show yet: `queued` behind
+   * work in this room, `elsewhere` while it works in another room, or
+   * `running` before its reply starts.
+   */
+  | {
+      type: 'waiting'
+      id: string
+      familiar: number
+      status: TurnActivity['status']
+    }
 
 export type Transcript = {
   items: TranscriptItem[]
-  /** A run is working on a message. */
+  /** A Familiar has a turn in progress here. */
   busy: boolean
 }
 
 /**
- * What a chat UI shows for a conversation view, after any `history` loaded
- * before it (oldest first). Pure, so any client can reuse it.
+ * What a chat UI shows for a room: its log, after any `history` loaded
+ * before it (oldest first), then each turn in progress, from `turns`.
+ * Pure, so any client can reuse it.
  */
-export function toTranscript(
+export function toRoomTranscript(
   view: ConversationView,
   history: readonly EntryRecord[] = [],
+  turns: RoomActivity = {},
 ): Transcript {
-  const live = view.docs['pi.live'] as LiveState | undefined
-  const inbox = view.docs['pi.inbox'] as InboxState | undefined
-
   const items: TranscriptItem[] = []
-  const calls = new Map<string, ToolCall>()
-  const entries = [...history, ...view.entries]
-
-  // A compaction is committed after the entries it keeps, and a view starts
-  // with it, but it shows where its summary ends: before the first entry it
-  // kept, so everything above it is what was summarised.
-  const compactions = new Map<EntryRecord['id'], EntryRecord>()
-  for (const entry of entries) {
-    if (entry.kind === 'pi.compaction' && entry.head !== undefined) {
-      compactions.set(entry.head, entry)
-    }
+  for (const entry of [...history, ...view.entries]) {
+    items.push(...toItems(entry))
   }
-
-  for (const entry of entries) {
-    const compaction = compactions.get(entry.id)
-    if (compaction) {
-      items.push({ type: 'compaction', id: `entry:${compaction.id}` })
-    }
-    if (entry.kind === 'pi.compaction') {
-      continue
-    }
-    const item = toItem(entry, calls)
-    if (item) {
-      items.push(item)
-    }
+  for (const [task, turn] of Object.entries(turns)) {
+    items.push(toActive(task, turn))
   }
-
-  // Tool calls of the current round, already in the transcript, now running.
-  for (const slot of live?.tools ?? []) {
-    const call = calls.get(slot.callId)
-    if (call && slot.status !== 'done') {
-      call.status = 'running'
-      call.output = slot.output ?? ''
-      call.details = slot.details
-    }
-  }
-
-  const partial = live?.generation?.message as AssistantMessage | undefined
-  if (partial) {
-    items.push({
-      ...toReply(replyId(live?.run?.taskId, partial), partial, calls),
-      streaming: true,
-    })
-  }
-
-  // Cover network waits and the gap after tools, before the next partial.
-  // Once any partial arrives, the reply owns its own activity indicator.
-  if (
-    live?.run &&
-    !partial &&
-    !live.tools?.some((tool) => tool.status !== 'done')
-  ) {
-    items.push({ type: 'waiting', id: `waiting:${live.run.taskId}` })
-  }
-
-  for (const item of inbox?.items ?? []) {
-    if (item.mode === 'write') {
-      continue
-    }
-    const id = `queued:${item.id}`
-    if (item.entry?.kind === MESSAGE_KIND) {
-      const data = item.entry.data as MessageData
-      items.push({ type: 'message', id, ...data, queued: true })
-    } else if (item.entry?.kind === SCHEDULED_KIND) {
-      items.push(scheduled(id, item.entry.data as ScheduledData, true))
-    }
-  }
-
-  return { items, busy: live?.run !== undefined }
+  return { items, busy: Object.keys(turns).length > 0 }
 }
 
-function toItem(
-  entry: EntryRecord,
-  calls: Map<string, ToolCall>,
-): TranscriptItem | undefined {
+function toItems(entry: EntryRecord): TranscriptItem[] {
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
-      const data = entry.data as MessageData
-      const message = entry.model?.[0] as UserMessage | undefined
-      return {
-        type: 'message',
-        id,
-        ...data,
-        at: message?.timestamp,
-        queued: false,
-      }
+      const { author, text, at, mentions } =
+        entry.data as unknown as RoomMessageData
+      return [
+        {
+          type: 'message',
+          id,
+          author,
+          text,
+          at,
+          ...(mentions && { mentions }),
+        },
+      ]
     }
-    case SCHEDULED_KIND:
-      return scheduled(id, entry.data as ScheduledData, false)
-    case 'pi.assistant': {
-      const message = entry.model?.[0] as AssistantMessage
-      return toReply(
-        entry.byTaskId === undefined ? id : replyId(entry.byTaskId, message),
-        message,
-        calls,
-      )
+    case SCHEDULED_KIND: {
+      const { familiar, prompt, due, creator } =
+        entry.data as unknown as RoomScheduledData
+      return [
+        {
+          type: 'scheduled',
+          id,
+          familiar,
+          prompt,
+          due,
+          ...(creator && { creator }),
+        },
+      ]
     }
-    case 'pi.tool-result': {
-      const result = entry.model?.[0] as ToolResultMessage
-      const call = calls.get(result.toolCallId)
-      if (call) {
-        call.status = result.isError ? 'error' : 'done'
-        call.output = textOf(result.content)
-        call.details = result.details
-      }
-      return undefined
-    }
+    case REPLY_KIND:
+      return toReplies(id, entry.data as unknown as ReplyData)
     default:
-      return undefined
+      return []
   }
 }
 
-const scheduled = (
-  id: string,
-  { prompt, due, creator }: ScheduledData,
-  queued: boolean,
-): TranscriptItem => ({ type: 'scheduled', id, prompt, due, creator, queued })
+/** A copied reply: an item per message the Familiar wrote, with its tools' results. */
+function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
+  const calls = new Map<string, ToolCall>()
+  const items = reply.messages.flatMap((message: Message, index) => {
+    if (message.role === 'toolResult') {
+      settle(calls, message)
+      return []
+    }
+    if (message.role !== 'assistant') {
+      return []
+    }
+    return [
+      {
+        ...toReply(`${id}:${index}`, reply.familiar, message, calls),
+        name: reply.name,
+      },
+    ]
+  })
+  // A run that failed before saying anything still shows that it failed.
+  if (!items.length && reply.outcome === 'failed') {
+    return [
+      {
+        type: 'reply',
+        id,
+        familiar: reply.familiar,
+        name: reply.name,
+        text: '',
+        thinking: '',
+        toolCalls: [],
+        streaming: false,
+        stopped: false,
+        error: 'The reply failed.',
+      },
+    ]
+  }
+  return items
+}
 
-// Pi preserves the task and message timestamp when it saves a streamed reply.
-// The timestamp distinguishes attempts made by the same generation task.
-const replyId = (taskId: TaskId | undefined, message: AssistantMessage) =>
-  `reply:${taskId}:${message.timestamp}`
+/** A turn in progress: its reply so far, or what it's waiting for. */
+function toActive(task: string, turn: TurnActivity): TranscriptItem {
+  const id = `turn:${task}`
+  if (turn.status !== 'running' || (!turn.generation?.message && !turn.tools)) {
+    return { type: 'waiting', id, familiar: turn.familiar, status: turn.status }
+  }
+  const calls = new Map<string, ToolCall>()
+  const partial = turn.generation?.message as AssistantMessage | undefined
+  const reply: Extract<TranscriptItem, { type: 'reply' }> = partial
+    ? toReply(id, turn.familiar, partial, calls)
+    : {
+        type: 'reply',
+        id,
+        familiar: turn.familiar,
+        text: '',
+        thinking: '',
+        toolCalls: [],
+        streaming: true,
+        stopped: false,
+      }
+  // The round's tools, whose calls an earlier message of the run made.
+  for (const slot of (turn.tools ?? []) as ToolSlot[]) {
+    let call = calls.get(slot.callId)
+    if (!call) {
+      call = {
+        id: slot.callId,
+        name: slot.name,
+        arguments: {},
+        status: 'running',
+        output: '',
+      }
+      reply.toolCalls.push(call)
+    }
+    call.status = slot.status === 'done' ? 'done' : 'running'
+    call.output = slot.output ?? ''
+    call.details = slot.details
+  }
+  return { ...reply, streaming: true }
+}
 
 function toReply(
   id: string,
+  familiar: number,
   message: AssistantMessage,
   calls: Map<string, ToolCall>,
 ): Extract<TranscriptItem, { type: 'reply' }> {
@@ -245,13 +263,24 @@ function toReply(
   return {
     type: 'reply',
     id,
+    familiar,
     text,
     thinking,
     toolCalls,
     at: message.timestamp,
     streaming: false,
     stopped: message.stopReason === 'aborted',
-    error: message.stopReason === 'error' ? message.errorMessage : undefined,
+    ...(message.stopReason === 'error' && { error: message.errorMessage }),
+  }
+}
+
+/** Marks the call `result` answers with its outcome. */
+function settle(calls: Map<string, ToolCall>, result: ToolResultMessage) {
+  const call = calls.get(result.toolCallId)
+  if (call) {
+    call.status = result.isError ? 'error' : 'done'
+    call.output = textOf(result.content)
+    call.details = result.details
   }
 }
 

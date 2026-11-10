@@ -1,275 +1,191 @@
-import { MESSAGE_KIND } from './transcript.ts'
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
+import type { RoomActivity } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'
-import { carryOver } from './conversation.ts'
-import type { History } from './conversation.ts'
-import { toTranscript } from './transcript.ts'
+import { carryOver, type History } from './log.ts'
+import { composeMessage } from './mentions.ts'
+import { MESSAGE_KIND, REPLY_KIND, toRoomTranscript } from './transcript.ts'
 
-// Entries as storage commits them: IDs ascend in commit order.
-const entry = (id: number, kind: string, rest: object = {}) =>
-  ({ id, conversationId: 1, kind, ...rest }) as unknown as EntryRecord
+// Entries as a room log commits them: IDs ascend in commit order.
+const entry = (id: number, kind: string, data: object) =>
+  ({ id, conversationId: 1, kind, data }) as unknown as EntryRecord
 
-const said = (id: number, text: string) =>
-  entry(id, MESSAGE_KIND, {
-    data: { author: { id: 'aidan', name: 'aidan' }, text },
-  })
+const aidan = { id: 'aidan', name: 'Aidan' }
 
-const replied = (id: number, content: object[], stopReason: string = 'stop') =>
-  entry(id, 'pi.assistant', {
-    model: [{ role: 'assistant', content, stopReason }],
-  })
+const said = (id: number, text: string, author = aidan) =>
+  entry(id, MESSAGE_KIND, { author, text, at: id * 1000 })
 
 const text = (text: string) => ({ type: 'text', text })
 
-const toolResult = (id: number, toolCallId: string, output: string) =>
-  entry(id, 'pi.tool-result', {
-    model: [
-      {
-        role: 'toolResult',
-        toolCallId,
-        content: [text(output)],
-        isError: false,
-      },
-    ],
-  })
+const assistant = (content: object[], stopReason = 'stop', timestamp = 1) => ({
+  role: 'assistant',
+  content,
+  stopReason,
+  timestamp,
+})
 
-const compaction = (id: number, head: number) =>
-  entry(id, 'pi.compaction', { head })
+const toolResult = (toolCallId: string, output: string) => ({
+  role: 'toolResult',
+  toolCallId,
+  content: [text(output)],
+  isError: false,
+})
+
+const clock = { type: 'toolCall', id: 'c1', name: 'clock', arguments: {} }
+
+const replied = (
+  id: number,
+  cause: number,
+  messages: object[],
+  outcome = 'answered',
+) =>
+  entry(id, REPLY_KIND, { familiar: 3, name: 'Ada', cause, outcome, messages })
 
 const viewOf = (...entries: EntryRecord[]) =>
   ({ conversation: {}, entries, docs: {} }) as unknown as ConversationView
 
-/** Each item as a short label, to compare order at a glance. */
-const labels = (view: ConversationView, history?: EntryRecord[]) =>
-  toTranscript(view, history).items.map((item) =>
-    item.type === 'waiting'
-      ? 'thinking'
-      : item.type === 'compaction'
-        ? '---'
-        : item.type === 'message'
-          ? `> ${item.text}`
-          : item.type === 'scheduled'
-            ? `(scheduled) ${item.prompt}`
-            : item.text || item.toolCalls.map((call) => call.name).join(),
+test("people's messages and copied replies render in order, with each reply's tool calls settled", () => {
+  const view = viewOf(
+    said(2, 'What time is it?'),
+    replied(3, 2, [
+      assistant([text('Checking.'), clock]),
+      toolResult('c1', '12:00'),
+      assistant([text('Noon.')]),
+    ]),
   )
-
-// Two compactions: the first summarised 1-2 and kept from 3, the second
-// summarised up to 6 and kept from 7, partway through a tool round.
-const history = [
-  said(1, 'one'),
-  replied(2, [text('reply one')]),
-  said(3, 'two'),
-  replied(4, [text('reply two')]),
-  compaction(5, 3),
-  said(6, 'three'),
-  replied(7, [{ type: 'toolCall', id: 'c1', name: 'clock', arguments: {} }]),
-]
-const view = viewOf(
-  compaction(10, 8),
-  toolResult(8, 'c1', '12:00'),
-  replied(9, [text('reply three')]),
-)
-
-test('history renders before the view, with compactions where they summarised', () => {
-  expect(labels(view)).toEqual(['---', 'reply three'])
-  const { items } = toTranscript(view, history)
-  expect(labels(view, history)).toEqual([
-    '> one',
-    'reply one',
-    '---',
-    '> two',
-    'reply two',
-    '> three',
-    'clock',
-    '---',
-    'reply three',
-  ])
-  // A tool call in history pairs with its result in the view.
-  expect(
-    items.find((item) => item.type === 'reply' && item.toolCalls.length),
-  ).toMatchObject({
-    toolCalls: [{ id: 'c1', status: 'done', output: '12:00' }],
-  })
-  const ids = items.map((item) => item.id)
-  expect(new Set(ids).size).toBe(ids.length)
-})
-
-test('a reply keeps its identity and reasoning from streaming through completion or stopping', () => {
-  const message = {
-    role: 'assistant',
-    content: [{ type: 'thinking', thinking: 'Reasoning' }, text('Part one')],
-    timestamp: 1234,
-    stopReason: 'stop',
-  }
-  const live: ConversationView = {
-    ...viewOf(said(1, 'hello')),
-    docs: {
-      'pi.live': {
-        run: { taskId: 7, inputs: [] },
-        generation: { attempt: 0, message },
-      },
-    },
-  }
-  const streaming = toTranscript(live).items.at(-1)!
-  expect(streaming).toMatchObject({ type: 'reply', streaming: true })
-
-  for (const stopReason of ['stop', 'aborted', 'error']) {
-    const saved = entry(2, 'pi.assistant', {
-      byTaskId: 7,
-      model: [{ ...message, stopReason }],
-    })
-    const completed = toTranscript(viewOf(said(1, 'hello'), saved)).items.at(
-      -1,
-    )!
-    expect(completed).toMatchObject({
-      id: streaming.id,
+  const { items, busy } = toRoomTranscript(view, [said(1, 'Hello')])
+  expect(busy).toBe(false)
+  expect(items).toEqual([
+    expect.objectContaining({ type: 'message', text: 'Hello', at: 1000 }),
+    expect.objectContaining({ type: 'message', text: 'What time is it?' }),
+    expect.objectContaining({
+      type: 'reply',
+      id: 'entry:3:0',
+      familiar: 3,
+      name: 'Ada',
+      text: 'Checking.',
+      toolCalls: [expect.objectContaining({ status: 'done', output: '12:00' })],
       streaming: false,
-      stopped: stopReason === 'aborted',
-      thinking: 'Reasoning',
-    })
-    expect(
-      toTranscript(viewOf(saved), [said(1, 'hello')]).items.at(-1)?.id,
-    ).toBe(streaming.id)
-  }
-
-  // A retry belongs to the same task, but is a separate reply.
-  const failedAttempt = entry(2, 'pi.assistant', {
-    byTaskId: 7,
-    model: [{ ...message, timestamp: 1233, stopReason: 'error' }],
-  })
-  const retrying = {
-    ...viewOf(said(1, 'hello'), failedAttempt),
-    docs: live.docs,
-  }
-  const replies = toTranscript(retrying).items.filter(
-    (item) => item.type === 'reply',
-  )
-  expect(replies).toHaveLength(2)
-  expect(replies[0]!.id).not.toBe(replies[1]!.id)
-  expect(replies[1]!.id).toBe(streaming.id)
-})
-
-test('what compaction takes out of the view joins history', () => {
-  const before = viewOf(
-    compaction(10, 8),
-    toolResult(8, 'c1', '12:00'),
-    replied(9, [text('reply three')]),
-    said(11, 'four'),
-    replied(12, [text('reply four')]),
-  )
-  const after = viewOf(
-    compaction(13, 11),
-    said(11, 'four'),
-    replied(12, [text('reply four')]),
-  )
-  const loaded: History = { entries: history, status: 'more' }
-  const carried = carryOver(loaded, before, after)
-  expect(carried.entries.map((entry) => entry.id)).toEqual([
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    }),
+    expect.objectContaining({ type: 'reply', id: 'entry:3:2', text: 'Noon.' }),
   ])
-  expect(labels(after, [...carried.entries])).toEqual([
-    '> one',
-    'reply one',
-    '---',
-    '> two',
-    'reply two',
-    '> three',
-    'clock',
-    '---',
-    'reply three',
-    '---',
-    '> four',
-    'reply four',
+
+  // A stopped reply says so; a failed one with nothing said still shows it failed.
+  const stopped = toRoomTranscript(
+    viewOf(
+      replied(4, 2, [assistant([text('Half')], 'aborted')], 'stopped'),
+      replied(5, 2, [], 'failed'),
+    ),
+  ).items
+  expect(stopped).toMatchObject([
+    { type: 'reply', text: 'Half', stopped: true },
+    { type: 'reply', error: 'The reply failed.' },
   ])
 })
 
-test('history starts over when the new view leaves a gap', () => {
+test('each turn in progress shows what it waits for, then its reply as it streams', () => {
+  const view = viewOf(said(1, 'Hello'))
+  const items = (turns: RoomActivity) =>
+    toRoomTranscript(view, [], turns).items.slice(1)
+
+  expect(
+    items({
+      7: { familiar: 3, cause: 1, status: 'queued' },
+      8: { familiar: 4, cause: 1, status: 'elsewhere' },
+    } as unknown as RoomActivity),
+  ).toEqual([
+    { type: 'waiting', id: 'turn:7', familiar: 3, status: 'queued' },
+    { type: 'waiting', id: 'turn:8', familiar: 4, status: 'elsewhere' },
+  ])
+  // Running, before anything shows.
+  expect(
+    items({ 7: { familiar: 3, cause: 1, status: 'running' } } as never),
+  ).toEqual([{ type: 'waiting', id: 'turn:7', familiar: 3, status: 'running' }])
+
+  // The reply so far keeps the turn's ID, as does a later round's tools.
+  const streaming = items({
+    7: {
+      familiar: 3,
+      cause: 1,
+      status: 'running',
+      generation: {
+        attempt: 0,
+        message: assistant([{ type: 'thinking', thinking: 'Hmm' }, clock]),
+      },
+      tools: [{ callId: 'c1', name: 'clock', status: 'running', output: '1' }],
+    },
+  } as unknown as RoomActivity)
+  expect(streaming).toEqual([
+    expect.objectContaining({
+      type: 'reply',
+      id: 'turn:7',
+      thinking: 'Hmm',
+      streaming: true,
+      toolCalls: [
+        expect.objectContaining({
+          name: 'clock',
+          status: 'running',
+          output: '1',
+        }),
+      ],
+    }),
+  ])
+  const tooling = items({
+    7: {
+      familiar: 3,
+      cause: 1,
+      status: 'running',
+      tools: [{ callId: 'c2', name: 'search', status: 'done', output: 'x' }],
+    },
+  } as unknown as RoomActivity)
+  expect(tooling).toEqual([
+    expect.objectContaining({
+      id: 'turn:7',
+      streaming: true,
+      toolCalls: [
+        {
+          id: 'c2',
+          name: 'search',
+          arguments: {},
+          status: 'done',
+          output: 'x',
+        },
+      ],
+    }),
+  ])
+  expect(toRoomTranscript(view, [], { 7: {} } as never).busy).toBe(true)
+})
+
+test('a message keeps the mentions its author picked', () => {
+  const { text, mentions } = composeMessage([
+    'Thanks ',
+    { kind: 'familiar', id: 3, name: 'Ada' },
+    ' and ',
+    { kind: 'person', id: 'bo', name: 'Bo' },
+    '!',
+  ])
+  expect(text).toBe('Thanks @Ada and @Bo!')
+  expect(mentions).toEqual([
+    { kind: 'familiar', id: '3', start: 7, end: 11 },
+    { kind: 'person', id: 'bo', start: 16, end: 19 },
+  ])
+  expect(mentions.map(({ start, end }) => text.slice(start, end))).toEqual([
+    '@Ada',
+    '@Bo',
+  ])
+
+  const view = viewOf(
+    entry(1, MESSAGE_KIND, { author: aidan, text, at: 1, mentions }),
+  )
+  expect(toRoomTranscript(view).items[0]).toMatchObject({ mentions })
+})
+
+test('history starts over when a new view leaves a gap, and is kept when it starts in place', () => {
+  const history = [said(1, 'one'), said(2, 'two')]
   const loaded: History = { entries: history, status: 'start' }
-  const later = viewOf(compaction(30, 20), said(20, 'much later'))
-  expect(carryOver(loaded, view, later)).toEqual({
+  const view = viewOf(said(3, 'three'))
+  expect(carryOver(loaded, view, viewOf(said(20, 'much later')))).toEqual({
     entries: [],
     status: 'more',
   })
-  // Unchanged when the view's start stays put.
   expect(carryOver(loaded, view, view)).toBe(loaded)
-})
-
-test('waiting feedback covers the first token and the gap after a completed tool', () => {
-  const live = (state: object) =>
-    ({
-      ...viewOf(said(1, 'hello')),
-      docs: { 'pi.live': state },
-    }) as ConversationView
-  const run = { taskId: 7, inputs: [] }
-  const waiting = { type: 'waiting', id: 'waiting:7' }
-  expect(toTranscript(live({ run })).items.at(-1)).toEqual(waiting)
-  expect(
-    toTranscript(live({ run, tools: [{ status: 'done' }] })).items.at(-1),
-  ).toEqual(waiting)
-  expect(
-    toTranscript(live({ run, tools: [{ status: 'running' }] })).items,
-  ).not.toContainEqual(waiting)
-  expect(toTranscript(live({})).items).not.toContainEqual(waiting)
-
-  for (const content of [
-    [],
-    [text('Answer')],
-    [{ type: 'thinking', thinking: 'Shared reasoning' }],
-  ]) {
-    const transcript = toTranscript(
-      live({
-        run,
-        generation: {
-          attempt: 0,
-          message: {
-            role: 'assistant',
-            content,
-            timestamp: 1234,
-            stopReason: 'stop',
-          },
-        },
-      }),
-    )
-    expect(transcript.items).not.toContainEqual(waiting)
-    expect(transcript.items.at(-1)).toMatchObject({
-      type: 'reply',
-      streaming: true,
-    })
-  }
-})
-
-test('queued messages follow committed ones, each with the author it was sent as', () => {
-  const before = { id: 'sam-1', name: 'Sam' }
-  const other = { id: 'sam-2', name: 'Sam' }
-  const renamed = { id: 'sam-1', name: 'Samuel' }
-  const view = {
-    ...viewOf(entry(2, MESSAGE_KIND, { data: { author: other, text: 'Two' } })),
-    docs: {
-      'pi.inbox': {
-        items: [
-          {
-            id: 3,
-            mode: 'input',
-            entry: {
-              kind: MESSAGE_KIND,
-              data: { author: renamed, text: 'Three' },
-            },
-          },
-        ],
-      },
-    },
-  } as unknown as ConversationView
-  const transcript = toTranscript(view, [
-    entry(1, MESSAGE_KIND, { data: { author: before, text: 'One' } }),
-  ])
-  expect(
-    transcript.items.map(
-      (item) =>
-        item.type === 'message' && { author: item.author, queued: item.queued },
-    ),
-  ).toEqual([
-    { author: before, queued: false },
-    { author: other, queued: false },
-    { author: renamed, queued: true },
-  ])
 })

@@ -95,12 +95,12 @@ try {
     entries.filter((name) => name !== react),
   )
 
-  // A packed Familiar runs a conversation turn end to end.
+  // A packed workspace runs a turn in a DM end to end.
   await writeFile(
     resolve(consumer, 'host.js'),
     `
 import assert from 'node:assert/strict'
-import { summonFamiliar } from '@familiar-ai/core'
+import { openWorkspace } from '@familiar-ai/core'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
@@ -108,15 +108,22 @@ const models = scriptedModels(
   (request) => fauxAssistantMessage(request.type === 'message' ? 'Packed host works, ' + request.author.name : 'Background'),
   { models: [{ id: 'packed' }] },
 )
-const familiar = await summonFamiliar({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+const workspace = await openWorkspace({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
-  await familiar.send({ author: { id: 'consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
-  await familiar.idle()
-  const view = await familiar.watch()
-  assert.match(JSON.stringify(view.value), /Packed host works, Consumer/)
-  await view.stop()
+  const familiar = await workspace.familiars.create({ name: 'Packed' })
+  const dm = await workspace.rooms.get(await workspace.rooms.dm(familiar.id, 'consumer'))
+  const entry = await dm.post({ author: { id: 'consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
+  // The reply lands in the room's log when the turn ends.
+  const watch = await dm.watch()
+  const reply = await new Promise((resolve) => {
+    const find = (view) => view.entries.find((e) => e.kind === 'familiar.reply' && e.data.cause === entry)
+    if (find(watch.value)) resolve(find(watch.value))
+    watch.start(async (view) => { if (find(view)) resolve(find(view)) })
+  })
+  await watch.stop()
+  assert.match(JSON.stringify(reply), /Packed host works, Consumer/)
 } finally {
-  await familiar.dismiss()
+  await workspace.dismiss()
 }
 `,
   )
@@ -199,8 +206,8 @@ import { openaiProvider } from '@familiar-ai/core/models/openai'
 import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
 import { scriptedModels } from '@familiar-ai/core/models/scripted'
-import { createFamiliarStore } from '@familiar-ai/client'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { createRoomStore } from '@familiar-ai/client'
+import { useRoom } from '@familiar-ai/client/react'
 import { hc, type InferResponseType } from 'hono/client'
 
 // Assignable to every parameter, so each misuse below tests one parameter.
@@ -220,7 +227,10 @@ defineTool({
 createHttpApi(1, ok)
 // Core's route types read through Hono's client, as the client reads them.
 declare const api: ReturnType<typeof hc<HttpApi>>
-declare const page: InferResponseType<typeof api.history.$get, 200>
+declare const page: InferResponseType<
+  (typeof api.rooms)[':room']['history']['$get'],
+  200
+>
 // @ts-expect-error
 export const more: number = page.more
 hook(ToolTask, {
@@ -245,19 +255,19 @@ fauxProvider({ tokensPerSecond: 'fast' })
 // @ts-expect-error
 scriptedModels(1)
 // @ts-expect-error
-createFamiliarStore(1)
+createRoomStore(1)
 // @ts-expect-error
-useFamiliar(1)
+useRoom(1)
 `,
   )
   await typeCheck(
     'workers',
     ['ES2023'],
     ['@cloudflare/workers-types'],
-    `import { DurableFamiliar } from '@familiar-ai/cloudflare'
+    `import { DurableWorkspace } from '@familiar-ai/cloudflare'
 declare const ok: never
 // @ts-expect-error
-new DurableFamiliar(1, ok)
+new DurableWorkspace(1, ok)
 `,
   )
 

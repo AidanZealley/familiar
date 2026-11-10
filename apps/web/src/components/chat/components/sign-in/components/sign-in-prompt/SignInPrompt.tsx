@@ -2,14 +2,14 @@ import { useMutation } from '@tanstack/react-query'
 import { KeyRoundIcon } from 'lucide-react'
 import { IconTile } from '@/components/icon-tile'
 import { Button } from '@/components/ui/button'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 import type { SignInPromptProps } from './types'
 
 /** Why Familiar needs a sign-in, and the button that starts one. */
 export const SignInPrompt = ({ account }: SignInPromptProps) => {
   const signIn = useMutation({
     mutationKey: ['sign-in'],
-    mutationFn: () => familiar.account.signIn(),
+    mutationFn: () => workspace.account.signIn(),
   })
 
   return (

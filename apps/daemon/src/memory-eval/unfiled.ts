@@ -6,7 +6,8 @@ import type { Message, TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { type EntryRecord, type Storage } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { summonFamiliar, type FamiliarOptions } from '@familiar-ai/core'
+import type { Author, WorkspaceOptions } from '@familiar-ai/core'
+import { openDaemonWorkspace } from '../workspace.ts'
 import {
   nextUpkeep,
   RECALL_HEADING,
@@ -18,6 +19,7 @@ import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
 import { isSkipped, unquoted } from './recall.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
+import { replyTo } from '../reply.ts'
 
 /**
  * The unfiled test: how much of what was said, compacted out of the model's
@@ -153,6 +155,24 @@ function recordingModels() {
   return { models, requests }
 }
 
+const ROWAN: Author = { id: 'Rowan', name: 'Rowan' }
+
+/** The eval's workspace, with Rowan's DM with its Familiar to talk in. */
+async function openEval(options: WorkspaceOptions) {
+  const { workspace, familiar } = await openDaemonWorkspace(options, 'Familiar')
+  const dm = (await workspace.rooms.get(
+    await workspace.rooms.dm(familiar, ROWAN.id),
+  ))!
+  return {
+    workspace,
+    familiar,
+    /** Says `text` in the DM and waits for the reply. */
+    say: async (text: string, requestId: string) => {
+      await replyTo(dm, await dm.post({ author: ROWAN, text, requestId }))
+    },
+  }
+}
+
 export async function runUnfiledEval(
   scenario: Scenario,
   directory: string,
@@ -168,7 +188,7 @@ export async function runUnfiledEval(
     model: { provider: 'faux', modelId: 'faux-1' },
     contextBudget: CONTEXT_BUDGET,
     timeZone: EVAL_TIME_ZONE,
-  } satisfies Partial<FamiliarOptions>
+  } satisfies Partial<WorkspaceOptions>
   const replayPath = join(directory, 'replay.sqlite')
 
   // Questions are asked the morning after the last day. Opening there first
@@ -177,7 +197,7 @@ export async function runUnfiledEval(
   const asked = noonOf(scenario.days.at(-1)!.date) + 24 * 60 * 60 * 1000
   const holding = createClock(asked)
   const held = await openNodeSqliteStorage(replayPath)
-  const holder = await summonFamiliar({
+  const { workspace: holder } = await openEval({
     storage: held,
     ...options,
     now: holding.now,
@@ -190,28 +210,23 @@ export async function runUnfiledEval(
   }
 
   const clock = createClock(noonOf(sent[0].date!))
-  const familiar = await summonFamiliar({
+  const familiar = await openEval({
     storage: await openNodeSqliteStorage(replayPath),
     ...options,
     now: clock.now,
     setTimer: clock.setTimer,
   })
-  const chat = familiar.id
+  const chat = familiar.familiar
   try {
     for (const [index, day] of sent.entries()) {
       clock.advanceTo(noonOf(day.date))
-      await familiar.send({
-        author: { id: 'Rowan', name: 'Rowan' },
-        text: day.text!,
-        requestId: `eval:day:${index}`,
-      })
-      await familiar.idle()
+      await familiar.say(day.text!, `eval:day:${index}`)
       if ((index + 1) % 50 === 0) {
         progress(`Replayed ${index + 1}/${sent.length} days`)
       }
     }
   } finally {
-    await familiar.dismiss()
+    await familiar.workspace.dismiss()
   }
 
   const replay = await openNodeSqliteStorage(replayPath)
@@ -240,7 +255,7 @@ export async function runUnfiledEval(
     const path = join(directory, `question-${question.id}.sqlite`)
     copyFileSync(replayPath, path)
     const questionClock = createClock(asked)
-    const reopened = await summonFamiliar({
+    const reopened = await openEval({
       storage: await openNodeSqliteStorage(path),
       ...options,
       now: questionClock.now,
@@ -248,14 +263,9 @@ export async function runUnfiledEval(
     })
     requests.length = 0
     try {
-      await reopened.send({
-        author: { id: 'Rowan', name: 'Rowan' },
-        text: question.text,
-        requestId: `eval:question:${question.id}`,
-      })
-      await reopened.idle()
+      await reopened.say(question.text, `eval:question:${question.id}`)
     } finally {
-      await reopened.dismiss()
+      await reopened.workspace.dismiss()
     }
 
     // Recall is searched once per reply, so the first request shows it.

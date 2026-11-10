@@ -6,18 +6,18 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useFamiliar } from '@familiar-ai/client/react'
+import { useRoom } from '@familiar-ai/client/react'
 import { TranscriptItem } from './components/transcript-item'
 import type { ChatProps } from './types'
 
 /**
- * The shared conversation, read through whichever client the provider
- * gives it. Every client mirrors the same conversation, so one view serves
+ * The shared room, read through whichever client the provider gives it.
+ * Every client mirrors the same room, so one view serves
  * everyone; the viewer only decides whose messages are their own.
  */
 export const Chat = ({ viewer }: ChatProps) => {
-  const connection = useFamiliar((state) => state.connection)
-  const transcript = useFamiliar((state) => state.transcript)
+  const connection = useRoom((state) => state.connection)
+  const transcript = useRoom((state) => state.transcript)
   const items = transcript?.items ?? []
 
   return (

@@ -1,6 +1,6 @@
 # Cloudflare Worker example
 
-A Worker that hosts one Familiar per name, each in its own SQLite-backed Durable Object, with [@familiar-ai/cloudflare](../../packages/cloudflare/README.md). The model is scripted and echoes, so it needs no model key.
+A Worker that hosts one Familiar workspace per name, each in its own SQLite-backed Durable Object, with [@familiar-ai/cloudflare](../../packages/cloudflare/README.md). The model is scripted and echoes, so it needs no model key.
 
 From the repository root:
 
@@ -15,7 +15,7 @@ Neither needs Cloudflare credentials. For `dev`, put a token in the git-ignored 
 ## How it fits together
 
 - `src/worker.ts` authenticates every request with the bearer token, then forwards `/bots/<name>/api/*` to the Durable Object for that name, with the prefix removed.
-- `src/bot.ts` is the Durable Object. `DurableFamiliar` owns its storage, its alarm and recovery after eviction. The object reaches the Familiar only through `use()`, forwards its `alarm()`, and serves Familiar's HTTP API with `createHttpApi`. Everyone the Worker lets through is the owner, so `allow` permits everything.
-- `src/model.ts` is the scripted model. A real host registers its provider and credentials in the `familiar` factory, and delivers notifications where `notify` logs them.
+- `src/bot.ts` is the Durable Object. `DurableWorkspace` owns its storage, its alarm and recovery after eviction, and its `setup` makes the one Familiar the first time the object opens. The object reaches the workspace only through `use()`, forwards its `alarm()`, and serves Familiar's HTTP API with `createHttpApi`. Everyone the Worker lets through is the owner, so `allow` permits everything; they talk in their DM, from `POST /bots/<name>/api/familiars/<id>/dm`.
+- `src/model.ts` is the scripted model. A real host registers its provider and credentials in the `workspace` factory, and delivers notifications where `notify` logs them.
 
 The package's own tests, of reminders with and without eviction, recovery after a reload and termination, run against a separate test Worker in `packages/cloudflare/test`.

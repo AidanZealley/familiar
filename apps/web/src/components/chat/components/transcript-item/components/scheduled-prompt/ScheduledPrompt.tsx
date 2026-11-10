@@ -23,7 +23,6 @@ export const ScheduledPrompt = ({ item }: ScheduledPromptProps) => {
           {/* Clamped inside: the button's own `block` would override it. */}
           <span className={cn(!expanded && 'line-clamp-2')}>
             Scheduled · {item.prompt}
-            {item.queued && ' (waiting)'}
           </span>
         </button>
       </MarkerContent>

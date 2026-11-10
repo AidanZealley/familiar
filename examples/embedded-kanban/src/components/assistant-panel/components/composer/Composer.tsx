@@ -7,14 +7,12 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { useFamiliarStore } from '@familiar-ai/client/react'
+import { useRoomStore } from '@familiar-ai/client/react'
 import { SUGGESTED_PROMPTS } from '@/familiar/script'
 
 /** As in Familiar's web UI: a textarea with its send button below, at the end. */
 export const Composer = () => {
-  const {
-    conversation: { send },
-  } = useFamiliarStore()
+  const { send } = useRoomStore()
   const [text, setText] = useState('')
 
   const submit = (event: FormEvent) => {

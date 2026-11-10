@@ -4,15 +4,15 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
-import { MemoryStorage, type EntryRecord } from '@earendil-works/pi-durable'
+import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { MESSAGE_KIND, type MessageData } from './conversation/message.ts'
-import { type FamiliarOptions } from './index.ts'
-import { defaultPersona, defineTool, Type } from './index.ts'
-import { scriptedModels, type ScriptedRequest } from './models/scripted.ts'
-import { TEST_ZONE, testHost } from './testing.ts'
+import { defaultPersona, defineTool, Type } from '../index.ts'
+import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
+import { TEST_ZONE, testHost, type TestHostOptions } from '../testing.ts'
 
-type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>>
+// One Familiar in a workspace, end to end through its DM.
+
+type SetupOptions = Omit<TestHostOptions, 'models' | 'model'>
 
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
@@ -24,7 +24,14 @@ async function setup(options: SetupOptions = {}) {
     await watch.stop()
     return watch.value
   }
-  return { faux: host.faux, familiar, say: host.say, memory }
+  return {
+    faux: host.faux,
+    familiar,
+    workspace: host.workspace(),
+    dm: host.dm(),
+    say: host.say,
+    memory,
+  }
 }
 
 /** Pi's own estimate of a request's size, the one its thresholds use. */
@@ -35,7 +42,7 @@ const tokensOf = (context: TranscriptContext) =>
   )
 
 /**
- * A Familiar whose conversation compacts past `contextBudget` tokens. The
+ * A Familiar whose chat compacts past `contextBudget` tokens. The
  * script answers compaction's summaries itself and every message with `reply`.
  */
 const compactingHost = (
@@ -75,46 +82,6 @@ test('compaction keeps requests under the context budget', async () => {
   expect(requests.length).toBe(20)
   // Unbounded, the last request would hold all twenty days, about 2,800 tokens.
   expect(Math.max(...requests)).toBeLessThan(budget)
-})
-
-test('history returns the messages compaction took out of the view', async () => {
-  const { familiar: current, say } = await compactingHost(2_000, () =>
-    fauxAssistantMessage('Lovely.'),
-  )
-  const familiar = current()
-  for (let day = 1; day <= 20; day++) {
-    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
-  }
-
-  const watch = await familiar.watch()
-  await watch.stop()
-  const [first] = watch.value.entries
-  expect(first.kind).toBe('pi.compaction')
-  const days = (entries: readonly EntryRecord[]) =>
-    entries.flatMap((entry) =>
-      entry.kind === MESSAGE_KIND
-        ? [Number(/Day (\d+)/.exec((entry.data as MessageData).text)![1])]
-        : [],
-    )
-  const inView = days(watch.value.entries)
-  expect(inView[0]).toBeGreaterThan(1)
-
-  // Page back from the view's oldest entry, a few at a time.
-  const older: EntryRecord[] = []
-  let before = first.head!
-  for (;;) {
-    const page = await familiar.history(before, 5)
-    expect(page.entries.length).toBeLessThanOrEqual(5)
-    older.unshift(...page.entries.toReversed())
-    if (!page.more) {
-      break
-    }
-    before = page.entries.at(-1)!.id
-  }
-  expect([...days(older), ...inView]).toEqual(
-    Array.from({ length: 20 }, (_, i) => i + 1),
-  )
-  expect(older.every((entry) => entry.id < first.head!)).toBe(true)
 })
 
 /** The first request's prompt sections and tool names, after saying hello. */
@@ -242,15 +209,15 @@ test("a plugin can't take the name of one of core's tools", async () => {
 })
 
 test('usage totals the model spend of every reply', async () => {
-  const { faux, familiar, say } = await setup()
+  const { faux, workspace, say } = await setup()
   faux.setResponses([
     fauxAssistantMessage('Hello.'),
     fauxAssistantMessage('Hello again.'),
   ])
   await say('Hi')
-  const once = (await familiar.usage()).models['faux/faux-1']
+  const once = (await workspace.usage()).models['faux/faux-1']
   await say('Hi again')
-  const twice = (await familiar.usage()).models['faux/faux-1']
+  const twice = (await workspace.usage()).models['faux/faux-1']
   expect(once.input).toBeGreaterThan(0)
   expect(twice.input).toBeGreaterThan(once.input)
   expect(twice.output).toBeGreaterThan(once.output)
@@ -260,19 +227,19 @@ test('closed reports a storage failure so the host can reopen persisted state', 
   const storage = new MemoryStorage()
   // This fake durable store survives closing one session, like a database on disk.
   vi.spyOn(storage, 'close').mockResolvedValue()
-  const { faux, familiar, say } = await setup({ storage })
+  const { faux, workspace, dm, say } = await setup({ storage })
   faux.setResponses([fauxAssistantMessage('Saved before failure.')])
   await say('hello')
   const failure = new Error('storage unavailable')
   vi.spyOn(storage, 'commit').mockRejectedValueOnce(failure)
   await expect(
-    familiar.send({
+    dm.post({
       author: { id: 'aidan', name: 'aidan' },
       text: 'fail',
       requestId: 'fail',
     }),
   ).rejects.toThrow()
-  expect(await familiar.closed).toEqual({ reason: 'failed', error: failure })
+  expect(await workspace.closed).toEqual({ reason: 'failed', error: failure })
   const { familiar: reopened } = await setup({ storage })
   const view = await reopened.watch()
   expect(JSON.stringify(view.value)).toContain('Saved before failure.')

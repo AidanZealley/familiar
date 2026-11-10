@@ -9,6 +9,7 @@ import {
   type Storage,
   type UsageState,
   type Wake,
+  type WatchHandle,
 } from '@earendil-works/pi-durable'
 import {
   createAccount,
@@ -39,12 +40,14 @@ import type { Notify } from '../notify.ts'
 import { createPersona } from '../persona.ts'
 import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
 import { createRooms, type RoomsApi } from '../rooms/index.ts'
+import { Rooms } from '../rooms/rooms.ts'
 import {
   checkMaxSchedules,
   createSchedules,
   type SchedulesApi,
 } from '../schedules/index.ts'
 import { checkTimeZone, createTime } from '../time.ts'
+import { viewWatch } from '../watch.ts'
 import {
   checkIdentity,
   createFamiliar,
@@ -52,6 +55,7 @@ import {
   familiarRecord,
   type FamiliarId,
   type FamiliarIdentity,
+  type FamiliarsState as Registry,
 } from './familiars.ts'
 import { adoptPreWorkspaceFamiliar } from './migrate.ts'
 
@@ -145,7 +149,10 @@ export type WorkspaceOptions = {
   onWake?: (wake: Wake) => void
 }
 
-/** One Familiar in a workspace: its chat, memory and schedules. */
+/**
+ * One Familiar in a workspace: its chat's model, memory and schedules.
+ * People talk to it in rooms (`Workspace.rooms`).
+ */
 export type WorkspaceFamiliar = ConversationApi & {
   id: FamiliarId
   memory: MemoryApi
@@ -153,6 +160,19 @@ export type WorkspaceFamiliar = ConversationApi & {
 }
 
 export type FamiliarSummary = FamiliarIdentity & { id: FamiliarId }
+
+/** Who each Familiar is, by FamiliarId. */
+export type FamiliarsState = { familiars: Record<string, FamiliarIdentity> }
+
+/** The registry as people see it: who each Familiar is, without its workings. */
+const identities = (registry: Readonly<Registry> | null): FamiliarsState => ({
+  familiars: Object.fromEntries(
+    Object.entries(registry?.familiars ?? {}).map(([id, { name, persona }]) => [
+      id,
+      { name, ...(persona !== undefined && { persona }) },
+    ]),
+  ),
+})
 
 /** A change to who a Familiar is. A `null` persona returns it to the default. */
 export type FamiliarChange = {
@@ -167,6 +187,8 @@ export type FamiliarChange = {
 export type Workspace = {
   familiars: {
     list(): Promise<FamiliarSummary[]>
+    /** Who each Familiar is, then every change. */
+    watch(): Promise<WatchHandle<FamiliarsState>>
     /** An open Familiar, or undefined if there's no such Familiar. */
     get(id: FamiliarId): WorkspaceFamiliar | undefined
     /** Throws a TypeError for a blank name or persona. */
@@ -305,6 +327,11 @@ export async function openWorkspace(
       (tx) => adoptPreWorkspaceFamiliar(tx, ADOPTED_NAME),
       context,
     )
+    // The registries exist from the first open, so watches attach to them.
+    await harness.commit(async (tx) => {
+      await tx.doc(Familiars)
+      await tx.doc(Rooms)
+    }, context)
 
     const opened = new Map<FamiliarId, WorkspaceFamiliar>()
     const open = async (id: FamiliarId) => {
@@ -324,12 +351,9 @@ export async function openWorkspace(
 
     const list = async () =>
       Object.entries(
-        (await harness.snapshot(Familiars, context))?.familiars ?? {},
-      ).map(([id, { name, persona }]) => ({
-        id: Number(id) as FamiliarId,
-        name,
-        ...(persona !== undefined && { persona }),
-      }))
+        identities((await harness.snapshot(Familiars, context)) ?? null)
+          .familiars,
+      ).map(([id, identity]) => ({ id: Number(id) as FamiliarId, ...identity }))
 
     for (const { id } of await list()) {
       await open(id)
@@ -341,6 +365,8 @@ export async function openWorkspace(
     return {
       familiars: {
         list,
+        watch: async () =>
+          viewWatch((await harness.watchDoc(Familiars, context))!, identities),
         get: (id) => opened.get(id),
         create: async (identity) =>
           open(

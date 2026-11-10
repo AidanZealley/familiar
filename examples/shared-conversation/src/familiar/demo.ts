@@ -1,42 +1,52 @@
-import { summonFamiliar, type Author } from '@familiar-ai/core'
+import { openWorkspace, type Author } from '@familiar-ai/core'
 import { createHttpApi, type Operation } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
-import { createFamiliarStore } from '@familiar-ai/client'
+import { createRoomStore } from '@familiar-ai/client'
 import { PEOPLE } from '../people.ts'
 import { guestListPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
-const PERSONA = `You are Familiar, the assistant in a group's shared chat. Several people talk to you in one conversation. Answer in short plain text.`
+const PERSONA = `You are Familiar, the assistant in a group's shared chat. Several people talk to you in one room. Answer in short plain text.`
 
-// Everyone signed in may talk, read history and watch the conversation.
+// Everyone signed in may talk in the group's room, read it and stop it.
 const CHAT = new Set<Operation>([
-  'conversation.send',
-  'conversation.history',
-  'conversation.abort',
-  'events.conversation',
+  'rooms.post',
+  'rooms.history',
+  'rooms.stop',
+  'events.room',
 ])
 
 /**
- * One Familiar and its one conversation, with a signed-in client for each
- * person, all in this page's memory. Each client sends its own session token
- * and opens its own event stream, as each person's browser would.
+ * One Familiar and one room the whole group talks in, with a signed-in
+ * client for each person, all in this page's memory. Each client sends its
+ * own session token and opens its own event stream, as each person's
+ * browser would.
  *
  * Only the model is scripted. To use a real one, register a provider in
  * `models` on a server you control and serve this API from there, so
  * credentials never reach the browser.
  */
 export async function startDemo() {
-  const familiar = await summonFamiliar({
+  const workspace = await openWorkspace({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    persona: PERSONA,
     plugins: [guestListPlugin()],
+  })
+  // A lasting host creates these once, on its store's first open.
+  const familiar = await workspace.familiars.create({
+    name: 'Familiar',
+    persona: PERSONA,
+  })
+  const room = await workspace.rooms.create({
+    name: 'Group',
+    familiars: [familiar.id],
+    lead: familiar.id,
   })
   // The host's sign-ins: session token to the person it belongs to.
   const sessions = new Map<string, Author>()
-  const api = createHttpApi(familiar, {
+  const api = createHttpApi(workspace, {
     // Each request's session decides its author, never its body.
     authenticate: (request) => {
       const token = request.headers
@@ -44,8 +54,13 @@ export async function startDemo() {
         ?.replace(/^Bearer /, '')
       return token ? sessions.get(token) : undefined
     },
-    // Every other operation, such as memory, schedules or MCP, answers 403.
-    allow: (_, operation) => CHAT.has(operation),
+    // Only the group's room. Every other operation, such as memory,
+    // schedules or MCP, answers 403.
+    allow: (_, operation, resource) =>
+      CHAT.has(operation) &&
+      resource !== undefined &&
+      'room' in resource &&
+      resource.room === room,
   })
 
   /** What the host does when a person signs in: a session, and a client for it. */
@@ -59,7 +74,7 @@ export async function startDemo() {
     // In-page requests: the client's usual HTTP and SSE calls reach the API
     // without leaving the browser. A real host passes its API's URL instead,
     // and the browser sends its session cookie.
-    const store = createFamiliarStore('https://demo.invalid', {
+    const store = createRoomStore('https://demo.invalid', room, {
       fetch: async (input, init) => {
         const request = new Request(input, init)
         request.headers.set('authorization', `Bearer ${token}`)
@@ -69,7 +84,7 @@ export async function startDemo() {
     return { author, store }
   }
 
-  return { familiar, clients: PEOPLE.map(signIn) }
+  return { workspace, clients: PEOPLE.map(signIn) }
 }
 
 export type Demo = Awaited<ReturnType<typeof startDemo>>

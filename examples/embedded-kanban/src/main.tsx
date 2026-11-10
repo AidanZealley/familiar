@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/index.css'
 import { startDemo } from '@/familiar/demo'
-import { FamiliarProvider } from '@familiar-ai/client/react'
+import { RoomProvider } from '@familiar-ai/client/react'
 import { BoardProvider } from '@/board/react'
 import { App } from '@/components/app'
 
@@ -18,9 +18,9 @@ const { board, store } = await startDemo()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BoardProvider board={board}>
-      <FamiliarProvider store={store}>
+      <RoomProvider store={store}>
         <App />
-      </FamiliarProvider>
+      </RoomProvider>
     </BoardProvider>
   </StrictMode>,
 )

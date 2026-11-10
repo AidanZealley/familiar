@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 import { CancelSignIn } from '../cancel-sign-in'
 import type { BrowserSignInProps } from './types'
 
@@ -18,7 +18,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
   const [address, setAddress] = useState('')
   const answer = useMutation({
     mutationKey: ['sign-in'],
-    mutationFn: (text: string) => familiar.account.answerSignIn(text),
+    mutationFn: (text: string) => workspace.account.answerSignIn(text),
   })
 
   // Sent: the sign-in finishes, or fails, as the account's own state.

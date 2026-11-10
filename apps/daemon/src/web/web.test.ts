@@ -7,18 +7,19 @@ import {
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import {
   memorySecrets,
-  summonFamiliar,
-  type Familiar,
   type PluginFetch,
+  type Workspace,
 } from '@familiar-ai/core'
 import { afterEach, expect, test } from 'vitest'
+import { openDaemonWorkspace } from '../workspace.ts'
 import { webPlugin } from './plugin.ts'
+import { replyTo } from '../reply.ts'
 
 const KEY = 'BSA-test-0123456789'
 
-const opened: Familiar[] = []
+const opened: Workspace[] = []
 afterEach(async () => {
-  await Promise.all(opened.splice(0).map((familiar) => familiar.dismiss()))
+  await Promise.all(opened.splice(0).map((workspace) => workspace.dismiss()))
 })
 
 /** Answers each request with whatever `respond` returns for it. */
@@ -38,17 +39,23 @@ async function setup(
     return respond(url, init)
   }
 
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'Asia/Kolkata',
-    plugins: [webPlugin],
-    secrets,
-    fetch,
-    now,
-  })
-  opened.push(familiar)
+  const { workspace, familiar } = await openDaemonWorkspace(
+    {
+      storage: new MemoryStorage(),
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'Asia/Kolkata',
+      plugins: [webPlugin],
+      secrets,
+      fetch,
+      now,
+    },
+    'Familiar',
+  )
+  opened.push(workspace)
+  const dm = (await workspace.rooms.get(
+    await workspace.rooms.dm(familiar, 'owner'),
+  ))!
 
   /** Asks the model to call a tool, and returns the text of its result. */
   let calls = 0
@@ -64,12 +71,14 @@ async function setup(
         return fauxAssistantMessage('Done.')
       },
     ])
-    await familiar.send({
-      author: { id: 'owner', name: 'owner' },
-      text: 'Go',
-      requestId: `go-${++calls}`,
-    })
-    await familiar.idle()
+    await replyTo(
+      dm,
+      await dm.post({
+        author: { id: 'owner', name: 'owner' },
+        text: 'Go',
+        requestId: `go-${++calls}`,
+      }),
+    )
     return {
       text: result!.content.map((part) => part.text ?? '').join(''),
       isError: result!.isError,

@@ -1,4 +1,3 @@
-import { Marker, MarkerContent } from '@/components/ui/marker'
 import { formatTime } from '@/lib/format'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
@@ -10,14 +9,6 @@ import type { TranscriptItemProps } from './types'
 export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
   if (item.type === 'scheduled') {
     return <ScheduledPrompt item={item} />
-  }
-
-  if (item.type === 'compaction') {
-    return (
-      <Marker variant="separator" className="text-xs">
-        <MarkerContent>Earlier messages summarised</MarkerContent>
-      </Marker>
-    )
   }
 
   if (item.type === 'waiting') {

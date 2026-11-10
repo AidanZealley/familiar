@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 import type { AddServerFormProps } from './types'
 
 type Errors = Partial<Record<'name' | 'url' | 'command', string>>
@@ -61,13 +61,13 @@ function read(
 
 /** Adds the server, then its token; resolves with why the token failed. */
 async function addServer(server: McpServer, token: string) {
-  await familiar.mcp.add(server)
+  await workspace.mcp.add(server)
   if (!token) {
     return undefined
   }
   // The server exists now, so a failed token is retried from Edit, not here.
   try {
-    await familiar.connections.setSecret(
+    await workspace.connections.setSecret(
       { kind: 'mcp', name: server.name },
       'token',
       token,

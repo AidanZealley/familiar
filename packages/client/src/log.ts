@@ -1,15 +1,11 @@
 import { applyImmutable } from '@earendil-works/chord/delta'
-import type { StreamEvent } from '@familiar-ai/core/http'
-import type {
-  AgentState,
-  ConversationView,
-  EntryRecord,
-} from '@earendil-works/pi-durable'
+import type { RoomActivity, StreamEvent } from '@familiar-ai/core/http'
+import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import type { StoreApi } from 'zustand/vanilla'
 import type { FetchHistory } from './commands.ts'
-import { toTranscript, type Transcript } from './transcript.ts'
+import { toRoomTranscript, type Transcript } from './transcript.ts'
 
-/** The conversation before the view, as far back as it has been loaded. */
+/** The log before the view, as far back as it has been loaded. */
 export type History = {
   /** Committed entries older than any in the view, oldest first. */
   entries: readonly EntryRecord[]
@@ -20,30 +16,37 @@ export type History = {
   status: 'more' | 'loading' | 'failed' | 'start'
 }
 
-/** The store's conversation fields, which this module owns. */
-export type ConversationState = {
+/** The room store's log fields, which this module owns. */
+export type LogState = {
+  /** The room log's view. */
   view: ConversationView | undefined
   history: History
-  /** Derived with the view and history; unchanged by unrelated updates. */
+  /** The room's turns in progress, live. */
+  turns: RoomActivity | null | undefined
+  /** Derived with the view, history and turns; unchanged by unrelated updates. */
   transcript: Transcript | undefined
 }
 
 const transition = (
-  previous: ConversationState,
+  previous: LogState,
   view: ConversationView | undefined,
   history: History,
-): ConversationState => ({
+  turns: LogState['turns'],
+): LogState => ({
   view,
   history,
+  turns,
   transcript:
-    view === previous.view && history.entries === previous.history.entries
+    view === previous.view &&
+    history.entries === previous.history.entries &&
+    turns === previous.turns
       ? previous.transcript
-      : view && toTranscript(view, history.entries),
+      : view && toRoomTranscript(view, history.entries, turns ?? {}),
 })
 
-export const createConversation = (
-  set: StoreApi<ConversationState>['setState'],
-  get: StoreApi<ConversationState>['getState'],
+export const createLog = (
+  set: StoreApi<LogState>['setState'],
+  get: StoreApi<LogState>['getState'],
   historyPage: FetchHistory,
 ) => {
   /**
@@ -67,29 +70,43 @@ export const createConversation = (
     }
     set(
       page
-        ? transition(current, current.view, {
-            entries: [...page.entries.toReversed(), ...current.history.entries],
-            status: page.more ? 'more' : 'start',
-          })
+        ? transition(
+            current,
+            current.view,
+            {
+              entries: [
+                ...page.entries.toReversed(),
+                ...current.history.entries,
+              ],
+              status: page.more ? 'more' : 'start',
+            },
+            current.turns,
+          )
         : { history: { ...current.history, status: 'failed' } },
     )
   }
 
   const receive = (view: ConversationView | undefined) => {
     const state = get()
-    return transition(state, view, carryOver(state.history, state.view, view))
+    return transition(
+      state,
+      view,
+      carryOver(state.history, state.view, view),
+      state.turns,
+    )
   }
   return {
     loadOlder,
     receive,
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>
       receive(applyImmutable(get().view, ops)),
+    /** The turns, whole or patched, with the transcript they change. */
+    turns: (turns: LogState['turns']) => {
+      const state = get()
+      return transition(state, state.view, state.history, turns)
+    },
   }
 }
-
-/** The conversation's model and reasoning level, as Pi stores them. */
-export const agentOf = (view: ConversationView | undefined) =>
-  view?.docs['pi.agent'] as AgentState | undefined
 
 /**
  * The oldest entry in a view. A view opens with its head marker, such as a
@@ -98,7 +115,7 @@ export const agentOf = (view: ConversationView | undefined) =>
 export const startOf = (view: ConversationView) =>
   view.entries[0] && (view.entries[0].head ?? view.entries[0].id)
 
-const oldestOf = ({ view, history }: ConversationState) =>
+const oldestOf = ({ view, history }: LogState) =>
   history.entries[0]?.id ?? (view && startOf(view))
 
 /**

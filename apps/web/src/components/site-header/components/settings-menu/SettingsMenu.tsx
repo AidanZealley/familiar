@@ -19,15 +19,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { familiar, useFamiliar } from '@/lib/familiar'
+import { workspace, useWorkspace } from '@/lib/familiar'
 import { useTheme, type Theme } from '@/lib/theme'
 
 export const SettingsMenu = () => {
   const { theme, setTheme } = useTheme()
-  const signedIn = useFamiliar((state) => state.account?.status === 'signed-in')
+  const signedIn = useWorkspace(
+    (state) => state.account?.status === 'signed-in',
+  )
   // The menu has closed by the time it fails, so the failure is a toast.
   const signOut = useMutation({
-    mutationFn: () => familiar.account.signOut(),
+    mutationFn: () => workspace.account.signOut(),
     onError: (error) => toast.error(`Couldn't sign out: ${error.message}`),
   })
 

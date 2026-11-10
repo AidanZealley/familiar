@@ -9,7 +9,7 @@ export const turnTimes = (items: readonly TranscriptItem[]) => {
   const times = new Map<string, number>()
   let last: Extract<TranscriptItem, { type: 'reply' }> | undefined
   const close = () => {
-    if (last && !last.streaming) {
+    if (last && !last.streaming && last.at !== undefined) {
       times.set(last.id, last.at)
     }
     last = undefined

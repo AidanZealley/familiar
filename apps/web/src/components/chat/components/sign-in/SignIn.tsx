@@ -1,6 +1,6 @@
 import { useMutationState } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/spinner'
-import { useFamiliar } from '@/lib/familiar'
+import { useWorkspace } from '@/lib/familiar'
 import { BrowserSignIn } from './components/browser-sign-in'
 import { CancelSignIn } from './components/cancel-sign-in'
 import { SignInPrompt } from './components/sign-in-prompt'
@@ -11,7 +11,7 @@ import { SignInPrompt } from './components/sign-in-prompt'
  * manage credentials themselves send no account, so it never shows.
  */
 export const SignIn = () => {
-  const account = useFamiliar((state) => state.account)
+  const account = useWorkspace((state) => state.account)
   // A request refused on its way. How the sign-in itself went arrives as
   // the account's own state.
   const error = useMutationState({

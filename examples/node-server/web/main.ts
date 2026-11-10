@@ -1,4 +1,8 @@
-import { createFamiliarStore, type FamiliarStore } from '@familiar-ai/client'
+import {
+  createRoomStore,
+  createWorkspaceStore,
+  type WorkspaceStore,
+} from '@familiar-ai/client'
 
 // Just enough UI to sign in, chat and set a plugin's secret. Text from the
 // model and from tools is set as text, never as HTML.
@@ -21,7 +25,7 @@ signIn.addEventListener('submit', async (event) => {
   const password = new FormData(signIn).get('password')
   const response = await post('/auth/sign-in', { password })
   if (response.ok) {
-    start()
+    void start()
   } else {
     $('#sign-in .error').textContent = (await response.json()).error
   }
@@ -32,10 +36,16 @@ $('#sign-out').addEventListener('click', async () => {
   location.reload()
 })
 
-function start() {
+async function start() {
   signIn.hidden = true
   app.hidden = false
-  const store = createFamiliarStore('/api')
+  // The server's one Familiar, and the owner's DM with it.
+  const workspace = createWorkspaceStore('/api')
+  const [familiar] = await workspace.familiars.list()
+  const store = createRoomStore(
+    '/api',
+    await workspace.familiars.dm(familiar.id),
+  )
 
   store.subscribe((state) => {
     $('#status').textContent = state.transcript?.busy
@@ -50,7 +60,7 @@ function start() {
         const who = document.createElement('div')
         who.className = 'author'
         who.textContent =
-          item.type === 'message' ? item.author.name : 'Familiar'
+          item.type === 'message' ? item.author.name : (item.name ?? 'Familiar')
         li.append(who, item.text)
         return [li]
       }),
@@ -62,14 +72,14 @@ function start() {
     event.preventDefault()
     const text = String(new FormData(send).get('text'))
     send.reset()
-    void store.conversation.send(text)
+    void store.send(text)
   })
 
-  void showConnections(store)
+  void showConnections(workspace)
 }
 
 /** Each plugin secret, whether it's set, and a box to set it. */
-async function showConnections(store: FamiliarStore) {
+async function showConnections(store: WorkspaceStore) {
   const connections = await store.connections.list()
   $('#connections').replaceChildren(
     ...connections.flatMap((connection) =>
@@ -100,7 +110,7 @@ async function showConnections(store: FamiliarStore) {
 
 // Signed in already, from an earlier visit?
 if ((await fetch('/auth/me')).ok) {
-  start()
+  void start()
 } else {
   signIn.hidden = false
 }

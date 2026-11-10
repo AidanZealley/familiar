@@ -66,6 +66,7 @@ async function setup(storage?: Storage) {
     faux: host.faux,
     familiar: host.familiar,
     say: host.say,
+    send: host.send,
     setTime: clock.setTime,
     memory,
     episodes,
@@ -145,7 +146,7 @@ test("upkeep days run 04:00 to 04:00 on the wall clock, in each Familiar's own z
 })
 
 test("a night files the day's facts from people's messages, reports refused edits to the model, writes its episode and rolls up the week", async () => {
-  const { faux, familiar, say, memory, episodes, passAt } = await setup(
+  const { faux, familiar, say, send, memory, episodes, passAt } = await setup(
     await storageWith(
       ['Has a cat', 3],
       ['Owns a cat called Miso', 3],
@@ -176,8 +177,7 @@ test("a night files the day's facts from people's messages, reports refused edit
   ]
   faux.setResponses(people.map(() => fauxAssistantMessage('Noted.')))
   for (const message of people) {
-    await familiar().send({ ...message, requestId: message.text })
-    await familiar().idle()
+    await send({ ...message, requestId: message.text })
   }
   const view = await familiar().watch()
   await view.stop()

@@ -2,7 +2,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
-import type { Familiar, McpStdioFactory, PluginFetch } from '@familiar-ai/core'
+import type { McpStdioFactory, PluginFetch, Workspace } from '@familiar-ai/core'
 import {
   InMemoryTransport,
   Server,
@@ -121,9 +121,9 @@ export const demoMcpStdio: McpStdioFactory = ({ command, args }) => {
   return client
 }
 
-export async function seedMcp(familiar: Familiar) {
+export async function seedMcp(workspace: Workspace) {
   const http = (name: string, url: string, bearer = false) =>
-    familiar.mcp.add({
+    workspace.mcp.add({
       name,
       transport: {
         type: 'http',
@@ -132,10 +132,10 @@ export async function seedMcp(familiar: Familiar) {
       },
     })
   const stdio = (name: string, command: string, ...args: string[]) =>
-    familiar.mcp.add({ name, transport: { type: 'stdio', command, args } })
+    workspace.mcp.add({ name, transport: { type: 'stdio', command, args } })
 
   await http('home-assistant', 'http://home.demo.invalid:8123/api/mcp', true)
-  await familiar.connections.setSecret(
+  await workspace.connections.setSecret(
     { kind: 'mcp', name: 'home-assistant' },
     'token',
     DEMO_TOKEN,

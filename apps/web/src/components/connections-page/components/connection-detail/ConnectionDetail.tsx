@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 import { cn } from 'cn'
 import { statusOf } from '../../status'
 import { StatusDot } from '../status-dot'
@@ -20,7 +20,7 @@ export const ConnectionDetail = ({
   const status = statusOf(connection)
   const reconnect = useMutation({
     mutationKey: ['connections'],
-    mutationFn: () => familiar.mcp.reconnect(connection.name),
+    mutationFn: () => workspace.mcp.reconnect(connection.name),
   })
 
   return (

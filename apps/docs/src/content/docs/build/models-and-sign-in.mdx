@@ -32,15 +32,15 @@ The `./host.ts` imports stand in for your own code. `deviceId` returns a stable 
 
 With `account`:
 
-- `familiar.account` exposes `state()`, `signIn()`, `answer(text)`, `cancelSignIn()`, `signOut()` and `onChange(listener)`.
+- `workspace.account` exposes `state()`, `signIn()`, `answer(text)`, `cancelSignIn()`, `signOut()` and `onChange(listener)`.
 - The state is one of `signed-in`, `signed-out`, `expired` or `signing-in`. While signing in it carries the provider's `url` and `paste: true` when the provider needs the address the browser ended on.
 - The HTTP API serves these under `/account` and streams the state, so a UI can run the whole sign-in.
-- Familiar closes the account when it's dismissed.
+- The workspace closes the account when it's dismissed. Every Familiar in it uses the one login.
 
 Without an account, the host keeps credentials working itself and a failed request fails like any other.
 
 ## Chat models
 
-`model` is what memory upkeep runs on and what a new conversation starts on. `chatModels` lists the models people may switch the conversation to, each with the reasoning level it starts on. It must include `model`. Leave it out and the only choice is `model` at medium.
+`model` is what memory upkeep runs on and what a new Familiar starts on. `chatModels` lists the models people may switch a Familiar to, each with the reasoning level it starts on. It must include `model`. Leave it out and the only choice is `model` at medium.
 
-The conversation remembers its current model and level. Change them with `familiar.setModel(ref)` and `familiar.setThinkingLevel(level)`, or over HTTP. Both throw a `ModelError` for a choice that isn't on offer.
+Each Familiar remembers its current model and level. Change them with its `setModel(ref)` and `setThinkingLevel(level)`, from `workspace.familiars.get(id)`, or over HTTP under `/familiars/:familiar/model`. Both throw a `ModelError` for a choice that isn't on offer.

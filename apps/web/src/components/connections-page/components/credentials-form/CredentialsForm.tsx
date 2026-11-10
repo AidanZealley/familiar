@@ -12,7 +12,7 @@ import {
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { familiar, queryClient } from '@/lib/familiar'
+import { workspace, queryClient } from '@/lib/familiar'
 import { connectionsQuery } from '../../query'
 import { TransportDetails } from '../transport-details'
 import type { CredentialsFormProps } from './types'
@@ -37,8 +37,8 @@ export const CredentialsForm = ({
     mutationFn: async (secrets: Record<string, string | null>) => {
       for (const [name, value] of Object.entries(secrets)) {
         await (value === null
-          ? familiar.connections.deleteSecret(connection, name)
-          : familiar.connections.setSecret(connection, name, value))
+          ? workspace.connections.deleteSecret(connection, name)
+          : workspace.connections.setSecret(connection, name, value))
       }
     },
     // Secrets saved before one failed are still saved, so refresh anyway.

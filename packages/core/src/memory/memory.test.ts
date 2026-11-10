@@ -9,6 +9,7 @@ import {
   createRegistry,
   Harness,
   MemoryStorage,
+  type EntryId,
 } from '@earendil-works/pi-durable'
 import { CORE_BUDGET, coreFacts, listFacts, MemoryUsage } from './facts.ts'
 import {
@@ -22,6 +23,7 @@ import {
   fakeClock,
   ReopenableStorage,
   TEST_ZONE,
+  replyTo,
   testHost,
   timeAt,
 } from '../testing.ts'
@@ -31,9 +33,10 @@ import { createMemory } from './index.ts'
 import { Upkeep } from './upkeep/schedule.ts'
 import { harnessOptions } from '../harness.ts'
 import { expect, test, vi } from 'vitest'
-import { type Familiar, type FamiliarOptions } from '../index.ts'
+import type { WorkspaceFamiliar } from '../index.ts'
+import type { TestHostOptions } from '../testing.ts'
 
-type SetupOptions = Partial<Omit<FamiliarOptions, 'models' | 'model'>> & {
+type SetupOptions = Omit<TestHostOptions, 'models' | 'model'> & {
   contextWindow?: number
 }
 
@@ -54,6 +57,7 @@ async function setup({ contextWindow, ...options }: SetupOptions = {}) {
   return {
     faux: host.faux,
     familiar,
+    dm: host.dm,
     say: host.say,
     memory,
     dismiss: host.dismiss,
@@ -234,7 +238,7 @@ test("recall searches a person's words, not the line naming them", async () => {
 
 test('messages queued behind a reply are each recalled for in their own run', async () => {
   const storage = await storageWith(['Keeps bees in the garden', 2])
-  const { faux, familiar } = await setup({ storage })
+  const { faux, dm } = await setup({ storage })
   let release = () => {}
   const held = new Promise<void>((resolve) => (release = resolve))
   const notes: (string | undefined)[] = []
@@ -244,19 +248,23 @@ test('messages queued behind a reply are each recalled for in their own run', as
     return fauxAssistantMessage('Noted.')
   }
   faux.setResponses([capture, capture, capture])
-  const send = (author: string, text: string) =>
-    familiar.send({
-      author: { id: author, name: author },
-      text,
-      // Each test message starts differently; a request ID has a bound.
-      requestId: text.slice(0, 128),
-    })
+  const sent: EntryId[] = []
+  const send = async (author: string, text: string) =>
+    sent.push(
+      await dm().post({
+        author: { id: author, name: author },
+        text,
+        requestId: text,
+      }),
+    )
   await send('ann', 'How are the bees?')
   await vi.waitFor(() => expect(notes).toHaveLength(1))
   await send('bob', 'Thanks')
   await send('carol', 'And the bees now?')
   release()
-  await familiar.idle()
+  for (const entry of sent) {
+    await replyTo(dm(), entry)
+  }
   expect(notes.map((note) => note?.includes('Keeps bees'))).toEqual([
     true,
     undefined,
@@ -337,7 +345,7 @@ const script = (faux: Faux, steps: Step[] = []) => {
 
 /** Says something worth remembering, then enough weather to compact it away. */
 const compactAway = async (
-  familiar: Familiar,
+  familiar: WorkspaceFamiliar,
   say: (text: string) => Promise<void>,
 ) => {
   await say('My bike lock code is 7291, keep it safe.')

@@ -20,11 +20,12 @@ import type { FactMenuProps } from './types'
 export const FactMenu = ({ fact, onEdit }: FactMenuProps) => {
   const setPinned = useMutation({
     mutationKey: ['fact', fact.id],
-    mutationFn: (pinned: boolean) => familiar.memory.setPinned(fact.id, pinned),
+    mutationFn: (pinned: boolean) =>
+      familiar().memory.setPinned(fact.id, pinned),
   })
   const retire = useMutation({
     mutationKey: ['fact', fact.id],
-    mutationFn: () => familiar.memory.retire(fact.id),
+    mutationFn: () => familiar().memory.retire(fact.id),
   })
 
   return (

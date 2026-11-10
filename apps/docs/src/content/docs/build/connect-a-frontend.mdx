@@ -1,50 +1,50 @@
 ---
 title: Connect a frontend
-description: Mirror Familiar in the browser with the client store, render its transcript and manage the connection.
+description: Mirror Familiar in the browser with the client stores, render a room's transcript and manage the connection.
 ---
 
 import { Code } from '@astrojs/starlight/components'
 import client from '../../../../snippets/client.ts?raw'
 import react from '../../../../snippets/react.tsx?raw'
 
-`@familiar-ai/client` connects to the HTTP API, mirrors everything the event stream sends and derives a transcript a chat UI can render. Familiar's own web app is built on it.
+`@familiar-ai/client` connects to the HTTP API, mirrors what its event streams send and derives the transcript a chat UI renders for a room. Familiar's own web app is built on it.
 
 ```sh
 npm install @familiar-ai/client
 ```
 
-## The store
+## The stores
 
 <Code code={client} lang="ts" title="client.ts" />
 
-`createFamiliarStore(url, options)` opens the event stream straight away. The store offers every command; one your host's [`allow`](/familiar/build/serve-the-api/#decide-who-may-do-what) refuses rejects with its 403, so render only the UI each person may use. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
+There's a store for each stream: `createWorkspaceStore(url, options)` for who the Familiars are, the rooms this person sees and the sign-in; `createFamiliarStore(url, id, options)` for one Familiar's model, memory and schedules; and `createRoomStore(url, id, options)` for one room. Each opens its stream straight away. A store offers every command; one your host's [`allow`](/familiar/build/serve-the-api/#decide-who-may-do-what) refuses rejects with its 403, so render only the UI each person may use. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
 
-The store's state is plain data from the event stream. Read it with `getState()` and `subscribe()`:
+A store's state is plain data from its stream. Read it with `getState()` and `subscribe()`:
 
-- `view` and `history`: the live conversation and the older entries loaded before it
-- `transcript`: the derived chat items and whether a run is `busy`
-- `memory`, `episodes` and `schedules`: the streamed documents, under their wire names
-- `account`: the streamed sign-in state
+- the workspace's `familiars`, `rooms` and `account`
+- a Familiar's `model`, `memory`, `episodes` and `schedules`
+- a room's `view` and `history`, its log and the older entries loaded before it; `turns`, its turns in progress; and `transcript`, the derived chat items and whether a Familiar is `busy` here
 
-Change things by calling the commands on the store itself, grouped as `store.conversation`, `store.memory`, `store.schedules`, `store.account`, `store.push`, `store.connections` and `store.mcp`. They never change identity, so you can pass them around freely.
+Change things by calling the commands on the store itself: the workspace's `familiars`, `rooms`, `account`, `push`, `connections` and `mcp`; a Familiar's `model`, `memory` and `schedules`; a room's `send`, `stop` and `loadOlder`. They never change identity, so you can pass them around freely. `workspace.familiars.dm(id)` resolves to the room ID of this person's DM with a Familiar, created if new.
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 
-`send(text)` posts a message with a fresh `requestId`. The host decides who sent it.
+`send(text, mentions?)` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, a Familiar mentioned answers, else the room's lead; `composeMessage` builds the text and mentions from what a composer picked, so `@Ada` typed without picking her addresses no one.
 
 ## The transcript
 
 `state.transcript.items` is what a chat shows, in order. Each item has an `id` that stays the same across updates. Use it as the key.
 
-- `message`: a person's words, with their `author`, and `queued` while it waits for the current run
-- `reply`: Familiar's `text`, `thinking` and `toolCalls`, with `streaming`, `stopped` and any `error`
+- `message`: a person's words, with their `author`, when they were posted and any `mentions`
+- `reply`: a Familiar's `text`, `thinking` and `toolCalls`, with which `familiar` and its `name`, `streaming`, `stopped` and any `error`
 - `scheduled`: a schedule's prompt arriving, with its `due` time and `creator`
-- `waiting`: a run has started but nothing is visible yet
-- `compaction`: older messages were summarised for the model here
+- `waiting`: a Familiar has a turn here with nothing to show yet: `queued` behind work in this room, `elsewhere` while it works in another room, or `running` before its reply starts
+
+While a reply streams, only its current round shows. When the turn ends, the whole reply, every tool call included, replaces it.
 
 Each tool call has a `name`, `arguments`, `status` (`running`, `done` or `error`), text `output` and optional `details`. `details` is whatever the tool returned for UIs. Narrow it before you render it.
 
-Older entries arrive through `store.conversation.loadOlder()`. `state.history.status` is `more`, `loading`, `failed` or `start`.
+Older entries arrive through `room.loadOlder()`. `state.history.status` is `more`, `loading`, `failed` or `start`.
 
 ## The connection
 
@@ -53,7 +53,7 @@ Older entries arrive through `store.conversation.loadOlder()`. `state.history.st
 | Value          | Meaning                                                                        |
 | -------------- | ------------------------------------------------------------------------------ |
 | `connecting`   | The first stream request is under way                                          |
-| `open`         | A compatible protocol handshake and full view have arrived                     |
+| `open`         | A compatible protocol handshake has arrived; values follow                     |
 | `reconnecting` | A network error, closed stream, 5xx or 429. The store retries with fresh state |
 | `unauthorized` | The stream was answered 401 or 403. Retries stop                               |
 | `failed`       | Any other unusable answer, such as a 404. Retries stop                         |
@@ -67,4 +67,4 @@ Install React 18 or 19, then use the separate `/react` entry:
 
 <Code code={react} lang="tsx" title="App.tsx" />
 
-Create the store once, outside render, where your app manages connections. `FamiliarProvider` gives its subtree a store, and nested providers each give their own. The provider doesn't open or close it. `useFamiliar` compares selections with `Object.is`, so return stable values such as a single field. `useFamiliarStore()` returns the nearest provider's store, for its commands. The vanilla entry doesn't load React.
+Create the store once, outside render, where your app manages connections. `RoomProvider` gives its subtree a room store, and nested providers each give their own. The provider doesn't open or close it. `useRoom` compares selections with `Object.is`, so return stable values such as a single field. `useRoomStore()` returns the nearest provider's store, for its commands. For the workspace's and Familiars' stores, use Zustand's `useStore`. The vanilla entry doesn't load React.
