@@ -2,27 +2,34 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { summonFamiliar } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
 import { expect, onTestFinished, test, vi } from 'vitest'
-import { daemonApp } from './serve.ts'
+import { daemonApp, OWNER_ID } from './serve.ts'
+import { openDaemonWorkspace } from './workspace.ts'
 
 async function daemon(webDir?: string) {
   const models = createModels()
   models.setProvider(fauxProvider().provider)
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
-  })
-  onTestFinished(() => familiar.dismiss())
-  const abort = vi.spyOn(familiar, 'abort')
-  const app = daemonApp(familiar, { owner: 'Aidan', webDir })
-  /** A POST to /api/abort, which has no body, as a page or client sends it. */
+  const { workspace, familiar } = await openDaemonWorkspace(
+    {
+      storage: new MemoryStorage(),
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+    },
+    'Familiar',
+  )
+  onTestFinished(() => workspace.dismiss())
+  const dm = (await workspace.rooms.get(
+    await workspace.rooms.dm(familiar, OWNER_ID),
+  ))!
+  vi.spyOn(workspace.rooms, 'get').mockResolvedValue(dm)
+  const abort = vi.spyOn(dm, 'stop')
+  const app = daemonApp(workspace, { owner: 'Aidan', webDir })
+  /** A Stop, which has no body, as a page or client sends it. */
   const post = (headers: Record<string, string>) =>
-    app.request('/api/abort', { method: 'POST', headers })
+    app.request(`/api/rooms/${dm.id}/stop`, { method: 'POST', headers })
   return { abort, post, app }
 }
 

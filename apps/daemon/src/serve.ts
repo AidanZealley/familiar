@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { isIP } from 'node:net'
-import type { Familiar } from '@familiar-ai/core'
+import type { Workspace } from '@familiar-ai/core'
 import { createHttpApi, type PushHost } from '@familiar-ai/core/http'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
@@ -82,20 +82,23 @@ const unframed: MiddlewareHandler = async (c, next) => {
   c.header('X-Frame-Options', 'DENY')
 }
 
+/** The one author the daemon records, whatever the owner is called. */
+export const OWNER_ID = 'owner'
+
 /**
  * The daemon's routes: the whole API under `/api`, since everyone who can
  * reach it is the owner, then the built web UI.
  */
 export function daemonApp(
-  familiar: Familiar,
+  workspace: Workspace,
   options: Pick<ServeOptions, 'owner' | 'webDir' | 'push'>,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin()).route(
     '/api',
-    createHttpApi(familiar, {
+    createHttpApi(workspace, {
       authenticate: (request) =>
         isAllowedHost(request.headers.get('host'))
-          ? { id: 'owner', name: options.owner }
+          ? { id: OWNER_ID, name: options.owner }
           : undefined,
       // Everyone who can reach the daemon is its owner.
       allow: () => true,
@@ -112,9 +115,9 @@ export function daemonApp(
   return app
 }
 
-/** Serve one Familiar over HTTP until SIGINT or SIGTERM, then close it. */
-export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
-  const app = daemonApp(familiar, options)
+/** Serve a workspace over HTTP until SIGINT or SIGTERM, then close it. */
+export function serveWorkspace(workspace: Workspace, options: ServeOptions) {
+  const app = daemonApp(workspace, options)
 
   const server = serve(
     { fetch: app.fetch, hostname: options.host, port: options.port },
@@ -124,7 +127,7 @@ export function serveFamiliar(familiar: Familiar, options: ServeOptions) {
 
   const shutdown = () => {
     server.close()
-    void familiar.dismiss().then(() => process.exit(0))
+    void workspace.dismiss().then(() => process.exit(0))
   }
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)

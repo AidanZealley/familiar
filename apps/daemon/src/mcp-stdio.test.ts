@@ -1,8 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
-  summonFamiliar,
-  type Familiar,
+  type Workspace,
   type McpConnectionInfo,
   type McpServer,
 } from '@familiar-ai/core'
@@ -14,6 +13,7 @@ import {
 } from '@familiar-ai/core/models/faux'
 import { afterEach, expect, onTestFinished, test, vi } from 'vitest'
 import { stdioTransport } from './mcp-stdio.ts'
+import { openDaemonWorkspace } from './workspace.ts'
 
 // Owner-configured commands run as the daemon's user, through the daemon's
 // stdio transport. Core owns the connection; these check what the child
@@ -35,7 +35,7 @@ const server = {
   },
 } satisfies McpServer
 
-const status = async (familiar: Familiar) =>
+const status = async (familiar: Workspace) =>
   ((await familiar.connections.list())[0] as McpConnectionInfo).status.type
 
 const exited = (pid: number) => {
@@ -56,26 +56,30 @@ async function setup() {
   const models = createModels()
   models.setProvider(faux.provider)
   const children: ReturnType<typeof stdioTransport>[] = []
-  const familiar = await summonFamiliar({
-    storage: new MemoryStorage(),
-    models,
-    model: { provider: 'faux', modelId: 'faux-1' },
-    timeZone: 'UTC',
-    mcpStdio: (config) => {
-      const child = stdioTransport(config)
-      children.push(child)
-      return child
+  const { workspace, familiar: id } = await openDaemonWorkspace(
+    {
+      storage: new MemoryStorage(),
+      models,
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      mcpStdio: (config) => {
+        const child = stdioTransport(config)
+        children.push(child)
+        return child
+      },
     },
-  })
-  onTestFinished(() => familiar.dismiss())
-  return { familiar, faux, children }
+    'Familiar',
+  )
+  onTestFinished(() => workspace.dismiss())
+  const dm = (await workspace.rooms.get(await workspace.rooms.dm(id, 'owner')))!
+  return { familiar: workspace, dm, faux, children }
 }
 
 test("a command gets literal arguments and none of the daemon's private environment, and no process outlives it", async () => {
   vi.stubEnv('FAMILIAR_TEST_SECRET', 'private-test-value')
   vi.stubEnv('FAMILIAR_DATA_DIR', '/private-test-data')
   vi.stubEnv('NODE_OPTIONS', '--expose-internals')
-  const { familiar, faux, children } = await setup()
+  const { familiar, dm, faux, children } = await setup()
   await familiar.mcp.add(server)
   await expect.poll(() => status(familiar)).toBe('connected')
 
@@ -95,12 +99,13 @@ test("a command gets literal arguments and none of the daemon's private environm
       return fauxAssistantMessage('Done.')
     },
   ])
-  await familiar.send({
-    author: { id: 'owner', name: 'owner' },
-    text: 'Echo.',
-    requestId: 'stdio-echo',
-  })
-  await familiar.idle()
+  await dm.replyTo(
+    await dm.post({
+      author: { id: 'owner', name: 'owner' },
+      text: 'Echo.',
+      requestId: 'stdio-echo',
+    }),
+  )
   expect(reply?.isError).toBe(false)
   const result = JSON.parse(
     reply?.content.find((block) => block.type === 'text')?.text ?? '',
