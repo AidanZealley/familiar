@@ -9,7 +9,7 @@ export { Bot } from './bot.ts'
 
 /**
  * `/bots/<name>/api/*` is Familiar's HTTP API for the bot of that name, each
- * its own Durable Object. One bearer token guards every route.
+ * its own Durable Object and workspace. One bearer token guards every route.
  */
 export default new Hono<App>()
   // Without a configured token, nothing is served.

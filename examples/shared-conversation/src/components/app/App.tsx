@@ -6,7 +6,7 @@ import { Composer } from '@/components/composer'
 import { PersonSwitcher } from '@/components/person-switcher'
 import { Suggestions } from '@/components/suggestions'
 import { PEOPLE } from '@/people'
-import { FamiliarProvider } from '@familiar-ai/client/react'
+import { RoomProvider } from '@familiar-ai/client/react'
 import { suggestedPrompts } from '@/familiar/script'
 import type { AppProps } from './types'
 
@@ -38,20 +38,20 @@ export const App = ({ demo }: AppProps) => {
       <main className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col text-xs/relaxed">
         <p className="border-b px-4 py-2 text-muted-foreground">
           {PEOPLE.map((person) => person.name).join(', ')} each have a simulated
-          session in this page, all talking to one Familiar in one conversation.
-          Other tabs and visitors aren't joined.
+          session in this page, all talking to one Familiar in one room. Other
+          tabs and visitors aren't joined.
         </p>
         {/* One shared transcript, read through the first person's client.
-            Every client is connected and mirrors the same conversation; the
+            Every client is connected and mirrors the same room; the
             person sending only decides whose messages sit on the right. */}
-        <FamiliarProvider store={reader.store}>
+        <RoomProvider store={reader.store}>
           <Chat viewer={sender.author} />
-        </FamiliarProvider>
+        </RoomProvider>
         <div className="flex shrink-0 flex-col gap-3 border-t p-3">
           {/* Only the sender's suggestions, through the sender's client. */}
-          <FamiliarProvider store={sender.store}>
+          <RoomProvider store={sender.store}>
             <Suggestions prompts={suggestedPrompts(sender.author)} />
-          </FamiliarProvider>
+          </RoomProvider>
           <PersonSwitcher
             people={PEOPLE}
             value={active}
@@ -60,11 +60,11 @@ export const App = ({ demo }: AppProps) => {
           {/* Each person's message box, bound to their own client, keeps its
               draft while hidden. */}
           {demo.clients.map(({ author, store }) => (
-            <FamiliarProvider key={author.id} store={store}>
+            <RoomProvider key={author.id} store={store}>
               <div hidden={author.id !== active}>
                 <Composer name={author.name} />
               </div>
-            </FamiliarProvider>
+            </RoomProvider>
           ))}
         </div>
       </main>
