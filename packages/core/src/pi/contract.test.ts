@@ -13,6 +13,7 @@ import {
   defineTask,
   defineTool,
   Harness,
+  ReadAfterWrite,
   ROOT_CONVERSATION_ID,
   type HarnessOptions,
   type Task,
@@ -21,9 +22,10 @@ import { expect, test } from 'vitest'
 import { fakeClock, fauxModels, ReopenableStorage } from '../testing.ts'
 
 /**
- * The Pi behaviour moving a Familiar's state into a workspace relies on. Pi
- * is experimental and changes without notice; these fail first if it does.
- * The last three are what rooms rely on.
+ * What Familiar relies on Pi doing beyond what its types say: Pi is
+ * experimental and changes without notice. After upgrading Pi, typecheck
+ * finds changed APIs; these tests find changed behaviour, so run them first.
+ * Each says what depends on it.
  */
 
 const context = BACKGROUND_CONTEXT
@@ -53,6 +55,7 @@ const harnessOptions = (
   }
 }
 
+// Adopting a pre-workspace store (workspace/migrate.ts).
 test('a session document moves into a family of the same kind in one commit, and must not be read once retired', async () => {
   const harness = await Harness.open(
     new ReopenableStorage(),
@@ -82,6 +85,7 @@ test('a session document moves into a family of the same kind in one commit, and
   await harness.close(context)
 })
 
+// Versioned tasks: schedules and upkeep (schedules/task.ts, memory/upkeep).
 test('a sleeping task keeps its stored version until it wakes, then migrates', async () => {
   const clock = fakeClock(1_000)
   const storage = new ReopenableStorage()
@@ -222,6 +226,7 @@ async function openChat(responses: FauxResponseStep[]) {
   }
 }
 
+// Posting to a room (rooms/log.ts).
 test('a room post is one commit: a write submission, its entry and the task it causes, and a retry repeats none of it', async () => {
   const ran: string[] = []
   const turn = defineTask<{ id: string }, { phase: 'run' }, null>({
@@ -302,6 +307,7 @@ test('a room post is one commit: a write submission, its entry and the task it c
   await harness.close(context)
 })
 
+// Stopping a room's turn (rooms/turn.ts).
 test('stopping a run settles only its input; the inputs queued behind it wait until a write that changes the model context starts them', async () => {
   const { harness, chat, send, view } = await openChat([
     // A's request hangs until the run is aborted.
@@ -345,6 +351,7 @@ test('stopping a run settles only its input; the inputs queued behind it wait un
   await harness.close(context)
 })
 
+// Copying a turn's run into its room as a reply (rooms/turn.ts).
 test("a run's assistant and tool-result entries are the ones from its input to its answer, when later inputs follow up rather than steer", async () => {
   let release!: () => void
   const { harness, send, view } = await openChat([
@@ -394,5 +401,72 @@ test("a run's assistant and tool-result entries are the ones from its input to i
   // run, between its tool result and its answer, and share A's answer.
   expect(doneB.entry).toBeGreaterThan(doneA.answer)
   expect(between(doneB.entry, doneB.answer)).toEqual(['pi.assistant'])
+  await harness.close(context)
+})
+
+// Rooms: a room's stream sends its turns as a document of their own, as
+// views leave it out, and a marker starts a long room's view (rooms/log.ts).
+test("a conversation's view shows only Pi's own documents, and an entry's head starts it", async () => {
+  const harness = await Harness.open(
+    new ReopenableStorage(),
+    harnessOptions(),
+    context,
+  )
+  const Notes = defineDoc<Items>({
+    ...common,
+    kind: 'test.notes',
+    scope: 'conversation',
+    history: 'latest',
+    fork: 'initial',
+  })
+  const log = await harness.createConversation(
+    { ownership: { kind: 'ownerless' } },
+    context,
+  )
+  const ids = await harness.commit(async (tx) => {
+    ;(await tx.doc(Notes, log.id)).items.push('kept apart')
+    const appended = []
+    for (const text of ['one', 'two', 'three']) {
+      appended.push(
+        (await tx.appendEntry(log.id, { kind: 'test.entry', data: text })).id,
+      )
+    }
+    await tx.appendEntry(log.id, { kind: 'test.marker', head: appended[1] })
+    return appended
+  }, context)
+
+  const watch = await log.watch(context)
+  await watch.stop()
+  expect(watch.value.docs['test.notes']).toBeUndefined()
+  const [marker, ...shown] = watch.value.entries
+  expect(marker.kind).toBe('test.marker')
+  expect(shown.map((entry) => entry.id)).toEqual(ids.slice(1))
+  await harness.close(context)
+})
+
+// Everywhere a commit reads entries, tasks or submissions: they come first
+// (rooms/log.ts, workspace/migrate.ts, schedules/task.ts).
+test('a commit reads tables before writing any, though documents may follow writes', async () => {
+  const harness = await Harness.open(
+    new ReopenableStorage(),
+    harnessOptions(),
+    context,
+  )
+  await expect(
+    harness.commit(async (tx) => {
+      const created = await tx.createConversation({
+        ownership: { kind: 'ownerless' },
+      })
+      await tx.scanEntries({ conversationId: created.id }, 1)
+    }, context),
+  ).rejects.toBeInstanceOf(ReadAfterWrite)
+
+  await harness.commit(async (tx) => {
+    await tx.createConversation({ ownership: { kind: 'ownerless' } })
+    ;(await tx.doc(Singleton)).items.push('after a write')
+  }, context)
+  expect(await harness.snapshot(Singleton, context)).toEqual({
+    items: ['after a write'],
+  })
   await harness.close(context)
 })

@@ -6,7 +6,6 @@ import {
   type Harness,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
-import { historyOf, type HistoryPage } from '../conversation/index.ts'
 import {
   admitMessage,
   MESSAGE_KIND,
@@ -14,7 +13,7 @@ import {
   type Author,
 } from '../conversation/message.ts'
 import type { PostScheduled } from '../schedules/task.ts'
-import { viewWatch } from '../watch.ts'
+import { viewWatch } from '../pi/watch.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { watchActivity, type RoomActivity } from './activity.ts'
 import { post, type Mention } from './log.ts'
@@ -30,6 +29,7 @@ import {
   type RoomsState,
 } from './rooms.ts'
 import { createTurnTask } from './turn.ts'
+import { historyOf, type HistoryPage } from '../pi/entries.ts'
 
 export type {
   Mention,

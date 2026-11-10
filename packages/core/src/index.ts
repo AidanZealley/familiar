@@ -29,7 +29,7 @@ export {
   MessageError,
   type Author,
 } from './conversation/message.ts'
-export type { HistoryPage } from './conversation/index.ts'
+export type { HistoryPage } from './pi/entries.ts'
 export {
   ModelError,
   type ChatModel,

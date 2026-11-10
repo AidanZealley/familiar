@@ -1,12 +1,12 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { createRegistry, Harness } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
-import { historyOf } from '../conversation/index.ts'
 import { fauxModels, ReopenableStorage } from '../testing.ts'
 import { createFamiliar } from '../workspace/familiars.ts'
 import { post, REPLY_KIND, VIEW_KIND } from './log.ts'
 import { dmWith } from './rooms.ts'
 import type { TurnTask } from './turn.ts'
+import { historyOf } from '../pi/entries.ts'
 
 const context = BACKGROUND_CONTEXT
 

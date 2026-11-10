@@ -5,7 +5,7 @@ import {
   type EntryRecord,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { entriesOf, MESSAGE_KIND } from '../conversation/message.ts'
+import { MESSAGE_KIND } from '../conversation/message.ts'
 import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 import {
   REPLY_KIND,
@@ -14,6 +14,7 @@ import {
   type RoomMessageData,
 } from './log.ts'
 import type { Room, RoomId } from './rooms.ts'
+import { entriesOf } from '../pi/entries.ts'
 
 /**
  * What a Familiar is shown of a room when it takes a turn there. Its chat

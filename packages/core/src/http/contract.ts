@@ -16,7 +16,7 @@ export type {
   MESSAGE_KIND,
   SCHEDULED_KIND,
 } from '../conversation/message.ts'
-export type { HistoryPage } from '../conversation/index.ts'
+export type { HistoryPage } from '../pi/entries.ts'
 export type {
   Mention,
   REPLY_KIND,

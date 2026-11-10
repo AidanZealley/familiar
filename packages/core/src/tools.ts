@@ -11,7 +11,6 @@ import type {
 } from '@earendil-works/pi-durable'
 import type { PluginFetch } from './connections/index.ts'
 import {
-  entriesOf,
   MESSAGE_KIND,
   SCHEDULED_KIND,
   type Author,
@@ -19,6 +18,7 @@ import {
   type ScheduledData,
 } from './conversation/message.ts'
 import type { Notification } from './notify.ts'
+import { entriesOf } from './pi/entries.ts'
 
 /**
  * Familiar's tools are plain Pi tools. What Familiar adds reaches each call
