@@ -16,6 +16,8 @@ import type {
   HandoffData,
   MESSAGE_KIND as CoreMessageKind,
   Mention,
+  NOTE_KIND as CoreNoteKind,
+  NoteData,
   REPLY_KIND as CoreReplyKind,
   ReplyData,
   RoomActivity,
@@ -30,6 +32,7 @@ export const MESSAGE_KIND: typeof CoreMessageKind = 'familiar.message'
 export const REPLY_KIND: typeof CoreReplyKind = 'familiar.reply'
 const SCHEDULED_KIND: typeof CoreScheduledKind = 'familiar.scheduled'
 export const HANDOFF_KIND: typeof CoreHandoffKind = 'familiar.handoff'
+export const NOTE_KIND: typeof CoreNoteKind = 'familiar.note'
 
 export type ToolCall = {
   id: string
@@ -85,6 +88,14 @@ export type TranscriptItem =
       from: number
       to: number
       note: string
+      /** When it was posted, in ms since the epoch. */
+      at: number
+    }
+  /** A host's note: context for the room's Familiars, which no one replies to. */
+  | {
+      type: 'note'
+      id: string
+      text: string
       /** When it was posted, in ms since the epoch. */
       at: number
     }
@@ -171,6 +182,10 @@ function toItems(entry: EntryRecord): TranscriptItem[] {
     case HANDOFF_KIND: {
       const { from, to, note, at } = entry.data as unknown as HandoffData
       return [{ type: 'handoff', id, from, to, note, at }]
+    }
+    case NOTE_KIND: {
+      const { text, at } = entry.data as unknown as NoteData
+      return [{ type: 'note', id, text, at }]
     }
     case REPLY_KIND:
       return toReplies(id, entry.data as unknown as ReplyData)

@@ -92,15 +92,18 @@ Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. I
 
 `lead` answers a named room's messages that mention no Familiar. A room without one is open: every Familiar in it takes a turn on such a message, one after another in the room's order, each shown the replies before it. Each `RoomApi` has:
 
-| Member                                         | Meaning                                                                                                 |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `post({ author, text, requestId, mentions? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once |
-| `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                |
-| `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far               |
-| `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                |
-| `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                 |
+| Member                                         | Meaning                                                                                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `post({ author, text, requestId, mentions? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once                |
+| `note({ text, requestId })`                    | Post a host's note: shown to each Familiar in the room on its next turn, with no turn of its own. Returns its entry ID |
+| `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                               |
+| `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far                              |
+| `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                               |
+| `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                                |
 
 A DM's Familiar answers every message; in a named room, each Familiar a message mentions answers it, else the lead, else, in an open room, each Familiar in turn. A mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text; `post` throws a `MessageError` for one that doesn't span an `@` or names a Familiar not in the room, and a `RoomError` for an archived room. A Familiar works one turn at a time, across all its rooms, and is shown what it missed in a room when it next takes a turn there. Its reply, with its tool calls, is copied into the room's log as a `familiar.reply` entry when the turn ends.
+
+A note is a `familiar.note` entry, `{ text, at }`: context for the room's Familiars, such as "Sam joined" or "the board was updated", that causes no turn, so no one replies to it. It reads in catch-up as `[Note]: …`, and takes the same text bounds as a message. It is for short passing context; a Familiar sees it once, and then it lives in that Familiar's working context only.
 
 Familiars take part with two tools of their own. `stay_quiet` ends a turn without a word, for one that wasn't addressed directly and has nothing to add; its reply's `outcome` is `quiet`, and it shows nothing in catch-up. `hand_off({ to, note })` asks another Familiar in the same room to take a turn: it posts a `familiar.handoff` entry, `{ from, to, note, hops, cause, at }`, and the Familiar it names answers the note in the room. A chain of handoffs longer than `maxHandoffs` is refused, and the room's Stop stops handoff turns like any other.
 

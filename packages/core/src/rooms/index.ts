@@ -8,7 +8,9 @@ import {
 } from '@earendil-works/pi-durable'
 import {
   admitMessage,
+  admitNote,
   MESSAGE_KIND,
+  NOTE_KIND,
   SCHEDULED_KIND,
   type Author,
 } from '../conversation/message.ts'
@@ -36,6 +38,7 @@ import { historyOf, type HistoryPage } from '../pi/entries.ts'
 export type {
   HandoffData,
   Mention,
+  NoteData,
   ReplyData,
   RoomMessageData,
   RoomScheduledData,
@@ -85,6 +88,14 @@ export type RoomApi = {
    * RoomError for an archived room.
    */
   post(message: RoomMessage): Promise<EntryId>
+  /**
+   * Posts a host's note: shown in the room and to each Familiar in it on its
+   * next turn, with no turn of its own, so no one replies. For context such
+   * as "Sam joined". Bounded as a message is; a retry with the same request
+   * ID posts nothing. Rejects with a MessageError for a note `admitNote`
+   * refuses, and a RoomError for an archived room.
+   */
+  note(note: { text: string; requestId: string }): Promise<EntryId>
   /**
    * Up to `limit` committed entries older than entry `before`, newest first.
    * `more` says whether older ones exist.
@@ -202,6 +213,21 @@ export function createRooms(
                 ...(message.mentions && { mentions: message.mentions }),
               },
             },
+            requestId,
+          ),
+        context,
+      )
+      return posted.entry
+    },
+    note: async (note) => {
+      const { text, requestId } = admitNote(note)
+      const posted = await harness.commit(
+        (tx) =>
+          post(
+            tx,
+            turn,
+            id,
+            { kind: NOTE_KIND, data: { text, at: options.now() } },
             requestId,
           ),
         context,

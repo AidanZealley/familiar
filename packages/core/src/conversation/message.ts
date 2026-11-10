@@ -92,6 +92,31 @@ const personRequestId = (author: Author, requestId: string) =>
   `person:${JSON.stringify([author.id, requestId])}`
 
 /**
+ * Checks the words and request ID every message and note carries, and returns
+ * them. Throws a MessageError for `what` they don't fit.
+ */
+function admitText(
+  what: string,
+  { text, requestId }: { text: string; requestId: string },
+) {
+  if (!bounded(text, MESSAGE_LIMITS.text)) {
+    throw new MessageError(
+      `${what} needs text, of at most ${MESSAGE_LIMITS.text} characters.`,
+    )
+  }
+  if (
+    typeof requestId !== 'string' ||
+    !requestId ||
+    requestId.length > MESSAGE_LIMITS.requestId
+  ) {
+    throw new MessageError(
+      `${what} needs a requestId of at most ${MESSAGE_LIMITS.requestId} characters.`,
+    )
+  }
+  return { text, requestId }
+}
+
+/**
  * The single admission check for a person's message: a valid author, words
  * within bounds and a bounded request ID. Throws a MessageError otherwise.
  */
@@ -101,25 +126,18 @@ export function admitMessage(message: {
   requestId: string
 }) {
   const author = authorSnapshot(message.author)
-  if (!bounded(message.text, MESSAGE_LIMITS.text)) {
-    throw new MessageError(
-      `A message needs text, of at most ${MESSAGE_LIMITS.text} characters.`,
-    )
-  }
-  if (
-    typeof message.requestId !== 'string' ||
-    !message.requestId ||
-    message.requestId.length > MESSAGE_LIMITS.requestId
-  ) {
-    throw new MessageError(
-      `A message needs a requestId of at most ${MESSAGE_LIMITS.requestId} characters.`,
-    )
-  }
-  return {
-    author,
-    text: message.text,
-    requestId: personRequestId(author, message.requestId),
-  }
+  const { text, requestId } = admitText('A message', message)
+  return { author, text, requestId: personRequestId(author, requestId) }
+}
+
+/**
+ * The admission check for a host's note to a room: the same bounds as a
+ * message, with no author. The request ID is namespaced as a person's is, so
+ * no note's retry can collide with a message or Familiar's own submission.
+ */
+export function admitNote(note: { text: string; requestId: string }) {
+  const { text, requestId } = admitText('A note', note)
+  return { text, requestId: `note:${JSON.stringify(requestId)}` }
 }
 
 /**
@@ -201,6 +219,12 @@ export async function answeredMessage(tx: Tx, taskId: TaskId) {
  */
 export const HANDOFF_KIND = 'familiar.handoff'
 
+/**
+ * The entry kind a host's note to a room is posted as: context for the
+ * Familiars in it, which causes no turn (see rooms/log.ts).
+ */
+export const NOTE_KIND = 'familiar.note'
+
 /** The entry kind a schedule's prompt is submitted as when it falls due. */
 export const SCHEDULED_KIND = 'familiar.scheduled'
 
@@ -229,6 +253,11 @@ export type Said =
       role: 'person'
       author: Author
       text: string
+      /**
+       * What the Familiar was shown from the room with this message: other
+       * people's and Familiars' words, never the author's own.
+       */
+      context?: string
       at: number
     }
   | { role: 'assistant'; text: string; at: number }
@@ -249,6 +278,9 @@ export function saidBy(entry: EntryRecord): Said | undefined {
       role: 'person',
       author: data.author,
       text: data.text,
+      // A context is its first line, saying only where the turn was, then
+      // what was said there. Without the rest it has nothing to file.
+      context: data.context?.includes('\n') ? data.context : undefined,
       at: message.timestamp,
     }
   }

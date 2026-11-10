@@ -8,6 +8,7 @@ import {
 import {
   HANDOFF_KIND,
   MESSAGE_KIND,
+  NOTE_KIND,
   type Addressed,
 } from '../conversation/message.ts'
 import {
@@ -20,6 +21,7 @@ import {
   REPLY_KIND,
   replyText,
   type HandoffData,
+  type NoteData,
   type ReplyData,
   type RoomMessageData,
 } from './log.ts'
@@ -65,7 +67,8 @@ const EARLIER_TOKENS = 1_500
 /**
  * An entry as a catch-up line, or undefined for what isn't shown: reminders,
  * replies with nothing said, such as a quiet one, and `own` replies when the
- * Familiar's chat already has them. A handoff names both Familiars as they
+ * Familiar's chat already has them. A note is a host's, so it has no
+ * speaker. A handoff names both Familiars as they
  * are called now. Continuation lines are indented, so no one's words can
  * pass for another line.
  */
@@ -87,6 +90,9 @@ function line(
   if (entry.kind === HANDOFF_KIND) {
     const { from, to, note } = entry.data as HandoffData
     return said(`${familiars[from]?.name} → ${familiars[to]?.name}`, note)
+  }
+  if (entry.kind === NOTE_KIND) {
+    return said('Note', (entry.data as NoteData).text)
   }
   return undefined
 }

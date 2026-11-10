@@ -388,6 +388,29 @@ test('automatic recall and the recall tool find an exchange compaction took out 
   )
 })
 
+test("recall finds what a room showed the Familiar with a turn, apart from the person's own words", async () => {
+  const { faux, dm, say } = await setup()
+  await dm().note({ text: 'The garage code is 4417.', requestId: 'garage' })
+  faux.setResponses([fauxAssistantMessage('Hello.')])
+  await say('Good morning!')
+
+  let results: string[] = []
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('recall', { query: 'garage code' }), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      results = toolResultsOf(context)
+      return fauxAssistantMessage('4417.')
+    },
+  ])
+  await say('What is the garage code?')
+  // The note was never said by the person, so it follows their words, set apart.
+  expect(results.at(-1)).toMatch(
+    /Exchanges:\nx\d+ \(.*\): .*: Good morning! \[Shown from the room with it, said by others\] .*\[Note\]: The garage code is 4417\./,
+  )
+})
+
 test("a compaction's summary, stored after the message it kept, doesn't hide that message from recall", async () => {
   const { faux, familiar, say } = await setup({
     storage: await storageWith(['Aidan keeps bees in the garden', 2]),

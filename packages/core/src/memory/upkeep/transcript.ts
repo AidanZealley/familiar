@@ -7,6 +7,8 @@ import { upkeepDay } from './schedule.ts'
 import type { FamiliarId } from '../../workspace/familiars.ts'
 import { entriesOf } from '../../pi/entries.ts'
 
+const indented = (text: string) => text.replace(/^/gm, '    ')
+
 /** A reply belongs to the person's turn, even when a batch splits that turn. */
 async function precedingDay(
   tx: Tx,
@@ -74,9 +76,12 @@ export async function newMessages(
 
     // People's lines carry their exchange ID, which facts cite as sources.
     // Scheduled prompts are Familiar's own earlier words, so they can't be.
+    // What a room showed the Familiar with a message follows it, set apart:
+    // those are other people's and Familiars' words, not the author's. It
+    // comes last, so a cut for size never takes the message and its ID.
     const line =
       said.role === 'person'
-        ? `[${exchangeId(entry.id)} ${localMinute(said.at, timeZone)}] ${formatAuthor(said.author)}: ${said.text}`
+        ? `[${exchangeId(entry.id)} ${localMinute(said.at, timeZone)}] ${formatAuthor(said.author)}: ${said.text}${said.context ? `\n  Shown to ${name} from the room with that message, said by others, not by its author (cite the message's ID for any fact in it):\n${indented(said.context)}` : ''}`
         : said.role === 'scheduled'
           ? `[${localMinute(said.at, timeZone)}] (scheduled${said.creator ? `; requested by ${formatAuthor(said.creator)}` : ''}) ${said.text}`
           : `[${localMinute(said.at, timeZone)}] ${name}: ${said.text}`

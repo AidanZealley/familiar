@@ -123,6 +123,25 @@ export function roomRoutes(rooms: RoomsApi) {
             return c.body(null, 202)
           }),
       )
+      // A host's note, which Familiars are shown but no one answers.
+      .post(
+        '/:room/notes',
+        can('rooms.note'),
+        validator('json', (body, c) => {
+          if (typeof body?.text !== 'string') {
+            return c.json({ error: 'text is required' }, 400)
+          }
+          if (typeof body.requestId !== 'string') {
+            return c.json({ error: 'requestId is required' }, 400)
+          }
+          return { text: body.text, requestId: body.requestId }
+        }),
+        (c) =>
+          refusable(c, async () => {
+            await (await roomOf(c)).note(c.req.valid('json'))
+            return c.body(null, 202)
+          }),
+      )
       // A page of entries older than `before`, newest first.
       .get(
         '/:room/history',
