@@ -1,6 +1,6 @@
 import type { PushSubscriptionJson } from '@familiar-ai/client'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 
 /**
  * Notifications on this device. `unsupported` covers browsers without Web
@@ -25,7 +25,7 @@ const asJson = (subscription: PushSubscription) =>
  * restarted since) receives nothing. Undefined when the server has no push.
  */
 async function devicePush() {
-  const key = await familiar.push.key()
+  const key = await workspace.push.key()
   if (!key) {
     return undefined
   }
@@ -58,7 +58,7 @@ async function check(): Promise<NotificationStatus> {
   }
   if (push.current && Notification.permission === 'granted') {
     // The server may have forgotten it (a fresh demo, a pruned endpoint).
-    await familiar.push.subscribe(asJson(push.subscription!))
+    await workspace.push.subscribe(asJson(push.subscription!))
     return 'on'
   }
   return 'off'
@@ -81,13 +81,13 @@ async function subscribe(permission: Promise<NotificationPermission>) {
         userVisibleOnly: true,
         applicationServerKey: push.key,
       })
-  await familiar.push.subscribe(asJson(subscription))
+  await workspace.push.subscribe(asJson(subscription))
 }
 
 async function unsubscribe() {
   const subscription = (await devicePush())?.subscription
   if (subscription) {
-    await familiar.push.unsubscribe(asJson(subscription))
+    await workspace.push.unsubscribe(asJson(subscription))
     await subscription.unsubscribe()
   }
 }

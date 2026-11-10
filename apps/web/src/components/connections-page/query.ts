@@ -1,6 +1,6 @@
 import type { ConnectionInfo } from '@familiar-ai/client'
 import { queryOptions } from '@tanstack/react-query'
-import { familiar } from '@/lib/familiar'
+import { workspace } from '@/lib/familiar'
 
 const connecting = (connections: ConnectionInfo[] | undefined) =>
   connections?.some(
@@ -15,6 +15,6 @@ const connecting = (connections: ConnectionInfo[] | undefined) =>
  */
 export const connectionsQuery = queryOptions({
   queryKey: ['connections'],
-  queryFn: () => familiar.connections.list(),
+  queryFn: () => workspace.connections.list(),
   refetchInterval: (query) => (connecting(query.state.data) ? 1000 : 5000),
 })

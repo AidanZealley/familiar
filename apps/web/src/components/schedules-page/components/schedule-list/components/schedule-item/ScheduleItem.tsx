@@ -24,7 +24,7 @@ export const ScheduleItem = ({ schedule }: ScheduleItemProps) => {
   // The mirrored document drops a cancelled schedule, removing this item and
   // its open dialog with it.
   const cancel = useMutation({
-    mutationFn: () => familiar.schedules.cancel(schedule.id),
+    mutationFn: () => familiar().schedules.cancel(schedule.id),
   })
   const cadence = schedule.repeat ? formatRepeat(schedule.repeat) : 'Once'
 

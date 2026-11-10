@@ -7,7 +7,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { familiar } from '@/lib/familiar'
+import { room } from '@/lib/familiar'
 import { ModelPicker } from '../model-picker'
 import type { ComposerProps } from './types'
 
@@ -16,12 +16,12 @@ export const Composer = ({ busy }: ComposerProps) => {
   const send = useMutation({
     mutationKey: ['composer'],
     // While busy this queues; Familiar answers it after the current reply.
-    mutationFn: (message: string) => familiar.conversation.send(message),
+    mutationFn: (message: string) => room().send(message),
     onError: (_error, message) => setText(message),
   })
   const abort = useMutation({
     mutationKey: ['composer'],
-    mutationFn: () => familiar.conversation.abort(),
+    mutationFn: () => room().stop(),
   })
   // Every command here, the model picker's too, shares the composer's key:
   // the latest one's failure shows below it until another succeeds.
