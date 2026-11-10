@@ -27,7 +27,7 @@ export const workspace = createWorkspaceStore('/api')
  */
 export type Home =
   | { status: 'finding' }
-  | { status: 'ready'; familiar: FamiliarStore; room: RoomStore }
+  | { status: 'ready'; id: number; familiar: FamiliarStore; room: RoomStore }
   | { status: 'failed'; error: string }
 
 export const home = createStore<Home>()(() => ({ status: 'finding' }))
@@ -42,6 +42,7 @@ const find = async (familiars: NonNullable<WorkspaceState['familiars']>) => {
   const room = await workspace.familiars.dm(first)
   home.setState({
     status: 'ready',
+    id: first,
     familiar: createFamiliarStore('/api', first),
     room: createRoomStore('/api', room),
   })
@@ -70,6 +71,9 @@ const ready = () => {
 
 /** The app's Familiar, for its commands, once `home` is ready. */
 export const familiar = () => ready().familiar
+
+/** The app's Familiar's ID, once `home` is ready. */
+export const familiarId = () => ready().id
 
 /** The app's chat, the signed-in person's DM, once `home` is ready. */
 export const room = () => ready().room

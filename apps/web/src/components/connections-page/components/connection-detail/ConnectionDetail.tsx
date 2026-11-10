@@ -8,6 +8,7 @@ import { cn } from 'cn'
 import { statusOf } from '../../status'
 import { StatusDot } from '../status-dot'
 import { TransportDetails } from '../transport-details'
+import { FamiliarSwitch } from './components/familiar-switch'
 import { RemoveServer } from './components/remove-server'
 import { ToolList } from './components/tool-list'
 import type { ConnectionDetailProps } from './types'
@@ -53,6 +54,7 @@ export const ConnectionDetail = ({
                 : 'MCP server run as a local command'}
           </p>
         </div>
+        <FamiliarSwitch connection={connection} />
         <div className="flex flex-wrap gap-2">
           {connection.secrets.length > 0 && (
             <Button variant="outline" onClick={onEdit}>
