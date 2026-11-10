@@ -62,7 +62,7 @@ const compactingHost = (
   })
 
 test('compaction keeps requests under the context budget', async () => {
-  const budget = 2_000
+  const budget = 2_200
   const requests: number[] = []
   const { familiar: current, say } = await compactingHost(budget, (request) => {
     requests.push(tokensOf(request.context))
@@ -80,7 +80,7 @@ test('compaction keeps requests under the context budget', async () => {
     watch.value.entries.some((entry) => entry.kind === 'pi.compaction'),
   ).toBe(true)
   expect(requests.length).toBe(20)
-  // Unbounded, the last request would hold all twenty days, about 2,800 tokens.
+  // Unbounded, the last request would hold all twenty days, about 4,700 tokens.
   expect(Math.max(...requests)).toBeLessThan(budget)
 })
 

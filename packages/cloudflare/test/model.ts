@@ -31,6 +31,8 @@ function reply(request: ScriptedRequest) {
       return fauxAssistantMessage(REMINDER)
     case 'background':
       return fauxAssistantMessage('Nothing to note.')
+    case 'handoff':
+      return fauxAssistantMessage(`On it: ${request.note}`)
     case 'message': {
       const remind = /^remind (\S+ \S+) (.+)$/.exec(request.text)
       if (remind) {

@@ -3,7 +3,12 @@ import type { RoomActivity } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'
 import { carryOver, type History } from './log.ts'
 import { composeMessage } from './mentions.ts'
-import { MESSAGE_KIND, REPLY_KIND, toRoomTranscript } from './transcript.ts'
+import {
+  HANDOFF_KIND,
+  MESSAGE_KIND,
+  REPLY_KIND,
+  toRoomTranscript,
+} from './transcript.ts'
 
 // Entries as a room log commits them: IDs ascend in commit order.
 const entry = (id: number, kind: string, data: object) =>
@@ -79,6 +84,52 @@ test("people's messages and copied replies render in order, with each reply's to
   expect(stopped).toMatchObject([
     { type: 'reply', text: 'Half', stopped: true },
     { type: 'reply', error: 'The reply failed.' },
+  ])
+})
+
+test('a handoff shows who asked whom, and a quiet reply says it passed', () => {
+  const quiet = {
+    type: 'toolCall',
+    id: 'q1',
+    name: 'stay_quiet',
+    arguments: {},
+  }
+  const { items } = toRoomTranscript(
+    viewOf(
+      said(1, 'Paint?'),
+      entry(2, HANDOFF_KIND, {
+        from: 3,
+        to: 4,
+        note: 'Which paint?',
+        hops: 1,
+        cause: 1,
+        at: 2000,
+      }),
+      replied(
+        3,
+        2,
+        [assistant([quiet], 'toolUse'), toolResult('q1', 'You stayed quiet.')],
+        'quiet',
+      ),
+    ),
+  )
+  expect(items.slice(1)).toEqual([
+    {
+      type: 'handoff',
+      id: 'entry:2',
+      from: 3,
+      to: 4,
+      note: 'Which paint?',
+      at: 2000,
+    },
+    expect.objectContaining({
+      type: 'reply',
+      text: '',
+      quiet: true,
+      toolCalls: [
+        expect.objectContaining({ name: 'stay_quiet', status: 'done' }),
+      ],
+    }),
   ])
 })
 

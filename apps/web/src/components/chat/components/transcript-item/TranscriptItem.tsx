@@ -19,6 +19,11 @@ export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
     return <PersonMessage message={item} />
   }
 
+  // Drawn by the rooms redesign.
+  if (item.type === 'handoff') {
+    return null
+  }
+
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <Reply reply={item} />

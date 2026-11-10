@@ -13,6 +13,7 @@ import {
   textOf,
   type MessageData,
 } from '../conversation/message.ts'
+import { readHandoff } from '../rooms/log.ts'
 import { SCHEDULED_PREFIX } from '../schedules/task.ts'
 
 type Said = Pick<MessageData, 'author' | 'text'>
@@ -27,6 +28,8 @@ export type ScriptedRequest = { context: TranscriptContext } & (
   | { type: 'tool-result'; name: string; output: string; isError: boolean }
   /** A schedule's prompt has come due. */
   | { type: 'scheduled' }
+  /** Another Familiar handed this on, by name, with a note. */
+  | { type: 'handoff'; from: string; note: string }
   /** Work nobody is waiting on, such as compaction or memory upkeep. */
   | { type: 'background' }
 )
@@ -41,8 +44,8 @@ const inputText = (message: Message) =>
     : (message.content.findLast((part) => part.type === 'text')?.text ?? '')
 
 /**
- * Reads the input a request answers: its newest person's message, schedule or
- * tool result. Anything after it, such as a recall note or a plugin's note, is
+ * Reads the input a request answers: its newest person's message, schedule,
+ * handoff or tool result. Anything after it, such as a recall note or a plugin's note, is
  * context for that input. Compaction and upkeep carry no person's message or
  * schedule, so they read as background unless the script called a tool there.
  */
@@ -65,6 +68,10 @@ function readRequest(context: TranscriptContext): ScriptedRequest {
     const text = inputText(message)
     if (text.startsWith(SCHEDULED_PREFIX)) {
       return { type: 'scheduled', context }
+    }
+    const handoff = readHandoff(text)
+    if (handoff) {
+      return { type: 'handoff', ...handoff, context }
     }
     const said = readMessage(text)
     if (said) {

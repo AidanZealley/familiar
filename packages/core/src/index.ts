@@ -37,12 +37,15 @@ export {
 } from './conversation/models.ts'
 export type { MemoryApi } from './memory/index.ts'
 export {
+  DEFAULT_MAX_HANDOFFS,
   REPLY_KIND,
   RoomError,
+  type HandoffData,
   type Mention,
   type ReplyData,
   type Room,
   type RoomApi,
+  type RoomChange,
   type RoomId,
   type RoomMessage,
   type RoomMessageData,

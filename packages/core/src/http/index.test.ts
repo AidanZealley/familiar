@@ -624,6 +624,18 @@ test('familiars and rooms are created and changed over HTTP', async () => {
   })
   expect(room.status).toBe(201)
   const { id } = (await room.json()) as { id: number }
+  // A null lead opens the room.
+  expect(
+    (
+      await client.rooms[':room'].$patch({
+        param: { room: String(id) },
+        json: { lead: null },
+      })
+    ).status,
+  ).toBe(204)
+  expect(
+    (await host.workspace().rooms.list()).find((room) => room.id === id),
+  ).not.toHaveProperty('lead')
   expect(
     (await client.rooms[':room'].$delete({ param: { room: String(id) } }))
       .status,

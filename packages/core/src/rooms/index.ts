@@ -24,14 +24,17 @@ import {
   Rooms,
   updateRoom,
   type Room,
+  type RoomChange,
   type RoomId,
   type RoomSetup,
   type RoomsState,
 } from './rooms.ts'
+import { roomTools } from './tools.ts'
 import { createTurnTask } from './turn.ts'
 import { historyOf, type HistoryPage } from '../pi/entries.ts'
 
 export type {
+  HandoffData,
   Mention,
   ReplyData,
   RoomMessageData,
@@ -39,7 +42,14 @@ export type {
 } from './log.ts'
 export { REPLY_KIND } from './log.ts'
 export { RoomError } from './rooms.ts'
-export type { Room, RoomId, RoomSetup, RoomsState } from './rooms.ts'
+export type {
+  Room,
+  RoomChange,
+  RoomId,
+  RoomSetup,
+  RoomsState,
+} from './rooms.ts'
+export { checkMaxHandoffs, DEFAULT_MAX_HANDOFFS } from './tools.ts'
 export type { RoomActivity, TurnActivity } from './activity.ts'
 
 /** A person's message to a room. */
@@ -59,7 +69,8 @@ export type RoomMessage = {
   requestId: string
   /**
    * Whom it addresses, as picked by its author; Familiars must be in the
-   * room. In a named room, mentioned Familiars answer, else the lead.
+   * room. In a named room, mentioned Familiars answer, else the lead, else,
+   * in an open room, each Familiar in turn.
    */
   mentions?: Mention[]
 }
@@ -105,10 +116,16 @@ export type RoomsApi = {
   list(person?: string): Promise<RoomSummary[]>
   /** The registry, as `list` filters it, then every change to that. */
   watch(person?: string): Promise<WatchHandle<RoomsState>>
-  /** Throws a RoomError for a blank name, no Familiars, or a lead not among them. */
+  /**
+   * A named room, open unless it has a `lead`. Throws a RoomError for a
+   * blank name, no Familiars, or a lead not among them.
+   */
   create(setup: RoomSetup): Promise<RoomId>
-  /** Changes a named room; what's left out stays. Throws a RoomError as `create`. */
-  update(id: RoomId, change: Partial<RoomSetup>): Promise<void>
+  /**
+   * Changes a named room; what's left out stays, and a `null` lead opens
+   * it. Throws a RoomError as `create`.
+   */
+  update(id: RoomId, change: RoomChange): Promise<void>
   /** Hides a named room and closes it to new messages, keeping its history. */
   archive(id: RoomId): Promise<void>
   /** The DM between a Familiar and a person, by host author ID, created if new. */
@@ -146,7 +163,12 @@ function seenBy(
  */
 export function createRooms(
   harness: Harness,
-  options: { timeZone: string; now: () => number },
+  options: {
+    timeZone: string
+    now: () => number
+    /** Checked by `checkMaxHandoffs`. */
+    maxHandoffs: number
+  },
 ) {
   const turn = createTurnTask(harness, options.timeZone)
 
@@ -221,7 +243,11 @@ export function createRooms(
   }
 
   return {
-    extension: defineExtension({ name: 'familiar.rooms', tasks: [turn] }),
+    extension: defineExtension({
+      name: 'familiar.rooms',
+      tasks: [turn],
+      tools: roomTools(turn, options.maxHandoffs),
+    }),
     postScheduled,
     api,
   }

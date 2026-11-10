@@ -6,7 +6,12 @@ import { MessageError } from '../conversation/message.ts'
 import { streamEvents } from '../http/events.ts'
 import { found } from '../http/found.ts'
 import type { Mention } from './log.ts'
-import { RoomError, type RoomId, type RoomSetup } from './rooms.ts'
+import {
+  RoomError,
+  type RoomChange,
+  type RoomId,
+  type RoomSetup,
+} from './rooms.ts'
 import type { RoomApi, RoomsApi } from './index.ts'
 import { type HistoryPage } from '../pi/entries.ts'
 
@@ -22,14 +27,17 @@ async function refusable(c: Context, run: () => Promise<Response>) {
   }
 }
 
-/** A named room's setup, as far as the body gives it; `RoomsApi` checks the rest. */
+/**
+ * A named room's setup, as far as the body gives it; `RoomsApi` checks the
+ * rest. A `null` lead, or none, leaves the room open.
+ */
 const setup = validator('json', (body, c) => {
   const { name, familiars, lead } = (body ?? {}) as Record<string, unknown>
   if (
     (name !== undefined && typeof name !== 'string') ||
     (familiars !== undefined &&
       !(Array.isArray(familiars) && familiars.every(Number.isSafeInteger))) ||
-    (lead !== undefined && !Number.isSafeInteger(lead))
+    (lead != null && !Number.isSafeInteger(lead))
   ) {
     return c.json(
       { error: 'name must be text, familiars and lead Familiar IDs' },
@@ -37,7 +45,7 @@ const setup = validator('json', (body, c) => {
     )
   }
   // IDs on the wire are plain numbers; `RoomsApi` checks they're Familiars.
-  return body as { name?: string; familiars?: number[]; lead?: number }
+  return body as { name?: string; familiars?: number[]; lead?: number | null }
 })
 
 /**
@@ -58,17 +66,23 @@ export function roomRoutes(rooms: RoomsApi) {
         c.json(await rooms.list(c.get('author').id), 200),
       )
       .post('/', can('rooms.create'), setup, (c) =>
-        refusable(c, async () =>
-          c.json(
-            { id: await rooms.create(c.req.valid('json') as RoomSetup) },
+        refusable(c, async () => {
+          const { lead, ...setup } = c.req.valid('json')
+          return c.json(
+            {
+              id: await rooms.create({
+                ...setup,
+                ...(lead != null && { lead }),
+              } as RoomSetup),
+            },
             201,
-          ),
-        ),
+          )
+        }),
       )
       .patch('/:room', can('rooms.update'), setup, (c) =>
         refusable(c, async () => {
           await roomOf(c)
-          await rooms.update(idOf(c), c.req.valid('json') as Partial<RoomSetup>)
+          await rooms.update(idOf(c), c.req.valid('json') as RoomChange)
           return c.body(null, 204)
         }),
       )

@@ -181,8 +181,17 @@ async function openChat(responses: FauxResponseStep[]) {
     parameters: Type.Object({}),
     execute: async () => ({ output: [{ type: 'text', text: 'echoed' }] }),
   })
+  const hush = defineTool({
+    name: 'hush',
+    description: 'Ends the run',
+    parameters: Type.Object({}),
+    execute: async () => ({
+      output: [{ type: 'text', text: 'hushed' }],
+      control: { terminate: true },
+    }),
+  })
   const registry = createRegistry()
-  registry.install(defineExtension({ name: 'test', tools: [echo] }))
+  registry.install(defineExtension({ name: 'test', tools: [echo, hush] }))
   const { faux, models } = fauxModels()
   faux.setResponses(responses)
   const harness = await Harness.open(
@@ -401,6 +410,145 @@ test("a run's assistant and tool-result entries are the ones from its input to i
   // run, between its tool result and its answer, and share A's answer.
   expect(doneB.entry).toBeGreaterThan(doneA.answer)
   expect(between(doneB.entry, doneB.answer)).toEqual(['pi.assistant'])
+  await harness.close(context)
+})
+
+// Staying quiet in a room turn (rooms/tools.ts, rooms/turn.ts).
+test("a tool result that asks to terminate ends the run without another request; the input's answer is the call, and the result follows it", async () => {
+  let requests = 0
+  const { harness, send, view } = await openChat([
+    () => {
+      requests++
+      return fauxAssistantMessage(fauxToolCall('hush', {}), {
+        stopReason: 'toolUse',
+      })
+    },
+    () => {
+      requests++
+      return fauxAssistantMessage('never')
+    },
+  ])
+  const settled = await (await send('A')).wait(context)
+  if (settled.type !== 'input' || settled.status !== 'done') {
+    throw new Error('The input should have been answered.')
+  }
+  const { entries } = await view()
+  // Surprising: the answer is the assistant entry that made the call, and
+  // the tool's result comes after it, so a run's messages run past its answer
+  // up to the next input.
+  const after = entries.filter((entry) => entry.id >= settled.answer)
+  expect(after.map((entry) => entry.model?.[0])).toMatchObject([
+    {
+      role: 'assistant',
+      stopReason: 'toolUse',
+      content: [{ type: 'toolCall', name: 'hush' }],
+    },
+    { role: 'toolResult', toolName: 'hush' },
+  ])
+  expect(requests).toBe(1)
+  await harness.close(context)
+})
+
+// Open rooms chain their turns (rooms/turn.ts).
+test('a task can wait on tasks it does not own, finished or not, and resumes once each is terminal however it ended', async () => {
+  const ran: string[] = []
+  const releases = new Map<string, () => void>()
+  type Step = { phase: 'wait' } | { phase: 'hold' } | { phase: 'run' }
+  const step = defineTask<
+    { id: string; after?: number; hold?: boolean },
+    Step,
+    null
+  >({
+    name: 'test.step',
+    version: 1,
+    initial: (input) =>
+      input.after !== undefined ? { phase: 'wait' } : { phase: 'hold' },
+    phases: {
+      wait: (task, runtime, context) =>
+        runtime.commit(
+          () => ({
+            status: 'waiting',
+            checkpoint: { phase: 'hold' },
+            on: [task.input.after as never],
+            policy: 'allSettled',
+          }),
+          context,
+        ),
+      hold: async (task, runtime, context) => {
+        if (task.input.hold) {
+          await new Promise<void>((resolve) =>
+            releases.set(task.input.id, resolve),
+          )
+        }
+        await runtime.commit(
+          () => ({ status: 'running', checkpoint: { phase: 'run' } }),
+          context,
+        )
+      },
+      run: async (task, runtime, context) => {
+        ran.push(task.input.id)
+        await runtime.commit(
+          () => ({
+            status: 'terminal',
+            outcome: { status: 'completed', result: null },
+          }),
+          context,
+        )
+      },
+    },
+    abort: (_task, runtime, context) =>
+      runtime.commit(
+        () => ({ status: 'terminal', outcome: { status: 'aborted' } }),
+        context,
+      ),
+  })
+  const harness = await Harness.open(
+    new ReopenableStorage(),
+    harnessOptions([step as never]),
+    context,
+  )
+  harness.resume()
+  const room = await harness.createConversation(
+    { ownership: { kind: 'ownerless' } },
+    context,
+  )
+  const create = (id: string, after?: number, hold?: boolean) =>
+    harness.commit(
+      (tx) =>
+        tx.createTask(
+          step,
+          { id, after, hold },
+          {
+            ownership: { kind: 'conversation' },
+            conversationId: room.id,
+            background: true,
+          },
+        ),
+      context,
+    )
+
+  // b waits for a, which is held; c waits for b.
+  const a = await create('a', undefined, true)
+  const b = await create('b', a)
+  await create('c', b)
+  await expect.poll(() => releases.has('a')).toBe(true)
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  expect(ran).toEqual([])
+  releases.get('a')!()
+  await expect.poll(() => ran).toEqual(['a', 'b', 'c'])
+
+  // On a task that's already terminal, it carries on at once.
+  await create('d', a)
+  await expect.poll(() => ran).toEqual(['a', 'b', 'c', 'd'])
+
+  // An aborted task settles a wait too.
+  const e = await create('e', undefined, true)
+  await create('f', e)
+  await expect.poll(() => releases.has('e')).toBe(true)
+  const aborted = harness.abortTask(e, context)
+  releases.get('e')!()
+  await aborted
+  await expect.poll(() => ran).toEqual(['a', 'b', 'c', 'd', 'f'])
   await harness.close(context)
 })
 
