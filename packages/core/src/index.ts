@@ -1,16 +1,12 @@
-// Everything @familiar-ai/core exports from its root: summoning a Familiar,
+// Everything @familiar-ai/core exports from its root: opening a workspace,
 // the types in its signatures, and what hosts and plugins build with.
-export {
-  summonFamiliar,
-  type Familiar,
-  type FamiliarOptions,
-} from './familiar.ts'
 export {
   openWorkspace,
   type FamiliarChange,
   type FamiliarId,
   type FamiliarIdentity,
   type FamiliarSummary,
+  type FamiliarsState,
   type Workspace,
   type WorkspaceFamiliar,
   type WorkspaceOptions,
@@ -33,7 +29,7 @@ export {
   MessageError,
   type Author,
 } from './conversation/message.ts'
-export type { HistoryPage, Message } from './conversation/index.ts'
+export type { HistoryPage } from './conversation/index.ts'
 export {
   ModelError,
   type ChatModel,
@@ -53,7 +49,9 @@ export {
   type RoomSetup,
   type RoomsApi,
   type RoomSummary,
-  type TurnRecord,
+  type RoomActivity,
+  type TurnActivity,
+  type RoomsState,
 } from './rooms/index.ts'
 export { defaultPersona } from './persona.ts'
 export {

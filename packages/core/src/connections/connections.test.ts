@@ -67,8 +67,7 @@ async function setup() {
 
   const host = await testHost({ plugins: [echo], secrets, fetch })
   const { faux } = host
-  const familiar = host.familiar()
-  const api = createHttpApi(familiar, {
+  const api = createHttpApi(host.workspace(), {
     allow: () => true,
     authenticate: () => ({ id: 'owner', name: 'owner' }),
   })
@@ -87,12 +86,11 @@ async function setup() {
       },
     ])
     const requestId = `go-${++calls}`
-    await familiar.send({
+    await host.send({
       author: { id: 'owner', name: 'owner' },
       text: 'Go',
       requestId,
     })
-    await familiar.idle()
     return seen
   }
   return { sent, api, callTool }

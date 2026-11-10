@@ -1,22 +1,41 @@
 import type { Op } from '@earendil-works/chord/delta'
-import type { ConversationView } from '@earendil-works/pi-durable'
+import type { AgentState, ConversationView } from '@earendil-works/pi-durable'
 import type { AccountState } from '../account/index.ts'
 import type { EpisodesState, FactsState } from '../memory/index.ts'
+import type { RoomActivity, RoomsState } from '../rooms/index.ts'
 import type { SchedulesState } from '../schedules/index.ts'
+import type { FamiliarsState } from '../workspace/index.ts'
 
 // The wire contract every client speaks. Owned here; @familiar-ai/client imports
 // these types, so a change to the API is a type error on both sides. Routes
 // are typed by `HttpApi`; the event stream, which Hono's client can't type,
-// by `StreamEvent`. The conversation is Pi's view as it is, so clients type
-// it with Pi's own types.
+// by `StreamEvent`. A room's log is Pi's view as it is, so clients type it
+// with Pi's own types.
 export type {
   Author,
   MESSAGE_KIND,
-  MessageData,
   SCHEDULED_KIND,
-  ScheduledData,
 } from '../conversation/message.ts'
 export type { HistoryPage } from '../conversation/index.ts'
+export type {
+  Mention,
+  REPLY_KIND,
+  ReplyData,
+  Room,
+  RoomActivity,
+  RoomId,
+  RoomMessageData,
+  RoomScheduledData,
+  RoomsState,
+  RoomSummary,
+  TurnActivity,
+} from '../rooms/index.ts'
+export type {
+  FamiliarId,
+  FamiliarIdentity,
+  FamiliarsState,
+  FamiliarSummary,
+} from '../workspace/index.ts'
 export type { ModelOption } from '../conversation/models.ts'
 export type { AgentState } from '@earendil-works/pi-durable'
 export type { AccountState } from '../account/index.ts'
@@ -37,12 +56,20 @@ export type {
 
 /**
  * The documents mirrored live to clients, by name. Adding one is a line here
- * and a line in `/events`; clients mirror whatever arrives.
+ * and a source in a stream; clients mirror whatever arrives.
  */
 export type Documents = {
+  /** The workspace's `/events`: who each Familiar is. */
+  familiars: FamiliarsState
+  /** The workspace's `/events`: the rooms the person sees. */
+  rooms: RoomsState
+  /** A Familiar's `/events`: the model its chat is on, and the level. */
+  model: AgentState
   memory: FactsState
   episodes: EpisodesState
   schedules: SchedulesState
+  /** A room's `/events`: its turns in progress, live. */
+  turns: RoomActivity
 }
 
 export type DocumentName = keyof Documents
@@ -55,12 +82,13 @@ export { CORE_BUDGET } from '../memory/facts.ts'
  * before applying any state; bump it on any change an older client would
  * misread.
  */
-export const PROTOCOL_VERSION = 2
+export const PROTOCOL_VERSION = 3
 
 /**
- * `GET /events` is a server-sent event stream of these. The conversation's
- * view and each document arrive whole first (again after any reconnect),
- * then as each commit's changes, to apply in order to the last value.
+ * Each `/events` (the workspace's, a Familiar's and a room's) is a
+ * server-sent event stream of these. A room's log view and each document
+ * arrive whole first (again after any reconnect), then as each commit's
+ * changes, to apply in order to the last value.
  */
 export type StreamEvent =
   | { event: 'protocol'; data: { version: number } }

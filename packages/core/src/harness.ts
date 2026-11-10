@@ -5,7 +5,7 @@ import type {
   Registry,
 } from '@earendil-works/pi-durable'
 import { modelKey, type ChatModel } from './conversation/models.ts'
-import type { FamiliarOptions } from './familiar.ts'
+import type { WorkspaceOptions } from './workspace/index.ts'
 import { UPKEEP_EXTENSION } from './memory/upkeep/index.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
@@ -37,7 +37,7 @@ function compactionFor(
 /** Pi's options for this Familiar: its models, compaction, defaults and clock. */
 export function harnessOptions(
   options: Pick<
-    FamiliarOptions,
+    WorkspaceOptions,
     'models' | 'model' | 'now' | 'setTimer' | 'onWake'
   > & { chatModels: readonly ChatModel[] },
   registry: Registry,

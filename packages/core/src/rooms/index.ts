@@ -2,9 +2,9 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
   type ConversationWatch,
-  type DocumentWatch,
   type EntryId,
   type Harness,
+  type WatchHandle,
 } from '@earendil-works/pi-durable'
 import { historyOf, type HistoryPage } from '../conversation/index.ts'
 import {
@@ -14,33 +14,48 @@ import {
   type Author,
 } from '../conversation/message.ts'
 import type { PostScheduled } from '../schedules/task.ts'
+import { viewWatch } from '../watch.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
+import { watchActivity, type RoomActivity } from './activity.ts'
 import { post, type Mention } from './log.ts'
 import {
   archiveRoom,
   createRoom,
   dmWith,
   Rooms,
-  Turns,
   updateRoom,
   type Room,
   type RoomId,
   type RoomSetup,
-  type TurnRecord,
+  type RoomsState,
 } from './rooms.ts'
 import { createTurnTask } from './turn.ts'
 
-export type { Mention, ReplyData, RoomMessageData } from './log.ts'
+export type {
+  Mention,
+  ReplyData,
+  RoomMessageData,
+  RoomScheduledData,
+} from './log.ts'
 export { REPLY_KIND } from './log.ts'
 export { RoomError } from './rooms.ts'
-export type { Room, RoomId, RoomSetup, TurnRecord } from './rooms.ts'
+export type { Room, RoomId, RoomSetup, RoomsState } from './rooms.ts'
+export type { RoomActivity, TurnActivity } from './activity.ts'
 
 /** A person's message to a room. */
 export type RoomMessage = {
-  /** Who sent it, as for a Familiar's chat (see `Message`). */
+  /**
+   * Who sent it, with a stable host ID and the name at send time. The model
+   * sees both; pick a name it can address, such as a first name. It
+   * attributes words; it grants nothing.
+   */
   author: Author
   text: string
-  /** Scoped to the author, as for a Familiar's chat. */
+  /**
+   * Stable per logical message from this author, so a retried post is
+   * admitted once. Scoped to the author: another author's same ID is a
+   * different message. At most `MESSAGE_LIMITS.requestId` characters.
+   */
   requestId: string
   /**
    * Whom it addresses, as picked by its author; Familiars must be in the
@@ -59,15 +74,19 @@ export type RoomApi = {
    * RoomError for an archived room.
    */
   post(message: RoomMessage): Promise<EntryId>
-  /** Older entries of the log, as a Familiar's chat's `history`. */
+  /**
+   * Up to `limit` committed entries older than entry `before`, newest first.
+   * `more` says whether older ones exist.
+   */
   history(before: EntryId, limit: number): Promise<HistoryPage>
   /** The log's committed view, then every commit's changes to it. */
   watch(): Promise<ConversationWatch>
   /**
-   * The turns in progress here, by task ID, with each one's input in its
-   * Familiar's chat once delivered, to follow in that chat's live state.
+   * The turns in progress here, by task ID: whether each is waiting for its
+   * Familiar or being answered, with the reply as it streams. Shows nothing
+   * of the Familiars' work in other rooms.
    */
-  watchTurns(): Promise<DocumentWatch<Record<string, TurnRecord>>>
+  watchTurns(): Promise<WatchHandle<RoomActivity>>
   /**
    * Stops every turn in this room: withdraws inputs still queued, and stops
    * the runs answering the others, keeping what they said. Other rooms'
@@ -79,8 +98,13 @@ export type RoomApi = {
 export type RoomSummary = Room & { id: RoomId }
 
 export type RoomsApi = {
-  /** Every room, archived ones included, flagged; hosts choose whom to show which. */
-  list(): Promise<RoomSummary[]>
+  /**
+   * Every room, archived ones included, flagged; with `person`, a host
+   * author ID, only those they see: every named room, and their own DMs.
+   */
+  list(person?: string): Promise<RoomSummary[]>
+  /** The registry, as `list` filters it, then every change to that. */
+  watch(person?: string): Promise<WatchHandle<RoomsState>>
   /** Throws a RoomError for a blank name, no Familiars, or a lead not among them. */
   create(setup: RoomSetup): Promise<RoomId>
   /** Changes a named room; what's left out stays. Throws a RoomError as `create`. */
@@ -94,6 +118,23 @@ export type RoomsApi = {
 }
 
 const context = BACKGROUND_CONTEXT
+
+/** The rooms `person` sees: every named room and their own DMs; all without one. */
+function seenBy(
+  state: Readonly<RoomsState> | null,
+  person: string | undefined,
+): RoomsState {
+  const rooms = state?.rooms ?? {}
+  return person === undefined
+    ? { rooms }
+    : {
+        rooms: Object.fromEntries(
+          Object.entries(rooms).filter(
+            ([, room]) => room.kind === 'room' || room.person === person,
+          ),
+        ),
+      }
+}
 
 /**
  * Rooms: where people talk to Familiars. Install `extension` before the
@@ -145,8 +186,7 @@ export function createRooms(
       historyOf((await harness.conversation(id, context))!, before, limit),
     watch: async () =>
       (await harness.conversation(id, context))!.watch(context),
-    // Every room's log is created with it.
-    watchTurns: async () => (await harness.watchDoc(Turns, id, context))!,
+    watchTurns: () => watchActivity(harness, id),
     // Its turns are background tasks, which only a background abort reaches.
     stop: async () =>
       (await harness.conversation(id, context))!.abort(context, {
@@ -155,9 +195,14 @@ export function createRooms(
   })
 
   const api: RoomsApi = {
-    list: async () =>
-      Object.entries((await harness.snapshot(Rooms, context))?.rooms ?? {}).map(
-        ([id, room]) => ({ id: Number(id) as RoomId, ...room }),
+    list: async (person) =>
+      Object.entries(
+        seenBy((await harness.snapshot(Rooms, context)) ?? null, person).rooms,
+      ).map(([id, room]) => ({ id: Number(id) as RoomId, ...room })),
+    // Opening the workspace creates the registry.
+    watch: async (person) =>
+      viewWatch((await harness.watchDoc(Rooms, context))!, (state) =>
+        seenBy(state, person),
       ),
     create: (setup) => harness.commit((tx) => createRoom(tx, setup), context),
     update: (id, change) =>

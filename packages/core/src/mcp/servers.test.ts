@@ -15,13 +15,13 @@ import { expect, onTestFinished, test } from 'vitest'
 import {
   McpConfigError,
   memorySecrets,
-  type Familiar,
+  type Workspace,
   type McpConnectionInfo,
   type McpServer,
   type PluginFetch,
 } from '../index.ts'
 import { createHttpApi } from '../http/index.ts'
-import { testHost, type TestHost } from '../testing.ts'
+import { replyTo, testHost, type TestHost } from '../testing.ts'
 
 // Familiar saves any well-formed server and connects through the transport
 // the host passed. Which protocols, destinations and commands are allowed is
@@ -156,9 +156,9 @@ const home = {
 } as const satisfies McpServer
 const connection = { kind: 'mcp', name: 'test' } as const
 
-const info = async (familiar: Familiar) =>
+const info = async (familiar: Workspace) =>
   (await familiar.connections.list())[0] as McpConnectionInfo
-const status = async (familiar: Familiar) => (await info(familiar)).status.type
+const status = async (familiar: Workspace) => (await info(familiar)).status.type
 
 /** A Familiar over `fetch` with `home` connected by its token. */
 async function connected(
@@ -166,7 +166,7 @@ async function connected(
   fetch = server.fetch,
 ) {
   const host = await testHost({ secrets: memorySecrets(), mcpFetch: fetch })
-  const familiar = host.familiar()
+  const familiar = host.workspace()
   await familiar.mcp.add(home)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
@@ -232,7 +232,7 @@ test.each([
         return new Response(null, { status: 503 })
       },
     })
-    const familiar = host.familiar()
+    const familiar = host.workspace()
     await expect(
       familiar.mcp.add(server as unknown as McpServer),
     ).rejects.toBeInstanceOf(McpConfigError)
@@ -255,7 +255,7 @@ test('a connection waits for its token, persists, follows tool changes and is cl
   const server = mcpServer()
   const secrets = memorySecrets()
   const host = await testHost({ secrets, mcpFetch: server.fetch })
-  let familiar = host.familiar()
+  let familiar = host.workspace()
 
   // A bearer server sends nothing until it has its token.
   await familiar.mcp.add(home)
@@ -284,7 +284,7 @@ test('a connection waits for its token, persists, follows tool changes and is cl
   await expect
     .poll(async () => (await info(familiar)).tools.map((tool) => tool.name))
     .toEqual(['add'])
-  familiar = await host.reopen()
+  familiar = (await host.reopen()).workspace
   await expect.poll(() => status(familiar)).toBe('connected')
   expect((await info(familiar)).tools.map((tool) => tool.name)).toEqual(['add'])
   // The old session was ended rather than abandoned.
@@ -312,7 +312,7 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
   expect(await secrets.get(connection, 'token')).toBeUndefined()
-  familiar = await host.reopen()
+  familiar = (await host.reopen()).workspace
   expect(await familiar.connections.list()).toEqual([])
 })
 
@@ -321,7 +321,7 @@ test('a new declaration cannot reuse an orphaned token for a different endpoint'
   const secrets = memorySecrets()
   const familiar = (
     await testHost({ secrets, mcpFetch: server.fetch })
-  ).familiar()
+  ).workspace()
   await secrets.set(connection, 'token', 'old-endpoint-token')
   await familiar.mcp.add({
     ...home,
@@ -342,7 +342,7 @@ test('redirects fail without sending a bearer token to a different endpoint', as
       return Response.redirect('http://other.local/api/mcp')
     },
   })
-  const familiar = host.familiar()
+  const familiar = host.workspace()
   await familiar.mcp.add(home)
   await familiar.connections.setSecret(connection, 'token', 'test-token')
   await expect.poll(() => status(familiar)).toBe('failed')
@@ -402,23 +402,23 @@ test.for(['Stop', 'a restart'] as const)(
     }
     const host = await connected(server)
     host.faux.setResponses([searchFor('echo'), callEcho()])
-    await host.familiar().send({
+    const entry = await host.dm().post({
       author: { id: 'owner', name: 'owner' },
       text: 'Wait.',
       requestId: 'wait',
     })
     await started.promise
     if (interruption === 'Stop') {
-      await host.familiar().abort()
+      await host.dm().stop()
       // The server is told to stop, not just abandoned.
       await cancelled.promise
     } else {
       await host.reopen({}, async () =>
         host.faux.setResponses([fauxAssistantMessage('Recovered.')]),
       )
-      await expect.poll(() => status(host.familiar())).toBe('connected')
+      await expect.poll(() => status(host.workspace())).toBe('connected')
     }
-    await host.familiar().idle()
+    await replyTo(host.dm(), entry)
     expect(server.state.calls).toBe(1)
   },
 )
@@ -442,7 +442,7 @@ test.for(['dropResponse', 'expire', 'unauthorized'] as const)(
     // Only a lost response ran on the server, and it ran once.
     expect(server.state.calls).toBe(failure === 'dropResponse' ? 1 : 0)
     await expect
-      .poll(() => status(host.familiar()))
+      .poll(() => status(host.workspace()))
       .toBe(failure === 'unauthorized' ? 'needs-auth' : 'connected')
   },
 )
@@ -466,7 +466,7 @@ test('parallel expired calls do not reconnect a replacement session', async () =
       return server.fetch(url, init)
     },
   })
-  const familiar = host.familiar()
+  const familiar = host.workspace()
   await familiar.mcp.add(home)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
@@ -530,7 +530,7 @@ test('an unavailable server neither blocks chat nor survives removal during star
         )
       }),
   })
-  const familiar = host.familiar()
+  const familiar = host.workspace()
   await familiar.mcp.add({
     ...home,
     transport: { ...home.transport, auth: { type: 'none' } },

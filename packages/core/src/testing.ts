@@ -4,10 +4,22 @@ import {
   fauxProvider,
   type FauxModelDefinition,
 } from '@earendil-works/pi-ai/providers/faux'
-import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
+import {
+  MemoryStorage,
+  type ConversationView,
+  type EntryId,
+  type SetTimer,
+} from '@earendil-works/pi-durable'
 import { onTestFinished } from 'vitest'
 import type { Author } from './conversation/message.ts'
-import { summonFamiliar, type Familiar, type FamiliarOptions } from './index.ts'
+import {
+  openWorkspace,
+  REPLY_KIND,
+  type ReplyData,
+  type RoomApi,
+  type RoomMessage,
+  type WorkspaceOptions,
+} from './index.ts'
 import { RECALL_HEADING } from './memory/recall.ts'
 import { parseMinute } from './time.ts'
 
@@ -72,43 +84,106 @@ export class ReopenableStorage extends MemoryStorage {
 
 const AIDAN: Author = { id: 'aidan', name: 'aidan' }
 
+export type TestHostOptions = Partial<WorkspaceOptions> & {
+  /** Familiar #1's name, set on every open. Default `Familiar`. */
+  name?: string
+  /** Familiar #1's persona, set on every open. */
+  persona?: string
+  /** The faux provider's models, when a test needs particular ones. */
+  faux?: FauxModelDefinition[]
+}
+
+/** The reply in `room` that answers `entry`, once there is one. */
+export async function replyTo(room: RoomApi, entry: EntryId) {
+  const watch = await room.watch()
+  const find = (view: ConversationView) =>
+    view.entries.find(
+      (each) =>
+        each.kind === REPLY_KIND &&
+        (each.data as unknown as ReplyData).cause === entry,
+    )?.data as unknown as ReplyData | undefined
+  try {
+    return (
+      find(watch.value) ??
+      (await new Promise<ReplyData>((resolve) =>
+        watch.start(async (view) => {
+          const reply = find(view)
+          if (reply) {
+            resolve(reply)
+          }
+        }),
+      ))
+    )
+  } finally {
+    await watch.stop()
+  }
+}
+
 /**
- * A Familiar on faux models over storage a restart can reopen, dismissed
- * after the test. `options` are passed to `summonFamiliar`; `faux` lists the
- * faux provider's models when a test needs particular ones.
+ * A workspace on faux models over storage a restart can reopen, dismissed
+ * after the test, with one Familiar and aidan's DM with it.
  */
-export async function testHost(
-  options: Partial<FamiliarOptions> & { faux?: FauxModelDefinition[] } = {},
-) {
-  const { faux: definitions, ...familiarOptions } = options
+export async function testHost(options: TestHostOptions = {}) {
+  const { faux: definitions, ...rest } = options
   const { faux, models } = fauxModels(definitions)
-  const storage = familiarOptions.storage ?? new ReopenableStorage()
-  let current: FamiliarOptions = {
+  let current: TestHostOptions & WorkspaceOptions = {
     models,
     model: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
-    ...familiarOptions,
-    storage,
+    ...rest,
+    storage: rest.storage ?? new ReopenableStorage(),
   }
-  let familiar: Familiar | undefined = await summonFamiliar(current)
-  onTestFinished(() => familiar?.dismiss())
+
+  const open = async () => {
+    const { name = 'Familiar', persona, ...workspaceOptions } = current
+    const workspace = await openWorkspace(workspaceOptions)
+    try {
+      const [first] = await workspace.familiars.list()
+      if (first) {
+        await workspace.familiars.update(first.id, {
+          name,
+          persona: persona ?? null,
+        })
+      }
+      const familiar = first
+        ? workspace.familiars.get(first.id)!
+        : await workspace.familiars.create({
+            name,
+            ...(persona !== undefined && { persona }),
+          })
+      const dm = (await workspace.rooms.get(
+        await workspace.rooms.dm(familiar.id, AIDAN.id),
+      ))!
+      return { workspace, familiar, dm }
+    } catch (error) {
+      await workspace.dismiss()
+      throw error
+    }
+  }
+
+  let opened: Awaited<ReturnType<typeof open>> | undefined = await open()
+  onTestFinished(() => opened?.workspace.dismiss())
 
   const dismiss = async () => {
-    const closing = familiar
-    familiar = undefined
-    await closing?.dismiss()
+    const closing = opened
+    opened = undefined
+    await closing?.workspace.dismiss()
+  }
+  const live = () => {
+    if (!opened) {
+      throw new Error('This workspace was dismissed.')
+    }
+    return opened
   }
 
   return {
     faux,
     models,
-    storage,
-    familiar: () => {
-      if (!familiar) {
-        throw new Error('This Familiar was dismissed.')
-      }
-      return familiar
-    },
+    storage: current.storage,
+    workspace: () => live().workspace,
+    familiar: () => live().familiar,
+    /** Aidan's DM with the Familiar. */
+    dm: () => live().dm,
     /** Dismisses it before the test ends, such as to read its storage. */
     dismiss,
     /**
@@ -116,32 +191,38 @@ export async function testHost(
      * after `meanwhile` changes the storage, with `changes` to its options.
      */
     reopen: async (
-      changes: Partial<FamiliarOptions> = {},
+      changes: Partial<TestHostOptions> = {},
       meanwhile?: () => Promise<void>,
     ) => {
       await dismiss()
       await meanwhile?.()
       current = { ...current, ...changes }
-      familiar = await summonFamiliar(current)
-      return familiar
+      opened = await open()
+      return opened
     },
-    /** Sends `text` from `author` and waits for every reply. */
+    /** Posts `message` to the DM and waits for the reply. */
+    send: async (message: RoomMessage) => {
+      const { dm } = live()
+      return replyTo(dm, await dm.post(message))
+    },
+    /** Posts `text` from `author` to the DM and waits for the reply. */
     say: async (text: string, author: Author = AIDAN) => {
-      await familiar!.send({
+      const { dm } = live()
+      // Each test message starts differently; a request ID has a bound.
+      const entry = await dm.post({
         author,
         text,
-        // Each test message starts differently; a request ID has a bound.
         requestId: text.slice(0, 128),
       })
-      await familiar!.idle()
+      await replyTo(dm, entry)
     },
   }
 }
 
 export type TestHost = Awaited<ReturnType<typeof testHost>>
 
-/** A Familiar on faux models and memory storage, dismissed after the test. */
-export const testFamiliar = async (options: Partial<FamiliarOptions> = {}) =>
+/** A workspace's Familiar on faux models and memory storage, dismissed after the test. */
+export const testFamiliar = async (options: TestHostOptions = {}) =>
   (await testHost(options)).familiar()
 
 /** The input a request answers: its last user message, before any recall note. */

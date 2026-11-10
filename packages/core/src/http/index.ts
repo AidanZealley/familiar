@@ -2,19 +2,25 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { accountRoutes } from '../account/http.ts'
 import type { Author } from '../conversation/message.ts'
-import { conversationRoutes } from '../conversation/http.ts'
-import type { Familiar } from '../familiar.ts'
 import { mcpRoutes } from '../mcp/http.ts'
-import { memoryRoutes } from '../memory/http.ts'
 import { connectionRoutes } from '../connections/http.ts'
-import { scheduleRoutes } from '../schedules/http.ts'
+import { roomRoutes } from '../rooms/http.ts'
+import { familiarRoutes } from '../workspace/http.ts'
+import type { Workspace } from '../workspace/index.ts'
 import type { AccessEnv, Allow } from '../access.ts'
-import { eventRoutes } from './events.ts'
+import { streamEvents } from './events.ts'
 import { pushRoutes, type PushHost } from './push.ts'
 
 // The wire contract every client speaks, and the names `allow` is asked about.
 export type * from './contract.ts'
-export type { Allow, Operation } from '../access.ts'
+export type {
+  Allow,
+  FamiliarOperation,
+  Operation,
+  Resource,
+  RoomOperation,
+  WorkspaceOperation,
+} from '../access.ts'
 
 export type HttpOptions = {
   /**
@@ -28,11 +34,13 @@ export type HttpOptions = {
   ) => Author | undefined | Promise<Author | undefined>
   /**
    * Whether an author may perform an operation, asked before the route reads
-   * anything or changes anything; anything but `true` answers 403. `/events`
-   * asks once per source as a stream connects. Check against a list of the
+   * anything or changes anything; anything but `true` answers 403. A
+   * Familiar's or room's operation comes with its ID, so a host can refuse
+   * per Familiar or room, such as someone else's DM. Each `/events` asks
+   * once per source as a stream connects. Check against a list of the
    * operations you allow, so any Familiar adds later is refused until you
    * add it; `() => true` only when everyone `authenticate` accepts is the
-   * Familiar's owner.
+   * workspace's owner.
    */
   allow: Allow
   /** Web Push, if the host offers it; the push routes answer 404 without it. */
@@ -51,34 +59,70 @@ export type HttpOptions = {
  */
 export const DEFAULT_MAX_BODY_SIZE = 1024 * 1024
 
-const routes = (familiar: Familiar, push: PushHost | undefined) =>
+const routes = (workspace: Workspace, push: PushHost | undefined) =>
   new Hono<AccessEnv>()
-    .route('/', conversationRoutes(familiar))
-    .route('/account', accountRoutes(familiar.account))
-    .route('/memory', memoryRoutes(familiar.memory))
-    .route('/schedules', scheduleRoutes(familiar.schedules))
+    .route('/account', accountRoutes(workspace.account))
     .route('/push', pushRoutes(push))
-    .route('/connections', connectionRoutes(familiar.connections))
-    .route('/mcp', mcpRoutes(familiar.mcp))
-    .route('/', eventRoutes(familiar))
+    .route('/connections', connectionRoutes(workspace.connections))
+    .route('/mcp', mcpRoutes(workspace.mcp))
+    .route('/familiars', familiarRoutes(workspace))
+    .route('/rooms', roomRoutes(workspace.rooms))
+    // Who the Familiars are, the rooms the person sees, and the login.
+    .get('/events', (c) =>
+      streamEvents(c, [
+        {
+          operation: 'events.familiars',
+          open: (stream) =>
+            stream.document('familiars', workspace.familiars.watch),
+        },
+        {
+          operation: 'events.rooms',
+          open: (stream) =>
+            stream.document('rooms', () =>
+              workspace.rooms.watch(c.get('author').id),
+            ),
+        },
+        {
+          operation: 'events.account',
+          open: async (stream) => {
+            // Null once when the host manages credentials itself.
+            const { account } = workspace
+            await stream.send({
+              event: 'account',
+              data: account?.state() ?? null,
+            })
+            if (account) {
+              stream.onEnd(
+                account.onChange(
+                  (state) =>
+                    void stream.send({ event: 'account', data: state }),
+                ),
+              )
+            }
+          },
+        },
+      ]),
+    )
 
 /** Familiar's HTTP API, for Hono's typed client: `hc<HttpApi>(baseUrl)`. */
 export type HttpApi = ReturnType<typeof routes>
 
 /**
- * Familiar's HTTP API as a fetch handler. Every request is authenticated
- * first (401), then its body is bounded (413), then `allow` is asked (403),
- * all before the route reads the body or changes anything. Mount it under
- * any path.
+ * A workspace's HTTP API as a fetch handler: the workspace, its Familiars
+ * and its rooms. Every request is authenticated first (401), then its body
+ * is bounded (413), then `allow` is asked (403), all before the route reads
+ * the body or changes anything; a missing Familiar or room is 404 after.
+ * Mount it under any path.
  *
- * Everyone it authenticates and lets send shares one conversation, so they
- * all read its history and whatever the model says, which can include
- * anything it remembers: refusing `events.memory` doesn't make memory
- * private. They also share every tool installed on the Familiar; a tool or
- * the app API behind it narrows what each may do, using `familiar(context).author()`.
+ * People talk to Familiars only in rooms. Everyone who can read a room reads
+ * whatever its Familiars say there, which can include anything they
+ * remember: refusing `events.memory` doesn't make memory private. A Familiar
+ * also carries what it learns in one room into the others. Everyone shares
+ * every tool installed on the workspace; a tool or the app API behind it
+ * narrows what each may do, using `familiar(context).author()`.
  */
 export function createHttpApi(
-  familiar: Familiar,
+  workspace: Workspace,
   options: HttpOptions,
 ): HttpApi {
   if (typeof options.allow !== 'function') {
@@ -97,5 +141,5 @@ export function createHttpApi(
       await next()
     })
     .use(bodyLimit({ maxSize: options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE }))
-    .route('/', routes(familiar, options.push))
+    .route('/', routes(workspace, options.push))
 }

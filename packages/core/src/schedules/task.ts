@@ -315,17 +315,27 @@ export function createScheduleTask(
           (outcome) => outcome.result?.reply ?? [],
         )
         // A task commit returns its next state, not values, so read into these.
-        let name = ''
+        let name: string | undefined
         let reply = ''
         await runtime.commit(async (tx) => {
-          name = (await familiarRecord(tx, task.input.familiar)).name
+          const { familiar, id } = task.input
+          // Cancelled while its turn ran: the room has the reply, but no
+          // notification goes.
+          if ((await familiarDoc(tx, Schedules, familiar))[id] === undefined) {
+            return finished
+          }
+          name = (await familiarRecord(tx, familiar)).name
           for (const id of replies) {
             const data = (await tx.entry(id))?.data as ReplyData | undefined
             if (data?.outcome === 'answered') {
               reply = replyText(data).trim()
             }
           }
+          return undefined
         }, context)
+        if (name === undefined) {
+          return
+        }
         await notifyAndAdvance(
           task.input,
           delivery,

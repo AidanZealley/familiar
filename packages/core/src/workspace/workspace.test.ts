@@ -7,7 +7,7 @@ import { expect, onTestFinished, test } from 'vitest'
 import { openMemory, rememberFact } from '../memory/facts.ts'
 import { withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
-import { ReopenableStorage } from '../testing.ts'
+import { ReopenableStorage, replyTo } from '../testing.ts'
 import { createFamiliar } from './familiars.ts'
 import { openWorkspace } from './index.ts'
 import { defaultPersona } from '../persona.ts'
@@ -77,12 +77,17 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
 
   const familiar = (id: typeof ada) => workspace.familiars.get(id)!
   const say = async (id: typeof ada, text: string) => {
-    await familiar(id).send({
-      author: { id: 'aidan', name: 'Aidan' },
-      text,
-      requestId: text,
-    })
-    await familiar(id).idle()
+    const dm = (await workspace.rooms.get(
+      await workspace.rooms.dm(id, 'aidan'),
+    ))!
+    await replyTo(
+      dm,
+      await dm.post({
+        author: { id: 'aidan', name: 'Aidan' },
+        text,
+        requestId: text,
+      }),
+    )
   }
 
   await familiar(ada).setThinkingLevel('high')
