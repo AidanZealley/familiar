@@ -18,7 +18,14 @@ import {
   type Author,
 } from '../conversation/message.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
-import { membersOf, RoomError, Rooms, type Room, type RoomId } from './rooms.ts'
+import {
+  closedTo,
+  membersOf,
+  RoomError,
+  Rooms,
+  type Room,
+  type RoomId,
+} from './rooms.ts'
 import type { TurnTask } from './turn.ts'
 
 /**
@@ -248,8 +255,8 @@ export type TurnResult = { reply: EntryId | null }
  * and creates the turns it causes, all in the commit `tx`: a message and
  * the work it causes are stored together or not at all. A retry finds the
  * entry already posted and creates nothing. Throws a MessageError for
- * mentions `checkMentions` refuses, and a RoomError for no room, or a new
- * message or reminder in an archived one.
+ * mentions `checkMentions` refuses, and a RoomError for no room, or for
+ * anything but a reply in a room `closedTo` closes.
  */
 export async function post(
   tx: Tx,
@@ -267,8 +274,11 @@ export async function post(
   if (!record) {
     throw new RoomError(`No room ${room}.`)
   }
-  if (record.kind === 'room' && record.archived && entry.kind !== REPLY_KIND) {
-    throw new RoomError(`${record.name} is archived.`)
+  // A turn that was under way still files its reply.
+  const closed =
+    entry.kind === REPLY_KIND ? undefined : await closedTo(tx, record)
+  if (closed) {
+    throw new RoomError(closed)
   }
   if (entry.kind === MESSAGE_KIND && entry.data.mentions) {
     entry.data.mentions = checkMentions(

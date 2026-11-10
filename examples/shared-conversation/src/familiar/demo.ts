@@ -27,17 +27,20 @@ const CHAT = new Set<Operation>([
  * credentials never reach the browser.
  */
 export async function startDemo() {
+  const guestList = guestListPlugin()
   const workspace = await openWorkspace({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
     model: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    plugins: [guestListPlugin()],
+    plugins: [guestList],
   })
   // A lasting host creates these once, on its store's first open.
   const familiar = await workspace.familiars.create({
     name: 'Familiar',
     persona: PERSONA,
+    // Each Familiar opts in to the plugins it uses.
+    capabilities: { plugins: [guestList.name] },
   })
   const room = await workspace.rooms.create({
     name: 'Group',

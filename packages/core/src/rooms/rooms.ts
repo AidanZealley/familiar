@@ -58,6 +58,8 @@ export const Rooms = defineDoc<RoomsState>({
 /** A turn a Familiar is taking in a room, by its task's ID (see turn.ts). */
 export type TurnRecord = {
   familiar: FamiliarId
+  /** Its name as the turn began, which its reply carries. */
+  name: string
   /** The room entry it answers. */
   cause: EntryId
   /** Its input in the Familiar's chat, once delivered. */
@@ -163,6 +165,40 @@ export async function updateRoom(tx: Tx, id: RoomId, change: RoomChange) {
 
 export async function archiveRoom(tx: Tx, id: RoomId) {
   ;(await namedRoom(tx, id)).archived = true
+}
+
+/**
+ * Takes a Familiar being removed out of every named room: a room it led
+ * becomes open, and one it leaves without Familiars is archived. Its DMs
+ * stay, closed to new messages once it's gone from the registry (see
+ * `closedTo`).
+ */
+export async function leaveRooms(tx: Tx, familiar: FamiliarId) {
+  for (const room of Object.values((await tx.doc(Rooms)).rooms)) {
+    if (room.kind !== 'room' || !room.familiars.includes(familiar)) {
+      continue
+    }
+    room.familiars = room.familiars.filter((other) => other !== familiar)
+    if (room.lead === familiar) {
+      delete room.lead
+    }
+    if (!room.familiars.length) {
+      room.archived = true
+    }
+  }
+}
+
+/**
+ * Why `room` takes no new messages, or undefined while it does: a named room
+ * that was archived, or a DM whose Familiar was removed.
+ */
+export async function closedTo(tx: Tx, room: Room) {
+  if (room.kind === 'room') {
+    return room.archived ? `${room.name} is archived.` : undefined
+  }
+  return (await tx.doc(Familiars)).familiars[room.familiar]
+    ? undefined
+    : 'This Familiar was removed.'
 }
 
 /**

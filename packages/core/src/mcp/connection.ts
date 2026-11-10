@@ -4,6 +4,7 @@ import {
   type Extension,
   type Registry,
 } from '@earendil-works/pi-durable'
+import { createToolSearchTool } from '@earendil-works/pi-durable/tool-search'
 import {
   Client,
   SdkHttpError,
@@ -24,6 +25,9 @@ import { toolResult } from './tool-result.ts'
 
 const TIMEOUT_MS = 15_000
 
+/** The extension a server's tools are installed as, once for every Familiar. */
+export const mcpExtensionName = (server: string) => `familiar.mcp.${server}`
+
 /**
  * One server's connection: its client, its status and its tools in the
  * registry, until closed. A closed connection changes nothing, whatever is
@@ -40,7 +44,7 @@ export function openConnection(
     expired(): void
   },
 ) {
-  const extensionName = `familiar.mcp.${server.name}`
+  const extensionName = mcpExtensionName(server.name)
   const closing = new AbortController()
   const { signal } = closing
   let info: McpConnectionInfo = {
@@ -87,44 +91,49 @@ export function openConnection(
     },
   )
 
-  // The server's tools as deferred Pi tools, found through tool_search.
+  // The server's tools as deferred Pi tools, found through tool_search,
+  // which every server's extension carries. Pi offers one tool per name, so
+  // a Familiar has tool search exactly when it uses an MCP connection.
   const install = (tools: Tool[]) => {
     const extension: Extension = {
       name: extensionName,
-      tools: tools.map((tool) => {
-        const name = `mcp__${server.name}__${tool.name}`
-        if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
-          throw new Error(`Unsupported MCP tool name: ${name}`)
-        }
-        return defineTool({
-          name,
-          description: tool.description ?? tool.name,
-          parameters: Type.Unsafe<Record<string, unknown>>(tool.inputSchema),
-          deferred: true,
-          execute: async (args, _api, context) => {
-            try {
-              return toolResult(
-                await client.callTool(
-                  { name: tool.name, arguments: args },
-                  { signal: context.abortSignal },
-                ),
-              )
-            } catch (error) {
-              if (!context.abortSignal?.aborted && !signal.aborted) {
-                if (error instanceof SdkHttpError && error.status === 401) {
-                  failed(error)
-                } else if (
-                  error instanceof SdkHttpError &&
-                  error.status === 404
-                ) {
-                  options.expired()
+      tools: [
+        createToolSearchTool(),
+        ...tools.map((tool) => {
+          const name = `mcp__${server.name}__${tool.name}`
+          if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
+            throw new Error(`Unsupported MCP tool name: ${name}`)
+          }
+          return defineTool({
+            name,
+            description: tool.description ?? tool.name,
+            parameters: Type.Unsafe<Record<string, unknown>>(tool.inputSchema),
+            deferred: true,
+            execute: async (args, _api, context) => {
+              try {
+                return toolResult(
+                  await client.callTool(
+                    { name: tool.name, arguments: args },
+                    { signal: context.abortSignal },
+                  ),
+                )
+              } catch (error) {
+                if (!context.abortSignal?.aborted && !signal.aborted) {
+                  if (error instanceof SdkHttpError && error.status === 401) {
+                    failed(error)
+                  } else if (
+                    error instanceof SdkHttpError &&
+                    error.status === 404
+                  ) {
+                    options.expired()
+                  }
                 }
+                throw error
               }
-              throw error
-            }
-          },
-        })
-      }),
+            },
+          })
+        }),
+      ],
     }
     if (!signal.aborted) {
       registry.install(extension)

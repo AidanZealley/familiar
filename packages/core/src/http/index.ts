@@ -5,7 +5,7 @@ import type { Author } from '../conversation/message.ts'
 import { mcpRoutes } from '../mcp/http.ts'
 import { connectionRoutes } from '../connections/http.ts'
 import { roomRoutes } from '../rooms/http.ts'
-import { familiarRoutes } from '../workspace/http.ts'
+import { defaultRoutes, familiarRoutes } from '../workspace/http.ts'
 import type { Workspace } from '../workspace/index.ts'
 import type { AccessEnv, Allow } from '../access.ts'
 import { streamEvents } from './events.ts'
@@ -66,6 +66,7 @@ const routes = (workspace: Workspace, push: PushHost | undefined) =>
     .route('/connections', connectionRoutes(workspace.connections))
     .route('/mcp', mcpRoutes(workspace.mcp))
     .route('/familiars', familiarRoutes(workspace))
+    .route('/defaults', defaultRoutes(workspace))
     .route('/rooms', roomRoutes(workspace.rooms))
     // Who the Familiars are, the rooms the person sees, and the login.
     .get('/events', (c) =>

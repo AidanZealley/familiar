@@ -60,7 +60,7 @@ Familiar never chooses recipients. Your host decides who sees each notification,
 
 ### Tool author
 
-Every tool in a workspace is available to every Familiar, for everyone who talks to it. A tool reads the person a call runs for with `await familiar(context).author()`, an `Author` or `undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. A turn handed on with `hand_off` runs for whoever started the chain, since the Familiar that handed it on already acted for them. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep and any other input with no person behind it. MCP tools don't receive it.
+A workspace's plugins and MCP connections are assigned to Familiars, which opt in: a new one uses what `familiars.create` was given, else the workspace's default tools (`defaultCapabilities()`, `setDefaultCapabilities()`, and the `openWorkspace` option `defaultCapabilities`, used on the first open only), and one added to the workspace later is off until it's turned on with `setCapabilities`. Core's own tools are always on, and tool search comes with any MCP connection. A Familiar's tools are available for everyone who talks to it. A tool reads the person a call runs for with `await familiar(context).author()`, an `Author` or `undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. A turn handed on with `hand_off` runs for whoever started the chain, since the Familiar that handed it on already acted for them. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory upkeep and any other input with no person behind it. MCP tools don't receive it.
 
 Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against that author. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
 
@@ -75,8 +75,11 @@ Familiar stores no permissions. A tool, or the app API behind it, enforces narro
 | `familiars.create({ name, persona })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one |
 | `familiars.update(id, change)`        | Rename it or change its persona; a `null` persona returns it to the default         |
 | `familiars.get(id)`                   | Its `WorkspaceFamiliar`, or `undefined`                                             |
+| `familiars.remove(id)`                | Remove it, stopping its work. Throws for no such Familiar                           |
 
 Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. Its name also titles its notifications and its memory upkeep's prompts.
+
+Removing a Familiar stops its turns in every room, its chat's queue, its schedules and its memory upkeep, and retires its memory, schedules and settings. It leaves every named room: a room it led becomes open, and one it leaves with no Familiars is archived. Its DMs stay readable but `post` throws a `RoomError` there. Rooms keep its replies, under its name at the time, and shared plugins, connections and secrets stay.
 
 **Rooms**
 
@@ -109,20 +112,22 @@ Familiars take part with two tools of their own. `stay_quiet` ends a turn withou
 
 **Each Familiar**, a `WorkspaceFamiliar`
 
-| Member                                     | Meaning                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `id`                                       | Its `FamiliarId`                                                                |
-| `models()`                                 | `ModelOption[]`: each chat model with its `name` and supported `thinkingLevels` |
-| `watchModel()`                             | Watch of its model and level, Pi's `AgentState`                                 |
-| `setModel(ref)`                            | Switch model. Throws `ModelError` if it isn't offered                           |
-| `setThinkingLevel(level)`                  | Change the current model's level. Throws `ModelError` if unsupported            |
-| `watch()`                                  | Its working context across every room, for inspection: never show it to people  |
-| `memory.watch()`, `memory.watchEpisodes()` | Document watches for facts and episodes                                         |
-| `memory.revise(id, text)`                  | Save a new version of a fact, true from today                                   |
-| `memory.retire(id)`                        | Mark a fact no longer true from today                                           |
-| `memory.setPinned(id, pinned)`             | Pin a fact into core or unpin it                                                |
-| `schedules.watch()`                        | Document watch for schedules                                                    |
-| `schedules.cancel(id)`                     | Cancel a schedule. Rejects if there's no such schedule                          |
+| Member                                     | Meaning                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                       | Its `FamiliarId`                                                                                                                      |
+| `models()`                                 | `ModelOption[]`: each chat model with its `name` and supported `thinkingLevels`                                                       |
+| `watchModel()`                             | Watch of its model and level, Pi's `AgentState`                                                                                       |
+| `setModel(ref)`                            | Switch model. Throws `ModelError` if it isn't offered                                                                                 |
+| `setThinkingLevel(level)`                  | Change the current model's level. Throws `ModelError` if unsupported                                                                  |
+| `capabilities()`                           | `{ plugins, mcp }`: the plugin and MCP connection names it uses                                                                       |
+| `setCapabilities({ plugins?, mcp? })`      | Each list given replaces what it uses of that kind, from its next request. Throws a `CapabilityError` for a name the workspace hasn't |
+| `watch()`                                  | Its working context across every room, for inspection: never show it to people                                                        |
+| `memory.watch()`, `memory.watchEpisodes()` | Document watches for facts and episodes                                                                                               |
+| `memory.revise(id, text)`                  | Save a new version of a fact, true from today                                                                                         |
+| `memory.retire(id)`                        | Mark a fact no longer true from today                                                                                                 |
+| `memory.setPinned(id, pinned)`             | Pin a fact into core or unpin it                                                                                                      |
+| `schedules.watch()`                        | Document watch for schedules                                                                                                          |
+| `schedules.cancel(id)`                     | Cancel a schedule. Rejects if there's no such schedule                                                                                |
 
 Memory edits reject, changing nothing, when the fact is missing or already past.
 
@@ -154,6 +159,8 @@ Memory edits reject, changing nothing, when the fact is missing or already past.
 
 Schedules are bounded too: a prompt is at most `SCHEDULE_LIMITS.prompt` (2,000) characters, and a repeat is a five-field cron expression of at most `SCHEDULE_LIMITS.repeat` (256) characters, read in Familiar's time zone, such as `0 7 * * 1-5` for 07:00 on weekdays. [Croner](https://croner.56k.guru/) reads it, including its extensions such as `L` and `#`, and decides daylight saving: a time the clock skips runs when the clock resumes. When a time is shown twice, a daily or less frequent repeat runs only the first time, while an hourly one such as `30 * * * *` runs at both. A repeat runs at most hourly: each occurrence is at least an hour after the one before, and closer ones, such as most of `*/5 * * * *`, are skipped.
 
+One MCP connection is one session with its server, under one account, shared by every Familiar that uses it, so they share its state. For separate accounts, add separate named connections and assign each to its Familiar.
+
 `add` throws `McpConfigError`, saving nothing, for a server of the wrong shape: a bad name, an unknown transport, or a URL that isn't `http://` or `https://` or carries credentials, a query or a fragment. Familiar saves any server of the right shape and connects through the transport the host passed, `mcpFetch` or `mcpStdio`. The host owns which protocols, destinations and commands those transports allow. A server whose transport the host didn't pass, or whose connection fails, shows `{ type: 'failed', error }` in `connections.list()` and never stops Familiar opening. An HTTP server with a bearer token and no token set shows `needs-auth`.
 
-`Workspace`, `WorkspaceFamiliar`, `RoomApi`, `RoomsApi`, `Room`, `RoomMessage`, `Mention`, `ReplyData`, `HistoryPage`, `ChatModel`, `ModelOption`, `Notification`, `NotificationContext`, `Notify`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `RoomError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.
+`Workspace`, `WorkspaceFamiliar`, `RoomApi`, `RoomsApi`, `Room`, `RoomMessage`, `Mention`, `ReplyData`, `HistoryPage`, `ChatModel`, `ModelOption`, `Notification`, `NotificationContext`, `Notify`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `RoomError`, `CapabilityError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.

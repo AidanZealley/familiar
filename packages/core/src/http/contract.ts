@@ -35,6 +35,8 @@ export type {
   TurnActivity,
 } from '../rooms/index.ts'
 export type {
+  CapabilitiesChange,
+  FamiliarCapabilities,
   FamiliarId,
   FamiliarIdentity,
   FamiliarsState,

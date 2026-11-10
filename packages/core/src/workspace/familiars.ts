@@ -52,7 +52,10 @@ export const Familiars = defineDoc<FamiliarsState>({
   checkpointWhen: () => true, // small: always store it whole
 })
 
-/** A Familiar's own document of a family, keyed by its ID. */
+/**
+ * A Familiar's own document of a family, keyed by its ID. Removing it
+ * retires each family in remove.ts's `FAMILIAR_DOCS`, so a new one joins it.
+ */
 export const familiarDoc = <T extends JsonObject>(
   tx: Tx,
   family: SessionDocFamilyToken<T, null>,

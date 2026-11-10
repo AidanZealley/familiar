@@ -1,5 +1,4 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { createToolSearchExtension } from '@earendil-works/pi-durable/tool-search'
 import type { Harness, Registry } from '@earendil-works/pi-durable'
 import {
   ConnectionError,
@@ -48,7 +47,6 @@ export async function createMcp(
     return entry
   }
   const start = (server: McpServer) => {
-    registry.install(createToolSearchExtension())
     const entry = openConnection(server, registry, {
       ...options,
       expired: () => {
@@ -165,6 +163,8 @@ export async function createMcp(
   return {
     api,
     connections,
+    /** Every configured server's name, connected or not. */
+    names: () => [...entries.keys()],
     close: async () => {
       lifetime.abort()
       await edits

@@ -46,6 +46,7 @@ async function setup(
       model: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'Asia/Kolkata',
       plugins: [webPlugin],
+      defaultCapabilities: { plugins: [webPlugin.name] },
       secrets,
       fetch,
       now,

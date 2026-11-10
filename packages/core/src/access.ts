@@ -22,6 +22,8 @@ export type WorkspaceOperation =
   | 'mcp.reconnect'
   | 'familiars.list'
   | 'familiars.create'
+  | 'defaults.get'
+  | 'defaults.set'
   | 'rooms.list'
   | 'rooms.create'
   | 'events.familiars'
@@ -31,6 +33,7 @@ export type WorkspaceOperation =
 /** What it can do to one Familiar, asked with that Familiar's ID. */
 export type FamiliarOperation =
   | 'familiars.update'
+  | 'familiars.remove'
   | 'familiars.dm'
   | 'memory.revise'
   | 'memory.retire'
@@ -39,6 +42,8 @@ export type FamiliarOperation =
   | 'model.options'
   | 'model.set'
   | 'model.setThinkingLevel'
+  | 'capabilities.get'
+  | 'capabilities.set'
   | 'events.model'
   | 'events.memory'
   | 'events.episodes'

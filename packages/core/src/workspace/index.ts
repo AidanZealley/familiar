@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Models } from '@earendil-works/pi-ai'
 import {
+  AgentDoc,
   createRegistry,
   Harness,
   type HarnessOptions,
@@ -58,8 +59,26 @@ import {
   type FamiliarsState as Registry,
 } from './familiars.ts'
 import { adoptPreWorkspaceFamiliar } from './migrate.ts'
+import {
+  capabilitiesOf,
+  DefaultCapabilities,
+  giveCapabilities,
+  reselect,
+  setCapabilities,
+  setDefaultCapabilities,
+  type Available,
+  type CapabilitiesChange,
+  type FamiliarCapabilities,
+} from './capabilities.ts'
+import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
+import { removeFamiliar } from './remove.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
+export type {
+  CapabilitiesChange,
+  FamiliarCapabilities,
+} from './capabilities.ts'
+export { CapabilityError } from './capabilities.ts'
 
 export type WorkspaceOptions = {
   storage: Storage
@@ -95,8 +114,18 @@ export type WorkspaceOptions = {
    * any other.
    */
   account?: AccountOptions
-  /** Tools beyond core's, grouped with the secrets they share. */
+  /**
+   * Tools beyond core's, grouped with the secrets they share. Each Familiar
+   * opts in to the plugins and MCP connections it uses.
+   */
   plugins?: readonly FamiliarPlugin[]
+  /**
+   * The plugins and MCP connections, by name, a new Familiar uses unless
+   * whoever creates it chooses: the workspace's default tools. Fills them in
+   * on the first open only; after that they're the workspace's to change,
+   * with `setDefaultCapabilities`. Default none.
+   */
+  defaultCapabilities?: CapabilitiesChange
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
   secrets?: SecretStore
   /**
@@ -163,6 +192,16 @@ export type WorkspaceFamiliar = ConversationApi & {
   id: FamiliarId
   memory: MemoryApi
   schedules: SchedulesApi
+  /**
+   * Which of the workspace's plugins and MCP connections it uses. It opts
+   * in: one added to the workspace later is off until it's turned on here.
+   */
+  capabilities(): Promise<FamiliarCapabilities>
+  /**
+   * Changes what it uses, from its next request; each list given replaces
+   * that kind's. Throws a CapabilityError for a name the workspace hasn't.
+   */
+  setCapabilities(change: CapabilitiesChange): Promise<void>
 }
 
 export type FamiliarSummary = FamiliarIdentity & { id: FamiliarId }
@@ -197,14 +236,36 @@ export type Workspace = {
     watch(): Promise<WatchHandle<FamiliarsState>>
     /** An open Familiar, or undefined if there's no such Familiar. */
     get(id: FamiliarId): WorkspaceFamiliar | undefined
-    /** Throws a TypeError for a blank name or persona. */
-    create(identity: FamiliarIdentity): Promise<WorkspaceFamiliar>
+    /**
+     * Creates one using `capabilities`, or else the workspace's default
+     * tools. Throws a TypeError for a blank name or persona, and a
+     * CapabilityError for a plugin or connection the workspace hasn't.
+     */
+    create(
+      identity: FamiliarIdentity & { capabilities?: CapabilitiesChange },
+    ): Promise<WorkspaceFamiliar>
     /**
      * Changes who it is, from its next request. Throws a TypeError for a
      * blank name or persona.
      */
     update(id: FamiliarId, change: FamiliarChange): Promise<void>
+    /**
+     * Removes it: stops its work and retires its configuration and memory.
+     * It leaves every named room, which opens one it led and archives one
+     * it leaves empty; its DMs stay readable but take no new messages.
+     * Rooms keep its replies, under its name then. Throws for no such
+     * Familiar.
+     */
+    remove(id: FamiliarId): Promise<void>
   }
+  /** The plugins and MCP connections a new Familiar uses by default. */
+  defaultCapabilities(): Promise<FamiliarCapabilities>
+  /**
+   * Changes the default tools for Familiars created from now on; each list
+   * given replaces that kind's. Throws a CapabilityError for a name the
+   * workspace hasn't.
+   */
+  setDefaultCapabilities(change: CapabilitiesChange): Promise<void>
   /**
    * Where people talk to Familiars: DMs, one per Familiar and person, and
    * named rooms with one or more Familiars.
@@ -341,8 +402,33 @@ export async function openWorkspace(
       await tx.doc(Rooms)
     }, context)
 
+    // What a Familiar can be given: the workspace's now.
+    const available = (): Available => ({
+      plugins: (options.plugins ?? []).map((plugin) => plugin.name),
+      mcp: mcp.names(),
+      installed: registry
+        .snapshot()
+        .installed()
+        .map((extension) => extension.name)
+        .filter((name) => name !== UPKEEP_EXTENSION),
+    })
+    // The host's default tools, on the first open only.
+    if ((await harness.snapshot(DefaultCapabilities, context)) === undefined) {
+      await harness.commit(
+        (tx) =>
+          setDefaultCapabilities(
+            tx,
+            available(),
+            options.defaultCapabilities ?? {},
+          ),
+        context,
+      )
+    }
+
     const opened = new Map<FamiliarId, WorkspaceFamiliar>()
     const open = async (id: FamiliarId) => {
+      // Core as installed now, and what it chose.
+      await harness.commit((tx) => reselect(tx, id, available()), context)
       const familiar: WorkspaceFamiliar = {
         id,
         ...(await installConversation(harness, id, {
@@ -352,6 +438,16 @@ export async function openWorkspace(
         })),
         memory: await memory.open(id),
         schedules: await schedules.open(harness, id),
+        capabilities: async () =>
+          capabilitiesOf(
+            await harness.snapshot(AgentDoc, id, context),
+            available(),
+          ),
+        setCapabilities: (change) =>
+          harness.commit(
+            (tx) => setCapabilities(tx, id, available(), change),
+            context,
+          ),
       }
       opened.set(id, familiar)
       return familiar
@@ -376,9 +472,13 @@ export async function openWorkspace(
         watch: async () =>
           viewWatch((await harness.watchDoc(Familiars, context))!, identities),
         get: (id) => opened.get(id),
-        create: async (identity) =>
+        create: async ({ capabilities, ...identity }) =>
           open(
-            await harness.commit((tx) => createFamiliar(tx, identity), context),
+            await harness.commit(async (tx) => {
+              const id = await createFamiliar(tx, identity)
+              await giveCapabilities(tx, id, available(), capabilities)
+              return id
+            }, context),
           ),
         update: async (id, { name, persona }) => {
           checkIdentity({ name, persona: persona ?? undefined })
@@ -394,7 +494,18 @@ export async function openWorkspace(
             }
           }, context)
         },
+        remove: async (id) => {
+          await removeFamiliar(harness, id, context)
+          opened.delete(id)
+        },
       },
+      defaultCapabilities: async () =>
+        (await harness.snapshot(DefaultCapabilities, context))!,
+      setDefaultCapabilities: (change) =>
+        harness.commit(
+          (tx) => setDefaultCapabilities(tx, available(), change),
+          context,
+        ),
       rooms: rooms.api,
       account: account?.api,
       mcp: mcp.api,
