@@ -7,7 +7,7 @@ import { found } from '../http/found.ts'
 import { memoryRoutes } from '../memory/http.ts'
 import { scheduleRoutes } from '../schedules/http.ts'
 import type { FamiliarId } from './familiars.ts'
-import type { FamiliarChange, Workspace } from './index.ts'
+import type { Workspace } from './index.ts'
 
 /** A blank name or persona: `familiars.create` and `update` throw TypeErrors for exactly these. */
 async function identity(c: Context, run: () => Promise<Response>) {
@@ -70,7 +70,8 @@ export function familiarRoutes(workspace: Workspace) {
           ) {
             return c.json({ error: 'name and persona must be text' }, 400)
           }
-          return body as FamiliarChange
+          // Inline, so the route's type names nothing outside the wire contract.
+          return body as { name?: string; persona?: string | null }
         }),
         (c) =>
           identity(c, async () => {
