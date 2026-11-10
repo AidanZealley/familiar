@@ -15,6 +15,8 @@ import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 import { RoomCursors } from './catch-up.ts'
 import {
   REPLY_KIND,
+  startView,
+  viewStart,
   type ReplyData,
   type RoomEntry,
   type RoomScheduledData,
@@ -71,9 +73,13 @@ export async function adoptChat(
     return undefined
   }
   const dm = await dmWith(tx, familiar, person)
-  const append = async (entry: RoomEntry) =>
+  const appended: EntryId[] = []
+  const append = async (entry: RoomEntry) => {
     // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
-    (await tx.appendEntry(dm, entry as EntryDraft)).id
+    const { id } = await tx.appendEntry(dm, entry as EntryDraft)
+    appended.push(id)
+    return id
+  }
 
   // The input the run being copied answers, and its messages so far.
   let cause: EntryId | undefined
@@ -118,6 +124,11 @@ export async function adoptChat(
     }
   }
   await endRun()
+  // A long chat's copy opens with only its newest in view, like any room's.
+  const start = viewStart(appended)
+  if (start !== undefined) {
+    await startView(tx, dm, start)
+  }
 
   // It has seen everything copied, so its first turn there shows none of it again.
   if (last !== undefined) {

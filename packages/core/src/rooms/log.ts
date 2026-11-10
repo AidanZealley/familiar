@@ -145,6 +145,29 @@ function recipients(room: Room, entry: RoomEntry): FamiliarId[] {
   return mentioned.size ? [...mentioned] : [room.lead]
 }
 
+/**
+ * A room's log never compacts, so its view, which a room's stream sends
+ * whole, would grow forever. Past this many entries a marker moves the
+ * view's start forward to keep the newest `VIEW_KEEP`, as compaction does
+ * for a chat, and clients page back through `history` as they do there.
+ */
+const VIEW_LIMIT = 200
+const VIEW_KEEP = 100
+
+/** The kind of the marker that starts a room's view, which shows nothing. */
+export const VIEW_KIND = 'familiar.view'
+
+/**
+ * Where a room's view should start, given its entries since it last did,
+ * oldest first: undefined while there are fewer than VIEW_LIMIT.
+ */
+export const viewStart = (entries: readonly EntryId[]) =>
+  entries.length < VIEW_LIMIT ? undefined : entries[entries.length - VIEW_KEEP]
+
+/** Starts `room`'s view at `head`, keeping everything after it in view. */
+export const startView = (tx: Tx, room: RoomId, head: EntryId) =>
+  tx.appendEntry(room, { kind: VIEW_KIND, head })
+
 /** What a turn task is given: whose turn, in which room, for which entry. */
 export type TurnInput = { room: RoomId; familiar: FamiliarId; cause: EntryId }
 
@@ -185,6 +208,17 @@ export async function post(
       entry.data.mentions,
     )
   }
+  // The entries in view, newest first, up to as many as could need moving.
+  const head = (await tx.latestHeadMarker(room))?.head
+  const { items } = await tx.scanEntries(
+    {
+      conversationId: room,
+      order: 'descending',
+      ...(head !== undefined && { minEntryId: head }),
+    },
+    VIEW_LIMIT,
+  )
+  const inView = items.filter((item) => item.head === undefined).reverse()
 
   // Raw admission: a room never runs, so admitting a write is appending it.
   const submission = await tx.createSubmission({
@@ -196,6 +230,10 @@ export async function post(
   // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
   const appended = await tx.appendEntry(room, entry as EntryDraft)
   tx.placeSubmission(submission.id, appended.id)
+  const start = viewStart([...inView.map((item) => item.id), appended.id])
+  if (start !== undefined) {
+    await startView(tx, room, start)
+  }
 
   const turns: TaskId<TurnResult>[] = []
   for (const familiar of recipients(record, entry)) {
