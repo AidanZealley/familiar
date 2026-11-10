@@ -32,7 +32,7 @@ import {
   modelKey,
   type ChatModel,
 } from '../conversation/models.ts'
-import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from '../harness.ts'
+import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './harness.ts'
 import { createMcp } from '../mcp/manager.ts'
 import type { McpApi, McpStdioFactory } from '../mcp/servers.ts'
 import { createMemory, type MemoryApi } from '../memory/index.ts'
@@ -47,7 +47,7 @@ import {
   type SchedulesApi,
 } from '../schedules/index.ts'
 import { checkTimeZone, createTime } from '../time.ts'
-import { viewWatch } from '../watch.ts'
+import { viewWatch } from '../pi/watch.ts'
 import {
   checkIdentity,
   createFamiliar,

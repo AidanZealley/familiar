@@ -4,9 +4,9 @@ import type {
   ModelRef,
   Registry,
 } from '@earendil-works/pi-durable'
-import { modelKey, type ChatModel } from './conversation/models.ts'
-import type { WorkspaceOptions } from './workspace/index.ts'
-import { UPKEEP_EXTENSION } from './memory/upkeep/index.ts'
+import { modelKey, type ChatModel } from '../conversation/models.ts'
+import type { WorkspaceOptions } from './index.ts'
+import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
 

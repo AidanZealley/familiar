@@ -6,12 +6,8 @@ import {
   InboxDoc,
   LiveDoc,
   type AgentState,
-  type Conversation,
   type ConversationWatch,
-  type Cursor,
   type DocumentWatch,
-  type EntryId,
-  type EntryRecord,
   type Harness,
   type ModelRef,
 } from '@earendil-works/pi-durable'
@@ -26,8 +22,6 @@ import {
   type ThinkingLevelsState,
 } from './models.ts'
 import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
-
-export type HistoryPage = { entries: EntryRecord[]; more: boolean }
 
 /**
  * A Familiar's chat: its one working context across every room, which only
@@ -67,39 +61,6 @@ const context = BACKGROUND_CONTEXT
 /** `chatModel`'s level: the one last picked for it, else its default. */
 const levelOf = (levels: ThinkingLevelsState, chatModel: ChatModel) =>
   levels[modelKey(chatModel.model)] ?? chatModel.thinkingLevel
-
-/**
- * Up to `limit` committed entries of `conversation` older than entry
- * `before`, newest first, including those compaction took out of the view.
- */
-export async function historyOf(
-  conversation: Conversation,
-  before: EntryId,
-  limit: number,
-): Promise<HistoryPage> {
-  // Entry IDs are ascending integers, and the bound is inclusive.
-  const query = { maxEntryId: (before - 1) as EntryId }
-  const entries: EntryRecord[] = []
-
-  let cursor: Cursor | undefined
-
-  // One past the limit tells whether more exist.
-  do {
-    const page = await conversation.entries(
-      query,
-      limit + 1 - entries.length,
-      cursor,
-      context,
-    )
-    entries.push(...page.items)
-    cursor = page.next
-  } while (cursor && entries.length <= limit)
-
-  return {
-    entries: entries.slice(0, limit),
-    more: entries.length > limit,
-  }
-}
 
 /** `familiar`'s chat, which its ID names. */
 export async function installConversation(

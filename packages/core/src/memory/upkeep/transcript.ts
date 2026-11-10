@@ -1,10 +1,11 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import type { EntryId, Tx } from '@earendil-works/pi-durable'
-import { entriesOf, formatAuthor, saidBy } from '../../conversation/message.ts'
+import { formatAuthor, saidBy } from '../../conversation/message.ts'
 import { localMinute } from '../../time.ts'
 import { exchangeId } from '../exchanges.ts'
 import { upkeepDay } from './schedule.ts'
 import type { FamiliarId } from '../../workspace/familiars.ts'
+import { entriesOf } from '../../pi/entries.ts'
 
 /** A reply belongs to the person's turn, even when a batch splits that turn. */
 async function precedingDay(
