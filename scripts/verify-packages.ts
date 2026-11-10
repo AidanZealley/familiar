@@ -113,7 +113,15 @@ try {
   const familiar = await workspace.familiars.create({ name: 'Packed' })
   const dm = await workspace.rooms.get(await workspace.rooms.dm(familiar.id, 'consumer'))
   const entry = await dm.post({ author: { id: 'consumer', name: 'Consumer' }, text: 'Hello', requestId: 'packed' })
-  assert.match(JSON.stringify(await dm.replyTo(entry)), /Packed host works, Consumer/)
+  // The reply lands in the room's log when the turn ends.
+  const watch = await dm.watch()
+  const reply = await new Promise((resolve) => {
+    const find = (view) => view.entries.find((e) => e.kind === 'familiar.reply' && e.data.cause === entry)
+    if (find(watch.value)) resolve(find(watch.value))
+    watch.start(async (view) => { if (find(view)) resolve(find(view)) })
+  })
+  await watch.stop()
+  assert.match(JSON.stringify(reply), /Packed host works, Consumer/)
 } finally {
   await workspace.dismiss()
 }
