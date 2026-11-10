@@ -3,35 +3,54 @@ title: HTTP API and events
 description: Every route createHttpApi can serve, and the server-sent events at /events.
 ---
 
-`createHttpApi` serves every route below. Its `allow` policy is asked about each request by the operation named in the tables, as `group.name` such as `memory.revise`. See [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what).
+`createHttpApi(workspace, options)` serves every route below, for three resources: the workspace, each Familiar and each room. Its `allow` policy is asked about each request by the operation named in the tables, as `group.name` such as `rooms.post`, and for a Familiar's or a room's operation with its ID: `allow(author, 'rooms.post', { room: 12 })`. See [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what).
 
-Paths are relative to wherever you mount the API, such as `/api`. Every request passes through `authenticate` first and answers `401 { "error": "unauthorized" }` when it returns `undefined`. A request body over `maxBodySize` (default `DEFAULT_MAX_BODY_SIZE`, 1 MiB) then answers 413 before any route reads it. A request `allow` refuses answers `403 { "error": "forbidden" }`. Other errors are JSON `{ "error": string }`.
+Paths are relative to wherever you mount the API, such as `/api`. Every request passes through `authenticate` first and answers `401 { "error": "unauthorized" }` when it returns `undefined`. A request body over `maxBodySize` (default `DEFAULT_MAX_BODY_SIZE`, 1 MiB) then answers 413 before any route reads it. A request `allow` refuses answers `403 { "error": "forbidden" }`. Only then does a route look up its Familiar or room, answering 404 when there's none. Other errors are JSON `{ "error": string }`.
 
 [`packages/core/src/http/index.ts`](https://github.com/AidanZealley/familiar/blob/main/packages/core/src/http/index.ts) owns the contract. The client imports its types, so a change on one side is a type error on the other.
 
 ## Routes
 
-**Conversation**, `conversation.*`
+People talk to Familiars only in rooms. A DM is a room with one Familiar and one person; a named room has one or more Familiars and is open to everyone `allow` lets in.
 
-| Operation          | Method and path             | Body                    | Success                           | Errors           |
-| ------------------ | --------------------------- | ----------------------- | --------------------------------- | ---------------- |
-| `send`             | `POST /messages`            | `{ text, requestId }`   | 202                               | 400 refused      |
-| `abort`            | `POST /abort`               |                         | 202                               |                  |
-| `history`          | `GET /history?before=<id>`  |                         | 200 `{ entries, more }`, up to 50 | 400 bad `before` |
-| `modelOptions`     | `GET /model/options`        |                         | 200 `ModelOption[]`               |                  |
-| `setModel`         | `PUT /model`                | `{ provider, modelId }` | 204                               | 400 not offered  |
-| `setThinkingLevel` | `PUT /model/thinking-level` | `{ level }`             | 204                               | 400 unsupported  |
+**Familiars**, `familiars.*` and each Familiar's `model.*`, asked with `{ familiar }` except `list` and `create`
 
-The author of `POST /messages` comes from `authenticate`, never the body.
+| Operation                | Method and path                                 | Body                    | Success                 | Errors          |
+| ------------------------ | ----------------------------------------------- | ----------------------- | ----------------------- | --------------- |
+| `familiars.list`         | `GET /familiars`                                |                         | 200 `FamiliarSummary[]` |                 |
+| `familiars.create`       | `POST /familiars`                               | `{ name, persona? }`    | 201 `{ id }`            | 400 blank       |
+| `familiars.update`       | `PATCH /familiars/:familiar`                    | `{ name?, persona? }`   | 204                     | 400 blank       |
+| `familiars.dm`           | `POST /familiars/:familiar/dm`                  |                         | 200 `{ room }`          |                 |
+| `model.options`          | `GET /familiars/:familiar/model/options`        |                         | 200 `ModelOption[]`     |                 |
+| `model.set`              | `PUT /familiars/:familiar/model`                | `{ provider, modelId }` | 204                     | 400 not offered |
+| `model.setThinkingLevel` | `PUT /familiars/:familiar/model/thinking-level` | `{ level }`             | 204                     | 400 unsupported |
 
-**Memory and schedules**, `memory.*` and `schedules.*`
+`POST /familiars/:familiar/dm` gets or creates the DM between that Familiar and the person `authenticate` returned. A `null` persona returns a Familiar to its default.
 
-| Operation          | Method and path           | Body         | Success | Errors                   |
-| ------------------ | ------------------------- | ------------ | ------- | ------------------------ |
-| `memory.revise`    | `PUT /memory/:id`         | `{ text }`   | 204     | 400, 404 missing or past |
-| `memory.retire`    | `POST /memory/:id/retire` |              | 204     | 404                      |
-| `memory.setPinned` | `PUT /memory/:id/pin`     | `{ pinned }` | 204     | 400, 404                 |
-| `schedules.cancel` | `DELETE /schedules/:id`   |              | 204     | 404                      |
+**Rooms**, `rooms.*`, asked with `{ room }` except `list` and `create`
+
+| Operation       | Method and path                   | Body                             | Success                           | Errors                  |
+| --------------- | --------------------------------- | -------------------------------- | --------------------------------- | ----------------------- |
+| `rooms.list`    | `GET /rooms`                      |                                  | 200 `RoomSummary[]`               |                         |
+| `rooms.create`  | `POST /rooms`                     | `{ name, familiars, lead }`      | 201 `{ id }`                      | 400 refused             |
+| `rooms.update`  | `PATCH /rooms/:room`              | `{ name?, familiars?, lead? }`   | 204                               | 400 refused             |
+| `rooms.archive` | `DELETE /rooms/:room`             |                                  | 204                               | 400 a DM                |
+| `rooms.post`    | `POST /rooms/:room/messages`      | `{ text, requestId, mentions? }` | 202                               | 400 refused or archived |
+| `rooms.history` | `GET /rooms/:room/history?before` |                                  | 200 `{ entries, more }`, up to 50 | 400 bad `before`        |
+| `rooms.stop`    | `POST /rooms/:room/stop`          |                                  | 202                               |                         |
+
+`GET /rooms` lists every named room and the person's own DMs, never anyone else's. Archiving hides a named room and closes it to new messages, keeping its history.
+
+The author of `POST /rooms/:room/messages` comes from `authenticate`, never the body. It answers 400 when the message is refused: see `MESSAGE_LIMITS` in [Core API](/familiar/reference/core/#types). A `requestId` is scoped to the authenticated author, so a retry from the same author is posted once and another author's same ID is a separate message. Each mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text, and a Familiar it names must be in the room. In a DM its Familiar answers; in a named room each Familiar mentioned answers, or the room's `lead` when none is. `POST /rooms/:room/stop` stops that room's turns, and nothing in other rooms.
+
+**Memory and schedules**, `memory.*` and `schedules.*`, asked with `{ familiar }`
+
+| Operation          | Method and path                               | Body         | Success | Errors                   |
+| ------------------ | --------------------------------------------- | ------------ | ------- | ------------------------ |
+| `memory.revise`    | `PUT /familiars/:familiar/memory/:id`         | `{ text }`   | 204     | 400, 404 missing or past |
+| `memory.retire`    | `POST /familiars/:familiar/memory/:id/retire` |              | 204     | 404                      |
+| `memory.setPinned` | `PUT /familiars/:familiar/memory/:id/pin`     | `{ pinned }` | 204     | 400, 404                 |
+| `schedules.cancel` | `DELETE /familiars/:familiar/schedules/:id`   |              | 204     | 404                      |
 
 **Account**, `account.*`. Every route answers 404 when the host passed no `account`.
 
@@ -62,8 +81,6 @@ The author of `POST /messages` comes from `authenticate`, never the body.
 | `mcp.remove`               | `DELETE /mcp/:name`                               |             | 204                    | 404                         |
 | `mcp.reconnect`            | `POST /mcp/:name/reconnect`                       |             | 202                    | 404                         |
 
-`POST /messages` answers 400 when `send` refuses the message: see `MESSAGE_LIMITS` in [Core API](/familiar/reference/core/#types). A `requestId` is scoped to the authenticated author, so a retry from the same author is admitted once and another author's same ID is a separate message.
-
 `:kind` is `plugin` or `mcp`. Secret values must be visible ASCII. No route returns a secret's value.
 
 `POST /mcp` answers 400, saving nothing, for a server of the wrong shape. Any other server is saved and tried through the host's transport; one that can't connect shows as `failed` in `GET /connections`.
@@ -81,17 +98,21 @@ type McpServer = {
 
 ## Events
 
-`GET /events` is a server-sent event stream. Each event's `data` is JSON.
+Three server-sent event streams: the workspace's `GET /events`, a Familiar's `GET /familiars/:familiar/events` and a room's `GET /rooms/:room/events`. Each event's `data` is JSON.
 
-| Event          | Data                     | When                                                  |
-| -------------- | ------------------------ | ----------------------------------------------------- |
-| `protocol`     | `{ version: 2 }`         | First, on every connection                            |
-| `view`         | Pi's `ConversationView`  | The whole conversation view                           |
-| `ops`          | Chord ops                | Each commit's changes to the view                     |
-| `document`     | `{ name, value }`        | A whole document: `memory`, `episodes` or `schedules` |
-| `document.ops` | `{ name, ops }`          | Each commit's changes to that document                |
-| `account`      | `AccountState` or `null` | The whole sign-in state, each time it changes         |
+| Event          | Data                     | When                                          |
+| -------------- | ------------------------ | --------------------------------------------- |
+| `protocol`     | `{ version: 3 }`         | First, on every connection                    |
+| `view`         | Pi's `ConversationView`  | The room log's whole view                     |
+| `ops`          | Chord ops                | Each commit's changes to the view             |
+| `document`     | `{ name, value }`        | A whole document                              |
+| `document.ops` | `{ name, ops }`          | Each commit's changes to that document        |
+| `account`      | `AccountState` or `null` | The whole sign-in state, each time it changes |
 
 Apply ops in order to the last whole value. After a reconnect, everything arrives whole again. The server sends a comment every 15 seconds to keep the connection open.
 
-`protocol` always comes first. The rest come only from the sources `allow` agrees to for that request when it connects, `events.conversation` and so on: `conversation` sends `view` and `ops`, `memory`, `episodes` and `schedules` each send their `document` and `document.ops`, and `account` sends `account`, or `null` once when the host manages credentials itself.
+`protocol` always comes first. The rest come only from the sources `allow` agrees to for that request when it connects, each asked once:
+
+- The workspace's: `events.familiars` sends the `familiars` document, who each Familiar is; `events.rooms` the `rooms` document, the rooms the person sees; and `events.account` sends `account`, or `null` once when the host manages credentials itself.
+- A Familiar's, asked with `{ familiar }`: `events.model` sends the `model` document, its model and reasoning level, and `events.memory`, `events.episodes` and `events.schedules` their documents.
+- A room's, asked with `{ room }`: `events.room` sends the log's `view` and `ops`, then the `turns` document, its turns in progress by task ID. Each turn is `queued` behind work in this room or not yet delivered, `elsewhere` while its Familiar works in another room, or `running`, with the reply so far (`generation`) and the current round's tool calls (`tools`). Nothing from a Familiar's other rooms is sent, and a reply's earlier rounds show once the turn ends and its reply is copied into the log.

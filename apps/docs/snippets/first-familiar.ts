@@ -1,5 +1,5 @@
-import { toTranscript } from '@familiar-ai/client'
-import { summonFamiliar } from '@familiar-ai/core'
+import { toRoomTranscript } from '@familiar-ai/client'
+import { openWorkspace } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
@@ -13,7 +13,7 @@ const models = createModels()
 models.setProvider(faux.provider)
 faux.setResponses([fauxAssistantMessage('Hello, Sam.')])
 
-const familiar = await summonFamiliar({
+const workspace = await openWorkspace({
   storage: new MemoryStorage(),
   models,
   model: { provider: 'faux', modelId: 'demo' },
@@ -21,23 +21,29 @@ const familiar = await summonFamiliar({
 })
 
 try {
-  await familiar.send({
+  // One Familiar, and Sam's DM with it.
+  const familiar = await workspace.familiars.create({ name: 'Familiar' })
+  const dm = (await workspace.rooms.get(
+    await workspace.rooms.dm(familiar.id, 'person-123'),
+  ))!
+
+  const entry = await dm.post({
     author: { id: 'person-123', name: 'Sam' },
     text: 'Hello',
     requestId: crypto.randomUUID(),
   })
-  await familiar.idle()
+  await dm.replyTo(entry)
 
-  // The committed conversation, as a chat UI would show it.
-  const watch = await familiar.watch()
-  for (const item of toTranscript(watch.value).items) {
+  // The room's log, as a chat UI would show it.
+  const watch = await dm.watch()
+  for (const item of toRoomTranscript(watch.value).items) {
     if (item.type === 'message') {
       console.log(`${item.author.name}: ${item.text}`)
     } else if (item.type === 'reply') {
-      console.log(`Familiar: ${item.text}`)
+      console.log(`${item.name}: ${item.text}`)
     }
   }
   await watch.stop()
 } finally {
-  await familiar.dismiss()
+  await workspace.dismiss()
 }

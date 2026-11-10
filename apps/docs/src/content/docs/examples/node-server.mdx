@@ -36,6 +36,7 @@ pnpm --filter @familiar-example/node-server dev:web   # the UI
 <Code code={server} lang="ts" title="src/server.ts" />
 
 - **Storage** is Pi Durable's SQLite, in a data directory. `lockDataDir` from `@familiar-ai/core/node` stops a second process opening it, which Pi Durable doesn't allow.
+- **The Familiar** lives in the workspace's storage, so the server creates it on the first run. The owner talks to it in their DM, which the UI opens with `familiars.dm`.
 - **Secrets** the owner sets go in a private file through `fileSecretStore`. Plugins never read them.
 - **The network.** There's no `fetch` option. On Node, Familiar's default refuses every address that isn't public, so the model can't steer a tool to your router.
 - **CSRF.** The session is a cookie, and a browser sends cookies with requests from any site. `csrf()` refuses cross-site requests before anything reads them. A host that signs requests with a bearer token instead doesn't need it.

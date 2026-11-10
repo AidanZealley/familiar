@@ -1,11 +1,11 @@
 ---
 title: Shared conversation
-description: Three people talking to one Familiar in one conversation, each through their own signed-in client. Runs in your browser.
+description: Three people talking to one Familiar in one room, each through their own signed-in client. Runs in your browser.
 ---
 
 import { LinkButton } from '@astrojs/starlight/components'
 
-Ana, Ben and Chloe share one Familiar and one conversation. Each has their own session and client, so every message and every tool call belongs to the person who sent it.
+Ana, Ben and Chloe share one Familiar in one named room. Each has their own session and client, so every message and every tool call belongs to the person who sent it.
 
 <div class="demo-actions">
   <LinkButton
@@ -43,39 +43,50 @@ Everything runs in this page: the real core, in-memory storage, the HTTP API and
 - Who am I?
 - Count me in
 
-`What did Ana say?` quotes Ana's latest earlier message from the input Familiar sent the model. That shows the conversation's context reaching the model, not long-term memory. The script understands only these exact phrases. Anything else, including `Don't count me in`, gets a reply listing them. Reloading or pressing **Reset** starts over.
+`What did Ana say?` quotes Ana's latest earlier message from the input Familiar sent the model. That shows the Familiar's working context reaching the model, not long-term memory. The script understands only these exact phrases. Anything else, including `Don't count me in`, gets a reply listing them. Reloading or pressing **Reset** starts over.
 
 ## The host decides who is speaking
 
-The host maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It allows only sending, history, aborting and the conversation's events, so every participant is refused memory, schedules and admin operations:
+The host opens a workspace with one Familiar and one named room, the group's. It maps each session to an `Author`, and `createHttpApi` takes the author from the request's session, never its body. It allows only posting, history, Stop and the events of that one room, so every participant is refused memory, schedules, other rooms and admin operations:
 
 ```ts
+const familiar = await workspace.familiars.create({ name: 'Familiar' })
+const room = await workspace.rooms.create({
+  name: 'Group',
+  familiars: [familiar.id],
+  lead: familiar.id,
+})
+
 const CHAT = new Set<Operation>([
-  'conversation.send',
-  'conversation.history',
-  'conversation.abort',
-  'events.conversation',
+  'rooms.post',
+  'rooms.history',
+  'rooms.stop',
+  'events.room',
 ])
 
 // The host's sign-ins: session token to the person it belongs to.
 const sessions = new Map<string, Author>()
 
-const api = createHttpApi(familiar, {
+const api = createHttpApi(workspace, {
   // Each request's session decides its author, never its body.
   authenticate: (request) => {
     const token = request.headers.get('authorization')?.replace(/^Bearer /, '')
     return token ? sessions.get(token) : undefined
   },
-  allow: (_, operation) => CHAT.has(operation),
+  allow: (_, operation, resource) =>
+    CHAT.has(operation) &&
+    !!resource &&
+    'room' in resource &&
+    resource.room === room,
 })
 ```
 
-Everyone signed in shares the conversation: each person reads its whole history, and the model answers with all of it in mind, including anything it remembers. Give people who mustn't share information separate Familiars.
+Everyone signed in shares the room: each person reads its whole history, and the Familiar answers with all of it in mind, including anything it remembers. Give people who mustn't share information separate workspaces.
 
-Each person gets their own client store, which sends their session with every request and opens its own event stream. Every store mirrors the same conversation:
+Each person gets their own room store, which sends their session with every request and opens its own event stream. Every store mirrors the same room:
 
 ```ts
-const store = createFamiliarStore('https://demo.invalid', {
+const store = createRoomStore('https://demo.invalid', room, {
   fetch: async (input, init) => {
     const request = new Request(input, init)
     request.headers.set('authorization', `Bearer ${token}`)
@@ -88,7 +99,7 @@ In a real app each person's browser signs in to your host and sends its own cook
 
 ## Tools act for the person who asked
 
-A tool never takes the person as an argument. It reads `familiar(context).author()`, which Familiar resolves from the message that started the run. When Ben sends while Ana's run is going, Ana's tool still runs as Ana, and Ben's as Ben:
+A tool never takes the person as an argument. It reads `familiar(context).author()`, which Familiar resolves from the message that started the turn. When Ben sends while Ana's turn is going, Ben's waits its turn, Ana's tool still runs as Ana, and Ben's as Ben:
 
 ```ts
 defineTool({
@@ -113,6 +124,6 @@ Each message keeps the name its author had when they sent it. A later rename on 
 
 - Real sign-in, or people on other devices. The sessions are simulated in one page.
 - Long-term memory. Familiar's background memory work runs, but the script gives it a placeholder answer, and nothing outlasts the page.
-- Per-person permissions. Everyone in the conversation shares its tools; Familiar records who asked, and your tools or the app APIs behind them decide what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
+- Per-person permissions. Everyone in the room shares its Familiar's tools; Familiar records who asked, and your tools or the app APIs behind them decide what each person may do. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
 
 To use a real model, run the same Familiar on a server you control with a provider from [Models and sign-in](/familiar/build/models-and-sign-in/). Model credentials stay on that server.
