@@ -65,6 +65,7 @@ async function setup(storage?: Storage) {
   return {
     faux: host.faux,
     familiar: host.familiar,
+    dm: host.dm,
     say: host.say,
     send: host.send,
     setTime: clock.setTime,
@@ -393,6 +394,47 @@ test('each night reviews only what is new, dates a fact from its earliest source
   const calls = faux.state.callCount
   await passAt(fourthPass, fifthPass)
   expect(faux.state.callCount).toBe(calls)
+})
+
+test("a fact said only in a turn's room context is filed, set apart from the message, citing the message that carried it", async () => {
+  const { faux, dm, say, memory, passAt } = await setup()
+  await dm().note({
+    text: 'Ann, the sister, is visiting from Leeds until Friday.',
+    requestId: 'ann',
+  })
+  faux.setResponses([fauxAssistantMessage('Noted.')])
+  await say('Can you plan dinner?')
+
+  let input = ''
+  let carrier = ''
+  faux.setResponses([
+    (context) => {
+      input = inputOf(context)
+      carrier = exchangeIn(input, 'plan dinner')
+      return fauxAssistantMessage(
+        fauxToolCall('remember', {
+          text: 'Ann is visiting from Leeds until Friday',
+          importance: 3,
+          sources: [carrier],
+        }),
+        { stopReason: 'toolUse' },
+      )
+    },
+    fauxAssistantMessage('Dinner was planned.'),
+    fauxAssistantMessage('A week of dinners.'),
+  ])
+  await passAt(firstPass, secondPass)
+
+  // After the person's line, indented and labelled as others' words.
+  expect(input).toMatch(
+    /Can you plan dinner\?\n {2}Shown to Familiar from the room with that message, said by others, not by its author[^\n]*:\n {4}\[In your DM with aidan\]\n {4}Said here before:\n {4}\[Note\]: Ann, the sister/,
+  )
+  expect(await memory()).toMatchObject([
+    {
+      text: 'Ann is visiting from Leeds until Friday',
+      sources: [Number(carrier.slice(1))],
+    },
+  ])
 })
 
 test('reopening keeps exactly one upkeep task on its schedule', async () => {

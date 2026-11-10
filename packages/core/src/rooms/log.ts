@@ -11,6 +11,7 @@ import {
   MESSAGE_KIND,
   MESSAGE_LIMITS,
   MessageError,
+  NOTE_KIND,
   SCHEDULED_KIND,
   textOf,
   type Addressed,
@@ -98,6 +99,13 @@ export const readHandoff = (text: string) => {
     : undefined
 }
 
+/** A host's note to a room: context for its Familiars, which no one answers. */
+export type NoteData = {
+  text: string
+  /** When it was posted, in ms since the epoch, on the workspace's clock. */
+  at: number
+}
+
 /** A room's record of a reminder falling due; a turn answers it like a message. */
 export type RoomScheduledData = {
   familiar: FamiliarId
@@ -115,6 +123,7 @@ export type RoomEntry =
   | { kind: typeof REPLY_KIND; data: ReplyData }
   | { kind: typeof SCHEDULED_KIND; data: RoomScheduledData }
   | { kind: typeof HANDOFF_KIND; data: HandoffData }
+  | { kind: typeof NOTE_KIND; data: NoteData }
 
 /** What a reply says, without its tool calls: what a room shows of it. */
 export const replyText = (reply: ReplyData) =>
@@ -163,7 +172,7 @@ export function checkMentions(
  * Who takes a turn for `entry`, and why, decided once, as it's posted: a
  * DM's Familiar; in a named room, each Familiar mentioned, once, in order,
  * else the lead, else, in an open room, every Familiar in it; a reminder's
- * own Familiar; the one a handoff asks. Replies never cause turns.
+ * own Familiar; the one a handoff asks. Replies and notes never cause turns.
  */
 function recipients(
   room: Room,
@@ -173,6 +182,7 @@ function recipients(
     familiars.map((familiar) => ({ familiar, addressed }))
   switch (entry.kind) {
     case REPLY_KIND:
+    case NOTE_KIND:
       return []
     case SCHEDULED_KIND:
       return all([entry.data.familiar], 'schedule')

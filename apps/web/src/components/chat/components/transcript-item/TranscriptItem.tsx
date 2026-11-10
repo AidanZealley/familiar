@@ -20,7 +20,7 @@ export const TranscriptItem = ({ item, time }: TranscriptItemProps) => {
   }
 
   // Drawn by the rooms redesign.
-  if (item.type === 'handoff') {
+  if (item.type === 'handoff' || item.type === 'note') {
     return null
   }
 

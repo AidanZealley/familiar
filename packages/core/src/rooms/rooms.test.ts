@@ -453,6 +453,47 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
   ])
 })
 
+test("a host's note is shown to each Familiar on its next turn and causes no turn", async () => {
+  const { workspace, create, room } = await open(echo)
+  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const kitchen = await room(
+    await workspace.rooms.create({
+      name: 'kitchen',
+      familiars: [ada, bo],
+      lead: ada,
+    }),
+  )
+
+  const note = await kitchen.note({ text: 'Sam joined.', requestId: 'n1' })
+  // A retry posts nothing; a note is as bounded as a message.
+  expect(await kitchen.note({ text: 'Sam joined.', requestId: 'n1' })).toBe(
+    note,
+  )
+  await expect(
+    kitchen.note({ text: '  ', requestId: 'n2' }),
+  ).rejects.toBeInstanceOf(MessageError)
+
+  // The message queues behind any turn the note caused: the first reply is
+  // to the message, and the lead's only input is the message.
+  const message = await kitchen.post({
+    author: AIDAN,
+    text: 'Dinner?',
+    requestId: 'm1',
+  })
+  await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
+  expect((await replies(kitchen))[0].cause).toBe(message)
+  expect(await inputs(workspace, ada)).toEqual([
+    expect.objectContaining({
+      context: [
+        '[In #kitchen, which you lead]',
+        'Said here before:',
+        '[Note]: Sam joined.',
+      ].join('\n'),
+    }),
+  ])
+  expect(await inputs(workspace, bo)).toEqual([])
+})
+
 test('a restart mid-turn finishes the turn without a second message, input or reply', async () => {
   const storage = new ReopenableStorage()
   const first = await open((_request, signal) => hang(signal), { storage })

@@ -42,6 +42,7 @@ export {
   RoomError,
   type HandoffData,
   type Mention,
+  type NoteData,
   type ReplyData,
   type Room,
   type RoomApi,

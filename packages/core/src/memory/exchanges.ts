@@ -17,6 +17,15 @@ import { entriesOf } from '../pi/entries.ts'
  * a view of the transcript, so losing it loses nothing: it is rebuilt.
  */
 
+/**
+ * A person's text and, after it, what the Familiar was shown from the room
+ * with it, so facts said only there can be found and read in their exchange.
+ */
+const withContext = ({ text, context }: { text: string; context?: string }) =>
+  context
+    ? `${text}\n[Shown from the room with it, said by others]\n${context}`
+    : text
+
 /** An exchange's ID: `x` and its person message's entry ID. */
 export const exchangeId = (entry: EntryId) => `x${entry}`
 
@@ -198,7 +207,7 @@ export function transcriptExchanges(familiar: FamiliarId, timeZone: string) {
             id: exchangeId(entry.id),
             at: said.at,
             author: said.role === 'person' ? said.author : said.creator,
-            text: said.text,
+            text: said.role === 'person' ? withContext(said) : said.text,
             last: entry.id,
           }
         } else if (said && open) {
