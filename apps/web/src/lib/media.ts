@@ -12,3 +12,15 @@ const watchPhone = (change: () => void) => {
  */
 export const useIsPhone = () =>
   useSyncExternalStore(watchPhone, () => phone.matches)
+
+const watchVisibility = (change: () => void) => {
+  document.addEventListener('visibilitychange', change)
+  return () => document.removeEventListener('visibilitychange', change)
+}
+
+/** Whether the page is on screen: not in a background tab, or minimised. */
+export const useIsVisible = () =>
+  useSyncExternalStore(
+    watchVisibility,
+    () => document.visibilityState === 'visible',
+  )

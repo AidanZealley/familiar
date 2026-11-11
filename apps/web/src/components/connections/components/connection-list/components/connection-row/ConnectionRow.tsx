@@ -1,11 +1,13 @@
-import { Link } from '@tanstack/react-router'
 import { cn } from 'cn'
-import { pushedState } from '@/lib/dialogs'
-import { idOf, statusOf, whereOf } from '../../../../status'
+import { statusOf, whereOf } from '../../../../status'
 import { StatusDot } from '../../../status-dot'
 import type { ConnectionRowProps } from './types'
 
-export const ConnectionRow = ({ connection, tools }: ConnectionRowProps) => {
+export const ConnectionRow = ({
+  connection,
+  tools,
+  onSelect,
+}: ConnectionRowProps) => {
   const status = statusOf(connection)
   // Healthy servers show how many tools they bring; others, what's wrong.
   const summary =
@@ -14,11 +16,10 @@ export const ConnectionRow = ({ connection, tools }: ConnectionRowProps) => {
       : status.label
 
   return (
-    <Link
-      to="."
-      search={(search) => ({ ...search, connection: idOf(connection) })}
-      state={(previous) => pushedState(previous)}
-      className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 px-2 py-2 text-sm hover:bg-muted"
+    <button
+      type="button"
+      onClick={onSelect}
+      className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-2 px-2 py-2 text-left text-sm hover:bg-muted"
     >
       <StatusDot tone={status.tone} />
       <span className="truncate font-medium">{connection.title}</span>
@@ -36,6 +37,6 @@ export const ConnectionRow = ({ connection, tools }: ConnectionRowProps) => {
           Tools: <span className="font-mono">{tools.join(', ')}</span>
         </span>
       )}
-    </Link>
+    </button>
   )
 }

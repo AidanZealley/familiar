@@ -22,14 +22,13 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { useDialog } from '@/lib/dialogs'
+import { closeDialog } from '@/lib/dialogs'
 import { workspace } from '@/lib/familiar'
 import { useFamiliars } from '@/lib/workspace'
 
 /** Makes a named room of some Familiars, open or led by one, then opens it. */
 export const NewRoomDialog = () => {
   const id = useId()
-  const { close } = useDialog()
   const navigate = useNavigate()
   const familiars = useFamiliars()
   const [name, setName] = useState('')
@@ -42,12 +41,11 @@ export const NewRoomDialog = () => {
         familiars: members,
         ...(lead !== undefined && { lead }),
       }),
-    // In the dialog's place, so Back returns to the page under it.
+    // A new page, which closes the dialog.
     onSuccess: (room) =>
       navigate({
         to: '/room/$room',
         params: { room: String(room) },
-        replace: true,
       }),
   })
   const toggle = (familiar: number, on: boolean) => {
@@ -63,7 +61,7 @@ export const NewRoomDialog = () => {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
+    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
       <DialogContent className="max-h-[calc(var(--app-height)-2rem)] overflow-y-auto sm:max-w-md">
         <form
           className="flex flex-col gap-4"
@@ -136,7 +134,7 @@ export const NewRoomDialog = () => {
                           htmlFor={`${id}-lead-${familiar.id}`}
                           className="font-normal"
                         >
-                          {familiar.name} answers first
+                          {familiar.name} answers what @mentions no one
                         </FieldLabel>
                       </Field>
                     ))}
@@ -146,7 +144,7 @@ export const NewRoomDialog = () => {
             <FieldError>{create.error?.message}</FieldError>
           </FieldGroup>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close}>
+            <Button type="button" variant="outline" onClick={closeDialog}>
               Cancel
             </Button>
             <Button

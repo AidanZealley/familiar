@@ -1,8 +1,8 @@
 import { useRoom } from '@familiar-ai/client/react'
-import { ClockIcon, HourglassIcon } from 'lucide-react'
+import { LiveStatus } from '@/components/live-status'
 import { Spinner } from '@/components/ui/spinner'
 import { connectionProblems } from '@/lib/connection-problems'
-import { nameOf, setupOf, useFamiliars } from '@/lib/workspace'
+import { setupOf, useFamiliars } from '@/lib/workspace'
 import type { ConversationStatusProps } from './types'
 
 const line = 'flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'
@@ -15,8 +15,6 @@ const line = 'flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'
 export const ConversationStatus = ({ room, live }: ConversationStatusProps) => {
   const familiars = useFamiliars()
   const connection = useRoom((state) => state.connection)
-  const names = (ids: number[]) =>
-    ids.map((id) => nameOf(familiars, id)).join(' and ')
 
   if (connection === 'connecting' || connection === 'reconnecting') {
     return (
@@ -33,34 +31,8 @@ export const ConversationStatus = ({ room, live }: ConversationStatusProps) => {
       </span>
     )
   }
-  if (live.running.length) {
-    return (
-      <span className={`${line} text-primary`}>
-        <Spinner className="size-3 shrink-0" />
-        <span className="truncate">
-          {names(live.running)} {live.running.length > 1 ? 'are' : 'is'}{' '}
-          answering
-        </span>
-      </span>
-    )
-  }
-  if (live.queued.length) {
-    return (
-      <span className={line}>
-        <ClockIcon className="size-3 shrink-0" />
-        <span className="truncate">{names(live.queued)} queued</span>
-      </span>
-    )
-  }
-  if (live.elsewhere.length) {
-    return (
-      <span className={line}>
-        <HourglassIcon className="size-3 shrink-0" />
-        <span className="truncate">
-          {names(live.elsewhere)} busy in another room
-        </span>
-      </span>
-    )
+  if (room.turns.length) {
+    return <LiveStatus live={live} />
   }
   if (room.kind === 'room') {
     return (

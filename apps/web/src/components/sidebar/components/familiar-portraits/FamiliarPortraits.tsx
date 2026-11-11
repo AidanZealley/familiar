@@ -1,7 +1,6 @@
-import { Link } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { PixelAvatar } from '@/components/pixel-avatar'
-import { dialogSearch, pushedState } from '@/lib/dialogs'
+import { openDialog } from '@/lib/dialogs'
 import type { FamiliarPortraitsProps } from './types'
 
 /** A phone's home: the Familiars as a row of portraits, each opening its settings. */
@@ -16,17 +15,16 @@ export const FamiliarPortraits = ({
     >
       {familiars.map((familiar) => (
         <li key={familiar.id}>
-          <Link
-            to="."
-            search={dialogSearch({ kind: 'familiar', id: familiar.id })}
-            state={(previous) => pushedState(previous)}
+          <button
+            type="button"
+            onClick={() => openDialog({ kind: 'familiar', id: familiar.id })}
             className="flex w-16 flex-col items-center gap-1"
           >
             <PixelAvatar familiar={familiar} scale={2} />
             <span className="w-full truncate text-center text-[11px]">
               {familiar.name}
             </span>
-          </Link>
+          </button>
         </li>
       ))}
     </ul>

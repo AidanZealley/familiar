@@ -6,7 +6,13 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { useFamiliars, useRooms, type NamedRoom } from '@/lib/workspace'
+import {
+  dmOf,
+  latestFirst,
+  useFamiliars,
+  useRooms,
+  type NamedRoom,
+} from '@/lib/workspace'
 import { ArchivedRooms } from './components/archived-rooms'
 import { ConnectionStatus } from './components/connection-status'
 import { FamiliarPortraits } from './components/familiar-portraits'
@@ -21,9 +27,10 @@ const heading =
 
 /**
  * Every conversation, from the workspace's stream alone: each Familiar's
- * DM, the named rooms, and archived rooms folded away, in the order they
- * were made; then the one Settings. It streams no room of its own, so rows
- * show who's in a room rather than what was last said in it.
+ * DM, the named rooms, and archived rooms folded away, each the most
+ * recently active first; then the one Settings. The workspace's stream
+ * carries every room's latest entry, unread count and turns, so the
+ * sidebar opens no room's stream of its own.
  */
 export const Sidebar = ({ className }: SidebarProps) => {
   const familiars = useFamiliars()
@@ -31,8 +38,17 @@ export const Sidebar = ({ className }: SidebarProps) => {
   const [query, setQuery] = useState('')
   const matches = (name: string) =>
     name.toLowerCase().includes(query.trim().toLowerCase())
-  const named = rooms.filter(
-    (room): room is NamedRoom => room.kind === 'room' && matches(room.name),
+  const named = latestFirst(
+    rooms.filter(
+      (room): room is NamedRoom => room.kind === 'room' && matches(room.name),
+    ),
+    (room) => room.last,
+  )
+  const dms = latestFirst(
+    familiars
+      .filter((familiar) => matches(familiar.name))
+      .map((familiar) => ({ familiar, dm: dmOf(rooms, familiar.id) })),
+    ({ dm }) => dm?.last,
   )
   const open = named.filter((room) => !room.archived)
   const archived = named.filter((room) => room.archived)
@@ -71,11 +87,9 @@ export const Sidebar = ({ className }: SidebarProps) => {
 
         <section aria-label="Familiars" className="flex flex-col pb-2">
           <h2 className={heading}>Familiars</h2>
-          {familiars
-            .filter((familiar) => matches(familiar.name))
-            .map((familiar) => (
-              <FamiliarRow key={familiar.id} familiar={familiar} />
-            ))}
+          {dms.map(({ familiar, dm }) => (
+            <FamiliarRow key={familiar.id} familiar={familiar} dm={dm} />
+          ))}
         </section>
 
         {open.length > 0 && (
@@ -93,7 +107,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
 
         {query.trim() && !open.length && !archived.length && (
           <p className="px-2 py-4 text-xs text-muted-foreground">
-            {familiars.some((familiar) => matches(familiar.name))
+            {dms.length > 0
               ? 'No rooms match.'
               : `Nothing matches “${query.trim()}”.`}
           </p>

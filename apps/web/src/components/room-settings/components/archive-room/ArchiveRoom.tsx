@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArchiveIcon } from 'lucide-react'
+import { ArchiveIcon, ArchiveRestoreIcon } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +15,33 @@ import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
 import type { ArchiveRoomProps } from './types'
 
-/** Archives the room, once confirmed. There's no unarchiving it yet. */
+/** Archives the room, once confirmed, or unarchives an archived one. */
 export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
   const archive = useMutation({
-    mutationFn: () => workspace.rooms.archive(room.id),
+    mutationFn: () =>
+      room.archived
+        ? workspace.rooms.unarchive(room.id)
+        : workspace.rooms.archive(room.id),
   })
+  const error = archive.error && (
+    <p className="text-sm text-destructive">{archive.error.message}</p>
+  )
 
   if (room.archived) {
-    return null
+    return (
+      <div className="flex flex-col gap-3">
+        <Button
+          variant="outline"
+          className="self-start"
+          disabled={archive.isPending}
+          onClick={() => archive.mutate()}
+        >
+          <ArchiveRestoreIcon />
+          Unarchive {room.name}
+        </Button>
+        {error}
+      </div>
+    )
   }
   return (
     <AlertDialog>
@@ -36,13 +55,11 @@ export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Archive {room.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Its Familiars stop answering here, and it can't be reopened yet. Its
+            Its Familiars stop answering here until you unarchive it. Its
             history is kept.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {archive.error && (
-          <p className="text-sm text-destructive">{archive.error.message}</p>
-        )}
+        {error}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction

@@ -13,8 +13,11 @@ const absent = {
 export const ToolList = ({ connection }: ToolListProps) => {
   const [filter, setFilter] = useState('')
   const { tools } = connection
-  const shown = tools.filter((tool) =>
-    tool.name.toLowerCase().includes(filter.trim().toLowerCase()),
+  const query = filter.trim().toLowerCase()
+  const shown = tools.filter(
+    (tool) =>
+      tool.name.toLowerCase().includes(query) ||
+      !!tool.description?.toLowerCase().includes(query),
   )
 
   return (
@@ -48,13 +51,17 @@ export const ToolList = ({ connection }: ToolListProps) => {
       ) : shown.length ? (
         <ul className="flex flex-col divide-y border">
           {shown.map((tool) => (
-            <li
-              key={tool.name}
-              className="flex items-center justify-between gap-3 px-3 py-2"
-            >
-              <span className="truncate font-mono text-sm">{tool.name}</span>
-              {'readOnly' in tool && tool.readOnly === true && (
-                <Badge variant="secondary">Reads only</Badge>
+            <li key={tool.name} className="flex flex-col gap-0.5 px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="truncate font-mono text-sm">{tool.name}</span>
+                {'readOnly' in tool && tool.readOnly === true && (
+                  <Badge variant="secondary">Reads only</Badge>
+                )}
+              </div>
+              {tool.description && (
+                <p className="line-clamp-3 text-xs text-muted-foreground">
+                  {tool.description}
+                </p>
               )}
             </li>
           ))}

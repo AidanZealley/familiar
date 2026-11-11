@@ -8,6 +8,8 @@ export type RunHead = {
   time?: number
   /** Its Familiar is answering now, so its portrait talks. */
   live: boolean
+  /** The run's last item, under which a DM shows the time. */
+  last: string
 }
 
 type Turn = Extract<TranscriptItem, { type: 'reply' | 'waiting' }>
@@ -27,6 +29,7 @@ export const replyRuns = (items: readonly TranscriptItem[]) => {
   const close = () => {
     if (head && last) {
       heads.set(head.id, {
+        last: last.id,
         live:
           last.type === 'waiting' ? last.status === 'running' : last.streaming,
         ...(last.type === 'reply' &&

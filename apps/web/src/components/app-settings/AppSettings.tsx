@@ -5,6 +5,7 @@ import {
   PaletteIcon,
   PlugIcon,
   SparklesIcon,
+  UserRoundIcon,
 } from 'lucide-react'
 import {
   Connections,
@@ -14,14 +15,17 @@ import {
 import { NotificationSetting } from '@/components/notification-setting'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Badge } from '@/components/ui/badge'
+import { useWorkspace } from '@/lib/familiar'
 import { AppearanceSettings } from './components/appearance-settings'
 import { DefaultTools } from './components/default-tools'
 import { ModelAccount } from './components/model-account'
+import { YourProfile } from './components/your-profile'
 
-/** The one Settings: this device, then the workspace. */
+/** The one Settings: you and this device, then the workspace. */
 export const AppSettings = () => {
   const { data: connections = [] } = useQuery(connectionsQuery)
   const needsYou = connections.filter(needsAttention).length
+  const me = useWorkspace((state) => state.me)
 
   return (
     <SettingsDialog
@@ -30,6 +34,15 @@ export const AppSettings = () => {
         {
           label: 'You',
           categories: [
+            {
+              id: 'profile',
+              label: 'Profile',
+              icon: UserRoundIcon,
+              keywords: 'name me rename',
+              description: 'Who you are to every Familiar.',
+              // Keyed by the name, so a rename from elsewhere reseeds it.
+              content: me && <YourProfile key={me.name} me={me} />,
+            },
             {
               id: 'appearance',
               label: 'Appearance',

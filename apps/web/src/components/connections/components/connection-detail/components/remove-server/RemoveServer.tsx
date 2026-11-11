@@ -1,5 +1,4 @@
 import { useMutation } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
 import { Trash2Icon } from 'lucide-react'
 import {
   AlertDialog,
@@ -16,22 +15,12 @@ import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
 import type { RemoveServerProps } from './types'
 
-const route = getRouteApi('__root__')
-
 export const RemoveServer = ({ connection }: RemoveServerProps) => {
-  const navigate = route.useNavigate()
   const { name, transport } = connection
   const remove = useMutation({
     mutationKey: ['connections'],
+    // Once it's gone from the list, Connections shows the list again.
     mutationFn: () => workspace.mcp.remove(name),
-    // Back to the list, in place of the server that's gone.
-    onSuccess: () =>
-      navigate({
-        to: '.',
-        search: ({ connection: _removed, ...search }) => search,
-        replace: true,
-        state: true,
-      }),
   })
 
   return (

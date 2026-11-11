@@ -1,3 +1,4 @@
+import { cn } from 'cn'
 import { ClockIcon, HourglassIcon, MoonIcon } from 'lucide-react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { FamiliarLink } from '@/components/familiar-link'
@@ -11,22 +12,35 @@ import { ScheduledPrompt } from './components/scheduled-prompt'
 import type { TranscriptItemProps } from './types'
 
 /**
- * One item. A Familiar's replies sit beside its portrait, named once per run;
- * people's messages, handoffs, notes and schedules stand on their own.
+ * One item. In a named room, a Familiar's replies sit beside its portrait,
+ * named once per run, and its handoffs, notes and quiet passes line up with
+ * them; in a DM they take the full width. People's messages and schedules
+ * stand on their own.
  */
-export const TranscriptItem = ({ item, run }: TranscriptItemProps) => {
+export const TranscriptItem = ({ item, dm, run, end }: TranscriptItemProps) => {
+  // Clear of the portrait column, which a DM doesn't have.
+  const gutter = cn(!dm && 'pl-10.5')
+
   switch (item.type) {
     case 'message':
       return <PersonMessage message={item} />
     case 'scheduled':
       return <ScheduledPrompt item={item} />
     case 'handoff':
-      return <Handoff handoff={item} />
+      return (
+        <div className={gutter}>
+          <Handoff handoff={item} />
+        </div>
+      )
     case 'note':
-      return <RoomNote note={item} />
+      return (
+        <div className={gutter}>
+          <RoomNote note={item} />
+        </div>
+      )
     case 'waiting':
       return (
-        <FamiliarTurn familiar={item.familiar} run={run}>
+        <FamiliarTurn familiar={item.familiar} dm={dm} run={run} end={end}>
           {item.status === 'running' ? (
             <Thinking text="" active />
           ) : (
@@ -48,7 +62,7 @@ export const TranscriptItem = ({ item, run }: TranscriptItemProps) => {
       if (item.quiet) {
         return (
           run && (
-            <Marker className="pl-10.5">
+            <Marker className={gutter}>
               <MarkerIcon>
                 <MoonIcon />
               </MarkerIcon>
@@ -61,7 +75,13 @@ export const TranscriptItem = ({ item, run }: TranscriptItemProps) => {
         )
       }
       return (
-        <FamiliarTurn familiar={item.familiar} then={item.name} run={run}>
+        <FamiliarTurn
+          familiar={item.familiar}
+          then={item.name}
+          dm={dm}
+          run={run}
+          end={end}
+        >
           <Reply reply={item} />
         </FamiliarTurn>
       )
