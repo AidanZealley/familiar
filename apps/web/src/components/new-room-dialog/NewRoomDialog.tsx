@@ -136,7 +136,7 @@ export const NewRoomDialog = () => {
                           htmlFor={`${id}-lead-${familiar.id}`}
                           className="font-normal"
                         >
-                          {familiar.name} answers first
+                          {familiar.name} answers what @mentions no one
                         </FieldLabel>
                       </Field>
                     ))}

@@ -11,7 +11,7 @@ import { workspace } from '@/lib/familiar'
 import { nameOf, useFamiliars } from '@/lib/workspace'
 import type { LeadSettingsProps } from './types'
 
-/** Who answers first, or no one: an open room. */
+/** Who answers what @mentions no one, or no one: an open room. */
 export const LeadSettings = ({ room }: LeadSettingsProps) => {
   const familiars = useFamiliars()
   const change = useMutation({
@@ -49,8 +49,8 @@ export const LeadSettings = ({ room }: LeadSettingsProps) => {
               <FieldContent>
                 <FieldTitle>{nameOf(familiars, id)}</FieldTitle>
                 <FieldDescription>
-                  Answers first. Others answer when it hands off, or when you
-                  @mention them.
+                  Answers anything that @mentions no one. Others answer when it
+                  hands off, or when you @mention them.
                 </FieldDescription>
               </FieldContent>
             </Field>

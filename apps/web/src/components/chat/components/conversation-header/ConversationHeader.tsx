@@ -1,4 +1,3 @@
-import { useRoom } from '@familiar-ai/client/react'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeftIcon } from 'lucide-react'
 import { useMemo } from 'react'
@@ -6,10 +5,9 @@ import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
 import { dialogSearch, pushedState, type DialogRef } from '@/lib/dialogs'
-import { titleOf, useFamiliars } from '@/lib/workspace'
+import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
 import { ConversationMenu } from './components/conversation-menu'
 import { ConversationStatus } from './components/conversation-status'
-import { liveOf } from './live'
 import type { ConversationHeaderProps } from './types'
 
 /**
@@ -19,8 +17,8 @@ import type { ConversationHeaderProps } from './types'
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
-  const items = useRoom((state) => state.transcript?.items)
-  const live = useMemo(() => liveOf(items), [items])
+  // From the workspace's stream, as the sidebar shows it.
+  const live = useMemo(() => liveOf(room.turns), [room.turns])
   const settings: DialogRef =
     room.kind === 'dm'
       ? { kind: 'familiar', id: room.familiar }

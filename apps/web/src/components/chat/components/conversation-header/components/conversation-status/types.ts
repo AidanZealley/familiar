@@ -1,7 +1,7 @@
 import type { RoomSummary } from '@familiar-ai/client'
-import type { liveOf } from '../../live'
+import type { Live } from '@/lib/workspace'
 
 export type ConversationStatusProps = {
   room: RoomSummary
-  live: ReturnType<typeof liveOf>
+  live: Live
 }
