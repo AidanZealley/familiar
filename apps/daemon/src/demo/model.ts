@@ -1,3 +1,4 @@
+import type { Provider } from '@earendil-works/pi-ai/models'
 import type { ChatModel } from '@familiar-ai/core'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import {
@@ -59,6 +60,23 @@ const fauxModels = [
 ]
 
 /**
+ * Signing in to the demo's provider: it asks for nothing and stores a login
+ * that never expires, in memory. Requests need it as they would a real
+ * provider's, so the model account can be signed out of and back into.
+ */
+const demoLogin: NonNullable<Provider['auth']['oauth']> = {
+  name: 'Faux',
+  login: async () => ({
+    type: 'oauth',
+    access: 'faux',
+    refresh: 'faux',
+    expires: Number.MAX_SAFE_INTEGER,
+  }),
+  refresh: async (credential) => credential,
+  toAuth: async () => ({}),
+}
+
+/**
  * The demo's models: the household's script, else the scenarios, each reply
  * dated by the demo's clock. Replies stream at a readable pace, but fast
  * enough that a whole one doesn't drag, except while the clock is catching
@@ -81,6 +99,7 @@ export function createDemoModels(script: Script, clock: DemoClock) {
   const current = () => (clock.catchingUp() ? instant : paced)
   models.setProvider(
     Object.assign(Object.create(paced), {
+      auth: { oauth: demoLogin },
       stream: (...args: Parameters<typeof paced.stream>) =>
         current().stream(...args),
       streamSimple: (...args: Parameters<typeof paced.streamSimple>) =>

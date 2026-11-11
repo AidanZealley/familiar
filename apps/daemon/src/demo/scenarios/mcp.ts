@@ -17,7 +17,7 @@ const DEMO_TOKEN = 'demo-token'
 
 const echo: Tool = {
   name: 'echo',
-  description: 'Demo only: replies with the text it is given.',
+  description: 'Replies with the text it is given.',
   inputSchema: {
     type: 'object',
     properties: { text: { type: 'string' } },
@@ -26,10 +26,11 @@ const echo: Tool = {
   annotations: { readOnlyHint: true },
 }
 
-const pretend = (names: string, readOnly: boolean): Tool[] =>
-  names.split(' ').map((name) => ({
+/** Tools that answer without doing anything, described as the real ones would be. */
+const pretend = (readOnly: boolean, tools: Record<string, string>): Tool[] =>
+  Object.entries(tools).map(([name, description]) => ({
     name,
-    description: `Demo only: pretends to ${name.replaceAll('_', ' ')}.`,
+    description,
     inputSchema: { type: 'object' },
     annotations: { readOnlyHint: readOnly },
   }))
@@ -38,27 +39,59 @@ const pretend = (names: string, readOnly: boolean): Tool[] =>
 // serves echo, so a server added from the page can be tried in chat.
 const services: Record<string, Tool[]> = {
   'home.demo.invalid': [
-    ...pretend(
-      'get_live_context list_areas list_devices get_history get_logbook get_weather',
-      true,
-    ),
-    ...pretend(
-      'turn_on turn_off toggle set_brightness set_colour set_temperature set_hvac_mode open_cover close_cover lock unlock media_pause media_play set_volume start_vacuum',
-      false,
-    ),
+    ...pretend(true, {
+      get_live_context: 'Gets the current state of every exposed device.',
+      list_areas: 'Lists the areas of the home.',
+      list_devices: 'Lists devices, optionally in one area.',
+      get_history: 'Gets how a device’s state changed over a period.',
+      get_logbook: 'Gets recent events, such as doors opening.',
+      get_weather: 'Gets the forecast for the home’s location.',
+    }),
+    ...pretend(false, {
+      turn_on: 'Turns a device or area on.',
+      turn_off: 'Turns a device or area off.',
+      toggle: 'Switches a device between on and off.',
+      set_brightness: 'Sets a light’s brightness.',
+      set_colour: 'Sets a light’s colour.',
+      set_temperature: 'Sets a thermostat’s target temperature.',
+      set_hvac_mode: 'Sets heating or cooling to off, heat, cool or auto.',
+      open_cover: 'Opens a blind, curtain or garage door.',
+      close_cover: 'Closes a blind, curtain or garage door.',
+      lock: 'Locks a lock.',
+      unlock: 'Unlocks a lock.',
+      media_pause: 'Pauses a media player.',
+      media_play: 'Resumes a media player.',
+      set_volume: 'Sets a media player’s volume.',
+      start_vacuum: 'Sends the robot vacuum to clean.',
+    }),
   ],
   'notes.demo.invalid': [
-    ...pretend('search_notes read_note list_tags', true),
-    ...pretend('create_note append_to_note', false),
+    ...pretend(true, {
+      search_notes: 'Searches your notes by keyword.',
+      read_note: 'Reads a note in full.',
+      list_tags: 'Lists the tags your notes use.',
+    }),
+    ...pretend(false, {
+      create_note: 'Creates a note with a title and text.',
+      append_to_note: 'Adds text to the end of a note.',
+    }),
   ],
   'printer.demo.invalid': [
-    ...pretend('printer_status list_files', true),
-    ...pretend(
-      'start_print pause_print cancel_print set_bed_temperature',
-      false,
-    ),
+    ...pretend(true, {
+      printer_status: 'Gets the printer’s state, temperatures and progress.',
+      list_files: 'Lists the files ready to print.',
+    }),
+    ...pretend(false, {
+      start_print: 'Starts printing a file.',
+      pause_print: 'Pauses the current print.',
+      cancel_print: 'Cancels the current print.',
+      set_bed_temperature: 'Sets the print bed’s temperature.',
+    }),
   ],
-  'mcp-server-time': pretend('get_current_time convert_time', true),
+  'mcp-server-time': pretend(true, {
+    get_current_time: 'Gets the current time in a time zone.',
+    convert_time: 'Converts a time between time zones.',
+  }),
 }
 
 function serve(tools: Tool[]) {
@@ -74,7 +107,7 @@ function serve(tools: Tool[]) {
         text:
           params.name === 'echo'
             ? String(params.arguments?.text ?? '')
-            : `Demo only: ${params.name} did nothing.`,
+            : 'Done.',
       },
     ],
   }))

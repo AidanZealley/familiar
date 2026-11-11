@@ -1,17 +1,12 @@
 import { WrenchIcon } from 'lucide-react'
 import { Activity } from '../activity'
+import { toolLabel } from './label'
 import type { ToolCallProps } from './types'
-
-const LABEL = {
-  running: (name: string) => `Running ${name}…`,
-  done: (name: string) => `Used ${name}`,
-  error: (name: string) => `${name} failed`,
-}
 
 export const ToolCall = ({ call }: ToolCallProps) => (
   <Activity
     icon={<WrenchIcon />}
-    label={LABEL[call.status](call.name)}
+    label={toolLabel(call.name, call.status)}
     active={call.status === 'running'}
     failed={call.status === 'error'}
   >
