@@ -36,11 +36,14 @@ export const formatTime = (ms: number) => timeFormat.format(ms)
 
 const startOfDay = (ms: number) => new Date(ms).setHours(0, 0, 0, 0)
 
-/** A day near now: `Today`, `Tomorrow`, or `Tue 7 Jan`. */
+/** A day near now: `Yesterday`, `Today`, `Tomorrow`, or `Tue 7 Jan`. */
 export const formatRelativeDay = (ms: number) => {
   const days = Math.round(
     (startOfDay(ms) - startOfDay(Date.now())) / 86_400_000,
   )
+  if (days === -1) {
+    return 'Yesterday'
+  }
   if (days === 0) {
     return 'Today'
   }

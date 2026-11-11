@@ -1,7 +1,8 @@
 import type { TranscriptItem } from '@familiar-ai/client'
+import type { RunHead } from '../transcript-items/layout'
 
 export type TranscriptItemProps = {
   item: TranscriptItem
-  /** When its turn was answered, if it's the turn's last reply. */
-  time?: number
+  /** Set on the first item of a run of one Familiar's turn items. */
+  run?: RunHead
 }

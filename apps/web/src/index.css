@@ -105,6 +105,32 @@
   }
 }
 
+/*
+ * Each Familiar's colour, behind its initial when its portrait is missing:
+ * eight hues at one lightness and chroma, so any of them sits on either
+ * theme with dark text.
+ */
+:root {
+  --familiar-1: oklch(0.76 0.13 25);
+  --familiar-2: oklch(0.8 0.12 60);
+  --familiar-3: oklch(0.84 0.12 95);
+  --familiar-4: oklch(0.78 0.12 150);
+  --familiar-5: oklch(0.78 0.09 195);
+  --familiar-6: oklch(0.74 0.11 245);
+  --familiar-7: oklch(0.74 0.12 290);
+  --familiar-8: oklch(0.76 0.13 340);
+}
+
+/* A portrait talks by stepping its strip between its two frames. */
+@theme {
+  --animate-pixel-talk: pixel-talk 500ms steps(2, end) infinite;
+  @keyframes pixel-talk {
+    to {
+      translate: -100% 0;
+    }
+  }
+}
+
 @theme inline {
   --font-sans: 'Geist Variable', sans-serif;
   --font-heading: var(--font-mono);

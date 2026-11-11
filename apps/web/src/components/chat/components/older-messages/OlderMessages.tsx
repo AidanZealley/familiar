@@ -1,8 +1,8 @@
+import { useRoom, useRoomStore } from '@familiar-ai/client/react'
 import { LoaderCircleIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
-import { room, useRoom } from '@/lib/familiar'
 import { cn } from 'cn'
 import type { OlderMessagesProps } from './types'
 
@@ -13,6 +13,7 @@ import type { OlderMessagesProps } from './types'
  * first child was an item.
  */
 export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
+  const room = useRoomStore()
   const status = useRoom((state) => state.history.status)
   const { visibleMessageIds } = useMessageScrollerVisibility()
   const nearTop = firstItemIds.some((id) => visibleMessageIds.includes(id))
@@ -21,9 +22,9 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
   // the next. A failure waits for Retry rather than looping.
   useEffect(() => {
     if (nearTop && status === 'more') {
-      void room().loadOlder()
+      void room.loadOlder()
     }
-  }, [nearTop, status])
+  }, [room, nearTop, status])
 
   const floating = 'absolute top-3 left-1/2 -translate-x-1/2 text-xs shadow-sm'
   if (status === 'loading') {
@@ -46,7 +47,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
         variant="secondary"
         size="sm"
         className={cn(floating, 'border')}
-        onClick={() => void room().loadOlder()}
+        onClick={() => void room.loadOlder()}
       >
         Couldn't load earlier messages. Retry
       </Button>

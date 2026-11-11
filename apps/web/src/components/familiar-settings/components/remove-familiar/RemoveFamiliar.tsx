@@ -1,0 +1,60 @@
+import { useMutation } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { Trash2Icon } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { workspace } from '@/lib/familiar'
+import type { RemoveFamiliarProps } from './types'
+
+/** Removes a Familiar for good, once confirmed, and goes home. */
+export const RemoveFamiliar = ({ familiar }: RemoveFamiliarProps) => {
+  const navigate = useNavigate()
+  const remove = useMutation({
+    mutationFn: () => workspace.familiars.remove(familiar.id),
+    // Its DM and settings close with it.
+    onSuccess: () => navigate({ to: '/', search: {}, replace: true }),
+  })
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger
+        render={<Button variant="destructive" className="self-start" />}
+      >
+        <Trash2Icon />
+        Remove {familiar.name}
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove {familiar.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Its memory and schedules are deleted, and it leaves every room.
+            Rooms keep what it said. This can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {remove.error && (
+          <p className="text-sm text-destructive">{remove.error.message}</p>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={remove.isPending}
+            onClick={() => remove.mutate()}
+          >
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
