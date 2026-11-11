@@ -4,7 +4,9 @@ import {
   scriptedModels,
   type ScriptedRequest,
 } from '@familiar-ai/core/models/scripted'
-import { SEED_MESSAGE } from './scenarios/seed.ts'
+import { SEED_MESSAGE } from './household/memory.ts'
+import type { DemoClock } from './clock.ts'
+import type { Script } from './household/script.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
 import { compact } from './scenarios/compaction.ts'
 import { key } from './scenarios/connections.ts'
@@ -19,7 +21,8 @@ const replies: NonNullable<Scenario['replies']> = Object.assign(
   ...[...Object.values(scenarios), seed].map((scenario) => scenario.replies),
 )
 
-export function reply(request: ScriptedRequest) {
+/** The scenarios' answers to anything the household's script doesn't cover. */
+function scenarioReply(request: ScriptedRequest) {
   switch (request.type) {
     case 'background':
       return fauxAssistantMessage('The person tried the demo scenarios.')
@@ -50,12 +53,39 @@ export const demoChatModels: ChatModel[] = [
   { model: { provider: 'faux', modelId: 'faux-2' }, thinkingLevel: 'medium' },
 ]
 
-// Readable, but fast enough that a whole reply doesn't drag.
-export const createDemoModels = () =>
-  scriptedModels(reply, {
-    tokensPerSecond: 40,
-    models: [
-      { id: 'faux-1', name: 'Faux One', reasoning: true },
-      { id: 'faux-2', name: 'Faux Two', reasoning: true },
-    ],
+const fauxModels = [
+  { id: 'faux-1', name: 'Faux One', reasoning: true },
+  { id: 'faux-2', name: 'Faux Two', reasoning: true },
+]
+
+/**
+ * The demo's models: the household's script, else the scenarios, each reply
+ * dated by the demo's clock. Replies stream at a readable pace, but fast
+ * enough that a whole one doesn't drag, except while the clock is catching
+ * up: the seed writing the household's history, which nobody watches, gets
+ * them at once.
+ */
+export function createDemoModels(script: Script, clock: DemoClock) {
+  const respond = async (request: ScriptedRequest) => ({
+    ...(await (script.reply(request) ?? scenarioReply(request))),
+    timestamp: clock.now(),
   })
+  const models = scriptedModels(respond, {
+    tokensPerSecond: 40,
+    models: fauxModels,
+  })
+  const paced = models.getProvider('faux')!
+  const instant = scriptedModels(respond, { models: fauxModels }).getProvider(
+    'faux',
+  )!
+  const current = () => (clock.catchingUp() ? instant : paced)
+  models.setProvider(
+    Object.assign(Object.create(paced), {
+      stream: (...args: Parameters<typeof paced.stream>) =>
+        current().stream(...args),
+      streamSimple: (...args: Parameters<typeof paced.streamSimple>) =>
+        current().streamSimple(...args),
+    }),
+  )
+  return models
+}

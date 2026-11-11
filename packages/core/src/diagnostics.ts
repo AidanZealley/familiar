@@ -10,5 +10,9 @@ export { Episodes, type Episode } from './memory/episodes.ts'
 export { createExchangeIndex, type Exchange } from './memory/exchanges.ts'
 export { datesIn } from './memory/episodes.ts'
 export { localDay } from './time.ts'
-export { familiarDoc, type FamiliarId } from './workspace/familiars.ts'
+export {
+  familiarDoc,
+  Familiars,
+  type FamiliarId,
+} from './workspace/familiars.ts'
 export { RECALL_HEADING } from './memory/recall.ts'

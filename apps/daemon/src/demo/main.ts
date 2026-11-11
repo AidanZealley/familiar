@@ -1,52 +1,13 @@
-// Scripted model, in-memory storage and no login, so nothing here reads the
-// installation's config or data.
-import { MemoryStorage } from '@earendil-works/pi-durable'
-import { definePlugin, memorySecrets } from '@familiar-ai/core'
-import { WEB_RENDERING } from '../rendering.ts'
 import { openPush } from '../push.ts'
-import { OWNER_ID, serveWorkspace } from '../serve.ts'
-import { openDaemonWorkspace } from '../workspace.ts'
-import { createDemoModels, demoChatModels } from './model.ts'
-import { seedMemory, seedEpisodes } from './scenarios/seed.ts'
-import { fillContext } from './scenarios/compaction.ts'
-import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
-import { demoMcpFetch, demoMcpStdio, seedMcp } from './scenarios/mcp.ts'
-import { seedDemo } from './scenarios/memory.ts'
-import { DEMO_TIME_ZONE } from './scenarios/scenario.ts'
-
-const demoPlugin = definePlugin({
-  name: 'demo',
-  title: 'Demo',
-  secrets: [demoSecret],
-  tools: [fillContext, seedMemory, seedEpisodes, checkDemoKey],
-})
+import { serveWorkspace } from '../serve.ts'
+import { openDemo } from './demo.ts'
 
 // Keys and subscriptions last only until the demo restarts.
 const push = openPush({ contact: 'mailto:familiar@example.com' })
-const { workspace, familiar } = await openDaemonWorkspace(
-  {
-    storage: new MemoryStorage(),
-    models: createDemoModels(),
-    model: demoChatModels[0].model,
-    chatModels: demoChatModels,
-    timeZone: DEMO_TIME_ZONE,
-    hostInstructions: WEB_RENDERING,
-    notify: async (notification) => {
-      console.log('Notification:', JSON.stringify(notification))
-      await push.notify(notification)
-    },
-    plugins: [demoPlugin],
-    defaultCapabilities: { plugins: [demoPlugin.name] },
-    people: [{ id: OWNER_ID, name: 'demo' }],
-    secrets: memorySecrets(),
-    fetch: demoFetch,
-    mcpFetch: demoMcpFetch,
-    mcpStdio: demoMcpStdio,
-  },
-  'Familiar',
-)
-await seedDemo(workspace, familiar)
-await seedMcp(workspace)
+const workspace = await openDemo(async (notification) => {
+  console.log('Notification:', JSON.stringify(notification))
+  await push.notify(notification)
+})
 serveWorkspace(workspace, {
   host: '127.0.0.1',
   port: Number(process.env.FAMILIAR_DEMO_PORT ?? 4318),

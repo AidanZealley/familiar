@@ -150,12 +150,6 @@ export async function seedMcp(workspace: Workspace) {
     '--local-timezone=Europe/London',
   )
   await stdio('scratch', 'node', '/home/demo/flaky-server.js')
-
-  // Each Familiar opts in to the connections it uses: the demo's uses these.
-  const mcp = ['home-assistant', 'notes', 'printer', 'nas', 'time', 'scratch']
-  for (const { id } of await workspace.familiars.list()) {
-    await workspace.familiars.get(id)?.setCapabilities({ mcp })
-  }
 }
 
 export const mcp: Scenario = {
