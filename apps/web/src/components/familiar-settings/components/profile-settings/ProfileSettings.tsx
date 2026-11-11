@@ -12,27 +12,32 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { workspace } from '@/lib/familiar'
+import { AvatarPicker } from './components/avatar-picker'
 import type { ProfileSettingsProps } from './types'
 
 /**
  * Its name, portrait and persona. Edits are a draft until saved; an empty
- * persona saves as the default one, built from the name.
+ * persona saves as the default one, built from the name, and Automatic as
+ * the portrait its ID picks.
  */
 export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
   const id = useId()
   const [name, setName] = useState(familiar.name)
   const [persona, setPersona] = useState(familiar.persona ?? '')
+  const [avatar, setAvatar] = useState(familiar.avatar ?? null)
   const save = useMutation({
     mutationKey: ['familiar', familiar.id],
     mutationFn: () =>
       workspace.familiars.update(familiar.id, {
         name: name.trim(),
         persona: persona.trim() || null,
+        avatar,
       }),
   })
   const changed =
     name.trim() !== familiar.name ||
-    (persona.trim() || undefined) !== familiar.persona
+    (persona.trim() || undefined) !== familiar.persona ||
+    (avatar ?? undefined) !== familiar.avatar
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -54,11 +59,21 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
         <Field>
           <FieldLabel>Portrait</FieldLabel>
           <div className="flex items-end gap-3">
-            <PixelAvatar familiar={familiar} scale={3} />
+            <PixelAvatar
+              familiar={{ ...familiar, avatar: avatar ?? undefined }}
+              scale={3}
+            />
             <FieldDescription>
-              Picked from its ID, the same on every device.
+              {avatar === null
+                ? 'Automatic: picked from its ID, the same on every device.'
+                : 'Chosen, on every device.'}
             </FieldDescription>
           </div>
+          <AvatarPicker
+            familiar={familiar}
+            value={avatar}
+            onChange={setAvatar}
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor={`${id}-persona`}>Persona</FieldLabel>
@@ -89,6 +104,7 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
               onClick={() => {
                 setName(familiar.name)
                 setPersona(familiar.persona ?? '')
+                setAvatar(familiar.avatar ?? null)
               }}
             >
               Discard

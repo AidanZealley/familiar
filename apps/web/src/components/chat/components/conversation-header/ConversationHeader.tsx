@@ -1,26 +1,24 @@
-import { useRoom } from '@familiar-ai/client/react'
 import { Link } from '@tanstack/react-router'
-import { ChevronLeftIcon } from 'lucide-react'
+import { ChevronLeftIcon, EllipsisVerticalIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
-import { dialogSearch, pushedState, type DialogRef } from '@/lib/dialogs'
-import { titleOf, useFamiliars } from '@/lib/workspace'
-import { ConversationMenu } from './components/conversation-menu'
+import { openDialog, type DialogRef } from '@/lib/dialogs'
+import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
 import { ConversationStatus } from './components/conversation-status'
-import { liveOf } from './live'
 import type { ConversationHeaderProps } from './types'
 
 /**
  * Glass over the conversation, `--chrome` tall: the room's face, name and
- * what's happening in it, which open its settings, and its menu. On a phone,
+ * what's happening in it, which open its settings, as does the ⋮
+ * button. On a phone,
  * Back returns to the list of conversations.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
-  const items = useRoom((state) => state.transcript?.items)
-  const live = useMemo(() => liveOf(items), [items])
+  // From the workspace's stream, as the sidebar shows it.
+  const live = useMemo(() => liveOf(room.turns), [room.turns])
   const settings: DialogRef =
     room.kind === 'dm'
       ? { kind: 'familiar', id: room.familiar }
@@ -41,12 +39,11 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
         >
           <ChevronLeftIcon />
         </Button>
-        <Link
-          to="."
-          search={dialogSearch(settings)}
-          state={(previous) => pushedState(previous)}
+        <button
+          type="button"
+          onClick={() => openDialog(settings)}
           aria-label={`${title} settings`}
-          className="group/title flex min-w-0 items-center gap-2.5 py-1 md:-ml-1 md:pl-1"
+          className="group/title flex min-w-0 items-center gap-2.5 py-1 text-left md:-ml-1 md:pl-1"
         >
           {dm ? (
             <PixelAvatar familiar={dm} talking={live.running.includes(dm.id)} />
@@ -61,8 +58,16 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
             </span>
             <ConversationStatus room={room} live={live} />
           </span>
-        </Link>
-        <ConversationMenu room={room} className="ml-auto" />
+        </button>
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          className="ml-auto"
+          aria-label={`${title} settings`}
+          onClick={() => openDialog(settings)}
+        >
+          <EllipsisVerticalIcon />
+        </Button>
       </div>
     </header>
   )

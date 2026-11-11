@@ -6,7 +6,11 @@ import type { RoomAvatarProps } from './types'
  * A room as its first two members: the middle of each face, side by side
  * in one 32px square, cropped rather than shrunk so pixels stay whole.
  */
-export const RoomAvatar = ({ members, className }: RoomAvatarProps) => {
+export const RoomAvatar = ({
+  members,
+  talking = [],
+  className,
+}: RoomAvatarProps) => {
   const faces = members.slice(0, 2)
 
   return (
@@ -20,6 +24,7 @@ export const RoomAvatar = ({ members, className }: RoomAvatarProps) => {
           key={familiar.id}
           familiar={familiar}
           half={faces.length === 2}
+          talking={talking.includes(familiar.id)}
           className={cn(index === 1 && 'border-l border-background')}
         />
       ))}

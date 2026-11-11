@@ -11,9 +11,10 @@ import {
   ItemTitle,
 } from '@/components/ui/item'
 import { Spinner } from '@/components/ui/spinner'
+import { ToolSummary } from './components/tool-summary'
 import type { ConnectionTogglesProps } from './types'
 
-/** Every plugin and MCP server, with its tools, its status if it's unwell, and a switch. */
+/** Every plugin and MCP server, with its tools and what each does, its status if it's unwell, and a switch. */
 export const ConnectionToggles = ({
   connections,
   toggle,
@@ -54,11 +55,13 @@ export const ConnectionToggles = ({
                   </Badge>
                 )}
               </ItemTitle>
-              <ItemDescription className="font-mono">
-                {connection.tools.length
-                  ? connection.tools.map((tool) => tool.name).join(', ')
-                  : 'Its tools show once it connects.'}
-              </ItemDescription>
+              {connection.tools.length ? (
+                <ToolSummary tools={connection.tools} />
+              ) : (
+                <ItemDescription>
+                  Its tools show once it connects.
+                </ItemDescription>
+              )}
             </ItemContent>
             <ItemActions>{toggle(connection)}</ItemActions>
           </Item>

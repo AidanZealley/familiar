@@ -4,10 +4,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { RoomRow } from '../room-row'
+import { ArchivedRoomRow } from './components/archived-room-row'
 import type { ArchivedRoomsProps } from './types'
 
-/** Archived rooms, folded away: still readable, closed to new messages. */
+/** Archived rooms, folded away: still readable, closed to new messages, and each one unarchivable. */
 export const ArchivedRooms = ({ rooms, familiars }: ArchivedRoomsProps) => (
   <Collapsible>
     <CollapsibleTrigger className="group/archived flex w-full items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase hover:text-foreground">
@@ -18,7 +18,7 @@ export const ArchivedRooms = ({ rooms, familiars }: ArchivedRoomsProps) => (
     </CollapsibleTrigger>
     <CollapsibleContent className="flex flex-col">
       {rooms.map((room) => (
-        <RoomRow key={room.id} room={room} familiars={familiars} />
+        <ArchivedRoomRow key={room.id} room={room} familiars={familiars} />
       ))}
     </CollapsibleContent>
   </Collapsible>

@@ -147,7 +147,10 @@ export type RoomsApi = {
    * Throws a RoomError as `create`.
    */
   update(id: RoomId, change: RoomChange): Promise<void>
-  /** Hides a named room and closes it to new messages, keeping its history. */
+  /**
+   * Hides a named room and closes it to new messages, keeping its history,
+   * and stops its turns in progress and queued, so no reply lands in it.
+   */
   archive(id: RoomId): Promise<void>
   /** The DM between a Familiar and a person, by host author ID, created if new. */
   dm(familiar: FamiliarId, person: string): Promise<RoomId>
@@ -186,6 +189,12 @@ export function createRooms(
         requestId,
       )
     ).turns
+
+  // A room's turns are background tasks, which only a background abort reaches.
+  const stop = async (id: RoomId) =>
+    (await harness.conversation(id, context))!.abort(context, {
+      background: true,
+    })
 
   const open = (id: RoomId): RoomApi => ({
     id,
@@ -234,11 +243,7 @@ export function createRooms(
     watch: async () =>
       (await harness.conversation(id, context))!.watch(context),
     watchTurns: () => watchActivity(harness, id),
-    // Its turns are background tasks, which only a background abort reaches.
-    stop: async () =>
-      (await harness.conversation(id, context))!.abort(context, {
-        background: true,
-      }),
+    stop: () => stop(id),
   })
 
   const api: RoomsApi = {
@@ -247,7 +252,11 @@ export function createRooms(
     create: (setup) => harness.commit((tx) => createRoom(tx, setup), context),
     update: (id, change) =>
       harness.commit((tx) => updateRoom(tx, id, change), context),
-    archive: (id) => harness.commit((tx) => archiveRoom(tx, id), context),
+    // Closed first, so nothing new starts, then what's under way stops.
+    archive: async (id) => {
+      await harness.commit((tx) => archiveRoom(tx, id), context)
+      await stop(id)
+    },
     dm: (familiar, person) =>
       harness.commit((tx) => dmWith(tx, familiar, person), context),
     get: async (id, person) => {

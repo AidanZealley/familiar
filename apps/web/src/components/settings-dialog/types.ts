@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export type SettingsCategory = {
-  /** In the URL, as `category`. */
+  /** What an opener names to show it first. */
   id: string
   label: string
   icon: LucideIcon

@@ -175,7 +175,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           )}
           {room.lead === undefined
             ? 'Open room: each Familiar here may answer, in turn. @mention one to ask it.'
-            : `${nameOf(familiars, room.lead)} leads: it answers first and hands off. @mention anyone to ask them.`}
+            : `${nameOf(familiars, room.lead)} answers anything not addressed to someone. @mention a Familiar to ask it.`}
         </p>
       )}
     </form>

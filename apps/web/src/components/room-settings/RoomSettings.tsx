@@ -49,7 +49,7 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
               icon: CrownIcon,
               keywords: 'open',
               description:
-                'A lead answers every message first, and hands off when it helps. Without one the room is open: each Familiar may answer, in turn, or stay quiet.',
+                'A lead answers every message that @mentions no one, and can hand off. Without one the room is open: each Familiar may answer, in turn, or stay quiet.',
               content: <LeadSettings room={room} />,
             },
           ],
@@ -63,8 +63,8 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
               danger: !room.archived,
               keywords: 'hide close',
               description: room.archived
-                ? 'Folded away and closed to new messages; its history is kept.'
-                : 'Folds the room away and closes it to new messages, keeping its history. It stays archived.',
+                ? 'Folded away and closed to new messages; its history is kept. Unarchiving lists it and opens it again.'
+                : 'Folds the room away and closes it to new messages, keeping its history, until you unarchive it.',
               content: <ArchiveRoom room={room} />,
             },
           ],

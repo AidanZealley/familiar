@@ -53,6 +53,25 @@ export const formatRelativeDay = (ms: number) => {
   return weekdayDayFormat.format(ms)
 }
 
+const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+
+/**
+ * When something last happened, as a list shows it: `14:05` today, then
+ * `Yesterday`, a weekday within the week, and a date before that.
+ */
+export const formatLatest = (ms: number) => {
+  const days = Math.round(
+    (startOfDay(Date.now()) - startOfDay(ms)) / 86_400_000,
+  )
+  if (days <= 0) {
+    return formatTime(ms)
+  }
+  if (days === 1) {
+    return 'Yesterday'
+  }
+  return days < 7 ? weekdayFormat.format(ms) : formatDay(new Date(ms))
+}
+
 const weekdays = [
   'Sunday',
   'Monday',

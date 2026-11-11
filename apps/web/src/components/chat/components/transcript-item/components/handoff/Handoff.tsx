@@ -5,7 +5,7 @@ import type { HandoffProps } from './types'
 
 /** One Familiar asking another to take a turn, with its note; the reply follows. */
 export const Handoff = ({ handoff }: HandoffProps) => (
-  <div className="flex flex-col gap-1 pl-10.5 text-xs">
+  <div className="flex flex-col gap-1 text-xs">
     <Marker>
       <MarkerIcon>
         <ArrowRightIcon />

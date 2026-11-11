@@ -14,12 +14,14 @@ import { ConversationHeader } from './components/conversation-header'
 import { OlderMessages } from './components/older-messages'
 import { SignIn } from './components/sign-in'
 import { TranscriptItems } from './components/transcript-items'
+import { useReadWhileOpen } from './read'
 import type { ChatProps } from './types'
 
 /**
- * The open room: its header, its transcript and the composer. Until the
- * room's first view arrives, its header over a loader; the view then stays
- * through any reconnect, which the header reports.
+ * The open room: its header, its transcript and the composer, marked read
+ * while it's on screen. Until the room's first view arrives, its header
+ * over a loader; the view then stays through any reconnect, which the
+ * header reports.
  */
 export const Chat = ({ room }: ChatProps) => {
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -36,6 +38,7 @@ export const Chat = ({ room }: ChatProps) => {
     observer.observe(content)
     return () => observer.disconnect()
   }, [])
+  useReadWhileOpen(room)
   const transcript = useRoom((state) => state.transcript)
   const startup = useRoom((state) =>
     state.view === undefined ? state.connection : 'ready',
@@ -79,7 +82,10 @@ export const Chat = ({ room }: ChatProps) => {
               aria-busy={transcript?.busy}
               className="mx-auto w-full max-w-(--page-width) gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
             >
-              <TranscriptItems items={transcript?.items ?? []} />
+              <TranscriptItems
+                items={transcript?.items ?? []}
+                dm={room.kind === 'dm'}
+              />
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <OlderMessages firstItemIds={firstItemIds} />
