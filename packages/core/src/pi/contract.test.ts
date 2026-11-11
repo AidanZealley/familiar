@@ -86,7 +86,8 @@ test('a session document moves into a family of the same kind in one commit, and
 })
 
 // Versioned tasks: schedules and upkeep (schedules/task.ts, memory/upkeep).
-test('a sleeping task keeps its stored version until it wakes, then migrates', async () => {
+// Finding a task by status: resuming a schedule (schedules/task.ts).
+test('a sleeping task keeps its stored version until it wakes, then migrates, and a commit finds it by conversation, kind and status meanwhile', async () => {
   const clock = fakeClock(1_000)
   const storage = new ReopenableStorage()
   const ran: unknown[] = []
@@ -163,10 +164,28 @@ test('a sleeping task keeps its stored version until it wakes, then migrates', a
   )
   second.resume()
   expect(await sleeping()).toMatchObject({ version: 1, input: { id: 's1' } })
+  const found = (status: 'sleeping' | 'terminal') =>
+    second.commit(
+      async (tx) =>
+        (
+          await tx.scanTasks(
+            {
+              conversationId: ROOT_CONVERSATION_ID,
+              kind: 'test.sleeper',
+              status,
+            },
+            10,
+          )
+        ).items.map((task) => task.id),
+      context,
+    )
+  expect(await found('sleeping')).toEqual([id])
 
   clock.advanceTo(5_000)
   await second.waitForTask(id, context)
   expect(ran).toEqual([{ familiar: 'root', id: 's1' }])
+  expect(await found('sleeping')).toEqual([])
+  expect(await found('terminal')).toEqual([id])
   await second.close(context)
 })
 

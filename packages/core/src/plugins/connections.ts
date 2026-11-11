@@ -35,7 +35,10 @@ export function createConnections(
           kind: 'plugin' as const,
           name: plugin.name,
           title: plugin.title,
-          tools: plugin.tools.map((tool) => ({ name: tool.name })),
+          tools: plugin.tools.map(({ name, description }) => ({
+            name,
+            description,
+          })),
           secrets: await Promise.all(
             (plugin.secrets ?? []).map(async (secret) => ({
               name: secret.name,

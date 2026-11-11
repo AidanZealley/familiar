@@ -15,21 +15,25 @@ import {
   type Author,
 } from '../conversation/message.ts'
 import type { PostScheduled } from '../schedules/task.ts'
-import { viewWatch } from '../pi/watch.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { watchActivity, type RoomActivity } from './activity.ts'
-import { post, type Mention } from './log.ts'
+import {
+  listRooms,
+  watchRooms,
+  type RoomListing,
+  type RoomsState,
+} from './listing.ts'
+import { markRead, post, type Mention } from './log.ts'
 import {
   archiveRoom,
   createRoom,
   dmWith,
   Rooms,
+  seenBy,
   updateRoom,
-  type Room,
   type RoomChange,
   type RoomId,
   type RoomSetup,
-  type RoomsState,
 } from './rooms.ts'
 import { roomTools } from './tools.ts'
 import { createTurnTask } from './turn.ts'
@@ -41,17 +45,13 @@ export type {
   NoteData,
   ReplyData,
   RoomMessageData,
+  RoomPreview,
   RoomScheduledData,
 } from './log.ts'
 export { REPLY_KIND } from './log.ts'
 export { RoomError } from './rooms.ts'
-export type {
-  Room,
-  RoomChange,
-  RoomId,
-  RoomSetup,
-  RoomsState,
-} from './rooms.ts'
+export type { Room, RoomChange, RoomId, RoomSetup } from './rooms.ts'
+export type { RoomListing, RoomsState, RoomTurn } from './listing.ts'
 export { checkMaxHandoffs, DEFAULT_MAX_HANDOFFS } from './tools.ts'
 export type { RoomActivity, TurnActivity } from './activity.ts'
 
@@ -98,6 +98,12 @@ export type RoomApi = {
    */
   note(note: { text: string; requestId: string }): Promise<EntryId>
   /**
+   * Marks the room read by `person`, a host author ID, up to `entry`, the
+   * newest they've seen; never back from where it was. Lists count what's
+   * unread from here; a person's own messages mark it read up to them.
+   */
+  read(person: string, entry: EntryId): Promise<void>
+  /**
    * Up to `limit` committed entries older than entry `before`, newest first.
    * `more` says whether older ones exist.
    */
@@ -118,15 +124,17 @@ export type RoomApi = {
   stop(): Promise<void>
 }
 
-export type RoomSummary = Room & { id: RoomId }
+export type RoomSummary = RoomListing & { id: RoomId }
 
 export type RoomsApi = {
   /**
-   * Every room, archived ones included, flagged; with `person`, a host
-   * author ID, only those they see: every named room, and their own DMs.
+   * Every room, archived ones included, flagged, as a list shows it: its
+   * setup, newest entry and turns in progress. With `person`, a host author
+   * ID, only those they see, every named room and their own DMs, with what
+   * they haven't read.
    */
   list(person?: string): Promise<RoomSummary[]>
-  /** The registry, as `list` filters it, then every change to that. */
+  /** The rooms as `list` shows them, by RoomId, then every change to that. */
   watch(person?: string): Promise<WatchHandle<RoomsState>>
   /**
    * A named room, open unless it has a `lead`. Throws a RoomError for a
@@ -134,8 +142,9 @@ export type RoomsApi = {
    */
   create(setup: RoomSetup): Promise<RoomId>
   /**
-   * Changes a named room; what's left out stays, and a `null` lead opens
-   * it. Throws a RoomError as `create`.
+   * Changes a named room; what's left out stays, a `null` lead opens it, and
+   * `archived: false` unarchives it, listed and open to messages again.
+   * Throws a RoomError as `create`.
    */
   update(id: RoomId, change: RoomChange): Promise<void>
   /** Hides a named room and closes it to new messages, keeping its history. */
@@ -151,23 +160,6 @@ export type RoomsApi = {
 }
 
 const context = BACKGROUND_CONTEXT
-
-/** The rooms `person` sees: every named room and their own DMs; all without one. */
-function seenBy(
-  state: Readonly<RoomsState> | null,
-  person: string | undefined,
-): RoomsState {
-  const rooms = state?.rooms ?? {}
-  return person === undefined
-    ? { rooms }
-    : {
-        rooms: Object.fromEntries(
-          Object.entries(rooms).filter(
-            ([, room]) => room.kind === 'room' || room.person === person,
-          ),
-        ),
-      }
-}
 
 /**
  * Rooms: where people talk to Familiars. Install `extension` before the
@@ -235,6 +227,8 @@ export function createRooms(
       )
       return posted.entry
     },
+    read: (person, entry) =>
+      harness.commit((tx) => markRead(tx, id, person, entry), context),
     history: async (before, limit) =>
       historyOf((await harness.conversation(id, context))!, before, limit),
     watch: async () =>
@@ -248,25 +242,18 @@ export function createRooms(
   })
 
   const api: RoomsApi = {
-    list: async (person) =>
-      Object.entries(
-        seenBy((await harness.snapshot(Rooms, context)) ?? null, person).rooms,
-      ).map(([id, room]) => ({ id: Number(id) as RoomId, ...room })),
-    // Opening the workspace creates the registry.
-    watch: async (person) =>
-      viewWatch((await harness.watchDoc(Rooms, context))!, (state) =>
-        seenBy(state, person),
-      ),
+    list: (person) => listRooms(harness, person),
+    watch: (person) => watchRooms(harness, person),
     create: (setup) => harness.commit((tx) => createRoom(tx, setup), context),
     update: (id, change) =>
       harness.commit((tx) => updateRoom(tx, id, change), context),
     archive: (id) => harness.commit((tx) => archiveRoom(tx, id), context),
     dm: (familiar, person) =>
       harness.commit((tx) => dmWith(tx, familiar, person), context),
-    get: async (id, person) =>
-      seenBy((await harness.snapshot(Rooms, context)) ?? null, person).rooms[id]
-        ? open(id)
-        : undefined,
+    get: async (id, person) => {
+      const room = (await harness.snapshot(Rooms, context))?.rooms[id]
+      return room && seenBy(room, person) ? open(id) : undefined
+    },
   }
 
   return {

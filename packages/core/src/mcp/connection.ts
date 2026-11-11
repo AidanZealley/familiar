@@ -141,6 +141,9 @@ export function openConnection(
         { type: 'connected' },
         tools.map((tool) => ({
           name: tool.name,
+          ...(tool.description !== undefined && {
+            description: tool.description,
+          }),
           readOnly: tool.annotations?.readOnlyHint === true,
         })) satisfies McpToolInfo[],
       )

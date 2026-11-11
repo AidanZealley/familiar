@@ -60,6 +60,34 @@ export const defaultRoutes = (workspace: Workspace) =>
     )
 
 /**
+ * The person asking, mounted at `/me`: who they are to Familiars, by their
+ * host author ID and the name Familiars call them, which they may change.
+ */
+export const meRoutes = (workspace: Workspace) =>
+  new Hono<AccessEnv>()
+    .get('/', can('me.get'), async (c) =>
+      c.json(await workspace.people.get(c.get('author')), 200),
+    )
+    .patch(
+      '/',
+      can('me.update'),
+      validator('json', (body, c) => {
+        if (typeof body?.name !== 'string') {
+          return c.json({ error: 'name is required' }, 400)
+        }
+        return { name: body.name as string }
+      }),
+      (c) =>
+        identity(c, async () => {
+          await workspace.people.rename(
+            c.get('author').id,
+            c.req.valid('json').name,
+          )
+          return c.body(null, 204)
+        }),
+    )
+
+/**
  * Familiars, mounted at `/familiars`: who they are, each one's DM with the
  * person asking, memory, schedules, model, plugins and MCP connections, and
  * each one's `/events`.
@@ -79,8 +107,15 @@ export function familiarRoutes(workspace: Workspace) {
         '/',
         can('familiars.create'),
         validator('json', (body, c) => {
-          if (typeof body?.name !== 'string' || !optional(body.persona)) {
-            return c.json({ error: 'name is required' }, 400)
+          if (
+            typeof body?.name !== 'string' ||
+            !optional(body.persona) ||
+            !optional(body.avatar)
+          ) {
+            return c.json(
+              { error: 'name is required; persona and avatar are text' },
+              400,
+            )
           }
           const capabilities = body.capabilities as
             { plugins?: unknown; mcp?: unknown } | undefined
@@ -98,6 +133,9 @@ export function familiarRoutes(workspace: Workspace) {
             ...(body.persona !== undefined && {
               persona: body.persona as string,
             }),
+            ...(body.avatar !== undefined && {
+              avatar: body.avatar as string,
+            }),
             // Without it, the workspace's default tools.
             ...(capabilities !== undefined && {
               capabilities: capabilities as {
@@ -113,25 +151,37 @@ export function familiarRoutes(workspace: Workspace) {
             return c.json({ id }, 201)
           }),
       )
-      // A `null` persona returns it to the default.
+      // A `null` persona or avatar returns it to the default.
       .patch(
         '/:familiar',
         can('familiars.update'),
         validator('json', (body, c) => {
           if (
             !optional(body?.name) ||
-            !(optional(body.persona) || body.persona === null)
+            !(optional(body.persona) || body.persona === null) ||
+            !(optional(body.avatar) || body.avatar === null)
           ) {
-            return c.json({ error: 'name and persona must be text' }, 400)
+            return c.json(
+              { error: 'name, persona and avatar must be text' },
+              400,
+            )
           }
           // Inline, so the route's type names nothing outside the wire contract.
-          return body as { name?: string; persona?: string | null }
+          return body as {
+            name?: string
+            persona?: string | null
+            avatar?: string | null
+          }
         }),
         (c) =>
           identity(c, async () => {
-            const { name, persona } = c.req.valid('json')
+            const { name, persona, avatar } = c.req.valid('json')
             familiarOf(c)
-            await workspace.familiars.update(idOf(c), { name, persona })
+            await workspace.familiars.update(idOf(c), {
+              name,
+              persona,
+              avatar,
+            })
             return c.body(null, 204)
           }),
       )

@@ -174,8 +174,8 @@ function dmPerson(room: Room, cause: EntryRecord) {
 
 export function createTurnTask(harness: Harness, timeZone: string) {
   /**
-   * Copies a settled input's run into the room as a reply, unless it was
-   * stopped before saying anything, and ends the turn's record, in the
+   * Copies a settled input's run into the room as a reply at `at`, unless it
+   * was stopped before saying anything, and ends the turn's record, in the
    * commit `tx`. Returns the reply.
    */
   async function settle(
@@ -183,10 +183,11 @@ export function createTurnTask(harness: Harness, timeZone: string) {
     taskId: number,
     { room, familiar, cause }: TurnInput,
     settled: SettledSubmissionRecord | undefined,
+    at: number,
   ) {
     // Reads before writes: a transaction cannot read tables after writing.
     const messages = settled ? await runMessages(tx, familiar, settled) : []
-    const turns = await tx.doc(Turns, room)
+    const turns = await tx.doc(Turns)
     const outcome: ReplyData['outcome'] =
       settled?.status === 'done'
         ? quiet(messages)
@@ -206,7 +207,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         room,
         {
           kind: REPLY_KIND,
-          data: { familiar, name: turn.name, cause, outcome, messages },
+          data: { familiar, name: turn.name, cause, outcome, messages, at },
         },
         `reply:${taskId}`,
       )
@@ -274,7 +275,8 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           if (!record) {
             return removed
           }
-          ;(await tx.doc(Turns, room))[task.id] = {
+          ;(await tx.doc(Turns))[task.id] = {
+            room,
             familiar,
             name: record.name,
             cause,
@@ -297,7 +299,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           }
           const { familiars } = await tx.doc(Familiars)
           if (!familiars[familiar]) {
-            delete (await tx.doc(Turns, room))[task.id]
+            delete (await tx.doc(Turns))[task.id]
             return removed
           }
           const shown = await catchUp(
@@ -309,7 +311,8 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             dmPerson(record, entry),
             addressed,
           )
-          ;(await tx.doc(Turns, room))[task.id] = {
+          ;(await tx.doc(Turns))[task.id] = {
+            room,
             familiar,
             name: familiars[familiar].name,
             cause,
@@ -329,7 +332,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         }, context),
 
       deliver: async (task, runtime, context) => {
-        const { room, familiar } = task.input
+        const { familiar } = task.input
         const { input, entry } = task.state.checkpoint
         const chat = await runtime.conversation(familiar, context)
         if (!chat) {
@@ -352,7 +355,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           context,
         )
         await runtime.commit(async (tx) => {
-          const turn = (await tx.doc(Turns, room))[task.id]
+          const turn = (await tx.doc(Turns))[task.id]
           if (turn) {
             turn.submission = submission.id
           }
@@ -374,7 +377,13 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             status: 'terminal',
             outcome: {
               status: 'completed',
-              result: await settle(tx, task.id, task.input, settled),
+              result: await settle(
+                tx,
+                task.id,
+                task.input,
+                settled,
+                runtime.now(),
+              ),
             },
           }),
           context,
@@ -390,7 +399,13 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           status: 'terminal',
           outcome: {
             status: 'aborted',
-            result: await settle(tx, task.id, task.input, settled),
+            result: await settle(
+              tx,
+              task.id,
+              task.input,
+              settled,
+              runtime.now(),
+            ),
           },
         }),
         context,

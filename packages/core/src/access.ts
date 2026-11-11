@@ -26,8 +26,11 @@ export type WorkspaceOperation =
   | 'defaults.set'
   | 'rooms.list'
   | 'rooms.create'
+  | 'me.get'
+  | 'me.update'
   | 'events.familiars'
   | 'events.rooms'
+  | 'events.me'
   | 'events.account'
 
 /** What it can do to one Familiar, asked with that Familiar's ID. */
@@ -39,6 +42,8 @@ export type FamiliarOperation =
   | 'memory.retire'
   | 'memory.setPinned'
   | 'schedules.cancel'
+  | 'schedules.pause'
+  | 'schedules.resume'
   | 'model.options'
   | 'model.set'
   | 'model.setThinkingLevel'
@@ -55,6 +60,7 @@ export type RoomOperation =
   | 'rooms.archive'
   | 'rooms.post'
   | 'rooms.note'
+  | 'rooms.read'
   | 'rooms.history'
   | 'rooms.stop'
   | 'events.room'

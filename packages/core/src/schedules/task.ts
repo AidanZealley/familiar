@@ -3,6 +3,7 @@ import {
   AssistantEntry,
   defineTask,
   ROOT_CONVERSATION_ID,
+  type Cursor,
   type EntryRecord,
   type TaskId,
   type TaskRuntime,
@@ -110,6 +111,49 @@ export function notificationBody(text: string) {
 /** The schedule a task runs, and the Familiar it belongs to. */
 type ScheduleInput = { familiar: FamiliarId; id: string }
 
+/** The schedule task's name, by which resuming finds whether one runs. */
+const SCHEDULE_TASK = 'familiar.schedule'
+
+/** Starts the task that runs `familiar`'s schedule `id`, in the commit `tx`. */
+export const startSchedule = (
+  tx: Tx,
+  task: ScheduleTask,
+  familiar: FamiliarId,
+  id: string,
+) =>
+  // Background, so it never keeps the conversation busy while it sleeps.
+  tx.createTask(
+    task,
+    { familiar, id },
+    {
+      ownership: { kind: 'conversation' },
+      conversationId: familiar,
+      background: true,
+    },
+  )
+
+/**
+ * Whether a task still runs `familiar`'s schedule `id`. A table read, so
+ * call it before the commit writes any.
+ */
+export async function scheduleRuns(tx: Tx, familiar: FamiliarId, id: string) {
+  for (const status of ['pending', 'running', 'waiting', 'sleeping'] as const) {
+    let cursor: Cursor | undefined
+    do {
+      const page = await tx.scanTasks(
+        { conversationId: familiar, kind: SCHEDULE_TASK, status },
+        100,
+        cursor,
+      )
+      if (page.items.some((task) => (task.input as ScheduleInput).id === id)) {
+        return true
+      }
+      cursor = page.next
+    } while (cursor)
+  }
+  return false
+}
+
 /**
  * One task per schedule: it sleeps until the schedule is due, posts it to
  * the room it was made in, where its Familiar takes a turn, and notifies the
@@ -169,7 +213,7 @@ export function createScheduleTask(
   }
 
   return defineTask<ScheduleInput, ScheduleStep, null>({
-    name: 'familiar.schedule',
+    name: SCHEDULE_TASK,
     version: 2,
     initial: () => ({ phase: 'wait' }),
     // Version 1 ran before workspaces, for the one Familiar, on the root.
@@ -197,6 +241,28 @@ export function createScheduleTask(
               checkpoint: { phase: 'wait' },
             }
           }
+          const due = dueAt(schedule, now, timeZone)
+          // Paused: a repeat skips this time, so its next stays the one it
+          // would run; a one-off ends its task, and resuming starts another.
+          if (schedule.paused) {
+            const next =
+              schedule.repeat === undefined
+                ? undefined
+                : advance(
+                    await familiarDoc(tx, Schedules, familiar),
+                    id,
+                    due,
+                    now,
+                    timeZone,
+                  )
+            return next
+              ? {
+                  status: 'sleeping',
+                  until: next.next,
+                  checkpoint: { phase: 'wait' },
+                }
+              : finished
+          }
           // A room that was archived, or that its Familiar left, takes no
           // reminders. One goes instead to the Familiar's DM with whoever
           // made it, where they'll see it; with no one behind it, to the
@@ -215,7 +281,6 @@ export function createScheduleTask(
             : made && schedule.creator
               ? await dmWith(tx, familiar, schedule.creator.id)
               : undefined
-          const due = dueAt(schedule, now, timeZone)
           return {
             status: 'running',
             checkpoint: {

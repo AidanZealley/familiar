@@ -2,6 +2,7 @@ import type { Op } from '@earendil-works/chord/delta'
 import type { AgentState, ConversationView } from '@earendil-works/pi-durable'
 import type { AccountState } from '../account/index.ts'
 import type { EpisodesState, FactsState } from '../memory/index.ts'
+import type { Author } from '../conversation/message.ts'
 import type { RoomActivity, RoomsState } from '../rooms/index.ts'
 import type { SchedulesState } from '../schedules/index.ts'
 import type { FamiliarsState } from '../workspace/index.ts'
@@ -28,10 +29,13 @@ export type {
   Room,
   RoomActivity,
   RoomId,
+  RoomListing,
   RoomMessageData,
+  RoomPreview,
   RoomScheduledData,
   RoomsState,
   RoomSummary,
+  RoomTurn,
   TurnActivity,
 } from '../rooms/index.ts'
 export type {
@@ -67,8 +71,13 @@ export type {
 export type Documents = {
   /** The workspace's `/events`: who each Familiar is. */
   familiars: FamiliarsState
-  /** The workspace's `/events`: the rooms the person sees. */
+  /**
+   * The workspace's `/events`: the rooms the person sees, each with its
+   * newest entry, what they haven't read and its turns in progress.
+   */
   rooms: RoomsState
+  /** The workspace's `/events`: the person asking, as Familiars know them. */
+  me: Author
   /** A Familiar's `/events`: the model its chat is on, and the level. */
   model: AgentState
   memory: FactsState
@@ -88,7 +97,7 @@ export { CORE_BUDGET } from '../memory/facts.ts'
  * before applying any state; bump it on any change an older client would
  * misread.
  */
-export const PROTOCOL_VERSION = 3
+export const PROTOCOL_VERSION = 4
 
 /**
  * Each `/events` (the workspace's, a Familiar's and a room's) is a

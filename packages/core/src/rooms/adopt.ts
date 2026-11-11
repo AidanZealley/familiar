@@ -14,6 +14,7 @@ import {
 import { familiarDoc, type FamiliarId } from '../workspace/familiars.ts'
 import { RoomCursors } from './catch-up.ts'
 import {
+  noteShown,
   REPLY_KIND,
   startView,
   viewStart,
@@ -77,6 +78,7 @@ export async function adoptChat(
   const append = async (entry: RoomEntry) => {
     // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
     const { id } = await tx.appendEntry(dm, entry as EntryDraft)
+    await noteShown(tx, dm, id, entry)
     appended.push(id)
     return id
   }
@@ -89,7 +91,15 @@ export async function adoptChat(
     if (cause !== undefined && run.length) {
       last = await append({
         kind: REPLY_KIND,
-        data: { familiar, name, cause, outcome: outcomeOf(run), messages: run },
+        data: {
+          familiar,
+          name,
+          cause,
+          outcome: outcomeOf(run),
+          messages: run,
+          // Before rooms, a reply's time was its last message's.
+          at: run.at(-1)!.timestamp,
+        },
       })
     }
     run = []

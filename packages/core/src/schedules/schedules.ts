@@ -28,9 +28,15 @@ export type Schedule = {
   at?: number
   /** A five-field cron expression in Familiar's time zone, e.g. `0 7 * * 1-5`. */
   repeat?: string
-  /** When it is next due. */
+  /** When it is next due, paused or not. */
   next: number
   created: number
+  /**
+   * Paused by the owner: it doesn't run until resumed. A repeat skips the
+   * times that fall due meanwhile, so `next` stays the time it would run;
+   * a one-off whose time passes runs, late, once resumed.
+   */
+  paused?: true
 }
 
 /** Schedules by ID. The source of truth: a schedule's task does nothing once it's gone. */
@@ -165,10 +171,17 @@ export function addSchedule(
   return schedule
 }
 
-export function cancelSchedule(schedules: SchedulesState, id: string) {
-  if (!schedules[id]) {
+/** The schedule `id`; throws a ScheduleError if there's none. */
+export function scheduleOf(schedules: SchedulesState, id: string) {
+  const schedule = schedules[id]
+  if (!schedule) {
     throw new ScheduleError(`No schedule ${id}.`)
   }
+  return schedule
+}
+
+export function cancelSchedule(schedules: SchedulesState, id: string) {
+  scheduleOf(schedules, id)
   delete schedules[id]
 }
 

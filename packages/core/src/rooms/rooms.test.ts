@@ -596,6 +596,96 @@ test("stopping a room stops only its own turns: other rooms' work, in the same F
   expect((await replies(boDm))[0].outcome).toBe('answered')
 })
 
+test("the rooms list previews each room's newest entry, counts what each person hasn't read, and shows every room's turns and a failed last turn", async () => {
+  const held = new Map<string, () => void>()
+  const { workspace, create, room } = await open((request, signal) => {
+    if (request.type === 'message' && request.text.includes('fail')) {
+      return fauxAssistantMessage('', {
+        stopReason: 'error',
+        errorMessage: 'Failed on purpose.',
+      })
+    }
+    if (request.type !== 'message' || !request.text.includes('hold')) {
+      return echo(request)
+    }
+    return new Promise((resolve, reject) => {
+      held.set(request.text, () => resolve(echo(request) as AssistantMessage))
+      signal?.addEventListener('abort', () => reject(new Error('aborted')))
+    })
+  })
+  const ada = await create('Ada')
+  const kitchen = await room(
+    await workspace.rooms.create({ name: 'kitchen', familiars: [ada] }),
+  )
+  const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
+  const post = (to: RoomApi, text: string) =>
+    to.post({ author: AIDAN, text, requestId: text })
+
+  // Live, as the workspace's stream sends it.
+  const watch = await workspace.rooms.watch(AIDAN.id)
+  onTestFinished(async () => {
+    await watch.stop()
+  })
+  let rooms = watch.value.rooms
+  watch.start(async (value) => {
+    rooms = value.rooms
+  })
+  const listed = (to: RoomApi) => rooms[to.id]
+
+  // A person has read what they wrote. Ada's turn in the DM waits behind
+  // her work in the kitchen, which the DM's row says without saying where.
+  const asked = await post(kitchen, 'hold the soup')
+  await expect.poll(() => held.size).toBe(1)
+  await post(dm, 'meanwhile, hello')
+  await expect
+    .poll(() => listed(dm).turns)
+    .toEqual([{ familiar: ada, status: 'elsewhere' }])
+  expect(listed(kitchen)).toMatchObject({
+    last: {
+      entry: asked,
+      kind: 'message',
+      author: AIDAN,
+      text: 'hold the soup',
+    },
+    unread: 0,
+    turns: [{ familiar: ada, status: 'running' }],
+  })
+
+  held.get('hold the soup')!()
+  await expect.poll(() => listed(dm).last?.kind).toBe('reply')
+  expect(listed(kitchen)).toMatchObject({
+    last: { kind: 'reply', name: 'Ada', text: 'Re: hold the soup' },
+    unread: 1,
+    turns: [],
+  })
+  expect(listed(dm)).toMatchObject({
+    last: { outcome: 'answered', text: 'Re: meanwhile, hello' },
+    unread: 1,
+    turns: [],
+  })
+
+  // Read up to an entry, what came after it stays unread; a marker never
+  // goes back.
+  await kitchen.read(AIDAN.id, listed(kitchen).last!.entry)
+  await kitchen.read(AIDAN.id, asked)
+  await dm.read(AIDAN.id, (await log(dm))[0].id)
+  await expect.poll(() => listed(kitchen).unread).toBe(0)
+  expect(listed(dm).unread).toBe(1)
+
+  // A failed turn is the room's newest entry until something follows it.
+  await post(dm, 'fail, please')
+  await expect
+    .poll(() => listed(dm).last)
+    .toMatchObject({ kind: 'reply', outcome: 'failed' })
+
+  // Someone else sees the named room, all of it unread, and not the DM;
+  // the host's own list counts no one's.
+  const sams = await workspace.rooms.list('sam')
+  expect(sams.map(({ id }) => id)).toEqual([kitchen.id])
+  expect(sams[0]).toMatchObject({ unread: 2 })
+  expect((await workspace.rooms.list())[0]).not.toHaveProperty('unread')
+})
+
 test('a schedule made in a room runs there when due, and notifies with its reply', async () => {
   const clock = fakeClock(timeAt('2030-01-01 08:00', 'UTC'))
   const notifications: Notification[] = []
@@ -804,13 +894,15 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
   // Gone from the workspace, and from the room it led, which is open now.
   expect(workspace.familiars.get(ada)).toBeUndefined()
   expect((await workspace.familiars.list()).map(({ id }) => id)).toEqual([bo])
-  const rooms = await workspace.rooms.list()
-  expect(rooms.find(({ id }) => id === kitchen.id)).toEqual({
-    id: kitchen.id,
+  const listed = (await workspace.rooms.list()).find(
+    ({ id }) => id === kitchen.id,
+  )
+  expect(listed).toMatchObject({
     kind: 'room',
     name: 'kitchen',
     familiars: [bo],
   })
+  expect(listed).not.toHaveProperty('lead')
   // Its running and queued turns are stopped; Bo's carries on.
   expect(Object.values(await read(() => kitchen.watchTurns()))).toEqual([
     expect.objectContaining({ familiar: bo }),
