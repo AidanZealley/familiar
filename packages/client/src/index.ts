@@ -5,7 +5,7 @@ export type { FamiliarState, FamiliarStore } from './familiar.ts'
 export { createRoomStore } from './room.ts'
 export type { RoomState, RoomStore } from './room.ts'
 export type { Store, StoreOptions } from './mirror.ts'
-export type { RoomChange, RoomSetup } from './commands.ts'
+export type { FamiliarChange, RoomChange, RoomSetup } from './commands.ts'
 export type { Connection } from './events.ts'
 export type { History } from './log.ts'
 export { CORE_BUDGET } from './memory.ts'
@@ -31,8 +31,11 @@ export type {
   PushSubscriptionJson,
   Room,
   RoomActivity,
+  RoomListing,
+  RoomPreview,
   RoomsState,
   RoomSummary,
+  RoomTurn,
   Schedule,
   SchedulesState,
   TurnActivity,

@@ -28,7 +28,16 @@ export type FamiliarIdentity = {
    * exactly as given, so it includes the name if the model should know it.
    */
   persona?: string
+  /**
+   * How the host's UI draws it, such as an index into its set of
+   * portraits; without one, the UI derives one from its ID. Core keeps it
+   * for the host and never reads it. At most `AVATAR_LENGTH` characters.
+   */
+  avatar?: string
 }
+
+/** The longest avatar a Familiar may keep: a choice, not an image. */
+export const AVATAR_LENGTH = 64
 
 export type FamiliarRecord = FamiliarIdentity & {
   /**
@@ -128,7 +137,10 @@ export async function familiarRecord(tx: Tx, familiar: FamiliarId) {
   return record
 }
 
-/** A Familiar's identity, if its name and any persona aren't blank. */
+/**
+ * A Familiar's identity, if its name, any persona and any avatar aren't
+ * blank, and its avatar isn't longer than `AVATAR_LENGTH`.
+ */
 export function checkIdentity<T extends Partial<FamiliarIdentity>>(
   identity: T,
 ) {
@@ -136,6 +148,14 @@ export function checkIdentity<T extends Partial<FamiliarIdentity>>(
     if (typeof value === 'string' && !value.trim()) {
       throw new TypeError(`A Familiar's ${field} must not be blank.`)
     }
+  }
+  if (
+    typeof identity.avatar === 'string' &&
+    identity.avatar.length > AVATAR_LENGTH
+  ) {
+    throw new TypeError(
+      `A Familiar's avatar must be at most ${AVATAR_LENGTH} characters.`,
+    )
   }
   return identity
 }

@@ -42,12 +42,13 @@ export type NamedRoom = {
 
 export type Room = DmRoom | NamedRoom
 
-export type RoomsState = {
+/** The rooms as stored; lists show each with more (see listing.ts). */
+export type RoomRegistry = {
   /** By RoomId. Object keys are strings, so a key is `String(id)`. */
   rooms: Record<string, Room>
 }
 
-export const Rooms = defineDoc<RoomsState>({
+export const Rooms = defineDoc<RoomRegistry>({
   kind: 'familiar.rooms',
   version: 1,
   scope: 'session',
@@ -57,6 +58,7 @@ export const Rooms = defineDoc<RoomsState>({
 
 /** A turn a Familiar is taking in a room, by its task's ID (see turn.ts). */
 export type TurnRecord = {
+  room: RoomId
   familiar: FamiliarId
   /** Its name as the turn began, which its reply carries. */
   name: string
@@ -67,16 +69,16 @@ export type TurnRecord = {
 }
 
 /**
- * The turns a room has in progress, by turn task ID. Written only by turn
- * tasks, in the commits that change their phase, so a room's stream can show
- * who is working on it and follow each one's input in its Familiar's chat.
+ * The turns in progress in every room, by turn task ID. Written only by
+ * turn tasks, in the commits that change their phase, so a room's stream can
+ * show who is working on it and follow each one's input in its Familiar's
+ * chat. One document for the workspace, so its stream follows every room's
+ * turns with one watch.
  */
 export const Turns = defineDoc<Record<string, TurnRecord>>({
   kind: 'familiar.turns',
-  version: 1,
-  scope: 'conversation',
-  history: 'latest',
-  fork: 'initial',
+  version: 2,
+  scope: 'session',
   initial: () => ({}),
   checkpointWhen: () => true, // a handful of turns at most
 })
@@ -87,6 +89,13 @@ export class RoomError extends TypeError {}
 /** The longest name a room may have. */
 const NAME_LENGTH = 100
 
+/**
+ * Whether `person`, a host author ID, sees `room`: every named room, and
+ * only their own DMs. Without one, every room, as for a host's own work.
+ */
+export const seenBy = (room: Room, person: string | undefined) =>
+  person === undefined || room.kind === 'room' || room.person === person
+
 /** The Familiars in `room`. */
 export const membersOf = (room: Room) =>
   room.kind === 'dm' ? [room.familiar] : room.familiars
@@ -94,9 +103,13 @@ export const membersOf = (room: Room) =>
 /** What a named room is set up with; it's open without a `lead`. */
 export type RoomSetup = Pick<NamedRoom, 'name' | 'familiars' | 'lead'>
 
-/** A change to a named room's setup; a `null` lead opens the room. */
+/**
+ * A change to a named room's setup; a `null` lead opens the room, and
+ * `archived: false` unarchives it. Archiving has its own call, `archiveRoom`.
+ */
 export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
   lead?: FamiliarId | null
+  archived?: false
 }
 
 /** `setup`, checked against the Familiars that exist; throws a RoomError. */
@@ -126,10 +139,9 @@ async function checkSetup(tx: Tx, setup: RoomSetup): Promise<RoomSetup> {
   }
 }
 
-/** A new room's log, with its turns document, so watches can attach to it. */
+/** A new room's log. */
 async function createLog(tx: Tx) {
   const log = await tx.createConversation({ ownership: { kind: 'ownerless' } })
-  await tx.doc(Turns, log.id)
   return log.id as RoomId
 }
 
@@ -150,7 +162,11 @@ export async function createRoom(tx: Tx, setup: RoomSetup) {
   return id
 }
 
-/** Changes a named room's setup; what's left out stays as it is. */
+/**
+ * Changes a named room's setup; what's left out stays as it is. Unarchiving
+ * checks the setup it reopens with, so a room its last Familiar left needs
+ * Familiars in the same change.
+ */
 export async function updateRoom(tx: Tx, id: RoomId, change: RoomChange) {
   const room = await namedRoom(tx, id)
   const lead = change.lead === null ? undefined : (change.lead ?? room.lead)
@@ -161,6 +177,9 @@ export async function updateRoom(tx: Tx, id: RoomId, change: RoomChange) {
   })
   delete room.lead
   Object.assign(room, checked)
+  if (change.archived === false) {
+    delete room.archived
+  }
 }
 
 export async function archiveRoom(tx: Tx, id: RoomId) {

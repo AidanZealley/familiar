@@ -47,6 +47,7 @@ A workspace holds Familiars and the rooms where people talk to them. Each Famili
 | `notify`           |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)                                                                                        |
 | `maxSchedules`     |          | Most schedules each Familiar keeps at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50                                                                                    |
 | `maxHandoffs`      |          | Most handoffs in a row between a room's Familiars before `hand_off` refuses, a positive whole number. Default `DEFAULT_MAX_HANDOFFS`, 3                                                     |
+| `people`           |          | `Author[]`: what people are called at first, by host author ID, such as an owner. Used on the first open only; after that, each person's name is theirs to change with `people.rename`      |
 | `onWake`           |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)                                                                                      |
 | `now`, `setTimer`  |          | Clock and timer overrides, mainly for tests                                                                                                                                                 |
 
@@ -68,41 +69,44 @@ Familiar stores no permissions. A tool, or the app API behind it, enforces narro
 
 **Familiars**
 
-| Member                                | Meaning                                                                             |
-| ------------------------------------- | ----------------------------------------------------------------------------------- |
-| `familiars.list()`                    | `FamiliarSummary[]`: each Familiar's `id`, `name` and any `persona`                 |
-| `familiars.watch()`                   | Watch of who each Familiar is                                                       |
-| `familiars.create({ name, persona })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one |
-| `familiars.update(id, change)`        | Rename it or change its persona; a `null` persona returns it to the default         |
-| `familiars.get(id)`                   | Its `WorkspaceFamiliar`, or `undefined`                                             |
-| `familiars.remove(id)`                | Remove it, stopping its work. Throws for no such Familiar                           |
+| Member                                        | Meaning                                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `familiars.list()`                            | `FamiliarSummary[]`: each Familiar's `id`, `name`, and any `persona` and `avatar`        |
+| `familiars.watch()`                           | Watch of who each Familiar is                                                            |
+| `familiars.create({ name, persona, avatar })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one      |
+| `familiars.update(id, change)`                | Change its name, persona or avatar; a `null` persona or avatar returns it to the default |
+| `familiars.get(id)`                           | Its `WorkspaceFamiliar`, or `undefined`                                                  |
+| `familiars.remove(id)`                        | Remove it, stopping its work. Throws for no such Familiar                                |
 
-Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. Its name also titles its notifications and its memory upkeep's prompts.
+Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. Its name also titles its notifications and its memory upkeep's prompts. An `avatar` is a short string, at most 64 characters, that your UI interprets, such as an index into its set of portraits; core keeps it and never reads it, and without one your UI derives one from the ID.
 
 Removing a Familiar stops its turns in every room, its chat's queue, its schedules and its memory upkeep, and retires its memory, schedules and settings. It leaves every named room: a room it led becomes open, and one it leaves with no Familiars is archived. Its DMs stay readable but `post` throws a `RoomError` there. Rooms keep its replies, under its name at the time, and shared plugins, connections and secrets stay.
 
 **Rooms**
 
-| Member                       | Meaning                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------- |
-| `rooms.list(person?)`        | `RoomSummary[]`; with a host author ID, only that person's DMs and every named room           |
-| `rooms.watch(person?)`       | Watch of the same                                                                             |
-| `rooms.create(setup)`        | A named room, `{ name, familiars, lead? }`, returning its ID. Throws `RoomError` when refused |
-| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead; `lead: null` opens it                          |
-| `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                           |
-| `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                     |
-| `rooms.get(id, person?)`     | A room's API; with a host author ID, undefined for someone else's DM, as the HTTP API uses it |
+| Member                       | Meaning                                                                                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rooms.list(person?)`        | `RoomSummary[]`, each room as a list shows it; with a host author ID, only that person's DMs and every named room, with what they haven't read |
+| `rooms.watch(person?)`       | Watch of the same, by ID                                                                                                                       |
+| `rooms.create(setup)`        | A named room, `{ name, familiars, lead? }`, returning its ID. Throws `RoomError` when refused                                                  |
+| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead; `lead: null` opens it, and `archived: false` unarchives it                                      |
+| `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                                                                            |
+| `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                                                                      |
+| `rooms.get(id, person?)`     | A room's API; with a host author ID, undefined for someone else's DM, as the HTTP API uses it                                                  |
+
+A list shows each room as a `RoomListing`: its setup, with `last`, its newest entry worth showing (`{ entry, at, text }` and who it's from by `kind`: a person's `message`, a Familiar's `reply` with its `outcome`, a `handoff` or `reminder`, or a host's `note`), `unread`, how many entries the person hasn't read, and `turns`, each turn in progress as `{ familiar, status }`. A reply that stayed quiet is never `last`, and a `last` reply whose `outcome` is `failed` means the room's last turn failed. `last` and the read markers are kept as each entry is posted; `turns` is derived from the turns in progress and the Familiars' chats, never stored. Unarchiving checks the room's setup, so one its last Familiar left needs Familiars in the same change.
 
 `lead` answers a named room's messages that mention no Familiar. A room without one is open: every Familiar in it takes a turn on such a message, one after another in the room's order, each shown the replies before it. Each `RoomApi` has:
 
-| Member                                         | Meaning                                                                                                                |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `post({ author, text, requestId, mentions? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once                |
-| `note({ text, requestId })`                    | Post a host's note: shown to each Familiar in the room on its next turn, with no turn of its own. Returns its entry ID |
-| `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                               |
-| `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far                              |
-| `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                               |
-| `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                                |
+| Member                                         | Meaning                                                                                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `post({ author, text, requestId, mentions? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once                                     |
+| `note({ text, requestId })`                    | Post a host's note: shown to each Familiar in the room on its next turn, with no turn of its own. Returns its entry ID                      |
+| `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                                                    |
+| `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far                                                   |
+| `read(person, entry)`                          | Mark it read by a person, by host author ID, up to `entry`, the newest they've seen; never back. Their own messages mark it read up to them |
+| `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                                                    |
+| `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                                                     |
 
 A DM's Familiar answers every message; in a named room, each Familiar a message mentions answers it, else the lead, else, in an open room, each Familiar in turn. A mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text; `post` throws a `MessageError` for one that doesn't span an `@` or names a Familiar not in the room, and a `RoomError` for an archived room. A Familiar works one turn at a time, across all its rooms, and is shown what it missed in a room when it next takes a turn there. Its reply, with its tool calls, is copied into the room's log as a `familiar.reply` entry when the turn ends.
 
@@ -112,34 +116,37 @@ Familiars take part with two tools of their own. `stay_quiet` ends a turn withou
 
 **Each Familiar**, a `WorkspaceFamiliar`
 
-| Member                                     | Meaning                                                                                                                               |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                                       | Its `FamiliarId`                                                                                                                      |
-| `models()`                                 | `ModelOption[]`: each chat model with its `name` and supported `thinkingLevels`                                                       |
-| `watchModel()`                             | Watch of its model and level, Pi's `AgentState`                                                                                       |
-| `setModel(ref)`                            | Switch model. Throws `ModelError` if it isn't offered                                                                                 |
-| `setThinkingLevel(level)`                  | Change the current model's level. Throws `ModelError` if unsupported                                                                  |
-| `capabilities()`                           | `{ plugins, mcp }`: the plugin and MCP connection names it uses                                                                       |
-| `setCapabilities({ plugins?, mcp? })`      | Each list given replaces what it uses of that kind, from its next request. Throws a `CapabilityError` for a name the workspace hasn't |
-| `watch()`                                  | Its working context across every room, for inspection: never show it to people                                                        |
-| `memory.watch()`, `memory.watchEpisodes()` | Document watches for facts and episodes                                                                                               |
-| `memory.revise(id, text)`                  | Save a new version of a fact, true from today                                                                                         |
-| `memory.retire(id)`                        | Mark a fact no longer true from today                                                                                                 |
-| `memory.setPinned(id, pinned)`             | Pin a fact into core or unpin it                                                                                                      |
-| `schedules.watch()`                        | Document watch for schedules                                                                                                          |
-| `schedules.cancel(id)`                     | Cancel a schedule. Rejects if there's no such schedule                                                                                |
+| Member                                        | Meaning                                                                                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                          | Its `FamiliarId`                                                                                                                      |
+| `models()`                                    | `ModelOption[]`: each chat model with its `name` and supported `thinkingLevels`                                                       |
+| `watchModel()`                                | Watch of its model and level, Pi's `AgentState`                                                                                       |
+| `setModel(ref)`                               | Switch model. Throws `ModelError` if it isn't offered                                                                                 |
+| `setThinkingLevel(level)`                     | Change the current model's level. Throws `ModelError` if unsupported                                                                  |
+| `capabilities()`                              | `{ plugins, mcp }`: the plugin and MCP connection names it uses                                                                       |
+| `setCapabilities({ plugins?, mcp? })`         | Each list given replaces what it uses of that kind, from its next request. Throws a `CapabilityError` for a name the workspace hasn't |
+| `watch()`                                     | Its working context across every room, for inspection: never show it to people                                                        |
+| `memory.watch()`, `memory.watchEpisodes()`    | Document watches for facts and episodes                                                                                               |
+| `memory.revise(id, text)`                     | Save a new version of a fact, true from today                                                                                         |
+| `memory.retire(id)`                           | Mark a fact no longer true from today                                                                                                 |
+| `memory.setPinned(id, pinned)`                | Pin a fact into core or unpin it                                                                                                      |
+| `schedules.watch()`                           | Document watch for schedules                                                                                                          |
+| `schedules.cancel(id)`                        | Cancel a schedule. Rejects if there's no such schedule                                                                                |
+| `schedules.pause(id)`, `schedules.resume(id)` | Stop a schedule running, keeping its `next`, and run it again. Rejects as `cancel`                                                    |
 
-Memory edits reject, changing nothing, when the fact is missing or already past.
+Memory edits reject, changing nothing, when the fact is missing or already past. A paused schedule has `paused: true`. A paused repeat skips the times that fall due, so its `next` stays the time it would run; a paused one-off whose time passes runs, late, once resumed.
 
 **Shared**
 
-| Member                                                       | Meaning                                                             |
-| ------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `connections.list()`                                         | Plugin and MCP connections, with whether each secret is set         |
-| `connections.setSecret(connection, name, value)`             | Store a secret. `connection` is `{ kind: 'plugin' \| 'mcp', name }` |
-| `connections.deleteSecret(connection, name)`                 | Remove a secret                                                     |
-| `mcp.add(server)`, `mcp.remove(name)`, `mcp.reconnect(name)` | Manage owner-configured MCP servers. `add` throws `McpConfigError`  |
-| `account`                                                    | The account's API, if `account` was passed                          |
+| Member                                                       | Meaning                                                                                                         |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `connections.list()`                                         | Plugin and MCP connections, with their tools' descriptions and whether each secret is set                       |
+| `people.get(author)`, `people.watch(author)`                 | An `Author` as Familiars know them: with the name they chose, if any                                            |
+| `people.rename(id, name)`                                    | What Familiars call a person, by host author ID, from their next message. Throws a `TypeError` for a blank name |
+| `connections.setSecret(connection, name, value)`             | Store a secret. `connection` is `{ kind: 'plugin' \| 'mcp', name }`                                             |
+| `connections.deleteSecret(connection, name)`                 | Remove a secret                                                                                                 |
+| `mcp.add(server)`, `mcp.remove(name)`, `mcp.reconnect(name)` | Manage owner-configured MCP servers. `add` throws `McpConfigError`                                              |
+| `account`                                                    | The account's API, if `account` was passed                                                                      |
 
 **Lifecycle**
 
@@ -153,7 +160,7 @@ Memory edits reject, changing nothing, when the fact is missing or already past.
 
 ## Types
 
-`Author` is `{ id: string; name: string }`. Both must be non-empty. `id` is stable and owned by the host. `name` is captured when the message is posted.
+`Author` is `{ id: string; name: string }`. Both must be non-empty. `id` is stable and owned by the host. `name` is captured when the message is posted: the name the person chose with `people.rename`, if they have, else the host's.
 
 `post` throws a `MessageError`, posting nothing, unless the author's `id` and `name` and the `text` are non-empty and within `MESSAGE_LIMITS` (256, 128 and 128,000 characters) and `requestId` is 1 to 128 characters. Familiar namespaces each `requestId` by the author's `id`, so it only needs to be unique per author and can never match one of Familiar's own submissions, such as a schedule's.
 

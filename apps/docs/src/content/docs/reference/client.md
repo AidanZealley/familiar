@@ -9,11 +9,11 @@ Declarations live in [`packages/client/src`](https://github.com/AidanZealley/fam
 
 Each store mirrors one of the API's [event streams](/familiar/reference/http/#events) and opens it when created. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
 
-| Function                                 | Mirrors                                                          |
-| ---------------------------------------- | ---------------------------------------------------------------- |
-| `createWorkspaceStore(url, options?)`    | Who the Familiars are, the rooms this person sees, and the login |
-| `createFamiliarStore(url, id, options?)` | One Familiar's model, memory and schedules                       |
-| `createRoomStore(url, id, options?)`     | One room's log, its turns in progress and their transcript       |
+| Function                                 | Mirrors                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `createWorkspaceStore(url, options?)`    | Who the Familiars are, the rooms this person sees, who they are, and the login |
+| `createFamiliarStore(url, id, options?)` | One Familiar's model, memory and schedules                                     |
+| `createRoomStore(url, id, options?)`     | One room's log, its turns in progress and their transcript                     |
 
 Each reads like a Zustand store, with `getState()`, `getInitialState()` and `subscribe(listener)`, but has no `setState`. Its state is plain data from the stream. Commands, and `disconnect()`, are on the store itself and never change identity. `disconnect()` stops the stream and retries, and keeps the last state.
 
@@ -28,21 +28,52 @@ await room.send('Hello')
 
 Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unauthorized' | 'failed' | 'outdated'`. It goes `open` when the server's handshake matches, before the first values arrive.
 
-| Store     | Field        | Type                                  | Notes                                       |
-| --------- | ------------ | ------------------------------------- | ------------------------------------------- |
-| Workspace | `familiars`  | `FamiliarsState \| null \| undefined` | `{ familiars }`, who each one is, by ID     |
-| Workspace | `rooms`      | `RoomsState \| null \| undefined`     | `{ rooms }`, by ID: named rooms and own DMs |
-| Workspace | `account`    | `AccountState \| null \| undefined`   | `null` when the host manages credentials    |
-| Familiar  | `model`      | `AgentState \| null \| undefined`     | Its model and reasoning level               |
-| Familiar  | `memory`     | `FactsState \| null \| undefined`     |                                             |
-| Familiar  | `episodes`   | `EpisodesState \| null \| undefined`  |                                             |
-| Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                             |
-| Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy }`                           |
-| Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed            |
-| Room      | `history`    | `{ entries, status }`                 | Older entries, oldest first                 |
-| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Turns in progress, as streamed              |
+| Store     | Field        | Type                                  | Notes                                                                     |
+| --------- | ------------ | ------------------------------------- | ------------------------------------------------------------------------- |
+| Workspace | `familiars`  | `FamiliarsState \| null \| undefined` | `{ familiars }`, who each one is, by ID                                   |
+| Workspace | `rooms`      | `RoomsState \| null \| undefined`     | `{ rooms }`, by ID: named rooms and own DMs, as a list shows them (below) |
+| Workspace | `me`         | `Author \| null \| undefined`         | `{ id, name }`: this person's author ID and the name Familiars call them  |
+| Workspace | `account`    | `AccountState \| null \| undefined`   | `null` when the host manages credentials                                  |
+| Familiar  | `model`      | `AgentState \| null \| undefined`     | Its model and reasoning level                                             |
+| Familiar  | `memory`     | `FactsState \| null \| undefined`     |                                                                           |
+| Familiar  | `episodes`   | `EpisodesState \| null \| undefined`  |                                                                           |
+| Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                                                           |
+| Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy }`                                                         |
+| Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed                                          |
+| Room      | `history`    | `{ entries, status }`                 | Older entries, oldest first                                               |
+| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Turns in progress, as streamed                                            |
 
 Each document is `undefined` until it arrives and `null` when the stream sends none.
+
+### Rooms list
+
+Every room in `rooms` is a `RoomListing`: its setup (`Room`) and what a sidebar shows of it, all on the workspace's one stream, so a list never opens a stream per room.
+
+```ts
+type RoomListing = Room & {
+  last?: RoomPreview // its newest entry worth showing; absent until one is posted
+  unread?: number // entries since this person's read marker
+  turns: { familiar: number; status: 'queued' | 'elsewhere' | 'running' }[]
+}
+
+type RoomPreview = {
+  entry: number // compare with a read marker, or pass to `read`
+  at: number // ms since the epoch: sort by it for most recent first
+  text: string // the start of what it says, on one line
+} & (
+  | { kind: 'message'; author: Author }
+  | {
+      kind: 'reply'
+      familiar: number
+      name: string
+      outcome: 'answered' | 'failed' | 'stopped'
+    }
+  | { kind: 'handoff' | 'reminder'; familiar: number; name: string }
+  | { kind: 'note' }
+)
+```
+
+A reply that stayed quiet is never `last`. A `last` reply whose `outcome` is `failed` means the room's last turn failed. `turns` is empty when no one is working on the room; a Familiar `elsewhere` is busy in another room, which isn't said. `unread` counts from the person's marker, which their own messages move, and the room store's `read(entry)` moves; it's every entry if they've never read the room.
 
 ## Commands
 
@@ -50,18 +81,19 @@ Commands return promises that reject with the server's error. They aren't retrie
 
 | Store     | Group         | Commands                                                                                                |
 | --------- | ------------- | ------------------------------------------------------------------------------------------------------- |
-| Workspace | `familiars`   | `list()`, `create(identity)`, `update(id, change)`, `dm(id)` (the room ID)                              |
-| Workspace | `rooms`       | `list()`, `create(setup)`, `update(id, change)`, `archive(id)`                                          |
+| Workspace | `familiars`   | `list()`, `create(identity)`, `update(id, change)`, `remove(id)`, `dm(id)` (the room ID)                |
+| Workspace | `rooms`       | `list()`, `create(setup)`, `update(id, change)`, `archive(id)`, `unarchive(id)`                         |
+| Workspace | `me`          | `rename(name)`                                                                                          |
 | Workspace | `account`     | `signIn()`, `answerSignIn(text)`, `cancelSignIn()`, `signOut()`                                         |
 | Workspace | `push`        | `key()` (`undefined` when the host has no push), `subscribe(subscription)`, `unsubscribe(subscription)` |
 | Workspace | `connections` | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`                    |
 | Workspace | `mcp`         | `add(server)`, `remove(name)`, `reconnect(name)`                                                        |
 | Familiar  | `model`       | `options()`, `set(ref)`, `setThinkingLevel(level)`                                                      |
 | Familiar  | `memory`      | `revise(id, text)`, `retire(id)`, `setPinned(id, pinned)`                                               |
-| Familiar  | `schedules`   | `cancel(id)`                                                                                            |
-| Room      |               | `send(text, mentions?)`, `stop()`, `loadOlder()`                                                        |
+| Familiar  | `schedules`   | `cancel(id)`, `pause(id)`, `resume(id)`                                                                 |
+| Room      |               | `send(text, mentions?)`, `stop()`, `read(entry)`, `loadOlder()`                                         |
 
-`send` generates the `requestId`. `loadOlder()` does nothing while a page is loading or once `history.status` is `start`.
+`send` generates the `requestId`. `loadOlder()` does nothing while a page is loading or once `history.status` is `start`. `familiars.update` takes `{ name?, persona?, avatar? }`; a `null` persona or avatar returns it to the default. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
 
 ## Transcript
 

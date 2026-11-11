@@ -234,3 +234,51 @@ test("a host's default tools fill in on the first open only, so a change made la
     mcp: [],
   })
 })
+
+test("a person's host name fills in on the first open only; the name they choose signs their messages from then on, in the log and what Familiars are shown", async () => {
+  const storage = new ReopenableStorage()
+  const shown: string[] = []
+  const open = (name: string) =>
+    openWorkspace({
+      storage,
+      models: scriptedModels((request) => {
+        shown.push(JSON.stringify(request.context.messages.at(-1)))
+        return fauxAssistantMessage('Hello.')
+      }),
+      model: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      people: [{ id: 'aidan', name }],
+    })
+  // Whatever the host says each request's author is called.
+  const author = { id: 'aidan', name: 'owner' }
+
+  const first = await open('Owner')
+  expect(await first.people.get(author)).toEqual({ id: 'aidan', name: 'Owner' })
+  await first.people.rename('aidan', 'Aidan')
+  await expect(first.people.rename('aidan', ' ')).rejects.toThrow(TypeError)
+  await first.dismiss()
+
+  const workspace = await open('Someone else')
+  onTestFinished(() => workspace.dismiss())
+  expect(await workspace.people.get(author)).toEqual({
+    id: 'aidan',
+    name: 'Aidan',
+  })
+  // Anyone else is called what the host says.
+  expect(await workspace.people.get({ id: 'sam', name: 'Sam' })).toEqual({
+    id: 'sam',
+    name: 'Sam',
+  })
+
+  const ada = await workspace.familiars.create({ name: 'Ada' })
+  const dm = (await workspace.rooms.get(
+    await workspace.rooms.dm(ada.id, 'aidan'),
+  ))!
+  const entry = await dm.post({ author, text: 'Hi', requestId: 'hi' })
+  await replyTo(dm, entry)
+  const [message] = (await read(() => dm.watch())).entries
+  expect(message.data).toMatchObject({ author: { id: 'aidan', name: 'Aidan' } })
+  expect(shown.at(-1)).toContain(
+    '[Message from {\\"id\\":\\"aidan\\",\\"name\\":\\"Aidan\\"}]',
+  )
+})

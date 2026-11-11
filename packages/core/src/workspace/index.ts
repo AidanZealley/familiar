@@ -41,7 +41,8 @@ import type { Notify } from '../notify.ts'
 import { createPersona } from '../persona.ts'
 import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
 import { checkMaxHandoffs, createRooms, type RoomsApi } from '../rooms/index.ts'
-import { Rooms } from '../rooms/rooms.ts'
+import { Shown } from '../rooms/log.ts'
+import { Rooms, Turns } from '../rooms/rooms.ts'
 import {
   checkMaxSchedules,
   createSchedules,
@@ -59,6 +60,8 @@ import {
   type FamiliarsState as Registry,
 } from './familiars.ts'
 import { adoptPreWorkspaceFamiliar } from './migrate.ts'
+import { knownAs, namePeople, People, rename } from './people.ts'
+import type { Author } from '../conversation/message.ts'
 import {
   capabilitiesOf,
   DefaultCapabilities,
@@ -126,6 +129,14 @@ export type WorkspaceOptions = {
    * with `setDefaultCapabilities`. Default none.
    */
   defaultCapabilities?: CapabilitiesChange
+  /**
+   * What people are called at first, by host author ID, such as the
+   * daemon's owner: Familiars call each that until they choose another name
+   * (`people.rename`), which then wins over the name `authenticate` gives.
+   * Fills them in on the first open only. Default none: everyone is called
+   * what the host names them.
+   */
+  people?: readonly Author[]
   /** Where plugins' secrets are kept. Without it, every secret is missing. */
   secrets?: SecretStore
   /**
@@ -212,17 +223,27 @@ export type FamiliarsState = { familiars: Record<string, FamiliarIdentity> }
 /** The registry as people see it: who each Familiar is, without its workings. */
 const identities = (registry: Readonly<Registry> | null): FamiliarsState => ({
   familiars: Object.fromEntries(
-    Object.entries(registry?.familiars ?? {}).map(([id, { name, persona }]) => [
-      id,
-      { name, ...(persona !== undefined && { persona }) },
-    ]),
+    Object.entries(registry?.familiars ?? {}).map(
+      ([id, { name, persona, avatar }]) => [
+        id,
+        {
+          name,
+          ...(persona !== undefined && { persona }),
+          ...(avatar !== undefined && { avatar }),
+        },
+      ],
+    ),
   ),
 })
 
-/** A change to who a Familiar is. A `null` persona returns it to the default. */
+/**
+ * A change to who a Familiar is. A `null` persona returns it to the
+ * default, and a `null` avatar to the one its ID derives.
+ */
 export type FamiliarChange = {
   name?: string
   persona?: string | null
+  avatar?: string | null
 }
 
 /**
@@ -257,6 +278,22 @@ export type Workspace = {
      * Familiar.
      */
     remove(id: FamiliarId): Promise<void>
+  }
+  /**
+   * What Familiars call people. Hosts say who each request's author is; a
+   * person's chosen name wins over the host's on each message they post
+   * from then on, in the room log and what Familiars are shown.
+   */
+  people: {
+    /** `author` as Familiars know them: with the name they chose, if any. */
+    get(author: Author): Promise<Author>
+    /** `get(author)`, then every change to it. */
+    watch(author: Author): Promise<WatchHandle<Author>>
+    /**
+     * Calls the person `id`, a host author ID, `name` from their next
+     * message. Throws a TypeError for a blank or overlong name.
+     */
+    rename(id: string, name: string): Promise<void>
   }
   /** The plugins and MCP connections a new Familiar uses by default. */
   defaultCapabilities(): Promise<FamiliarCapabilities>
@@ -396,10 +433,20 @@ export async function openWorkspace(
       (tx) => adoptPreWorkspaceFamiliar(tx, ADOPTED_NAME),
       context,
     )
+    // What people are called, on the first open only, as with the default
+    // tools below.
+    if ((await harness.snapshot(People, context)) === undefined) {
+      await harness.commit(
+        (tx) => namePeople(tx, options.people ?? []),
+        context,
+      )
+    }
     // The registries exist from the first open, so watches attach to them.
     await harness.commit(async (tx) => {
       await tx.doc(Familiars)
       await tx.doc(Rooms)
+      await tx.doc(Turns)
+      await tx.doc(Shown)
     }, context)
 
     // What a Familiar can be given: the workspace's now.
@@ -480,17 +527,26 @@ export async function openWorkspace(
               return id
             }, context),
           ),
-        update: async (id, { name, persona }) => {
-          checkIdentity({ name, persona: persona ?? undefined })
+        update: async (id, { name, persona, avatar }) => {
+          checkIdentity({
+            name,
+            persona: persona ?? undefined,
+            avatar: avatar ?? undefined,
+          })
           await harness.commit(async (tx) => {
             const record = await familiarRecord(tx, id)
             if (name !== undefined) {
               record.name = name
             }
-            if (persona === null) {
-              delete record.persona
-            } else if (persona !== undefined) {
-              record.persona = persona
+            for (const [field, value] of [
+              ['persona', persona],
+              ['avatar', avatar],
+            ] as const) {
+              if (value === null) {
+                delete record[field]
+              } else if (value !== undefined) {
+                record[field] = value
+              }
             }
           }, context)
         },
@@ -498,6 +554,17 @@ export async function openWorkspace(
           await removeFamiliar(harness, id, context)
           opened.delete(id)
         },
+      },
+      people: {
+        get: async (author) =>
+          knownAs(await harness.snapshot(People, context), author),
+        // Opening the workspace creates it.
+        watch: async (author) =>
+          viewWatch((await harness.watchDoc(People, context))!, (state) =>
+            knownAs(state, author),
+          ),
+        rename: (id, name) =>
+          harness.commit((tx) => rename(tx, id, name), context),
       },
       defaultCapabilities: async () =>
         (await harness.snapshot(DefaultCapabilities, context))!,

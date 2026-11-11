@@ -15,8 +15,9 @@ import { Turns, type RoomId, type TurnRecord } from './rooms.ts'
 /**
  * What a room shows of the work its turns are doing in their Familiars'
  * chats: each turn's place in its Familiar's queue, and its reply as it
- * streams. Derived from the room's turns document and those chats' live
- * state, never stored, and never anything from a Familiar's other rooms.
+ * streams. Derived from the room's turns in the turns document and those
+ * chats' live state, never stored, and never anything from a Familiar's
+ * other rooms.
  */
 
 /** One turn in progress in a room, by its task's ID. */
@@ -46,10 +47,21 @@ export type TurnActivity = {
 export type RoomActivity = Record<string, TurnActivity>
 
 /** A Familiar's chat's live state, as far as it has been read. */
-type Chat = {
+export type Chat = {
   live: Readonly<LiveState> | null | undefined
   inbox: Readonly<InboxState> | null | undefined
 }
+
+/** The turns in `room`, of every room's. */
+export const turnsIn = (
+  turns: Readonly<Record<string, TurnRecord>> | null | undefined,
+  room: RoomId | string,
+) =>
+  Object.fromEntries(
+    Object.entries(turns ?? {}).filter(
+      ([, turn]) => String(turn.room) === String(room),
+    ),
+  )
 
 /** The room's turns, each placed against its Familiar's chat. */
 export function activityOf(
@@ -101,6 +113,53 @@ export function activityOf(
 const context = BACKGROUND_CONTEXT
 
 /**
+ * Familiars' chats' live state, for a derived watch of turns: `follow`
+ * makes `derived` follow a Familiar's chat from the first of its turns
+ * it's given until the watch stops, and `chatOf` reads what it has.
+ */
+export function chatsOf(harness: Harness) {
+  const chats = new Map<
+    FamiliarId,
+    { live?: WatchHandle<Chat['live']>; inbox?: WatchHandle<Chat['inbox']> }
+  >()
+  return {
+    chatOf: (familiar: FamiliarId): Chat => {
+      const chat = chats.get(familiar)
+      return { live: chat?.live?.value, inbox: chat?.inbox?.value }
+    },
+    follow: (
+      derived: ReturnType<typeof derivedWatch>,
+      turns: Readonly<Record<string, TurnRecord>> | null | undefined,
+    ) => {
+      for (const { familiar } of Object.values(turns ?? {})) {
+        if (chats.has(familiar)) {
+          continue
+        }
+        const chat: {
+          live?: WatchHandle<Chat['live']>
+          inbox?: WatchHandle<Chat['inbox']>
+        } = {}
+        chats.set(familiar, chat)
+        // A Familiar's chat is set up with both documents when it opens.
+        void Promise.all([
+          harness.watchDoc(LiveDoc, familiar, context),
+          harness.watchDoc(InboxDoc, familiar, context),
+        ]).then(([live, inbox]) => {
+          chat.live = live
+          chat.inbox = inbox
+          if (live) {
+            derived.follow(live)
+          }
+          if (inbox) {
+            derived.follow(inbox)
+          }
+        }, derived.end)
+      }
+    },
+  }
+}
+
+/**
  * `room`'s activity, live. Follows each Familiar's chat from the first turn
  * it has here until the watch stops.
  */
@@ -108,46 +167,12 @@ export async function watchActivity(
   harness: Harness,
   room: RoomId,
 ): Promise<WatchHandle<RoomActivity>> {
-  // Every room's log is created with its turns document.
-  const turns = (await harness.watchDoc(Turns, room, context))!
-  const chats = new Map<
-    FamiliarId,
-    { live?: WatchHandle<Chat['live']>; inbox?: WatchHandle<Chat['inbox']> }
-  >()
+  // Opening the workspace creates the turns document.
+  const turns = (await harness.watchDoc(Turns, context))!
+  const chats = chatsOf(harness)
   const derived = derivedWatch(() =>
-    activityOf(turns.value ?? {}, (familiar) => {
-      const chat = chats.get(familiar)
-      return { live: chat?.live?.value, inbox: chat?.inbox?.value }
-    }),
+    activityOf(turnsIn(turns.value, room), chats.chatOf),
   )
-
-  const followChats = () => {
-    for (const { familiar } of Object.values(turns.value ?? {})) {
-      if (chats.has(familiar)) {
-        continue
-      }
-      const chat: {
-        live?: WatchHandle<Chat['live']>
-        inbox?: WatchHandle<Chat['inbox']>
-      } = {}
-      chats.set(familiar, chat)
-      // A Familiar's chat is set up with both documents when it opens.
-      void Promise.all([
-        harness.watchDoc(LiveDoc, familiar, context),
-        harness.watchDoc(InboxDoc, familiar, context),
-      ]).then(([live, inbox]) => {
-        chat.live = live
-        chat.inbox = inbox
-        if (live) {
-          derived.follow(live)
-        }
-        if (inbox) {
-          derived.follow(inbox)
-        }
-      }, derived.end)
-    }
-  }
-
-  derived.follow(turns, followChats)
+  derived.follow(turns, () => chats.follow(derived, turnsIn(turns.value, room)))
   return derived.watch
 }

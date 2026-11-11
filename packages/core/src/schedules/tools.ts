@@ -17,7 +17,7 @@ import {
   type Schedule,
   type SchedulesState,
 } from './schedules.ts'
-import type { ScheduleTask } from './task.ts'
+import { startSchedule, type ScheduleTask } from './task.ts'
 
 const text = (value: string) => ({
   output: [{ type: 'text' as const, text: value }],
@@ -28,9 +28,10 @@ function describe(schedule: Schedule, timeZone: string) {
   const when = upcoming(schedule, 3, timeZone)
     .map((at) => weekdayMinute(at, timeZone))
     .join(', ')
+  const paused = schedule.paused ? ' (paused by the owner)' : ''
   return schedule.repeat === undefined
-    ? `${schedule.id}: at ${when}: ${schedule.prompt}`
-    : `${schedule.id}: ${schedule.repeat}, next ${when}: ${schedule.prompt}`
+    ? `${schedule.id}: at ${when}${paused}: ${schedule.prompt}`
+    : `${schedule.id}: ${schedule.repeat}, next ${when}${paused}: ${schedule.prompt}`
 }
 
 /** Commits `use` with the schedules of the Familiar whose chat calls it. */
@@ -96,16 +97,7 @@ export function scheduleTools(
             timeZone,
             maxSchedules,
           )
-          // Background, so it never keeps the conversation busy while it sleeps.
-          await tx.createTask(
-            task,
-            { familiar: owner, id },
-            {
-              ownership: { kind: 'conversation' },
-              conversationId: owner,
-              background: true,
-            },
-          )
+          await startSchedule(tx, task, owner, id)
           return added
         },
       )

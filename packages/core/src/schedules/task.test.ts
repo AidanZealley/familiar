@@ -441,3 +441,44 @@ test('a daily repeat woken late delivers once, marked late, keeps its local time
     '[Scheduled for 2026-10-26 03:00; requested by {"id":"aidan","name":"aidan"}] Remind Aidan to call Mum',
   ])
 })
+
+test('paused, a repeat skips what falls due and a one-off waits past its time; resumed, each runs again, the one-off late and once', async () => {
+  const f = await setup()
+  const daily = await f.schedule({ repeat: '0 18 * * *' })
+  const once = await f.schedule({ at: '2026-10-21 19:00' })
+  const schedules = f.familiar().schedules
+  await schedules.pause(daily)
+  await schedules.pause(once)
+  await expect(schedules.pause('s0')).rejects.toThrow('No schedule s0.')
+
+  f.clock.advanceTo(at(21, 18))
+  await f.settled()
+  f.clock.advanceTo(at(21, 19))
+  await f.settled()
+  expect(f.notifications).toEqual([])
+  // The repeat's next run is still the one it would have; the one-off keeps its time.
+  expect(await f.schedules()).toMatchObject({
+    [daily]: { paused: true, next: at(22, 18) },
+    [once]: { paused: true, next: at(21, 19) },
+  })
+
+  f.clock.setTime(at(21, 20))
+  await schedules.resume(once)
+  await schedules.resume(daily)
+  // Resuming what isn't paused changes nothing.
+  await schedules.resume(daily)
+  await vi.waitFor(() => expect(f.notifications).toHaveLength(1))
+  await f.settled()
+  expect(f.inputs).toEqual([
+    '[Scheduled for 2026-10-21 19:00, delivered 2026-10-21 20:00; requested by {"id":"aidan","name":"aidan"}] Remind Aidan to call Mum',
+  ])
+  expect(Object.keys(await f.schedules())).toEqual([daily])
+
+  // The repeat's own task runs it, once.
+  f.clock.advanceTo(at(22, 18))
+  await vi.waitFor(() => expect(f.notifications).toHaveLength(2))
+  await f.settled()
+  expect(f.notifications).toHaveLength(2)
+  expect(await f.schedules()).toMatchObject({ [daily]: { next: at(23, 18) } })
+  expect((await f.schedules())[daily]).not.toHaveProperty('paused')
+})

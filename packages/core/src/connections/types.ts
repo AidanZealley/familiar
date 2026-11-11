@@ -36,7 +36,8 @@ export type PluginConnectionInfo = {
   kind: 'plugin'
   name: string
   title: string
-  tools: { name: string }[]
+  /** Its tools, each with the description the model is given. */
+  tools: { name: string; description: string }[]
   secrets: {
     name: string
     label: string

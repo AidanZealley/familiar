@@ -21,11 +21,11 @@ There's a store for each stream: `createWorkspaceStore(url, options)` for who th
 
 A store's state is plain data from its stream. Read it with `getState()` and `subscribe()`:
 
-- the workspace's `familiars`, `rooms` and `account`
+- the workspace's `familiars`, `rooms`, `me` and `account`: every room arrives as a sidebar lists it, with its newest entry, what this person hasn't read and whose turns are in progress, so a list needs no stream per room
 - a Familiar's `model`, `memory`, `episodes` and `schedules`
 - a room's `view` and `history`, its log and the older entries loaded before it; `turns`, its turns in progress; and `transcript`, the derived chat items and whether a Familiar is `busy` here
 
-Change things by calling the commands on the store itself: the workspace's `familiars`, `rooms`, `account`, `push`, `connections` and `mcp`; a Familiar's `model`, `memory` and `schedules`; a room's `send`, `stop` and `loadOlder`. They never change identity, so you can pass them around freely. `workspace.familiars.dm(id)` resolves to the room ID of this person's DM with a Familiar, created if new.
+Change things by calling the commands on the store itself: the workspace's `familiars`, `rooms`, `me`, `account`, `push`, `connections` and `mcp`; a Familiar's `model`, `memory` and `schedules`; a room's `send`, `stop`, `read` and `loadOlder`. They never change identity, so you can pass them around freely. `workspace.familiars.dm(id)` resolves to the room ID of this person's DM with a Familiar, created if new. Call a room's `read(entry)` with the newest entry the person has seen, such as when they open it, to clear its unread count.
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 

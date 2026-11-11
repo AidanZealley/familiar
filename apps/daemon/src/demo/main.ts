@@ -4,7 +4,7 @@ import { MemoryStorage } from '@earendil-works/pi-durable'
 import { definePlugin, memorySecrets } from '@familiar-ai/core'
 import { WEB_RENDERING } from '../rendering.ts'
 import { openPush } from '../push.ts'
-import { serveWorkspace } from '../serve.ts'
+import { OWNER_ID, serveWorkspace } from '../serve.ts'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { createDemoModels, demoChatModels } from './model.ts'
 import { seedMemory, seedEpisodes } from './scenarios/seed.ts'
@@ -37,6 +37,7 @@ const { workspace, familiar } = await openDaemonWorkspace(
     },
     plugins: [demoPlugin],
     defaultCapabilities: { plugins: [demoPlugin.name] },
+    people: [{ id: OWNER_ID, name: 'demo' }],
     secrets: memorySecrets(),
     fetch: demoFetch,
     mcpFetch: demoMcpFetch,

@@ -10,7 +10,10 @@ const port = 'must be an integer between 1 and 65535'
 const Settings = z.object(
   {
     name: text,
-    /** The owner's name, as the model sees it on their messages. */
+    /**
+     * What Familiars call the owner until they choose another name in the
+     * web app; read on the first start only.
+     */
     owner: text,
     /** The OpenAI model to start on; the first chat model when unset. */
     model: text,

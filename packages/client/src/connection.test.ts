@@ -50,7 +50,7 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
         streams += 1
         await stream.writeSSE({
           event: 'protocol',
-          data: JSON.stringify({ version: 3 }),
+          data: JSON.stringify({ version: 4 }),
         })
         await stream.writeSSE({
           event: 'view',
@@ -232,7 +232,7 @@ test('each reconnect needs its own handshake, and the last view stays without on
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
   server.send(
-    retrySoon + frame('protocol', { version: 3 }) + frame('view', view(1)),
+    retrySoon + frame('protocol', { version: 4 }) + frame('view', view(1)),
   )
   await expect.poll(() => store.getState().connection).toBe('open')
   server.end()
