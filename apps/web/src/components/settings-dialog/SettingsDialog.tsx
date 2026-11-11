@@ -13,7 +13,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { closeDialog, useOpenDialog } from '@/lib/dialogs'
+import { closeDialog } from '@/lib/dialogs'
 import { useIsPhone } from '@/lib/media'
 import { CategoryBody } from './components/category-body'
 import { CategoryList } from './components/category-list'
@@ -33,7 +33,7 @@ const matches = (category: SettingsCategory, query: string) =>
  * The one settings shell: a title bar with Close, a searchable list of
  * categories, and the chosen category beside it. On a phone it fills the
  * screen: the list, then each category as a screen with Back. It owns which
- * category is shown, starting on the one its opener named, if any.
+ * category is shown.
  */
 export const SettingsDialog = ({
   title,
@@ -41,8 +41,7 @@ export const SettingsDialog = ({
   groups,
 }: SettingsDialogProps) => {
   const isPhone = useIsPhone()
-  const initial = useOpenDialog()?.category
-  const [category, showCategory] = useState(initial)
+  const [category, showCategory] = useState<string>()
   const [query, setQuery] = useState('')
   const all = groups.flatMap((group) => group.categories)
   const current =

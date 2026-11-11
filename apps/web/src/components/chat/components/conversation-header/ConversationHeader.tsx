@@ -1,18 +1,18 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronLeftIcon } from 'lucide-react'
+import { ChevronLeftIcon, SettingsIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
 import { openDialog, type DialogRef } from '@/lib/dialogs'
 import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
-import { ConversationMenu } from './components/conversation-menu'
 import { ConversationStatus } from './components/conversation-status'
 import type { ConversationHeaderProps } from './types'
 
 /**
  * Glass over the conversation, `--chrome` tall: the room's face, name and
- * what's happening in it, which open its settings, and its menu. On a phone,
+ * what's happening in it, which open its settings, as does the Settings
+ * button. On a phone,
  * Back returns to the list of conversations.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
@@ -59,7 +59,15 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
             <ConversationStatus room={room} live={live} />
           </span>
         </button>
-        <ConversationMenu room={room} className="ml-auto" />
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          className="ml-auto"
+          aria-label={`${title} settings`}
+          onClick={() => openDialog(settings)}
+        >
+          <SettingsIcon />
+        </Button>
       </div>
     </header>
   )

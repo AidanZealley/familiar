@@ -13,7 +13,7 @@ import { closeDialog, useOpenDialog } from '@/lib/dialogs'
  */
 export const Dialogs = () => {
   const router = useRouter()
-  const open = useOpenDialog()
+  const dialog = useOpenDialog()
 
   useEffect(
     () =>
@@ -24,7 +24,6 @@ export const Dialogs = () => {
     [router],
   )
 
-  const dialog = open?.dialog
   switch (dialog?.kind) {
     case 'familiar':
       return <FamiliarSettings key={dialog.id} id={dialog.id} />
