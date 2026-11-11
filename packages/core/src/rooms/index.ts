@@ -269,7 +269,7 @@ export function createRooms(
     extension: defineExtension({
       name: 'familiar.rooms',
       tasks: [turn],
-      tools: roomTools(turn, options.maxHandoffs),
+      tools: roomTools(options.maxHandoffs),
     }),
     postScheduled,
     api,

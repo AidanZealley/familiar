@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type, type Message } from '@earendil-works/pi-ai'
 import type { ToolRegistration } from '@earendil-works/pi-durable'
 import {
   HANDOFF_KIND,
@@ -6,13 +6,37 @@ import {
   type InRoom,
 } from '../conversation/message.ts'
 import { callInput, defineTool } from '../tools.ts'
-import { Familiars, familiarFor } from '../workspace/familiars.ts'
-import { post, type HandoffData } from './log.ts'
+import {
+  Familiars,
+  familiarFor,
+  type FamiliarId,
+} from '../workspace/familiars.ts'
+import type { HandoffData } from './log.ts'
 import { membersOf, Rooms } from './rooms.ts'
-import type { TurnTask } from './turn.ts'
 
 /** The tool a Familiar ends a turn with when it has nothing to say. */
 export const STAY_QUIET = 'stay_quiet'
+
+/** The tool a Familiar asks another in its room to take a turn with. */
+const HAND_OFF = 'hand_off'
+
+/** A handoff `hand_off` accepted, as its result's details: the turn posts it. */
+export type HandedOff = Pick<HandoffData, 'to' | 'note' | 'hops'>
+
+/**
+ * The handoffs a run made, in order: each `hand_off` call that succeeded.
+ * The turn posts them after its reply, so each follows the reply it came
+ * from in the room, and the one asked is shown that reply.
+ */
+export const handoffsIn = (messages: readonly Message[]) =>
+  messages.flatMap((message) =>
+    message.role === 'toolResult' &&
+    message.toolName === HAND_OFF &&
+    !message.isError &&
+    message.details
+      ? [message.details as HandedOff]
+      : [],
+  )
 
 /** How many handoffs in a row a room allows, unless the workspace says. */
 export const DEFAULT_MAX_HANDOFFS = 3
@@ -30,10 +54,7 @@ const text = (value: string) => ({
 })
 
 /** stay_quiet and hand_off: how a Familiar takes part in a room's conversation. */
-export function roomTools(
-  turn: TurnTask,
-  maxHandoffs: number,
-): ToolRegistration[] {
+export function roomTools(maxHandoffs: number): ToolRegistration[] {
   const stayQuiet = defineTool({
     name: STAY_QUIET,
     description:
@@ -52,17 +73,17 @@ export function roomTools(
   })
 
   const handOff = defineTool({
-    name: 'hand_off',
+    name: HAND_OFF,
     description:
-      'Ask another assistant in this room to take a turn; they answer in the room themselves.',
+      'Ask another assistant in this room to take a turn once you finish; they answer in the room themselves.',
     parameters: Type.Object({
       to: Type.String({ description: 'Their name' }),
       note: Type.String({ description: 'What you want from them' }),
     }),
-    // The post's request ID is this call's, so a rerun finds what it posted.
+    // Only checks the handoff: the turn posts it, from this call's result.
     replay: 'safe',
     execute: async ({ to, note }, api, context) => {
-      const name = await api.commit(async (tx) => {
+      const { name, details } = await api.commit(async (tx) => {
         const from = await familiarFor(tx, api.conversationId)
         // The room is the one this call's input came from, never the model's.
         const { room, entry } = ((await callInput(tx, api.taskId))?.data ??
@@ -102,19 +123,15 @@ export function roomTools(
             `This has been handed on ${maxHandoffs} times already, the most allowed. Answer it yourself.`,
           )
         }
-        await post(
-          tx,
-          turn,
-          room,
-          {
-            kind: HANDOFF_KIND,
-            data: { from, to: target, note, hops, cause: entry, at: api.now() },
-          },
-          `handoff:${api.taskId}`,
-        )
-        return familiars[target].name
+        const details: HandedOff = { to: target as FamiliarId, note, hops }
+        return { name: familiars[target].name, details }
       }, context)
-      return text(`Handed to ${name}. They'll answer in the room.`)
+      return {
+        ...text(
+          `${name} will take a turn once you finish, and answer in the room.`,
+        ),
+        details,
+      }
     },
   })
 

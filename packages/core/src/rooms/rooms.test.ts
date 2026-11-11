@@ -307,7 +307,7 @@ test('in an open room, each Familiar takes a turn in order, shown the replies be
   })
 })
 
-test('a handoff gives the Familiar it names a turn on its note, and a chain past maxHandoffs is refused', async () => {
+test('a handoff gives the Familiar it names a turn on its note, after the reply it came from, and a chain past maxHandoffs is refused', async () => {
   const { workspace, create, room } = await open(
     (request) => {
       switch (request.type) {
@@ -343,6 +343,15 @@ test('a handoff gives the Familiar it names a turn on its note, and a chain past
   await expect.poll(async () => (await replies(kitchen)).length).toBe(3)
 
   const entries = await log(kitchen)
+  // Each handoff follows the reply that made it, and comes before its answer.
+  expect(entries.map((entry) => entry.kind)).toEqual([
+    MESSAGE_KIND,
+    REPLY_KIND,
+    HANDOFF_KIND,
+    REPLY_KIND,
+    HANDOFF_KIND,
+    REPLY_KIND,
+  ])
   const handoffs = entries.filter((entry) => entry.kind === HANDOFF_KIND)
   expect(handoffs.map((entry) => entry.data)).toEqual([
     expect.objectContaining({
@@ -360,7 +369,7 @@ test('a handoff gives the Familiar it names a turn on its note, and a chain past
       cause: handoffs[0].id,
     }),
   ])
-  // Bo's input is the note, after what it missed.
+  // Bo's input is the note, after what it missed, Ada's reply included.
   const [toBo] = await inputs(workspace, bo)
   expect(toBo).toMatchObject({
     from: ada,
@@ -371,6 +380,7 @@ test('a handoff gives the Familiar it names a turn on its note, and a chain past
       '[In #kitchen, handed to you]',
       'Said here before:',
       '[Aidan]: Paint the fence.',
+      '[Ada]: Handed on.',
     ].join('\n'),
   })
   // Ada is shown the handoff she made as a line, and a third is refused.

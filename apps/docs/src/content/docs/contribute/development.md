@@ -21,7 +21,7 @@ pnpm dev
 
 This starts a daemon on port 4318 with a scripted model and in-memory storage, and the web app on port 5174. It needs no sign-in and touches no installed assistant's data. Vite accepts LAN and tailnet connections, so you can open it from another device.
 
-Type one of these words in the chat to run a scripted scenario: `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error`. Only the model and external services are simulated. Add scenarios under `apps/daemon/src/demo/scenarios/` and register them in `apps/daemon/src/demo/model.ts`.
+The demo opens on Rowan's household, a few days in: four Familiars with their own tools, memory and schedules, their DMs, named rooms and a print still being watched. It's written as data in `apps/daemon/src/demo/household/story.ts`, each message with the replies it gets. Anything the story doesn't script falls back to a scenario: type `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error` in Juniper's DM. Only the model and external services are simulated. Add scenarios under `apps/daemon/src/demo/scenarios/` and register them in `apps/daemon/src/demo/model.ts`.
 
 :::caution
 `pnpm dev:live`, `pnpm start` and `pnpm sign-in` work with the real installed assistant on port 4317 and its data. Use them only when you mean to. Never run a second daemon over the same storage.

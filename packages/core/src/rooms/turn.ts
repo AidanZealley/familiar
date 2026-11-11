@@ -26,8 +26,9 @@ import { Familiars, type FamiliarId } from '../workspace/familiars.ts'
 import { catchUp } from './catch-up.ts'
 import {
   formatHandoff,
-  post,
+  postAll,
   REPLY_KIND,
+  type Posting,
   type HandoffData,
   type ReplyData,
   type RoomMessageData,
@@ -35,8 +36,8 @@ import {
   type TurnInput,
   type TurnResult,
 } from './log.ts'
-import { Rooms, Turns, type Room } from './rooms.ts'
-import { STAY_QUIET } from './tools.ts'
+import { closedTo, Rooms, Turns, type Room } from './rooms.ts'
+import { handoffsIn, STAY_QUIET } from './tools.ts'
 import { entriesOf } from '../pi/entries.ts'
 
 /**
@@ -175,8 +176,9 @@ function dmPerson(room: Room, cause: EntryRecord) {
 export function createTurnTask(harness: Harness, timeZone: string) {
   /**
    * Copies a settled input's run into the room as a reply at `at`, unless it
-   * was stopped before saying anything, and ends the turn's record, in the
-   * commit `tx`. Returns the reply.
+   * was stopped before saying anything, then posts the handoffs the run made,
+   * unless it was stopped or the room has closed since, and ends the turn's
+   * record, in the commit `tx`. Returns the reply.
    */
   async function settle(
     tx: Tx,
@@ -201,16 +203,28 @@ export function createTurnTask(harness: Harness, timeZone: string) {
     const turn = turns[taskId]
     let reply = null
     if (turn && (outcome !== 'stopped' || messages.length)) {
-      const posted = await post(
-        tx,
-        Turn,
-        room,
-        {
-          kind: REPLY_KIND,
-          data: { familiar, name: turn.name, cause, outcome, messages, at },
-        },
-        `reply:${taskId}`,
+      const record = (await tx.doc(Rooms)).rooms[room]
+      const handOn =
+        outcome !== 'stopped' && record && !(await closedTo(tx, record))
+      const handoffs: Posting[] = (handOn ? handoffsIn(messages) : []).map(
+        ({ to, note, hops }, index) => ({
+          entry: {
+            kind: HANDOFF_KIND,
+            data: { from: familiar, to, note, hops, cause, at },
+          },
+          requestId: `handoff:${taskId}:${index}`,
+        }),
       )
+      const [posted] = await postAll(tx, Turn, room, [
+        {
+          entry: {
+            kind: REPLY_KIND,
+            data: { familiar, name: turn.name, cause, outcome, messages, at },
+          },
+          requestId: `reply:${taskId}`,
+        },
+        ...handoffs,
+      ])
       reply = posted.entry
     }
     delete turns[taskId]
