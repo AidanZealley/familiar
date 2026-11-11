@@ -8,11 +8,17 @@ import {
 import {
   cancelSchedule,
   DEFAULT_MAX_SCHEDULES,
+  scheduleOf,
   Schedules,
   type SchedulesState,
 } from './schedules.ts'
 import type { Notify } from '../notify.ts'
-import { createScheduleTask, type PostScheduled } from './task.ts'
+import {
+  createScheduleTask,
+  scheduleRuns,
+  startSchedule,
+  type PostScheduled,
+} from './task.ts'
 import { scheduleTools } from './tools.ts'
 import {
   familiarDoc,
@@ -31,6 +37,14 @@ export type SchedulesApi = {
   watch(): Promise<DocumentWatch<SchedulesState>>
   /** Rejects with a ScheduleError, changing nothing, when there is no such schedule. */
   cancel(id: string): Promise<void>
+  /**
+   * Stops it running until `resume`. A repeat skips the times that fall due
+   * meanwhile; a one-off whose time passes runs, late, once resumed.
+   * Rejects as `cancel`.
+   */
+  pause(id: string): Promise<void>
+  /** Runs it again from its next time, or now if that has passed. Rejects as `cancel`. */
+  resume(id: string): Promise<void>
 }
 
 // Kept stable: a prompt section that changes resends the prompt and loses the
@@ -94,6 +108,29 @@ export function createSchedules(options: {
               cancelSchedule(await familiarDoc(tx, Schedules, familiar), id),
             context,
           ),
+        // Its task finds it paused when it wakes.
+        pause: (id) =>
+          harness.commit(async (tx) => {
+            scheduleOf(await familiarDoc(tx, Schedules, familiar), id).paused =
+              true
+          }, context),
+        // A paused one-off's task ended at its time; a repeat's still sleeps.
+        resume: (id) =>
+          harness.commit(async (tx) => {
+            const schedule = scheduleOf(
+              await familiarDoc(tx, Schedules, familiar),
+              id,
+            )
+            if (!schedule.paused) {
+              return
+            }
+            // Reads before writes: a transaction cannot read tables after writing.
+            const runs = await scheduleRuns(tx, familiar, id)
+            delete schedule.paused
+            if (!runs) {
+              await startSchedule(tx, task, familiar, id)
+            }
+          }, context),
       }
     },
   }

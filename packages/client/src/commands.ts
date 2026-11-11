@@ -19,9 +19,20 @@ import type {
 /** A named room's setup, by Familiar IDs; open without a `lead`. */
 export type RoomSetup = { name: string; familiars: number[]; lead?: number }
 
-/** A change to a named room; a `null` lead opens it. */
+/** A change to a named room; a `null` lead opens it, and `archived: false` unarchives it. */
 export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
   lead?: number | null
+  archived?: false
+}
+
+/**
+ * A change to who a Familiar is. A `null` persona returns it to the
+ * default, and a `null` avatar to the one its ID derives.
+ */
+export type FamiliarChange = {
+  name?: string
+  persona?: string | null
+  avatar?: string | null
 }
 
 export type Api = ReturnType<typeof hc<HttpApi>>
@@ -50,8 +61,12 @@ const read = async <R extends Response>(request: Promise<R>) => {
   return (await response.json()) as Success<R>
 }
 
-/** What the workspace does: its login, push, connections, Familiars and rooms. */
+/** What the workspace does: its login, push, connections, Familiars, rooms and the person's name. */
 export const workspaceCommands = (api: Api) => ({
+  me: {
+    /** What Familiars call the signed-in person from their next message. */
+    rename: (name: string) => succeed(api.me.$patch({ json: { name } })),
+  },
   account: {
     signIn: () => succeed(api.account['sign-in'].$post()),
     answerSignIn: (text: string) =>
@@ -113,11 +128,8 @@ export const workspaceCommands = (api: Api) => ({
           id: number
         }
       ).id,
-    /** A `null` persona returns it to the default. */
-    update: (
-      familiar: number,
-      change: { name?: string; persona?: string | null },
-    ) =>
+    /** A `null` persona or avatar returns it to the default. */
+    update: (familiar: number, change: FamiliarChange) =>
       succeed(
         api.familiars[':familiar'].$patch({
           param: { familiar: String(familiar) },
@@ -168,6 +180,14 @@ export const workspaceCommands = (api: Api) => ({
     /** Hides a named room and closes it, keeping its history. */
     archive: (room: number) =>
       succeed(api.rooms[':room'].$delete({ param: { room: String(room) } })),
+    /** Lists a named room and opens it to messages again. */
+    unarchive: (room: number) =>
+      succeed(
+        api.rooms[':room'].$patch({
+          param: { room: String(room) },
+          json: { archived: false },
+        }),
+      ),
   },
 })
 
@@ -202,6 +222,22 @@ export const familiarCommands = (api: Api, id: number) => {
       cancel: (schedule: string) =>
         succeed(
           familiar.schedules[':id'].$delete({
+            param: { ...param, id: schedule },
+          }),
+        ),
+      /**
+       * Stops a schedule running until resumed; its `next` still shows when
+       * it would. A one-off whose time passes runs, late, once resumed.
+       */
+      pause: (schedule: string) =>
+        succeed(
+          familiar.schedules[':id'].pause.$post({
+            param: { ...param, id: schedule },
+          }),
+        ),
+      resume: (schedule: string) =>
+        succeed(
+          familiar.schedules[':id'].resume.$post({
             param: { ...param, id: schedule },
           }),
         ),
@@ -249,6 +285,12 @@ export const roomCommands = (api: Api, id: number) => {
       ),
     /** Stops every turn in the room. */
     stop: () => succeed(room.stop.$post({ param })),
+    /**
+     * Marks the room read by the signed-in person up to `entry`, the newest
+     * they've seen; never back from where it was.
+     */
+    read: (entry: number) =>
+      succeed(room.read.$post({ param, json: { entry } })),
     history: async (before: number) =>
       read(room.history.$get({ param, query: { before: String(before) } })),
   }

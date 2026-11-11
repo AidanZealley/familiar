@@ -175,6 +175,8 @@ const ROUTES = {
   'defaults.set': ['PUT', '/defaults/capabilities'],
   'rooms.list': ['GET', '/rooms'],
   'rooms.create': ['POST', '/rooms'],
+  'me.get': ['GET', '/me'],
+  'me.update': ['PATCH', '/me'],
   'familiars.update': ['PATCH', '/familiars/7'],
   'familiars.remove': ['DELETE', '/familiars/7'],
   'familiars.dm': ['POST', '/familiars/7/dm'],
@@ -182,6 +184,8 @@ const ROUTES = {
   'memory.retire': ['POST', '/familiars/7/memory/f1/retire'],
   'memory.setPinned': ['PUT', '/familiars/7/memory/f1/pin'],
   'schedules.cancel': ['DELETE', '/familiars/7/schedules/s1'],
+  'schedules.pause': ['POST', '/familiars/7/schedules/s1/pause'],
+  'schedules.resume': ['POST', '/familiars/7/schedules/s1/resume'],
   'model.options': ['GET', '/familiars/7/model/options'],
   'model.set': ['PUT', '/familiars/7/model'],
   'model.setThinkingLevel': ['PUT', '/familiars/7/model/thinking-level'],
@@ -191,6 +195,7 @@ const ROUTES = {
   'rooms.archive': ['DELETE', '/rooms/9'],
   'rooms.post': ['POST', '/rooms/9/messages'],
   'rooms.note': ['POST', '/rooms/9/notes'],
+  'rooms.read': ['POST', '/rooms/9/read'],
   'rooms.history': ['GET', '/rooms/9/history?before=1'],
   'rooms.stop': ['POST', '/rooms/9/stop'],
 } satisfies Record<
@@ -228,7 +233,12 @@ test('each route asks about its own operation and resource alone, and is refused
   }
 
   const streams = {
-    '/events': ['events.familiars', 'events.rooms', 'events.account'],
+    '/events': [
+      'events.familiars',
+      'events.rooms',
+      'events.me',
+      'events.account',
+    ],
     '/familiars/7/events': [
       'events.model',
       'events.memory',
@@ -406,6 +416,7 @@ test('each stream sends what it is allowed whole first, and 403 when nothing is'
     'protocol',
     'document familiars',
     'document rooms',
+    'document me',
     'account',
   ])
   expect(all.documents.familiars).toEqual({
@@ -621,10 +632,12 @@ test('push hosts get the authenticated subscriber, whatever the body says', asyn
 })
 
 // Familiars and rooms can be set up over HTTP, with the rules' refusals as 400s.
-test('familiars and rooms are created and changed over HTTP', async () => {
+test('familiars, rooms and the person asking are created and changed over HTTP', async () => {
   const host = await testHost({ person: sam })
   const client = testClient(api(host.workspace()))
-  const created = await client.familiars.$post({ json: { name: 'Bo' } })
+  const created = await client.familiars.$post({
+    json: { name: 'Bo', avatar: 'fox' },
+  })
   expect(created.status).toBe(201)
   const bo = (await created.json()) as { id: number }
   expect((await client.familiars.$post({ json: { name: ' ' } })).status).toBe(
@@ -669,9 +682,34 @@ test('familiars and rooms are created and changed over HTTP', async () => {
     json: { text: 'Hi', requestId: 'r' },
   })
   expect(closed.status).toBe(400)
+  // Unarchived, it's open to messages again.
+  expect(
+    (
+      await client.rooms[':room'].$patch({
+        param: { room: String(id) },
+        json: { archived: false },
+      })
+    ).status,
+  ).toBe(204)
+  const reopened = await client.rooms[':room'].messages.$post({
+    param: { room: String(id) },
+    json: { text: 'Hi', requestId: 'r' },
+  })
+  expect(reopened.status).toBe(202)
   expect(await host.workspace().familiars.list()).toContainEqual({
     id: bo.id,
     name: 'Bo',
     persona: 'You are Bo.',
+    avatar: 'fox',
+  })
+
+  // Whoever asks may change what Familiars call them.
+  expect((await client.me.$patch({ json: { name: ' ' } })).status).toBe(400)
+  expect((await client.me.$patch({ json: { name: 'Samuel' } })).status).toBe(
+    204,
+  )
+  expect(await (await client.me.$get()).json()).toEqual({
+    id: 'sam',
+    name: 'Samuel',
   })
 })

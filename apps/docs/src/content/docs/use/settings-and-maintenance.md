@@ -30,7 +30,7 @@ Settings live in `settings.json` in the data directory:
 ```
 
 - `name` is the assistant's name.
-- `owner` is the name your messages carry. It defaults to `owner`.
+- `owner` is the name your messages carry until you change it in the web app. Familiar reads it the first time it starts; after that, your name is the one you set. It defaults to `owner`.
 - `port` is where Familiar listens. It defaults to `4317`.
 
 Environment variables override the file: `FAMILIAR_NAME`, `FAMILIAR_OWNER`, `FAMILIAR_PORT`, `FAMILIAR_MODEL` for the starting chat and upkeep model, and `FAMILIAR_DATA_DIR` for the data directory. Restart the service after changing either.

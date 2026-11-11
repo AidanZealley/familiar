@@ -40,6 +40,7 @@ test("a room's view keeps its newest entries once it's long, and history reaches
                   cause: 1 as never,
                   outcome: 'answered',
                   messages: [],
+                  at: 0,
                 },
               },
               `reply:${n}`,

@@ -269,8 +269,8 @@ test('a connection waits for its token, persists, follows tool changes and is cl
   expect(server.state.requests).toEqual([])
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
-  expect((await info(familiar)).tools.map((tool) => tool.name)).toEqual([
-    'echo',
+  expect((await info(familiar)).tools).toEqual([
+    { name: 'echo', description: 'Echo a nested message.', readOnly: false },
   ])
   expect(
     server.state.requests.every(

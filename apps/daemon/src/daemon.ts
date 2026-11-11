@@ -8,7 +8,7 @@ import { openModels } from './models.ts'
 import { WEB_RENDERING } from './rendering.ts'
 import { loadPlugins } from './plugins.ts'
 import { openPush } from './push.ts'
-import { serveWorkspace } from './serve.ts'
+import { OWNER_ID, serveWorkspace } from './serve.ts'
 import { webPlugin } from './web/plugin.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
@@ -34,6 +34,8 @@ export async function serve() {
       account: { login: { getDeviceId: deviceId, agentName: config.name } },
       notify: push.notify,
       plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
+      // What Familiars call the owner, until they choose another name.
+      people: [{ id: OWNER_ID, name: config.owner }],
       // Web search and pages are useful to any Familiar; others opt in.
       defaultCapabilities: { plugins: [webPlugin.name] },
       secrets: fileSecretStore(dataPath('secrets.json')),

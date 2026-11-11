@@ -29,23 +29,36 @@ async function refusable(c: Context, run: () => Promise<Response>) {
 
 /**
  * A named room's setup, as far as the body gives it; `RoomsApi` checks the
- * rest. A `null` lead, or none, leaves the room open.
+ * rest. A `null` lead, or none, leaves the room open. A change may unarchive
+ * it with `archived: false`.
  */
 const setup = validator('json', (body, c) => {
-  const { name, familiars, lead } = (body ?? {}) as Record<string, unknown>
+  const { name, familiars, lead, archived } = (body ?? {}) as Record<
+    string,
+    unknown
+  >
   if (
     (name !== undefined && typeof name !== 'string') ||
     (familiars !== undefined &&
       !(Array.isArray(familiars) && familiars.every(Number.isSafeInteger))) ||
-    (lead != null && !Number.isSafeInteger(lead))
+    (lead != null && !Number.isSafeInteger(lead)) ||
+    (archived !== undefined && archived !== false)
   ) {
     return c.json(
-      { error: 'name must be text, familiars and lead Familiar IDs' },
+      {
+        error:
+          'name must be text, familiars and lead Familiar IDs, and archived only false',
+      },
       400,
     )
   }
   // IDs on the wire are plain numbers; `RoomsApi` checks they're Familiars.
-  return body as { name?: string; familiars?: number[]; lead?: number | null }
+  return body as {
+    name?: string
+    familiars?: number[]
+    lead?: number | null
+    archived?: false
+  }
 })
 
 /**
@@ -67,7 +80,7 @@ export function roomRoutes(rooms: RoomsApi) {
       )
       .post('/', can('rooms.create'), setup, (c) =>
         refusable(c, async () => {
-          const { lead, ...setup } = c.req.valid('json')
+          const { lead, archived: _, ...setup } = c.req.valid('json')
           return c.json(
             {
               id: await rooms.create({
@@ -141,6 +154,26 @@ export function roomRoutes(rooms: RoomsApi) {
             await (await roomOf(c)).note(c.req.valid('json'))
             return c.body(null, 202)
           }),
+      )
+      // Marks the room read by whoever asks, up to an entry they've seen.
+      .post(
+        '/:room/read',
+        can('rooms.read'),
+        validator('json', (body, c) => {
+          const entry = (body as { entry?: unknown } | null)?.entry
+          if (!Number.isSafeInteger(entry)) {
+            return c.json({ error: 'entry must be an entry ID' }, 400)
+          }
+          return { entry: entry as number }
+        }),
+        async (c) => {
+          const room = await roomOf(c)
+          await room.read(
+            c.get('author').id,
+            c.req.valid('json').entry as EntryId,
+          )
+          return c.body(null, 204)
+        },
       )
       // A page of entries older than `before`, newest first.
       .get(

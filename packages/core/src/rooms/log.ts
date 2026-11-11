@@ -1,9 +1,10 @@
 import type { Message } from '@earendil-works/pi-ai'
-import type {
-  EntryDraft,
-  EntryId,
-  TaskId,
-  Tx,
+import {
+  defineDoc,
+  type EntryDraft,
+  type EntryId,
+  type TaskId,
+  type Tx,
 } from '@earendil-works/pi-durable'
 import {
   formatAuthor,
@@ -17,7 +18,13 @@ import {
   type Addressed,
   type Author,
 } from '../conversation/message.ts'
-import type { FamiliarId } from '../workspace/familiars.ts'
+import { entriesOf } from '../pi/entries.ts'
+import {
+  Familiars,
+  type FamiliarId,
+  type FamiliarRecord,
+} from '../workspace/familiars.ts'
+import { knownAs, People } from '../workspace/people.ts'
 import {
   closedTo,
   membersOf,
@@ -72,6 +79,8 @@ export type ReplyData = {
   outcome: 'answered' | 'quiet' | 'failed' | 'stopped'
   /** Its run's assistant and tool-result messages, in order. */
   messages: Message[]
+  /** When it was posted, in ms since the epoch. */
+  at: number
 }
 
 /**
@@ -139,6 +148,201 @@ export const replyText = (reply: ReplyData) =>
     .map(textOf)
     .filter(Boolean)
     .join('\n')
+
+/** How long a preview's text may be: a line in a list, not the whole entry. */
+const PREVIEW_LENGTH = 160
+
+/** `text` on one line, cut to `PREVIEW_LENGTH`. */
+const excerpt = (text: string) => {
+  const line = text.replace(/\s+/g, ' ').trim()
+  return line.length > PREVIEW_LENGTH
+    ? `${line.slice(0, PREVIEW_LENGTH - 1)}…`
+    : line
+}
+
+/**
+ * A room's newest entry worth showing, as a list previews it: who it's
+ * from, the start of what it says, and when. A reply that stayed quiet
+ * isn't worth showing; a failed one is, so a list can say the room's last
+ * turn failed.
+ */
+export type RoomPreview = {
+  entry: EntryId
+  /** When it was posted, in ms since the epoch. */
+  at: number
+  /** The start of what it says, on one line. */
+  text: string
+} & (
+  | { kind: 'message'; author: Author }
+  | {
+      kind: 'reply'
+      familiar: FamiliarId
+      /** Its name at the time. */
+      name: string
+      outcome: Exclude<ReplyData['outcome'], 'quiet'>
+    }
+  | {
+      /** A handoff, from `familiar`, or `familiar`'s reminder falling due. */
+      kind: 'handoff' | 'reminder'
+      familiar: FamiliarId
+      /** Its name at the time. */
+      name: string
+    }
+  | { kind: 'note' }
+)
+
+/** `entry`, posted as `id`, as a list previews it; undefined if not worth showing. */
+function previewOf(
+  id: EntryId,
+  entry: RoomEntry,
+  familiars: Readonly<Record<string, FamiliarRecord>>,
+): RoomPreview | undefined {
+  const nameOf = (familiar: FamiliarId) => familiars[familiar]?.name ?? ''
+  switch (entry.kind) {
+    case MESSAGE_KIND: {
+      const { author, text, at } = entry.data
+      return { entry: id, at, text: excerpt(text), kind: 'message', author }
+    }
+    case REPLY_KIND: {
+      const { familiar, name, outcome, at } = entry.data
+      return outcome === 'quiet'
+        ? undefined
+        : {
+            entry: id,
+            at,
+            text: excerpt(replyText(entry.data)),
+            kind: 'reply',
+            familiar,
+            name,
+            outcome,
+          }
+    }
+    case HANDOFF_KIND: {
+      const { from, note, at } = entry.data
+      return {
+        entry: id,
+        at,
+        text: excerpt(note),
+        kind: 'handoff',
+        familiar: from,
+        name: nameOf(from),
+      }
+    }
+    case SCHEDULED_KIND: {
+      const { familiar, prompt, due, late } = entry.data
+      return {
+        entry: id,
+        at: late ?? due,
+        text: excerpt(prompt),
+        kind: 'reminder',
+        familiar,
+        name: nameOf(familiar),
+      }
+    }
+    case NOTE_KIND:
+      return {
+        entry: id,
+        at: entry.data.at,
+        text: excerpt(entry.data.text),
+        kind: 'note',
+      }
+  }
+}
+
+/**
+ * How far a person has read a room: up to `entry`, by which point the room
+ * had shown `count` entries. What's unread is the room's count since.
+ */
+export type ReadMarker = { entry: EntryId; count: number }
+
+/**
+ * What a room's log has shown: its newest entry worth showing, how many it
+ * has shown, and how far each person has read it, by host author ID. One
+ * value, so a list never sees a post without its author having read it.
+ */
+export type RoomShown = {
+  last: RoomPreview
+  count: number
+  read: Record<string, ReadMarker>
+}
+
+/**
+ * What each room's log has shown, by RoomId. Derived from each entry as
+ * it's appended, in the same commit (see `noteShown`), so lists can preview
+ * every room, sort them and count what's unread without reading their logs.
+ */
+export const Shown = defineDoc<Record<string, RoomShown>>({
+  kind: 'familiar.shown',
+  version: 1,
+  scope: 'session',
+  initial: () => ({}),
+  checkpointWhen: () => true, // small: always store it whole
+})
+
+/**
+ * Records `entry`, just appended to `room` as `id`, as what the room last
+ * showed, in the commit that appends it. Every entry a room shows comes
+ * through here: `post`, and adopting a chat. A person has read what they
+ * wrote, so their own message moves their marker to it.
+ */
+export async function noteShown(
+  tx: Tx,
+  room: RoomId,
+  id: EntryId,
+  entry: RoomEntry,
+) {
+  const preview = previewOf(id, entry, (await tx.doc(Familiars)).familiars)
+  if (!preview) {
+    return
+  }
+  const shown = await tx.doc(Shown)
+  const count = (shown[room]?.count ?? 0) + 1
+  shown[room] = {
+    last: preview,
+    count,
+    read: {
+      ...shown[room]?.read,
+      ...(entry.kind === MESSAGE_KIND && {
+        [entry.data.author.id]: { entry: id, count },
+      }),
+    },
+  }
+}
+
+/**
+ * Marks `room` read by `person` up to entry `upTo`, the newest they've
+ * seen; never back from where it was. Entries posted since still count as
+ * unread, so one that arrives as they read isn't lost.
+ */
+export async function markRead(
+  tx: Tx,
+  room: RoomId,
+  person: string,
+  upTo: EntryId,
+) {
+  const shown = (await tx.doc(Shown))[room]
+  const marker = shown?.read[person]
+  if (!shown || (marker && upTo <= marker.entry)) {
+    return
+  }
+  // Reads before writes: a transaction cannot read tables after writing.
+  let since = 0
+  if (upTo < shown.last.entry) {
+    for await (const entry of entriesOf(tx, {
+      conversationId: room,
+      minEntryId: (upTo + 1) as EntryId,
+      order: 'ascending',
+    })) {
+      if (previewOf(entry.id, entry as unknown as RoomEntry, {})) {
+        since++
+      }
+    }
+  }
+  shown.read[person] = {
+    entry: Math.min(upTo, shown.last.entry) as EntryId,
+    count: shown.count - since,
+  }
+}
 
 /**
  * `mentions`, if each one's span is inside `text` and starts with `@`, and
@@ -280,12 +484,16 @@ export async function post(
   if (closed) {
     throw new RoomError(closed)
   }
-  if (entry.kind === MESSAGE_KIND && entry.data.mentions) {
-    entry.data.mentions = checkMentions(
-      record,
-      entry.data.text,
-      entry.data.mentions,
-    )
+  if (entry.kind === MESSAGE_KIND) {
+    // Signed with the name the person chose, if they have.
+    entry.data.author = knownAs(await tx.doc(People), entry.data.author)
+    if (entry.data.mentions) {
+      entry.data.mentions = checkMentions(
+        record,
+        entry.data.text,
+        entry.data.mentions,
+      )
+    }
   }
   // The entries in view, newest first, up to as many as could need moving.
   const head = (await tx.latestHeadMarker(room))?.head
@@ -309,6 +517,7 @@ export async function post(
   // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
   const appended = await tx.appendEntry(room, entry as EntryDraft)
   tx.placeSubmission(submission.id, appended.id)
+  await noteShown(tx, room, appended.id, entry)
   const start = viewStart([...inView.map((item) => item.id), appended.id])
   if (start !== undefined) {
     await startView(tx, room, start)

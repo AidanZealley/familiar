@@ -58,7 +58,10 @@ export {
   type RoomSummary,
   type RoomActivity,
   type TurnActivity,
+  type RoomListing,
+  type RoomPreview,
   type RoomsState,
+  type RoomTurn,
 } from './rooms/index.ts'
 export { defaultPersona } from './persona.ts'
 export {
