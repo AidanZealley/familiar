@@ -6,13 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useDialog } from '@/lib/dialogs'
+import { openDialog } from '@/lib/dialogs'
 import type { NewMenuProps } from './types'
 
 /** Makes a Familiar, or a room for several. */
 export const NewMenu = ({ className }: NewMenuProps) => {
-  const { open } = useDialog()
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -28,11 +26,11 @@ export const NewMenu = ({ className }: NewMenuProps) => {
         <PlusIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem onClick={() => open({ kind: 'new-familiar' })}>
+        <DropdownMenuItem onClick={() => openDialog({ kind: 'new-familiar' })}>
           <SparklesIcon />
           New Familiar
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => open({ kind: 'new-room' })}>
+        <DropdownMenuItem onClick={() => openDialog({ kind: 'new-room' })}>
           <HashIcon />
           New room
         </DropdownMenuItem>

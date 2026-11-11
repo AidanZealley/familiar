@@ -1,6 +1,5 @@
-import { Link } from '@tanstack/react-router'
 import { cn } from 'cn'
-import { dialogSearch, pushedState } from '@/lib/dialogs'
+import { openDialog } from '@/lib/dialogs'
 import { useWorkspace } from '@/lib/familiar'
 import type { FamiliarLinkProps } from './types'
 
@@ -21,14 +20,17 @@ export const FamiliarLink = ({
     )
   }
   return (
-    <Link
-      to="."
-      search={dialogSearch({ kind: 'familiar', id })}
-      state={(previous) => pushedState(previous)}
+    <button
+      type="button"
+      onClick={() => openDialog({ kind: 'familiar', id })}
       aria-label={children ? `${name} settings` : undefined}
-      className={cn(!children && 'font-medium hover:underline', className)}
+      className={cn(
+        'text-left',
+        !children && 'font-medium hover:underline',
+        className,
+      )}
     >
       {children ?? name}
-    </Link>
+    </button>
   )
 }

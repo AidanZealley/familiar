@@ -596,6 +596,34 @@ test("stopping a room stops only its own turns: other rooms' work, in the same F
   expect((await replies(boDm))[0].outcome).toBe('answered')
 })
 
+test('archiving a room stops its turns in progress and queued, so no reply lands in it', async () => {
+  let holding = false
+  const { workspace, create, room } = await open((request, signal) => {
+    if (request.type === 'message' && request.text.includes('hold')) {
+      holding = true
+      return hang(signal)
+    }
+    return echo(request)
+  })
+  const ada = await create('Ada')
+  const id = await workspace.rooms.create({ name: 'kitchen', familiars: [ada] })
+  const kitchen = await room(id)
+  const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
+  await kitchen.post({ author: AIDAN, text: 'hold', requestId: '1' })
+  await expect.poll(() => holding).toBe(true)
+  await kitchen.post({ author: AIDAN, text: 'next', requestId: '2' })
+  await expect
+    .poll(async () => Object.keys(await read(() => kitchen.watchTurns())))
+    .toHaveLength(2)
+
+  await workspace.rooms.archive(id)
+  expect(await read(() => kitchen.watchTurns())).toEqual({})
+  // Ada is free again, and answers elsewhere; nothing reached the archived room.
+  await dm.post({ author: AIDAN, text: 'hi', requestId: '3' })
+  await expect.poll(async () => (await replies(dm)).length).toBe(1)
+  expect(await replies(kitchen)).toEqual([])
+})
+
 test("the rooms list previews each room's newest entry, counts what each person hasn't read, and shows every room's turns and a failed last turn", async () => {
   const held = new Map<string, () => void>()
   const { workspace, create, room } = await open((request, signal) => {

@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
 import { PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { pushedState } from '@/lib/dialogs'
 import { AddServerForm } from './components/add-server-form'
 import { ConnectionDetail } from './components/connection-detail'
 import { ConnectionDrawer } from './components/connection-drawer'
@@ -15,16 +13,15 @@ import { connectionsQuery } from './query'
 import { idOf, statusOf } from './status'
 import type { DrawerState } from './types'
 
-const route = getRouteApi('__root__')
-
 /**
- * Settings › Connections: the list, then the selected connection. The
- * selection is in the URL, so Back returns to the list.
+ * Settings › Connections: the list, then the selected connection, whose
+ * own back button returns to the list. A removed one is no longer found, so
+ * the list shows again.
  */
 export const Connections = () => {
-  const navigate = route.useNavigate()
   const { data: connections, error, refetch } = useQuery(connectionsQuery)
-  const { connection: id, q = '' } = route.useSearch()
+  const [id, setId] = useState<string>()
+  const [query, setQuery] = useState('')
   const [drawer, setDrawer] = useState<DrawerState>()
 
   if (!connections) {
@@ -52,6 +49,7 @@ export const Connections = () => {
           key={idOf(selected)}
           connection={selected}
           onEdit={() => setDrawer({ type: 'edit', id: idOf(selected) })}
+          onBack={() => setId(undefined)}
         />
       ) : (
         <div className="flex flex-col gap-4">
@@ -63,7 +61,12 @@ export const Connections = () => {
             <PlusIcon />
             Add server
           </Button>
-          <ConnectionList connections={sorted} query={q} />
+          <ConnectionList
+            connections={sorted}
+            query={query}
+            onQuery={setQuery}
+            onSelect={setId}
+          />
         </div>
       )}
       <ConnectionDrawer
@@ -73,12 +76,8 @@ export const Connections = () => {
         description="It connects in the background. Then choose which Familiars use it, in each one's Tools."
       >
         <AddServerForm
-          onAdded={async (name, tokenError) => {
-            await navigate({
-              to: '.',
-              search: (search) => ({ ...search, connection: `mcp:${name}` }),
-              state: (previous) => pushedState(previous),
-            })
+          onAdded={(name, tokenError) => {
+            setId(`mcp:${name}`)
             // A token that failed to save leaves it waiting for one: ask again.
             setDrawer(
               tokenError

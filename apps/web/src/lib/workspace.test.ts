@@ -43,6 +43,25 @@ describe('previewOf', () => {
     ).toBe('Ada: Sure')
   })
 
+  it("leaves a DM's Familiar unnamed, since the row is titled with it", () => {
+    const reply = (outcome: 'answered' | 'failed', text: string) =>
+      previewOf(
+        {
+          kind: 'reply',
+          familiar: ada.id,
+          outcome,
+          text,
+          at,
+          entry,
+        } as RoomPreview,
+        [ada],
+        'me',
+        true,
+      )
+    expect(reply('answered', 'Sure')).toBe('Sure')
+    expect(reply('failed', 'partial')).toBe("Couldn't answer")
+  })
+
   it('says a failed reply failed, whatever it said', () => {
     expect(
       previewOf(

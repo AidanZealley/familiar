@@ -13,7 +13,8 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { useDialog } from '@/lib/dialogs'
+import { closeDialog, useOpenDialog } from '@/lib/dialogs'
+import { useIsPhone } from '@/lib/media'
 import { CategoryBody } from './components/category-body'
 import { CategoryList } from './components/category-list'
 import type { SettingsCategory, SettingsDialogProps } from './types'
@@ -31,15 +32,17 @@ const matches = (category: SettingsCategory, query: string) =>
 /**
  * The one settings shell: a title bar with Close, a searchable list of
  * categories, and the chosen category beside it. On a phone it fills the
- * screen: the list, then each category as a screen with Back. The URL owns
- * which category is open.
+ * screen: the list, then each category as a screen with Back. It owns which
+ * category is shown, starting on the one its opener named, if any.
  */
 export const SettingsDialog = ({
   title,
   media,
   groups,
 }: SettingsDialogProps) => {
-  const { category, isPhone, showCategory, backToList, close } = useDialog()
+  const isPhone = useIsPhone()
+  const initial = useOpenDialog()?.category
+  const [category, showCategory] = useState(initial)
   const [query, setQuery] = useState('')
   const all = groups.flatMap((group) => group.categories)
   const current =
@@ -67,7 +70,7 @@ export const SettingsDialog = ({
           onKeyDown={(event) => {
             const first = visible[0]?.categories[0]
             if (event.key === 'Enter' && first) {
-              void showCategory(first.id)
+              showCategory(first.id)
             }
           }}
         />
@@ -75,7 +78,7 @@ export const SettingsDialog = ({
       <CategoryList
         groups={visible}
         current={current?.id}
-        onShow={(id) => void showCategory(id)}
+        onShow={showCategory}
       />
       {visible.length === 0 && (
         <p className="px-2 py-4 text-xs text-muted-foreground">
@@ -86,7 +89,7 @@ export const SettingsDialog = ({
   )
 
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
+    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
       <DialogContent
         showCloseButton={false}
         className="flex flex-col gap-0 overflow-hidden p-0 max-md:inset-0 max-md:h-(--app-height) max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:ring-0 md:h-[min(44rem,calc(100dvh-4rem))] md:max-w-4xl"
@@ -98,7 +101,7 @@ export const SettingsDialog = ({
                 variant="ghost"
                 size="icon-lg"
                 aria-label="All settings"
-                onClick={backToList}
+                onClick={() => showCategory(undefined)}
               >
                 <ChevronLeftIcon />
               </Button>

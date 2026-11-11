@@ -9,8 +9,13 @@ import { TranscriptItem } from '../transcript-item'
 import type { TranscriptItemsProps } from './types'
 
 /** The transcript's items, with the newest turn anchored while it's in view. */
-export const TranscriptItems = ({ items }: TranscriptItemsProps) => {
+export const TranscriptItems = ({ items, dm }: TranscriptItemsProps) => {
   const runs = useMemo(() => replyRuns(items), [items])
+  // Each run by its last item, under which a DM shows the time.
+  const ends = useMemo(
+    () => new Map([...runs.values()].map((run) => [run.last, run])),
+    [runs],
+  )
   const days = useMemo(() => dayStarts(items), [items])
   const { end: scrolledUp } = useMessageScrollerScrollable()
   // A message, or a scheduled prompt, starts a turn. When one item replaces another without the count changing, the scroller
@@ -41,7 +46,12 @@ export const TranscriptItems = ({ items }: TranscriptItemsProps) => {
           <MarkerContent>{days.get(item.id)}</MarkerContent>
         </Marker>
       )}
-      <TranscriptItem item={item} run={runs.get(item.id)} />
+      <TranscriptItem
+        item={item}
+        dm={dm}
+        run={runs.get(item.id)}
+        end={ends.get(item.id)}
+      />
     </MessageScrollerItem>
   ))
 }

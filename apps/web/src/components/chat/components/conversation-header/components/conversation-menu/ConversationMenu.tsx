@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useDialog } from '@/lib/dialogs'
+import { openDialog } from '@/lib/dialogs'
 import type { ConversationMenuProps } from './types'
 
 /**
@@ -27,8 +27,6 @@ export const ConversationMenu = ({
   room,
   className,
 }: ConversationMenuProps) => {
-  const { open } = useDialog()
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -47,14 +45,16 @@ export const ConversationMenu = ({
         {room.kind === 'dm' ? (
           <>
             <DropdownMenuItem
-              onClick={() => open({ kind: 'familiar', id: room.familiar })}
+              onClick={() =>
+                openDialog({ kind: 'familiar', id: room.familiar })
+              }
             >
               <SettingsIcon />
               Settings
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() =>
-                open({ kind: 'familiar', id: room.familiar }, 'memory')
+                openDialog({ kind: 'familiar', id: room.familiar }, 'memory')
               }
             >
               <BrainIcon />
@@ -62,7 +62,7 @@ export const ConversationMenu = ({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() =>
-                open({ kind: 'familiar', id: room.familiar }, 'schedules')
+                openDialog({ kind: 'familiar', id: room.familiar }, 'schedules')
               }
             >
               <AlarmClockIcon />
@@ -72,7 +72,7 @@ export const ConversationMenu = ({
             <DropdownMenuItem
               variant="destructive"
               onClick={() =>
-                open({ kind: 'familiar', id: room.familiar }, 'remove')
+                openDialog({ kind: 'familiar', id: room.familiar }, 'remove')
               }
             >
               <Trash2Icon />
@@ -82,19 +82,21 @@ export const ConversationMenu = ({
         ) : (
           <>
             <DropdownMenuItem
-              onClick={() => open({ kind: 'room', id: room.id })}
+              onClick={() => openDialog({ kind: 'room', id: room.id })}
             >
               <SettingsIcon />
               Settings
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => open({ kind: 'room', id: room.id }, 'members')}
+              onClick={() =>
+                openDialog({ kind: 'room', id: room.id }, 'members')
+              }
             >
               <UsersIcon />
               Members
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => open({ kind: 'room', id: room.id }, 'lead')}
+              onClick={() => openDialog({ kind: 'room', id: room.id }, 'lead')}
             >
               <CrownIcon />
               Lead
@@ -104,7 +106,9 @@ export const ConversationMenu = ({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  onClick={() => open({ kind: 'room', id: room.id }, 'archive')}
+                  onClick={() =>
+                    openDialog({ kind: 'room', id: room.id }, 'archive')
+                  }
                 >
                   <ArchiveIcon />
                   Archive…

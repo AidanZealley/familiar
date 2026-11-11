@@ -41,11 +41,11 @@ describe('replyRuns', () => {
       { type: 'waiting', id: 'w', familiar: 1, status: 'running' },
     ])
     expect([...runs]).toEqual([
-      ['tools', { live: false, time: 20 }],
-      ['quiet', { live: false, time: 30 }],
-      ['other', { live: false, time: 40 }],
+      ['tools', { last: 'answer', live: false, time: 20 }],
+      ['quiet', { last: 'quiet', live: false, time: 30 }],
+      ['other', { last: 'other', live: false, time: 40 }],
       // Its turn is still going, so it has no time yet.
-      ['next', { live: true }],
+      ['next', { last: 'w', live: true }],
     ])
   })
 })

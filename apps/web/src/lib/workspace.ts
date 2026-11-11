@@ -124,18 +124,26 @@ export const plainText = (markdown: string) =>
 
 /**
  * A room's latest entry as a list previews it, on one line: `Ada: Sure…`,
- * `You: Thanks`, `Ada couldn't answer`. `me` is the person's author ID.
+ * `You: Thanks`, `Ada couldn't answer`. `me` is the person's author ID. A DM's
+ * row is already titled with its Familiar's name, so there its words go
+ * unsigned: `Sure…`, `Couldn't answer`.
  */
 export const previewOf = (
   latest: RoomPreview,
   familiars: readonly FamiliarSummary[],
   me: string | undefined,
+  dm = false,
 ) => {
   const last = { ...latest, text: plainText(latest.text) }
   switch (last.kind) {
     case 'message':
       return `${last.author.id === me ? 'You' : last.author.name}: ${last.text}`
     case 'reply': {
+      if (dm) {
+        return last.outcome === 'failed'
+          ? "Couldn't answer"
+          : last.text || (last.outcome === 'stopped' ? 'Stopped' : 'Answered')
+      }
       const name = nameOf(familiars, last.familiar, last.name)
       if (last.outcome === 'failed') {
         return `${name} couldn't answer`
@@ -145,7 +153,9 @@ export const previewOf = (
         : `${name} ${last.outcome === 'stopped' ? 'was stopped' : 'answered'}`
     }
     case 'handoff':
-      return `${nameOf(familiars, last.familiar, last.name)} handed off: ${last.text}`
+      return dm
+        ? `Handed off: ${last.text}`
+        : `${nameOf(familiars, last.familiar, last.name)} handed off: ${last.text}`
     case 'reminder':
       return `Reminder: ${last.text}`
     case 'note':

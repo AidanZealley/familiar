@@ -57,7 +57,9 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
             )}
           >
             {failed && <CircleAlertIcon className="size-3 shrink-0" />}
-            <span className="truncate">{previewOf(last, familiars, me)}</span>
+            <span className="truncate">
+              {previewOf(last, familiars, me, room?.kind === 'dm')}
+            </span>
           </ItemDescription>
         ) : (
           fallback && (

@@ -1,14 +1,15 @@
-import { getRouteApi } from '@tanstack/react-router'
 import { SearchIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { idOf, needsAttention, whereOf } from '../../status'
 import { ConnectionRow } from './components/connection-row'
 import type { ConnectionListProps } from './types'
 
-const route = getRouteApi('__root__')
-
-export const ConnectionList = ({ connections, query }: ConnectionListProps) => {
-  const navigate = route.useNavigate()
+export const ConnectionList = ({
+  connections,
+  query,
+  onQuery,
+  onSelect,
+}: ConnectionListProps) => {
   const needle = query.trim().toLowerCase()
 
   // Tool names match too, to answer "which one can start a print?"
@@ -57,17 +58,7 @@ export const ConnectionList = ({ connections, query }: ConnectionListProps) => {
           spellCheck={false}
           className="pl-8"
           value={query}
-          onChange={(event) =>
-            void navigate({
-              to: '.',
-              search: (search) => ({
-                ...search,
-                q: event.target.value || undefined,
-              }),
-              replace: true,
-              state: true,
-            })
-          }
+          onChange={(event) => onQuery(event.target.value)}
         />
       </div>
       <nav aria-label="Connections" className="flex flex-col gap-4">
@@ -80,7 +71,11 @@ export const ConnectionList = ({ connections, query }: ConnectionListProps) => {
             <ul className="flex flex-col gap-1">
               {items.map(({ connection, tools }) => (
                 <li key={idOf(connection)}>
-                  <ConnectionRow connection={connection} tools={tools} />
+                  <ConnectionRow
+                    connection={connection}
+                    tools={tools}
+                    onSelect={() => onSelect(idOf(connection))}
+                  />
                 </li>
               ))}
             </ul>

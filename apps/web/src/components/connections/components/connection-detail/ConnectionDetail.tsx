@@ -1,11 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
 import { cn } from 'cn'
-import { pushedState } from '@/lib/dialogs'
 import { statusOf } from '../../status'
 import { StatusDot } from '../status-dot'
 import { TransportDetails } from '../transport-details'
@@ -16,6 +14,7 @@ import type { ConnectionDetailProps } from './types'
 export const ConnectionDetail = ({
   connection,
   onEdit,
+  onBack,
 }: ConnectionDetailProps) => {
   const status = statusOf(connection)
   const reconnect = useMutation({
@@ -32,14 +31,7 @@ export const ConnectionDetail = ({
         variant="ghost"
         size="sm"
         className="-mb-3 -ml-2.5 self-start"
-        nativeButton={false}
-        render={
-          <Link
-            to="."
-            search={({ connection: _shown, ...search }) => search}
-            state={(previous) => pushedState(previous)}
-          />
-        }
+        onClick={onBack}
       >
         <ChevronLeftIcon />
         Connections

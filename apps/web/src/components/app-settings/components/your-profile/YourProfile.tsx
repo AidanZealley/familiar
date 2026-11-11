@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
-import { PersonAvatar } from '@/components/person-avatar'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -32,15 +31,12 @@ export const YourProfile = ({ me }: YourProfileProps) => {
       <FieldGroup className="gap-6">
         <Field>
           <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
-          <div className="flex items-center gap-3">
-            <PersonAvatar name={name.trim() || me.name} />
-            <Input
-              id={`${id}-name`}
-              value={name}
-              autoComplete="name"
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
+          <Input
+            id={`${id}-name`}
+            value={name}
+            autoComplete="name"
+            onChange={(event) => setName(event.target.value)}
+          />
           <FieldDescription>
             Familiars call you this from your next message.
           </FieldDescription>

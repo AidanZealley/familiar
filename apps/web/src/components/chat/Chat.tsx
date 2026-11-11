@@ -82,7 +82,10 @@ export const Chat = ({ room }: ChatProps) => {
               aria-busy={transcript?.busy}
               className="mx-auto w-full max-w-(--page-width) gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
             >
-              <TranscriptItems items={transcript?.items ?? []} />
+              <TranscriptItems
+                items={transcript?.items ?? []}
+                dm={room.kind === 'dm'}
+              />
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <OlderMessages firstItemIds={firstItemIds} />

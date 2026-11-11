@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
-import { dialogSearch, pushedState, type DialogRef } from '@/lib/dialogs'
+import { openDialog, type DialogRef } from '@/lib/dialogs'
 import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
 import { ConversationMenu } from './components/conversation-menu'
 import { ConversationStatus } from './components/conversation-status'
@@ -39,12 +39,11 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
         >
           <ChevronLeftIcon />
         </Button>
-        <Link
-          to="."
-          search={dialogSearch(settings)}
-          state={(previous) => pushedState(previous)}
+        <button
+          type="button"
+          onClick={() => openDialog(settings)}
           aria-label={`${title} settings`}
-          className="group/title flex min-w-0 items-center gap-2.5 py-1 md:-ml-1 md:pl-1"
+          className="group/title flex min-w-0 items-center gap-2.5 py-1 text-left md:-ml-1 md:pl-1"
         >
           {dm ? (
             <PixelAvatar familiar={dm} talking={live.running.includes(dm.id)} />
@@ -59,7 +58,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
             </span>
             <ConversationStatus room={room} live={live} />
           </span>
-        </Link>
+        </button>
         <ConversationMenu room={room} className="ml-auto" />
       </div>
     </header>

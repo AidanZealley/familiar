@@ -19,13 +19,12 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useDialog } from '@/lib/dialogs'
+import { closeDialog } from '@/lib/dialogs'
 import { workspace } from '@/lib/familiar'
 
 /** Makes a Familiar with the default tools, then opens its DM. */
 export const NewFamiliarDialog = () => {
   const id = useId()
-  const { close } = useDialog()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [persona, setPersona] = useState('')
@@ -35,17 +34,16 @@ export const NewFamiliarDialog = () => {
         name: name.trim(),
         ...(persona.trim() && { persona: persona.trim() }),
       }),
-    // In the dialog's place, so Back returns to the page under it.
+    // A new page, which closes the dialog.
     onSuccess: (familiar) =>
       navigate({
         to: '/dm/$familiar',
         params: { familiar: String(familiar) },
-        replace: true,
       }),
   })
 
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
+    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
       <DialogContent className="sm:max-w-md">
         <form
           className="flex flex-col gap-4"
@@ -88,7 +86,7 @@ export const NewFamiliarDialog = () => {
             <FieldError>{create.error?.message}</FieldError>
           </FieldGroup>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close}>
+            <Button type="button" variant="outline" onClick={closeDialog}>
               Cancel
             </Button>
             <Button type="submit" disabled={!name.trim() || create.isPending}>
