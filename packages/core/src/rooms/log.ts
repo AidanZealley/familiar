@@ -454,6 +454,9 @@ export type TurnInput = {
 /** A turn's result: the reply it posted, if any. */
 export type TurnResult = { reply: EntryId | null }
 
+/** An entry to post, with the request that caused it: a retry finds it by this. */
+export type Posting = { entry: RoomEntry; requestId: string }
+
 /**
  * Posts `entry` to `room`'s log, with `requestId` saying what caused it,
  * and creates the turns it causes, all in the commit `tx`: a message and
@@ -468,31 +471,53 @@ export async function post(
   room: RoomId,
   entry: RoomEntry,
   requestId: string,
-): Promise<{ entry: EntryId; turns: TaskId<TurnResult>[] }> {
+) {
+  const [posted] = await postAll(tx, turn, room, [{ entry, requestId }])
+  return posted
+}
+
+/**
+ * Posts each of `postings` to `room`'s log in order, as `post` does one, in
+ * the one commit `tx`: how a turn files its reply and then the handoffs it
+ * made, so each handoff follows the reply it came from.
+ */
+export async function postAll(
+  tx: Tx,
+  turn: TurnTask,
+  room: RoomId,
+  postings: readonly Posting[],
+): Promise<{ entry: EntryId; turns: TaskId<TurnResult>[] }[]> {
   // Reads before writes: a transaction cannot read tables after writing.
-  const posted = await tx.submissionByRequest(room, requestId)
-  if (posted?.entry !== undefined) {
-    return { entry: posted.entry, turns: [] }
+  const posted: (EntryId | undefined)[] = []
+  for (const { requestId } of postings) {
+    posted.push((await tx.submissionByRequest(room, requestId))?.entry)
+  }
+  const fresh = postings.filter((_, index) => posted[index] === undefined)
+  if (!fresh.length) {
+    return posted.map((entry) => ({ entry: entry!, turns: [] }))
   }
   const record = (await tx.doc(Rooms)).rooms[room]
   if (!record) {
     throw new RoomError(`No room ${room}.`)
   }
   // A turn that was under way still files its reply.
-  const closed =
-    entry.kind === REPLY_KIND ? undefined : await closedTo(tx, record)
+  const closed = fresh.every(({ entry }) => entry.kind === REPLY_KIND)
+    ? undefined
+    : await closedTo(tx, record)
   if (closed) {
     throw new RoomError(closed)
   }
-  if (entry.kind === MESSAGE_KIND) {
-    // Signed with the name the person chose, if they have.
-    entry.data.author = knownAs(await tx.doc(People), entry.data.author)
-    if (entry.data.mentions) {
-      entry.data.mentions = checkMentions(
-        record,
-        entry.data.text,
-        entry.data.mentions,
-      )
+  for (const { entry } of fresh) {
+    if (entry.kind === MESSAGE_KIND) {
+      // Signed with the name the person chose, if they have.
+      entry.data.author = knownAs(await tx.doc(People), entry.data.author)
+      if (entry.data.mentions) {
+        entry.data.mentions = checkMentions(
+          record,
+          entry.data.text,
+          entry.data.mentions,
+        )
+      }
     }
   }
   // The entries in view, newest first, up to as many as could need moving.
@@ -505,45 +530,58 @@ export async function post(
     },
     VIEW_LIMIT,
   )
-  const inView = items.filter((item) => item.head === undefined).reverse()
+  const inView = items
+    .filter((item) => item.head === undefined)
+    .reverse()
+    .map((item) => item.id)
 
-  // Raw admission: a room never runs, so admitting a write is appending it.
-  const submission = await tx.createSubmission({
-    type: 'write',
-    conversationId: room,
-    requestId,
-    status: 'queued',
-  })
-  // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
-  const appended = await tx.appendEntry(room, entry as EntryDraft)
-  tx.placeSubmission(submission.id, appended.id)
-  await noteShown(tx, room, appended.id, entry)
-  const start = viewStart([...inView.map((item) => item.id), appended.id])
+  const results = []
+  for (const [index, { entry, requestId }] of postings.entries()) {
+    const already = posted[index]
+    if (already !== undefined) {
+      results.push({ entry: already, turns: [] })
+      continue
+    }
+    // Raw admission: a room never runs, so admitting a write is appending it.
+    const submission = await tx.createSubmission({
+      type: 'write',
+      conversationId: room,
+      requestId,
+      status: 'queued',
+    })
+    // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
+    const appended = await tx.appendEntry(room, entry as EntryDraft)
+    tx.placeSubmission(submission.id, appended.id)
+    await noteShown(tx, room, appended.id, entry)
+    inView.push(appended.id)
+
+    const turns: TaskId<TurnResult>[] = []
+    for (const { familiar, addressed } of recipients(record, entry)) {
+      const after = addressed === 'open' ? turns.at(-1) : undefined
+      // Background: a room's Stop aborts them, and nothing waits for a room.
+      turns.push(
+        await tx.createTask(
+          turn,
+          {
+            room,
+            familiar,
+            cause: appended.id,
+            addressed,
+            ...(after !== undefined && { after }),
+          },
+          {
+            ownership: { kind: 'conversation' },
+            conversationId: room,
+            background: true,
+          },
+        ),
+      )
+    }
+    results.push({ entry: appended.id, turns })
+  }
+  const start = viewStart(inView)
   if (start !== undefined) {
     await startView(tx, room, start)
   }
-
-  const turns: TaskId<TurnResult>[] = []
-  for (const { familiar, addressed } of recipients(record, entry)) {
-    const after = addressed === 'open' ? turns.at(-1) : undefined
-    // Background: a room's Stop aborts them, and nothing waits for a room.
-    turns.push(
-      await tx.createTask(
-        turn,
-        {
-          room,
-          familiar,
-          cause: appended.id,
-          addressed,
-          ...(after !== undefined && { after }),
-        },
-        {
-          ownership: { kind: 'conversation' },
-          conversationId: room,
-          background: true,
-        },
-      ),
-    )
-  }
-  return { entry: appended.id, turns }
+  return results
 }

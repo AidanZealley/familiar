@@ -23,7 +23,7 @@ pnpm install
 pnpm dev
 ```
 
-This starts the scripted daemon on port 4318 and the UI on 5174 with disposable in-memory data. Try `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error` in chat. Only the model and external services are simulated. Add scenarios under `src/demo/scenarios/` and register them in `src/demo/model.ts`.
+This starts the scripted daemon on port 4318 and the UI on 5174 with disposable in-memory data. It opens on Rowan's household, a few days in: four Familiars, their DMs and rooms, memory, schedules and connections, with Spool still busy watching a print. The household is written as data in [src/demo/household/story.ts](src/demo/household/story.ts), each message with the replies it gets; add to it there. Anything the story doesn't script falls back to the scenarios: try `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error` in Juniper's DM, which has the demo plugin. Only the model and external services are simulated. Add scenarios under `src/demo/scenarios/` and register them in `src/demo/model.ts`.
 
 `pnpm start` serves the real assistant; `pnpm sign-in` changes its saved provider login. In this package, `pnpm dev:live` starts a real daemon too. Use these only when you intend to work with that installation. Never run a second daemon over its storage. Leave the running service, port 4317 and its data untouched during ordinary development.
 
