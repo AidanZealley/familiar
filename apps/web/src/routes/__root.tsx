@@ -1,39 +1,41 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { useStore } from 'zustand'
+import { createRootRoute, Outlet, useMatch } from '@tanstack/react-router'
+import { cn } from 'cn'
 import { AppError } from '@/components/app-error'
 import { AppLoader } from '@/components/app-loader'
-import { SiteHeader } from '@/components/site-header'
+import { Dialogs } from '@/components/dialogs'
+import { Sidebar } from '@/components/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { connectionProblems } from '@/lib/connection-problems'
-import { home, useRoom, useWorkspace } from '@/lib/familiar'
+import { validateAppSearch } from '@/lib/dialogs'
+import { useWorkspace } from '@/lib/familiar'
 import { useTheme } from '@/lib/theme'
 
-// Below the header, clear of the composer on a phone.
+// Below a conversation's header, clear of the composer on a phone.
 const toastOffset = { top: 'calc(var(--chrome) + 0.5rem)' }
 
-/** The app, once its Familiar and chat are found. */
-const Ready = () => {
+/**
+ * The sidebar beside the open conversation, and any dialog over them. On a
+ * phone, one at a time: the sidebar is home, and a conversation takes the
+ * whole screen.
+ */
+const Shell = () => {
   const { theme } = useTheme()
-  // The chat's first view is the readiness signal and stays present on reconnect.
-  const startup = useRoom((state) =>
-    state.view === undefined ? state.connection : 'ready',
-  )
-
-  if (
-    startup === 'connecting' ||
-    startup === 'reconnecting' ||
-    startup === 'open'
-  ) {
-    return <AppLoader />
-  }
-  if (startup !== 'ready') {
-    return <AppError description={connectionProblems[startup]} />
-  }
+  const home = useMatch({ from: '/', shouldThrow: false }) !== undefined
 
   return (
-    <div className="flex min-h-(--app-height) flex-col">
-      <SiteHeader />
-      <Outlet />
+    <div className="flex h-(--app-height) overflow-hidden">
+      <Sidebar
+        className={cn('w-full md:w-72 md:border-r', !home && 'max-md:hidden')}
+      />
+      <main
+        className={cn(
+          'relative flex min-w-0 flex-1 flex-col',
+          home && 'max-md:hidden',
+        )}
+      >
+        <Outlet />
+      </main>
+      <Dialogs />
       {/* Ours, not next-themes', which shadcn's Toaster reads by default. */}
       <Toaster
         theme={theme}
@@ -45,15 +47,15 @@ const Ready = () => {
   )
 }
 
+/** The app, once the workspace's stream has said who and what is in it. */
 const Root = () => {
-  const found = useStore(home)
+  const ready = useWorkspace(
+    (state) => state.familiars !== undefined && state.rooms !== undefined,
+  )
   const connection = useWorkspace((state) => state.connection)
 
-  if (found.status === 'ready') {
-    return <Ready />
-  }
-  if (found.status === 'failed') {
-    return <AppError error={found.error} />
+  if (ready) {
+    return <Shell />
   }
   if (
     connection === 'connecting' ||
@@ -65,4 +67,7 @@ const Root = () => {
   return <AppError description={connectionProblems[connection]} />
 }
 
-export const Route = createRootRoute({ component: Root })
+export const Route = createRootRoute({
+  validateSearch: validateAppSearch,
+  component: Root,
+})

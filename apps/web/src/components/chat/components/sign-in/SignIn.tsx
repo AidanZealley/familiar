@@ -1,16 +1,19 @@
 import { useMutationState } from '@tanstack/react-query'
+import { cn } from 'cn'
 import { Spinner } from '@/components/ui/spinner'
 import { useWorkspace } from '@/lib/familiar'
 import { BrowserSignIn } from './components/browser-sign-in'
 import { CancelSignIn } from './components/cancel-sign-in'
 import { SignInPrompt } from './components/sign-in-prompt'
+import type { SignInProps } from './types'
 
 /**
- * Signing in to ChatGPT, shown above the composer whenever Familiar can't
- * reach its models. It works from any device, so this one will do. Hosts that
- * manage credentials themselves send no account, so it never shows.
+ * Signing in to ChatGPT, shown above the composer and in Settings › Model
+ * account whenever Familiar can't reach its models. It works from any
+ * device, so this one will do. Hosts that manage credentials themselves
+ * send no account, so it never shows.
  */
-export const SignIn = () => {
+export const SignIn = ({ className }: SignInProps) => {
   const account = useWorkspace((state) => state.account)
   // A request refused on its way. How the sign-in itself went arrives as
   // the account's own state.
@@ -24,7 +27,9 @@ export const SignIn = () => {
   }
 
   return (
-    <section className="mx-4 flex flex-col gap-3 border bg-card p-3">
+    <section
+      className={cn('mx-4 flex flex-col gap-3 border bg-card p-3', className)}
+    >
       {account.status !== 'signing-in' ? (
         <SignInPrompt account={account} />
       ) : account.url ? (

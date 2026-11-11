@@ -13,19 +13,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { familiar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import type { FactMenuProps } from './types'
 
 /** A current fact's actions. Their failures show under the fact. */
 export const FactMenu = ({ fact, onEdit }: FactMenuProps) => {
+  const familiar = useFamiliarStore()
   const setPinned = useMutation({
     mutationKey: ['fact', fact.id],
-    mutationFn: (pinned: boolean) =>
-      familiar().memory.setPinned(fact.id, pinned),
+    mutationFn: (pinned: boolean) => familiar.memory.setPinned(fact.id, pinned),
   })
   const retire = useMutation({
     mutationKey: ['fact', fact.id],
-    mutationFn: () => familiar().memory.retire(fact.id),
+    mutationFn: () => familiar.memory.retire(fact.id),
   })
 
   return (

@@ -2,15 +2,16 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { familiar } from '@/lib/familiar'
+import { useFamiliarStore } from '@/lib/familiar'
 import type { FactEditorProps } from './types'
 
 /** Rewrites a fact. A failure shows under it, with the fact's others. */
 export const FactEditor = ({ fact, onDone }: FactEditorProps) => {
+  const familiar = useFamiliarStore()
   const [draft, setDraft] = useState(fact.text)
   const revise = useMutation({
     mutationKey: ['fact', fact.id],
-    mutationFn: (text: string) => familiar().memory.revise(fact.id, text),
+    mutationFn: (text: string) => familiar.memory.revise(fact.id, text),
     onSuccess: onDone,
   })
 

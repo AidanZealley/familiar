@@ -5,7 +5,7 @@ import type { EpisodeMonthProps } from './types'
 export const EpisodeMonth = ({ month }: EpisodeMonthProps) => {
   return (
     <section className="pt-4">
-      <h2 className="sticky top-(--chrome) z-10 -mx-1 bg-background px-1 py-2 font-medium">
+      <h2 className="sticky top-0 z-10 -mx-1 bg-background px-1 py-2 font-medium">
         {month.label}
       </h2>
       <p

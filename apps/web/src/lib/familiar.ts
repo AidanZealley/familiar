@@ -4,91 +4,53 @@ import {
   createWorkspaceStore,
   type FamiliarState,
   type FamiliarStore,
-  type RoomState,
-  type RoomStore,
   type WorkspaceState,
 } from '@familiar-ai/client'
 import { MutationCache, QueryClient } from '@tanstack/react-query'
+import { createContext, use } from 'react'
 import { useStore } from 'zustand'
-import { createStore } from 'zustand/vanilla'
+import { pool } from './streams'
 
 /**
- * The app's workspace connection, open for its lifetime: the login,
- * connections and push, and which Familiars and rooms there are. Call
- * commands on it directly, such as `workspace.account.signIn()`.
+ * The app's workspace connection, open for its lifetime: the login, push,
+ * connections, and which Familiars and rooms there are. Call commands on it
+ * directly, such as `workspace.account.signIn()`.
  */
 export const workspace = createWorkspaceStore('/api')
-
-/**
- * Where the app is: finding the first Familiar and the signed-in person's
- * DM with it, then their stores, open for the app's lifetime. The app has
- * one chat, that DM, and its memory, schedules and model pages are that
- * Familiar's.
- */
-export type Home =
-  | { status: 'finding' }
-  | { status: 'ready'; id: number; familiar: FamiliarStore; room: RoomStore }
-  | { status: 'failed'; error: string }
-
-export const home = createStore<Home>()(() => ({ status: 'finding' }))
-
-const find = async (familiars: NonNullable<WorkspaceState['familiars']>) => {
-  const [first] = Object.keys(familiars.familiars)
-    .map(Number)
-    .sort((a, b) => a - b)
-  if (first === undefined) {
-    throw new Error('This workspace has no Familiar yet.')
-  }
-  const room = await workspace.familiars.dm(first)
-  home.setState({
-    status: 'ready',
-    id: first,
-    familiar: createFamiliarStore('/api', first),
-    room: createRoomStore('/api', room),
-  })
-}
-
-// Found once, from the first list of Familiars the stream sends.
-const stop = workspace.subscribe(({ familiars }) => {
-  if (familiars) {
-    stop()
-    find(familiars).catch((error: unknown) =>
-      home.setState({
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    )
-  }
-})
-
-const ready = () => {
-  const state = home.getState()
-  if (state.status !== 'ready') {
-    throw new Error('The app has no Familiar yet.')
-  }
-  return state
-}
-
-/** The app's Familiar, for its commands, once `home` is ready. */
-export const familiar = () => ready().familiar
-
-/** The app's Familiar's ID, once `home` is ready. */
-export const familiarId = () => ready().id
-
-/** The app's chat, the signed-in person's DM, once `home` is ready. */
-export const room = () => ready().room
 
 /** Selects from the workspace's state, re-rendering when the selection changes. */
 export const useWorkspace = <T>(selector: (state: WorkspaceState) => T): T =>
   useStore(workspace, selector)
 
-/** Selects from the Familiar's state; only once `home` is ready. */
-export const useFamiliar = <T>(selector: (state: FamiliarState) => T): T =>
-  useStore(familiar(), selector)
+/**
+ * Each Familiar's stream (model, memory, schedules), open while something
+ * on screen shows it: its DM, or its settings. See `useStream`.
+ */
+export const familiarStreams = pool((id) => createFamiliarStore('/api', id))
 
-/** Selects from the chat's state; only once `home` is ready. */
-export const useRoom = <T>(selector: (state: RoomState) => T): T =>
-  useStore(room(), selector)
+/** Each room's stream (log and turns), open while the room is. See `useStream`. */
+export const roomStreams = pool((id) => createRoomStore('/api', id))
+
+/**
+ * The Familiar a subtree is about: the open DM's, or the one whose settings
+ * are open. Rooms use the client's own `RoomProvider` in the same way.
+ */
+export const FamiliarContext = createContext<FamiliarStore | undefined>(
+  undefined,
+)
+
+/** The nearest Familiar's store, for its commands. */
+export const useFamiliarStore = () => {
+  const store = use(FamiliarContext)
+  if (!store) {
+    throw new Error('Familiar hooks must be used within a FamiliarContext')
+  }
+  return store
+}
+
+/** Selects from the nearest Familiar's state. */
+export const useFamiliar = <T>(selector: (state: FamiliarState) => T): T =>
+  useStore(useFamiliarStore(), selector)
 
 /**
  * Owns request state: what the app fetches instead of mirroring, such as
