@@ -1,4 +1,6 @@
+import { useRoom } from '@familiar-ai/client/react'
 import { useCallback, useMemo, useState } from 'react'
+import { PaneStatus } from '@/components/pane-status'
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -6,13 +8,20 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { useRoom } from '@/lib/familiar'
+import { connectionProblems } from '@/lib/connection-problems'
 import { Composer } from './components/composer'
+import { ConversationHeader } from './components/conversation-header'
 import { OlderMessages } from './components/older-messages'
 import { SignIn } from './components/sign-in'
 import { TranscriptItems } from './components/transcript-items'
+import type { ChatProps } from './types'
 
-export const Chat = () => {
+/**
+ * The open room: its header, its transcript and the composer. Until the
+ * room's first view arrives, its header over a loader; the view then stays
+ * through any reconnect, which the header reports.
+ */
+export const Chat = ({ room }: ChatProps) => {
   const [scrollMargin, setScrollMargin] = useState(0)
   const measureScrollMargin = useCallback((content: HTMLDivElement | null) => {
     if (!content) {
@@ -28,10 +37,28 @@ export const Chat = () => {
     return () => observer.disconnect()
   }, [])
   const transcript = useRoom((state) => state.transcript)
+  const startup = useRoom((state) =>
+    state.view === undefined ? state.connection : 'ready',
+  )
   const firstItemIds = useMemo(
     () => transcript?.items.slice(0, 3).map((item) => item.id) ?? [],
     [transcript],
   )
+
+  if (startup !== 'ready') {
+    return (
+      <div className="flex h-full flex-col pt-(--chrome)">
+        <ConversationHeader room={room} />
+        {startup === 'connecting' ||
+        startup === 'reconnecting' ||
+        startup === 'open' ? (
+          <PaneStatus />
+        ) : (
+          <PaneStatus problem={connectionProblems[startup]} reload />
+        )}
+      </div>
+    )
+  }
 
   return (
     <MessageScrollerProvider
@@ -39,9 +66,10 @@ export const Chat = () => {
       defaultScrollPosition="end"
       scrollMargin={scrollMargin}
     >
-      {/* Extend the scroller behind the glass header; content padding keeps
+      {/* The scroller runs behind the glass header; content padding keeps
           the first message clear of it at the start of the conversation. */}
-      <div className="-mt-(--chrome) flex h-(--app-height) flex-col">
+      <div className="flex h-full flex-col">
+        <ConversationHeader room={room} />
         <MessageScroller className="flex-1">
           {/* The shared scroller hides its thumb while it scrolls itself, which
               flashes on every streamed update, so keep one colour throughout. */}
@@ -49,7 +77,7 @@ export const Chat = () => {
             <MessageScrollerContent
               ref={measureScrollMargin}
               aria-busy={transcript?.busy}
-              className="mx-auto w-full max-w-(--page-width) gap-4 p-4 pt-[calc(var(--chrome)+1rem)]"
+              className="mx-auto w-full max-w-(--page-width) gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
             >
               <TranscriptItems items={transcript?.items ?? []} />
             </MessageScrollerContent>
@@ -61,7 +89,7 @@ export const Chat = () => {
         {/* Lined up with the conversation. */}
         <div className="mx-auto w-full max-w-(--page-width)">
           <SignIn />
-          <Composer busy={transcript?.busy ?? false} />
+          <Composer room={room} busy={transcript?.busy ?? false} />
         </div>
       </div>
     </MessageScrollerProvider>

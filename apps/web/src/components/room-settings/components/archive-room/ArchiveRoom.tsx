@@ -1,0 +1,59 @@
+import { useMutation } from '@tanstack/react-query'
+import { ArchiveIcon } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { workspace } from '@/lib/familiar'
+import type { ArchiveRoomProps } from './types'
+
+/** Archives the room, once confirmed. There's no unarchiving it yet. */
+export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
+  const archive = useMutation({
+    mutationFn: () => workspace.rooms.archive(room.id),
+  })
+
+  if (room.archived) {
+    return null
+  }
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger
+        render={<Button variant="destructive" className="self-start" />}
+      >
+        <ArchiveIcon />
+        Archive {room.name}
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Archive {room.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Its Familiars stop answering here, and it can't be reopened yet. Its
+            history is kept.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {archive.error && (
+          <p className="text-sm text-destructive">{archive.error.message}</p>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={archive.isPending}
+            onClick={() => archive.mutate()}
+          >
+            Archive
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}

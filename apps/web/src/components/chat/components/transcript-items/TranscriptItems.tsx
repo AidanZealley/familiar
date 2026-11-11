@@ -1,15 +1,17 @@
 import { useMemo } from 'react'
+import { Marker, MarkerContent } from '@/components/ui/marker'
 import {
   MessageScrollerItem,
   useMessageScrollerScrollable,
 } from '@/components/ui/message-scroller'
-import { turnTimes } from './times'
+import { dayStarts, replyRuns } from './layout'
 import { TranscriptItem } from '../transcript-item'
 import type { TranscriptItemsProps } from './types'
 
 /** The transcript's items, with the newest turn anchored while it's in view. */
 export const TranscriptItems = ({ items }: TranscriptItemsProps) => {
-  const times = useMemo(() => turnTimes(items), [items])
+  const runs = useMemo(() => replyRuns(items), [items])
+  const days = useMemo(() => dayStarts(items), [items])
   const { end: scrolledUp } = useMessageScrollerScrollable()
   // A message, or a scheduled prompt, starts a turn. When one item replaces another without the count changing, the scroller
   // jumps to the first anchor it hasn't handled, and it never marks loaded
@@ -31,9 +33,15 @@ export const TranscriptItems = ({ items }: TranscriptItemsProps) => {
       scrollAnchor={!scrolledUp && item.id === anchorId}
       // Lay out every message: deferred ones are estimated at 10rem, and the
       // page jumps as each grows to its real height.
-      className="[content-visibility:visible]"
+      className="flex flex-col gap-5 [content-visibility:visible]"
     >
-      <TranscriptItem item={item} time={times.get(item.id)} />
+      {/* Inside the item, so the scroller's anchors and history stay its own. */}
+      {days.has(item.id) && (
+        <Marker variant="separator">
+          <MarkerContent>{days.get(item.id)}</MarkerContent>
+        </Marker>
+      )}
+      <TranscriptItem item={item} run={runs.get(item.id)} />
     </MessageScrollerItem>
   ))
 }

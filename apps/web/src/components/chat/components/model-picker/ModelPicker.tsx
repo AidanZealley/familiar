@@ -10,8 +10,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 import { InputGroupButton } from '@/components/ui/input-group'
-import { familiar, useFamiliar } from '@/lib/familiar'
+import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
+import type { ModelPickerProps } from './types'
 
 const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
   off: 'Off',
@@ -25,23 +27,36 @@ const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
 
 const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
 
-export const ModelPicker = () => {
+/** The model and reasoning level of the nearest Familiar, as two menus. */
+export const ModelPicker = ({ place = 'composer' }: ModelPickerProps) => {
+  const familiar = useFamiliarStore()
   // Fixed for the daemon's lifetime, so fetched once rather than mirrored.
   const { data: options } = useQuery({
     queryKey: ['models'],
-    queryFn: () => familiar().model.options(),
+    queryFn: () => familiar.model.options(),
     staleTime: Infinity,
   })
-  // The composer shows their failures; see its `['composer']` key.
+  // Their failures show where `place` says; see its type.
+  const mutationKey = [place === 'composer' ? 'composer' : 'model']
   const setModel = useMutation({
-    mutationKey: ['composer'],
-    mutationFn: (model: ModelRef) => familiar().model.set(model),
+    mutationKey,
+    mutationFn: (model: ModelRef) => familiar.model.set(model),
   })
   const setLevel = useMutation({
-    mutationKey: ['composer'],
+    mutationKey,
     mutationFn: (level: ModelThinkingLevel) =>
-      familiar().model.setThinkingLevel(level),
+      familiar.model.setThinkingLevel(level),
   })
+  const trigger =
+    place === 'composer' ? (
+      <InputGroupButton size="sm" />
+    ) : (
+      <Button variant="outline" />
+    )
+  const content =
+    place === 'composer'
+      ? ({ side: 'top' } as const)
+      : ({ side: 'bottom', align: 'start' } as const)
   // Live from the conversation, so a change on another device shows here.
   const agent = useFamiliar((state) => state.model)
   const current =
@@ -55,11 +70,11 @@ export const ModelPicker = () => {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<InputGroupButton size="sm" />}>
+        <DropdownMenuTrigger render={trigger}>
           {current.name}
           <ChevronDownIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" className="w-48">
+        <DropdownMenuContent {...content} className="w-48">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Model</DropdownMenuLabel>
             <DropdownMenuRadioGroup
@@ -87,12 +102,12 @@ export const ModelPicker = () => {
       </DropdownMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger render={<InputGroupButton size="sm" />}>
+        <DropdownMenuTrigger render={trigger}>
           <BrainIcon />
           {LEVEL_NAMES[agent.thinkingLevel]}
           <ChevronDownIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" className="w-48">
+        <DropdownMenuContent {...content} className="w-48">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Reasoning</DropdownMenuLabel>
             <DropdownMenuRadioGroup

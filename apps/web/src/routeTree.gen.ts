@@ -10,110 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ConnectionsRouteImport } from './routes/connections'
-import { Route as MemoryRouteImport } from './routes/memory'
-import { Route as SchedulesRouteImport } from './routes/schedules'
-import { Route as MemoryIndexRouteImport } from './routes/memory/index'
-import { Route as MemoryEpisodesRouteImport } from './routes/memory/episodes'
-import { Route as MemoryHistoryRouteImport } from './routes/memory/history'
+import { Route as DmFamiliarRouteImport } from './routes/dm.$familiar'
+import { Route as RoomRoomRouteImport } from './routes/room.$room'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConnectionsRoute = ConnectionsRouteImport.update({
-  id: '/connections',
-  path: '/connections',
+const DmFamiliarRoute = DmFamiliarRouteImport.update({
+  id: '/dm/$familiar',
+  path: '/dm/$familiar',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MemoryRoute = MemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
+const RoomRoomRoute = RoomRoomRouteImport.update({
+  id: '/room/$room',
+  path: '/room/$room',
   getParentRoute: () => rootRouteImport,
-} as any)
-const SchedulesRoute = SchedulesRouteImport.update({
-  id: '/schedules',
-  path: '/schedules',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MemoryIndexRoute = MemoryIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => MemoryRoute,
-} as any)
-const MemoryEpisodesRoute = MemoryEpisodesRouteImport.update({
-  id: '/episodes',
-  path: '/episodes',
-  getParentRoute: () => MemoryRoute,
-} as any)
-const MemoryHistoryRoute = MemoryHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => MemoryRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/connections': typeof ConnectionsRoute
-  '/memory': typeof MemoryRouteWithChildren
-  '/schedules': typeof SchedulesRoute
-  '/memory/episodes': typeof MemoryEpisodesRoute
-  '/memory/history': typeof MemoryHistoryRoute
-  '/memory/': typeof MemoryIndexRoute
+  '/dm/$familiar': typeof DmFamiliarRoute
+  '/room/$room': typeof RoomRoomRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/connections': typeof ConnectionsRoute
-  '/schedules': typeof SchedulesRoute
-  '/memory/episodes': typeof MemoryEpisodesRoute
-  '/memory/history': typeof MemoryHistoryRoute
-  '/memory': typeof MemoryIndexRoute
+  '/dm/$familiar': typeof DmFamiliarRoute
+  '/room/$room': typeof RoomRoomRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/connections': typeof ConnectionsRoute
-  '/memory': typeof MemoryRouteWithChildren
-  '/schedules': typeof SchedulesRoute
-  '/memory/episodes': typeof MemoryEpisodesRoute
-  '/memory/history': typeof MemoryHistoryRoute
-  '/memory/': typeof MemoryIndexRoute
+  '/dm/$familiar': typeof DmFamiliarRoute
+  '/room/$room': typeof RoomRoomRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/connections'
-    | '/memory'
-    | '/schedules'
-    | '/memory/episodes'
-    | '/memory/history'
-    | '/memory/'
+  fullPaths: '/' | '/dm/$familiar' | '/room/$room'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/connections'
-    | '/schedules'
-    | '/memory/episodes'
-    | '/memory/history'
-    | '/memory'
-  id:
-    | '__root__'
-    | '/'
-    | '/connections'
-    | '/memory'
-    | '/schedules'
-    | '/memory/episodes'
-    | '/memory/history'
-    | '/memory/'
+  to: '/' | '/dm/$familiar' | '/room/$room'
+  id: '__root__' | '/' | '/dm/$familiar' | '/room/$room'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ConnectionsRoute: typeof ConnectionsRoute
-  MemoryRoute: typeof MemoryRouteWithChildren
-  SchedulesRoute: typeof SchedulesRoute
+  DmFamiliarRoute: typeof DmFamiliarRoute
+  RoomRoomRoute: typeof RoomRoomRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -125,71 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/connections': {
-      id: '/connections'
-      path: '/connections'
-      fullPath: '/connections'
-      preLoaderRoute: typeof ConnectionsRouteImport
+    '/dm/$familiar': {
+      id: '/dm/$familiar'
+      path: '/dm/$familiar'
+      fullPath: '/dm/$familiar'
+      preLoaderRoute: typeof DmFamiliarRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/memory': {
-      id: '/memory'
-      path: '/memory'
-      fullPath: '/memory'
-      preLoaderRoute: typeof MemoryRouteImport
+    '/room/$room': {
+      id: '/room/$room'
+      path: '/room/$room'
+      fullPath: '/room/$room'
+      preLoaderRoute: typeof RoomRoomRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/schedules': {
-      id: '/schedules'
-      path: '/schedules'
-      fullPath: '/schedules'
-      preLoaderRoute: typeof SchedulesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/memory/': {
-      id: '/memory/'
-      path: '/'
-      fullPath: '/memory/'
-      preLoaderRoute: typeof MemoryIndexRouteImport
-      parentRoute: typeof MemoryRoute
-    }
-    '/memory/episodes': {
-      id: '/memory/episodes'
-      path: '/episodes'
-      fullPath: '/memory/episodes'
-      preLoaderRoute: typeof MemoryEpisodesRouteImport
-      parentRoute: typeof MemoryRoute
-    }
-    '/memory/history': {
-      id: '/memory/history'
-      path: '/history'
-      fullPath: '/memory/history'
-      preLoaderRoute: typeof MemoryHistoryRouteImport
-      parentRoute: typeof MemoryRoute
     }
   }
 }
 
-interface MemoryRouteChildren {
-  MemoryEpisodesRoute: typeof MemoryEpisodesRoute
-  MemoryHistoryRoute: typeof MemoryHistoryRoute
-  MemoryIndexRoute: typeof MemoryIndexRoute
-}
-
-const MemoryRouteChildren: MemoryRouteChildren = {
-  MemoryEpisodesRoute: MemoryEpisodesRoute,
-  MemoryHistoryRoute: MemoryHistoryRoute,
-  MemoryIndexRoute: MemoryIndexRoute,
-}
-
-const MemoryRouteWithChildren =
-  MemoryRoute._addFileChildren(MemoryRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ConnectionsRoute: ConnectionsRoute,
-  MemoryRoute: MemoryRouteWithChildren,
-  SchedulesRoute: SchedulesRoute,
+  DmFamiliarRoute: DmFamiliarRoute,
+  RoomRoomRoute: RoomRoomRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

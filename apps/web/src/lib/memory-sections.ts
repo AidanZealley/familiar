@@ -5,27 +5,27 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-/** The Memory pages, for every nav that links to them. */
+/** Memory's views, in a Familiar's settings. */
 export const memorySections: {
-  to: '/memory' | '/memory/history' | '/memory/episodes'
+  value: 'facts' | 'history' | 'episodes'
   label: string
   icon: LucideIcon
   description: string
 }[] = [
   {
-    to: '/memory',
+    value: 'facts',
     label: 'Facts',
     icon: ListIcon,
-    description: 'What Familiar knows now: pinned, core and reserve.',
+    description: 'What it knows now: pinned, core and reserve.',
   },
   {
-    to: '/memory/history',
+    value: 'history',
     label: 'History',
     icon: HistoryIcon,
     description: 'How facts changed over time.',
   },
   {
-    to: '/memory/episodes',
+    value: 'episodes',
     label: 'Episodes',
     icon: CalendarDaysIcon,
     description: 'What happened, by day, week and month.',
