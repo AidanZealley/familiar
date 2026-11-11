@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronLeftIcon, SettingsIcon } from 'lucide-react'
+import { ChevronLeftIcon, EllipsisVerticalIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
@@ -11,7 +11,7 @@ import type { ConversationHeaderProps } from './types'
 
 /**
  * Glass over the conversation, `--chrome` tall: the room's face, name and
- * what's happening in it, which open its settings, as does the Settings
+ * what's happening in it, which open its settings, as does the ⋮
  * button. On a phone,
  * Back returns to the list of conversations.
  */
@@ -66,7 +66,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           aria-label={`${title} settings`}
           onClick={() => openDialog(settings)}
         >
-          <SettingsIcon />
+          <EllipsisVerticalIcon />
         </Button>
       </div>
     </header>
