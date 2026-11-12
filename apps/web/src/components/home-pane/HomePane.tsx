@@ -1,9 +1,12 @@
-import { ChatDotsIcon, ChecksIcon } from '@phosphor-icons/react'
+import {
+  ChatDotsIcon,
+  ChecksIcon,
+  HashIcon,
+  SparkleIcon,
+} from '@phosphor-icons/react'
 import { useMemo } from 'react'
-import { FamiliarRow } from '@/components/familiar-row'
 import { LiveStatus } from '@/components/live-status'
 import { PixelCat } from '@/components/pixel-cat'
-import { RoomRow } from '@/components/room-row'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -13,18 +16,19 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { ItemGroup } from '@/components/ui/item'
 import { useDialogs } from '@/lib/dialogs'
 import { latestFirst, liveOf, useFamiliars, useRooms } from '@/lib/workspace'
+import { WaitingSection } from './components/waiting-section'
 
 const plural = (count: number, one: string) =>
   `${count} ${one}${count === 1 ? '' : 's'}`
 
 /**
- * Beside the sidebar on a wide screen, with nothing open: a catch-up. What
- * has something unread, or a last reply that failed, newest first, each
- * opening its conversation, so the list empties as it's read; who's
- * answering, under the title. All from the rooms the sidebar already has.
+ * Beside the sidebar on a wide screen, with nothing open: a catch-up. The
+ * faces of DMs and rooms with something unread, or a last reply that
+ * failed, newest first, each opening its conversation, so they go as
+ * they're read; who's answering, under the title. All from the rooms the
+ * sidebar already has.
  * A phone has no such pane: its sidebar is home. With no Familiars yet,
  * the cat invites the first.
  */
@@ -69,6 +73,8 @@ export const HomePane = () => {
     )
   }
 
+  const dms = waiting.filter((room) => room.kind === 'dm')
+  const named = waiting.filter((room) => room.kind === 'room')
   const counts = [
     unread > 0 && `${unread} unread`,
     failed > 0 && `${failed} failed ${failed === 1 ? 'reply' : 'replies'}`,
@@ -96,31 +102,24 @@ export const HomePane = () => {
           )}
         </EmptyHeader>
         {waiting.length > 0 && (
-          <ItemGroup className="w-full max-w-lg gap-1 border p-1 text-left">
-            {waiting.map((room) => {
-              if (room.kind === 'room') {
-                return (
-                  <RoomRow
-                    key={room.id}
-                    room={room}
-                    familiars={familiars}
-                    wrap
-                  />
-                )
-              }
-              const familiar = familiars.find((f) => f.id === room.familiar)
-              return (
-                familiar && (
-                  <FamiliarRow
-                    key={room.id}
-                    familiar={familiar}
-                    dm={room}
-                    wrap
-                  />
-                )
-              )
-            })}
-          </ItemGroup>
+          <div className="flex w-full max-w-lg flex-col gap-6 text-left">
+            {dms.length > 0 && (
+              <WaitingSection
+                icon={SparkleIcon}
+                label="DMs"
+                rooms={dms}
+                familiars={familiars}
+              />
+            )}
+            {named.length > 0 && (
+              <WaitingSection
+                icon={HashIcon}
+                label="Rooms"
+                rooms={named}
+                familiars={familiars}
+              />
+            )}
+          </div>
         )}
       </Empty>
     </div>
