@@ -3,7 +3,7 @@ import { BoxArrowUpIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
-import { RoomRow } from '../../../room-row'
+import { RoomRow } from '@/components/room-row'
 import type { ArchivedRoomRowProps } from './types'
 
 /**

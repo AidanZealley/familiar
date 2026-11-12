@@ -17,10 +17,10 @@ import {
   useRooms,
   type NamedRoom,
 } from '@/lib/workspace'
+import { FamiliarRow } from '@/components/familiar-row'
+import { RoomRow } from '@/components/room-row'
 import { ArchivedRooms } from './components/archived-rooms'
 import { ConnectionStatus } from './components/connection-status'
-import { FamiliarRow } from './components/familiar-row'
-import { RoomRow } from './components/room-row'
 import { SectionHeading } from './components/section-heading'
 import { SettingsLink } from './components/settings-link'
 import { useDialogs } from '@/lib/dialogs'

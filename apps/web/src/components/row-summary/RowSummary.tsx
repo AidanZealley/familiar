@@ -13,7 +13,12 @@ import type { RowSummaryProps } from './types'
  * A conversation's name and when it was last active, over who's working in
  * it, else its latest entry, with what the person hasn't read.
  */
-export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
+export const RowSummary = ({
+  title,
+  room,
+  fallback,
+  wrap = false,
+}: RowSummaryProps) => {
   const familiars = useFamiliars()
   const me = useWorkspace((state) => state.me?.id)
   const live = useMemo(() => liveOf(room?.turns), [room?.turns])
@@ -45,19 +50,22 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
           </time>
         )}
       </div>
-      <div className="flex min-w-0 items-center gap-2">
+      <div
+        className={cn('flex min-w-0 items-center gap-2', wrap && 'items-start')}
+      >
         {room?.turns.length ? (
           <LiveStatus live={live} className="flex-1" />
         ) : last ? (
           <ItemDescription
             className={cn(
               'flex min-w-0 flex-1 items-center gap-1 text-xs',
+              wrap && 'items-start',
               failed && 'text-destructive',
               hasUnread && !failed && 'text-foreground',
             )}
           >
             {failed && <WarningCircleIcon className="size-3 shrink-0" />}
-            <span className="truncate">
+            <span className={wrap ? 'line-clamp-3' : 'truncate'}>
               {previewOf(last, familiars, me, room?.kind === 'dm')}
             </span>
           </ItemDescription>
