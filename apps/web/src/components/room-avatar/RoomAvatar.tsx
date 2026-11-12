@@ -54,7 +54,7 @@ export const RoomAvatar = ({ room, className }: RoomAvatarProps) => {
             {face(second, 'quarter')}
             <span
               aria-hidden
-              className="grid size-4 place-items-center border-t border-background bg-primary font-heading text-[9px] leading-none font-medium text-primary-foreground tabular-nums"
+              className="grid size-4 place-items-center border-t border-background bg-muted font-heading text-[9px] leading-none font-medium text-foreground tabular-nums"
             >
               +{rest}
             </span>
