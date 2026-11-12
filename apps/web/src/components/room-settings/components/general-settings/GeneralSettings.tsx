@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { SettingsFooter } from '@/components/settings-footer'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { workspace } from '@/lib/familiar'
@@ -35,13 +35,10 @@ export const GeneralSettings = ({ room }: GeneralSettingsProps) => {
         <FieldError>{rename.error?.message}</FieldError>
       </Field>
       {!room.archived && (
-        <Button
-          type="submit"
-          className="self-start"
-          disabled={!changed || !name.trim() || rename.isPending}
-        >
-          Save
-        </Button>
+        <SettingsFooter
+          canSave={changed && !!name.trim() && !rename.isPending}
+          onDiscard={changed ? () => setName(room.name) : undefined}
+        />
       )}
     </form>
   )
