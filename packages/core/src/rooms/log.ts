@@ -283,15 +283,10 @@ export const Shown = defineDoc<Record<string, RoomShown>>({
 /**
  * Records `entry`, just appended to `room` as `id`, as what the room last
  * showed, in the commit that appends it. Every entry a room shows comes
- * through here: `post`, and adopting a chat. A person has read what they
- * wrote, so their own message moves their marker to it.
+ * through here, from `post`. A person has read what they wrote,
+ * so their own message moves their marker to it.
  */
-export async function noteShown(
-  tx: Tx,
-  room: RoomId,
-  id: EntryId,
-  entry: RoomEntry,
-) {
+async function noteShown(tx: Tx, room: RoomId, id: EntryId, entry: RoomEntry) {
   const preview = previewOf(id, entry, (await tx.doc(Familiars)).familiars)
   if (!preview) {
     return
@@ -436,7 +431,7 @@ export const viewStart = (entries: readonly EntryId[]) =>
   entries.length < VIEW_LIMIT ? undefined : entries[entries.length - VIEW_KEEP]
 
 /** Starts `room`'s view at `head`, keeping everything after it in view. */
-export const startView = (tx: Tx, room: RoomId, head: EntryId) =>
+const startView = (tx: Tx, room: RoomId, head: EntryId) =>
   tx.appendEntry(room, { kind: VIEW_KIND, head })
 
 /**

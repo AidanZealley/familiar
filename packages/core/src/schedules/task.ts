@@ -2,7 +2,6 @@ import type { Context } from '@earendil-works/chord'
 import {
   AssistantEntry,
   defineTask,
-  ROOT_CONVERSATION_ID,
   type Cursor,
   type EntryRecord,
   type TaskId,
@@ -46,8 +45,9 @@ type ScheduleStep =
       /** When it was delivered, if late. */
       late?: number
       /**
-       * The room it was made in, if it's still open to it. Schedules made
-       * before rooms have none, and go straight to the chat.
+       * The room it runs in: the one it was made in, if it's still open to
+       * it, or else its creator's DM. With neither, it goes straight to the
+       * chat.
        */
       room?: RoomId
     })
@@ -158,7 +158,7 @@ export async function scheduleRuns(tx: Tx, familiar: FamiliarId, id: string) {
  * One task per schedule: it sleeps until the schedule is due, posts it to
  * the room it was made in, where its Familiar takes a turn, and notifies the
  * host with the reply, or with the prompt if there was none, so a reminder
- * is never lost. A schedule made before rooms submits its prompt straight to
+ * is never lost. One with no room to run in submits its prompt straight to
  * the chat instead. A task that wakes to find its schedule gone finishes
  * without doing anything: cancelling is removing the schedule.
  */
@@ -214,16 +214,9 @@ export function createScheduleTask(
 
   return defineTask<ScheduleInput, ScheduleStep, null>({
     name: SCHEDULE_TASK,
+    // Stored tasks are at 2; a lower version would need a migration.
     version: 2,
     initial: () => ({ phase: 'wait' }),
-    // Version 1 ran before workspaces, for the one Familiar, on the root.
-    migrate: (input, checkpoint) => ({
-      input: {
-        familiar: ROOT_CONVERSATION_ID,
-        id: (input as { id: string }).id,
-      },
-      checkpoint: checkpoint as ScheduleStep,
-    }),
     phases: {
       wait: (task, runtime, context) =>
         runtime.commit(async (tx) => {

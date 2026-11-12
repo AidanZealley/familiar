@@ -6,7 +6,6 @@ import {
   defineExtension,
   defineTask,
   ResetEntry,
-  ROOT_CONVERSATION_ID,
   type Extension,
   type ConversationId,
   type EntryId,
@@ -212,13 +211,9 @@ export function createUpkeep(options: UpkeepOptions) {
 
   const UpkeepTask = defineTask<UpkeepInput, UpkeepStep, null>({
     name: 'familiar.upkeep',
+    // Stored tasks are at 2; a lower version would need a migration.
     version: 2,
     initial: () => ({ phase: 'schedule' }),
-    // Version 1 ran before workspaces, for the one Familiar, on the root.
-    migrate: (_input, checkpoint) => ({
-      input: { familiar: ROOT_CONVERSATION_ID },
-      checkpoint: checkpoint as UpkeepStep,
-    }),
     phases: {
       schedule: (_task, runtime, context) =>
         runtime.commit(() => sleep(runtime.now()), context),

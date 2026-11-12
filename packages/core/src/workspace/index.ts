@@ -59,7 +59,6 @@ import {
   type FamiliarIdentity,
   type FamiliarsState as Registry,
 } from './familiars.ts'
-import { adoptPreWorkspaceFamiliar } from './migrate.ts'
 import { knownAs, namePeople, People, rename } from './people.ts'
 import type { Author } from '../conversation/message.ts'
 import {
@@ -332,13 +331,9 @@ export type Workspace = {
   dismiss(): Promise<void>
 }
 
-/** What a Familiar adopted from a pre-workspace store is called until renamed. */
-const ADOPTED_NAME = 'Familiar'
-
 /**
- * Opens a workspace over its storage, adopting a pre-workspace Familiar's
- * store, resuming whatever its Familiars were doing, and starts their
- * background work. One process per storage; `dismiss()` it when done.
+ * Opens a workspace over its storage, resuming whatever its Familiars were
+ * doing, and starts their background work. One process per storage; `dismiss()` it when done.
  */
 export async function openWorkspace(
   options: WorkspaceOptions,
@@ -429,10 +424,6 @@ export async function openWorkspace(
       secrets: options.secrets,
     })
 
-    await harness.commit(
-      (tx) => adoptPreWorkspaceFamiliar(tx, ADOPTED_NAME),
-      context,
-    )
     // What people are called, on the first open only, as with the default
     // tools below.
     if ((await harness.snapshot(People, context)) === undefined) {

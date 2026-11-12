@@ -6,8 +6,7 @@ import {
 
 /**
  * Opens the daemon's workspace with its first Familiar named `name`, as the
- * config says on every open. A fresh store gets that Familiar now; one from
- * before workspaces already has it, with the owner's DM.
+ * config says on every open. A fresh store gets that Familiar now.
  */
 export async function openDaemonWorkspace(
   options: WorkspaceOptions,

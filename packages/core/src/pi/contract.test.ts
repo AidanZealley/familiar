@@ -8,7 +8,6 @@ import {
 import {
   createRegistry,
   defineDoc,
-  defineDocFamily,
   defineExtension,
   defineTask,
   defineTool,
@@ -39,7 +38,6 @@ const common = {
   checkpointWhen: () => true,
 } as const
 const Singleton = defineDoc<Items>(common)
-const Family = defineDocFamily<Items, null>({ ...common, family: true })
 
 const harnessOptions = (
   tasks: Task<never, never, never, never>[] = [],
@@ -55,117 +53,50 @@ const harnessOptions = (
   }
 }
 
-// Adopting a pre-workspace store (workspace/migrate.ts).
-test('a session document moves into a family of the same kind in one commit, and must not be read once retired', async () => {
-  const harness = await Harness.open(
-    new ReopenableStorage(),
-    harnessOptions(),
-    context,
-  )
-  await harness.commit(async (tx) => {
-    ;(await tx.doc(Singleton)).items.push('kept')
-  }, context)
-
-  // Reads, writes and the retirement in one commit: all of it or none.
-  await harness.commit(async (tx) => {
-    const { items } = await tx.doc(Singleton)
-    ;(await tx.doc(Family, 'f1', null)).items.push(...items)
-    await tx.retireDoc(Singleton)
-  }, context)
-
-  expect(await harness.snapshot(Family, 'f1', context)).toEqual({
-    items: ['kept'],
-  })
-  expect(await harness.snapshot(Singleton, context)).toBeUndefined()
-
-  // Reading it again creates a new, empty one, so a migration runs once.
-  await harness.commit((tx) => tx.doc(Singleton), context)
-  expect(await harness.snapshot(Singleton, context)).toEqual({ items: [] })
-
-  await harness.close(context)
-})
-
-// Versioned tasks: schedules and upkeep (schedules/task.ts, memory/upkeep).
 // Finding a task by status: resuming a schedule (schedules/task.ts).
-test('a sleeping task keeps its stored version until it wakes, then migrates, and a commit finds it by conversation, kind and status meanwhile', async () => {
+test('a commit finds a task by conversation, kind and status while it sleeps and once it ends', async () => {
   const clock = fakeClock(1_000)
-  const storage = new ReopenableStorage()
-  const ran: unknown[] = []
-
-  const sleeper = <I>(version: number, migrate?: (input: unknown) => I) =>
-    defineTask<I, { phase: 'wait' } | { phase: 'run' }, null>({
-      name: 'test.sleeper',
-      version,
-      initial: () => ({ phase: 'wait' }),
-      ...(migrate && {
-        migrate: (input, checkpoint) => ({
-          input: migrate(input),
-          checkpoint: checkpoint as { phase: 'run' },
-        }),
-      }),
-      phases: {
-        wait: (_task, runtime, context) =>
-          runtime.sleepUntil(5_000, { phase: 'run' }, context),
-        run: async (task, runtime, context) => {
-          ran.push(task.input)
-          await runtime.commit(
-            () => ({
-              status: 'terminal',
-              outcome: { status: 'completed', result: null },
-            }),
-            context,
-          )
-        },
-      },
-      abort: (_task, runtime, context) =>
+  const sleeper = defineTask<null, { phase: 'wait' } | { phase: 'run' }, null>({
+    name: 'test.sleeper',
+    version: 1,
+    initial: () => ({ phase: 'wait' }),
+    phases: {
+      wait: (_task, runtime, context) =>
+        runtime.sleepUntil(5_000, { phase: 'run' }, context),
+      run: (_task, runtime, context) =>
         runtime.commit(
-          () => ({ status: 'terminal', outcome: { status: 'aborted' } }),
+          () => ({
+            status: 'terminal',
+            outcome: { status: 'completed', result: null },
+          }),
           context,
         ),
-    })
-  const v1 = sleeper<{ id: string }>(1)
-  const v2 = sleeper(2, (input) => ({
-    familiar: 'root',
-    ...(input as { id: string }),
-  }))
-
-  const first = await Harness.open(
-    storage,
-    harnessOptions([v1 as never], clock),
-    context,
-  )
-  await first.root(context)
-  const id = await first.commit(
-    (tx) =>
-      tx.createTask(
-        v1,
-        { id: 's1' },
-        {
-          ownership: { kind: 'conversation' },
-          conversationId: ROOT_CONVERSATION_ID,
-          background: true,
-        },
+    },
+    abort: (_task, runtime, context) =>
+      runtime.commit(
+        () => ({ status: 'terminal', outcome: { status: 'aborted' } }),
+        context,
       ),
-    context,
-  )
-  first.resume()
-  const sleeping = async () =>
-    (await storage.scanTasks({ kind: 'test.sleeper' }, 1, undefined, context))
-      .items[0]
-  await expect
-    .poll(async () => (await sleeping())?.state.status)
-    .toBe('sleeping')
-  await first.close(context)
+  })
 
-  const second = await Harness.open(
-    storage,
-    harnessOptions([v2 as never], clock),
+  const harness = await Harness.open(
+    new ReopenableStorage(),
+    harnessOptions([sleeper as never], clock),
     context,
   )
-  second.resume()
-  expect(await sleeping()).toMatchObject({ version: 1, input: { id: 's1' } })
+  await harness.root(context)
+  const id = await harness.commit(
+    (tx) =>
+      tx.createTask(sleeper, null, {
+        ownership: { kind: 'conversation' },
+        conversationId: ROOT_CONVERSATION_ID,
+        background: true,
+      }),
+    context,
+  )
+  harness.resume()
   const found = (status: 'sleeping' | 'terminal') =>
-    second.commit(
+    harness.commit(
       async (tx) =>
         (
           await tx.scanTasks(
@@ -179,14 +110,13 @@ test('a sleeping task keeps its stored version until it wakes, then migrates, an
         ).items.map((task) => task.id),
       context,
     )
-  expect(await found('sleeping')).toEqual([id])
+  await expect.poll(() => found('sleeping')).toEqual([id])
 
   clock.advanceTo(5_000)
-  await second.waitForTask(id, context)
-  expect(ran).toEqual([{ familiar: 'root', id: 's1' }])
+  await harness.waitForTask(id, context)
   expect(await found('sleeping')).toEqual([])
   expect(await found('terminal')).toEqual([id])
-  await second.close(context)
+  await harness.close(context)
 })
 
 /**
@@ -612,7 +542,7 @@ test("a conversation's view shows only Pi's own documents, and an entry's head s
 })
 
 // Everywhere a commit reads entries, tasks or submissions: they come first
-// (rooms/log.ts, workspace/migrate.ts, schedules/task.ts).
+// (rooms/log.ts, schedules/task.ts).
 test('a commit reads tables before writing any, though documents may follow writes', async () => {
   const harness = await Harness.open(
     new ReopenableStorage(),
