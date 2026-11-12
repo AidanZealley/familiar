@@ -45,7 +45,6 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
               id: 'archive',
               label: room.archived ? 'Archived' : 'Archive',
               icon: ArchiveIcon,
-              danger: !room.archived,
               keywords: 'hide close',
               description: room.archived
                 ? 'Folded away and closed to new messages; its history is kept. Unarchiving lists it and opens it again.'

@@ -15,7 +15,10 @@ import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
 import type { ArchiveRoomProps } from './types'
 
-/** Archives the room, once confirmed, or unarchives an archived one. */
+/**
+ * Archives the room, once confirmed, or unarchives an archived one. Undoable,
+ * so it isn't styled as destructive.
+ */
 export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
   const archive = useMutation({
     mutationFn: () =>
@@ -46,7 +49,7 @@ export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger
-        render={<Button variant="destructive" className="self-start" />}
+        render={<Button variant="outline" className="self-start" />}
       >
         <ArchiveIcon />
         Archive {room.name}
@@ -63,7 +66,6 @@ export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
             disabled={archive.isPending}
             onClick={() => archive.mutate()}
           >
