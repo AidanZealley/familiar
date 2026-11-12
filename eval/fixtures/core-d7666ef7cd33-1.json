@@ -1,0 +1,959 @@
+{
+  "scenario": "maya-v1",
+  "hash": "d7666ef7cd33",
+  "replay": 1,
+  "model": "anthropic/claude-haiku-5-5@low",
+  "facts": {
+    "facts": [
+      {
+        "id": "f1",
+        "text": "Maya Okafor (author ID maya) lives at 14 Elm Row with her partner Theo and their daughter Isla, who is seven.",
+        "importance": 5,
+        "since": "2026-01-05",
+        "sources": [
+          50
+        ],
+        "saved": 1767672000000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f2",
+        "text": "Maya (author ID maya) has a severe peanut allergy and carries an EpiPen; always keep this in mind when discussing food.",
+        "importance": 5,
+        "since": "2026-01-05",
+        "sources": [
+          60
+        ],
+        "saved": 1767672000000,
+        "core": true
+      },
+      {
+        "id": "f3",
+        "text": "Maya and Theo fly to Lisbon on 23 January (2026) to celebrate their tenth anniversary; Maya has been planning the trip for months.",
+        "importance": 3,
+        "since": "2026-01-05",
+        "sources": [
+          69
+        ],
+        "saved": 1767672000000,
+        "core": false
+      },
+      {
+        "id": "f4",
+        "text": "Maya works as a freelance designer; her main client is Brightwell Agency.",
+        "importance": 3,
+        "since": "2026-01-05",
+        "sources": [
+          78
+        ],
+        "saved": 1767672000000,
+        "core": false,
+        "until": "2026-02-26"
+      },
+      {
+        "id": "f5",
+        "text": "Isla attends Greenfield Primary; Maya does the school run.",
+        "importance": 3,
+        "since": "2026-01-05",
+        "sources": [
+          78
+        ],
+        "saved": 1767672000000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f6",
+        "text": "Theo (author ID theo) is type 1 diabetic; ask about meals or timing with that in mind.",
+        "importance": 5,
+        "since": "2026-01-06",
+        "sources": [
+          110
+        ],
+        "saved": 1767758400000,
+        "core": true
+      },
+      {
+        "id": "f7",
+        "text": "Theo (author ID theo) works early shifts at Crumb & Co, the bakery on Mill Street, usually up at 4 a.m.",
+        "importance": 3,
+        "since": "2026-01-06",
+        "sources": [
+          120
+        ],
+        "saved": 1767758400000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f8",
+        "text": "Maya and Theo's household has a green Skoda Octavia, which Theo considers his pride and joy (it uses a lot of petrol).",
+        "importance": 1,
+        "since": "2026-01-06",
+        "sources": [
+          138
+        ],
+        "saved": 1767758400000,
+        "core": false
+      },
+      {
+        "id": "f9",
+        "text": "Maya (author ID maya) has a big job interview at Halden Studio on 14 January 2026 for a senior designer role; it matters a lot to her.",
+        "importance": 4,
+        "since": "2026-01-08",
+        "sources": [
+          183
+        ],
+        "saved": 1767931200000,
+        "core": true
+      },
+      {
+        "id": "f10",
+        "text": "Maya (author ID maya) asked for a daily digest at 7pm, a round-up of her day.",
+        "importance": 3,
+        "since": "2026-01-08",
+        "sources": [
+          164
+        ],
+        "saved": 1767931200000,
+        "core": false
+      },
+      {
+        "id": "f11",
+        "text": "Maya (author ID maya) wants digests and summaries kept to five bullet points at most, because she skims.",
+        "importance": 3,
+        "since": "2026-01-08",
+        "sources": [
+          174
+        ],
+        "saved": 1767931200000,
+        "core": false
+      },
+      {
+        "id": "f12",
+        "text": "Maya's tax return is due 31 January 2026; she had not started it and asked Familiar to nudge her about it.",
+        "importance": 4,
+        "since": "2026-01-08",
+        "sources": [
+          192
+        ],
+        "saved": 1767931200000,
+        "core": true
+      },
+      {
+        "id": "f13",
+        "text": "Maya (author ID maya) is having her kitchen redone by builder Fenwick & Sons, budget £18,000, starting 2 February 2026.",
+        "importance": 3,
+        "since": "2026-01-12",
+        "sources": [
+          230
+        ],
+        "saved": 1768276800000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f14",
+        "text": "Maya's mum June uses a wheelchair, so step-free access matters wherever June comes along (author ID maya).",
+        "importance": 4,
+        "since": "2026-01-12",
+        "sources": [
+          258
+        ],
+        "saved": 1768276800000,
+        "core": true
+      },
+      {
+        "id": "f15",
+        "text": "Maya's GP is Dr Patel at Stanmore Surgery (author ID maya).",
+        "importance": 3,
+        "since": "2026-01-12",
+        "sources": [
+          267
+        ],
+        "saved": 1768276800000,
+        "core": false
+      },
+      {
+        "id": "f16",
+        "text": "A boiler engineer is booked for Thursday 29 January 2026, between 8am and 12pm, at Maya's home (author ID maya).",
+        "importance": 3,
+        "since": "2026-01-12",
+        "sources": [
+          276
+        ],
+        "saved": 1768276800000,
+        "core": false
+      },
+      {
+        "id": "f17",
+        "text": "Isla (Maya and Theo's daughter, age 7) has asthma and carries a blue inhaler (for school forms).",
+        "importance": 5,
+        "since": "2026-01-15",
+        "sources": [
+          347
+        ],
+        "saved": 1768536000000,
+        "core": true
+      },
+      {
+        "id": "f18",
+        "text": "Maya (author ID maya) took up bouldering in December 2025 and goes to The Arch on Tuesday evenings; she is climbing V3.",
+        "importance": 3,
+        "since": "2026-01-15",
+        "sources": [
+          319
+        ],
+        "saved": 1768536000000,
+        "core": false
+      },
+      {
+        "id": "f19",
+        "text": "Theo (author ID theo) plays bass in his band Low Tide, which has a gig at the Fleece on 7 February 2026; Theo asked whether Maya and he are both coming.",
+        "importance": 3,
+        "since": "2026-01-15",
+        "sources": [
+          329
+        ],
+        "saved": 1768536000000,
+        "core": false
+      },
+      {
+        "id": "f20",
+        "text": "Maya's mum June lives in Harrow, so visiting her on a Sunday means a long drive across London.",
+        "importance": 3,
+        "since": "2026-01-15",
+        "sources": [
+          338
+        ],
+        "saved": 1768536000000,
+        "core": false,
+        "until": "2026-02-20"
+      },
+      {
+        "id": "f21",
+        "text": "Maya's sister Nora, who lives in Leeds, is to be listed as the family's emergency contact for anything official (author ID maya).",
+        "importance": 4,
+        "since": "2026-01-21",
+        "sources": [
+          408
+        ],
+        "saved": 1769054400000,
+        "core": true
+      },
+      {
+        "id": "f22",
+        "text": "Isla's dentist appointment is on 3 February 2026 at 4pm (mentioned by Maya, author ID maya).",
+        "importance": 3,
+        "since": "2026-01-21",
+        "sources": [
+          417
+        ],
+        "saved": 1769054400000,
+        "core": false
+      },
+      {
+        "id": "f23",
+        "text": "Maya (author ID maya) is in a book club that meets the first Thursday of every month; January 2026 book is Piranesi.",
+        "importance": 2,
+        "since": "2026-01-28",
+        "sources": [
+          464
+        ],
+        "saved": 1769659200000,
+        "core": false
+      },
+      {
+        "id": "f24",
+        "text": "Maya (author ID maya) goes to a pottery class at Kiln House every Friday evening.",
+        "importance": 2,
+        "since": "2026-01-28",
+        "sources": [
+          492
+        ],
+        "saved": 1769659200000,
+        "core": false
+      },
+      {
+        "id": "f25",
+        "text": "Isla's school trip to Ironbridge is on 12 February 2026; the £25 payment is due by 5 February (mentioned by Maya, author ID maya).",
+        "importance": 3,
+        "since": "2026-01-28",
+        "sources": [
+          501
+        ],
+        "saved": 1769659200000,
+        "core": false
+      },
+      {
+        "id": "f26",
+        "text": "Maya and Theo's home broadband is with Zipnet, which has been dropping out repeatedly (mentioned by Maya, author ID maya, late January 2026).",
+        "importance": 2,
+        "since": "2026-01-28",
+        "sources": [
+          483
+        ],
+        "saved": 1769659200000,
+        "core": false,
+        "until": "2026-03-01"
+      },
+      {
+        "id": "f27",
+        "text": "Theo (author ID theo) asked Familiar to remind him to look out for a camera shop parcel due to arrive on Friday (late January 2026).",
+        "importance": 4,
+        "since": "2026-01-28",
+        "sources": [
+          474
+        ],
+        "saved": 1769659200000,
+        "core": true
+      },
+      {
+        "id": "f28",
+        "text": "Isla (Maya's daughter, age 7) has piano lessons on Wednesdays at 4:30pm with Mr Adeyemi; Maya asked Familiar to remember this for school pickups (author ID maya).",
+        "importance": 4,
+        "since": "2026-02-02",
+        "sources": [
+          584
+        ],
+        "saved": 1770091200000,
+        "core": true
+      },
+      {
+        "id": "f29",
+        "text": "Isla has a speaking part in her class assembly on Friday 6 February 2026 (mentioned by Maya, author ID maya).",
+        "importance": 3,
+        "since": "2026-02-02",
+        "sources": [
+          575
+        ],
+        "saved": 1770091200000,
+        "core": false
+      },
+      {
+        "id": "f30",
+        "text": "Theo's cousin Dele's wedding is on 14 February 2026 in Bristol; the couple need a childcare or travel plan for Isla (mentioned by Theo, author ID theo).",
+        "importance": 3,
+        "since": "2026-02-02",
+        "sources": [
+          593
+        ],
+        "saved": 1770091200000,
+        "core": false
+      },
+      {
+        "id": "f31",
+        "text": "Theo (author ID theo) left his early-shift bakery job at Crumb & Co, and from Monday 16 February 2026 works as a mechanic at Spoke Cycles on the high street, with no more 4am starts.",
+        "importance": 3,
+        "since": "2026-02-16",
+        "sources": [
+          699
+        ],
+        "saved": 1770868800000,
+        "core": false
+      },
+      {
+        "id": "f32",
+        "text": "Theo (author ID theo) now eats lunch at 1pm because of his new working hours; relevant to his type 1 diabetes when discussing meals or timing.",
+        "importance": 4,
+        "since": "2026-02-11",
+        "sources": [
+          708
+        ],
+        "saved": 1770868800000,
+        "core": true
+      },
+      {
+        "id": "f33",
+        "text": "Maya Okafor (author ID maya) lives at 14 Elm Row with her partner Theo and their daughter Isla (age 7). On 16 Feb 2026 they found a new home and will move to 3 Quarry Lane on 1 March 2026.",
+        "importance": 5,
+        "since": "2026-02-16",
+        "sources": [
+          760,
+          50
+        ],
+        "saved": 1771300800000,
+        "replaces": [
+          "f1"
+        ],
+        "core": false,
+        "until": "2026-03-01"
+      },
+      {
+        "id": "f34",
+        "text": "Maya's kitchen redo at Elm Row by builder Fenwick & Sons (budget £18,000, started 2 February 2026) was ultimately done for the landlord, per Maya on 16 Feb 2026.",
+        "importance": 3,
+        "since": "2026-02-16",
+        "sources": [
+          760,
+          230
+        ],
+        "saved": 1771300800000,
+        "replaces": [
+          "f13"
+        ],
+        "core": false
+      },
+      {
+        "id": "f35",
+        "text": "Isla will start at Hollin Primary after half-term (2026), since 3 Quarry Lane is in its catchment area. She currently attends Greenfield Primary (author ID maya).",
+        "importance": 4,
+        "since": "2026-02-16",
+        "sources": [
+          779
+        ],
+        "saved": 1771300800000,
+        "core": true
+      },
+      {
+        "id": "f36",
+        "text": "Maya and Theo's household bought a second-hand Nissan Leaf electric car (mid-Feb 2026), so they no longer use petrol for it (author ID theo).",
+        "importance": 2,
+        "since": "2026-02-16",
+        "sources": [
+          788
+        ],
+        "saved": 1771300800000,
+        "core": false
+      },
+      {
+        "id": "f37",
+        "text": "Maya (author ID maya) sent her first V4 bouldering problem at The Arch on 16 Feb 2026.",
+        "importance": 1,
+        "since": "2026-02-16",
+        "sources": [
+          770
+        ],
+        "saved": 1771300800000,
+        "core": false
+      },
+      {
+        "id": "f38",
+        "text": "Maya's mum June has moved into a ground-floor flat in Ealing, so visiting her on a Sunday is a different drive now (previously lived in Harrow). Step-free access still matters for June.",
+        "importance": 3,
+        "since": "2026-02-20",
+        "sources": [
+          852,
+          338
+        ],
+        "saved": 1771646400000,
+        "replaces": [
+          "f20"
+        ],
+        "core": false
+      },
+      {
+        "id": "f39",
+        "text": "Isla (Maya and Theo's daughter) dislikes mushrooms; Maya says this is negotiable. Maya's only food restriction besides peanuts is none; she said \"just peanuts\".",
+        "importance": 3,
+        "since": "2026-02-20",
+        "sources": [
+          834
+        ],
+        "saved": 1771646400000,
+        "core": false,
+        "until": "2026-02-20"
+      },
+      {
+        "id": "f40",
+        "text": "Maya and her household have an allotment, plot 12 on Mill Lane, which Maya waters on Sunday mornings.",
+        "importance": 2,
+        "since": "2026-02-20",
+        "sources": [
+          843
+        ],
+        "saved": 1771646400000,
+        "core": false
+      },
+      {
+        "id": "f41",
+        "text": "Maya says her only food restriction is peanuts (severe allergy). Isla dislikes mushrooms, which Maya says is negotiable.",
+        "importance": 3,
+        "since": "2026-02-20",
+        "sources": [
+          834
+        ],
+        "saved": 1771646400000,
+        "replaces": [
+          "f39"
+        ],
+        "core": false
+      },
+      {
+        "id": "f42",
+        "text": "Maya (author ID maya) works as a freelance designer; her main client is now Corvid Labs, with her Monday calls with them. Brightwell Agency was her main client before that.",
+        "importance": 3,
+        "since": "2026-02-26",
+        "sources": [
+          926,
+          78
+        ],
+        "saved": 1772164800000,
+        "replaces": [
+          "f4"
+        ],
+        "core": false
+      },
+      {
+        "id": "f43",
+        "text": "Maya Okafor (author ID maya) lives with her partner Theo and daughter Isla (age 7). They found a new home on 16 Feb 2026 and moved from 14 Elm Row to 3 Quarry Lane on 1 March 2026.",
+        "importance": 5,
+        "since": "2026-03-01",
+        "sources": [
+          976,
+          994,
+          760,
+          50
+        ],
+        "saved": 1772424000000,
+        "replaces": [
+          "f33"
+        ],
+        "core": true
+      },
+      {
+        "id": "f44",
+        "text": "Maya and Theo's home broadband switched from Zipnet to Orbit Fibre, installed 1 March 2026 at 3 Quarry Lane (author ID maya).",
+        "importance": 3,
+        "since": "2026-03-01",
+        "sources": [
+          1003
+        ],
+        "saved": 1772424000000,
+        "core": false
+      },
+      {
+        "id": "f45",
+        "text": "Maya's family is registered with Highfield Medical Centre, their GP registration since moving to Quarry Lane (author ID maya, 1 March 2026).",
+        "importance": 3,
+        "since": "2026-03-01",
+        "sources": [
+          994
+        ],
+        "saved": 1772424000000,
+        "core": false
+      }
+    ],
+    "next": 46
+  },
+  "usage": {
+    "facts": {
+      "f1": {
+        "recalled": 1771244400000,
+        "checked": 1770350400000
+      },
+      "f3": {
+        "recalled": 1771588800000,
+        "checked": 1770350400000
+      },
+      "f4": {
+        "recalled": 1772108400000,
+        "checked": 1770350400000
+      },
+      "f5": {
+        "recalled": 1771244400000,
+        "checked": 1770350400000
+      },
+      "f2": {
+        "recalled": 1772625600000,
+        "checked": 1770350400000
+      },
+      "f8": {
+        "recalled": 1771245000000,
+        "checked": 1770436800000
+      },
+      "f12": {
+        "recalled": 1772625600000,
+        "checked": 1770609600000
+      },
+      "f9": {
+        "recalled": 1771588800000,
+        "checked": 1770609600000
+      },
+      "f6": {
+        "recalled": 1771243200000,
+        "checked": 1770436800000
+      },
+      "f13": {
+        "recalled": 1771244400000,
+        "checked": 1770955200000
+      },
+      "f14": {
+        "recalled": 1771590600000,
+        "checked": 1770955200000
+      },
+      "f17": {
+        "recalled": 1772626800000,
+        "checked": 1771214400000
+      },
+      "f19": {
+        "recalled": 1770465600000,
+        "checked": 1771214400000
+      },
+      "f16": {
+        "recalled": 1772107200000,
+        "checked": 1770955200000
+      },
+      "f18": {
+        "recalled": 1771243800000,
+        "checked": 1771214400000
+      },
+      "f22": {
+        "recalled": 1772366400000,
+        "checked": 1771732800000
+      },
+      "f11": {
+        "recalled": 1772626200000,
+        "checked": 1770609600000
+      },
+      "f10": {
+        "recalled": 1772626200000,
+        "checked": 1770609600000
+      },
+      "f27": {
+        "recalled": 1772626800000,
+        "checked": 1772337600000
+      },
+      "f24": {
+        "recalled": 1772109000000,
+        "checked": 1772337600000
+      },
+      "f25": {
+        "recalled": 1771591200000,
+        "checked": 1772337600000
+      },
+      "f7": {
+        "recalled": 1772626200000,
+        "checked": 1770436800000
+      },
+      "f28": {
+        "recalled": 1772626800000,
+        "checked": 1772769600000
+      },
+      "f21": {
+        "recalled": 1771588800000,
+        "checked": 1771732800000
+      },
+      "f29": {
+        "recalled": 1771591200000,
+        "checked": 1772769600000
+      },
+      "f30": {
+        "recalled": 1772107200000,
+        "checked": 1772769600000
+      },
+      "f20": {
+        "recalled": 1771590600000,
+        "checked": 1771214400000
+      },
+      "f15": {
+        "checked": 1770955200000,
+        "recalled": 1771588800000
+      },
+      "f32": {
+        "recalled": 1772368200000
+      },
+      "f23": {
+        "recalled": 1772109000000,
+        "checked": 1772337600000
+      },
+      "f31": {
+        "recalled": 1772108400000
+      },
+      "f33": {
+        "recalled": 1772368200000
+      },
+      "f35": {
+        "recalled": 1772626800000
+      },
+      "f37": {
+        "recalled": 1772109000000
+      },
+      "f26": {
+        "checked": 1772337600000,
+        "recalled": 1772368200000
+      },
+      "f40": {
+        "recalled": 1772367600000
+      },
+      "f43": {
+        "recalled": 1772626800000
+      }
+    }
+  },
+  "episodes": {
+    "episodes": [
+      {
+        "id": "e1",
+        "span": "day",
+        "start": "2026-01-05",
+        "end": "2026-01-05",
+        "text": "On 2026-01-05, Maya Okafor (author ID maya) introduced herself. She lives at 14 Elm Row with her partner Theo and their seven-year-old daughter Isla, who attends Greenfield Primary, and she does the school run. She has a severe peanut allergy and carries an EpiPen, so food topics need care. Maya is a freelance designer whose main client is Brightwell Agency. She and Theo fly to Lisbon on 23 January 2026 to celebrate their tenth anniversary, and she has been planning the trip for months.",
+        "at": 1767672000000,
+        "entries": {
+          "from": 50,
+          "to": 81
+        }
+      },
+      {
+        "id": "e2",
+        "span": "day",
+        "start": "2026-01-06",
+        "end": "2026-01-06",
+        "text": "The recalled facts match what I saved from this conversation, so nothing needs changing. Theo's type 1 diabetes, his early bakery shifts at Crumb & Co, and the green Skoda Octavia are all on file, along with Maya's background from her earlier introduction.",
+        "at": 1767758400000,
+        "entries": {
+          "from": 110,
+          "to": 141
+        }
+      },
+      {
+        "id": "e3",
+        "span": "day",
+        "start": "2026-01-08",
+        "end": "2026-01-08",
+        "text": "Nothing in that recalled material needs changing. I've filed the four new facts from this day: the Halden Studio interview on 14 January, the 7pm daily digest request, the five-bullet limit for summaries, and the 31 January tax return reminder.",
+        "at": 1767931200000,
+        "entries": {
+          "from": 164,
+          "to": 195
+        }
+      },
+      {
+        "id": "e4",
+        "span": "week",
+        "start": "2026-01-05",
+        "end": "2026-01-11",
+        "text": "Week of 2026-01-05 to 2026-01-11\n\nMaya Okafor (author ID: maya) introduced herself on 2026-01-05. She lives at 14 Elm Row with her partner Theo and their seven-year-old daughter Isla, who attends Greenfield Primary; Maya does the school run. Maya has a severe peanut allergy and carries an EpiPen, so food topics need care. She is a freelance designer whose main client is Brightwell Agency. She and Theo fly to Lisbon on 23 January 2026 to celebrate their tenth anniversary.\n\nOn 2026-01-06, the recalled facts matched what was already saved, so nothing changed. This covers Theo's type 1 diabetes, his early bakery shifts at Crumb & Co, the green Skoda Octavia, and Maya's background.\n\nOn 2026-01-08, four new facts were filed: a Halden Studio interview on 14 January, a 7pm daily digest request, a five-bullet limit for summaries, and a 31 January tax return reminder.",
+        "at": 1768190400000
+      },
+      {
+        "id": "e5",
+        "span": "day",
+        "start": "2026-01-12",
+        "end": "2026-01-12",
+        "text": "On 12 January 2026, Maya Okafor said she is having her kitchen redone by Fenwick & Sons, with a £18,000 budget and a 2 February start. She said her mum June uses a wheelchair, so step-free access matters wherever June comes along. She named Dr Patel at Stanmore Surgery as her GP and said a boiler engineer is booked for Thursday 29 January between 8am and 12pm. She said preparation for the Halden Studio interview is going well, but she is nervous about the portfolio review. In #Home, Theo mentioned a tuna sandwich lunch, a umbrella blown inside out, and a forty-minute post office queue.",
+        "at": 1768276800000,
+        "entries": {
+          "from": 230,
+          "to": 288
+        }
+      },
+      {
+        "id": "e6",
+        "span": "day",
+        "start": "2026-01-15",
+        "end": "2026-01-15",
+        "text": "On 2026-01-15, Maya Okafor (maya) shared several updates. She took up bouldering last month, goes to The Arch on Tuesday evenings, and is climbing V3. Her daughter Isla, who is seven, has asthma and carries a blue inhaler, which Maya gave for school forms. Maya's mum June lives in Harrow, so a Sunday visit means a long drive across London. In #Home, Theo (theo) said his band Low Tide plays bass at the Fleece on 7 February, and asked whether Maya and he are both coming. Earlier recalled context includes Maya's kitchen redo by Fenwick & Sons (£18,000, starting 2 February), the boiler engineer on Thursday 29 January between 8am and 12pm, her Halden Studio interview on 14 January, her tax return due 31 January, and the Lisbon trip on 23 January for her and Theo's tenth anniversary.",
+        "at": 1768536000000,
+        "entries": {
+          "from": 319,
+          "to": 350
+        }
+      },
+      {
+        "id": "e7",
+        "span": "week",
+        "start": "2026-01-12",
+        "end": "2026-01-18",
+        "text": "**Week of 12–18 January 2026**\n\nOn Monday 12 January, Maya Okafor (maya) said her kitchen is being redone by Fenwick & Sons, with an £18,000 budget and a start date of 2 February. Her mum June uses a wheelchair, so step-free access matters wherever June comes along. Maya named Dr Patel at Stanmore Surgery as her GP and booked a boiler engineer for Thursday 29 January, between 8am and 12pm. She felt good about her Halden Studio interview preparation but was nervous about the portfolio review. In #Home, Theo mentioned a tuna sandwich lunch, an umbrella blown inside out, and a forty-minute post office queue.\n\nOn Thursday 15 January, Maya shared several updates. She has taken up bouldering, goes to The Arch on Tuesday evenings, and is climbing V3. Her daughter Isla, seven, has asthma and carries a blue inhaler, which Maya provided for school forms. June lives in Harrow, so a Sunday visit means a long drive across London. In #Home, Theo (theo) said his band Low Tide plays bass at the Fleece on 7 February and asked whether Maya and he are both coming.\n\nContext recalled from earlier in the week: the Halden Studio interview was on 14 January, Maya's tax return is due 31 January, and the Lisbon trip on 23 January marks her and Theo's tenth anniversary.",
+        "at": 1768795200000
+      },
+      {
+        "id": "e8",
+        "span": "day",
+        "start": "2026-01-21",
+        "end": "2026-01-21",
+        "text": "Day episode, 21 January 2026: Maya asked Familiar to list her sister Nora in Leeds as emergency contact for official matters, and it was saved. She also gave Isla's dentist appointment as 3 February at 4pm, also saved. Theo asked whether Maya and he were coming to Low Tide's gig at the Fleece on 7 February. Maya mentioned packing for Lisbon, asking for peanut-safe flight snacks, and said Isla refused to wear her coat in the rain. The kitchen redo (Fenwick & Sons, £18,000, from 2 February), the boiler engineer on 29 January, and the Lisbon trip were already on record and were repeated in the #Home room.",
+        "at": 1769054400000,
+        "entries": {
+          "from": 389,
+          "to": 429
+        }
+      },
+      {
+        "id": "e9",
+        "span": "week",
+        "start": "2026-01-19",
+        "end": "2026-01-25",
+        "text": "**Week of 19–25 January 2026**\n\n**21 January:** Maya asked Familiar to list her sister Nora, in Leeds, as emergency contact for official matters. This was saved. Maya also gave Isla's dentist appointment as 3 February at 4pm, which was saved too.\n\nTheo asked whether he and Maya were coming to Low Tide's gig at the Fleece on 7 February. Maya mentioned packing for Lisbon and asked for peanut-safe flight snacks. She also said Isla refused to wear her coat in the rain.\n\nThe kitchen redo with Fenwick & Sons (£18,000, starting 2 February), the boiler engineer visit on 29 January, and the Lisbon trip were already on record and were repeated in the #Home room.",
+        "at": 1769400000000
+      },
+      {
+        "id": "e10",
+        "span": "day",
+        "start": "2026-01-28",
+        "end": "2026-01-28",
+        "text": "Maya's 28 January messages covered a monthly book club (first Thursday; January's book is Piranesi), a Friday pottery class at Kiln House, and Isla's Ironbridge school trip on 12 February, with the £25 due by 5 February. She reported Zipnet broadband dropping out all week and said she was doing her tax return that night, due Saturday. Theo asked to be reminded about a camera shop parcel arriving Friday. Maya's earlier 21 January dentist appointment for Isla on 3 February at 4pm was already on record.",
+        "at": 1769659200000,
+        "entries": {
+          "from": 464,
+          "to": 513
+        }
+      },
+      {
+        "id": "e11",
+        "span": "month",
+        "start": "2026-01-01",
+        "end": "2026-01-31",
+        "text": "**January 2026 for Maya Okafor (maya)**\n\nMaya lives at 14 Elm Row with her partner Theo (theo) and their seven-year-old daughter Isla, who attends Greenfield Primary. Maya does the school run and is a freelance designer, mainly for Brightwell Agency. Food topics need care: Maya has a severe peanut allergy and carries an EpiPen, Isla has asthma and carries a blue inhaler, and Theo has type 1 diabetes. Maya's mum June uses a wheelchair and lives in Harrow, so step-free access matters for any visit.\n\nMaya and Theo fly to Lisbon on 23 January to celebrate their tenth anniversary. Maya had her Halden Studio interview on 14 January and was nervous about the portfolio review. Her tax return was due 31 January, and she finished it on 28 January, due that Saturday.\n\nHome projects: Fenwick & Sons are redoing the kitchen from 2 February, with an £18,000 budget. A boiler engineer is booked for Thursday 29 January, 8am to 12pm.\n\nMaya's sister Nora in Leeds was added as emergency contact for official matters. Isla's dentist appointment is 3 February at 4pm. Isla's Ironbridge school trip is on 12 February, with £25 due by 5 February.\n\nMaya named Dr Patel at Stanmore Surgery as her GP. She started bouldering at The Arch on Tuesday evenings and is climbing V3. She attends a monthly book club (first Thursday; January's book was Piranesi) and a Friday pottery class at Kiln House.\n\nTheo's band Low Tide plays bass at the Fleece on 7 February, and he asked whether Maya and he are coming. Theo asked for a reminder about a camera shop parcel arriving Friday.\n\nZipnet broadband dropped out repeatedly during the last week of January.\n\nPreferences set this month: a 7pm daily digest and summaries limited to five bullets.",
+        "at": 1769918400000
+      },
+      {
+        "id": "e12",
+        "span": "week",
+        "start": "2026-01-26",
+        "end": "2026-02-01",
+        "text": "**Week of 26 January to 1 February 2026**\n\nOn 28 January, Maya asked Familiar to note her monthly book club, which meets on the first Thursday of each month. January's book is *Piranesi*. She also has a pottery class at Kiln House every Friday.\n\nMaya's daughter Isla has a school trip to Ironbridge on 12 February. The £25 payment is due by 5 February.\n\nMaya reported that the Zipnet broadband had been dropping out all week. That evening she was working on her tax return, which is due Saturday.\n\nMaya's son Theo asked for a reminder about a camera shop parcel arriving Friday.\n\nIsla's dentist appointment on 3 February at 4pm was already on record from 21 January.\n\nNo other entries were recorded for this week.",
+        "at": 1770004800000
+      },
+      {
+        "id": "e13",
+        "span": "day",
+        "start": "2026-02-02",
+        "end": "2026-02-02",
+        "text": "On 2 February 2026, Maya reported that Fenwick & Sons started on the kitchen that day, with dust everywhere. She said Isla has a speaking part in her class assembly on Friday 6 February. She also gave Isla's piano lessons: Wednesdays at 4:30 with Mr Adeyemi, which Familiar was asked to keep for school pickups. Maya asked for tonight's digest as bullets, five at most. Theo said his cousin Dele's wedding is on 14 February in Bristol, so they need a plan for Isla. He also reported a takeaway pizza that arrived cold. Repeated #Home items from earlier in the room included the Fenwick kitchen budget (£18,000), the 29 January boiler visit, Low Tide's gig at the Fleece on 7 February, and the Lisbon trip.",
+        "at": 1770091200000,
+        "entries": {
+          "from": 556,
+          "to": 605
+        }
+      },
+      {
+        "id": "e14",
+        "span": "day",
+        "start": "2026-02-07",
+        "end": "2026-02-07",
+        "text": "Checked.",
+        "at": 1770523200000,
+        "entries": {
+          "from": 650,
+          "to": 663
+        }
+      },
+      {
+        "id": "e15",
+        "span": "week",
+        "start": "2026-02-02",
+        "end": "2026-02-08",
+        "text": "**Week of 2 to 8 February 2026**\n\nFenwick & Sons began the kitchen work on Monday 2 February, and the house is now dusty. The kitchen budget is £18,000. Maya asked for tonight's digest in bullet form, five points at most.\n\nIsla has a speaking part in her class assembly on Friday 6 February. Her piano lessons are on Wednesdays at 4:30 with Mr Adeyemi, and Familiar will now handle the school pickups so Maya can get her there.\n\nTheo's cousin Dele is getting married on 14 February in Bristol, so the family needs a plan for Isla that weekend. Theo also reported a takeaway pizza that arrived cold.\n\nOther items still open from earlier: the 29 January boiler visit, Low Tide's gig at the Fleece on 7 February, and the Lisbon trip.",
+        "at": 1770609600000
+      },
+      {
+        "id": "e16",
+        "span": "day",
+        "start": "2026-02-11",
+        "end": "2026-02-11",
+        "text": "Checked.",
+        "at": 1770868800000,
+        "entries": {
+          "from": 699,
+          "to": 711
+        }
+      },
+      {
+        "id": "e17",
+        "span": "week",
+        "start": "2026-02-09",
+        "end": "2026-02-15",
+        "text": "The week of 2026-02-09 to 2026-02-15 has one recorded entry. On 2026-02-11, Familiar logged a single check-in and nothing else. No other events, decisions, projects, or changes were recorded for the week, so there is little to summarize beyond that one routine check.",
+        "at": 1771214400000
+      },
+      {
+        "id": "e18",
+        "span": "day",
+        "start": "2026-02-16",
+        "end": "2026-02-16",
+        "text": "Maya told Familiar on 16 February 2026 that she and Theo had found a new home at 3 Quarry Lane and would move there on 1 March. She said the kitchen work at Elm Row had ended up being done for the landlord. Isla will start at Hollin Primary after half-term, since Quarry Lane is in its catchment. In #Home that day, Maya sent her first V4 at The Arch that evening. Theo said they had bought a second-hand Nissan Leaf, so they no longer need petrol.",
+        "at": 1771300800000,
+        "entries": {
+          "from": 760,
+          "to": 791
+        }
+      },
+      {
+        "id": "e19",
+        "span": "day",
+        "start": "2026-02-20",
+        "end": "2026-02-20",
+        "text": "On 20 February 2026, Theo asked Maya what to avoid for Saturday's dinner. Maya said only peanuts (severe allergy), and that Isla dislikes mushrooms, though that is negotiable. Maya said the family has an allotment, plot 12 on Mill Lane, which she waters on Sunday mornings. She also said her mum June has moved from Harrow into a ground-floor flat in Ealing, so Sunday visits are a different drive now. Maya reported that Isla's cough is back and her asthma always flares in this cold. The earlier #Home room history included the kitchen work by Fenwick & Sons (£18,000, started 2 February), the Low Tide gig at the Fleece on 7 February, Isla's class assembly on 6 February, and Maya and Isla's plans to be at the gig by 8pm.",
+        "at": 1771646400000,
+        "entries": {
+          "from": 824,
+          "to": 864
+        }
+      },
+      {
+        "id": "e20",
+        "span": "week",
+        "start": "2026-02-16",
+        "end": "2026-02-22",
+        "text": "**Week of 16–22 February 2026**\n\nOn 16 February, Maya told Familiar that she and Theo had found a new home at 3 Quarry Lane and would move there on 1 March. The kitchen work at Elm Row ended up being done for the landlord. Isla will start at Hollin Primary after half-term, since Quarry Lane is in its catchment. That evening Maya posted her first V4 at The Arch in #Home. Theo said they had bought a second-hand Nissan Leaf, so the family no longer needs petrol.\n\nOn 20 February, Theo asked Maya what to avoid for Saturday's dinner. Maya said to avoid peanuts entirely because of a severe allergy. Isla dislikes mushrooms, though that is negotiable. Maya also said the family has an allotment, plot 12 on Mill Lane, which she waters on Sunday mornings. Her mum June has moved from Harrow into a ground-floor flat in Ealing, so Sunday visits are now a different drive. Maya reported that Isla's cough has returned and that her asthma always flares in this cold.",
+        "at": 1771819200000
+      },
+      {
+        "id": "e21",
+        "span": "day",
+        "start": "2026-02-26",
+        "end": "2026-02-26",
+        "text": "Maya asked for help planning reading time for book club next Thursday, since she hasn't finished Piranesi. On 26 February she also said Corvid Labs is now her main client, with Monday calls, so that replaces Brightwell Agency. Theo reported that Spoke Cycles is busy with spring tune-ups. In #Home, Maya said she is glazing her first mug at pottery, and she and Theo discussed the Saturday dinner (only peanuts to avoid; Isla dislikes mushrooms).",
+        "at": 1772164800000,
+        "entries": {
+          "from": 908,
+          "to": 938
+        }
+      },
+      {
+        "id": "e22",
+        "span": "month",
+        "start": "2026-02-01",
+        "end": "2026-02-28",
+        "text": "Episode: February 2026\n\nMaya and Theo's kitchen work began on 2 February, when Fenwick & Sons started on the project (budget £18,000) and the house was dusty. Isla has a speaking part in her class assembly on Friday 6 February. Her piano lessons are Wednesdays at 4:30 with Mr Adeyemi, and Familiar was asked to cover school pickups. Theo's cousin Dele is getting married in Bristol on 14 February, so the family needs a plan for Isla. Low Tide play the Fleece on 7 February, and Maya and Isla plan to be there by 8pm.\n\nMid-month, on 16 February, Maya and Theo found a new home at 3 Quarry Lane and will move on 1 March. The Elm Row kitchen work ended up being done for the landlord. Isla will start at Hollin Primary after half-term, since Quarry Lane falls in its catchment. Maya also sent her first V4 at The Arch that evening, and the couple bought a second-hand Nissan Leaf, so they no longer need petrol.\n\nOn 20 February, Theo planned Saturday's dinner. The only firm restriction is peanuts, because of a severe allergy; Isla dislikes mushrooms, though that can be negotiated. Maya's mum June has moved from Harrow to a ground-floor flat in Ealing, which changes the Sunday visit drive. Isla's cough has returned, and her asthma flares in this cold. The family's allotment is plot 12 on Mill Lane, which Maya waters on Sunday mornings.\n\nOn 26 February, Corvid Labs became Maya's main client, with Monday calls, replacing Brightwell Agency. Maya is behind on Piranesi for next Thursday's book club and asked for help planning reading time. Theo reports spring tune-ups are keeping Spoke Cycles busy. Maya is glazing her first mug at pottery.",
+        "at": 1772337600000
+      },
+      {
+        "id": "e23",
+        "span": "day",
+        "start": "2026-03-01",
+        "end": "2026-03-01",
+        "text": "The recalled February 2026 notes don't need any changes to what I have on file. The only new detail from them is that Maya's family moved to 3 Quarry Lane, which I've already updated. If you tell me what you'd like to check or update, I can do that.",
+        "at": 1772424000000,
+        "entries": {
+          "from": 976,
+          "to": 1006
+        }
+      },
+      {
+        "id": "e24",
+        "span": "week",
+        "start": "2026-02-23",
+        "end": "2026-03-01",
+        "text": "**Week of 23 February to 1 March 2026**\n\nOn 26 February, Maya asked for help planning reading time for book club next Thursday, since she hasn't finished *Piranesi*. The same day she said Corvid Labs is now her main client, with Monday calls, replacing Brightwell Agency. Theo reported that Spoke Cycles is busy with spring tune-ups.\n\nIn #Home, Maya said she is glazing her first mug at pottery. She and Theo also discussed the Saturday dinner: the only restriction is peanuts, and Isla dislikes mushrooms.\n\nOn 1 March, the February notes were recalled and needed no changes to what is on file. The family's move to 3 Quarry Lane was confirmed as already updated.",
+        "at": 1772424000000
+      },
+      {
+        "id": "e25",
+        "span": "day",
+        "start": "2026-03-04",
+        "end": "2026-03-04",
+        "text": "Maya asked Familiar on 4 March 2026 to draft a note for Isla's teacher about her peanut allergy, saying the family avoids peanuts at home, for a class party. She also asked for tonight's digest as five bullets, as usual. Later that day she asked for a reminder to pack Isla's music book for the afternoon piano lesson.",
+        "at": 1772683200000,
+        "entries": {
+          "from": 1039,
+          "to": 1061
+        }
+      }
+    ],
+    "next": 26
+  },
+  "clock": 1772769600000,
+  "tokens": {
+    "input": 2020,
+    "output": 40679,
+    "cacheRead": 146103,
+    "cacheWrite": 389382,
+    "total": 578184
+  },
+  "elapsedMs": 275827
+}
