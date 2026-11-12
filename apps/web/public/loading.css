@@ -12,6 +12,13 @@ body {
   display: grid;
   min-height: var(--app-height, 100svh);
   place-items: center;
+  /*
+   * Its own surface, so the cat is never the same colour as what's behind it:
+   * before the app's stylesheet, the system's pair, which a home-screen app
+   * otherwise doesn't paint, leaving a black window behind a black cat.
+   */
+  background-color: var(--background, Canvas);
+  color: var(--foreground, CanvasText);
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
@@ -45,5 +52,4 @@ body {
 .app-loader .pixel-cat {
   width: 64px;
   height: 64px;
-  color: CanvasText;
 }
