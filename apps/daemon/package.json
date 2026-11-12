@@ -10,6 +10,7 @@
     "eval:recall": "node src/memory-eval/recall-main.ts",
     "eval:unfiled": "node src/memory-eval/unfiled-main.ts",
     "eval:core": "node src/memory-eval/core-main.ts",
+    "eval:use": "node src/memory-eval/use-main.ts",
     "typecheck": "tsc",
     "bundle": "pnpm --filter @familiar-ai/web build && node scripts/bundle.ts",
     "test:release": "node scripts/verify-release.ts"

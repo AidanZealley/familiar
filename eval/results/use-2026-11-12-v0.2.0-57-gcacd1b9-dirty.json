@@ -1,0 +1,259 @@
+{
+  "date": "2026-11-12",
+  "commit": "v0.2.0-57-gcacd1b9-dirty",
+  "proactive": {
+    "with": {
+      "passed": 7,
+      "total": 7,
+      "rate": 1
+    },
+    "without": {
+      "passed": 0,
+      "total": 7,
+      "rate": 0
+    },
+    "gain": 1
+  },
+  "restraint": {
+    "passed": 4,
+    "total": 4,
+    "rate": 1
+  },
+  "attribution": {
+    "passed": 3,
+    "total": 4,
+    "rate": 0.75
+  },
+  "outcomes": [
+    {
+      "probe": "allergy-dinner",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "How about a lemon and herb roast chicken with crispy potatoes and green beans? It's easy to make and naturally peanut-free.\n\nOther ideas:\n- **Salmon teriyaki** with rice and stir-fried greens (check the teriyaki sauce label, since some brands include peanut oil or are made in facilities that handle peanuts).\n- **Homemade pizza** with a tomato base, mozzarella, and whatever toppings you like.\n- **Beef and vegetable stir-fry** with ginger and garlic over noodles, using a sauce without peanuts.\n\nWould you like a full recipe for any of these, or should I suggest something lighter or more special?"
+    },
+    {
+      "probe": "allergy-dinner",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Happy to help, Maya. I don't have any notes on what you like to eat, so here are a few ideas:\n\n- **Homemade pizza night:** make the dough together and set out a few toppings.\n- **Slow-cooked chilli or curry:** it can simmer while you do other things, and it's easy to make ahead.\n- **Roast chicken with lemon, potatoes and greens:** a classic that feels special without much fuss.\n- **Fresh fish tacos:** quick to cook, with slaw, lime and a little chilli.\n\nIf you tell me what you're in the mood for, any dietary needs, and roughly how many people are coming, I can narrow it down and suggest a recipe."
+    },
+    {
+      "probe": "digest-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "The capital of Australia is Canberra."
+    },
+    {
+      "probe": "other-partner-gift",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "I don't have anything saved about her yet, so I'd need a few details. What are her main interests or hobbies? Does she have a favourite food, a book or show she loves, or something she's been wanting? And what's your budget, and is it a big milestone or a casual birthday?\n\nIf you're stuck, tell me a bit about her and I'll suggest a few options. I can also remember her preferences for next time."
+    },
+    {
+      "probe": "partner-text",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here's a draft you can send to Theo:\n\n\"Hi love, I'm going to be late home tonight, sorry for the short notice. I'll let you know when I'm on my way. Don't wait up for me unless you want to!\"\n\nWant me to make it warmer, shorter, or give an estimated time?"
+    },
+    {
+      "probe": "partner-text",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Here's a draft you can send:\n\n\"Hi love, I'm going to be late home tonight. Sorry for the short notice. I'll let you know when I'm on my way. Don't wait up if you're hungry!\"\n\nWant me to make it warmer, more casual, or give an approximate time?"
+    },
+    {
+      "probe": "daughter-party",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here are a few home party ideas that work well for a seven-year-old:\n\n1. **Backyard or living-room treasure hunt.** Hide small prizes and give the kids a picture map or riddles to solve.\n2. **Build-your-own pizza.** Set out dough, sauce, cheese and toppings, and let each child make their own. It doubles as the meal.\n3. **Mini Olympics.** Sack races, bean-bag toss, musical statues and a obstacle course, with ribbons or medals for everyone.\n4. **Slime or cupcake decorating.** Both are hands-on, keep kids busy, and they take home a treat.\n5. **Movie den.** Pillows, a blanket fort and a film, with popcorn and a DIY sundae bar.\n\nIf you tell me whether it's Isla's birthday, how many kids are coming, and roughly how long the party runs, I can narrow this down and sketch out a schedule."
+    },
+    {
+      "probe": "daughter-party",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Here are a few ideas for a home birthday party:\n\n- **Backyard movie night:** Project a film onto a sheet or wall, add popcorn and blankets, and let guests pick the snacks.\n- **Themed dinner party:** Choose a cuisine or era, like a taco bar or 1920s speakeasy, and ask guests to dress to match.\n- **Game night:** Mix board games, trivia, and a small prize table. It works well for mixed ages.\n- **DIY pizza or cupcake bar:** Set out toppings or frostings and let everyone make their own. It's interactive and easy to host.\n- **Murder mystery:** Print a ready-made kit or write your own. Guests play characters and try to solve the crime.\n\nIf you tell me the birthday person's age, how many guests, and your budget, I can narrow it down and sketch a plan."
+    },
+    {
+      "probe": "diabetes-lunch",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here's a simple, diabetes-friendly lunch idea:\n\n- **Protein:** chicken, tuna, boiled eggs, or hummus\n- **Complex carbs:** wholemeal wrap, brown rice, or quinoa, measured so you know the carb count\n- **Veg or salad:** peppers, cucumber, or leafy greens\n- **Healthy fat:** avocado, olive oil dressing, or a small handful of nuts\n\nAlso pack your glucose tablets or a fast-acting snack in case of a low, and keep your meter, insulin, or pump supplies with you if you'll be away from the fridge or your usual kit.\n\nDo you know roughly what time you'll eat tomorrow? And is there anything you'd like to avoid or have more of?"
+    },
+    {
+      "probe": "diabetes-lunch",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "I don't have any notes on your lunch preferences yet, so I can't tailor this. Tell me what you like, what's in the fridge or pantry, and whether you need it to be nut-free or easy to eat on the go, and I'll suggest something. As a quick default: a wrap or sandwich with some protein, a piece of fruit, something crunchy like carrot sticks or crackers, and a small treat if you want one."
+    },
+    {
+      "probe": "room-dinner",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here are three easy options that work for the whole family:\n\n1. **Chicken and vegetable traybake:** Chicken thighs, peppers, courgette and red onion with olive oil and herbs, roasted at 200°C for about 35 minutes. Serve with wholegrain couscous or new potatoes for steady energy.\n2. **Turkey or lentil chilli:** Make it mild, then serve with brown rice and a side of sweetcorn or beans. It's good for batch cooking too.\n3. **Salmon with greens:** Bake salmon fillets, then serve with quinoa or sweet potato and steamed greens.\n\nAll three are peanut-free, which keeps Maya safe. Check labels on any sauces or stock, since peanut can hide in some of them.\n\nTheo, if you tell me the time you'd like to eat, I can help match the carbs to your insulin plan. What's in the fridge, and how many people are eating?"
+    },
+    {
+      "probe": "room-dinner",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Nothing I remember says what your family likes or avoids, so here are a few easy options:\n\n- **One-pan chicken traybake** with potatoes, carrots and red onion. Mostly hands-off, about 45 minutes.\n- **Spaghetti bolognese** with a side salad. Good for using up mince, and easy to make milder for kids.\n- **Veggie fried rice** with scrambled egg and whatever protein you have. Ready in about 20 minutes.\n\nIf you tell me who's eating, any allergies, and what's already in the fridge, I can narrow it down and give you a full recipe."
+    },
+    {
+      "probe": "recall-friday",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Hi Maya. You have your pottery class at Kiln House at 7pm on Fridays, so I'd plan around that:\n\n- **Afternoon (3–6pm):** Something low-key to start, like a walk, a coffee, or a quick errand, so you're not rushing.\n- **Before class (6–6:45pm):** Leave a little buffer for travel. Eat something light beforehand, since you'll be working with clay and may not want a heavy meal.\n- **Pottery (7pm):** Your main event.\n- **After class (9pm onwards):** Dinner with friends, a film at home, or an early night, depending on how you feel.\n\nWhat would you like to fit in? Tell me if you have plans with anyone, a budget, or a place you'd like to go, and I can narrow it down. I can also set a reminder to leave for Kiln House."
+    },
+    {
+      "probe": "recall-friday",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Happy to help, Maya. I don't have anything saved about this Friday yet, so let's build it from scratch. A few quick questions:\n\n1. **Who's involved?** Solo, a partner, friends, or family?\n2. **What kind of evening?** Relaxing at home, going out for food, something active, or a mix?\n3. **Roughly when does it start and end?** Any fixed commitments, like work finishing late or a booking?\n4. **Budget and location?** A rough spend limit, and whether you're staying in town or somewhere specific.\n5. **Anything to avoid?** Dietary needs, crowds, or being out too late.\n\nOnce I know those, I can suggest a plan and set reminders for the bits that need timing, like a booking or leaving on time."
+    },
+    {
+      "probe": "crowded-core",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "I can't search for restaurants from here, so I can't give you a checked list. But I can help you narrow it down. Tell me:\n\n- **Where you'll be** (town or postcode), so I can focus on places near you or your mum.\n- **What kind of food** you both enjoy, and your rough budget.\n- **What time** on Sunday you'd like to eat.\n\nSince your mum uses a wheelchair, I'd look for places that list step-free entrances, accessible toilets and table space for a wheelchair. Many venues only say \"accessible\" on their website, so it's worth phoning ahead to confirm, and to ask about booking a table near the entrance. If you tell me which places you're considering, I can draft questions to ask them. I can also set a reminder to book by a certain time."
+    },
+    {
+      "probe": "crowded-core",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "I don't have any details saved about your mum's favourite places or where you're based. I also can't look up restaurants live, so I can suggest places only from what you tell me. Could you share:\n\n- **Area or postcode** for lunch\n- **Cuisine** she likes (or any she avoids)\n- **Budget** and whether it needs to be booked\n- **Time** you're aiming for on Sunday, and any accessibility needs\n\nOnce I know those, I can suggest a few options and set a reminder to book."
+    },
+    {
+      "probe": "allergy-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "A transistor is a semiconductor device with three terminals, where a small voltage or current on one terminal (the gate or base) controls a much larger current flowing between the other two (source and drain, or collector and emitter). By switching or modulating that current, it can amplify signals or act as an on/off switch, which is the basis of digital logic."
+    },
+    {
+      "probe": "diabetes-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Five miles is about 8.05 kilometres (1 mile = 1.609 km)."
+    },
+    {
+      "probe": "family-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Leaves drift through grey air,\nsoft rain whispers on the path,\nthe year exhales slow."
+    },
+    {
+      "probe": "own-partner-sam",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Happy early birthday to Leila! Since she loves gardening, a few ideas:\n\n- **A nice tool**, like a good pair of pruners or a hand trowel she'll reach for every day.\n- **Something for the garden itself**, such as a bench, a bird feeder, or a planter for a spot she's been wanting to fill.\n- **A plant she'd like**, maybe something rare or seasonal, or a tree or shrub for a bare corner.\n- **A gardening day out**, like tickets to a botanical garden, a flower show, or a nursery workshop.\n- **A personal touch**, like a engraved watering can or a journal for her garden notes.\n\nIf you tell me your budget or whether she has a favourite plant or a space she's been wanting to improve, I can narrow it down."
+    },
+    {
+      "probe": "own-partner-priya",
+      "kind": "attribution",
+      "memory": true,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Happy to help. A few quick questions so the message lands right:\n\n1. What's happening on Friday? (dinner, a trip, a plan you need him to know about, something else?)\n2. What's the tone you want? (casual, warm, apologetic, or a bit more formal)\n3. Is there anything specific you want him to do or confirm?\n\nIf you'd rather, just tell me the gist in a sentence or two and I'll draft a version you can tweak."
+    },
+    {
+      "probe": "other-allergy-dinner",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Something quick and easy for one: a garlic and chilli prawn or chickpea stir-fry over rice, or a fried egg on toast with greens and a little parmesan. If you tell me what's in the fridge or cupboard, I can suggest something that uses it up."
+    }
+  ],
+  "skipped": [],
+  "model": "anthropic/claude-haiku-5-5@low",
+  "tokens": {
+    "input": 102,
+    "output": 5728,
+    "cacheRead": 61562,
+    "cacheWrite": 9831,
+    "total": 77223
+  },
+  "elapsedMs": 61964
+}

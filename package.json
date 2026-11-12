@@ -17,6 +17,7 @@
     "eval:recall": "pnpm --filter @familiar-ai/daemon eval:recall",
     "eval:unfiled": "pnpm --filter @familiar-ai/daemon eval:unfiled",
     "eval:core": "pnpm --filter @familiar-ai/daemon eval:core",
+    "eval:use": "pnpm --filter @familiar-ai/daemon eval:use",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
