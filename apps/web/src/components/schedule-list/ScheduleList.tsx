@@ -2,12 +2,13 @@ import type { Schedule } from '@familiar-ai/client'
 import { useFamiliar } from '@/lib/familiar'
 import { formatRelativeDay } from '@/lib/format'
 import { ScheduleItem } from './components/schedule-item'
+import type { ScheduleListProps } from './types'
 
 /**
- * Every schedule, soonest first, grouped by the day it next runs. Familiar
- * adds them when asked in chat.
+ * Every schedule, soonest first, grouped by the day it next runs. The
+ * Familiar adds them when asked in chat.
  */
-export const ScheduleList = () => {
+export const ScheduleList = ({ name }: ScheduleListProps) => {
   const schedules = useFamiliar((state) => state.schedules)
   if (schedules === undefined) {
     return null
@@ -20,8 +21,8 @@ export const ScheduleList = () => {
   if (!sorted.length) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        Nothing scheduled. Ask Familiar in chat, like “remind me at 6 to call
-        Mum” or “every weekday at 7, brief me on my day”.
+        Nothing scheduled. Ask {name} in chat, like “remind me at 6 to call Mum”
+        or “every weekday at 7, brief me on my day”.
       </p>
     )
   }
