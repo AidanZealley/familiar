@@ -4,7 +4,7 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { MutableModels } from '@earendil-works/pi-ai/models'
 import { createRegistry, Harness } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import type { ChatModel, RoomApi, Workspace } from '@familiar-ai/core'
+import type { ModelChoice, RoomApi, Workspace } from '@familiar-ai/core'
 import {
   Facts,
   isPast,
@@ -95,7 +95,7 @@ export type UseOptions = {
   fixture?: CoreFixture
   /** Holds the chat model's provider, metered. */
   models: MutableModels
-  chat: ChatModel
+  chat: ModelChoice
   meter: Meter
   /** A temporary directory for the runs' stores. */
   directory: string
@@ -294,8 +294,8 @@ export async function runUseEval({
         {
           storage: await openNodeSqliteStorage(path),
           models,
-          model: chat.model,
-          chatModels: [chat],
+          chatModel: chat.model,
+          modelChoices: [chat],
           timeZone: EVAL_TIME_ZONE,
           now: clock.now,
           setTimer: clock.setTimer,

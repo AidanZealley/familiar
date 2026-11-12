@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import type { ChatModel } from '@familiar-ai/core'
+import type { ModelChoice } from '@familiar-ai/core'
 import type {
   EpisodesState,
   FactsState,
@@ -37,7 +37,7 @@ const root = resolve(import.meta.dirname, '../../../..')
 const upkeepDirectory = join(root, 'packages/core/src/memory/upkeep')
 const fixtures = join(root, 'eval/fixtures')
 
-export const modelName = ({ model, thinkingLevel }: ChatModel) =>
+export const modelName = ({ model, thinkingLevel }: ModelChoice) =>
   `${model.provider}/${model.modelId}@${thinkingLevel}`
 
 /**
@@ -46,7 +46,7 @@ export const modelName = ({ model, thinkingLevel }: ChatModel) =>
  * nor are the scenario's labels and match strings, which only grading reads.
  * Whole files, so an edit to either, even a comment, means a new replay.
  */
-export function coreHash(scenario: CoreScenario, model: ChatModel) {
+export function coreHash(scenario: CoreScenario, model: ModelChoice) {
   const hash = createHash('sha256')
   for (const file of ['prompts.ts', 'tools.ts']) {
     hash.update(readFileSync(join(upkeepDirectory, file)))

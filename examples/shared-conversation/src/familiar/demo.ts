@@ -31,7 +31,7 @@ export async function startDemo() {
   const workspace = await openWorkspace({
     storage: new MemoryStorage(),
     models: createScriptedModels(),
-    model: SCRIPTED_MODEL,
+    chatModel: SCRIPTED_MODEL,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     plugins: [guestList],
   })

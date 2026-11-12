@@ -1,9 +1,9 @@
-import type { ChatModel } from '@familiar-ai/core'
+import type { ModelChoice } from '@familiar-ai/core'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import { scriptedModels } from '@familiar-ai/core/models/scripted'
 
 /** A scripted model that echoes, so the example needs no model key. */
-export const ECHO_MODEL: ChatModel = {
+export const ECHO_MODEL: ModelChoice = {
   model: { provider: 'faux', modelId: 'faux-1' },
   thinkingLevel: 'low',
 }

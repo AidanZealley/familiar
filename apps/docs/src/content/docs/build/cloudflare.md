@@ -25,7 +25,7 @@ export class Bot extends DurableObject {
       models: scriptedModels(() =>
         fauxAssistantMessage('Hello from a Worker.'),
       ),
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'Europe/London',
     }),
     // After each open: make its Familiar the first time.

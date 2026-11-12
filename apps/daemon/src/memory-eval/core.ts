@@ -9,7 +9,7 @@ import type {
   Storage,
 } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import type { ChatModel, RoomApi, RoomId, Workspace } from '@familiar-ai/core'
+import type { ModelChoice, RoomApi, RoomId, Workspace } from '@familiar-ai/core'
 import {
   Episodes,
   Facts,
@@ -66,7 +66,7 @@ export type CoreReplay =
 export type CoreReplayOptions = {
   /** Holds upkeep's provider, metered; the replay adds the scripted chat's. */
   models: MutableModels
-  memoryModel: ChatModel
+  memoryModel: ModelChoice
   meter: Meter
   /** A temporary directory for the replay's store. */
   directory: string
@@ -186,12 +186,17 @@ export async function replayCore(
     }
   }
 
+  const evalChat: ModelChoice = {
+    model: { provider: 'faux', modelId: 'eval-chat' },
+    thinkingLevel: 'medium',
+  }
   const { workspace, familiar } = await openDaemonWorkspace(
     {
       storage: await openNodeSqliteStorage(path),
       models,
-      model: { provider: 'faux', modelId: 'eval-chat' },
-      memoryModel,
+      chatModel: evalChat.model,
+      modelChoices: [evalChat, memoryModel],
+      memoryModel: memoryModel.model,
       timeZone: EVAL_TIME_ZONE,
       now: clock.now,
       setTimer: clock.setTimer,

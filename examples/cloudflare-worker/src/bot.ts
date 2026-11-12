@@ -13,8 +13,8 @@ export class Bot extends DurableObject<Env> {
     // Called each time the object opens, including after eviction.
     workspace: () => ({
       models: echoModels(),
-      model: ECHO_MODEL.model,
-      chatModels: [ECHO_MODEL],
+      chatModel: ECHO_MODEL.model,
+      modelChoices: [ECHO_MODEL],
       timeZone: this.env.TIME_ZONE,
       // A real host delivers these, such as by Web Push or email.
       notify: async (notification) => console.log(notification),
