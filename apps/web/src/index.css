@@ -131,15 +131,15 @@
   }
 }
 
-/* The pixel spinner lights one square of its ring at a time, in turn. */
+/* The hourglass spinner shows one of its frames at a time, in turn. */
 @theme {
-  --animate-pixel-spin: pixel-spin 800ms step-end infinite;
-  @keyframes pixel-spin {
+  --animate-hourglass: hourglass 1500ms step-end infinite;
+  @keyframes hourglass {
     0% {
       opacity: 1;
     }
-    12.5% {
-      opacity: 0.25;
+    33.333% {
+      opacity: 0;
     }
   }
 }
