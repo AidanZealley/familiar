@@ -67,6 +67,8 @@ export type CoreReplayOptions = {
   /** Holds upkeep's provider, metered; the replay adds the scripted chat's. */
   models: MutableModels
   memoryModel: ModelChoice
+  /** Which replay of the scenario this is, from 1; it names the fixture. */
+  replay: number
   meter: Meter
   /** A temporary directory for the replay's store. */
   directory: string
@@ -155,6 +157,7 @@ export async function replayCore(
   {
     models,
     memoryModel,
+    replay,
     meter,
     directory,
     probe,
@@ -312,6 +315,7 @@ export async function replayCore(
       fixture: {
         scenario: scenario.id,
         hash: coreHash(scenario, memoryModel),
+        replay,
         model: modelName(memoryModel),
         facts: await readDocument(storage, Facts, familiar),
         usage: await readDocument(storage, MemoryUsage, familiar),

@@ -22,6 +22,7 @@ import { openDaemonWorkspace } from '../workspace.ts'
 import { createClock, EVAL_TIME_ZONE } from './clock.ts'
 import { modelName, type CoreFixture } from './core-fixture.ts'
 import { TokenCapError, type Meter, type TokenTotals } from './model.ts'
+import { spreadOf, type Spread } from './spread.ts'
 import type { ProbeKind, SeedFact, UseProbe } from './use-probes.ts'
 
 /**
@@ -32,7 +33,9 @@ import type { ProbeKind, SeedFact, UseProbe } from './use-probes.ts'
  *
  * A proactive probe runs three ways, so the grade can say what core and
  * recall each contribute: its facts pinned into core, its facts rated just
- * below core's threshold so only recall can bring them up, and no facts.
+ * below core's threshold so only recall can bring them up, and no facts. It
+ * runs each way `repeat` times, since one run of a model is one draw from a
+ * spread, and the grade reports every rate with the range the repeats fell in.
  */
 
 const DAY = 24 * 60 * 60 * 1000
@@ -59,6 +62,8 @@ export type UseOutcome = {
   probe: string
   kind: ProbeKind
   placement: Placement
+  /** Which repeat of the probe this was, from 0. */
+  repeat: number
   /**
    * For an `outside` run: whether automatic recall's note held a fact under
    * test, which is whether its words matched the request. Without it the
@@ -78,23 +83,30 @@ export type UseOutcome = {
 }
 
 export type UseGrade = {
+  /**
+   * Each rate is worked out per repeat and reported as the mean and range
+   * across repeats, so a move smaller than the range is noise.
+   */
   proactive: {
+    /** How many proactive probes ran, and how many times each. */
+    probes: number
+    repeats: number
     /** With the facts in core (or, from a fixture, as the replay left them). */
-    with: Rate
+    with: Spread
     /** With the facts outside core. */
-    outside: Rate
-    without: Rate
+    outside: Spread
+    without: Spread
     /** `with` over `without`: what memory adds. */
-    gain: number
+    gain: Spread
     /**
      * Among probes that pass with the facts in core, those that still pass
      * with them outside: how much of core's job recall does.
      */
-    rescue: Rate
+    rescue: Spread
     /** Outside runs in which automatic recall's words matched the fact. */
-    recalled: Rate
+    recalled: Spread
     /** Outside runs in which the model searched memory itself. */
-    asked: Rate
+    asked: Spread
   }
   restraint: Rate
   attribution: Rate
@@ -140,6 +152,8 @@ export type UseOptions = {
   directory: string
   /** Stop after measuring one probe of each kind. */
   probe?: boolean
+  /** How many times each proactive probe runs per placement. Default 1. */
+  repeat?: number
   progress?: (message: string) => void
 }
 
@@ -289,31 +303,70 @@ const replyText = (messages: ReplyMessage[]): string =>
     .join('\n')
     .trim()
 
-type Planned = { probe: UseProbe; placement: Placement }
+type Planned = { probe: UseProbe; placement: Placement; repeat: number }
 
 /**
  * What each proactive probe runs as: facts in core, outside it, and none. A
  * fixture's facts have their own placement, so they run as the replay left
- * them and with none. The other kinds run with their facts as seeded.
+ * them and with none. The other kinds run once, with their facts as seeded.
  */
-const runsOf = (probe: UseProbe, fixture?: CoreFixture): Planned[] =>
+const runsOf = (
+  probe: UseProbe,
+  repeat: number,
+  fixture?: CoreFixture,
+): Planned[] =>
   (probe.kind === 'proactive'
     ? fixture
       ? (['placed', 'none'] as const)
       : (['core', 'outside', 'none'] as const)
-    : (['placed'] as const)
-  ).map((placement) => ({ probe, placement }))
-
-const tally = (passed: number, total: number): Rate => ({
-  passed,
-  total,
-  rate: total ? round(passed / total) : 0,
-})
-
-const rate = (outcomes: UseOutcome[]) =>
-  tally(outcomes.filter((outcome) => outcome.passed).length, outcomes.length)
+    : repeat === 0
+      ? (['placed'] as const)
+      : []
+  ).map((placement) => ({ probe, placement, repeat }))
 
 const round = (value: number) => Math.round(value * 1000) / 1000
+
+const rate = (outcomes: UseOutcome[]): Rate => {
+  const passed = outcomes.filter((outcome) => outcome.passed).length
+  return {
+    passed,
+    total: outcomes.length,
+    rate: outcomes.length ? round(passed / outcomes.length) : 0,
+  }
+}
+
+/** The proactive measures of one repeat; a share is left out when nothing could have counted. */
+function gradeRepeat(outcomes: UseOutcome[]) {
+  const of = (...placements: Placement[]) =>
+    outcomes.filter((outcome) => placements.includes(outcome.placement))
+  const share = (
+    whole: UseOutcome[],
+    part: (outcome: UseOutcome) => unknown,
+  ) =>
+    whole.length
+      ? whole.filter((outcome) => part(outcome)).length / whole.length
+      : undefined
+  const outside = of('outside')
+  const reachable = new Set(
+    of('core')
+      .filter((outcome) => outcome.passed)
+      .map((outcome) => outcome.probe),
+  )
+  const withMemory = rate(of('core', 'placed')).rate
+  const without = rate(of('none')).rate
+  return {
+    with: withMemory,
+    outside: rate(outside).rate,
+    without,
+    gain: withMemory - without,
+    rescue: share(
+      outside.filter((outcome) => reachable.has(outcome.probe)),
+      (outcome) => outcome.passed,
+    ),
+    recalled: share(outside, (outcome) => outcome.recalled),
+    asked: share(outside, (outcome) => outcome.asked),
+  }
+}
 
 export function gradeUse(
   outcomes: UseOutcome[],
@@ -322,37 +375,30 @@ export function gradeUse(
     'skipped' | 'fixture' | 'model' | 'tokens' | 'elapsedMs'
   >,
 ): UseGrade {
-  const of = (kind: ProbeKind, ...placements: Placement[]) =>
-    outcomes.filter(
-      (outcome) =>
-        outcome.kind === kind && placements.includes(outcome.placement),
-    )
-  const withMemory = rate(of('proactive', 'core', 'placed'))
-  const without = rate(of('proactive', 'none'))
-  const outside = of('proactive', 'outside')
-  const reachable = new Set(
-    of('proactive', 'core')
-      .filter((outcome) => outcome.passed)
-      .map((outcome) => outcome.probe),
+  const of = (kind: ProbeKind) =>
+    outcomes.filter((outcome) => outcome.kind === kind)
+  const proactive = of('proactive')
+  const repeats = [...new Set(proactive.map((outcome) => outcome.repeat))]
+  const graded = repeats.map((repeat) =>
+    gradeRepeat(proactive.filter((outcome) => outcome.repeat === repeat)),
   )
+  const across = (
+    pick: (repeat: (typeof graded)[number]) => number | undefined,
+  ) => spreadOf(graded.flatMap((repeat) => pick(repeat) ?? []))
   return {
     proactive: {
-      with: withMemory,
-      outside: rate(outside),
-      without,
-      gain: round(withMemory.rate - without.rate),
-      rescue: rate(outside.filter((outcome) => reachable.has(outcome.probe))),
-      recalled: tally(
-        outside.filter((outcome) => outcome.recalled).length,
-        outside.length,
-      ),
-      asked: tally(
-        outside.filter((outcome) => outcome.asked).length,
-        outside.length,
-      ),
+      probes: new Set(proactive.map((outcome) => outcome.probe)).size,
+      repeats: repeats.length,
+      with: across((r) => r.with),
+      outside: across((r) => r.outside),
+      without: across((r) => r.without),
+      gain: across((r) => r.gain),
+      rescue: across((r) => r.rescue),
+      recalled: across((r) => r.recalled),
+      asked: across((r) => r.asked),
     },
-    restraint: rate(of('restraint', 'placed')),
-    attribution: rate(of('attribution', 'placed')),
+    restraint: rate(of('restraint')),
+    attribution: rate(of('attribution')),
     outcomes,
     ...rest,
   }
@@ -366,6 +412,7 @@ export async function runUseEval({
   meter,
   directory,
   probe: probeOnly,
+  repeat = 1,
   progress = () => {},
 }: UseOptions): Promise<UseRun> {
   const eligible = probes.filter((probe) => !fixture || covers(fixture, probe))
@@ -376,8 +423,12 @@ export async function runUseEval({
     (kind) => eligible.find((probe) => probe.kind === kind) ?? [],
   )
   const ordered = [...sample, ...eligible.filter((p) => !sample.includes(p))]
-  const planned = ordered.flatMap((probe) => runsOf(probe, fixture))
-  const sampled = sample.flatMap((probe) => runsOf(probe, fixture)).length
+  // Repeat by repeat, so the sample comes first and a stopped run has
+  // finished whole passes of the probes.
+  const planned = Array.from({ length: repeat }, (_, index) =>
+    ordered.flatMap((probe) => runsOf(probe, index, fixture)),
+  ).flat()
+  const sampled = sample.flatMap((probe) => runsOf(probe, 0, fixture)).length
 
   if (planned.length === 0) {
     return {
@@ -399,8 +450,12 @@ export async function runUseEval({
     }
   }
 
-  async function run({ probe, placement }: Planned): Promise<UseOutcome> {
-    const path = join(directory, `${probe.id}-${placement}.sqlite`)
+  async function run({
+    probe,
+    placement,
+    repeat,
+  }: Planned): Promise<UseOutcome> {
+    const path = join(directory, `${probe.id}-${placement}-${repeat}.sqlite`)
     const clock = createClock(fixture ? fixture.clock + 8 * HOUR : PROBE_TIME)
     const open = async () =>
       openDaemonWorkspace(
@@ -459,6 +514,7 @@ export async function runUseEval({
         probe: probe.id,
         kind: probe.kind,
         placement,
+        repeat,
         ...(planted.recalled === undefined
           ? {}
           : { recalled: planted.recalled }),
@@ -481,7 +537,7 @@ export async function runUseEval({
       const outcome = await run(step)
       outcomes.push(outcome)
       progress(
-        `${outcome.passed ? 'pass' : 'fail'} ${step.probe.id} (${step.placement}): ${tokens().total.toLocaleString()} tokens so far`,
+        `${outcome.passed ? 'pass' : 'fail'} ${step.probe.id} (${step.placement}, repeat ${step.repeat + 1}): ${tokens().total.toLocaleString()} tokens so far`,
       )
       if (index + 1 !== sampled) {
         continue

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 import { createMeter } from './model.ts'
-import { runUseEval } from './use.ts'
+import { gradeUse, runUseEval, type UseOutcome } from './use.ts'
 import type { CoreFixture } from './core-fixture.ts'
 import type { UseProbe } from './use-probes.ts'
 
@@ -29,7 +29,7 @@ const probe = (extra: Partial<UseProbe>): UseProbe => ({
 })
 
 /** Answers with everything the model was shown, so it "uses" whatever memory reached it. */
-async function evaluate(probes: UseProbe[], fixture?: CoreFixture) {
+async function evaluate(probes: UseProbe[], fixture?: CoreFixture, repeat = 1) {
   const directory = mkdtempSync(join(tmpdir(), 'familiar-use-test-'))
   try {
     const meter = createMeter(1_000_000)
@@ -54,6 +54,7 @@ async function evaluate(probes: UseProbe[], fixture?: CoreFixture) {
       meter,
       directory,
       fixture,
+      repeat,
     })
   } finally {
     rmSync(directory, { recursive: true, force: true })
@@ -61,30 +62,36 @@ async function evaluate(probes: UseProbe[], fixture?: CoreFixture) {
 }
 
 test('a proactive probe runs with its fact in core, outside it and absent, and the rescue rate is how many still pass outside', async () => {
-  const run = await evaluate([
-    // Shares no word with its fact, so recall can't find it outside core.
-    probe({ id: 'allergy' }),
-    // Shares "kiwi", so recall rescues it.
-    probe({
-      id: 'kiwi',
-      facts: [
-        { about: maya, text: 'is allergic to kiwi fruit.', importance: 5 },
-      ],
-      request: 'Is a kiwi smoothie fine for breakfast?',
-      required: ['allergic'],
-    }),
-    probe({
-      id: 'unrelated',
-      kind: 'restraint',
-      request: 'How many kilometres is five miles?',
-      required: [],
-      forbidden: ['peanut'],
-    }),
-  ])
+  const run = await evaluate(
+    [
+      // Shares no word with its fact, so recall can't find it outside core.
+      probe({ id: 'allergy' }),
+      // Shares "kiwi", so recall rescues it.
+      probe({
+        id: 'kiwi',
+        facts: [
+          { about: maya, text: 'is allergic to kiwi fruit.', importance: 5 },
+        ],
+        request: 'Is a kiwi smoothie fine for breakfast?',
+        required: ['allergic'],
+      }),
+      probe({
+        id: 'unrelated',
+        kind: 'restraint',
+        request: 'How many kilometres is five miles?',
+        required: [],
+        forbidden: ['peanut'],
+      }),
+    ],
+    undefined,
+    2,
+  )
   if (run.status !== 'done') {
     throw new Error(run.reason)
   }
   const { grade } = run
+  // Proactive probes run in every placement twice; the other kinds once.
+  expect(grade.outcomes).toHaveLength(2 * 2 * 3 + 1)
   const outcome = (probe: string, placement: string) =>
     grade.outcomes.find((o) => o.probe === probe && o.placement === placement)
   expect(outcome('allergy', 'core')).toMatchObject({ passed: true })
@@ -100,13 +107,17 @@ test('a proactive probe runs with its fact in core, outside it and absent, and t
   const none = outcome('allergy', 'none')
   expect(none).toMatchObject({ passed: false, missing: true })
   expect(none?.reply.toLowerCase()).not.toContain('peanut')
+  // The scripted reply doesn't vary, so the repeats agree and the range is a point.
+  const point = (mean: number) => ({ mean, min: mean, max: mean })
   expect(grade.proactive).toMatchObject({
-    with: { passed: 2, total: 2 },
-    outside: { passed: 1, total: 2 },
-    without: { passed: 0, total: 2 },
-    gain: 1,
-    rescue: { passed: 1, total: 2, rate: 0.5 },
-    recalled: { passed: 1, total: 2 },
+    probes: 2,
+    repeats: 2,
+    with: point(1),
+    outside: point(0.5),
+    without: point(0),
+    gain: point(1),
+    rescue: point(0.5),
+    recalled: point(0.5),
   })
   // The echoing model leaks the fact into an unrelated reply, so restraint fails.
   expect(grade.restraint).toMatchObject({ passed: 0, total: 1 })
@@ -117,6 +128,7 @@ test('a fixture seeds every probe from its facts and runs only the probes those 
   const fixture = {
     scenario: 'tiny',
     hash: 'test',
+    replay: 1,
     model: 'faux/upkeep@low',
     facts: {
       facts: [
@@ -161,7 +173,57 @@ test('a fixture seeds every probe from its facts and runs only the probes those 
   }
   expect(run.grade.skipped).toEqual(['peanut'])
   expect(run.grade.proactive).toMatchObject({
-    with: { passed: 1, total: 1 },
-    without: { passed: 0, total: 1 },
+    with: { mean: 1 },
+    without: { mean: 0 },
+  })
+})
+
+test('each rate is averaged over the repeats and reported with the range they fell in', () => {
+  const outcome = (
+    probe: string,
+    placement: UseOutcome['placement'],
+    repeat: number,
+    passed: boolean,
+    recalled?: boolean,
+  ): UseOutcome => ({
+    probe,
+    kind: 'proactive',
+    placement,
+    repeat,
+    ...(recalled === undefined ? {} : { recalled }),
+    asked: false,
+    passed,
+    answered: true,
+    missing: !passed,
+    forbidden: [],
+    reply: '',
+  })
+  // Two probes over three repeats. Both pass from core every time; outside,
+  // `a` passes in repeats 0 and 1 and `b` in repeat 0 only, so outside runs
+  // 2/2, 1/2 and 0/2. Only `a` passes with no memory, once.
+  const outcomes = [0, 1, 2].flatMap((repeat) => [
+    outcome('a', 'core', repeat, true),
+    outcome('b', 'core', repeat, true),
+    outcome('a', 'outside', repeat, repeat < 2, true),
+    outcome('b', 'outside', repeat, repeat < 1, false),
+    outcome('a', 'none', repeat, repeat === 2),
+    outcome('b', 'none', repeat, false),
+  ])
+  const { proactive } = gradeUse(outcomes, {
+    skipped: [],
+    model: 'faux/chat@off',
+    tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    elapsedMs: 0,
+  })
+  expect(proactive).toMatchObject({
+    probes: 2,
+    repeats: 3,
+    with: { mean: 1, min: 1, max: 1 },
+    outside: { mean: 0.5, min: 0, max: 1 },
+    without: { mean: 0.167, min: 0, max: 0.5 },
+    // Core passes everywhere, so rescue is the outside rate.
+    rescue: { mean: 0.5, min: 0, max: 1 },
+    gain: { mean: 0.833, min: 0.5, max: 1 },
+    recalled: { mean: 0.5, min: 0.5, max: 0.5 },
   })
 })

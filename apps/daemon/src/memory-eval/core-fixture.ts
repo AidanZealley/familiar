@@ -13,13 +13,17 @@ import type { TokenTotals } from './model.ts'
 /**
  * The saved end state of an eval:core replay, and the only code that reads
  * or writes it. A replay is keyed by everything that decides what upkeep
- * writes, so grading reruns free until one of those changes.
+ * writes, and by its number among the replays of that setup, since upkeep's
+ * model gives different memory each time and one replay is one draw. Grading
+ * reruns free until one of those changes.
  */
 
 export type CoreFixture = {
   scenario: string
   /** See `coreHash`. */
   hash: string
+  /** Which replay of this hash this is, from 1. */
+  replay: number
   /** Upkeep's model and level, `provider/modelId@level`. */
   model: string
   facts: FactsState
@@ -69,20 +73,24 @@ export function coreHash(scenario: CoreScenario, model: ModelChoice) {
   return hash.digest('hex').slice(0, 12)
 }
 
-export const fixturePath = (hash: string) => join(fixtures, `core-${hash}.json`)
+export const fixturePath = (hash: string, replay: number) =>
+  join(fixtures, `core-${hash}-${replay}.json`)
 
-/** The fixture for `hash`, if a replay has saved one. */
-export function readFixture(hash: string): CoreFixture | undefined {
-  const path = fixturePath(hash)
+/** Replay number `replay` of `hash`, if one has been saved. */
+export function readFixture(
+  hash: string,
+  replay: number,
+): CoreFixture | undefined {
+  const path = fixturePath(hash, replay)
   return existsSync(path)
     ? (JSON.parse(readFileSync(path, 'utf8')) as CoreFixture)
     : undefined
 }
 
-/** Saves `fixture` for its hash, returning its path. */
+/** Saves `fixture` for its hash and replay number, returning its path. */
 export function writeFixture(fixture: CoreFixture) {
   mkdirSync(fixtures, { recursive: true })
-  const path = fixturePath(fixture.hash)
+  const path = fixturePath(fixture.hash, fixture.replay)
   writeFileSync(path, `${JSON.stringify(fixture, null, 2)}\n`)
   return path
 }

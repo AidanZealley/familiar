@@ -18,6 +18,7 @@ import {
   type Item,
   type Label,
 } from './core-scenario.ts'
+import { spreadOf, type Spread } from './spread.ts'
 
 /**
  * Grades an eval:core fixture in plain code. Core is decided again by the
@@ -277,5 +278,96 @@ export function gradeCore(
     nearDuplicates: nearDuplicates(facts.filter((fact) => !isPast(fact))),
     tokens: fixture.tokens,
     elapsedMs: fixture.elapsedMs,
+  }
+}
+
+/** What ranking did at one budget, averaged over replays. */
+export type PlacedSummary = {
+  budget: number
+  corePrecision: Spread
+  coreRecall: Spread
+  recallInCore: Spread
+  fadesOut: Spread
+  facts: Spread
+  characters: Spread
+  tokens: Spread
+}
+
+/**
+ * Several replays of one setup, graded separately and averaged. Upkeep's
+ * model writes different memory each replay, so each measure comes with the
+ * range the replays fell in: a move smaller than it isn't evidence.
+ */
+export type CoreSummary = {
+  scenario: string
+  hash: string
+  model: string
+  replays: number
+  /** How many labelled items each label rests on. */
+  labelled: Record<Label, number>
+  real: PlacedSummary
+  pressure: PlacedSummary
+  junkRate: Spread
+  fadesRefreshed: Spread
+  changesCorrect: Spread
+  memoryRatio: Spread
+  factsPerActiveDay: Spread
+  nearDuplicates: Spread
+  /** Tokens each replay used. */
+  tokens: Spread
+  /**
+   * Items that missed their label in at least one replay, with how many replays each
+   * got right at each budget.
+   */
+  missed: { id: string; label: Label; real: number; pressure: number }[]
+}
+
+/** Averages `grades` of the same setup, one per replay. */
+export function summariseCore(grades: CoreGrade[]): CoreSummary {
+  const [first] = grades
+  const across = (pick: (grade: CoreGrade) => number) =>
+    spreadOf(grades.map(pick))
+  const placed = (pick: (grade: CoreGrade) => Placed): PlacedSummary => ({
+    budget: pick(first).budget,
+    corePrecision: across((g) => pick(g).corePrecision),
+    coreRecall: across((g) => pick(g).coreRecall),
+    recallInCore: across((g) => pick(g).recallInCore),
+    fadesOut: across((g) => pick(g).fadesOut),
+    facts: across((g) => pick(g).core.facts),
+    characters: across((g) => pick(g).core.characters),
+    tokens: across((g) => pick(g).core.tokens),
+  })
+  const rightIn = (id: string, pick: (grade: CoreGrade) => Placed) =>
+    grades.filter((g) => pick(g).items.find((i) => i.id === id)?.placed).length
+  const labelled = {} as Record<Label, number>
+  for (const { label } of first.items) {
+    labelled[label] = (labelled[label] ?? 0) + 1
+  }
+  return {
+    scenario: first.scenario,
+    hash: first.hash,
+    model: first.model,
+    replays: grades.length,
+    labelled,
+    real: placed((g) => g),
+    pressure: placed((g) => g.pressure),
+    junkRate: across((g) => g.junkRate),
+    fadesRefreshed: across((g) => g.fadesRefreshed),
+    changesCorrect: across((g) => g.changesCorrect),
+    memoryRatio: across((g) => g.memoryRatio),
+    factsPerActiveDay: across((g) => g.factsPerActiveDay),
+    nearDuplicates: across((g) => g.nearDuplicates.length),
+    tokens: across((g) => g.tokens.total),
+    missed: first.items
+      .map(({ id, label }) => ({
+        id,
+        label,
+        real: rightIn(id, (g) => g),
+        pressure: rightIn(id, (g) => g.pressure),
+      }))
+      .filter(
+        ({ real, pressure }) =>
+          real < grades.length || pressure < grades.length,
+      ),
   }
 }

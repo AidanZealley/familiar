@@ -116,6 +116,25 @@ export const mayaV1: CoreScenario = {
           text: "Big news, Theo and I are flying to Lisbon on 23 January for our tenth anniversary. I'm so excited, I've been planning it for months.",
           items: [{ id: 'lisbon', label: 'fades', match: ['Lisbon'] }],
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "Day to day: I freelance as a designer and my main client is Brightwell Agency. Isla's at Greenfield Primary and I do the school run.",
+          items: [
+            {
+              id: 'client',
+              label: 'changes',
+              from: ['Brightwell'],
+              to: 'Corvid',
+            },
+            {
+              id: 'isla-school',
+              label: 'changes',
+              from: ['Greenfield'],
+              to: 'Hollin',
+            },
+          ],
+        },
       ],
     },
     {
@@ -145,6 +164,11 @@ export const mayaV1: CoreScenario = {
           in: 'room',
           text: 'Ugh, my umbrella blew inside out on the way to work this morning.',
           items: [{ id: 'umbrella', label: 'none', match: ['umbrella'] }],
+        },
+        {
+          by: 'other',
+          in: 'dm',
+          text: "We've got a green Skoda Octavia, my pride and joy, even if it drinks petrol.",
         },
       ],
     },
@@ -177,6 +201,12 @@ export const mayaV1: CoreScenario = {
           text: "I've got a big job interview at Halden Studio on 14 January for a senior designer role. It matters a lot to me.",
           items: [{ id: 'interview', label: 'fades', match: ['Halden'] }],
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "My tax return is due on 31 January and I haven't started it. Nudge me?",
+          items: [{ id: 'tax', label: 'fades', match: ['tax return'] }],
+        },
       ],
     },
     {
@@ -205,6 +235,26 @@ export const mayaV1: CoreScenario = {
           text: 'Something to keep in mind: my mum June uses a wheelchair, so step-free access matters wherever she comes with us.',
           items: [{ id: 'mum-access', label: 'core', match: ['wheelchair'] }],
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Our GP is Dr Patel at Stanmore Surgery, in case you ever help me book anything.',
+          items: [
+            { id: 'gp', label: 'changes', from: ['Stanmore'], to: 'Highfield' },
+          ],
+        },
+        {
+          by: 'owner',
+          in: 'room',
+          text: 'The boiler engineer is booked for Thursday 29 January, between 8 and 12.',
+          items: [{ id: 'boiler', label: 'fades', match: ['boiler'] }],
+        },
+        {
+          by: 'other',
+          in: 'room',
+          text: 'The queue at the post office took forty minutes today.',
+          items: [{ id: 'post-office', label: 'none', match: ['post office'] }],
+        },
       ],
     },
     {
@@ -228,6 +278,25 @@ export const mayaV1: CoreScenario = {
           text: "My band Low Tide has a gig at the Fleece on 7 February. I play bass. You're both coming, right?",
           items: [{ id: 'band', label: 'recall', match: ['Low Tide'] }],
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Mum lives in Harrow, so a Sunday visit means a long drive across London.',
+          items: [
+            {
+              id: 'mum-home',
+              label: 'changes',
+              from: ['Harrow'],
+              to: 'Ealing',
+            },
+          ],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'For school forms: Isla has asthma and carries a blue inhaler.',
+          items: [{ id: 'isla-asthma', label: 'core', match: ['asthma'] }],
+        },
       ],
     },
     {
@@ -243,6 +312,24 @@ export const mayaV1: CoreScenario = {
           in: 'room',
           text: "It's raining sideways out there. Isla refused to wear her coat.",
           items: [{ id: 'weather', label: 'none', match: ['raining', 'coat'] }],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Please put my sister Nora in Leeds down as our emergency contact for anything official.',
+          items: [{ id: 'emergency-contact', label: 'core', match: ['Nora'] }],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "Isla's dentist appointment is on 3 February at 4pm.",
+          items: [{ id: 'dentist', label: 'fades', match: ['dentist'] }],
+        },
+        {
+          by: 'other',
+          in: 'room',
+          text: 'Stuck in traffic on the ring road for an hour, ugh.',
+          items: [{ id: 'traffic', label: 'none', match: ['traffic'] }],
         },
       ],
     },
@@ -261,6 +348,36 @@ export const mayaV1: CoreScenario = {
           text: 'A parcel from the camera shop should arrive Friday, can you remind me to look out for it?',
           items: [{ id: 'parcel', label: 'none', match: ['parcel'] }],
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Our broadband is with Zipnet and it has been dropping out all week.',
+          items: [
+            {
+              id: 'broadband',
+              label: 'changes',
+              from: ['Zipnet'],
+              to: 'Orbit',
+            },
+          ],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'I go to a pottery class at Kiln House every Friday evening.',
+          items: [{ id: 'pottery', label: 'recall', match: ['Kiln House'] }],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "Isla's school trip to Ironbridge is on 12 February and the £25 is due by the 5th.",
+          items: [{ id: 'school-trip', label: 'fades', match: ['Ironbridge'] }],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "Doing my tax return tonight, it's due on Saturday.",
+        },
       ],
     },
     {
@@ -275,6 +392,30 @@ export const mayaV1: CoreScenario = {
           by: 'owner',
           in: 'dm',
           text: 'Quick one: can you give me the digest as bullets tonight? Remember, five at most.',
+        },
+        {
+          by: 'owner',
+          in: 'room',
+          text: "Isla's class assembly is on Friday 6 February and she has a speaking part!",
+          items: [{ id: 'assembly', label: 'fades', match: ['assembly'] }],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Isla has piano lessons on Wednesdays at 4:30 with Mr Adeyemi. Can you remember that for pickups?',
+          items: [{ id: 'piano', label: 'recall', match: ['piano'] }],
+        },
+        {
+          by: 'other',
+          in: 'dm',
+          text: "My cousin Dele's wedding is on 14 February in Bristol, so we'll need a plan for Isla.",
+          items: [{ id: 'wedding', label: 'fades', match: ['wedding'] }],
+        },
+        {
+          by: 'other',
+          in: 'room',
+          text: 'Ordered a takeaway pizza and it turned up cold.',
+          items: [{ id: 'pizza', label: 'none', match: ['pizza'] }],
         },
       ],
     },
@@ -321,6 +462,16 @@ export const mayaV1: CoreScenario = {
           in: 'room',
           text: 'Bouldering at The Arch tonight, finally sent my first V4.',
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Isla will start at Hollin Primary after half-term, since Quarry Lane is in its catchment.',
+        },
+        {
+          by: 'other',
+          in: 'dm',
+          text: 'We bought a second-hand Nissan Leaf, so no more petrol. Much better for the city.',
+        },
       ],
     },
     {
@@ -335,6 +486,22 @@ export const mayaV1: CoreScenario = {
           by: 'owner',
           in: 'room',
           text: 'Just peanuts. And Isla hates mushrooms, but that is negotiable.',
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "We've got an allotment, plot 12 on Mill Lane, and I water it on Sunday mornings.",
+          items: [{ id: 'allotment', label: 'recall', match: ['allotment'] }],
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Mum has moved into a ground-floor flat in Ealing, so Sunday visits are a different drive now.',
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "Isla's cough is back. Her asthma always flares in this cold.",
         },
       ],
     },
@@ -351,6 +518,16 @@ export const mayaV1: CoreScenario = {
           in: 'dm',
           text: 'Spoke Cycles is busy with spring tune-ups already. Loving it though.',
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Corvid Labs is my main client now, so my Monday calls are with them.',
+        },
+        {
+          by: 'owner',
+          in: 'room',
+          text: "Pottery is tomorrow night and I'm glazing my first mug.",
+        },
       ],
     },
     {
@@ -366,6 +543,16 @@ export const mayaV1: CoreScenario = {
           in: 'room',
           text: 'Keys for Quarry Lane are on the hook by the door. The corner shop is right outside, at least.',
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "We've registered with Highfield Medical Centre now that we're on Quarry Lane.",
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Orbit Fibre installed our new broadband this morning.',
+        },
       ],
     },
     {
@@ -380,6 +567,11 @@ export const mayaV1: CoreScenario = {
           by: 'owner',
           in: 'dm',
           text: 'And send me tonight’s digest as five bullets, as usual.',
+        },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: "Piano lesson this afternoon. Can you remind me to pack Isla's music book?",
         },
       ],
     },
