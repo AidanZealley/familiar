@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
-import { openDialog, type DialogRef } from '@/lib/dialogs'
+import { useDialogs, type DialogRef } from '@/lib/dialogs'
 import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
 import { ConversationStatus } from './components/conversation-status'
 import type { ConversationHeaderProps } from './types'
@@ -17,6 +17,7 @@ import type { ConversationHeaderProps } from './types'
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
+  const { open: openDialog } = useDialogs()
   // From the workspace's stream, as the sidebar shows it.
   const live = useMemo(() => liveOf(room.turns), [room.turns])
   const settings: DialogRef =

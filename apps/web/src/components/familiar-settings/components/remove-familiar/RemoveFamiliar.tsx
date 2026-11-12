@@ -13,19 +13,20 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { closeDialog } from '@/lib/dialogs'
+import { useDialogs } from '@/lib/dialogs'
 import { workspace } from '@/lib/familiar'
 import type { RemoveFamiliarProps } from './types'
 
 /** Removes a Familiar for good, once confirmed, and goes home. */
 export const RemoveFamiliar = ({ familiar }: RemoveFamiliarProps) => {
   const navigate = useNavigate()
+  const { close: closeDialog } = useDialogs()
   const remove = useMutation({
     mutationFn: () => workspace.familiars.remove(familiar.id),
     // Its settings and DM close with it.
-    onSuccess: () => {
-      closeDialog()
-      return navigate({ to: '/', replace: true })
+    onSuccess: async () => {
+      await closeDialog()
+      await navigate({ to: '/', replace: true })
     },
   })
 

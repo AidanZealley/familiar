@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { openDialog } from '@/lib/dialogs'
+import { useDialogs } from '@/lib/dialogs'
 import { useWorkspace } from '@/lib/familiar'
 import type { FamiliarLinkProps } from './types'
 
@@ -11,6 +11,7 @@ export const FamiliarLink = ({
   className,
 }: FamiliarLinkProps) => {
   const name = useWorkspace((state) => state.familiars?.familiars[id]?.name)
+  const { open: openDialog } = useDialogs()
 
   if (name === undefined) {
     return (

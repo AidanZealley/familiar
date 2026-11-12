@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { closeDialog } from '@/lib/dialogs'
+import { useDialogs } from '@/lib/dialogs'
 import { workspace } from '@/lib/familiar'
 import { useFamiliars } from '@/lib/workspace'
 
@@ -30,6 +30,7 @@ import { useFamiliars } from '@/lib/workspace'
 export const NewRoomDialog = () => {
   const id = useId()
   const navigate = useNavigate()
+  const { close: closeDialog } = useDialogs()
   const familiars = useFamiliars()
   const [name, setName] = useState('')
   const [members, setMembers] = useState<number[]>([])
@@ -41,12 +42,14 @@ export const NewRoomDialog = () => {
         familiars: members,
         ...(lead !== undefined && { lead }),
       }),
-    // A new page, which closes the dialog.
-    onSuccess: (room) =>
-      navigate({
+    // Closed first, so Back from the new page skips the dialog.
+    onSuccess: async (room) => {
+      await closeDialog()
+      await navigate({
         to: '/room/$room',
         params: { room: String(room) },
-      }),
+      })
+    },
   })
   const toggle = (familiar: number, on: boolean) => {
     // In the order they're listed, which is the room's turn order.
@@ -61,7 +64,7 @@ export const NewRoomDialog = () => {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
+    <Dialog open onOpenChange={(open) => !open && void closeDialog()}>
       <DialogContent className="max-h-[calc(var(--app-height)-2rem)] overflow-y-auto sm:max-w-md">
         <form
           className="flex flex-col gap-4"
@@ -144,7 +147,11 @@ export const NewRoomDialog = () => {
             <FieldError>{create.error?.message}</FieldError>
           </FieldGroup>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeDialog}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => closeDialog()}
+            >
               Cancel
             </Button>
             <Button
