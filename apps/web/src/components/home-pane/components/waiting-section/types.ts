@@ -6,4 +6,6 @@ export type WaitingSectionProps = {
   label: string
   rooms: readonly RoomSummary[]
   familiars: readonly FamiliarSummary[]
+  /** DMs as a grid of faces; rooms as a list, where the name matters more. */
+  layout: 'grid' | 'list'
 }

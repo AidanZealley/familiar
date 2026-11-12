@@ -7,10 +7,11 @@ import type { WaitingFaceProps } from './types'
 
 /**
  * A conversation with something waiting, as its face and name, opening it:
- * how many entries are unread on its corner, or `!` in red when its last
- * reply failed. A Familiar replying there talks.
+ * how many entries are unread, or `!` in red when its last reply failed,
+ * on the face's corner as a tile or after the name as a row. A Familiar
+ * replying there talks.
  */
-export const WaitingFace = ({ room, familiars }: WaitingFaceProps) => {
+export const WaitingFace = ({ room, familiars, layout }: WaitingFaceProps) => {
   const title = titleOf(room, familiars)
   const failed = room.last?.kind === 'reply' && room.last.outcome === 'failed'
   const unread = room.unread ?? 0
@@ -19,6 +20,24 @@ export const WaitingFace = ({ room, familiars }: WaitingFaceProps) => {
     room.kind === 'dm'
       ? familiars.find((each) => each.id === room.familiar)
       : undefined
+  const face =
+    room.kind === 'room' ? (
+      <RoomAvatar room={room} />
+    ) : (
+      familiar && (
+        <PixelAvatar
+          familiar={familiar}
+          talking={talking.includes(familiar.id)}
+        />
+      )
+    )
+  const count = cn(
+    'h-4 min-w-4 px-1 text-center text-[10px] leading-4 tabular-nums',
+    failed
+      ? 'bg-destructive text-background'
+      : 'bg-primary text-primary-foreground',
+  )
+  const mark = failed ? '!' : unread
 
   return (
     <Link
@@ -28,32 +47,32 @@ export const WaitingFace = ({ room, familiars }: WaitingFaceProps) => {
       aria-label={
         failed ? `${title}, a reply failed` : `${title}, ${unread} unread`
       }
-      className="group flex w-16 flex-col items-center gap-1.5 p-1 outline-offset-2 hover:bg-muted"
+      className={cn(
+        'group flex outline-offset-2 hover:bg-muted',
+        layout === 'tile'
+          ? 'w-16 flex-col items-center gap-1.5 p-1'
+          : 'items-center gap-2.5 p-1.5',
+      )}
     >
-      <span className="relative">
-        {room.kind === 'room' ? (
-          <RoomAvatar room={room} />
-        ) : (
-          familiar && (
-            <PixelAvatar
-              familiar={familiar}
-              talking={talking.includes(familiar.id)}
-            />
-          )
+      <span className="relative shrink-0">
+        {face}
+        {layout === 'tile' && (
+          <span className={cn(count, 'absolute -top-1.5 -right-2')}>
+            {mark}
+          </span>
         )}
-        <span
-          aria-hidden
-          className={cn(
-            'absolute -top-1.5 -right-2 h-4 min-w-4 px-1 text-center text-[10px] leading-4 tabular-nums',
-            failed
-              ? 'bg-destructive text-background'
-              : 'bg-primary text-primary-foreground',
-          )}
-        >
-          {failed ? '!' : unread}
-        </span>
       </span>
-      <span className="w-full truncate text-center text-xs">{title}</span>
+      <span
+        className={cn(
+          'truncate',
+          layout === 'tile' ? 'w-full text-center text-xs' : 'flex-1 text-sm',
+        )}
+      >
+        {title}
+      </span>
+      {layout === 'row' && (
+        <span className={cn(count, 'shrink-0')}>{mark}</span>
+      )}
     </Link>
   )
 }

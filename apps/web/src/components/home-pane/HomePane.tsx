@@ -107,6 +107,7 @@ export const HomePane = () => {
               <WaitingSection
                 icon={SparkleIcon}
                 label="DMs"
+                layout="grid"
                 rooms={dms}
                 familiars={familiars}
               />
@@ -115,6 +116,7 @@ export const HomePane = () => {
               <WaitingSection
                 icon={HashIcon}
                 label="Rooms"
+                layout="list"
                 rooms={named}
                 familiars={familiars}
               />
