@@ -1,0 +1,2670 @@
+{
+  "date": "2026-11-12",
+  "commit": "v0.2.0-68-g025df33-dirty",
+  "summary": {
+    "scenario": "maya-v1",
+    "hash": "a50bdd2f097e",
+    "model": "anthropic/claude-haiku-5-5@low",
+    "replays": 3,
+    "labelled": {
+      "core": 8,
+      "changes": 7,
+      "fades": 8,
+      "none": 8,
+      "recall": 8
+    },
+    "real": {
+      "budget": 6000,
+      "corePrecision": {
+        "mean": 0.889,
+        "min": 0.778,
+        "max": 1
+      },
+      "coreRecall": {
+        "mean": 1,
+        "min": 1,
+        "max": 1
+      },
+      "recallInCore": {
+        "mean": 0.042,
+        "min": 0,
+        "max": 0.125
+      },
+      "fadesOut": {
+        "mean": 1,
+        "min": 1,
+        "max": 1
+      },
+      "facts": {
+        "mean": 8.667,
+        "min": 8,
+        "max": 9
+      },
+      "characters": {
+        "mean": 1233,
+        "min": 1175,
+        "max": 1266
+      },
+      "tokens": {
+        "mean": 352.667,
+        "min": 336,
+        "max": 362
+      }
+    },
+    "pressure": {
+      "budget": 600,
+      "corePrecision": {
+        "mean": 1,
+        "min": 1,
+        "max": 1
+      },
+      "coreRecall": {
+        "mean": 0.625,
+        "min": 0.5,
+        "max": 0.75
+      },
+      "recallInCore": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "fadesOut": {
+        "mean": 1,
+        "min": 1,
+        "max": 1
+      },
+      "facts": {
+        "mean": 4,
+        "min": 4,
+        "max": 4
+      },
+      "characters": {
+        "mean": 537.667,
+        "min": 511,
+        "max": 553
+      },
+      "tokens": {
+        "mean": 153.667,
+        "min": 146,
+        "max": 158
+      }
+    },
+    "junkRate": {
+      "mean": 0,
+      "min": 0,
+      "max": 0
+    },
+    "fadesRefreshed": {
+      "mean": 0.875,
+      "min": 0.75,
+      "max": 1
+    },
+    "changesCorrect": {
+      "mean": 0.762,
+      "min": 0.571,
+      "max": 1
+    },
+    "memoryRatio": {
+      "mean": 3.949,
+      "min": 3.419,
+      "max": 4.386
+    },
+    "factsPerActiveDay": {
+      "mean": 2.667,
+      "min": 2.4,
+      "max": 2.867
+    },
+    "nearDuplicates": {
+      "mean": 0.333,
+      "min": 0,
+      "max": 1
+    },
+    "tokens": {
+      "mean": 585310,
+      "min": 548722,
+      "max": 624098
+    },
+    "missed": [
+      {
+        "id": "owner-name",
+        "label": "core",
+        "real": 3,
+        "pressure": 2
+      },
+      {
+        "id": "partner",
+        "label": "core",
+        "real": 3,
+        "pressure": 1
+      },
+      {
+        "id": "isla-school",
+        "label": "changes",
+        "real": 1,
+        "pressure": 1
+      },
+      {
+        "id": "digest-style",
+        "label": "recall",
+        "real": 2,
+        "pressure": 3
+      },
+      {
+        "id": "mum-access",
+        "label": "core",
+        "real": 3,
+        "pressure": 0
+      },
+      {
+        "id": "gp",
+        "label": "changes",
+        "real": 1,
+        "pressure": 1
+      },
+      {
+        "id": "bouldering",
+        "label": "recall",
+        "real": 2,
+        "pressure": 2
+      },
+      {
+        "id": "band",
+        "label": "recall",
+        "real": 2,
+        "pressure": 2
+      },
+      {
+        "id": "emergency-contact",
+        "label": "core",
+        "real": 3,
+        "pressure": 0
+      },
+      {
+        "id": "broadband",
+        "label": "changes",
+        "real": 2,
+        "pressure": 2
+      }
+    ]
+  },
+  "grades": [
+    {
+      "scenario": "maya-v1",
+      "hash": "a50bdd2f097e",
+      "model": "anthropic/claude-haiku-5-5@low",
+      "budget": 6000,
+      "corePrecision": 0.778,
+      "coreRecall": 1,
+      "recallInCore": 0,
+      "fadesOut": 1,
+      "core": {
+        "facts": 9,
+        "characters": 1175,
+        "tokens": 336
+      },
+      "items": [
+        {
+          "id": "owner-name",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f29",
+            "f39"
+          ],
+          "inCore": [
+            "f39"
+          ],
+          "placed": true
+        },
+        {
+          "id": "partner",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f29",
+            "f39"
+          ],
+          "inCore": [
+            "f39"
+          ],
+          "placed": true
+        },
+        {
+          "id": "daughter",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f4",
+            "f15",
+            "f19",
+            "f23",
+            "f25",
+            "f26",
+            "f29",
+            "f30",
+            "f36",
+            "f39"
+          ],
+          "inCore": [
+            "f15",
+            "f39"
+          ],
+          "placed": true
+        },
+        {
+          "id": "home",
+          "label": "changes",
+          "stored": [
+            "f1",
+            "f29",
+            "f30",
+            "f39",
+            "f40",
+            "f41"
+          ],
+          "inCore": [
+            "f39",
+            "f41"
+          ],
+          "placed": true
+        },
+        {
+          "id": "allergy",
+          "label": "core",
+          "stored": [
+            "f2",
+            "f36"
+          ],
+          "inCore": [
+            "f2"
+          ],
+          "placed": true
+        },
+        {
+          "id": "lisbon",
+          "label": "fades",
+          "stored": [
+            "f3"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "client",
+          "label": "changes",
+          "stored": [
+            "f4",
+            "f30",
+            "f37",
+            "f38"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "isla-school",
+          "label": "changes",
+          "stored": [
+            "f4",
+            "f30"
+          ],
+          "inCore": [],
+          "placed": false
+        },
+        {
+          "id": "theo-health",
+          "label": "core",
+          "stored": [
+            "f5",
+            "f28"
+          ],
+          "inCore": [
+            "f5",
+            "f28"
+          ],
+          "placed": true
+        },
+        {
+          "id": "theo-job",
+          "label": "changes",
+          "stored": [
+            "f6",
+            "f27"
+          ],
+          "inCore": [
+            "f27"
+          ],
+          "placed": true
+        },
+        {
+          "id": "umbrella",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "digest-schedule",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "digest-style",
+          "label": "recall",
+          "stored": [
+            "f8"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "interview",
+          "label": "fades",
+          "stored": [
+            "f9",
+            "f13"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "tax",
+          "label": "fades",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "kitchen",
+          "label": "recall",
+          "stored": [
+            "f10",
+            "f31"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "lunch",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "mum-access",
+          "label": "core",
+          "stored": [
+            "f11",
+            "f34"
+          ],
+          "inCore": [
+            "f11"
+          ],
+          "placed": true
+        },
+        {
+          "id": "gp",
+          "label": "changes",
+          "stored": [
+            "f12",
+            "f41"
+          ],
+          "inCore": [
+            "f41"
+          ],
+          "placed": false
+        },
+        {
+          "id": "boiler",
+          "label": "fades",
+          "stored": [
+            "f14"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "post-office",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "bouldering",
+          "label": "recall",
+          "stored": [
+            "f16",
+            "f32"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "band",
+          "label": "recall",
+          "stored": [
+            "f20"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "mum-home",
+          "label": "changes",
+          "stored": [
+            "f17",
+            "f34"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "isla-asthma",
+          "label": "core",
+          "stored": [
+            "f15"
+          ],
+          "inCore": [
+            "f15"
+          ],
+          "placed": true
+        },
+        {
+          "id": "weather",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "emergency-contact",
+          "label": "core",
+          "stored": [
+            "f18"
+          ],
+          "inCore": [
+            "f18"
+          ],
+          "placed": true
+        },
+        {
+          "id": "dentist",
+          "label": "fades",
+          "stored": [
+            "f19"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "traffic",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "book-club",
+          "label": "recall",
+          "stored": [
+            "f22"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "parcel",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "broadband",
+          "label": "changes",
+          "stored": [
+            "f24",
+            "f40"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "pottery",
+          "label": "recall",
+          "stored": [
+            "f21"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "school-trip",
+          "label": "fades",
+          "stored": [
+            "f23"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "assembly",
+          "label": "fades",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "piano",
+          "label": "recall",
+          "stored": [
+            "f25"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "wedding",
+          "label": "fades",
+          "stored": [
+            "f26"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "pizza",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "allotment",
+          "label": "recall",
+          "stored": [
+            "f35"
+          ],
+          "inCore": [],
+          "placed": true
+        }
+      ],
+      "pressure": {
+        "budget": 600,
+        "corePrecision": 1,
+        "coreRecall": 0.75,
+        "recallInCore": 0,
+        "fadesOut": 1,
+        "core": {
+          "facts": 4,
+          "characters": 511,
+          "tokens": 146
+        },
+        "items": [
+          {
+            "id": "owner-name",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f29",
+              "f39"
+            ],
+            "inCore": [
+              "f39"
+            ],
+            "placed": true
+          },
+          {
+            "id": "partner",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f29",
+              "f39"
+            ],
+            "inCore": [
+              "f39"
+            ],
+            "placed": true
+          },
+          {
+            "id": "daughter",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f4",
+              "f15",
+              "f19",
+              "f23",
+              "f25",
+              "f26",
+              "f29",
+              "f30",
+              "f36",
+              "f39"
+            ],
+            "inCore": [
+              "f15",
+              "f39"
+            ],
+            "placed": true
+          },
+          {
+            "id": "home",
+            "label": "changes",
+            "stored": [
+              "f1",
+              "f29",
+              "f30",
+              "f39",
+              "f40",
+              "f41"
+            ],
+            "inCore": [
+              "f39"
+            ],
+            "placed": true
+          },
+          {
+            "id": "allergy",
+            "label": "core",
+            "stored": [
+              "f2",
+              "f36"
+            ],
+            "inCore": [
+              "f2"
+            ],
+            "placed": true
+          },
+          {
+            "id": "lisbon",
+            "label": "fades",
+            "stored": [
+              "f3"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "client",
+            "label": "changes",
+            "stored": [
+              "f4",
+              "f30",
+              "f37",
+              "f38"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "isla-school",
+            "label": "changes",
+            "stored": [
+              "f4",
+              "f30"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "theo-health",
+            "label": "core",
+            "stored": [
+              "f5",
+              "f28"
+            ],
+            "inCore": [
+              "f5"
+            ],
+            "placed": true
+          },
+          {
+            "id": "theo-job",
+            "label": "changes",
+            "stored": [
+              "f6",
+              "f27"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "umbrella",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "digest-schedule",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "digest-style",
+            "label": "recall",
+            "stored": [
+              "f8"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "interview",
+            "label": "fades",
+            "stored": [
+              "f9",
+              "f13"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "tax",
+            "label": "fades",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "kitchen",
+            "label": "recall",
+            "stored": [
+              "f10",
+              "f31"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "lunch",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "mum-access",
+            "label": "core",
+            "stored": [
+              "f11",
+              "f34"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "gp",
+            "label": "changes",
+            "stored": [
+              "f12",
+              "f41"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "boiler",
+            "label": "fades",
+            "stored": [
+              "f14"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "post-office",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "bouldering",
+            "label": "recall",
+            "stored": [
+              "f16",
+              "f32"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "band",
+            "label": "recall",
+            "stored": [
+              "f20"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "mum-home",
+            "label": "changes",
+            "stored": [
+              "f17",
+              "f34"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "isla-asthma",
+            "label": "core",
+            "stored": [
+              "f15"
+            ],
+            "inCore": [
+              "f15"
+            ],
+            "placed": true
+          },
+          {
+            "id": "weather",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "emergency-contact",
+            "label": "core",
+            "stored": [
+              "f18"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "dentist",
+            "label": "fades",
+            "stored": [
+              "f19"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "traffic",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "book-club",
+            "label": "recall",
+            "stored": [
+              "f22"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "parcel",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "broadband",
+            "label": "changes",
+            "stored": [
+              "f24",
+              "f40"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "pottery",
+            "label": "recall",
+            "stored": [
+              "f21"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "school-trip",
+            "label": "fades",
+            "stored": [
+              "f23"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "assembly",
+            "label": "fades",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "piano",
+            "label": "recall",
+            "stored": [
+              "f25"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "wedding",
+            "label": "fades",
+            "stored": [
+              "f26"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "pizza",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "allotment",
+            "label": "recall",
+            "stored": [
+              "f35"
+            ],
+            "inCore": [],
+            "placed": true
+          }
+        ]
+      },
+      "junkRate": 0,
+      "fadesRefreshed": 0.75,
+      "changesCorrect": 0.714,
+      "memoryRatio": 3.419,
+      "factsPerActiveDay": 2.733,
+      "nearDuplicates": [],
+      "tokens": {
+        "input": 2199,
+        "output": 40714,
+        "cacheRead": 163225,
+        "cacheWrite": 342584,
+        "total": 548722
+      },
+      "elapsedMs": 254668
+    },
+    {
+      "scenario": "maya-v1",
+      "hash": "a50bdd2f097e",
+      "model": "anthropic/claude-haiku-5-5@low",
+      "budget": 6000,
+      "corePrecision": 0.889,
+      "coreRecall": 1,
+      "recallInCore": 0.125,
+      "fadesOut": 1,
+      "core": {
+        "facts": 9,
+        "characters": 1258,
+        "tokens": 360
+      },
+      "items": [
+        {
+          "id": "owner-name",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f31",
+            "f43"
+          ],
+          "inCore": [
+            "f43"
+          ],
+          "placed": true
+        },
+        {
+          "id": "partner",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f31",
+            "f43"
+          ],
+          "inCore": [
+            "f43"
+          ],
+          "placed": true
+        },
+        {
+          "id": "daughter",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f4",
+            "f16",
+            "f21",
+            "f25",
+            "f26",
+            "f27",
+            "f31",
+            "f33",
+            "f38",
+            "f43"
+          ],
+          "inCore": [
+            "f16",
+            "f33",
+            "f43"
+          ],
+          "placed": true
+        },
+        {
+          "id": "home",
+          "label": "changes",
+          "stored": [
+            "f1",
+            "f31",
+            "f33",
+            "f43"
+          ],
+          "inCore": [
+            "f33",
+            "f43"
+          ],
+          "placed": true
+        },
+        {
+          "id": "allergy",
+          "label": "core",
+          "stored": [
+            "f2",
+            "f38"
+          ],
+          "inCore": [
+            "f2"
+          ],
+          "placed": true
+        },
+        {
+          "id": "lisbon",
+          "label": "fades",
+          "stored": [
+            "f3"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "client",
+          "label": "changes",
+          "stored": [
+            "f4",
+            "f32",
+            "f40"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "isla-school",
+          "label": "changes",
+          "stored": [
+            "f4",
+            "f16",
+            "f33"
+          ],
+          "inCore": [
+            "f16",
+            "f33"
+          ],
+          "placed": false
+        },
+        {
+          "id": "theo-health",
+          "label": "core",
+          "stored": [
+            "f5",
+            "f29"
+          ],
+          "inCore": [
+            "f5",
+            "f29"
+          ],
+          "placed": true
+        },
+        {
+          "id": "theo-job",
+          "label": "changes",
+          "stored": [
+            "f6",
+            "f28"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "umbrella",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "digest-schedule",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "digest-style",
+          "label": "recall",
+          "stored": [
+            "f9"
+          ],
+          "inCore": [
+            "f9"
+          ],
+          "placed": false
+        },
+        {
+          "id": "interview",
+          "label": "fades",
+          "stored": [
+            "f8",
+            "f14"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "tax",
+          "label": "fades",
+          "stored": [
+            "f10"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "kitchen",
+          "label": "recall",
+          "stored": [
+            "f11",
+            "f30",
+            "f34"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "lunch",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "mum-access",
+          "label": "core",
+          "stored": [
+            "f12",
+            "f37"
+          ],
+          "inCore": [
+            "f12"
+          ],
+          "placed": true
+        },
+        {
+          "id": "gp",
+          "label": "changes",
+          "stored": [
+            "f13"
+          ],
+          "inCore": [],
+          "placed": false
+        },
+        {
+          "id": "boiler",
+          "label": "fades",
+          "stored": [
+            "f15"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "post-office",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "bouldering",
+          "label": "recall",
+          "stored": [
+            "f18",
+            "f36",
+            "f41"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "band",
+          "label": "recall",
+          "stored": [
+            "f19"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "mum-home",
+          "label": "changes",
+          "stored": [
+            "f17",
+            "f37",
+            "f42"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "isla-asthma",
+          "label": "core",
+          "stored": [
+            "f16"
+          ],
+          "inCore": [
+            "f16"
+          ],
+          "placed": true
+        },
+        {
+          "id": "weather",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "emergency-contact",
+          "label": "core",
+          "stored": [
+            "f20"
+          ],
+          "inCore": [
+            "f20"
+          ],
+          "placed": true
+        },
+        {
+          "id": "dentist",
+          "label": "fades",
+          "stored": [
+            "f21"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "traffic",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "book-club",
+          "label": "recall",
+          "stored": [
+            "f22"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "parcel",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "broadband",
+          "label": "changes",
+          "stored": [
+            "f24"
+          ],
+          "inCore": [],
+          "placed": false
+        },
+        {
+          "id": "pottery",
+          "label": "recall",
+          "stored": [
+            "f23"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "school-trip",
+          "label": "fades",
+          "stored": [
+            "f25"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "assembly",
+          "label": "fades",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "piano",
+          "label": "recall",
+          "stored": [
+            "f26"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "wedding",
+          "label": "fades",
+          "stored": [
+            "f27"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "pizza",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "allotment",
+          "label": "recall",
+          "stored": [
+            "f39"
+          ],
+          "inCore": [],
+          "placed": true
+        }
+      ],
+      "pressure": {
+        "budget": 600,
+        "corePrecision": 1,
+        "coreRecall": 0.5,
+        "recallInCore": 0,
+        "fadesOut": 1,
+        "core": {
+          "facts": 4,
+          "characters": 553,
+          "tokens": 158
+        },
+        "items": [
+          {
+            "id": "owner-name",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f31",
+              "f43"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "partner",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f31",
+              "f43"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "daughter",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f4",
+              "f16",
+              "f21",
+              "f25",
+              "f26",
+              "f27",
+              "f31",
+              "f33",
+              "f38",
+              "f43"
+            ],
+            "inCore": [
+              "f16",
+              "f33"
+            ],
+            "placed": true
+          },
+          {
+            "id": "home",
+            "label": "changes",
+            "stored": [
+              "f1",
+              "f31",
+              "f33",
+              "f43"
+            ],
+            "inCore": [
+              "f33"
+            ],
+            "placed": true
+          },
+          {
+            "id": "allergy",
+            "label": "core",
+            "stored": [
+              "f2",
+              "f38"
+            ],
+            "inCore": [
+              "f2"
+            ],
+            "placed": true
+          },
+          {
+            "id": "lisbon",
+            "label": "fades",
+            "stored": [
+              "f3"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "client",
+            "label": "changes",
+            "stored": [
+              "f4",
+              "f32",
+              "f40"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "isla-school",
+            "label": "changes",
+            "stored": [
+              "f4",
+              "f16",
+              "f33"
+            ],
+            "inCore": [
+              "f16",
+              "f33"
+            ],
+            "placed": false
+          },
+          {
+            "id": "theo-health",
+            "label": "core",
+            "stored": [
+              "f5",
+              "f29"
+            ],
+            "inCore": [
+              "f5"
+            ],
+            "placed": true
+          },
+          {
+            "id": "theo-job",
+            "label": "changes",
+            "stored": [
+              "f6",
+              "f28"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "umbrella",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "digest-schedule",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "digest-style",
+            "label": "recall",
+            "stored": [
+              "f9"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "interview",
+            "label": "fades",
+            "stored": [
+              "f8",
+              "f14"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "tax",
+            "label": "fades",
+            "stored": [
+              "f10"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "kitchen",
+            "label": "recall",
+            "stored": [
+              "f11",
+              "f30",
+              "f34"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "lunch",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "mum-access",
+            "label": "core",
+            "stored": [
+              "f12",
+              "f37"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "gp",
+            "label": "changes",
+            "stored": [
+              "f13"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "boiler",
+            "label": "fades",
+            "stored": [
+              "f15"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "post-office",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "bouldering",
+            "label": "recall",
+            "stored": [
+              "f18",
+              "f36",
+              "f41"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "band",
+            "label": "recall",
+            "stored": [
+              "f19"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "mum-home",
+            "label": "changes",
+            "stored": [
+              "f17",
+              "f37",
+              "f42"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "isla-asthma",
+            "label": "core",
+            "stored": [
+              "f16"
+            ],
+            "inCore": [
+              "f16"
+            ],
+            "placed": true
+          },
+          {
+            "id": "weather",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "emergency-contact",
+            "label": "core",
+            "stored": [
+              "f20"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "dentist",
+            "label": "fades",
+            "stored": [
+              "f21"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "traffic",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "book-club",
+            "label": "recall",
+            "stored": [
+              "f22"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "parcel",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "broadband",
+            "label": "changes",
+            "stored": [
+              "f24"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "pottery",
+            "label": "recall",
+            "stored": [
+              "f23"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "school-trip",
+            "label": "fades",
+            "stored": [
+              "f25"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "assembly",
+            "label": "fades",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "piano",
+            "label": "recall",
+            "stored": [
+              "f26"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "wedding",
+            "label": "fades",
+            "stored": [
+              "f27"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "pizza",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "allotment",
+            "label": "recall",
+            "stored": [
+              "f39"
+            ],
+            "inCore": [],
+            "placed": true
+          }
+        ]
+      },
+      "junkRate": 0,
+      "fadesRefreshed": 0.875,
+      "changesCorrect": 0.571,
+      "memoryRatio": 4.043,
+      "factsPerActiveDay": 2.867,
+      "nearDuplicates": [
+        [
+          "f36",
+          "f41"
+        ]
+      ],
+      "tokens": {
+        "input": 2609,
+        "output": 43905,
+        "cacheRead": 190007,
+        "cacheWrite": 387577,
+        "total": 624098
+      },
+      "elapsedMs": 285493
+    },
+    {
+      "scenario": "maya-v1",
+      "hash": "a50bdd2f097e",
+      "model": "anthropic/claude-haiku-5-5@low",
+      "budget": 6000,
+      "corePrecision": 1,
+      "coreRecall": 1,
+      "recallInCore": 0,
+      "fadesOut": 1,
+      "core": {
+        "facts": 8,
+        "characters": 1266,
+        "tokens": 362
+      },
+      "items": [
+        {
+          "id": "owner-name",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f2",
+            "f4",
+            "f8",
+            "f9",
+            "f10",
+            "f11",
+            "f12",
+            "f13",
+            "f15",
+            "f16",
+            "f17",
+            "f18",
+            "f19",
+            "f20",
+            "f21",
+            "f22",
+            "f27",
+            "f33",
+            "f34",
+            "f35",
+            "f36"
+          ],
+          "inCore": [
+            "f2",
+            "f16",
+            "f34",
+            "f35"
+          ],
+          "placed": true
+        },
+        {
+          "id": "partner",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f27",
+            "f34"
+          ],
+          "inCore": [
+            "f34"
+          ],
+          "placed": true
+        },
+        {
+          "id": "daughter",
+          "label": "core",
+          "stored": [
+            "f1",
+            "f17",
+            "f18",
+            "f21",
+            "f22",
+            "f23",
+            "f24",
+            "f27",
+            "f29",
+            "f31",
+            "f34"
+          ],
+          "inCore": [
+            "f29",
+            "f34"
+          ],
+          "placed": true
+        },
+        {
+          "id": "home",
+          "label": "changes",
+          "stored": [
+            "f1",
+            "f27",
+            "f34",
+            "f35",
+            "f36"
+          ],
+          "inCore": [
+            "f34",
+            "f35"
+          ],
+          "placed": true
+        },
+        {
+          "id": "allergy",
+          "label": "core",
+          "stored": [
+            "f2",
+            "f31"
+          ],
+          "inCore": [
+            "f2"
+          ],
+          "placed": true
+        },
+        {
+          "id": "lisbon",
+          "label": "fades",
+          "stored": [
+            "f3"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "client",
+          "label": "changes",
+          "stored": [
+            "f4",
+            "f33"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "isla-school",
+          "label": "changes",
+          "stored": [
+            "f1",
+            "f27",
+            "f34"
+          ],
+          "inCore": [
+            "f34"
+          ],
+          "placed": true
+        },
+        {
+          "id": "theo-health",
+          "label": "core",
+          "stored": [
+            "f5",
+            "f26"
+          ],
+          "inCore": [
+            "f5",
+            "f26"
+          ],
+          "placed": true
+        },
+        {
+          "id": "theo-job",
+          "label": "changes",
+          "stored": [
+            "f6",
+            "f25"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "umbrella",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "digest-schedule",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "digest-style",
+          "label": "recall",
+          "stored": [
+            "f8"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "interview",
+          "label": "fades",
+          "stored": [
+            "f9",
+            "f15"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "tax",
+          "label": "fades",
+          "stored": [
+            "f10"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "kitchen",
+          "label": "recall",
+          "stored": [
+            "f11"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "lunch",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "mum-access",
+          "label": "core",
+          "stored": [
+            "f14",
+            "f30"
+          ],
+          "inCore": [
+            "f14"
+          ],
+          "placed": true
+        },
+        {
+          "id": "gp",
+          "label": "changes",
+          "stored": [
+            "f13",
+            "f35"
+          ],
+          "inCore": [
+            "f35"
+          ],
+          "placed": true
+        },
+        {
+          "id": "boiler",
+          "label": "fades",
+          "stored": [
+            "f12"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "post-office",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "bouldering",
+          "label": "recall",
+          "stored": [],
+          "inCore": [],
+          "placed": false
+        },
+        {
+          "id": "band",
+          "label": "recall",
+          "stored": [],
+          "inCore": [],
+          "placed": false
+        },
+        {
+          "id": "mum-home",
+          "label": "changes",
+          "stored": [
+            "f30"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "isla-asthma",
+          "label": "core",
+          "stored": [
+            "f29"
+          ],
+          "inCore": [
+            "f29"
+          ],
+          "placed": true
+        },
+        {
+          "id": "weather",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "emergency-contact",
+          "label": "core",
+          "stored": [
+            "f16"
+          ],
+          "inCore": [
+            "f16"
+          ],
+          "placed": true
+        },
+        {
+          "id": "dentist",
+          "label": "fades",
+          "stored": [
+            "f17",
+            "f18"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "traffic",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "book-club",
+          "label": "recall",
+          "stored": [
+            "f19"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "parcel",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "broadband",
+          "label": "changes",
+          "stored": [
+            "f36"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "pottery",
+          "label": "recall",
+          "stored": [
+            "f20"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "school-trip",
+          "label": "fades",
+          "stored": [
+            "f21"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "assembly",
+          "label": "fades",
+          "stored": [
+            "f24"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "piano",
+          "label": "recall",
+          "stored": [
+            "f22"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "wedding",
+          "label": "fades",
+          "stored": [
+            "f23"
+          ],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "pizza",
+          "label": "none",
+          "stored": [],
+          "inCore": [],
+          "placed": true
+        },
+        {
+          "id": "allotment",
+          "label": "recall",
+          "stored": [
+            "f32"
+          ],
+          "inCore": [],
+          "placed": true
+        }
+      ],
+      "pressure": {
+        "budget": 600,
+        "corePrecision": 1,
+        "coreRecall": 0.625,
+        "recallInCore": 0,
+        "fadesOut": 1,
+        "core": {
+          "facts": 4,
+          "characters": 549,
+          "tokens": 157
+        },
+        "items": [
+          {
+            "id": "owner-name",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f2",
+              "f4",
+              "f8",
+              "f9",
+              "f10",
+              "f11",
+              "f12",
+              "f13",
+              "f15",
+              "f16",
+              "f17",
+              "f18",
+              "f19",
+              "f20",
+              "f21",
+              "f22",
+              "f27",
+              "f33",
+              "f34",
+              "f35",
+              "f36"
+            ],
+            "inCore": [
+              "f2",
+              "f35"
+            ],
+            "placed": true
+          },
+          {
+            "id": "partner",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f27",
+              "f34"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "daughter",
+            "label": "core",
+            "stored": [
+              "f1",
+              "f17",
+              "f18",
+              "f21",
+              "f22",
+              "f23",
+              "f24",
+              "f27",
+              "f29",
+              "f31",
+              "f34"
+            ],
+            "inCore": [
+              "f29"
+            ],
+            "placed": true
+          },
+          {
+            "id": "home",
+            "label": "changes",
+            "stored": [
+              "f1",
+              "f27",
+              "f34",
+              "f35",
+              "f36"
+            ],
+            "inCore": [
+              "f35"
+            ],
+            "placed": true
+          },
+          {
+            "id": "allergy",
+            "label": "core",
+            "stored": [
+              "f2",
+              "f31"
+            ],
+            "inCore": [
+              "f2"
+            ],
+            "placed": true
+          },
+          {
+            "id": "lisbon",
+            "label": "fades",
+            "stored": [
+              "f3"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "client",
+            "label": "changes",
+            "stored": [
+              "f4",
+              "f33"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "isla-school",
+            "label": "changes",
+            "stored": [
+              "f1",
+              "f27",
+              "f34"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "theo-health",
+            "label": "core",
+            "stored": [
+              "f5",
+              "f26"
+            ],
+            "inCore": [
+              "f5"
+            ],
+            "placed": true
+          },
+          {
+            "id": "theo-job",
+            "label": "changes",
+            "stored": [
+              "f6",
+              "f25"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "umbrella",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "digest-schedule",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "digest-style",
+            "label": "recall",
+            "stored": [
+              "f8"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "interview",
+            "label": "fades",
+            "stored": [
+              "f9",
+              "f15"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "tax",
+            "label": "fades",
+            "stored": [
+              "f10"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "kitchen",
+            "label": "recall",
+            "stored": [
+              "f11"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "lunch",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "mum-access",
+            "label": "core",
+            "stored": [
+              "f14",
+              "f30"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "gp",
+            "label": "changes",
+            "stored": [
+              "f13",
+              "f35"
+            ],
+            "inCore": [
+              "f35"
+            ],
+            "placed": true
+          },
+          {
+            "id": "boiler",
+            "label": "fades",
+            "stored": [
+              "f12"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "post-office",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "bouldering",
+            "label": "recall",
+            "stored": [],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "band",
+            "label": "recall",
+            "stored": [],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "mum-home",
+            "label": "changes",
+            "stored": [
+              "f30"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "isla-asthma",
+            "label": "core",
+            "stored": [
+              "f29"
+            ],
+            "inCore": [
+              "f29"
+            ],
+            "placed": true
+          },
+          {
+            "id": "weather",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "emergency-contact",
+            "label": "core",
+            "stored": [
+              "f16"
+            ],
+            "inCore": [],
+            "placed": false
+          },
+          {
+            "id": "dentist",
+            "label": "fades",
+            "stored": [
+              "f17",
+              "f18"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "traffic",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "book-club",
+            "label": "recall",
+            "stored": [
+              "f19"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "parcel",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "broadband",
+            "label": "changes",
+            "stored": [
+              "f36"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "pottery",
+            "label": "recall",
+            "stored": [
+              "f20"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "school-trip",
+            "label": "fades",
+            "stored": [
+              "f21"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "assembly",
+            "label": "fades",
+            "stored": [
+              "f24"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "piano",
+            "label": "recall",
+            "stored": [
+              "f22"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "wedding",
+            "label": "fades",
+            "stored": [
+              "f23"
+            ],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "pizza",
+            "label": "none",
+            "stored": [],
+            "inCore": [],
+            "placed": true
+          },
+          {
+            "id": "allotment",
+            "label": "recall",
+            "stored": [
+              "f32"
+            ],
+            "inCore": [],
+            "placed": true
+          }
+        ]
+      },
+      "junkRate": 0,
+      "fadesRefreshed": 1,
+      "changesCorrect": 1,
+      "memoryRatio": 4.386,
+      "factsPerActiveDay": 2.4,
+      "nearDuplicates": [],
+      "tokens": {
+        "input": 1675,
+        "output": 42316,
+        "cacheRead": 174508,
+        "cacheWrite": 364611,
+        "total": 583110
+      },
+      "elapsedMs": 267954
+    }
+  ]
+}
