@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
-import { Button } from '@/components/ui/button'
+import { SettingsFooter } from '@/components/settings-footer'
 import {
   Field,
   FieldDescription,
@@ -78,27 +78,18 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
           />
         </Field>
         <FieldError>{save.error?.message}</FieldError>
-        <div className="flex gap-2">
-          <Button
-            type="submit"
-            disabled={!changed || !name.trim() || save.isPending}
-          >
-            Save
-          </Button>
-          {changed && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setName(familiar.name)
-                setPersona(familiar.persona ?? '')
-                setAvatar(familiar.avatar ?? null)
-              }}
-            >
-              Discard
-            </Button>
-          )}
-        </div>
+        <SettingsFooter
+          canSave={changed && !!name.trim() && !save.isPending}
+          onDiscard={
+            changed
+              ? () => {
+                  setName(familiar.name)
+                  setPersona(familiar.persona ?? '')
+                  setAvatar(familiar.avatar ?? null)
+                }
+              : undefined
+          }
+        />
       </FieldGroup>
     </form>
   )
