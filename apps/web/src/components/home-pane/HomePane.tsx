@@ -1,9 +1,4 @@
-import {
-  ChatDotsIcon,
-  ChecksIcon,
-  HashIcon,
-  SparkleIcon,
-} from '@phosphor-icons/react'
+import { ChatDotsIcon, ChecksIcon, HashIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { LiveStatus } from '@/components/live-status'
 import { PixelCat } from '@/components/pixel-cat'
@@ -102,10 +97,9 @@ export const HomePane = () => {
           )}
         </EmptyHeader>
         {waiting.length > 0 && (
-          <div className="flex w-full max-w-lg flex-col gap-6 text-left">
+          <div className="flex w-full max-w-sm flex-col gap-6 text-left">
             {dms.length > 0 && (
               <WaitingSection
-                icon={SparkleIcon}
                 label="DMs"
                 layout="grid"
                 rooms={dms}
