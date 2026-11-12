@@ -23,7 +23,7 @@ import { FamiliarRow } from './components/familiar-row'
 import { RoomRow } from './components/room-row'
 import { SectionHeading } from './components/section-heading'
 import { SettingsLink } from './components/settings-link'
-import { openDialog } from '@/lib/dialogs'
+import { useDialogs } from '@/lib/dialogs'
 import type { SidebarProps } from './types'
 
 /**
@@ -36,6 +36,7 @@ import type { SidebarProps } from './types'
  */
 export const Sidebar = ({ className }: SidebarProps) => {
   const familiars = useFamiliars()
+  const { open: openDialog } = useDialogs()
   const rooms = useRooms()
   const [query, setQuery] = useState('')
   const matches = (name: string) =>

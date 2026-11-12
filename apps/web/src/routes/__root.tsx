@@ -6,6 +6,7 @@ import { Dialogs } from '@/components/dialogs'
 import { Sidebar } from '@/components/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { connectionProblems } from '@/lib/connection-problems'
+import { dialogSearch } from '@/lib/dialogs'
 import { useWorkspace } from '@/lib/familiar'
 import { useTheme } from '@/lib/theme'
 
@@ -67,5 +68,6 @@ const Root = () => {
 }
 
 export const Route = createRootRoute({
+  validateSearch: dialogSearch,
   component: Root,
 })

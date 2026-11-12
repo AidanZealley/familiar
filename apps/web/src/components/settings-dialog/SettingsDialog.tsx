@@ -17,7 +17,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { closeDialog } from '@/lib/dialogs'
+import { useDialogCategory, useDialogs } from '@/lib/dialogs'
 import { useIsPhone } from '@/lib/media'
 import { CategoryBody } from './components/category-body'
 import { CategoryList } from './components/category-list'
@@ -36,8 +36,8 @@ const matches = (category: SettingsCategory, query: string) =>
 /**
  * The one settings shell: a title bar with Close, a searchable list of
  * categories, and the chosen category beside it. On a phone it fills the
- * screen: the list, then each category as a screen with Back. It owns which
- * category is shown.
+ * screen: the list, then each category as a screen with Back. The URL owns
+ * which category is shown, so a link can open one.
  */
 export const SettingsDialog = ({
   title,
@@ -45,7 +45,8 @@ export const SettingsDialog = ({
   groups,
 }: SettingsDialogProps) => {
   const isPhone = useIsPhone()
-  const [category, showCategory] = useState<string>()
+  const category = useDialogCategory()
+  const { showCategory, close } = useDialogs()
   const [query, setQuery] = useState('')
   const all = groups.flatMap((group) => group.categories)
   const current =
@@ -92,7 +93,7 @@ export const SettingsDialog = ({
   )
 
   return (
-    <Dialog open onOpenChange={(open) => !open && closeDialog()}>
+    <Dialog open onOpenChange={(open) => !open && void close()}>
       <DialogContent
         showCloseButton={false}
         className="flex flex-col gap-0 overflow-hidden p-0 max-md:inset-0 max-md:h-(--app-height) max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:ring-0 md:h-[min(44rem,calc(100dvh-4rem))] md:max-w-4xl"
