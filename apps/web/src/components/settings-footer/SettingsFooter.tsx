@@ -10,7 +10,7 @@ import type { SettingsFooterProps } from './types'
 export const SettingsFooter = ({ canSave, onDiscard }: SettingsFooterProps) => (
   <div className="sticky bottom-0 z-10 -mx-4 -mb-[max(1.5rem,env(safe-area-inset-bottom))] flex justify-end gap-2 border-t bg-popover/80 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:-mx-6 md:px-6">
     {onDiscard && (
-      <Button type="button" variant="ghost" onClick={onDiscard}>
+      <Button type="button" variant="outline" onClick={onDiscard}>
         Discard
       </Button>
     )}

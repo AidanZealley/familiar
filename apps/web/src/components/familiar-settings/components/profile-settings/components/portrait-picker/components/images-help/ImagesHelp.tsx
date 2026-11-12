@@ -10,7 +10,7 @@ export const ImagesHelp = ({ folder }: ImagesHelpProps) => {
   return (
     <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
       <p>
-        Add 64×32 PNGs, mouth closed then open, to
+        Add 64×32 PNGs, two 32×32 frames side by side, to
         {folder ? ':' : ' the avatars folder that familiar status shows.'}
       </p>
       {folder && (
