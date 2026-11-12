@@ -24,6 +24,15 @@ apps/docs/public/demos/
 # Local agent workflow instructions and execution records.
 /.workflows/
 
+# Implementation plans and specs, kept while the work happens and never
+# committed, so they can't go stale in the repo. Documentation that ships,
+# such as READMEs and the docs site, is committed as usual.
+/.plans/
+
+# Design variants and mock-ups explored before choosing one, kept out of the
+# repo; the chosen design is built into the app itself.
+/.design/
+
 # Local environment files, such as the Node example's secrets.
 .env
 
