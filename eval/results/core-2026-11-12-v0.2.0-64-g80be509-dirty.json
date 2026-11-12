@@ -1,6 +1,6 @@
 {
   "date": "2026-11-12",
-  "commit": "v0.2.0-61-g9bb0492-dirty",
+  "commit": "v0.2.0-64-g80be509-dirty",
   "scenario": "maya-v1",
   "hash": "9d4e016da767",
   "model": "anthropic/claude-haiku-5-5@low",
@@ -48,13 +48,12 @@
       "label": "changes",
       "stored": [
         "f1",
-        "f18",
-        "f19"
+        "f18"
       ],
       "inCore": [
         "f18"
       ],
-      "placed": false
+      "placed": true
     },
     {
       "id": "allergy",
@@ -256,13 +255,12 @@
         "label": "changes",
         "stored": [
           "f1",
-          "f18",
-          "f19"
+          "f18"
         ],
         "inCore": [
           "f18"
         ],
-        "placed": false
+        "placed": true
       },
       {
         "id": "allergy",
@@ -417,7 +415,7 @@
   },
   "junkRate": 0.4,
   "fadesRefreshed": 1,
-  "changesCorrect": 0.5,
+  "changesCorrect": 1,
   "memoryRatio": 5.198,
   "factsPerActiveDay": 1.4,
   "nearDuplicates": [],

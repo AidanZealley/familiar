@@ -106,11 +106,13 @@ function gradeItem(item: Item, facts: Fact[]): ItemGrade {
   const current = facts.filter((fact) => !isPast(fact))
   const ids = (list: Fact[]) => list.map((fact) => fact.id)
   if (item.label === 'changes') {
-    const stored = facts.filter((fact) => matches(fact, [item.from, item.to]))
+    const stored = facts.filter((fact) =>
+      matches(fact, [...item.from, item.to]),
+    )
     const placed =
       current.some((fact) => matches(fact, [item.to])) &&
       !current.some(
-        (fact) => matches(fact, [item.from]) && !matches(fact, [item.to]),
+        (fact) => matches(fact, item.from) && !matches(fact, [item.to]),
       )
     return {
       id: item.id,

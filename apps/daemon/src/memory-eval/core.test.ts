@@ -29,7 +29,7 @@ const scenario: CoreScenario = {
             {
               id: 'home',
               label: 'changes',
-              from: 'Elm Row',
+              from: ['Elm Row'],
               to: 'Quarry Lane',
             },
             { id: 'climbing', label: 'recall', match: ['boulder'] },

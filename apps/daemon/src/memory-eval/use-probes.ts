@@ -241,13 +241,9 @@ export const probes: UseProbe[] = [
       },
     ],
     request: 'My sister is coming for dinner on Saturday. What should I cook?',
-    required: [
-      'Nora',
-      'she is vegetarian',
-      "she's vegetarian",
-      'sister is vegetarian',
-      "sister's vegetarian",
-    ],
+    // Her name only: a reply without memory can hedge "if she is
+    // vegetarian", but can't know she's called Nora.
+    required: ['Nora'],
     forbidden: [],
   },
   {
