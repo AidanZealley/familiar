@@ -165,6 +165,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           {room.kind === 'room' && (
             <InputGroupButton
               size="icon-sm"
+              className="size-8"
               aria-label="Mention a Familiar"
               onClick={() => {
                 setDraft({
@@ -179,6 +180,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           )}
           <InputGroupButton
             size="icon-sm"
+            className="size-8"
             variant={note ? 'secondary' : 'ghost'}
             aria-label="Send as a note"
             aria-pressed={note}
@@ -194,7 +196,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
             type={showStop ? 'button' : 'submit'}
             size="icon-sm"
             variant={showStop ? 'secondary' : 'default'}
-            className="ml-auto"
+            className="ml-auto size-8"
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
             onClick={showStop ? () => abort.mutate() : undefined}
