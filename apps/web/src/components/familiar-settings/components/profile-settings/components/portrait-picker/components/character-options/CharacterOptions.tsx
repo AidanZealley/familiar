@@ -11,12 +11,11 @@ const TRAY = 24
 const heading = 'text-xs text-muted-foreground'
 
 /**
- * Shapes, in the chosen colour, then colours, chosen apart. Its own shape,
- * and the chosen one if it's another, stay pinned; below them a tray of
- * others from the run its ID gives, which Shuffle swaps for the next and
- * Back returns to the last. The tray is only for browsing: closing the
- * dialog forgets where it was, and a shape taken from it moves up to the
- * pinned row.
+ * Shapes, in the chosen colour, then colours, chosen apart. The big
+ * portrait beside them shows the choice; the shapes are a tray to browse,
+ * from the run its ID gives, starting with the shape its ID gives it.
+ * Shuffle swaps the tray for the next and Back returns to the last;
+ * closing the dialog forgets where it was.
  */
 export const CharacterOptions = ({
   familiar,
@@ -28,45 +27,36 @@ export const CharacterOptions = ({
   const character = portrait.kind === 'character' ? portrait : undefined
   const shape = character?.shape ?? familiar.id
   const colour = character?.colour ?? colourOf(familiar.id)
-  const pinned = shape === familiar.id ? [familiar.id] : [familiar.id, shape]
-  const tray = Array.from(
-    { length: TRAY },
-    (_, i) => familiar.id * 97 + page * TRAY + i + 1,
+  // Its own shape opens the first tray, then the run's; each later tray
+  // takes the next TRAY of the run.
+  const tray = Array.from({ length: TRAY }, (_, i) =>
+    page === 0 && i === 0 ? familiar.id : familiar.id * 97 + page * TRAY + i,
   )
   const choose = (next: { shape?: number; colour?: number }) =>
     onChange(
       characterAvatar(familiar, next.shape ?? shape, next.colour ?? colour),
     )
-  const option = (each: number, name: string) => (
-    <PortraitOption
-      key={each}
-      familiar={familiar}
-      avatar={characterAvatar(familiar, each, colour)}
-      selected={character?.shape === each}
-      onSelect={() => choose({ shape: each })}
-      name={name}
-    />
-  )
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <p className={heading}>Shape</p>
-        <div role="group" aria-label="Shapes" className="flex flex-wrap gap-1">
-          {pinned.map((each) =>
-            option(
-              each,
-              each === familiar.id ? 'Its own shape' : 'The chosen shape',
-            ),
-          )}
-        </div>
         <div
           role="group"
-          aria-label="More shapes to try"
+          aria-label="Shapes"
           className="flex flex-col gap-2 border bg-muted/40 p-2"
         >
           <div className="flex flex-wrap gap-1">
-            {tray.map((each) => option(each, `Shape ${each}`))}
+            {tray.map((each) => (
+              <PortraitOption
+                key={each}
+                familiar={familiar}
+                avatar={characterAvatar(familiar, each, colour)}
+                selected={character?.shape === each}
+                onSelect={() => choose({ shape: each })}
+                name={`Shape ${each}`}
+              />
+            ))}
           </div>
           <div className="flex justify-between gap-2">
             <Button
