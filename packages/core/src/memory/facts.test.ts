@@ -56,12 +56,12 @@ const coreSize = (memory: Memory) => listFacts(coreFacts(memory.facts)).length
 test('remember saves a fact as given, and core fills by importance, then recent use, within budget', () => {
   {
     const memory = empty()
-    const important = save(memory, ' Lives in Leeds ', 3, 10, '2025-01-06', 4)
+    const important = save(memory, ' Lives in Leeds ', 4, 10, '2025-01-06', 4)
     const minor = save(memory, 'Likes blue pens', 1, 20)
     expect(important).toEqual({
       id: 'f1',
       text: 'Lives in Leeds',
-      importance: 3,
+      importance: 4,
       since: '2025-01-06',
       sources: [4],
       saved: 10,
@@ -98,6 +98,30 @@ test('remember saves a fact as given, and core fills by importance, then recent 
   retireFact(memory, essential.id, '2025-06-01')
   rebalanceCore(memory)
   expect(essential.core).toBe(false)
+})
+test('when core is full, a 4 unused for months gives way to a recalled 4, a pin stays and nothing is deleted', () => {
+  const day = 24 * 60 * 60 * 1000
+  const memory = empty()
+  // About 290 characters each, so core holds 21 of them.
+  const long = (name: string) => `${name} ${'x'.repeat(270)}`
+  const pinned = save(memory, long('pinned'), 1, 1)
+  setPinned(memory, pinned.id, true)
+  const stale = save(memory, long('stale'), 4, 1)
+  const used = save(memory, long('used'), 4, 2)
+  for (let index = 0; index < 20; index++) {
+    save(memory, long(`fresh ${index}`), 4, 200 * day)
+  }
+  // Without a recall, both older 4s lose to the fresh ones.
+  const count = memory.facts.facts.length
+  expect(used.core).toBe(false)
+  expect(stale.core).toBe(false)
+  markRecalled(memory.usage, [used.id], 300 * day)
+  rebalanceCore(memory)
+  expect(memory.facts.facts).toHaveLength(count)
+  expect(coreSize(memory)).toBeLessThanOrEqual(CORE_BUDGET)
+  expect(pinned.core).toBe(true)
+  expect(used.core).toBe(true)
+  expect(stale.core).toBe(false)
 })
 test('text, importance, days and length are checked without changing memory', () => {
   const memory = empty()

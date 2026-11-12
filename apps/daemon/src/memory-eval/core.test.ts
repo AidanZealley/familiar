@@ -92,27 +92,27 @@ test('grading re-runs the ranking it is given over the saved memory, so a rankin
   const grade = gradeCore(fixture, { scenario })
   expect(gradeCore(fixture, { scenario })).toEqual(grade)
   expect(grade).toMatchObject({
-    // Ranking put f1, f3 and f4 in core, though the fixture saved none there.
-    core: { facts: 3 },
-    corePrecision: 0.333,
+    // Ranking put f1 and f3 in core, though the fixture saved none there.
+    core: { facts: 2 },
+    corePrecision: 0.5,
     coreRecall: 1,
-    recallInCore: 1,
+    recallInCore: 0,
     junkRate: 1,
     changesCorrect: 1,
   })
   expect(fixture.facts.facts.every((fact) => !fact.core)).toBe(true)
 
-  // As if CORE_IMPORTANCE were 4: only facts that important stay in core.
-  const stricter = gradeCore(fixture, {
+  // As if CORE_IMPORTANCE were 3: the recall-only 3 joins core.
+  const looser = gradeCore(fixture, {
     scenario,
     rebalance: (memory) => {
       rebalanceCore(memory)
       for (const fact of memory.facts.facts) {
-        fact.core &&= fact.importance >= 4
+        fact.core ||= fact.importance === 3
       }
     },
   })
-  expect(stricter).toMatchObject({ core: { facts: 2 }, recallInCore: 0 })
+  expect(looser).toMatchObject({ core: { facts: 3 }, recallInCore: 1 })
 })
 
 test('the meter counts every response and, past its cap, stops the run and aborts further requests', async () => {

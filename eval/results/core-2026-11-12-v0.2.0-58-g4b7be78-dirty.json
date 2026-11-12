@@ -1,0 +1,234 @@
+{
+  "date": "2026-11-12",
+  "commit": "v0.2.0-58-g4b7be78-dirty",
+  "scenario": "maya-v1",
+  "hash": "331ec80eadff",
+  "model": "anthropic/claude-haiku-5-5@low",
+  "corePrecision": 0.714,
+  "coreRecall": 1,
+  "recallInCore": 0,
+  "junkRate": 0.2,
+  "fadesOut": 0,
+  "changesCorrect": 1,
+  "core": {
+    "facts": 7,
+    "characters": 958,
+    "tokens": 274
+  },
+  "memoryRatio": 5.158,
+  "factsPerActiveDay": 1.2,
+  "nearDuplicates": [
+    [
+      "f6",
+      "f10"
+    ]
+  ],
+  "items": [
+    {
+      "id": "owner-name",
+      "label": "core",
+      "stored": [
+        "f1",
+        "f6",
+        "f7",
+        "f8",
+        "f17",
+        "f18"
+      ],
+      "inCore": [
+        "f6",
+        "f18"
+      ],
+      "placed": true
+    },
+    {
+      "id": "partner",
+      "label": "core",
+      "stored": [
+        "f1",
+        "f17",
+        "f18"
+      ],
+      "inCore": [
+        "f18"
+      ],
+      "placed": true
+    },
+    {
+      "id": "daughter",
+      "label": "core",
+      "stored": [
+        "f1",
+        "f17",
+        "f18"
+      ],
+      "inCore": [
+        "f18"
+      ],
+      "placed": true
+    },
+    {
+      "id": "home",
+      "label": "changes",
+      "stored": [
+        "f1",
+        "f17",
+        "f18"
+      ],
+      "inCore": [
+        "f18"
+      ],
+      "placed": true
+    },
+    {
+      "id": "allergy",
+      "label": "core",
+      "stored": [
+        "f2"
+      ],
+      "inCore": [
+        "f2"
+      ],
+      "placed": true
+    },
+    {
+      "id": "lisbon",
+      "label": "fades",
+      "stored": [
+        "f3"
+      ],
+      "inCore": [
+        "f3"
+      ],
+      "placed": false
+    },
+    {
+      "id": "theo-health",
+      "label": "core",
+      "stored": [
+        "f4",
+        "f16"
+      ],
+      "inCore": [
+        "f4",
+        "f16"
+      ],
+      "placed": true
+    },
+    {
+      "id": "theo-job",
+      "label": "changes",
+      "stored": [
+        "f5",
+        "f15"
+      ],
+      "inCore": [
+        "f15"
+      ],
+      "placed": true
+    },
+    {
+      "id": "umbrella",
+      "label": "none",
+      "stored": [],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "digest-schedule",
+      "label": "none",
+      "stored": [
+        "f7"
+      ],
+      "inCore": [],
+      "placed": false
+    },
+    {
+      "id": "digest-style",
+      "label": "recall",
+      "stored": [
+        "f8"
+      ],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "interview",
+      "label": "fades",
+      "stored": [
+        "f6",
+        "f10",
+        "f13"
+      ],
+      "inCore": [
+        "f6"
+      ],
+      "placed": false
+    },
+    {
+      "id": "kitchen",
+      "label": "recall",
+      "stored": [
+        "f9"
+      ],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "lunch",
+      "label": "none",
+      "stored": [],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "bouldering",
+      "label": "recall",
+      "stored": [
+        "f11"
+      ],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "band",
+      "label": "recall",
+      "stored": [
+        "f12"
+      ],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "weather",
+      "label": "none",
+      "stored": [],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "book-club",
+      "label": "recall",
+      "stored": [
+        "f14"
+      ],
+      "inCore": [],
+      "placed": true
+    },
+    {
+      "id": "parcel",
+      "label": "none",
+      "stored": [],
+      "inCore": [],
+      "placed": true
+    }
+  ],
+  "tokens": {
+    "input": 2363,
+    "output": 20349,
+    "cacheRead": 99243,
+    "cacheWrite": 123191,
+    "total": 245146
+  },
+  "elapsedMs": 149605
+}
