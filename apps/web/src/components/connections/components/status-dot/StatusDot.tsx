@@ -15,7 +15,7 @@ export const StatusDot = ({ tone }: StatusDotProps) => (
     {tone === 'busy' ? (
       <PixelSpinner className="text-muted-foreground" />
     ) : (
-      <span className={cn('size-2 rounded-full', colours[tone])} />
+      <span className={cn('size-2', colours[tone])} />
     )}
   </span>
 )
