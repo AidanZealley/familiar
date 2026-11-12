@@ -5,3 +5,4 @@ examples/embedded-kanban/src/components/reui/
 examples/shared-conversation/src/components/ui/
 apps/web/src/routeTree.gen.ts
 eval/results/
+eval/fixtures/

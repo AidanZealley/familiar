@@ -16,6 +16,7 @@
     "sign-in": "pnpm --filter @familiar-ai/daemon sign-in",
     "eval:recall": "pnpm --filter @familiar-ai/daemon eval:recall",
     "eval:unfiled": "pnpm --filter @familiar-ai/daemon eval:unfiled",
+    "eval:core": "pnpm --filter @familiar-ai/daemon eval:core",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",

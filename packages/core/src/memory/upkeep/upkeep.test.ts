@@ -512,6 +512,39 @@ test("a fact said only in a handoff turn's context is filed by the Familiar it w
   ])
 })
 
+test('upkeep runs on memoryModel at its level when given one, and the chat on its own model', async () => {
+  const clock = fakeClock(start)
+  const host = await testHost({
+    faux: [{ id: 'chat' }, { id: 'upkeep' }],
+    model: { provider: 'faux', modelId: 'chat' },
+    memoryModel: {
+      model: { provider: 'faux', modelId: 'upkeep' },
+      thinkingLevel: 'low',
+    },
+    timeZone: TEST_ZONE,
+    now: clock.now,
+    setTimer: clock.setTimer,
+  })
+  const asked: [model: string, reasoning?: string][] = []
+  host.faux.setResponses([
+    (_context, options, _state, model) => {
+      asked.push([model.id, options?.reasoning])
+      return fauxAssistantMessage('Noted.')
+    },
+    (_context, options, _state, model) => {
+      asked.push([model.id, options?.reasoning])
+      return fauxAssistantMessage('Said hello.')
+    },
+  ])
+  await host.say('Hello.')
+  clock.advanceTo(firstPass)
+  await vi.waitFor(() => expect(asked).toHaveLength(2))
+  expect(asked).toEqual([
+    ['chat', 'medium'],
+    ['upkeep', 'low'],
+  ])
+})
+
 test('reopening keeps exactly one upkeep task on its schedule', async () => {
   const { faux, say, upkeepTasks, sleepingUntil, passAt, reopen } =
     await setup()

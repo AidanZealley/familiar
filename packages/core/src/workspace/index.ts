@@ -86,10 +86,17 @@ export type WorkspaceOptions = {
   storage: Storage
   models: Models
   /**
-   * What memory upkeep runs on, at its level in `chatModels`, and what each
-   * Familiar's chat starts on until someone picks another.
+   * What each Familiar's chat starts on until someone picks another, and
+   * what memory upkeep runs on, at its level in `chatModels`, unless
+   * `memoryModel` says otherwise.
    */
   model: ModelRef
+  /**
+   * What memory upkeep runs on, and at what level, if not `model`: such as
+   * a cheaper model for an eval. Reached through the same `models`, so its
+   * provider and credentials must be there. Default `model` at its level.
+   */
+  memoryModel?: ChatModel
   /**
    * The owner's IANA time zone, such as `Europe/London`. Familiar reads every
    * calendar in it: dates in memory, the days upkeep files and its 04:00
@@ -363,9 +370,15 @@ export async function openWorkspace(
     // Extensions can be installed after opening: nothing runs until resume().
     const registry = createRegistry()
 
+    // Upkeep's model compacts to the same budget as the chat's.
+    const memoryModel = options.memoryModel ?? model
     const harness = await Harness.open(
       options.storage,
-      harnessOptions({ ...options, chatModels }, registry, budget),
+      harnessOptions(
+        { ...options, chatModels: [...chatModels, memoryModel] },
+        registry,
+        budget,
+      ),
       context,
     )
 
@@ -384,8 +397,8 @@ export async function openWorkspace(
     // Half the budget leaves room for the prompt, memory and the pass's tool calls.
     const memory = createMemory(harness, {
       now: options.now ?? Date.now,
-      model: options.model,
-      thinkingLevel: model.thinkingLevel,
+      model: memoryModel.model,
+      thinkingLevel: memoryModel.thinkingLevel,
       transcriptTokens: Math.floor(budget / 2),
       timeZone: options.timeZone,
     })
