@@ -318,6 +318,324 @@ export const probes: UseProbe[] = [
     required: ['Isla', '7:30'],
     forbidden: [],
   },
+  // Thirty proactive probes in all, so that a rate moves in steps of a few points. Each of
+  // these says what it tests, whether its request shares a word with its fact, and rates its
+  // fact as upkeep might. Required strings are names a reply can only know from the fact.
+  {
+    id: 'nephew-gift',
+    kind: 'proactive',
+    // Shares no word: "nephew" never says "sister", and the child's name is the proof.
+    // A relative's child is the kind of detail people expect remembered.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'has a sister, Nora, whose baby son Ezra turns one in April.',
+        importance: 4,
+      },
+    ],
+    request: "I need a present idea for my nephew's first birthday.",
+    required: ['Ezra'],
+    forbidden: [],
+  },
+  {
+    id: 'mum-flowers',
+    kind: 'proactive',
+    // Shares no word: "flowers" vs "florist", and "Mum" vs "mother". A named shop is
+    // the one thing a reply can't guess.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: "says her mother June's favourite florist is Petal & Stem on Hope Street.",
+        importance: 3,
+      },
+    ],
+    request: "Where should I order flowers for Mum's birthday?",
+    required: ['Petal'],
+    forbidden: [],
+  },
+  {
+    id: 'theo-commute',
+    kind: 'proactive',
+    // Shares no word: how he travels vs a meeting across town. Kit that decides a route.
+    asker: theo,
+    place: 'dm',
+    facts: [
+      {
+        about: theo,
+        text: 'rides a Brompton folding bike to work and keeps it in the hallway.',
+        importance: 3,
+      },
+    ],
+    request: 'How should I get across town for a 9am meeting?',
+    required: ['Brompton'],
+    forbidden: [],
+  },
+  {
+    id: 'weekend-lie-in',
+    kind: 'proactive',
+    // Shares no word: "weekend" vs a Saturday lesson. A standing commitment that
+    // quietly rules out the request.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'takes Isla to swimming lessons at Riverside Leisure Centre every Saturday at 9am.',
+        importance: 4,
+      },
+    ],
+    request: 'Can we fit in a proper lie-in this weekend?',
+    required: ['Riverside', 'swimming lesson', 'swim lesson'],
+    forbidden: [],
+  },
+  {
+    id: 'bedtime-rabbit',
+    kind: 'proactive',
+    // Shares no word: "my daughter can't settle" vs a toy rabbit's name. The smallest
+    // household detail that makes advice personal.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: "says Isla can't sleep without her toy rabbit, Pemberton.",
+        importance: 3,
+      },
+    ],
+    request: "My daughter can't settle at bedtime. Any ideas?",
+    required: ['Pemberton'],
+    forbidden: [],
+  },
+  {
+    id: 'locked-out',
+    kind: 'proactive',
+    // Shares no word: "locked out" vs a spare key. A time when the fact matters
+    // most and nobody thinks to mention it.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'has a neighbour, Mrs Kowalski, who keeps a spare house key.',
+        importance: 4,
+      },
+    ],
+    request: "I'm locked out and Theo isn't picking up. What do I do?",
+    required: ['Kowalski'],
+    forbidden: [],
+  },
+  {
+    id: 'gp-checkup',
+    kind: 'proactive',
+    // Shares no word: "check-up" vs the doctor's name. A person's own doctor is
+    // something they'd expect an assistant to know.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'is registered with Dr Okonkwo at Stanmore Surgery.',
+        importance: 3,
+      },
+    ],
+    request: 'Can you help me book a check-up for next week?',
+    required: ['Okonkwo', 'Stanmore'],
+    forbidden: [],
+  },
+  {
+    id: 'wedding-stay',
+    kind: 'proactive',
+    // Shares no word: a wedding date vs a brother's spare room in another city. Family
+    // who could host is the kind of fact only memory connects to the request.
+    asker: theo,
+    place: 'dm',
+    facts: [
+      {
+        about: theo,
+        text: 'has a brother, Kofi, with a spare room in Bristol.',
+        importance: 3,
+      },
+    ],
+    request: 'Where can we stay for the 14 February wedding?',
+    required: ['Kofi'],
+    forbidden: [],
+  },
+  {
+    id: 'piano-wednesday',
+    kind: 'proactive',
+    // Shares "Wednesday". A weekly lesson rated low, the kind of commitment recall exists for.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'takes Isla to piano lessons with Mr Adeyemi on Wednesdays at 4:30pm.',
+        importance: 3,
+      },
+    ],
+    request: 'Can you plan our Wednesday after school for me?',
+    required: ['piano', 'Adeyemi'],
+    forbidden: [],
+  },
+  {
+    id: 'bouldering-tuesday',
+    kind: 'proactive',
+    // Shares "Tuesday" and "evening". A hobby slot that a day's plan has to work around.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'goes bouldering at The Arch on Tuesday evenings.',
+        importance: 2,
+      },
+    ],
+    request: 'Help me plan my Tuesday evening.',
+    required: ['The Arch', 'boulder'],
+    forbidden: [],
+  },
+  {
+    id: 'book-club-drinks',
+    kind: 'proactive',
+    // Shares "Thursday". A monthly commitment on a day the request would otherwise fill.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'is in a book club that meets on the first Thursday of every month.',
+        importance: 3,
+      },
+    ],
+    request:
+      'Suggest a date for work drinks. The first Thursday of the month suits the team.',
+    required: ['book club'],
+    forbidden: [],
+  },
+  {
+    id: 'anniversary-plan',
+    kind: 'proactive',
+    // Shares "anniversary". A date people expect remembered, which a reply can't guess.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'and Theo married on 9 June, so their anniversary is then.',
+        importance: 4,
+      },
+    ],
+    request: 'Help me plan something for our anniversary.',
+    required: ['9 June', 'June 9'],
+    forbidden: [],
+  },
+  {
+    id: 'allotment-note',
+    kind: 'proactive',
+    // Shares "allotment". A named person the request refers to only by role.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'shares her allotment with a neighbour, Gwen.',
+        importance: 2,
+      },
+    ],
+    request: 'Draft a note for the person I share my allotment with.',
+    required: ['Gwen'],
+    forbidden: [],
+  },
+  {
+    id: 'school-run-email',
+    kind: 'proactive',
+    // Shares "Monday". A school's name is a fact a draft has to get right.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'does the school run to Hollin Primary on Mondays.',
+        importance: 3,
+      },
+    ],
+    request: "Draft an email to Isla's school about Monday pickup.",
+    required: ['Hollin'],
+    forbidden: [],
+  },
+  {
+    id: 'date-night',
+    kind: 'proactive',
+    // Shares "babysitter". A trusted person's name, the thing a booking message needs.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'uses a babysitter, Chloe, for date nights.',
+        importance: 3,
+      },
+    ],
+    request: 'Draft a message to our babysitter for Saturday night.',
+    required: ['Chloe'],
+    forbidden: [],
+  },
+  {
+    id: 'theo-mum-invite',
+    kind: 'proactive',
+    // Shares "Theo's mum". An in-law's name and place, which an invitation uses.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: theo,
+        text: 'has a mum, Grace, who lives in Swansea.',
+        importance: 3,
+      },
+    ],
+    request: "Draft a text inviting Theo's mum to stay at Easter.",
+    required: ['Grace'],
+    forbidden: [],
+  },
+  {
+    id: 'theo-gift',
+    kind: 'proactive',
+    // Shares "Theo". Something he owns and loves, which narrows a gift to what fits it.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: theo,
+        text: 'collects jazz records and plays them on a Rega turntable.',
+        importance: 3,
+      },
+    ],
+    request: 'Suggest a birthday gift for Theo.',
+    required: ['Rega'],
+    forbidden: [],
+  },
+  {
+    id: 'client-email',
+    kind: 'proactive',
+    // Shares "client". A work contact's name, which a draft to them needs.
+    asker: maya,
+    place: 'dm',
+    facts: [
+      {
+        about: maya,
+        text: 'has a client contact at Brightwell called Imogen Hart.',
+        importance: 3,
+      },
+    ],
+    request:
+      'Draft an email to my client contact asking for a deadline extension.',
+    required: ['Imogen'],
+    forbidden: [],
+  },
   {
     id: 'digest-restraint',
     kind: 'restraint',

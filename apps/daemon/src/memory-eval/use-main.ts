@@ -10,29 +10,42 @@ import {
   readApiKey,
 } from './model.ts'
 import { percent, row, saveResult } from './results.ts'
+import { showShare } from './spread.ts'
 import { runUseEval, type Rate, type UseGrade, type UseMeasure } from './use.ts'
 import { probes } from './use-probes.ts'
+
+const DEFAULT_REPEAT = 3
+/** The cap when a probe runs more than once: about a million tokens at 30 probes. */
+const REPEAT_MAX_TOKENS = 2_000_000
 
 const { values } = parseArgs({
   options: {
     probe: { type: 'boolean', default: false },
     model: { type: 'string', default: EVAL_MODEL },
-    'max-tokens': { type: 'string', default: String(DEFAULT_MAX_TOKENS) },
+    repeat: { type: 'string', default: String(DEFAULT_REPEAT) },
+    'max-tokens': { type: 'string' },
     'from-fixture': { type: 'string' },
   },
 })
-const maxTokens = Number(values['max-tokens'])
+const repeat = Number(values.repeat)
+if (!Number.isInteger(repeat) || repeat <= 0) {
+  throw new Error('--repeat must be a positive whole number.')
+}
+// Repeats multiply the runs, so the cap they need is higher.
+const maxTokens = Number(
+  values['max-tokens'] ?? (repeat > 1 ? REPEAT_MAX_TOKENS : DEFAULT_MAX_TOKENS),
+)
 if (!Number.isInteger(maxTokens) || maxTokens <= 0) {
   throw new Error('--max-tokens must be a positive whole number.')
 }
 
-/** The saved replay named `core-<hash>.json`; `readFixture` finds it under eval/fixtures. */
+/** The saved replay named `core-<hash>-<replay>.json`; `readFixture` finds it under eval/fixtures. */
 function loadFixture(path: string) {
-  const hash = /^core-(\w+)\.json$/.exec(basename(path))?.[1]
-  const fixture = hash && readFixture(hash)
+  const [, hash, replay] = /^core-(\w+)-(\d+)\.json$/.exec(basename(path)) ?? []
+  const fixture = hash && readFixture(hash, Number(replay))
   if (!fixture) {
     throw new Error(
-      `No saved eval:core fixture for ${path}; expected eval/fixtures/core-<hash>.json.`,
+      `No saved eval:core fixture for ${path}; expected eval/fixtures/core-<hash>-<replay>.json.`,
     )
   }
   return fixture
@@ -44,18 +57,50 @@ const report = (measure: UseMeasure) =>
     `${measure.runs} runs: ${measure.tokens.total.toLocaleString()} tokens (input ${measure.tokens.input.toLocaleString()}, output ${measure.tokens.output.toLocaleString()}, cache read ${measure.tokens.cacheRead.toLocaleString()}, cache write ${measure.tokens.cacheWrite.toLocaleString()}) in ${seconds(measure.elapsedMs)}.\nProjected for the whole run: ${measure.projectedTokens.toLocaleString()} tokens, ${seconds(measure.projectedMs)}; cap ${maxTokens.toLocaleString()}.`,
   )
 
+/** Each proactive probe's passes in each placement, to find the ones that are broken rather than telling. */
+function printProbes({ outcomes }: UseGrade) {
+  const proactive = outcomes.filter((outcome) => outcome.kind === 'proactive')
+  console.log(`\n${row(['Probe', 'core', 'outside', 'none', 'recalled'])}`)
+  for (const id of new Set(proactive.map((outcome) => outcome.probe))) {
+    const mine = proactive.filter((outcome) => outcome.probe === id)
+    // A fixture's facts keep the placement the replay gave them.
+    const first = mine.some((outcome) => outcome.placement === 'core')
+      ? 'core'
+      : 'placed'
+    const passes = (placement: string) => {
+      const runs = mine.filter((outcome) => outcome.placement === placement)
+      return `${runs.filter((outcome) => outcome.passed).length}/${runs.length}`
+    }
+    const outside = mine.filter((outcome) => outcome.placement === 'outside')
+    console.log(
+      row([
+        id,
+        passes(first),
+        passes('outside'),
+        passes('none'),
+        outside.length ? (outside[0].recalled ? 'yes' : 'no') : '-',
+      ]),
+    )
+  }
+}
+
 function printGrade(grade: UseGrade) {
   const cell = ({ passed, total }: Rate) =>
     `${passed}/${total} ${percent(passed, total)}`
+  const { proactive } = grade
+  console.log(
+    `\n${proactive.probes} proactive probes, each run ${proactive.repeats} time${proactive.repeats === 1 ? '' : 's'} per placement. Rates are the mean (range) across repeats.`,
+  )
   console.log(`\n${row(['Grade', 'Value'])}`)
+  // Rescue sits beside "in core": it is defined over the probes that pass there.
   for (const [name, value] of [
-    ['Proactive, core', cell(grade.proactive.with)],
-    ['Proactive, out', cell(grade.proactive.outside)],
-    ['Proactive, none', cell(grade.proactive.without)],
-    ['Memory gain', `${Math.round(grade.proactive.gain * 100)} pts`],
-    ['Rescue rate', cell(grade.proactive.rescue)],
-    ['Recall matched', cell(grade.proactive.recalled)],
-    ['Model asked', cell(grade.proactive.asked)],
+    ['Proactive, core', showShare(proactive.with)],
+    ['Rescue rate', showShare(proactive.rescue)],
+    ['Proactive, out', showShare(proactive.outside)],
+    ['Proactive, none', showShare(proactive.without)],
+    ['Memory gain', showShare(proactive.gain)],
+    ['Recall matched', showShare(proactive.recalled)],
+    ['Model asked', showShare(proactive.asked)],
     ['Restraint', cell(grade.restraint)],
     ['Attribution', cell(grade.attribution)],
     ['Model', grade.model],
@@ -64,14 +109,17 @@ function printGrade(grade: UseGrade) {
   ] as const) {
     console.log(row([name, value]))
   }
-  for (const outcome of grade.outcomes.filter((outcome) => !outcome.passed)) {
+  printProbes(grade)
+  for (const outcome of grade.outcomes.filter(
+    (outcome) => !outcome.passed && outcome.kind !== 'proactive',
+  )) {
     const why = [
       outcome.answered ? '' : 'stayed quiet',
       outcome.missing ? 'missing required' : '',
       outcome.forbidden.length ? `said ${outcome.forbidden.join(', ')}` : '',
     ].filter(Boolean)
     console.log(
-      `  fail ${outcome.probe} (${outcome.placement}${outcome.recalled === undefined ? '' : outcome.recalled ? ', recall matched' : ', recall missed'}${outcome.asked ? ', asked memory' : ''}): ${why.join('; ')}`,
+      `  fail ${outcome.probe}${outcome.asked ? ' (asked memory)' : ''}: ${why.join('; ')}`,
     )
   }
   if (grade.skipped.length) {
@@ -106,6 +154,7 @@ try {
     meter,
     directory,
     probe: values.probe,
+    repeat,
     progress: console.log,
   })
   if (run.measure) {

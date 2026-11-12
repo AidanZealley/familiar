@@ -8,8 +8,14 @@ import {
   fixturePath,
   readFixture,
   writeFixture,
+  type CoreFixture,
 } from './core-fixture.ts'
-import { gradeCore, type CoreGrade, type Placed } from './core-grade.ts'
+import {
+  gradeCore,
+  summariseCore,
+  type CoreSummary,
+  type PlacedSummary,
+} from './core-grade.ts'
 import { mayaV1 } from './core-scenario.ts'
 import {
   DEFAULT_MAX_TOKENS,
@@ -18,12 +24,14 @@ import {
   readApiKey,
   upkeepModel,
 } from './model.ts'
-import { percent, row, saveResult } from './results.ts'
+import { row, saveResult } from './results.ts'
+import { showNumber, showShare } from './spread.ts'
 
 const { values } = parseArgs({
   options: {
     probe: { type: 'boolean', default: false },
     model: { type: 'string', default: EVAL_MODEL },
+    replays: { type: 'string', default: '3' },
     'max-tokens': { type: 'string', default: String(DEFAULT_MAX_TOKENS) },
   },
 })
@@ -31,17 +39,25 @@ const maxTokens = Number(values['max-tokens'])
 if (!Number.isInteger(maxTokens) || maxTokens <= 0) {
   throw new Error('--max-tokens must be a positive whole number.')
 }
+const replays = Number(values.replays)
+if (!Number.isInteger(replays) || replays <= 0) {
+  throw new Error('--replays must be a positive whole number.')
+}
 const scenario = mayaV1
 const hash = coreHash(scenario, upkeepModel(values.model))
 
 const seconds = (ms: number) => `${Math.round(ms / 1000)}s`
 const report = (measure: Measure) =>
   console.log(
-    `${measure.activeDays} active days: ${measure.tokens.total.toLocaleString()} tokens (input ${measure.tokens.input.toLocaleString()}, output ${measure.tokens.output.toLocaleString()}, cache read ${measure.tokens.cacheRead.toLocaleString()}, cache write ${measure.tokens.cacheWrite.toLocaleString()}) in ${seconds(measure.elapsedMs)}.\nProjected for all ${scenario.days.length}: ${measure.projectedTokens.toLocaleString()} tokens, ${seconds(measure.projectedMs)}; cap ${maxTokens.toLocaleString()}.`,
+    `${measure.activeDays} active days: ${measure.tokens.total.toLocaleString()} tokens (input ${measure.tokens.input.toLocaleString()}, output ${measure.tokens.output.toLocaleString()}, cache read ${measure.tokens.cacheRead.toLocaleString()}, cache write ${measure.tokens.cacheWrite.toLocaleString()}) in ${seconds(measure.elapsedMs)}.\nProjected for all ${scenario.days.length}: ${measure.projectedTokens.toLocaleString()} tokens, ${seconds(measure.projectedMs)}; cap ${maxTokens.toLocaleString()} for this replay.`,
   )
 
-/** Replays the scenario on the model, returning its fixture, or undefined if it stopped. */
-async function replay() {
+/**
+ * Replays the scenario as replay number `number` on the model, returning its
+ * fixture, or undefined if it stopped. Each replay has its own meter and cap,
+ * since its projection is made from its own first days.
+ */
+async function replay(number: number) {
   let apiKey: string
   try {
     // Before anything else, so a missing key never gets as far as the network.
@@ -58,9 +74,11 @@ async function replay() {
   })
   const temporary = mkdtempSync(join(tmpdir(), 'familiar-core-eval-'))
   try {
+    console.log(`Replay ${number} of ${replays}.`)
     const replay = await replayCore(scenario, {
       models,
       memoryModel: model,
+      replay: number,
       meter,
       directory: temporary,
       probe: values.probe,
@@ -83,53 +101,81 @@ async function replay() {
   }
 }
 
-const saved = readFixture(hash)
-if (saved) {
-  console.log(
-    values.probe
-      ? `${fixturePath(hash)} already holds this replay, so there is nothing to probe. Run without --probe to grade it.`
-      : `Grading the saved replay ${fixturePath(hash)}; no model calls.`,
-  )
-}
-// A probe never saves a fixture, so this grades only a full run or a saved one.
-const fixture = saved ?? (await replay())
-if (fixture && !values.probe) {
-  printGrade(gradeCore(fixture))
+/** The replays' fixtures, running any that aren't saved yet; undefined if one stopped or this was a probe. */
+async function fixtures() {
+  const numbers = Array.from({ length: replays }, (_, index) => index + 1)
+  const saved = numbers.map((number) => readFixture(hash, number))
+  const missing = numbers.filter((_, index) => !saved[index])
+  if (values.probe) {
+    // A probe measures one replay's first days and saves nothing.
+    console.log(
+      missing.length
+        ? `Probing replay ${missing[0]}; ${missing.length} of ${replays} replays are not saved.`
+        : `${fixturePath(hash, 1)} and the other ${replays - 1} already hold these replays, so there is nothing to probe. Run without --probe to grade them.`,
+    )
+    if (missing.length) {
+      await replay(missing[0])
+    }
+    return undefined
+  }
+  if (!missing.length) {
+    console.log(
+      `Grading the ${replays} saved replays of ${hash}; no model calls.`,
+    )
+  }
+  const all: CoreFixture[] = []
+  for (const [index, number] of numbers.entries()) {
+    const fixture = saved[index] ?? (await replay(number))
+    if (!fixture) {
+      return undefined
+    }
+    all.push(fixture)
+  }
+  return all
 }
 
-function printGrade(grade: CoreGrade) {
+function printSummary(summary: CoreSummary) {
   console.log(
-    `\n${row(['Grade', 'Real', 'Pressure'])}\n${row(['Budget', String(grade.budget), String(grade.pressure.budget)])}`,
+    `\n${summary.replays} replays; mean (range across replays). Items per label: ${Object.entries(
+      summary.labelled,
+    )
+      .map(([label, count]) => `${label} ${count}`)
+      .join(', ')}.`,
   )
-  const both = (name: string, pick: (placed: Placed) => string) =>
-    console.log(row([name, pick(grade), pick(grade.pressure)]))
-  both('Core precision', (p) => percent(p.corePrecision, 1))
-  both('Core recall', (p) => percent(p.coreRecall, 1))
-  both('Recall in core', (p) => percent(p.recallInCore, 1))
-  both('Fades out', (p) => percent(p.fadesOut, 1))
-  both('Core facts', (p) => String(p.core.facts))
-  both('Core chars', (p) => String(p.core.characters))
-  both('Core tokens', (p) => String(p.core.tokens))
+  console.log(
+    `\n${row(['Grade', 'Real', 'Pressure'])}\n${row(['Budget', String(summary.real.budget), String(summary.pressure.budget)])}`,
+  )
+  const both = (name: string, pick: (placed: PlacedSummary) => string) =>
+    console.log(row([name, pick(summary.real), pick(summary.pressure)]))
+  both('Core precision', (p) => showShare(p.corePrecision))
+  both('Core recall', (p) => showShare(p.coreRecall))
+  both('Recall in core', (p) => showShare(p.recallInCore))
+  both('Fades out', (p) => showShare(p.fadesOut))
+  both('Core facts', (p) => showNumber(p.facts, 1))
+  both('Core chars', (p) => showNumber(p.characters))
+  both('Core tokens', (p) => showNumber(p.tokens))
   for (const [name, value] of [
-    ['Fades refreshed', percent(grade.fadesRefreshed, 1)],
-    ['Junk rate', percent(grade.junkRate, 1)],
-    ['Changes right', percent(grade.changesCorrect, 1)],
-    ['Memory ratio', grade.memoryRatio.toFixed(2)],
-    ['Facts/day', grade.factsPerActiveDay.toFixed(2)],
-    ['Near dupes', String(grade.nearDuplicates.length)],
-    ['Tokens', grade.tokens.total.toLocaleString()],
+    ['Fades refreshed', showShare(summary.fadesRefreshed)],
+    ['Junk rate', showShare(summary.junkRate)],
+    ['Changes right', showShare(summary.changesCorrect)],
+    ['Memory ratio', showNumber(summary.memoryRatio, 2)],
+    ['Facts/day', showNumber(summary.factsPerActiveDay, 2)],
+    ['Near dupes', showNumber(summary.nearDuplicates, 1)],
+    ['Tokens/replay', showNumber(summary.tokens)],
   ] as const) {
     console.log(row([name, value]))
   }
-  for (const [name, placed] of [
-    ['real', grade],
-    ['pressure', grade.pressure],
-  ] as const) {
-    for (const item of placed.items.filter((item) => !item.placed)) {
-      console.log(
-        `  misplaced at ${name} budget, ${item.label} ${item.id}: stored ${item.stored.join(', ') || 'nowhere'}, in core ${item.inCore.join(', ') || 'none'}`,
-      )
-    }
+  for (const item of summary.missed) {
+    console.log(
+      `  ${item.label} ${item.id}: right in ${item.real}/${summary.replays} replays at the real budget, ${item.pressure}/${summary.replays} under pressure`,
+    )
   }
-  console.log(`\nSaved ${saveResult('core', grade)}`)
+}
+
+const all = await fixtures()
+if (all) {
+  const grades = all.map((fixture) => gradeCore(fixture))
+  const summary = summariseCore(grades)
+  printSummary(summary)
+  console.log(`\nSaved ${saveResult('core', { summary, grades })}`)
 }

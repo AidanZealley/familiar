@@ -4,7 +4,7 @@ import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { rebalanceCore, type Fact } from '@familiar-ai/core/diagnostics'
 import { expect, test } from 'vitest'
 import type { CoreFixture } from './core-fixture.ts'
-import { gradeCore } from './core-grade.ts'
+import { gradeCore, summariseCore } from './core-grade.ts'
 import type { CoreScenario } from './core-scenario.ts'
 import type { EntryId } from '@earendil-works/pi-durable'
 import { upkeepGap } from './core.ts'
@@ -70,6 +70,7 @@ const fact = (
 const fixture: CoreFixture = {
   scenario: 'tiny',
   hash: 'test',
+  replay: 1,
   model: 'faux/upkeep@low',
   facts: {
     facts: [
@@ -172,6 +173,33 @@ test('grading also cuts core to a smaller budget, where ranking has to choose, a
   // Recalled on 1 February, after the last message naming Lisbon (21 January).
   expect(grade(recalled('2026-02-01T12:00:00')).fadesRefreshed).toBe(1)
   expect(grade(recalled('2026-01-21T12:30:00')).fadesRefreshed).toBe(0)
+})
+
+test('replays are graded separately and averaged, with the range they fell in and the items they disagreed on', () => {
+  // A second replay in which upkeep dropped the allergy.
+  const second: CoreFixture = {
+    ...fixture,
+    replay: 2,
+    facts: {
+      ...fixture.facts,
+      facts: fixture.facts.facts.filter((fact) => fact.id !== 'f1'),
+    },
+  }
+  const summary = summariseCore([
+    gradeCore(fixture, { scenario }),
+    gradeCore(second, { scenario }),
+  ])
+  expect(summary).toMatchObject({
+    replays: 2,
+    labelled: { core: 1, changes: 1, recall: 1, none: 1 },
+    // Core recall is 1 with the allergy and 0 without it.
+    real: { coreRecall: { mean: 0.5, min: 0, max: 1 } },
+    junkRate: { mean: 1, min: 1, max: 1 },
+  })
+  expect(summary.missed).toEqual([
+    { id: 'allergy', label: 'core', real: 1, pressure: 1 },
+    { id: 'lunch', label: 'none', real: 0, pressure: 0 },
+  ])
 })
 
 test('the meter counts every response and, past its cap, stops the run and aborts further requests', async () => {
