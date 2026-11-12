@@ -70,4 +70,5 @@ const Root = () => {
 export const Route = createRootRoute({
   validateSearch: dialogSearch,
   component: Root,
+  errorComponent: AppError,
 })

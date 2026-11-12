@@ -4,16 +4,18 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './lib/theme'
-import { AppError } from './components/app-error'
-import { AppLoader } from './components/app-loader'
+import { PaneLoader } from './components/pane-loader'
+import { RouteError } from './components/route-error'
 import { portraitImagesQuery } from './lib/avatars'
 import { queryClient } from './lib/familiar'
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({
   routeTree,
-  defaultErrorComponent: AppError,
-  defaultPendingComponent: AppLoader,
+  // A page loads and fails in the conversation pane, beside the sidebar;
+  // the root route has its own, for the whole app.
+  defaultErrorComponent: RouteError,
+  defaultPendingComponent: PaneLoader,
 })
 
 declare module '@tanstack/react-router' {
