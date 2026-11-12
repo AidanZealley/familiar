@@ -32,9 +32,16 @@ export const Chat = ({ room }: ChatProps) => {
       return
     }
     // The scroller positions anchors itself, so give it the same header
-    // clearance as the content, including the device's safe area.
-    const measure = () =>
-      setScrollMargin(Number.parseFloat(getComputedStyle(content).paddingTop))
+    // clearance as the content, including the device's safe area. Content
+    // that isn't laid out yet, as while switching rooms, has no padding to
+    // read; NaN would reach the scroller's IntersectionObserver and throw,
+    // so the last measurement stands until the next resize.
+    const measure = () => {
+      const padding = Number.parseFloat(getComputedStyle(content).paddingTop)
+      if (Number.isFinite(padding)) {
+        setScrollMargin(padding)
+      }
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(content)
