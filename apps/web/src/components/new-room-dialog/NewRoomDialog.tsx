@@ -1,17 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useId, useState } from 'react'
+import { FormDialog } from '@/components/form-dialog'
 import { PixelAvatar } from '@/components/pixel-avatar'
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   Field,
   FieldError,
@@ -64,105 +56,79 @@ export const NewRoomDialog = () => {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && void closeDialog()}>
-      <DialogContent className="max-h-[calc(var(--app-height)-2rem)] overflow-y-auto sm:max-w-md">
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            create.mutate()
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>New room</DialogTitle>
-            <DialogDescription>
-              Talk to several Familiars at once. You can change who's in it and
-              who leads later.
-            </DialogDescription>
-          </DialogHeader>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
-              <Input
-                id={`${id}-name`}
-                value={name}
-                autoComplete="off"
-                autoFocus
-                onChange={(event) => setName(event.target.value)}
+    <FormDialog
+      title="New room"
+      description="Talk to several Familiars at once. You can change who's in it and who leads later."
+      canSubmit={!!name.trim() && members.length > 0 && !create.isPending}
+      onSubmit={() => create.mutate()}
+      onClose={() => void closeDialog()}
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
+          <Input
+            id={`${id}-name`}
+            value={name}
+            autoComplete="off"
+            autoFocus
+            onChange={(event) => setName(event.target.value)}
+          />
+        </Field>
+        <FieldSet>
+          <FieldLegend variant="label">Familiars</FieldLegend>
+          {familiars.map((familiar) => (
+            <Field key={familiar.id} orientation="horizontal">
+              <Checkbox
+                id={`${id}-member-${familiar.id}`}
+                checked={members.includes(familiar.id)}
+                onCheckedChange={(on) => toggle(familiar.id, on)}
               />
+              <FieldLabel
+                htmlFor={`${id}-member-${familiar.id}`}
+                className="font-normal"
+              >
+                <PixelAvatar familiar={familiar} />
+                {familiar.name}
+              </FieldLabel>
             </Field>
-            <FieldSet>
-              <FieldLegend variant="label">Familiars</FieldLegend>
-              {familiars.map((familiar) => (
-                <Field key={familiar.id} orientation="horizontal">
-                  <Checkbox
-                    id={`${id}-member-${familiar.id}`}
-                    checked={members.includes(familiar.id)}
-                    onCheckedChange={(on) => toggle(familiar.id, on)}
-                  />
-                  <FieldLabel
-                    htmlFor={`${id}-member-${familiar.id}`}
-                    className="font-normal"
-                  >
-                    <PixelAvatar familiar={familiar} />
-                    {familiar.name}
-                  </FieldLabel>
-                </Field>
-              ))}
-            </FieldSet>
-            {members.length > 1 && (
-              <FieldSet>
-                <FieldLegend variant="label">Lead</FieldLegend>
-                <RadioGroup
-                  value={String(lead ?? '')}
-                  onValueChange={(value: string) =>
-                    setLead(value ? Number(value) : undefined)
-                  }
-                >
-                  <Field orientation="horizontal">
-                    <RadioGroupItem value="" id={`${id}-open`} />
-                    <FieldLabel htmlFor={`${id}-open`} className="font-normal">
-                      No lead: each may answer, in turn
+          ))}
+        </FieldSet>
+        {members.length > 1 && (
+          <FieldSet>
+            <FieldLegend variant="label">Lead</FieldLegend>
+            <RadioGroup
+              value={String(lead ?? '')}
+              onValueChange={(value: string) =>
+                setLead(value ? Number(value) : undefined)
+              }
+            >
+              <Field orientation="horizontal">
+                <RadioGroupItem value="" id={`${id}-open`} />
+                <FieldLabel htmlFor={`${id}-open`} className="font-normal">
+                  No lead: each may answer, in turn
+                </FieldLabel>
+              </Field>
+              {familiars
+                .filter((familiar) => members.includes(familiar.id))
+                .map((familiar) => (
+                  <Field key={familiar.id} orientation="horizontal">
+                    <RadioGroupItem
+                      value={String(familiar.id)}
+                      id={`${id}-lead-${familiar.id}`}
+                    />
+                    <FieldLabel
+                      htmlFor={`${id}-lead-${familiar.id}`}
+                      className="font-normal"
+                    >
+                      {familiar.name} answers what @mentions no one
                     </FieldLabel>
                   </Field>
-                  {familiars
-                    .filter((familiar) => members.includes(familiar.id))
-                    .map((familiar) => (
-                      <Field key={familiar.id} orientation="horizontal">
-                        <RadioGroupItem
-                          value={String(familiar.id)}
-                          id={`${id}-lead-${familiar.id}`}
-                        />
-                        <FieldLabel
-                          htmlFor={`${id}-lead-${familiar.id}`}
-                          className="font-normal"
-                        >
-                          {familiar.name} answers what @mentions no one
-                        </FieldLabel>
-                      </Field>
-                    ))}
-                </RadioGroup>
-              </FieldSet>
-            )}
-            <FieldError>{create.error?.message}</FieldError>
-          </FieldGroup>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => closeDialog()}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!name.trim() || !members.length || create.isPending}
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+                ))}
+            </RadioGroup>
+          </FieldSet>
+        )}
+        <FieldError>{create.error?.message}</FieldError>
+      </FieldGroup>
+    </FormDialog>
   )
 }
