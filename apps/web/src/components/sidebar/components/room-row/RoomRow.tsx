@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Item, ItemMedia } from '@/components/ui/item'
-import { liveOf, setupOf } from '@/lib/workspace'
+import { setupOf } from '@/lib/workspace'
 import { RowSummary } from '../row-summary'
 import type { RoomRowProps } from './types'
 
@@ -21,12 +21,7 @@ export const RoomRow = ({ room, familiars, className }: RoomRowProps) => (
     render={<Link to="/room/$room" params={{ room: String(room.id) }} />}
   >
     <ItemMedia>
-      <RoomAvatar
-        members={familiars.filter((familiar) =>
-          room.familiars.includes(familiar.id),
-        )}
-        talking={liveOf(room.turns).running}
-      />
+      <RoomAvatar room={room} />
     </ItemMedia>
     <RowSummary
       title={room.name}

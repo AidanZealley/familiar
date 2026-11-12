@@ -69,34 +69,35 @@ export const Chat = ({ room }: ChatProps) => {
       defaultScrollPosition="end"
       scrollMargin={scrollMargin}
     >
-      {/* The scroller runs behind the glass header; content padding keeps
-          the first message clear of it at the start of the conversation. */}
+      {/* The scroller runs behind the glass header, where content padding
+          keeps the first message clear of it, and ends in the composer,
+          which sticks to its foot so the transcript scrolls behind it. */}
       <div className="flex h-full flex-col">
         <ConversationHeader room={room} />
         <MessageScroller className="flex-1">
           {/* The shared scroller hides its thumb while it scrolls itself, which
               flashes on every streamed update, so keep one colour throughout. */}
-          <MessageScrollerViewport className="scroll-pt-(--chrome) scrollbar-thumb-border data-autoscrolling:scrollbar-thumb-border">
+          <MessageScrollerViewport className="flex scroll-pt-(--chrome) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
             <MessageScrollerContent
               ref={measureScrollMargin}
               aria-busy={transcript?.busy}
-              className="mx-auto w-full max-w-(--page-width) gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
+              className="mx-auto min-h-0 w-full max-w-(--page-width) shrink-0 grow gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
             >
               <TranscriptItems
                 items={transcript?.items ?? []}
                 dm={room.kind === 'dm'}
+                lead={room.kind === 'room' ? room.lead : undefined}
               />
             </MessageScrollerContent>
+            {/* Lined up with the conversation. */}
+            <div className="sticky bottom-0 z-30 mx-auto w-full max-w-(--page-width)">
+              <MessageScrollerButton className="data-[direction=end]:bottom-[calc(100%+1rem)]" />
+              <SignIn />
+              <Composer room={room} busy={transcript?.busy ?? false} />
+            </div>
           </MessageScrollerViewport>
           <OlderMessages firstItemIds={firstItemIds} />
-          <MessageScrollerButton />
         </MessageScroller>
-
-        {/* Lined up with the conversation. */}
-        <div className="mx-auto w-full max-w-(--page-width)">
-          <SignIn />
-          <Composer room={room} busy={transcript?.busy ?? false} />
-        </div>
       </div>
     </MessageScrollerProvider>
   )

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { usePortraits } from '@/lib/avatars'
 import { workspace } from '@/lib/familiar'
 import { AvatarPicker } from './components/avatar-picker'
 import type { ProfileSettingsProps } from './types'
@@ -18,10 +19,12 @@ import type { ProfileSettingsProps } from './types'
 /**
  * Its name, portrait and persona. Edits are a draft until saved; an empty
  * persona saves as the default one, built from the name, and Automatic as
- * the portrait its ID picks.
+ * the portrait its ID picks. The portrait only shows when the owner has
+ * added portraits.
  */
 export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
   const id = useId()
+  const portraits = usePortraits()
   const [name, setName] = useState(familiar.name)
   const [persona, setPersona] = useState(familiar.persona ?? '')
   const [avatar, setAvatar] = useState(familiar.avatar ?? null)
@@ -56,25 +59,29 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
-        <Field>
-          <FieldLabel>Portrait</FieldLabel>
-          <div className="flex items-end gap-3">
-            <PixelAvatar
-              familiar={{ ...familiar, avatar: avatar ?? undefined }}
-              scale={3}
+        {/* Without portraits, every choice would look the same. */}
+        {portraits.length > 0 && (
+          <Field>
+            <FieldLabel>Portrait</FieldLabel>
+            <div className="flex items-end gap-3">
+              <PixelAvatar
+                familiar={{ ...familiar, avatar: avatar ?? undefined }}
+                scale={3}
+              />
+              <FieldDescription>
+                {avatar === null
+                  ? 'Automatic: picked from its ID, the same on every device.'
+                  : 'Chosen, on every device.'}
+              </FieldDescription>
+            </div>
+            <AvatarPicker
+              familiar={familiar}
+              portraits={portraits}
+              value={avatar}
+              onChange={setAvatar}
             />
-            <FieldDescription>
-              {avatar === null
-                ? 'Automatic: picked from its ID, the same on every device.'
-                : 'Chosen, on every device.'}
-            </FieldDescription>
-          </div>
-          <AvatarPicker
-            familiar={familiar}
-            value={avatar}
-            onChange={setAvatar}
-          />
-        </Field>
+          </Field>
+        )}
         <Field>
           <FieldLabel htmlFor={`${id}-persona`}>Persona</FieldLabel>
           <Textarea

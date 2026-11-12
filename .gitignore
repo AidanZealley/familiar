@@ -36,5 +36,3 @@ apps/docs/public/demos/
 # Local environment files, such as the Node example's secrets.
 .env
 
-# Familiars' pixel portraits, until their licence is bought: see apps/web/README.md.
-apps/web/public/avatars/

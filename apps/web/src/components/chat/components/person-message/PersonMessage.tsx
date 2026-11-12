@@ -14,7 +14,10 @@ const withMentions = ({
   for (const mention of mentions.toSorted((a, b) => a.start - b.start)) {
     parts.push(
       text.slice(at, mention.start),
-      <span key={mention.start} className="font-medium text-primary">
+      <span
+        key={mention.start}
+        className="bg-primary/25 box-decoration-clone px-0.5 font-medium dark:bg-primary/70"
+      >
         {text.slice(mention.start, mention.end)}
       </span>,
     )

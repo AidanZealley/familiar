@@ -75,6 +75,7 @@ export function status() {
   console.log(`Service: ${running ? 'running' : 'stopped'}`)
   console.log(`Local: http://127.0.0.1:${settings.port}`)
   console.log(`Plugins: ${paths.pluginsDir}`)
+  console.log(`Portraits: ${paths.avatarsDir}`)
   const url = publishedUrl(settings.port)
   if (url) {
     console.log(`Tailnet: ${url}`)

@@ -45,7 +45,11 @@ The **Settings** menu in the web app switches between light, dark and system app
 | macOS    | `~/Library/Application Support/Familiar` |
 | Windows  | `%LOCALAPPDATA%\Familiar`                |
 
-It holds the conversation, memory, your ChatGPT login, connection keys, notification subscriptions and [your own plugins](/familiar/use/extend/). Keep it private.
+It holds the conversation, memory, your ChatGPT login, connection keys, notification subscriptions, [your own plugins](/familiar/use/extend/) and your Familiars' portraits. Keep it private.
+
+### Portraits
+
+Without portraits, each Familiar shows its initial on a colour. To give them pictures, put PNGs in the `avatars` folder in the data directory, which `familiar status` shows. Each is a 64×32 strip of two 32×32 frames: the face with its mouth closed, then open, which the web UI alternates while the Familiar replies. Each Familiar's Profile settings then offer them, and Automatic picks one from its ID. Familiar reads the folder as you use it, so new ones show when you reopen the app.
 
 Dates and reminders use the computer's time zone when Familiar starts. Restart it after you change time zones.
 

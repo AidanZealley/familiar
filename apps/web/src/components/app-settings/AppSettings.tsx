@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import {
   BellIcon,
   CpuIcon,
@@ -7,11 +6,7 @@ import {
   SparklesIcon,
   UserRoundIcon,
 } from 'lucide-react'
-import {
-  Connections,
-  connectionsQuery,
-  needsAttention,
-} from '@/components/connections'
+import { Connections, useNeedsAttention } from '@/components/connections'
 import { NotificationSetting } from '@/components/notification-setting'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Badge } from '@/components/ui/badge'
@@ -23,8 +18,7 @@ import { YourProfile } from './components/your-profile'
 
 /** The one Settings: you and this device, then the workspace. */
 export const AppSettings = () => {
-  const { data: connections = [] } = useQuery(connectionsQuery)
-  const needsYou = connections.filter(needsAttention).length
+  const needsYou = useNeedsAttention()
   const me = useWorkspace((state) => state.me)
 
   return (

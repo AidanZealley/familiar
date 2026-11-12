@@ -1,3 +1,4 @@
+import { StarIcon } from 'lucide-react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { formatTime } from '@/lib/format'
 import { asId, useFamiliarSummary } from '@/lib/workspace'
@@ -9,12 +10,13 @@ import type { FamiliarTurnProps } from './types'
  * column: the run's first item shows the portrait, its name and when the run
  * finished; the rest line up under it. In a DM, whose header already shows
  * the Familiar, it takes the full width, with the time under the run's last
- * item, as under the person's messages.
+ * item, as under the person's messages. The room's lead wears a star.
  */
 export const FamiliarTurn = ({
   familiar,
   then,
   dm,
+  lead = false,
   run,
   end,
   children,
@@ -41,11 +43,19 @@ export const FamiliarTurn = ({
   return (
     <div className="flex min-w-0 gap-2.5">
       {run ? (
-        <FamiliarLink id={familiar} then={then} className="self-start">
+        <FamiliarLink id={familiar} then={then} className="relative self-start">
           <PixelAvatar
             familiar={summary ?? { id: asId(familiar), name: then ?? '?' }}
             talking={run.live}
           />
+          {lead && (
+            <span
+              title="Leads this room"
+              className="absolute -right-1 -bottom-1 grid size-3.5 place-items-center border border-background bg-primary text-primary-foreground"
+            >
+              <StarIcon aria-hidden className="size-2.5 fill-current" />
+            </span>
+          )}
         </FamiliarLink>
       ) : (
         <span className="w-8 shrink-0" />

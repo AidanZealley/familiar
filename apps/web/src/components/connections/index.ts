@@ -1,3 +1,3 @@
 export * from './Connections'
 export { connectionsQuery } from './query'
-export { needsAttention } from './status'
+export { useNeedsAttention } from './useNeedsAttention'

@@ -1,7 +1,7 @@
 import { ArchiveIcon, CrownIcon, SettingsIcon, UsersIcon } from 'lucide-react'
 import { RoomAvatar } from '@/components/room-avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
-import { useFamiliars, useRoomSummary } from '@/lib/workspace'
+import { useRoomSummary } from '@/lib/workspace'
 import { ArchiveRoom } from './components/archive-room'
 import { GeneralSettings } from './components/general-settings'
 import { LeadSettings } from './components/lead-settings'
@@ -11,19 +11,14 @@ import type { RoomSettingsProps } from './types'
 /** A named room's name, members and lead, and archiving it. */
 export const RoomSettings = ({ id }: RoomSettingsProps) => {
   const room = useRoomSummary(id)
-  const familiars = useFamiliars()
 
   if (room?.kind !== 'room') {
     return null
   }
-  const members = familiars.filter((familiar) =>
-    room.familiars.includes(familiar.id),
-  )
-
   return (
     <SettingsDialog
       title={room.name}
-      media={<RoomAvatar members={members} />}
+      media={<RoomAvatar room={room} />}
       groups={[
         {
           categories: [

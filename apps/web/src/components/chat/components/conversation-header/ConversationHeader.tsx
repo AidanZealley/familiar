@@ -48,9 +48,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           {dm ? (
             <PixelAvatar familiar={dm} talking={live.running.includes(dm.id)} />
           ) : room.kind === 'room' ? (
-            <RoomAvatar
-              members={familiars.filter((f) => room.familiars.includes(f.id))}
-            />
+            <RoomAvatar room={room} />
           ) : null}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-heading text-sm font-medium group-hover/title:underline">

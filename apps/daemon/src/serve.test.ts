@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MemoryStorage } from '@earendil-works/pi-durable'
@@ -8,7 +8,7 @@ import { expect, onTestFinished, test, vi } from 'vitest'
 import { daemonApp, OWNER_ID } from './serve.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
-async function daemon(webDir?: string) {
+async function daemon(webDir?: string, avatarsDir?: string) {
   const models = createModels()
   models.setProvider(fauxProvider().provider)
   const { workspace, familiar } = await openDaemonWorkspace(
@@ -26,7 +26,7 @@ async function daemon(webDir?: string) {
   ))!
   vi.spyOn(workspace.rooms, 'get').mockResolvedValue(dm)
   const abort = vi.spyOn(dm, 'stop')
-  const app = daemonApp(workspace, { owner: 'Aidan', webDir })
+  const app = daemonApp(workspace, { owner: 'Aidan', webDir, avatarsDir })
   /** A Stop, which has no body, as a page or client sends it. */
   const post = (headers: Record<string, string>) =>
     app.request(`/api/rooms/${dm.id}/stop`, { method: 'POST', headers })
@@ -105,5 +105,28 @@ test("the daemon's own UI refuses to be framed", async () => {
       "frame-ancestors 'none'",
     )
     expect(page.headers.get('x-frame-options')).toBe('DENY')
+  }
+})
+
+test("the owner's portraits are listed and served, and nothing outside them", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'familiar-data-'))
+  const avatarsDir = join(dataDir, 'avatars')
+  mkdirSync(avatarsDir)
+  writeFileSync(join(avatarsDir, '042.png'), 'strip')
+  writeFileSync(join(avatarsDir, 'notes.txt'), 'not a portrait')
+  writeFileSync(join(dataDir, 'secret.png'), 'private')
+  const { app } = await daemon(undefined, avatarsDir)
+  const get = (path: string) => app.request(path, { headers: { host: local } })
+
+  expect(await (await get('/api/avatars')).json()).toEqual(['042'])
+  const strip = await get('/api/avatars/042.png')
+  expect(strip.headers.get('content-type')).toBe('image/png')
+  expect(await strip.text()).toBe('strip')
+  for (const path of [
+    '/api/avatars/..%2Fsecret.png',
+    '/api/avatars/%2E%2E%2Fsecret.png',
+    '/api/avatars/missing.png',
+  ]) {
+    expect((await get(path)).status).toBe(404)
   }
 })

@@ -36,6 +36,8 @@ export function resolvePaths({
     dataDir,
     /** The owner's own plugins, each a file the daemon loads at start. */
     pluginsDir: resolve(dataDir, 'plugins'),
+    /** The owner's portraits for their Familiars, which the web UI offers. */
+    avatarsDir: resolve(dataDir, 'avatars'),
     // Saved stdio MCP commands inherit this directory, including relative script paths.
     workDir: source ? resolve(codeDir, '../../..') : codeDir,
     cliPath: resolve(codeDir, source ? 'cli.ts' : 'familiar.js'),

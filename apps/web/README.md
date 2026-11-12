@@ -8,8 +8,4 @@ From the repository root, run `pnpm dev` for a scripted assistant with disposabl
 
 `pnpm dev:live` instead serves the UI on 5173 and proxies to the owner's running daemon on 4317. Use it only when you intend to read and change the real conversation.
 
-## Familiars' portraits
-
-Each Familiar has a pixel portrait: one of the 64×32 two-frame PNG strips in `public/avatars/`, named `000.png` to `111.png` ([`src/lib/avatars.ts`](src/lib/avatars.ts)). Its Profile settings choose one, stored as the Familiar's `avatar` (the strip's number, such as `042`); without a choice, Automatic picks one from its ID. The art isn't licensed for the repository yet, so the folder is gitignored and a portrait whose file is missing shows the Familiar's initial on its colour instead. To see the art locally, copy the strips into `public/avatars/` from the design prototype (`.design/redesign/public/avatars/` in the redesign worktree); the build copies whatever is there.
-
 Components use the folder conventions in [AGENTS.md](../../AGENTS.md). `src/components/ui/` belongs to shadcn; compose and style those components rather than editing generated files. The UI uses Base UI's `render` prop.
