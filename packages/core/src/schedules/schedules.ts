@@ -20,8 +20,8 @@ export type Schedule = {
   /** An instruction to Familiar's future self, e.g. "Remind Aidan to call Mum". */
   prompt: string
   /**
-   * The room it was made in, where it runs when due. Absent for schedules
-   * made before rooms, which run in the chat.
+   * The room it was made in, where it runs when due. Absent for one made
+   * outside a room, which runs in the chat.
    */
   room?: RoomId
   /** A one-off's time. Exactly one of `at` and `repeat` is set. */

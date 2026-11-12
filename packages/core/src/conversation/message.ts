@@ -35,8 +35,8 @@ export type Addressed =
 /**
  * Where a Familiar was shown an input: the room it came from, the room entry
  * it answers, what the Familiar was shown from that room with it (see
- * rooms/turn.ts), and why it has the turn. Absent for input sent straight to
- * its chat, as before rooms.
+ * rooms/turn.ts), and why it has the turn. Absent for a reminder delivered
+ * straight to its chat (see schedules/task.ts).
  */
 export type InRoom = {
   room?: ConversationId

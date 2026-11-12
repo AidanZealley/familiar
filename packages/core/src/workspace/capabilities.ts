@@ -86,16 +86,15 @@ function checkChange(available: Available, change: CapabilitiesChange) {
 }
 
 /**
- * The extension names a chat with `agent` chose, beyond core's. A chat with
- * no exact selection runs with the host's default, every extension, as one
- * adopted from before workspaces does: it chose everything available.
+ * The extension names a chat with `agent` chose, beyond core's. Each chat
+ * has an exact selection from its creation (see `giveCapabilities`).
  */
 function chosenBy(
   agent: Readonly<AgentState> | undefined,
   available: Available,
 ) {
   if (!Array.isArray(agent?.extensions)) {
-    return [...assignable(available)]
+    return []
   }
   const core = new Set(
     available.installed.filter((name) => !assignable(available).has(name)),

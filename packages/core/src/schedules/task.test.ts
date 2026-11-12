@@ -174,7 +174,7 @@ async function setup(
 
   /**
    * Closes Familiar and opens it again, at `time` and in `zone` if given,
-   * after `meanwhile` changes its storage, as an older version might have.
+   * after `meanwhile` changes its storage, as another process might have.
    */
   const reopen = async (
     time?: number,
