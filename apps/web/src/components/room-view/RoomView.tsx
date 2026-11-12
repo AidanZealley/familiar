@@ -1,6 +1,8 @@
 import { RoomProvider } from '@familiar-ai/client/react'
 import { Chat } from '@/components/chat'
-import { PaneStatus } from '@/components/pane-status'
+import { HomeLink } from '@/components/home-link'
+import { PaneLoader } from '@/components/pane-loader'
+import { Problem } from '@/components/problem'
 import { FamiliarContext, familiarStreams, roomStreams } from '@/lib/familiar'
 import { useStream } from '@/lib/streams'
 import { useRoomSummary } from '@/lib/workspace'
@@ -20,10 +22,16 @@ export const RoomView = ({ id }: RoomViewProps) => {
   )
 
   if (!room) {
-    return <PaneStatus problem="There's no such room here." />
+    return (
+      <Problem
+        title="There's no such room here"
+        description="It may have been removed, or the link is wrong."
+        action={<HomeLink />}
+      />
+    )
   }
   if (!store || (room.kind === 'dm' && !familiar)) {
-    return <PaneStatus />
+    return <PaneLoader />
   }
   return (
     <RoomProvider store={store}>

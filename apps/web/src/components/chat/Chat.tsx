@@ -1,6 +1,8 @@
 import { useRoom } from '@familiar-ai/client/react'
 import { useCallback, useMemo, useState } from 'react'
-import { PaneStatus } from '@/components/pane-status'
+import { PaneLoader } from '@/components/pane-loader'
+import { Problem } from '@/components/problem'
+import { Button } from '@/components/ui/button'
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -55,9 +57,17 @@ export const Chat = ({ room }: ChatProps) => {
         {startup === 'connecting' ||
         startup === 'reconnecting' ||
         startup === 'open' ? (
-          <PaneStatus />
+          <PaneLoader />
         ) : (
-          <PaneStatus problem={connectionProblems[startup]} reload />
+          <Problem
+            title="Couldn't open this conversation"
+            description={connectionProblems[startup]}
+            action={
+              <Button onClick={() => window.location.reload()}>
+                Reload Familiar
+              </Button>
+            }
+          />
         )}
       </div>
     )

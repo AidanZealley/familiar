@@ -131,6 +131,16 @@
   }
 }
 
+/* A loader fades in after a moment, so a quick load shows nothing. */
+@theme {
+  --animate-delayed-in: delayed-in 200ms ease-out 300ms both;
+  @keyframes delayed-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
 /* The hourglass spinner shows one of its frames at a time, in turn. */
 @theme {
   --animate-hourglass: hourglass 1500ms step-end infinite;
