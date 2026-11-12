@@ -75,7 +75,7 @@ export const FamiliarSettings = ({ id }: FamiliarSettingsProps) => {
                 icon: AlarmIcon,
                 keywords: 'reminders repeat',
                 description: `Reminders, and anything else ${name} does at a time. It makes them when asked, and runs each in the room it was made in.`,
-                content: <ScheduleList />,
+                content: <ScheduleList name={name} />,
               },
             ],
           },
