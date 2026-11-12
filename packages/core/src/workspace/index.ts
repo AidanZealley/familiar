@@ -272,7 +272,8 @@ export type Workspace = {
     /**
      * Creates one using `capabilities`, or else the workspace's default
      * tools. Throws a TypeError for a blank name or persona, or a memoryModel
-     * that isn't one of `modelChoices`, and a CapabilityError for a plugin or connection the workspace hasn't.
+     * that isn't one of `modelChoices`, and a CapabilityError for a plugin or
+     * connection the workspace hasn't.
      */
     create(
       identity: FamiliarIdentity & { capabilities?: CapabilitiesChange },

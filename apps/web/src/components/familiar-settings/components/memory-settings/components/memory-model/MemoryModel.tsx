@@ -19,7 +19,9 @@ import { workspace } from '@/lib/familiar'
 import { keyOf, useModelOptions } from '@/lib/models'
 import type { MemoryModelProps } from './types'
 
-const SAME_AS_CHAT = 'same-as-chat'
+// The workspace's memory model, which is the chat's starting model unless
+// the host chose another: not whatever this Familiar's chat has switched to.
+const DEFAULT = 'default'
 
 /**
  * The model this Familiar's nightly memory work runs on. It saves as soon as
@@ -48,19 +50,20 @@ export const MemoryModel = ({ familiar }: MemoryModelProps) => {
       <FieldLabel>Memory model</FieldLabel>
       <FieldDescription>
         What {familiar.name} files and summarises its conversations with, each
-        night. A cheaper model can do this well. Applies from the next night.
+        night. A cheaper model can do this well. Default is the installation's
+        memory model. Applies from the next night.
       </FieldDescription>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={<Button variant="outline" className="self-start" />}
           disabled={save.isPending}
         >
-          {current?.name ?? 'Same as chat'}
+          {current?.name ?? 'Default'}
           <CaretDownIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
           <DropdownMenuRadioGroup
-            value={current ? keyOf(current.model) : SAME_AS_CHAT}
+            value={current ? keyOf(current.model) : DEFAULT}
             onValueChange={(value: string) =>
               save.mutate(
                 options.find((option) => keyOf(option.model) === value)
@@ -68,8 +71,8 @@ export const MemoryModel = ({ familiar }: MemoryModelProps) => {
               )
             }
           >
-            <DropdownMenuRadioItem value={SAME_AS_CHAT}>
-              Same as chat
+            <DropdownMenuRadioItem value={DEFAULT}>
+              Default
             </DropdownMenuRadioItem>
             {options.map((option) => (
               <DropdownMenuRadioItem
