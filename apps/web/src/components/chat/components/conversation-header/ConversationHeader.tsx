@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronLeftIcon, EllipsisVerticalIcon } from 'lucide-react'
+import { CaretLeftIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
@@ -37,7 +37,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           nativeButton={false}
           render={<Link to="/" />}
         >
-          <ChevronLeftIcon />
+          <CaretLeftIcon />
         </Button>
         <button
           type="button"
@@ -64,7 +64,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           aria-label={`${title} settings`}
           onClick={() => openDialog(settings)}
         >
-          <EllipsisVerticalIcon />
+          <DotsThreeVerticalIcon />
         </Button>
       </div>
     </header>

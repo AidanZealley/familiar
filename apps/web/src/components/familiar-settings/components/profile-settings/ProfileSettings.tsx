@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
-import { PixelAvatar } from '@/components/pixel-avatar'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -11,20 +10,17 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { usePortraits } from '@/lib/avatars'
 import { workspace } from '@/lib/familiar'
-import { AvatarPicker } from './components/avatar-picker'
+import { PortraitPicker } from './components/portrait-picker'
 import type { ProfileSettingsProps } from './types'
 
 /**
- * Its name, portrait and persona. Edits are a draft until saved; an empty
- * persona saves as the default one, built from the name, and Automatic as
- * the portrait its ID picks. The portrait only shows when the owner has
- * added portraits.
+ * Its name, persona and portrait. Edits are a draft until saved; an empty
+ * persona saves as the default one, built from the name, and its own
+ * character as the portrait its ID generates.
  */
 export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
   const id = useId()
-  const portraits = usePortraits()
   const [name, setName] = useState(familiar.name)
   const [persona, setPersona] = useState(familiar.persona ?? '')
   const [avatar, setAvatar] = useState(familiar.avatar ?? null)
@@ -59,31 +55,12 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
-        {/* Without portraits, every choice would look the same. */}
-        {portraits.length > 0 && (
-          <Field>
-            <FieldLabel>Portrait</FieldLabel>
-            <div className="flex items-end gap-3">
-              <PixelAvatar
-                familiar={{ ...familiar, avatar: avatar ?? undefined }}
-                scale={3}
-              />
-              <FieldDescription>
-                {avatar === null
-                  ? 'Automatic: picked from its ID, the same on every device.'
-                  : 'Chosen, on every device.'}
-              </FieldDescription>
-            </div>
-            <AvatarPicker
-              familiar={familiar}
-              portraits={portraits}
-              value={avatar}
-              onChange={setAvatar}
-            />
-          </Field>
-        )}
         <Field>
           <FieldLabel htmlFor={`${id}-persona`}>Persona</FieldLabel>
+          <FieldDescription>
+            Who {familiar.name} is in conversation, used exactly as written, so
+            include its name. Leave it empty for the default.
+          </FieldDescription>
           <Textarea
             id={`${id}-persona`}
             value={persona}
@@ -91,10 +68,14 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
             onChange={(event) => setPersona(event.target.value)}
             className="min-h-32 text-sm"
           />
-          <FieldDescription>
-            Who {familiar.name} is in conversation, used exactly as written, so
-            include its name. Leave it empty for the default.
-          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel>Portrait</FieldLabel>
+          <PortraitPicker
+            familiar={familiar}
+            value={avatar}
+            onChange={setAvatar}
+          />
         </Field>
         <FieldError>{save.error?.message}</FieldError>
         <div className="flex gap-2">

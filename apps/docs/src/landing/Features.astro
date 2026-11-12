@@ -1,5 +1,9 @@
 ---
-import { Cloud, House, NotebookPen, PackageOpen, Puzzle } from '@lucide/astro'
+import Cloud from '@phosphor-icons/core/regular/cloud.svg'
+import House from '@phosphor-icons/core/regular/house.svg'
+import Notebook from '@phosphor-icons/core/regular/notebook.svg'
+import Package from '@phosphor-icons/core/regular/package.svg'
+import PuzzlePiece from '@phosphor-icons/core/regular/puzzle-piece.svg'
 
 // The first two take the wide cells; the grid styles go by position.
 const features = [
@@ -11,12 +15,12 @@ const features = [
   {
     label: 'Long-term memory',
     line: 'Stores conversation history and organises lasting facts each night.',
-    Icon: NotebookPen,
+    Icon: Notebook,
   },
   {
     label: 'Tools and plugins',
     line: 'Connect web tools, custom plugins and MCP servers.',
-    Icon: Puzzle,
+    Icon: PuzzlePiece,
   },
   {
     label: 'Portable',
@@ -26,7 +30,7 @@ const features = [
   {
     label: 'Embeddable',
     line: "Add an assistant to your app with Familiar's core and client packages.",
-    Icon: PackageOpen,
+    Icon: Package,
   },
 ]
 ---
@@ -40,7 +44,7 @@ const features = [
       features.map(({ label, line, Icon }, index) => (
         <li class={`cell cell-${index + 1}`}>
           <span class="cell-top" aria-hidden="true">
-            <Icon size={20} class="cell-icon" />
+            <Icon width={20} height={20} class="icon cell-icon" aria-hidden="true" />
           </span>
           <h3>{label}</h3>
           <p>{line}</p>

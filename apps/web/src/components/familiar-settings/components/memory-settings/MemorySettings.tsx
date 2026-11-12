@@ -13,7 +13,7 @@ const pages = {
 /** Memory's three views, which were its pages, as tabs. */
 export const MemorySettings = () => (
   <Tabs defaultValue="facts" className="gap-4">
-    <TabsList variant="line">
+    <TabsList>
       {memorySections.map((section) => (
         <TabsTrigger key={section.value} value={section.value}>
           <section.icon />

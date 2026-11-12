@@ -1,4 +1,4 @@
-import { WrenchIcon } from 'lucide-react'
+import { WrenchIcon } from '@phosphor-icons/react'
 import { Activity } from '../activity'
 import { toolLabel } from './label'
 import type { ToolCallProps } from './types'

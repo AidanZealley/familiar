@@ -1,5 +1,9 @@
 import { cn } from 'cn'
-import { SearchIcon } from 'lucide-react'
+import {
+  HashIcon,
+  MagnifyingGlassIcon,
+  SparkleIcon,
+} from '@phosphor-icons/react'
 import { useState } from 'react'
 import {
   InputGroup,
@@ -16,20 +20,18 @@ import {
 import { ArchivedRooms } from './components/archived-rooms'
 import { ConnectionStatus } from './components/connection-status'
 import { FamiliarRow } from './components/familiar-row'
-import { NewMenu } from './components/new-menu'
 import { RoomRow } from './components/room-row'
+import { SectionHeading } from './components/section-heading'
 import { SettingsLink } from './components/settings-link'
+import { openDialog } from '@/lib/dialogs'
 import type { SidebarProps } from './types'
-
-const heading =
-  'px-2 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase'
 
 /**
  * Every conversation, from the workspace's stream alone: each Familiar's
  * DM, the named rooms, and archived rooms folded away, each the most
- * recently active first; then the one Settings. The workspace's stream
- * carries every room's latest entry, unread count and turns, so the
- * sidebar opens no room's stream of its own. On a phone it is the home
+ * recently active first, with each section's add button; then the one
+ * Settings. The workspace's stream carries every room's latest entry,
+ * unread count and turns, so the sidebar opens no room's stream of its own. On a phone it is the home
  * screen, so it takes the page's background to match the browser's chrome.
  */
 export const Sidebar = ({ className }: SidebarProps) => {
@@ -66,36 +68,47 @@ export const Sidebar = ({ className }: SidebarProps) => {
           <ConnectionStatus />
           familiar
         </h1>
-        <NewMenu className="ml-auto" />
       </header>
 
-      <div className="shrink-0 p-3">
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            aria-label="Search conversations"
-            placeholder="Search"
-            autoComplete="off"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </InputGroup>
-      </div>
-
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+        {/* Sticks over the list, which scrolls behind its glass, like the composer. */}
+        <div className="sticky top-0 z-10 -mx-1.5 p-3">
+          <InputGroup className="bg-background/80 backdrop-blur-xl dark:bg-[color-mix(in_oklab,var(--color-input)_30%,var(--color-background))]/80">
+            <InputGroupAddon>
+              <MagnifyingGlassIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              aria-label="Search conversations"
+              placeholder="Search"
+              autoComplete="off"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </InputGroup>
+        </div>
+
         <section aria-label="Familiars" className="flex flex-col pb-2">
-          <h2 className={heading}>Familiars</h2>
+          <SectionHeading
+            icon={SparkleIcon}
+            label="Familiars"
+            addLabel="New Familiar"
+            onAdd={() => openDialog({ kind: 'new-familiar' })}
+          />
           {dms.map(({ familiar, dm }) => (
             <FamiliarRow key={familiar.id} familiar={familiar} dm={dm} />
           ))}
         </section>
 
-        {open.length > 0 && (
+        {/* Always there to add to, unless a search hides every room. */}
+        {(open.length > 0 || !query.trim()) && (
           <section aria-label="Rooms" className="flex flex-col pb-2">
-            <h2 className={heading}>Rooms</h2>
+            <SectionHeading
+              icon={HashIcon}
+              label="Rooms"
+              addLabel="New room"
+              onAdd={() => openDialog({ kind: 'new-room' })}
+            />
             {open.map((room) => (
               <RoomRow key={room.id} room={room} familiars={familiars} />
             ))}

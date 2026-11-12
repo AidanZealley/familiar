@@ -1,12 +1,13 @@
 import { useMutationState } from '@tanstack/react-query'
-import { HistoryIcon, PinIcon } from 'lucide-react'
+import { ClockCounterClockwiseIcon, PushPinIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { formatDate } from '@/lib/format'
 import { FactEditor } from '../fact-editor'
 import { FactMenu } from '../fact-menu'
-import { ImportanceDots } from '../importance-dots'
+import { ImportanceMeter } from '../importance-meter'
 import type { FactItemProps } from './types'
 
+/** A current fact: its text, then how it stands and since when, and its menu. */
 export const FactItem = ({ fact }: FactItemProps) => {
   const [editing, setEditing] = useState(false)
   // The latest change to this fact that was refused, from its menu or editor.
@@ -20,7 +21,7 @@ export const FactItem = ({ fact }: FactItemProps) => {
 
   if (editing) {
     return (
-      <li className="py-3">
+      <li>
         <FactEditor fact={fact} onDone={() => setEditing(false)} />
         {failure}
       </li>
@@ -28,27 +29,25 @@ export const FactItem = ({ fact }: FactItemProps) => {
   }
 
   return (
-    <li className="flex items-start gap-2 py-3">
+    <li className="flex items-start gap-2">
       <div className="min-w-0 flex-1">
-        <p className="text-[0.95rem] leading-snug whitespace-pre-wrap">
-          {fact.text}
-        </p>
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <p className="text-sm whitespace-pre-wrap">{fact.text}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           {fact.pinned ? (
             <span className="inline-flex items-center gap-1 text-foreground">
-              <PinIcon className="size-3" />
+              <PushPinIcon weight="fill" className="size-3" />
               Pinned
             </span>
           ) : (
-            <ImportanceDots importance={fact.importance} />
+            <ImportanceMeter importance={fact.importance} />
           )}
+          <span>Since {formatDate(fact.since)}</span>
           {fact.replaces?.length ? (
             <span className="inline-flex items-center gap-1">
-              <HistoryIcon className="size-3" />
+              <ClockCounterClockwiseIcon className="size-3" />
               Changed
             </span>
           ) : null}
-          <span>Since {formatDate(fact.since)}</span>
         </p>
         {failure}
       </div>

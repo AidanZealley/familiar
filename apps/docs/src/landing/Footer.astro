@@ -1,5 +1,5 @@
 ---
-import { GitBranch } from '@lucide/astro'
+import GitBranch from '@phosphor-icons/core/regular/git-branch.svg'
 import { links } from './links'
 
 // Examples that run in the browser, in the docs.
@@ -19,7 +19,7 @@ const demos = [
   <span class="wordmark">familiar</span>
   <p>
     <a href={links.docs}>Docs</a> ·
-    <a class="with-icon" href={links.github}><GitBranch size={14} />GitHub</a> ·
+    <a class="with-icon" href={links.github}><GitBranch class="icon" aria-hidden="true" width={14} height={14} />GitHub</a> ·
     MIT licensed · Built on <a href={links.piDurable}>Pi Durable</a>
   </p>
   <p class="demos">

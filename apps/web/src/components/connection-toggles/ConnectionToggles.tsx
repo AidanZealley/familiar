@@ -1,4 +1,4 @@
-import { PlugIcon, ServerIcon } from 'lucide-react'
+import { PlugIcon, HardDrivesIcon } from '@phosphor-icons/react'
 import { statusOf } from '@/components/connections/status'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -10,7 +10,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item'
-import { Spinner } from '@/components/ui/spinner'
+import { PixelCat } from '@/components/pixel-cat'
 import { ToolSummary } from './components/tool-summary'
 import type { ConnectionTogglesProps } from './types'
 
@@ -20,7 +20,11 @@ export const ConnectionToggles = ({
   toggle,
 }: ConnectionTogglesProps) => {
   if (!connections) {
-    return <Spinner />
+    return (
+      <span role="status" aria-label="Loading">
+        <PixelCat animated className="size-8" />
+      </span>
+    )
   }
   if (!connections.length) {
     return (
@@ -42,7 +46,7 @@ export const ConnectionToggles = ({
             className="flex-nowrap"
           >
             <ItemMedia variant="icon">
-              {connection.kind === 'plugin' ? <PlugIcon /> : <ServerIcon />}
+              {connection.kind === 'plugin' ? <PlugIcon /> : <HardDrivesIcon />}
             </ItemMedia>
             <ItemContent className="min-w-0">
               <ItemTitle className="flex-wrap text-sm">

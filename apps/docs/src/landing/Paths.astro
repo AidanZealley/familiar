@@ -1,5 +1,5 @@
 ---
-import { ArrowRight } from '@lucide/astro'
+import ArrowRight from '@phosphor-icons/core/regular/arrow-right.svg'
 import { links } from './links'
 
 // The two ways to use Familiar.
@@ -26,7 +26,7 @@ const paths = [
           <a href={path.href}>
             <span class="path-label">
               <span class="path-text">{path.label}</span>
-              <ArrowRight class="arrow" aria-hidden="true" />
+              <ArrowRight class="icon arrow" aria-hidden="true" />
             </span>
             <span class="path-line">{path.line}</span>
           </a>

@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
+import { PixelCat } from '@/components/pixel-cat'
 import { workspace } from '@/lib/familiar'
 import { CancelSignIn } from '../cancel-sign-in'
 import type { BrowserSignInProps } from './types'
@@ -25,7 +25,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
   if (answer.isPending || answer.isSuccess) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner />
+        <PixelCat animated className="size-4" />
         Finishing sign-in…
       </p>
     )
@@ -54,7 +54,7 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
             className={buttonVariants()}
           >
             Open ChatGPT sign-in
-            <ExternalLinkIcon />
+            <ArrowSquareOutIcon />
           </a>
           <CancelSignIn />
         </div>

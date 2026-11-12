@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { MessageSquareIcon } from 'lucide-react'
+import { ChatIcon } from '@phosphor-icons/react'
 import {
   Empty,
   EmptyDescription,
@@ -13,7 +13,7 @@ const Home = () => (
   <Empty className="flex-1">
     <EmptyHeader>
       <EmptyMedia variant="icon">
-        <MessageSquareIcon />
+        <ChatIcon />
       </EmptyMedia>
       <EmptyTitle>Pick a Familiar or a room</EmptyTitle>
       <EmptyDescription>

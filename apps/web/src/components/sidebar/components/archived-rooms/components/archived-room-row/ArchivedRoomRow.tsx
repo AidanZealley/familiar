@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArchiveRestoreIcon } from 'lucide-react'
+import { BoxArrowUpIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
@@ -29,7 +29,7 @@ export const ArchivedRoomRow = ({ room, familiars }: ArchivedRoomRowProps) => {
         onClick={() => unarchive.mutate()}
         className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground pointer-fine:opacity-0 pointer-fine:group-hover/archived-row:opacity-100 pointer-fine:focus-visible:opacity-100"
       >
-        <ArchiveRestoreIcon />
+        <BoxArrowUpIcon />
       </Button>
     </div>
   )

@@ -1,4 +1,4 @@
-import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
+import { MonitorIcon, MoonIcon, SunIcon } from '@phosphor-icons/react'
 import {
   Field,
   FieldContent,

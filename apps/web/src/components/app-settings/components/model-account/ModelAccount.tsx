@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { LogOutIcon } from 'lucide-react'
+import { SignOutIcon } from '@phosphor-icons/react'
 import { SignIn } from '@/components/chat/components/sign-in'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,7 +46,7 @@ export const ModelAccount = () => {
             disabled={signOut.isPending}
             onClick={() => signOut.mutate()}
           >
-            <LogOutIcon />
+            <SignOutIcon />
             Sign out
           </Button>
         </ItemActions>

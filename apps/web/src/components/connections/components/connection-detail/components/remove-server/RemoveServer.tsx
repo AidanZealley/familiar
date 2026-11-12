@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { Trash2Icon } from 'lucide-react'
+import { TrashIcon } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +26,7 @@ export const RemoveServer = ({ connection }: RemoveServerProps) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger render={<Button variant="destructive" />}>
-        <Trash2Icon />
+        <TrashIcon />
         Remove
       </AlertDialogTrigger>
       <AlertDialogContent>

@@ -1,4 +1,4 @@
-import { CircleAlertIcon, SquareIcon } from 'lucide-react'
+import { WarningCircleIcon, SquareIcon } from '@phosphor-icons/react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Message, MessageContent } from '@/components/ui/message'
 import { ReplyText } from '../reply-text'
@@ -33,7 +33,7 @@ export const Reply = ({ reply }: ReplyProps) => {
         {reply.error && (
           <Marker role="alert" className="text-destructive">
             <MarkerIcon>
-              <CircleAlertIcon />
+              <WarningCircleIcon />
             </MarkerIcon>
             <MarkerContent>{reply.error}</MarkerContent>
           </Marker>

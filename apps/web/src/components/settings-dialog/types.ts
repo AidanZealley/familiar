@@ -1,11 +1,11 @@
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 
 export type SettingsCategory = {
   /** What an opener names to show it first. */
   id: string
   label: string
-  icon: LucideIcon
+  icon: Icon
   description?: ReactNode
   /** Words the search matches beyond the label, such as `theme dark`. */
   keywords?: string

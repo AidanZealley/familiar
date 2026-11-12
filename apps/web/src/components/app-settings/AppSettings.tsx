@@ -1,11 +1,12 @@
 import {
+  GearSixIcon,
   BellIcon,
   CpuIcon,
   PaletteIcon,
   PlugIcon,
-  SparklesIcon,
-  UserRoundIcon,
-} from 'lucide-react'
+  SparkleIcon,
+  UserIcon,
+} from '@phosphor-icons/react'
 import { Connections, useNeedsAttention } from '@/components/connections'
 import { NotificationSetting } from '@/components/notification-setting'
 import { SettingsDialog } from '@/components/settings-dialog'
@@ -24,6 +25,12 @@ export const AppSettings = () => {
   return (
     <SettingsDialog
       title="Settings"
+      // A tile the size of the other settings' portraits, so titles line up.
+      media={
+        <span className="grid size-8 shrink-0 place-items-center bg-muted">
+          <GearSixIcon className="size-4" />
+        </span>
+      }
       groups={[
         {
           label: 'You',
@@ -31,7 +38,7 @@ export const AppSettings = () => {
             {
               id: 'profile',
               label: 'Profile',
-              icon: UserRoundIcon,
+              icon: UserIcon,
               keywords: 'name me rename',
               description: 'Who you are to every Familiar.',
               // Keyed by the name, so a rename from elsewhere reseeds it.
@@ -78,7 +85,7 @@ export const AppSettings = () => {
             {
               id: 'defaults',
               label: 'Default tools',
-              icon: SparklesIcon,
+              icon: SparkleIcon,
               keywords: 'new familiar capabilities',
               description:
                 "What a new Familiar starts with. Each Familiar's own are in its settings.",

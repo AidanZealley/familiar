@@ -7,7 +7,7 @@ export type FamiliarTurnProps = {
   then?: string
   /** In a DM: no portrait or name, and the time under the run. */
   dm: boolean
-  /** It leads the room: its portrait wears a star. */
+  /** It leads the room: its portrait wears a crown. */
   lead?: boolean
   /** Set on a run's first item, which shows the portrait, name and time. */
   run?: RunHead

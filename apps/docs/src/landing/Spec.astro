@@ -1,19 +1,21 @@
 ---
-import { KeyRound, Layers, Monitor } from '@lucide/astro'
+import Key from '@phosphor-icons/core/regular/key.svg'
+import Stack from '@phosphor-icons/core/regular/stack.svg'
+import Monitor from '@phosphor-icons/core/regular/monitor.svg'
 import { links } from './links'
 ---
 
 <dl class="spec">
   <div>
-    <dt><Monitor size={14} />Runs on</dt>
+    <dt><Monitor class="icon" aria-hidden="true" width={14} height={14} />Runs on</dt>
     <dd>macOS, Linux and Windows</dd>
   </div>
   <div>
-    <dt><KeyRound size={14} />Signs in with</dt>
+    <dt><Key class="icon" aria-hidden="true" width={14} height={14} />Signs in with</dt>
     <dd>Your ChatGPT subscription</dd>
   </div>
   <div>
-    <dt><Layers size={14} />Built on</dt>
+    <dt><Stack class="icon" aria-hidden="true" width={14} height={14} />Built on</dt>
     <dd><a href={links.piDurable}>Pi Durable</a></dd>
   </div>
 </dl>

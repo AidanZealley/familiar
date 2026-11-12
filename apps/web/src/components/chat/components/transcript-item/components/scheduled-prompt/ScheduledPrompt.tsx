@@ -1,4 +1,4 @@
-import { AlarmClockIcon } from 'lucide-react'
+import { AlarmIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { cn } from 'cn'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
@@ -13,7 +13,7 @@ export const ScheduledPrompt = ({ item }: ScheduledPromptProps) => {
   return (
     <Marker className="items-start text-xs">
       <MarkerIcon className="mt-0.5">
-        <AlarmClockIcon />
+        <AlarmIcon />
       </MarkerIcon>
       <MarkerContent className="min-w-0 flex-1">
         <button

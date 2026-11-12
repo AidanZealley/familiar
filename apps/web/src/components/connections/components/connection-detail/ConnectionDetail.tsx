@@ -1,5 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { ChevronLeftIcon, KeyRoundIcon, RefreshCwIcon } from 'lucide-react'
+import {
+  CaretLeftIcon,
+  KeyIcon,
+  ArrowClockwiseIcon,
+} from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
@@ -33,7 +37,7 @@ export const ConnectionDetail = ({
         className="-mb-3 -ml-2.5 self-start"
         onClick={onBack}
       >
-        <ChevronLeftIcon />
+        <CaretLeftIcon />
         Connections
       </Button>
       <header className="flex flex-col gap-3">
@@ -52,7 +56,7 @@ export const ConnectionDetail = ({
         <div className="flex flex-wrap gap-2">
           {connection.secrets.length > 0 && (
             <Button variant="outline" onClick={onEdit}>
-              <KeyRoundIcon />
+              <KeyIcon />
               Edit {connection.kind === 'plugin' ? 'keys' : 'token'}
             </Button>
           )}
@@ -65,7 +69,7 @@ export const ConnectionDetail = ({
                 }
                 onClick={() => reconnect.mutate()}
               >
-                <RefreshCwIcon
+                <ArrowClockwiseIcon
                   className={cn(
                     connection.status.type === 'connecting' && 'animate-spin',
                   )}

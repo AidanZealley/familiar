@@ -118,7 +118,10 @@ test("the owner's portraits are listed and served, and nothing outside them", as
   const { app } = await daemon(undefined, avatarsDir)
   const get = (path: string) => app.request(path, { headers: { host: local } })
 
-  expect(await (await get('/api/avatars')).json()).toEqual(['042'])
+  expect(await (await get('/api/avatars')).json()).toEqual({
+    folder: avatarsDir,
+    names: ['042'],
+  })
   const strip = await get('/api/avatars/042.png')
   expect(strip.headers.get('content-type')).toBe('image/png')
   expect(await strip.text()).toBe('strip')

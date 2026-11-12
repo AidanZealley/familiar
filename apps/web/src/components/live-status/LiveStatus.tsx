@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { ClockIcon, HourglassIcon } from 'lucide-react'
+import { ClockIcon, HourglassIcon } from '@phosphor-icons/react'
 import { nameOf, useFamiliars } from '@/lib/workspace'
 import type { LiveStatusProps } from './types'
 
