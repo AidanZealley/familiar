@@ -82,7 +82,7 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
               <ItemActions className="gap-0">
                 <Button
                   variant={shown.lead === familiar.id ? 'secondary' : 'ghost'}
-                  size="icon-sm"
+                  size="icon"
                   aria-pressed={shown.lead === familiar.id}
                   onClick={() =>
                     shown.lead === familiar.id
@@ -114,7 +114,7 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                   aria-label={`Move ${familiar.name} up`}
@@ -123,7 +123,7 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   disabled={index === members.length - 1}
                   onClick={() => move(index, 1)}
                   aria-label={`Move ${familiar.name} down`}
@@ -132,7 +132,7 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   disabled={members.length === 1}
                   onClick={() =>
                     save(shown.order.filter((id) => id !== familiar.id))
