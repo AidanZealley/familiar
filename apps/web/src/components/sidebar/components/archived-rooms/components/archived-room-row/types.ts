@@ -1,3 +1,3 @@
-import type { RoomRowProps } from '@/components/room-row/types'
+import type { RoomRowProps } from '../../../room-row/types'
 
 export type ArchivedRoomRowProps = Omit<RoomRowProps, 'className'>

@@ -3,14 +3,14 @@ import { cn } from 'cn'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Item, ItemMedia } from '@/components/ui/item'
 import { setupOf } from '@/lib/workspace'
-import { RowSummary } from '@/components/row-summary'
+import { RowSummary } from '../row-summary'
 import type { RoomRowProps } from './types'
 
 /**
  * A named room, opening it: its faces, talking while they reply, and its
  * latest entry, or who's in it and who leads until there is one.
  */
-export const RoomRow = ({ room, familiars, wrap, className }: RoomRowProps) => (
+export const RoomRow = ({ room, familiars, className }: RoomRowProps) => (
   <Item
     size="xs"
     className={cn(
@@ -27,7 +27,6 @@ export const RoomRow = ({ room, familiars, wrap, className }: RoomRowProps) => (
       title={room.name}
       room={room}
       fallback={setupOf(room, familiars)}
-      wrap={wrap}
     />
   </Item>
 )

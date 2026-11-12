@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { Item, ItemMedia } from '@/components/ui/item'
-import { RowSummary } from '@/components/row-summary'
+import { RowSummary } from '../row-summary'
 import type { FamiliarRowProps } from './types'
 
 /** A Familiar, opening its DM: its portrait, talking while it replies there, and the DM's latest entry. */
-export const FamiliarRow = ({ familiar, dm, wrap }: FamiliarRowProps) => (
+export const FamiliarRow = ({ familiar, dm }: FamiliarRowProps) => (
   <Item
     size="xs"
     className="gap-2.5 px-2 data-[status=active]:bg-muted"
@@ -19,6 +19,6 @@ export const FamiliarRow = ({ familiar, dm, wrap }: FamiliarRowProps) => (
         talking={!!dm?.turns.some((turn) => turn.status === 'running')}
       />
     </ItemMedia>
-    <RowSummary title={familiar.name} room={dm} wrap={wrap} />
+    <RowSummary title={familiar.name} room={dm} />
   </Item>
 )
