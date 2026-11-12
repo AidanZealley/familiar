@@ -1,6 +1,6 @@
 import { useRoom } from '@familiar-ai/client/react'
 import { LiveStatus } from '@/components/live-status'
-import { PixelSpinner } from '@/components/pixel-spinner'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { connectionProblems } from '@/lib/connection-problems'
 import { setupOf, useFamiliars } from '@/lib/workspace'
 import type { ConversationStatusProps } from './types'
@@ -19,8 +19,8 @@ export const ConversationStatus = ({ room, live }: ConversationStatusProps) => {
   if (connection === 'connecting' || connection === 'reconnecting') {
     return (
       <span className={line} role="status">
-        <PixelSpinner />
-        Reconnecting…
+        <HourglassSpinner />
+        Reconnecting
       </span>
     )
   }

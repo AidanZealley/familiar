@@ -1,4 +1,4 @@
-import { PixelSpinner } from '@/components/pixel-spinner'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { cn } from 'cn'
 import type { StatusDotProps } from './types'
 
@@ -13,7 +13,7 @@ const colours = {
 export const StatusDot = ({ tone }: StatusDotProps) => (
   <span aria-hidden className="grid size-4 shrink-0 place-items-center">
     {tone === 'busy' ? (
-      <PixelSpinner className="text-muted-foreground" />
+      <HourglassSpinner className="text-muted-foreground" />
     ) : (
       <span className={cn('size-2', colours[tone])} />
     )}
