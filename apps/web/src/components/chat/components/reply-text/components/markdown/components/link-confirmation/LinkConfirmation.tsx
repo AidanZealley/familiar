@@ -1,4 +1,4 @@
-import { CopyIcon, ExternalLinkIcon } from 'lucide-react'
+import { ArrowSquareOutIcon, CopyIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -47,7 +47,7 @@ export const LinkConfirmation = ({
             Copy link
           </Button>
           <AlertDialogAction onClick={onConfirm}>
-            <ExternalLinkIcon />
+            <ArrowSquareOutIcon />
             Open link
           </AlertDialogAction>
         </AlertDialogFooter>
