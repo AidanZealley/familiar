@@ -28,6 +28,9 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
 
   return (
     <header className="absolute inset-x-0 top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md">
+      {/* The title is inside the button that opens settings; this names
+          the conversation for screen readers' heading navigation. */}
+      <h2 className="sr-only">{title}</h2>
       <div className="flex h-full items-center gap-1 px-2 md:px-4">
         <Button
           variant="ghost"
