@@ -28,7 +28,7 @@ export const HistoryChain = ({ chain }: HistoryChainProps) => {
               )}
               <span
                 className={cn(
-                  'mt-1.5 size-[11px] shrink-0 rounded-full border-2',
+                  'mt-1.5 size-[11px] shrink-0 border-2',
                   current
                     ? 'border-primary bg-primary'
                     : 'border-foreground/25 bg-background',

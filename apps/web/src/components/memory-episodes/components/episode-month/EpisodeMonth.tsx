@@ -23,7 +23,7 @@ export const EpisodeMonth = ({ month }: EpisodeMonthProps) => {
             <li key={episode.id} className="relative py-2.5">
               <span
                 className={cn(
-                  'absolute top-4 -left-[21px] size-2.5 rounded-full border-2 border-background',
+                  'absolute top-4 -left-[21px] size-2.5 border-2 border-background',
                   episode.span === 'week'
                     ? 'bg-foreground/50'
                     : 'bg-foreground/25',
