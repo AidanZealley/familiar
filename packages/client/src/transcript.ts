@@ -79,6 +79,12 @@ export type TranscriptItem =
        */
       quiet?: true
       error?: string
+      /**
+       * A failed reply's entry ID, which a room's `retry` tries again: on
+       * its last item only, while it's its Familiar's newest reply to what
+       * it answered and no turn for that is under way.
+       */
+      retry?: number
     }
   /** A Familiar asking another in the room to take a turn. A reply follows it. */
   | {
@@ -138,9 +144,11 @@ export function toRoomTranscript(
   history: readonly EntryRecord[] = [],
   turns: RoomActivity = {},
 ): Transcript {
+  const entries = [...history, ...view.entries]
+  const retryable = retryableIn(entries, turns)
   const items: TranscriptItem[] = []
-  for (const entry of [...history, ...view.entries]) {
-    items.push(...toItems(entry))
+  for (const entry of entries) {
+    items.push(...toItems(entry, retryable.has(entry.id)))
   }
   for (const [task, turn] of Object.entries(turns)) {
     items.push(toActive(task, turn))
@@ -148,7 +156,31 @@ export function toRoomTranscript(
   return { items, busy: Object.keys(turns).length > 0 }
 }
 
-function toItems(entry: EntryRecord): TranscriptItem[] {
+/**
+ * The failed replies a person can try again: each Familiar's newest reply
+ * to an entry, if it failed and no turn for that entry is under way.
+ */
+function retryableIn(entries: readonly EntryRecord[], turns: RoomActivity) {
+  const newest = new Map<string, EntryRecord>()
+  for (const entry of entries) {
+    if (entry.kind === REPLY_KIND) {
+      const { familiar, cause } = entry.data as unknown as ReplyData
+      newest.set(`${familiar}:${cause}`, entry)
+    }
+  }
+  for (const { familiar, cause } of Object.values(turns)) {
+    newest.delete(`${familiar}:${cause}`)
+  }
+  return new Set(
+    [...newest.values()]
+      .filter(
+        (entry) => (entry.data as unknown as ReplyData).outcome === 'failed',
+      )
+      .map((entry) => entry.id),
+  )
+}
+
+function toItems(entry: EntryRecord, retryable = false): TranscriptItem[] {
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
@@ -187,8 +219,14 @@ function toItems(entry: EntryRecord): TranscriptItem[] {
       const { text, at } = entry.data as unknown as NoteData
       return [{ type: 'note', id, text, at }]
     }
-    case REPLY_KIND:
-      return toReplies(id, entry.data as unknown as ReplyData)
+    case REPLY_KIND: {
+      const items = toReplies(id, entry.data as unknown as ReplyData)
+      const last = items.at(-1)
+      if (retryable && last?.type === 'reply') {
+        last.retry = entry.id
+      }
+      return items
+    }
     default:
       return []
   }

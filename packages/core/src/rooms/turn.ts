@@ -75,9 +75,12 @@ const removed = {
 /** The entry kind of the write that lets a stopped run's queue move on. */
 const WAKE_KIND = 'familiar.wake'
 
-/** A turn's input in its Familiar's chat; the room log entry it answers is unique to it. */
-const inputRequest = ({ room, cause, familiar }: TurnInput) =>
-  `turn:${room}:${cause}:${familiar}`
+/**
+ * A turn's input in its Familiar's chat; the room log entry it answers is
+ * unique to it, and a retry's failed reply to each retry.
+ */
+const inputRequest = ({ room, cause, familiar, retries }: TurnInput) =>
+  `turn:${room}:${cause}:${familiar}${retries === undefined ? '' : `:retry:${retries}`}`
 
 /** Whether an entry is an input that starts a run, rather than part of one. */
 const isInput = (entry: EntryRecord) =>

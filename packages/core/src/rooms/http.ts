@@ -198,6 +198,24 @@ export function roomRoutes(rooms: RoomsApi) {
           >
         },
       )
+      // Tries a failed reply's turn again.
+      .post(
+        '/:room/retry',
+        can('rooms.retry'),
+        validator('json', (body, c) => {
+          const reply = (body as { reply?: unknown } | null)?.reply
+          if (!Number.isSafeInteger(reply)) {
+            return c.json({ error: 'reply must be an entry ID' }, 400)
+          }
+          return { reply: reply as number }
+        }),
+        (c) =>
+          refusable(c, async () => {
+            const room = await roomOf(c)
+            await room.retry(c.req.valid('json').reply as EntryId)
+            return c.body(null, 202)
+          }),
+      )
       // Stops every turn in the room, and nothing elsewhere.
       .post('/:room/stop', can('rooms.stop'), async (c) => {
         await (await roomOf(c)).stop()

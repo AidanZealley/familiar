@@ -724,6 +724,47 @@ test("the rooms list previews each room's newest entry, counts what each person 
   expect((await workspace.rooms.list())[0]).not.toHaveProperty('unread')
 })
 
+test('retrying a failed reply has its Familiar answer the same message again, once, after it', async () => {
+  let failing = true
+  const { workspace, create, room } = await open((request) =>
+    failing && request.type === 'message'
+      ? fauxAssistantMessage('', {
+          stopReason: 'error',
+          errorMessage: 'Failed on purpose.',
+        })
+      : echo(request),
+  )
+  const ada = await create('Ada')
+  const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
+  const asked = await dm.post({
+    author: AIDAN,
+    text: 'Hi Ada',
+    requestId: 'm1',
+  })
+  await expect.poll(async () => (await replies(dm)).length).toBe(1)
+  const failed = (await log(dm)).find((entry) => entry.kind === REPLY_KIND)!
+  expect(failed.data).toMatchObject({ cause: asked, outcome: 'failed' })
+
+  // Only a failed reply can be tried again.
+  await expect(dm.retry(asked)).rejects.toThrow('Only a failed reply')
+
+  // Asked twice, it answers once, after the failure, which stays.
+  failing = false
+  await dm.retry(failed.id)
+  await dm.retry(failed.id)
+  await expect.poll(async () => (await replies(dm)).length).toBe(2)
+  const [first, second] = await replies(dm)
+  expect([first.outcome, second.outcome]).toEqual(['failed', 'answered'])
+  expect(second.cause).toBe(asked)
+  expect(said(second)).toBe('Re: Hi Ada')
+  expect(await read(() => dm.watchTurns())).toEqual({})
+
+  // Once it has answered, the failed reply starts nothing more.
+  await dm.retry(failed.id)
+  expect(await read(() => dm.watchTurns())).toEqual({})
+  expect(await replies(dm)).toHaveLength(2)
+})
+
 test('a schedule made in a room runs there when due, and notifies with its reply', async () => {
   const clock = fakeClock(timeAt('2030-01-01 08:00', 'UTC'))
   const notifications: Notification[] = []

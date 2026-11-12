@@ -84,8 +84,40 @@ test("people's messages and copied replies render in order, with each reply's to
   ).items
   expect(stopped).toMatchObject([
     { type: 'reply', text: 'Half', stopped: true },
-    { type: 'reply', error: 'The reply failed.' },
+    { type: 'reply', error: 'The reply failed.', retry: 5 },
   ])
+})
+
+test("a failed reply can be tried again until its Familiar's next reply to the same entry, or while that's under way", () => {
+  const failed = replied(3, 2, [assistant([text('Hm')], 'error')], 'failed')
+  const retryOf = (...entries: EntryRecord[]) =>
+    toRoomTranscript(viewOf(said(2, 'Hi'), ...entries)).items.map(
+      (item) => (item.type === 'reply' && item.retry) || false,
+    )
+
+  expect(retryOf(failed)).toEqual([false, 3])
+  // Another Familiar's reply to it, or Ada's to something else, changes nothing.
+  expect(
+    retryOf(
+      failed,
+      entry(4, REPLY_KIND, {
+        familiar: 4,
+        cause: 2,
+        outcome: 'answered',
+        messages: [],
+      }),
+      replied(5, 1, [], 'answered'),
+    ),
+  ).toEqual([false, 3])
+  expect(retryOf(failed, replied(4, 2, [assistant([text('Hi!')])]))).toEqual([
+    false,
+    false,
+    false,
+  ])
+  const retrying = toRoomTranscript(viewOf(said(2, 'Hi'), failed), [], {
+    7: { familiar: 3, cause: 2, status: 'queued' },
+  } as unknown as RoomActivity).items
+  expect(retrying[1]).not.toHaveProperty('retry')
 })
 
 test('a handoff shows who asked whom, and a quiet reply says it passed', () => {

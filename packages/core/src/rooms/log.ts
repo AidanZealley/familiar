@@ -30,6 +30,7 @@ import {
   membersOf,
   RoomError,
   Rooms,
+  Turns,
   type Room,
   type RoomId,
 } from './rooms.ts'
@@ -449,6 +450,11 @@ export type TurnInput = {
   cause: EntryId
   addressed: Addressed
   after?: TaskId<TurnResult>
+  /**
+   * The failed reply this turn tries again, if it does (see `retryTurn`):
+   * its input is a new one, as the failed turn's is settled.
+   */
+  retries?: EntryId
 }
 
 /** A turn's result: the reply it posted, if any. */
@@ -558,23 +564,14 @@ export async function postAll(
     const turns: TaskId<TurnResult>[] = []
     for (const { familiar, addressed } of recipients(record, entry)) {
       const after = addressed === 'open' ? turns.at(-1) : undefined
-      // Background: a room's Stop aborts them, and nothing waits for a room.
       turns.push(
-        await tx.createTask(
-          turn,
-          {
-            room,
-            familiar,
-            cause: appended.id,
-            addressed,
-            ...(after !== undefined && { after }),
-          },
-          {
-            ownership: { kind: 'conversation' },
-            conversationId: room,
-            background: true,
-          },
-        ),
+        await startTurn(tx, turn, {
+          room,
+          familiar,
+          cause: appended.id,
+          addressed,
+          ...(after !== undefined && { after }),
+        }),
       )
     }
     results.push({ entry: appended.id, turns })
@@ -584,4 +581,93 @@ export async function postAll(
     await startView(tx, room, start)
   }
   return results
+}
+
+/** Creates a turn task in `room`. Background: a room's Stop aborts it, and nothing waits for a room. */
+const startTurn = (tx: Tx, turn: TurnTask, input: TurnInput) =>
+  tx.createTask(turn, input, {
+    ownership: { kind: 'conversation' },
+    conversationId: input.room,
+    background: true,
+  })
+
+/**
+ * Starts a failed reply's turn again, in the commit `tx`: the same Familiar
+ * answers the same entry, addressed as it would be now, and its new reply
+ * follows in the log. Starts nothing while that Familiar has a turn for the
+ * entry, or once a newer reply from it to the entry follows, so asking
+ * twice starts one. Throws a RoomError for anything but a failed reply in
+ * `room`, for a Familiar no longer in it, and for a room `closedTo` closes.
+ */
+export async function retryTurn(
+  tx: Tx,
+  turn: TurnTask,
+  room: RoomId,
+  reply: EntryId,
+) {
+  // Reads before writes: a transaction cannot read tables after writing.
+  const record = (await tx.doc(Rooms)).rooms[room]
+  const failed = await tx.entry(reply)
+  const data =
+    failed?.conversationId === room && failed.kind === REPLY_KIND
+      ? (failed.data as unknown as ReplyData)
+      : undefined
+  if (!record || data?.outcome !== 'failed') {
+    throw new RoomError('Only a failed reply can be tried again.')
+  }
+  const { familiar, cause } = data
+  const closed = await closedTo(tx, record)
+  if (closed) {
+    throw new RoomError(closed)
+  }
+  const name = (await tx.doc(Familiars)).familiars[familiar]?.name
+  if (name === undefined || !membersOf(record).includes(familiar)) {
+    throw new RoomError('That Familiar is no longer in this room.')
+  }
+  const turns = await tx.doc(Turns)
+  const answering = Object.values(turns).some(
+    (each) =>
+      each.room === room && each.familiar === familiar && each.cause === cause,
+  )
+  if (answering || (await answeredSince(tx, room, reply, familiar, cause))) {
+    return
+  }
+  const entry = (await tx.entry(cause)) as unknown as RoomEntry
+  const addressed =
+    recipients(record, entry).find((each) => each.familiar === familiar)
+      ?.addressed ?? 'mention'
+  const task = await startTurn(tx, turn, {
+    room,
+    familiar,
+    cause,
+    addressed,
+    retries: reply,
+  })
+  // Shown as waiting at once, and found by a second retry.
+  turns[task] = { room, familiar, name, cause }
+}
+
+/** Whether `familiar` has replied to `cause` in `room` after the entry `since`. */
+async function answeredSince(
+  tx: Tx,
+  room: RoomId,
+  since: EntryId,
+  familiar: FamiliarId,
+  cause: EntryId,
+) {
+  for await (const entry of entriesOf(tx, {
+    conversationId: room,
+    minEntryId: (since + 1) as EntryId,
+    order: 'ascending',
+  })) {
+    const data = entry.data as ReplyData | undefined
+    if (
+      entry.kind === REPLY_KIND &&
+      data?.familiar === familiar &&
+      data.cause === cause
+    ) {
+      return true
+    }
+  }
+  return false
 }
