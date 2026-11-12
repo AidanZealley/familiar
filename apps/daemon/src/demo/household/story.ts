@@ -298,6 +298,11 @@ export function household(now: number): Story {
               Moss: fail(
                 'Let me look at the Willow Bank society’s notices',
                 'The model provider rejected the request (400 Bad Request).',
+                [
+                  say(
+                    'The Willow Bank society turns the troughs off on 30 November and back on in March. Fill the water butts before then.',
+                  ),
+                ],
               ),
             },
           },

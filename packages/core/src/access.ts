@@ -62,6 +62,7 @@ export type RoomOperation =
   | 'rooms.note'
   | 'rooms.read'
   | 'rooms.history'
+  | 'rooms.retry'
   | 'rooms.stop'
   | 'events.room'
 

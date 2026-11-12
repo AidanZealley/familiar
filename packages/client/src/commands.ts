@@ -291,6 +291,12 @@ export const roomCommands = (api: Api, id: number) => {
       succeed(
         room.notes.$post({ param, json: { text, requestId: randomId() } }),
       ),
+    /**
+     * Tries a failed reply's turn again, by the failed reply's entry ID;
+     * asking twice starts it once.
+     */
+    retry: (reply: number) =>
+      succeed(room.retry.$post({ param, json: { reply } })),
     /** Stops every turn in the room. */
     stop: () => succeed(room.stop.$post({ param })),
     /**

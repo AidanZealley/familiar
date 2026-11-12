@@ -197,6 +197,7 @@ const ROUTES = {
   'rooms.note': ['POST', '/rooms/9/notes'],
   'rooms.read': ['POST', '/rooms/9/read'],
   'rooms.history': ['GET', '/rooms/9/history?before=1'],
+  'rooms.retry': ['POST', '/rooms/9/retry'],
   'rooms.stop': ['POST', '/rooms/9/stop'],
 } satisfies Record<
   Exclude<Operation, `events.${string}`>,

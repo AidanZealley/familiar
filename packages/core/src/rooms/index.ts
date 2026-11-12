@@ -23,7 +23,7 @@ import {
   type RoomListing,
   type RoomsState,
 } from './listing.ts'
-import { markRead, post, type Mention } from './log.ts'
+import { markRead, post, retryTurn, type Mention } from './log.ts'
 import {
   archiveRoom,
   createRoom,
@@ -116,6 +116,15 @@ export type RoomApi = {
    * of the Familiars' work in other rooms.
    */
   watchTurns(): Promise<WatchHandle<RoomActivity>>
+  /**
+   * Tries a failed reply's turn again: its Familiar answers the same entry
+   * anew, and the new reply follows in the log; the failed one stays.
+   * Asking again while that turn is under way, or once it has replied,
+   * starts nothing. Rejects with a RoomError for an entry that isn't a
+   * failed reply here, a Familiar no longer in the room, or a closed room,
+   * as `post`.
+   */
+  retry(reply: EntryId): Promise<void>
   /**
    * Stops every turn in this room: withdraws inputs still queued, and stops
    * the runs answering the others, keeping what they said. Other rooms'
@@ -236,6 +245,8 @@ export function createRooms(
       )
       return posted.entry
     },
+    retry: (reply) =>
+      harness.commit((tx) => retryTurn(tx, turn, id, reply), context),
     read: (person, entry) =>
       harness.commit((tx) => markRead(tx, id, person, entry), context),
     history: async (before, limit) =>

@@ -24,6 +24,8 @@ export type Step = {
   tools?: { name: string; args: Args }[]
   /** The response fails with this, after `text`. */
   error?: string
+  /** With `error`: the reply when the person tries the failed one again. */
+  retried?: Reply
   /**
    * A reply this step leads to: to a schedule it makes, by the same
    * Familiar, each time it falls due, or to a handoff, by the one it asks.
@@ -77,10 +79,15 @@ export const schedule = (
   causes: { input: prompt, reply },
 })
 
-/** A reply that fails partway, with an error the model's provider doesn't retry. */
-export const fail = (partial: string, error: string): Reply => [
-  { text: partial, error },
-]
+/**
+ * A reply that fails partway, with an error the model's provider doesn't
+ * retry, answered with `retried` when the person tries it again.
+ */
+export const fail = (
+  partial: string,
+  error: string,
+  retried?: Reply,
+): Reply => [{ text: partial, error, ...(retried && { retried }) }]
 
 /** Who answers, and which input: a person's message, a handoff's note or a due schedule's prompt. */
 type Key = { familiar: string; input: string }
@@ -95,15 +102,21 @@ const keyOf = ({ familiar, input }: Key) => `${familiar}\n${input}`
 export function createScript(familiars: { name: string; persona: string }[]) {
   const replies: Reply[] = []
   const byKey = new Map<string, number>()
+  // A failed reply's retry, by its key, and the keys that have failed.
+  const retries = new Map<string, number>()
+  const failed = new Set<string>()
 
   const add = (key: Key, reply: Reply) => {
     byKey.set(keyOf(key), replies.push(reply) - 1)
-    for (const { causes } of reply) {
+    for (const { causes, retried } of reply) {
       if (causes) {
         add(
           { familiar: causes.familiar ?? key.familiar, input: causes.input },
           causes.reply,
         )
+      }
+      if (retried) {
+        retries.set(keyOf(key), replies.push(retried) - 1)
       }
     }
   }
@@ -151,11 +164,18 @@ export function createScript(familiars: { name: string; persona: string }[]) {
       prompt.includes(persona),
     )?.name
     const input = inputOf(request)
-    const index =
-      familiar !== undefined && input !== undefined
-        ? byKey.get(keyOf({ familiar, input }))
-        : undefined
-    return index === undefined ? undefined : respond(index, 0)
+    if (familiar === undefined || input === undefined) {
+      return undefined
+    }
+    const key = keyOf({ familiar, input })
+    const index = (failed.has(key) && retries.get(key)) || byKey.get(key)
+    if (index === undefined) {
+      return undefined
+    }
+    if (replies[index].some((step) => step.error)) {
+      failed.add(key)
+    }
+    return respond(index, 0)
   }
 
   return { add, reply }
