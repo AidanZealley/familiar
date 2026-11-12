@@ -310,9 +310,10 @@ export function setPinned(memory: Memory, id: string, pinned: boolean) {
  * Decides core within its budget: pinned facts first, then facts important
  * enough for core, most important first and, among equals, most recently
  * used. Plain code rather than a model decision, so core can't drift. Moves
- * facts in and out of core; never removes one.
+ * facts in and out of core; never removes one. `budget` is only ever
+ * lowered by the evals, to make core compete.
  */
-export function rebalanceCore({ facts, usage }: Memory) {
+export function rebalanceCore({ facts, usage }: Memory, budget = CORE_BUDGET) {
   // When it last mattered: written, or recalled in conversation. Core facts
   // get a head start, see CORE_STICKINESS.
   const standing = (fact: Fact) =>
@@ -333,7 +334,7 @@ export function rebalanceCore({ facts, usage }: Memory) {
   let size = 0
   for (const fact of candidates) {
     const line = listFacts([fact]).length + (chosen.size ? 1 : 0)
-    if (size + line > CORE_BUDGET) {
+    if (size + line > budget) {
       continue
     }
     chosen.add(fact.id)
