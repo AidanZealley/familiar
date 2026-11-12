@@ -148,7 +148,10 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           {room.kind === 'dm' ? title : 'the Familiars here'}, with no reply.
         </p>
       )}
-      <InputGroup className="bg-background/80 backdrop-blur-xl has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-[color-mix(in_oklab,var(--color-input)_30%,var(--color-background))]/80 dark:has-disabled:bg-input/30">
+      {/* The input group dims itself while anything in it is disabled, as
+          Send is while the box is empty; keep the same glass either way, so
+          strong colours behind it don't swamp the placeholder. */}
+      <InputGroup className="bg-background/80 backdrop-blur-xl has-disabled:bg-background/80 has-disabled:opacity-100 dark:bg-[color-mix(in_oklab,var(--color-input)_30%,var(--color-background))]/80 dark:has-disabled:bg-[color-mix(in_oklab,var(--color-input)_30%,var(--color-background))]/80">
         <InputGroupTextarea
           ref={input}
           value={text}
