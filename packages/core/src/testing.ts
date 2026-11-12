@@ -136,7 +136,7 @@ export async function testHost(options: TestHostOptions = {}) {
   const { faux, models } = fauxModels(definitions)
   let current: TestHostOptions & WorkspaceOptions = {
     models,
-    model: { provider: 'faux', modelId: 'faux-1' },
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
     ...rest,
     storage: rest.storage ?? new ReopenableStorage(),

@@ -35,7 +35,7 @@ test('the session chooses the tenant, and tenants never see each other', async (
       return {
         storage: new MemoryStorage(),
         models,
-        model: { provider: 'faux', modelId: 'demo' },
+        chatModel: { provider: 'faux', modelId: 'demo' },
         timeZone: 'Europe/London',
       }
     },

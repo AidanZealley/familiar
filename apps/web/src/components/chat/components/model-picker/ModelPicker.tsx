@@ -1,5 +1,5 @@
 import { type ModelRef, type ModelThinkingLevel } from '@familiar-ai/client'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { BrainIcon, CaretDownIcon } from '@phosphor-icons/react'
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { InputGroupButton } from '@/components/ui/input-group'
 import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
+import { keyOf, useModelOptions } from '@/lib/models'
 import type { ModelPickerProps } from './types'
 
 const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
@@ -25,17 +26,10 @@ const LEVEL_NAMES: Record<ModelThinkingLevel, string> = {
   max: 'Max',
 }
 
-const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
-
 /** The model and reasoning level of the nearest Familiar, as two menus. */
 export const ModelPicker = ({ place = 'composer' }: ModelPickerProps) => {
   const familiar = useFamiliarStore()
-  // Fixed for the daemon's lifetime, so fetched once rather than mirrored.
-  const { data: options } = useQuery({
-    queryKey: ['models'],
-    queryFn: () => familiar.model.options(),
-    staleTime: Infinity,
-  })
+  const options = useModelOptions()
   // Their failures show where `place` says; see its type.
   const mutationKey = [place === 'composer' ? 'composer' : 'model']
   const setModel = useMutation({

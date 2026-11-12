@@ -88,7 +88,7 @@ test('neither the chat nor a conversation that chooses nothing is given the tool
   const harness = await Harness.open(
     new MemoryStorage(),
     harnessOptions(
-      { models: createModels(), model, chatModels: [] },
+      { models: createModels(), chatModel: model, modelChoices: [] },
       registry,
       64_000,
     ),
@@ -97,8 +97,8 @@ test('neither the chat nor a conversation that chooses nothing is given the tool
   try {
     const memory = createMemory(harness, {
       now: Date.now,
-      model,
-      thinkingLevel: 'low',
+      memoryModel: { model, thinkingLevel: 'low' },
+      modelChoices: [],
       transcriptTokens: 1_000,
       timeZone: TEST_ZONE,
     })

@@ -4,7 +4,7 @@ import type {
   ModelRef,
   Registry,
 } from '@earendil-works/pi-durable'
-import { modelKey, type ChatModel } from '../conversation/models.ts'
+import { modelKey, type ModelChoice } from '../conversation/models.ts'
 import type { WorkspaceOptions } from './index.ts'
 import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
 
@@ -38,8 +38,8 @@ function compactionFor(
 export function harnessOptions(
   options: Pick<
     WorkspaceOptions,
-    'models' | 'model' | 'now' | 'setTimer' | 'onWake'
-  > & { chatModels: readonly ChatModel[] },
+    'models' | 'chatModel' | 'now' | 'setTimer' | 'onWake'
+  > & { modelChoices: readonly ModelChoice[] },
   registry: Registry,
   budget: number,
 ): HarnessOptions {
@@ -53,9 +53,9 @@ export function harnessOptions(
     )?.contextWindow
     return window ? compactionFor(window, budget) : undefined
   }
-  const base = compactionOf(options.model)
+  const base = compactionOf(options.chatModel)
   const modelOverrides = Object.fromEntries(
-    options.chatModels.flatMap(({ model }) => {
+    options.modelChoices.flatMap(({ model }) => {
       const compaction = compactionOf(model)
       return compaction ? [[modelKey(model), compaction]] : []
     }),

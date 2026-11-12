@@ -7,7 +7,7 @@ import type {
   Usage,
 } from '@earendil-works/pi-ai'
 import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic'
-import type { ChatModel } from '@familiar-ai/core'
+import type { ModelChoice } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 
 /**
@@ -47,7 +47,7 @@ export function readApiKey(env = process.env, file = keyFile()) {
  * place its identity is decided, so the fixture lookup and the saved hash
  * can't differ.
  */
-export const upkeepModel = (modelId = EVAL_MODEL): ChatModel => ({
+export const upkeepModel = (modelId = EVAL_MODEL): ModelChoice => ({
   model: { provider: 'anthropic', modelId },
   thinkingLevel: 'low',
 })
@@ -148,8 +148,8 @@ export function createMeter(cap: number) {
 /**
  * Models with only Anthropic's provider, authenticated by `apiKey` alone, so
  * no ambient credential or sign-in can be used, and metered. Returns the
- * memory model at low thinking, for `WorkspaceOptions.memoryModel` or as a
- * chat model. A run adds any scripted providers it needs to `models`.
+ * memory model at low thinking, as a `WorkspaceOptions.modelChoices` entry, the
+ * `memoryModel` or the `chatModel`. A run adds any scripted providers it needs to `models`.
  */
 export function evalModels({
   apiKey,

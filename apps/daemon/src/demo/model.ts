@@ -1,5 +1,5 @@
 import type { Provider } from '@earendil-works/pi-ai/models'
-import type { ChatModel } from '@familiar-ai/core'
+import type { ModelChoice } from '@familiar-ai/core'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import {
   scriptedModels,
@@ -49,7 +49,7 @@ function scenarioReply(request: ScriptedRequest) {
 }
 
 /** Two scripted models that answer alike, so the model picker has a choice. */
-export const demoChatModels: ChatModel[] = [
+export const demoModelChoices: ModelChoice[] = [
   { model: { provider: 'faux', modelId: 'faux-1' }, thinkingLevel: 'low' },
   { model: { provider: 'faux', modelId: 'faux-2' }, thinkingLevel: 'medium' },
 ]

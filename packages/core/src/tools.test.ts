@@ -193,7 +193,11 @@ test('input with no person behind it, such as an upkeep pass, has no author', as
   registry.install(identity)
   const harness = await Harness.open(
     new ReopenableStorage(),
-    harnessOptions({ models, model, chatModels: [] }, registry, 64_000),
+    harnessOptions(
+      { models, chatModel: model, modelChoices: [] },
+      registry,
+      64_000,
+    ),
     context,
   )
   try {
