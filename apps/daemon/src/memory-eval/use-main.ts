@@ -49,9 +49,13 @@ function printGrade(grade: UseGrade) {
     `${passed}/${total} ${percent(passed, total)}`
   console.log(`\n${row(['Grade', 'Value'])}`)
   for (const [name, value] of [
-    ['Proactive, mem', cell(grade.proactive.with)],
+    ['Proactive, core', cell(grade.proactive.with)],
+    ['Proactive, out', cell(grade.proactive.outside)],
     ['Proactive, none', cell(grade.proactive.without)],
     ['Memory gain', `${Math.round(grade.proactive.gain * 100)} pts`],
+    ['Rescue rate', cell(grade.proactive.rescue)],
+    ['Recall matched', cell(grade.proactive.recalled)],
+    ['Model asked', cell(grade.proactive.asked)],
     ['Restraint', cell(grade.restraint)],
     ['Attribution', cell(grade.attribution)],
     ['Model', grade.model],
@@ -67,7 +71,7 @@ function printGrade(grade: UseGrade) {
       outcome.forbidden.length ? `said ${outcome.forbidden.join(', ')}` : '',
     ].filter(Boolean)
     console.log(
-      `  fail ${outcome.probe} (${outcome.memory ? 'with' : 'without'} memory): ${why.join('; ')}`,
+      `  fail ${outcome.probe} (${outcome.placement}${outcome.recalled === undefined ? '' : outcome.recalled ? ', recall matched' : ', recall missed'}${outcome.asked ? ', asked memory' : ''}): ${why.join('; ')}`,
     )
   }
   if (grade.skipped.length) {

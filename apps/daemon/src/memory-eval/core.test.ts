@@ -29,7 +29,7 @@ const scenario: CoreScenario = {
             {
               id: 'home',
               label: 'changes',
-              from: 'Elm Row',
+              from: ['Elm Row'],
               to: 'Quarry Lane',
             },
             { id: 'climbing', label: 'recall', match: ['boulder'] },
@@ -113,6 +113,65 @@ test('grading re-runs the ranking it is given over the saved memory, so a rankin
     },
   })
   expect(looser).toMatchObject({ core: { facts: 3 }, recallInCore: 1 })
+})
+
+test('grading also cuts core to a smaller budget, where ranking has to choose, and reports fades that were recalled after their last mention', () => {
+  const fading: CoreScenario = {
+    ...scenario,
+    days: [
+      {
+        date: '2026-01-05',
+        messages: [
+          {
+            by: 'owner',
+            in: 'dm',
+            text: 'Flying to Lisbon on the 23rd. I have a peanut allergy.',
+            items: [
+              { id: 'allergy', label: 'core', match: ['peanut'] },
+              { id: 'lisbon', label: 'fades', match: ['Lisbon'] },
+            ],
+          },
+        ],
+      },
+      {
+        date: '2026-01-21',
+        messages: [{ by: 'owner', in: 'dm', text: 'Packing for Lisbon.' }],
+      },
+    ],
+  }
+  const trip = fact('f6', 'Maya flies to Lisbon on 23 January', 4)
+  const recalled = (at: string) => ({
+    facts: { f6: { recalled: new Date(at).getTime() } },
+  })
+  const grade = (usage: CoreFixture['usage']) =>
+    gradeCore(
+      {
+        ...fixture,
+        facts: { facts: [...fixture.facts.facts, trip], next: 7 },
+        usage,
+      },
+      // f1 (37 characters) fits alone; f1 and the importance-4 facts don't.
+      { scenario: fading, pressure: 40 },
+    )
+
+  const nothing = grade({ facts: {} })
+  // Within the real budget everything rated 4 or more is in core, the trip too.
+  expect(nothing).toMatchObject({
+    budget: 6000,
+    core: { facts: 3 },
+    fadesOut: 0,
+    fadesRefreshed: 0,
+  })
+  expect(nothing.pressure).toMatchObject({
+    budget: 40,
+    core: { facts: 1 },
+    coreRecall: 1,
+    corePrecision: 1,
+    fadesOut: 1,
+  })
+  // Recalled on 1 February, after the last message naming Lisbon (21 January).
+  expect(grade(recalled('2026-02-01T12:00:00')).fadesRefreshed).toBe(1)
+  expect(grade(recalled('2026-01-21T12:30:00')).fadesRefreshed).toBe(0)
 })
 
 test('the meter counts every response and, past its cap, stops the run and aborts further requests', async () => {

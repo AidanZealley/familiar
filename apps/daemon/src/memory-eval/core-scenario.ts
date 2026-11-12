@@ -5,6 +5,14 @@ import type { Author } from '@familiar-ai/core'
  * with where each lasting thing said should end up in memory. Labels sit
  * beside the message that first says it; later messages mention some items
  * again without labels, so recall marks them used as it would in real life.
+ *
+ * Two kinds of item exist for ranking under pressure rather than filing:
+ * - A `fades` item is not named again once its date has passed, so any use
+ *   after that is only recall matching its words. Recall counts that as use,
+ *   a known problem for step 5; the grade reports it as `fadesRefreshed`
+ *   rather than hiding it.
+ * - `mum-access` is a `core` item said once and never again. A ranking that
+ *   favours what is used will push it out when core is short.
  */
 
 /**
@@ -20,11 +28,14 @@ export type Placement = 'core' | 'recall' | 'none' | 'fades'
  * A labelled item. A fact matches it when its text contains any of `match`,
  * ignoring case, so each string must be specific to the item. A `changes`
  * item is superseded mid-scenario: by the end, a current fact should say
- * `to`, and none should still say `from` alone.
+ * `to`, and none should still say any of `from` alone. `from` names the old
+ * value as a current claim ("lives at 14 Elm Row"), not just the old value,
+ * so a true fact about the past, such as work done at the old house,
+ * doesn't count as stale.
  */
 export type Item =
   | { id: string; label: Placement; match: [string] | [string, string] }
-  | { id: string; label: 'changes'; from: string; to: string }
+  | { id: string; label: 'changes'; from: string[]; to: string }
 
 export type Label = Item['label']
 
@@ -82,7 +93,13 @@ export const mayaV1: CoreScenario = {
             {
               id: 'home',
               label: 'changes',
-              from: 'Elm Row',
+              from: [
+                'lives at 14 Elm Row',
+                'live at 14 Elm Row',
+                'living at 14 Elm Row',
+                'home is 14 Elm Row',
+                'home at 14 Elm Row',
+              ],
               to: 'Quarry Lane',
             },
           ],
@@ -118,7 +135,7 @@ export const mayaV1: CoreScenario = {
             {
               id: 'theo-job',
               label: 'changes',
-              from: 'Crumb',
+              from: ['Crumb'],
               to: 'Spoke Cycles',
             },
           ],
@@ -182,6 +199,12 @@ export const mayaV1: CoreScenario = {
           in: 'dm',
           text: "Prep for Halden is going well. I'm nervous about the portfolio review part of the Halden interview though.",
         },
+        {
+          by: 'owner',
+          in: 'dm',
+          text: 'Something to keep in mind: my mum June uses a wheelchair, so step-free access matters wherever she comes with us.',
+          items: [{ id: 'mum-access', label: 'core', match: ['wheelchair'] }],
+        },
       ],
     },
     {
@@ -190,7 +213,7 @@ export const mayaV1: CoreScenario = {
         {
           by: 'owner',
           in: 'dm',
-          text: 'The Halden interview went OK I think. Anyway, I took up bouldering last month and I go to The Arch on Tuesday evenings. Climbing V3 now.',
+          text: 'I took up bouldering last month and I go to The Arch on Tuesday evenings. Climbing V3 now.',
           items: [
             {
               id: 'bouldering',

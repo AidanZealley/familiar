@@ -6,6 +6,8 @@
 export { nextUpkeep, type UpkeepState } from './memory/upkeep/schedule.ts'
 export { saidBy } from './conversation/message.ts'
 export {
+  CORE_BUDGET,
+  CORE_IMPORTANCE,
   Facts,
   MemoryUsage,
   isPast,
@@ -28,4 +30,4 @@ export {
   Familiars,
   type FamiliarId,
 } from './workspace/familiars.ts'
-export { RECALL_HEADING, TERMS } from './memory/recall.ts'
+export { RECALL_HEADING, searchMemory, TERMS } from './memory/recall.ts'
