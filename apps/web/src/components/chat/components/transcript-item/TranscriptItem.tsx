@@ -1,7 +1,8 @@
 import { cn } from 'cn'
-import { ClockIcon, HourglassIcon, MoonIcon } from '@phosphor-icons/react'
+import { ClockIcon, MoonIcon } from '@phosphor-icons/react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { FamiliarLink } from '@/components/familiar-link'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { FamiliarTurn } from '../familiar-turn'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
@@ -54,7 +55,11 @@ export const TranscriptItem = ({
           ) : (
             <Marker role="status">
               <MarkerIcon>
-                {item.status === 'queued' ? <ClockIcon /> : <HourglassIcon />}
+                {item.status === 'queued' ? (
+                  <ClockIcon />
+                ) : (
+                  <HourglassSpinner className="size-full" />
+                )}
               </MarkerIcon>
               <MarkerContent>
                 {item.status === 'queued'
