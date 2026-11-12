@@ -1,4 +1,5 @@
 {
+  "note": "Merged from a one-repeat run and a two-repeat run of identical probes (3 repeats in all), to stay under step 3c's 3M token budget. Reproduce cleanly with `pnpm eval:use --repeat 3`.",
   "date": "2026-11-12",
   "commit": "v0.2.0-65-g78af3cb-dirty",
   "proactive": {
@@ -209,7 +210,7 @@
       "answered": true,
       "missing": false,
       "forbidden": [],
-      "reply": "Here's an easy option that works for everyone:\n\n**Chicken and vegetable traybake with brown rice or new potatoes**\n- Toss chicken thighs, peppers, courgette and red onion in olive oil, paprika and garlic, then roast at 200°C for about 35 minutes.\n- Serve with brown rice or new potatoes for steady, slow-release carbs, which suits Theo's meal timing.\n- Keep it peanut-free, so it's safe for Maya.\n\nIf you tell me what's in the fridge or whether anyone wants something lighter, vegetarian, or quicker, I can suggest something else."
+      "reply": "Here's an easy option that works for everyone:\n\n**Chicken and vegetable traybake with brown rice or new potatoes**\n- Toss chicken thighs, peppers, courgette and red onion in olive oil, paprika and garlic, then roast at 200\u00b0C for about 35 minutes.\n- Serve with brown rice or new potatoes for steady, slow-release carbs, which suits Theo's meal timing.\n- Keep it peanut-free, so it's safe for Maya.\n\nIf you tell me what's in the fridge or whether anyone wants something lighter, vegetarian, or quicker, I can suggest something else."
     },
     {
       "probe": "room-dinner",
@@ -259,7 +260,7 @@
       "answered": true,
       "missing": false,
       "forbidden": [],
-      "reply": "Hi Maya. I have you down for pottery at Kiln House every Friday at 7pm, so let's build around that.\n\n- **Before (4:30–6:30):** Leave time to get to Kiln House and eat something light, or a relaxed late lunch if you're not hungry before class.\n- **Pottery (7pm):** Your regular class.\n- **After:** Dinner nearby, drinks with friends, or a quiet night in.\n\nWhat would you like the evening to feel like: social, restful, or a bit of both? Do you want me to check the weather, set a reminder to leave, or look at anything nearby?"
+      "reply": "Hi Maya. I have you down for pottery at Kiln House every Friday at 7pm, so let's build around that.\n\n- **Before (4:30\u20136:30):** Leave time to get to Kiln House and eat something light, or a relaxed late lunch if you're not hungry before class.\n- **Pottery (7pm):** Your regular class.\n- **After:** Dinner nearby, drinks with friends, or a quiet night in.\n\nWhat would you like the evening to feel like: social, restful, or a bit of both? Do you want me to check the weather, set a reminder to leave, or look at anything nearby?"
     },
     {
       "probe": "recall-friday",
@@ -296,7 +297,7 @@
       "answered": true,
       "missing": false,
       "forbidden": [],
-      "reply": "Sunday is 15 March. I can't look up live listings or opening hours, so I can't pick a specific place with confidence. Since your mum uses a wheelchair, I'd check step-free access and book ahead on any shortlist.\n\nA couple of ideas to check:\n- **Tate Britain** (Millbank, London): step-free, has a restaurant and café, and you could combine lunch with an exhibition.\n- **Somewhere near her home or yours**: tell me the area and I can suggest options to look up.\n\nWhere would you like to eat, and roughly what kind of food does your mum enjoy? I can also set a reminder to book once you've chosen."
+      "reply": "Sunday is 15 March. I can't look up live listings or opening hours, so I can't pick a specific place with confidence. Since your mum uses a wheelchair, I'd check step-free access and book ahead on any shortlist.\n\nA couple of ideas to check:\n- **Tate Britain** (Millbank, London): step-free, has a restaurant and caf\u00e9, and you could combine lunch with an exhibition.\n- **Somewhere near her home or yours**: tell me the area and I can suggest options to look up.\n\nWhere would you like to eat, and roughly what kind of food does your mum enjoy? I can also set a reminder to book once you've chosen."
     },
     {
       "probe": "crowded-core",
@@ -320,7 +321,7 @@
       "answered": true,
       "missing": false,
       "forbidden": [],
-      "reply": "Nice that Nora's coming over! Since she's vegetarian, here are a few crowd-pleasers that don't feel like an afterthought:\n\n- **Mushroom and spinach lasagne** with a rich béchamel. Make it the day before and it's even easier on Saturday.\n- **Chickpea and sweet potato tagine** with couscous, herbs and a squeeze of lemon.\n- **Stuffed peppers** with rice, feta, pine nuts and tomato.\n- **Thai green curry** with tofu and greens, served with jasmine rice.\n\nFor a starter, a burrata or whipped feta with warm flatbread works well, and a sticky date or dark chocolate pudding finishes things nicely.\n\nDo you want something low-effort, or are you happy to spend a few hours cooking? I can help you build a shopping list or a timeline for the day."
+      "reply": "Nice that Nora's coming over! Since she's vegetarian, here are a few crowd-pleasers that don't feel like an afterthought:\n\n- **Mushroom and spinach lasagne** with a rich b\u00e9chamel. Make it the day before and it's even easier on Saturday.\n- **Chickpea and sweet potato tagine** with couscous, herbs and a squeeze of lemon.\n- **Stuffed peppers** with rice, feta, pine nuts and tomato.\n- **Thai green curry** with tofu and greens, served with jasmine rice.\n\nFor a starter, a burrata or whipped feta with warm flatbread works well, and a sticky date or dark chocolate pudding finishes things nicely.\n\nDo you want something low-effort, or are you happy to spend a few hours cooking? I can help you build a shopping list or a timeline for the day."
     },
     {
       "probe": "sister-dinner",
@@ -801,7 +802,7 @@
       "answered": true,
       "missing": false,
       "forbidden": [],
-      "reply": "I can help with that. The one fixed thing I have for Wednesdays is Isla's piano lesson with Mr Adeyemi at 4:30pm, so I'd build the afternoon around it.\n\nHere's a rough shape:\n- **School pickup**, then a quick snack and water on the way.\n- **Piano at 4:30pm.** Leave in time to arrive a few minutes early.\n- **After the lesson:** free time, homework, or a simple dinner plan.\n\nI don't have anything else on your Wednesdays yet. What would you like to fit in: a活动, a playdate, homework time, dinner, or something for just the two of you? Tell me, and I'll help you lay it out and set reminders for pickup or leaving."
+      "reply": "I can help with that. The one fixed thing I have for Wednesdays is Isla's piano lesson with Mr Adeyemi at 4:30pm, so I'd build the afternoon around it.\n\nHere's a rough shape:\n- **School pickup**, then a quick snack and water on the way.\n- **Piano at 4:30pm.** Leave in time to arrive a few minutes early.\n- **After the lesson:** free time, homework, or a simple dinner plan.\n\nI don't have anything else on your Wednesdays yet. What would you like to fit in: a\u6d3b\u52a8, a playdate, homework time, dinner, or something for just the two of you? Tell me, and I'll help you lay it out and set reminders for pickup or leaving."
     },
     {
       "probe": "piano-wednesday",
@@ -1356,7 +1357,7 @@
       "answered": true,
       "missing": true,
       "forbidden": [],
-      "reply": "Here are a few easy options for tonight:\n\n- **One-pan chicken fajitas**: slice peppers, onion and chicken thighs, season with cumin, paprika and lime, roast at 220°C for about 25 minutes. Serve with tortillas, sour cream and salsa.\n- **Speedy sausage and white bean stew**: brown sausages, add a tin of cannellini beans, a tin of chopped tomatoes, garlic and spinach. Simmer 15 minutes and serve with crusty bread.\n- **Veggie fried rice**: cook leftover rice with frozen peas, carrot, egg and soy sauce. It takes about 15 minutes.\n\nIf you tell me what's in the fridge, any dietary needs, or how much time you have, I can narrow it down."
+      "reply": "Here are a few easy options for tonight:\n\n- **One-pan chicken fajitas**: slice peppers, onion and chicken thighs, season with cumin, paprika and lime, roast at 220\u00b0C for about 25 minutes. Serve with tortillas, sour cream and salsa.\n- **Speedy sausage and white bean stew**: brown sausages, add a tin of cannellini beans, a tin of chopped tomatoes, garlic and spinach. Simmer 15 minutes and serve with crusty bread.\n- **Veggie fried rice**: cook leftover rice with frozen peas, carrot, egg and soy sauce. It takes about 15 minutes.\n\nIf you tell me what's in the fridge, any dietary needs, or how much time you have, I can narrow it down."
     },
     {
       "probe": "room-dinner",
@@ -1479,7 +1480,7 @@
       "answered": true,
       "missing": true,
       "forbidden": [],
-      "reply": "Nice that your sister's coming over! I don't have anything on her tastes yet, so here are a few crowd-pleasers that work well for a dinner party:\n\n- **Roast chicken thighs** with lemon, garlic and herbs, with roasted potatoes and greens. Easy to make ahead and hard to get wrong.\n- **Slow-cooked beef or lamb ragù** over pappardelle, with a simple salad. It can sit on the stove while you relax.\n- **Salmon traybake** with cherry tomatoes, fennel and new potatoes. Quick, light, and looks lovely on the table.\n- **Mushroom and chickpea curry** with rice and naan, if you want something vegetarian.\n\nDoes she have any allergies, dislikes, or a cuisine she loves? Tell me, and I can narrow it down and build a shopping list."
+      "reply": "Nice that your sister's coming over! I don't have anything on her tastes yet, so here are a few crowd-pleasers that work well for a dinner party:\n\n- **Roast chicken thighs** with lemon, garlic and herbs, with roasted potatoes and greens. Easy to make ahead and hard to get wrong.\n- **Slow-cooked beef or lamb rag\u00f9** over pappardelle, with a simple salad. It can sit on the stove while you relax.\n- **Salmon traybake** with cherry tomatoes, fennel and new potatoes. Quick, light, and looks lovely on the table.\n- **Mushroom and chickpea curry** with rice and naan, if you want something vegetarian.\n\nDoes she have any allergies, dislikes, or a cuisine she loves? Tell me, and I can narrow it down and build a shopping list."
     },
     {
       "probe": "coffee-order",
@@ -2636,7 +2637,7 @@
       "answered": true,
       "missing": false,
       "forbidden": [],
-      "reply": "Nice! Since Nora is vegetarian, here are a few options that work well for a crowd:\n\n- **Mushroom and spinach lasagne** with a rich béchamel. It's filling and easy to make ahead.\n- **Chickpea and sweet potato curry** served with basmati rice and naan. It's cheap, comforting, and tastes even better the next day.\n- **Stuffed peppers** with quinoa, feta, and herbs, plus a big green salad.\n\nFor a starter, a roasted red pepper and whipped feta dip with warm flatbread would go down well. If you tell me what you're in the mood for, or what you already have in the kitchen, I can narrow it down or write out a full menu and shopping list."
+      "reply": "Nice! Since Nora is vegetarian, here are a few options that work well for a crowd:\n\n- **Mushroom and spinach lasagne** with a rich b\u00e9chamel. It's filling and easy to make ahead.\n- **Chickpea and sweet potato curry** served with basmati rice and naan. It's cheap, comforting, and tastes even better the next day.\n- **Stuffed peppers** with quinoa, feta, and herbs, plus a big green salad.\n\nFor a starter, a roasted red pepper and whipped feta dip with warm flatbread would go down well. If you tell me what you're in the mood for, or what you already have in the kitchen, I can narrow it down or write out a full menu and shopping list."
     },
     {
       "probe": "sister-dinner",
