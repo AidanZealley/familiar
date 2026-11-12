@@ -6,11 +6,13 @@ import { createRegistry, Harness } from '@earendil-works/pi-durable'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import type { ModelChoice, RoomApi, Workspace } from '@familiar-ai/core'
 import {
+  CORE_IMPORTANCE,
   Facts,
   isPast,
   localDay,
   MemoryUsage,
   rebalanceCore,
+  searchMemory,
   type Fact,
   type FamiliarId,
 } from '@familiar-ai/core/diagnostics'
@@ -27,6 +29,10 @@ import type { ProbeKind, SeedFact, UseProbe } from './use-probes.ts'
  * model, with its facts planted and placed by `rebalanceCore` as in use.
  * Upkeep never runs, since the clock stays on the probe's morning and never
  * reaches 04:00, so this measures the reply model's use of memory alone.
+ *
+ * A proactive probe runs three ways, so the grade can say what core and
+ * recall each contribute: its facts pinned into core, its facts rated just
+ * below core's threshold so only recall can bring them up, and no facts.
  */
 
 const DAY = 24 * 60 * 60 * 1000
@@ -39,12 +45,28 @@ const context = BACKGROUND_CONTEXT
 
 export type Rate = { passed: number; total: number; rate: number }
 
+/**
+ * Where a run's facts sit:
+ * - `core`: the facts under test are pinned into core;
+ * - `outside`: they are rated below core's threshold, so they sit outside it;
+ * - `placed`: all facts are as seeded, or as the fixture's, and ranked as in use;
+ * - `none`: no facts at all.
+ */
+export type Placement = 'core' | 'outside' | 'placed' | 'none'
+
 /** One run of a probe: the reply and why it passed or not. */
 export type UseOutcome = {
   probe: string
   kind: ProbeKind
-  /** Whether memory was seeded; false only for the empty half of a proactive probe. */
-  memory: boolean
+  placement: Placement
+  /**
+   * For an `outside` run: whether automatic recall's note held a fact under
+   * test, which is whether its words matched the request. Without it the
+   * reply has only what the model asks memory for itself.
+   */
+  recalled?: boolean
+  /** The model searched memory itself, with its `recall` tool. */
+  asked: boolean
   passed: boolean
   /** It posted a reply rather than staying quiet. */
   answered: boolean
@@ -56,7 +78,24 @@ export type UseOutcome = {
 }
 
 export type UseGrade = {
-  proactive: { with: Rate; without: Rate; gain: number }
+  proactive: {
+    /** With the facts in core (or, from a fixture, as the replay left them). */
+    with: Rate
+    /** With the facts outside core. */
+    outside: Rate
+    without: Rate
+    /** `with` over `without`: what memory adds. */
+    gain: number
+    /**
+     * Among probes that pass with the facts in core, those that still pass
+     * with them outside: how much of core's job recall does.
+     */
+    rescue: Rate
+    /** Outside runs in which automatic recall's words matched the fact. */
+    recalled: Rate
+    /** Outside runs in which the model searched memory itself. */
+    asked: Rate
+  }
   restraint: Rate
   attribution: Rate
   outcomes: UseOutcome[]
@@ -120,67 +159,125 @@ export function covers(fixture: CoreFixture, probe: UseProbe) {
   return strings.some((part) => current.some((fact) => has(fact.text, part)))
 }
 
-/** The facts as upkeep writes them, naming whom they are about. */
+/**
+ * The facts as upkeep writes them, naming whom they are about. Under
+ * `core` and `outside` the fact under test is forced there; background
+ * facts keep their rating.
+ */
 const seedFact = (
-  { about, text, importance, savedDaysAgo = 30 }: SeedFact,
+  { about, text, importance, savedDaysAgo = 30, background }: SeedFact,
   number: number,
+  placement: Placement,
 ): Fact => {
   const saved = PROBE_TIME - savedDaysAgo * DAY
+  const forced = !background
   return {
     id: `f${number}`,
     text: `${about.name} (author ID ${about.id}) ${text}`,
-    importance,
+    importance:
+      forced && placement === 'outside'
+        ? Math.min(importance, CORE_IMPORTANCE - 1)
+        : importance,
     since: localDay(saved, EVAL_TIME_ZONE),
     sources: [],
     saved,
     core: false,
+    ...(forced && placement === 'core' ? { pinned: true } : {}),
   }
+}
+
+type Planted = {
+  /** Under `outside`: whether automatic recall's words matched a fact under test. */
+  recalled?: boolean
 }
 
 /**
  * Plants memory in a store that has its Familiar, through a bare Harness,
  * and has `rebalanceCore` place it. No owner API adds a fact, and the model
- * can't save one until upkeep runs.
+ * can't save one until upkeep runs. A forced placement that ranking doesn't
+ * give throws, so a change to core's rules can't quietly make the split
+ * measure something else.
  */
 async function plant(
   path: string,
   familiar: FamiliarId,
-  seed: UseProbe['facts'] | CoreFixture,
-) {
+  seed: { probe: UseProbe; placement: Placement } | CoreFixture,
+): Promise<Planted> {
   const harness = await Harness.open(
     await openNodeSqliteStorage(path),
     { models: createModels(), registry: createRegistry() },
     context,
   )
   try {
-    await harness.commit(async (tx) => {
+    return await harness.commit(async (tx): Promise<Planted> => {
       const facts = await tx.doc(Facts, String(familiar), null)
       const usage = await tx.doc(MemoryUsage, String(familiar), null)
-      if (Array.isArray(seed)) {
-        seed.forEach((seeded, index) => {
-          const fact = seedFact(seeded, facts.next + index)
-          facts.facts.push(fact)
-          if (seeded.usedDaysAgo !== undefined) {
-            usage.facts[fact.id] = {
-              recalled: PROBE_TIME - seeded.usedDaysAgo * DAY,
-            }
-          }
-        })
-        facts.next += seed.length
-      } else {
+      if (!('probe' in seed)) {
         facts.facts = structuredClone(seed.facts.facts)
         facts.next = seed.facts.next
         usage.facts = structuredClone(seed.usage.facts)
+        rebalanceCore({ facts, usage })
+        return {}
       }
+      const { probe, placement } = seed
+      const tested = probe.facts.flatMap((fact, index) =>
+        fact.background ? [] : [`f${facts.next + index}`],
+      )
+      probe.facts.forEach((fact, index) =>
+        facts.facts.push(seedFact(fact, facts.next + index, placement)),
+      )
+      facts.next += probe.facts.length
       rebalanceCore({ facts, usage })
+      if (placement === 'placed') {
+        return {}
+      }
+      const misplaced = facts.facts.filter(
+        (fact) =>
+          tested.includes(fact.id) && fact.core !== (placement === 'core'),
+      )
+      if (misplaced.length) {
+        throw new Error(
+          `${probe.id}: ${misplaced.map((fact) => fact.id).join(', ')} should be ${placement === 'core' ? 'in' : 'outside'} core but ranking put ${placement === 'core' ? 'it outside' : 'it in'}.`,
+        )
+      }
+      if (placement !== 'outside') {
+        return {}
+      }
+      // The request as the workspace will search it, over the planted facts.
+      const found = searchMemory(
+        facts,
+        undefined,
+        probe.request,
+        PROBE_TIME,
+        EVAL_TIME_ZONE,
+      ).found
+      return {
+        recalled: found.some(
+          ({ item }) => 'fact' in item && tested.includes(item.fact.id),
+        ),
+      }
     }, context)
   } finally {
     await harness.close(context)
   }
 }
 
+type ReplyMessage = { role: string; content?: unknown }
+
+/** Whether a reply's assistant messages call the `recall` tool. */
+const askedMemory = (messages: ReplyMessage[]) =>
+  messages.some(
+    (message) =>
+      message.role === 'assistant' &&
+      Array.isArray(message.content) &&
+      message.content.some(
+        (part: { type: string; name?: string }) =>
+          part.type === 'toolCall' && part.name === 'recall',
+      ),
+  )
+
 /** The text of a reply's assistant messages. */
-const replyText = (messages: { role: string; content?: unknown }[]): string =>
+const replyText = (messages: ReplyMessage[]): string =>
   messages
     .flatMap((message) =>
       message.role === 'assistant' && Array.isArray(message.content)
@@ -192,25 +289,29 @@ const replyText = (messages: { role: string; content?: unknown }[]): string =>
     .join('\n')
     .trim()
 
-type Planned = { probe: UseProbe; memory: boolean }
+type Planned = { probe: UseProbe; placement: Placement }
 
-/** What each probe runs as: proactive probes with memory and without, the rest with. */
-const runsOf = (probe: UseProbe): Planned[] =>
-  probe.kind === 'proactive'
-    ? [
-        { probe, memory: true },
-        { probe, memory: false },
-      ]
-    : [{ probe, memory: true }]
+/**
+ * What each proactive probe runs as: facts in core, outside it, and none. A
+ * fixture's facts have their own placement, so they run as the replay left
+ * them and with none. The other kinds run with their facts as seeded.
+ */
+const runsOf = (probe: UseProbe, fixture?: CoreFixture): Planned[] =>
+  (probe.kind === 'proactive'
+    ? fixture
+      ? (['placed', 'none'] as const)
+      : (['core', 'outside', 'none'] as const)
+    : (['placed'] as const)
+  ).map((placement) => ({ probe, placement }))
 
-const rate = (outcomes: UseOutcome[]): Rate => {
-  const passed = outcomes.filter((outcome) => outcome.passed).length
-  return {
-    passed,
-    total: outcomes.length,
-    rate: outcomes.length ? round(passed / outcomes.length) : 0,
-  }
-}
+const tally = (passed: number, total: number): Rate => ({
+  passed,
+  total,
+  rate: total ? round(passed / total) : 0,
+})
+
+const rate = (outcomes: UseOutcome[]) =>
+  tally(outcomes.filter((outcome) => outcome.passed).length, outcomes.length)
 
 const round = (value: number) => Math.round(value * 1000) / 1000
 
@@ -221,22 +322,37 @@ export function gradeUse(
     'skipped' | 'fixture' | 'model' | 'tokens' | 'elapsedMs'
   >,
 ): UseGrade {
-  const of = (kind: ProbeKind, memory = true) =>
-    rate(
-      outcomes.filter(
-        (outcome) => outcome.kind === kind && outcome.memory === memory,
-      ),
+  const of = (kind: ProbeKind, ...placements: Placement[]) =>
+    outcomes.filter(
+      (outcome) =>
+        outcome.kind === kind && placements.includes(outcome.placement),
     )
-  const withMemory = of('proactive')
-  const without = of('proactive', false)
+  const withMemory = rate(of('proactive', 'core', 'placed'))
+  const without = rate(of('proactive', 'none'))
+  const outside = of('proactive', 'outside')
+  const reachable = new Set(
+    of('proactive', 'core')
+      .filter((outcome) => outcome.passed)
+      .map((outcome) => outcome.probe),
+  )
   return {
     proactive: {
       with: withMemory,
+      outside: rate(outside),
       without,
       gain: round(withMemory.rate - without.rate),
+      rescue: rate(outside.filter((outcome) => reachable.has(outcome.probe))),
+      recalled: tally(
+        outside.filter((outcome) => outcome.recalled).length,
+        outside.length,
+      ),
+      asked: tally(
+        outside.filter((outcome) => outcome.asked).length,
+        outside.length,
+      ),
     },
-    restraint: of('restraint'),
-    attribution: of('attribution'),
+    restraint: rate(of('restraint', 'placed')),
+    attribution: rate(of('attribution', 'placed')),
     outcomes,
     ...rest,
   }
@@ -260,8 +376,8 @@ export async function runUseEval({
     (kind) => eligible.find((probe) => probe.kind === kind) ?? [],
   )
   const ordered = [...sample, ...eligible.filter((p) => !sample.includes(p))]
-  const planned = ordered.flatMap(runsOf)
-  const sampled = sample.flatMap(runsOf).length
+  const planned = ordered.flatMap((probe) => runsOf(probe, fixture))
+  const sampled = sample.flatMap((probe) => runsOf(probe, fixture)).length
 
   if (planned.length === 0) {
     return {
@@ -283,11 +399,8 @@ export async function runUseEval({
     }
   }
 
-  async function run({ probe, memory }: Planned): Promise<UseOutcome> {
-    const path = join(
-      directory,
-      `${probe.id}-${memory ? 'with' : 'without'}.sqlite`,
-    )
+  async function run({ probe, placement }: Planned): Promise<UseOutcome> {
+    const path = join(directory, `${probe.id}-${placement}.sqlite`)
     const clock = createClock(fixture ? fixture.clock + 8 * HOUR : PROBE_TIME)
     const open = async () =>
       openDaemonWorkspace(
@@ -305,10 +418,11 @@ export async function runUseEval({
     const opened = await open()
     const { familiar } = opened
     let { workspace } = opened
+    let planted: Planted = {}
     try {
-      if (memory) {
+      if (placement !== 'none') {
         await workspace.dismiss()
-        await plant(path, familiar, fixture ?? probe.facts)
+        planted = await plant(path, familiar, fixture ?? { probe, placement })
         ;({ workspace } = await open())
       }
       const room = await roomFor(workspace, familiar, probe)
@@ -344,7 +458,11 @@ export async function runUseEval({
       return {
         probe: probe.id,
         kind: probe.kind,
-        memory,
+        placement,
+        ...(planted.recalled === undefined
+          ? {}
+          : { recalled: planted.recalled }),
+        asked: askedMemory(reply.messages),
         passed: answered && !missing && forbidden.length === 0,
         answered,
         missing,
@@ -363,7 +481,7 @@ export async function runUseEval({
       const outcome = await run(step)
       outcomes.push(outcome)
       progress(
-        `${outcome.passed ? 'pass' : 'fail'} ${step.probe.id} (${step.memory ? 'with' : 'without'} memory): ${tokens().total.toLocaleString()} tokens so far`,
+        `${outcome.passed ? 'pass' : 'fail'} ${step.probe.id} (${step.placement}): ${tokens().total.toLocaleString()} tokens so far`,
       )
       if (index + 1 !== sampled) {
         continue

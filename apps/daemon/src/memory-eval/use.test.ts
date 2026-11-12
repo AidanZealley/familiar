@@ -60,9 +60,19 @@ async function evaluate(probes: UseProbe[], fixture?: CoreFixture) {
   }
 }
 
-test('proactive probes are graded with and without memory, and an empty memory shows the model no facts', async () => {
+test('a proactive probe runs with its fact in core, outside it and absent, and the rescue rate is how many still pass outside', async () => {
   const run = await evaluate([
+    // Shares no word with its fact, so recall can't find it outside core.
     probe({ id: 'allergy' }),
+    // Shares "kiwi", so recall rescues it.
+    probe({
+      id: 'kiwi',
+      facts: [
+        { about: maya, text: 'is allergic to kiwi fruit.', importance: 5 },
+      ],
+      request: 'Is a kiwi smoothie fine for breakfast?',
+      required: ['allergic'],
+    }),
     probe({
       id: 'unrelated',
       kind: 'restraint',
@@ -75,22 +85,32 @@ test('proactive probes are graded with and without memory, and an empty memory s
     throw new Error(run.reason)
   }
   const { grade } = run
-  const [withMemory, without] = grade.outcomes.filter(
-    (outcome) => outcome.probe === 'allergy',
-  )
-  expect(withMemory).toMatchObject({ memory: true, passed: true })
-  expect(without).toMatchObject({ memory: false, passed: false, missing: true })
-  expect(without.reply.toLowerCase()).not.toContain('peanut')
+  const outcome = (probe: string, placement: string) =>
+    grade.outcomes.find((o) => o.probe === probe && o.placement === placement)
+  expect(outcome('allergy', 'core')).toMatchObject({ passed: true })
+  expect(outcome('allergy', 'outside')).toMatchObject({
+    passed: false,
+    recalled: false,
+  })
+  expect(outcome('kiwi', 'outside')).toMatchObject({
+    passed: true,
+    recalled: true,
+  })
+  // An empty memory shows the model no facts.
+  const none = outcome('allergy', 'none')
+  expect(none).toMatchObject({ passed: false, missing: true })
+  expect(none?.reply.toLowerCase()).not.toContain('peanut')
   expect(grade.proactive).toMatchObject({
-    with: { passed: 1, total: 1 },
-    without: { passed: 0, total: 1 },
+    with: { passed: 2, total: 2 },
+    outside: { passed: 1, total: 2 },
+    without: { passed: 0, total: 2 },
     gain: 1,
+    rescue: { passed: 1, total: 2, rate: 0.5 },
+    recalled: { passed: 1, total: 2 },
   })
   // The echoing model leaks the fact into an unrelated reply, so restraint fails.
   expect(grade.restraint).toMatchObject({ passed: 0, total: 1 })
-  expect(grade.outcomes.find((o) => o.kind === 'restraint')?.forbidden).toEqual(
-    ['peanut'],
-  )
+  expect(outcome('unrelated', 'placed')?.forbidden).toEqual(['peanut'])
 })
 
 test('a fixture seeds every probe from its facts and runs only the probes those facts cover', async () => {
