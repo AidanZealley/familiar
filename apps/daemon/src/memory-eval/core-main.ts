@@ -9,7 +9,7 @@ import {
   readFixture,
   writeFixture,
 } from './core-fixture.ts'
-import { gradeCore, type CoreGrade } from './core-grade.ts'
+import { gradeCore, type CoreGrade, type Placed } from './core-grade.ts'
 import { mayaV1 } from './core-scenario.ts'
 import {
   DEFAULT_MAX_TOKENS,
@@ -98,17 +98,22 @@ if (fixture && !values.probe) {
 }
 
 function printGrade(grade: CoreGrade) {
-  console.log(`\n${row(['Grade', 'Value'])}`)
+  console.log(
+    `\n${row(['Grade', 'Real', 'Pressure'])}\n${row(['Budget', String(grade.budget), String(grade.pressure.budget)])}`,
+  )
+  const both = (name: string, pick: (placed: Placed) => string) =>
+    console.log(row([name, pick(grade), pick(grade.pressure)]))
+  both('Core precision', (p) => percent(p.corePrecision, 1))
+  both('Core recall', (p) => percent(p.coreRecall, 1))
+  both('Recall in core', (p) => percent(p.recallInCore, 1))
+  both('Fades out', (p) => percent(p.fadesOut, 1))
+  both('Core facts', (p) => String(p.core.facts))
+  both('Core chars', (p) => String(p.core.characters))
+  both('Core tokens', (p) => String(p.core.tokens))
   for (const [name, value] of [
-    ['Core precision', percent(grade.corePrecision, 1)],
-    ['Core recall', percent(grade.coreRecall, 1)],
-    ['Recall in core', percent(grade.recallInCore, 1)],
+    ['Fades refreshed', percent(grade.fadesRefreshed, 1)],
     ['Junk rate', percent(grade.junkRate, 1)],
-    ['Fades out', percent(grade.fadesOut, 1)],
     ['Changes right', percent(grade.changesCorrect, 1)],
-    ['Core facts', String(grade.core.facts)],
-    ['Core chars', String(grade.core.characters)],
-    ['Core tokens', String(grade.core.tokens)],
     ['Memory ratio', grade.memoryRatio.toFixed(2)],
     ['Facts/day', grade.factsPerActiveDay.toFixed(2)],
     ['Near dupes', String(grade.nearDuplicates.length)],
@@ -116,10 +121,15 @@ function printGrade(grade: CoreGrade) {
   ] as const) {
     console.log(row([name, value]))
   }
-  for (const item of grade.items.filter((item) => !item.placed)) {
-    console.log(
-      `  misplaced ${item.label} ${item.id}: stored ${item.stored.join(', ') || 'nowhere'}, in core ${item.inCore.join(', ') || 'none'}`,
-    )
+  for (const [name, placed] of [
+    ['real', grade],
+    ['pressure', grade.pressure],
+  ] as const) {
+    for (const item of placed.items.filter((item) => !item.placed)) {
+      console.log(
+        `  misplaced at ${name} budget, ${item.label} ${item.id}: stored ${item.stored.join(', ') || 'nowhere'}, in core ${item.inCore.join(', ') || 'none'}`,
+      )
+    }
   }
   console.log(`\nSaved ${saveResult('core', grade)}`)
 }

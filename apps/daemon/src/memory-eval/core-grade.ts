@@ -1,5 +1,6 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import {
+  CORE_BUDGET,
   isPast,
   listFacts,
   rebalanceCore,
@@ -21,16 +22,26 @@ import {
 /**
  * Grades an eval:core fixture in plain code. Core is decided again by the
  * current ranking first, so a change to ranking is measured on the saved
- * memory without a model call.
+ * memory without a model call. It is decided twice: at the real budget, and
+ * at `PRESSURE_BUDGET`, where core is too small for everything that
+ * qualifies and ranking has to choose. The scenario fills only a fraction of
+ * the real budget, so ranking never decides anything there.
  */
+
+/**
+ * A tenth of the real budget: what a household with about ten times the
+ * lasting facts would face, found by scaling the budget down rather than
+ * writing ten times the scenario.
+ */
+export const PRESSURE_BUDGET = CORE_BUDGET / 10
 
 const scenarios: Record<string, CoreScenario> = { [mayaV1.id]: mayaV1 }
 
-/** Decides core over the saved memory; `rebalanceCore` unless comparing another ranking. */
-export type Rebalance = (memory: {
-  facts: FactsState
-  usage: MemoryUsageState
-}) => void
+/** Decides core over the saved memory, within `budget` characters; `rebalanceCore` unless comparing another ranking. */
+export type Rebalance = (
+  memory: { facts: FactsState; usage: MemoryUsageState },
+  budget: number,
+) => void
 
 export type ItemGrade = {
   id: string
@@ -43,30 +54,45 @@ export type ItemGrade = {
   placed: boolean
 }
 
-export type CoreGrade = {
-  scenario: string
-  hash: string
-  model: string
+/** What ranking did with core at one budget. */
+export type Placed = {
+  budget: number
   /** Share of core facts that match a `core` item. */
   corePrecision: number
   /** Share of `core` items with a matching fact in core. */
   coreRecall: number
   /** Share of `recall` items with a matching fact in core; lower is better. */
   recallInCore: number
-  /** Share of `none` items stored at all; lower is better. */
-  junkRate: number
   /** Share of `fades` items no longer in core. */
   fadesOut: number
+  core: { facts: number; characters: number; tokens: number }
+  items: ItemGrade[]
+}
+
+export type CoreGrade = Placed & {
+  scenario: string
+  hash: string
+  model: string
+  /** The same measures with core cut to `PRESSURE_BUDGET`. */
+  pressure: Placed
+  /** Share of `none` items stored at all; lower is better. */
+  junkRate: number
+  /**
+   * Share of `fades` items with a fact recalled after the last message that
+   * names them; lower is better. Recall marks a fact used whenever a message
+   * merely matches its words, so a fade can look used though nobody has
+   * mentioned it: a known problem, which re-rating in step 5 has to fix, and
+   * which this reports rather than hides.
+   */
+  fadesRefreshed: number
   /** Share of `changes` items whose current facts say the new value and not the old. */
   changesCorrect: number
-  core: { facts: number; characters: number; tokens: number }
   /** Characters of every fact, past ones included, and episode, per character people said. */
   memoryRatio: number
   /** Facts saved, past ones included, per day anyone talked. */
   factsPerActiveDay: number
   /** Current facts whose words mostly overlap, by recall's own terms. */
   nearDuplicates: [string, string][]
-  items: ItemGrade[]
   tokens: CoreFixture['tokens']
   elapsedMs: number
 }
@@ -140,21 +166,45 @@ function nearDuplicates(facts: Fact[]) {
 const share = (part: number, whole: number) =>
   whole ? Math.round((part / whole) * 1000) / 1000 : 0
 
-export function gradeCore(
+/** The last moment on `date`, when anything said that day has been seen. */
+const endOf = (date: string) => new Date(`${date}T23:59:59`).getTime()
+
+/**
+ * Share of `fades` items with a fact recalled after the last day a message
+ * names them (by the same strings that find their facts).
+ */
+function fadesRefreshed(scenario: CoreScenario, fixture: CoreFixture) {
+  const fades = itemsOf(scenario).flatMap((item) =>
+    item.label === 'fades' ? [item] : [],
+  )
+  const refreshed = fades.filter((item) => {
+    const named = scenario.days.filter((day) =>
+      day.messages.some((message) =>
+        item.match.some((string) =>
+          message.text.toLowerCase().includes(string.toLowerCase()),
+        ),
+      ),
+    )
+    const last = endOf(named.at(-1)?.date ?? scenario.start)
+    return fixture.facts.facts
+      .filter((fact) => matches(fact, item.match))
+      .some((fact) => (fixture.usage.facts[fact.id]?.recalled ?? 0) > last)
+  })
+  return share(refreshed.length, fades.length)
+}
+
+/** Ranks the saved memory into core within `budget` and grades the result. */
+function place(
   fixture: CoreFixture,
-  {
-    scenario = scenarios[fixture.scenario],
-    rebalance = rebalanceCore,
-  }: { scenario?: CoreScenario; rebalance?: Rebalance } = {},
-): CoreGrade {
-  if (!scenario) {
-    throw new Error(`No core scenario ${fixture.scenario}.`)
-  }
+  scenario: CoreScenario,
+  rebalance: Rebalance,
+  budget: number,
+): Placed {
   const memory = structuredClone({
     facts: fixture.facts,
     usage: fixture.usage,
   })
-  rebalance(memory)
+  rebalance(memory, budget)
   const facts = memory.facts.facts
   const core = facts.filter((fact) => fact.core && !isPast(fact))
   const items = itemsOf(scenario).map((item) => gradeItem(item, facts))
@@ -164,15 +214,9 @@ export function gradeCore(
   const coreItems = itemsOf(scenario).flatMap((item) =>
     item.label === 'core' ? [item.match] : [],
   )
-
   const coreList = listFacts(core)
-  const memoryCharacters =
-    listFacts(facts).length +
-    fixture.episodes.episodes.reduce((sum, { text }) => sum + text.length, 0)
   return {
-    scenario: fixture.scenario,
-    hash: fixture.hash,
-    model: fixture.model,
+    budget,
     corePrecision: share(
       core.filter((fact) => coreItems.some((match) => matches(fact, match)))
         .length,
@@ -183,21 +227,52 @@ export function gradeCore(
       of('recall').filter((item) => item.inCore.length).length,
       of('recall').length,
     ),
-    junkRate: share(
-      of('none').filter((item) => item.stored.length).length,
-      of('none').length,
-    ),
     fadesOut: placedShare('fades'),
-    changesCorrect: placedShare('changes'),
     core: {
       facts: core.length,
       characters: coreList.length,
       tokens: estimateTextTokens(coreList),
     },
+    items,
+  }
+}
+
+export function gradeCore(
+  fixture: CoreFixture,
+  {
+    scenario = scenarios[fixture.scenario],
+    rebalance = rebalanceCore,
+    pressure = PRESSURE_BUDGET,
+  }: { scenario?: CoreScenario; rebalance?: Rebalance; pressure?: number } = {},
+): CoreGrade {
+  if (!scenario) {
+    throw new Error(`No core scenario ${fixture.scenario}.`)
+  }
+  const real = place(fixture, scenario, rebalance, CORE_BUDGET)
+  // What each item stored and whether it changed don't depend on the budget.
+  const facts = fixture.facts.facts
+  const of = (label: Label) => real.items.filter((item) => item.label === label)
+  const memoryCharacters =
+    listFacts(facts).length +
+    fixture.episodes.episodes.reduce((sum, { text }) => sum + text.length, 0)
+  return {
+    scenario: fixture.scenario,
+    hash: fixture.hash,
+    model: fixture.model,
+    ...real,
+    pressure: place(fixture, scenario, rebalance, pressure),
+    junkRate: share(
+      of('none').filter((item) => item.stored.length).length,
+      of('none').length,
+    ),
+    fadesRefreshed: fadesRefreshed(scenario, fixture),
+    changesCorrect: share(
+      of('changes').filter((item) => item.placed).length,
+      of('changes').length,
+    ),
     memoryRatio: share(memoryCharacters, transcriptOf(scenario).length),
     factsPerActiveDay: share(facts.length, scenario.days.length),
     nearDuplicates: nearDuplicates(facts.filter((fact) => !isPast(fact))),
-    items,
     tokens: fixture.tokens,
     elapsedMs: fixture.elapsedMs,
   }
