@@ -1,4 +1,4 @@
-import { SettingsIcon } from 'lucide-react'
+import { GearSixIcon } from '@phosphor-icons/react'
 import { useNeedsAttention } from '@/components/connections'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -18,7 +18,7 @@ export const SettingsLink = () => {
     <footer className="shrink-0 border-t p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
       <Item
         size="xs"
-        className="px-2"
+        className="px-2 hover:bg-muted"
         render={
           <button
             type="button"
@@ -27,7 +27,7 @@ export const SettingsLink = () => {
         }
       >
         <ItemMedia variant="icon">
-          <SettingsIcon />
+          <GearSixIcon />
         </ItemMedia>
         <ItemContent>
           <ItemTitle className="text-sm">Settings</ItemTitle>

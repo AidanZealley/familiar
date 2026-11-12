@@ -1,15 +1,15 @@
 import {
-  CalendarDaysIcon,
-  HistoryIcon,
+  CalendarDotsIcon,
+  ClockCounterClockwiseIcon,
   ListIcon,
-  type LucideIcon,
-} from 'lucide-react'
+  type Icon,
+} from '@phosphor-icons/react'
 
 /** Memory's views, in a Familiar's settings. */
 export const memorySections: {
   value: 'facts' | 'history' | 'episodes'
   label: string
-  icon: LucideIcon
+  icon: Icon
   description: string
 }[] = [
   {
@@ -21,13 +21,13 @@ export const memorySections: {
   {
     value: 'history',
     label: 'History',
-    icon: HistoryIcon,
+    icon: ClockCounterClockwiseIcon,
     description: 'How facts changed over time.',
   },
   {
     value: 'episodes',
     label: 'Episodes',
-    icon: CalendarDaysIcon,
+    icon: CalendarDotsIcon,
     description: 'What happened, by day, week and month.',
   },
 ]

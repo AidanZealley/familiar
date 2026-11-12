@@ -1,4 +1,4 @@
-import { BrainIcon } from 'lucide-react'
+import { BrainIcon } from '@phosphor-icons/react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Activity } from '../activity'
 import type { ThinkingProps } from './types'

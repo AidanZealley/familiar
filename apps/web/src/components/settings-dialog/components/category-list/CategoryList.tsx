@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { ChevronRightIcon } from 'lucide-react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { Fragment } from 'react'
 import { Separator } from '@/components/ui/separator'
 import type { CategoryListProps } from './types'
@@ -34,7 +34,7 @@ export const CategoryList = ({
                 <category.icon className="size-4 shrink-0" />
                 <span className="flex-1 truncate">{category.label}</span>
                 {category.badge}
-                <ChevronRightIcon className="size-4 text-muted-foreground md:hidden" />
+                <CaretRightIcon className="size-4 text-muted-foreground md:hidden" />
               </button>
             </li>
           ))}

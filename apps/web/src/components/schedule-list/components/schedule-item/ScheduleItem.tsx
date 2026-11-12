@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { PauseIcon, PlayIcon, RepeatIcon, XIcon } from 'lucide-react'
+import { PauseIcon, PlayIcon, RepeatIcon, XIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { cn } from 'cn'
 import {

@@ -1,14 +1,15 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, XIcon } from 'lucide-react'
+import {
+  ArrowDownIcon,
+  CrownIcon,
+  ArrowUpIcon,
+  PlusIcon,
+  XIcon,
+} from '@phosphor-icons/react'
 import { FamiliarLink } from '@/components/familiar-link'
+import { LeadBadge } from '@/components/lead-badge'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Item,
   ItemActions,
@@ -21,29 +22,46 @@ import { workspace } from '@/lib/familiar'
 import { useFamiliars } from '@/lib/workspace'
 import type { MembersSettingsProps } from './types'
 
-/** The room's Familiars, in order: move them, take them out, or add more. */
+/**
+ * The room's Familiars, in order, to crown as lead, move or take out; then
+ * every other Familiar, faint, each a click from joining. A crowned lead
+ * moves to the top; crowning it again opens the room and leaves it there.
+ */
+/** Its members in order, and which of them leads, if any. */
+type Setup = { order: readonly number[]; lead: number | undefined }
+
 export const MembersSettings = ({ room }: MembersSettingsProps) => {
   const familiars = useFamiliars()
   const change = useMutation({
-    mutationFn: (members: number[]) =>
+    mutationFn: (next: Setup) =>
       workspace.rooms.update(room.id, {
-        familiars: members,
-        // A lead taken out leaves the room open.
-        ...(room.lead !== undefined &&
-          !members.includes(room.lead) && { lead: null }),
+        familiars: [...next.order],
+        lead: next.lead ?? null,
       }),
   })
+  // Shown as asked straight away, rather than dimming every control until
+  // the room confirms it.
+  const shown: Setup = (change.isPending && change.variables) || {
+    order: room.familiars,
+    lead: room.lead,
+  }
+  const save = (order: readonly number[], lead = shown.lead) =>
+    // A lead taken out leaves the room open.
+    change.mutate({
+      order,
+      lead: lead !== undefined && order.includes(lead) ? lead : undefined,
+    })
   const outside = familiars.filter(
-    (familiar) => !room.familiars.includes(familiar.id),
+    (familiar) => !shown.order.includes(familiar.id),
   )
-  const members = room.familiars.flatMap(
+  const members = shown.order.flatMap(
     (id) => familiars.find((familiar) => familiar.id === id) ?? [],
   )
   const move = (index: number, by: number) => {
-    const next = [...room.familiars]
+    const next = [...shown.order]
     const [moved] = next.splice(index, 1)
     next.splice(index + by, 0, moved!)
-    change.mutate(next)
+    save(next)
   }
 
   return (
@@ -51,25 +69,53 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
       <ItemGroup className="gap-1.5">
         {members.map((familiar, index) => (
           <Item key={familiar.id} variant="outline" size="xs">
-            <ItemMedia>
+            <ItemMedia className="relative">
               <PixelAvatar familiar={familiar} />
+              {shown.lead === familiar.id && <LeadBadge />}
             </ItemMedia>
             <ItemContent>
               <ItemTitle className="text-sm">
                 <FamiliarLink id={familiar.id} />
-                {room.lead === familiar.id && (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    · lead
-                  </span>
-                )}
               </ItemTitle>
             </ItemContent>
             {!room.archived && (
               <ItemActions className="gap-0">
                 <Button
+                  variant={shown.lead === familiar.id ? 'secondary' : 'ghost'}
+                  size="icon-sm"
+                  aria-pressed={shown.lead === familiar.id}
+                  onClick={() =>
+                    shown.lead === familiar.id
+                      ? // Uncrowned, it keeps its place.
+                        save(shown.order, undefined)
+                      : // Crowned, it moves to the top.
+                        save(
+                          [
+                            familiar.id,
+                            ...shown.order.filter((id) => id !== familiar.id),
+                          ],
+                          familiar.id,
+                        )
+                  }
+                  aria-label={
+                    shown.lead === familiar.id
+                      ? `${familiar.name} leads: open the room instead`
+                      : `Make ${familiar.name} the lead`
+                  }
+                  title={
+                    shown.lead === familiar.id
+                      ? 'Leads: click to open the room'
+                      : 'Make lead'
+                  }
+                >
+                  <CrownIcon
+                    weight={shown.lead === familiar.id ? 'fill' : 'regular'}
+                  />
+                </Button>
+                <Button
                   variant="ghost"
                   size="icon-sm"
-                  disabled={index === 0 || change.isPending}
+                  disabled={index === 0}
                   onClick={() => move(index, -1)}
                   aria-label={`Move ${familiar.name} up`}
                 >
@@ -78,7 +124,7 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  disabled={index === members.length - 1 || change.isPending}
+                  disabled={index === members.length - 1}
                   onClick={() => move(index, 1)}
                   aria-label={`Move ${familiar.name} down`}
                 >
@@ -87,11 +133,9 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  disabled={members.length === 1 || change.isPending}
+                  disabled={members.length === 1}
                   onClick={() =>
-                    change.mutate(
-                      room.familiars.filter((id) => id !== familiar.id),
-                    )
+                    save(shown.order.filter((id) => id !== familiar.id))
                   }
                   aria-label={`Take ${familiar.name} out of the room`}
                 >
@@ -106,25 +150,39 @@ export const MembersSettings = ({ room }: MembersSettingsProps) => {
         <p className="text-xs text-destructive">{change.error.message}</p>
       )}
       {outside.length > 0 && !room.archived && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" className="self-start" />}
-          >
-            <PlusIcon />
-            Add a Familiar
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
+        <div className="flex flex-col gap-1.5 pt-2">
+          <p className="text-xs text-muted-foreground">Not in this room</p>
+          <ItemGroup className="gap-1.5">
             {outside.map((familiar) => (
-              <DropdownMenuItem
+              <Item
                 key={familiar.id}
-                onClick={() => change.mutate([...room.familiars, familiar.id])}
+                variant="outline"
+                size="xs"
+                className="border-dashed"
               >
-                <PixelAvatar familiar={familiar} />
-                {familiar.name}
-              </DropdownMenuItem>
+                <ItemMedia className="opacity-70">
+                  <PixelAvatar familiar={familiar} />
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle className="text-sm text-muted-foreground">
+                    {familiar.name}
+                  </ItemTitle>
+                </ItemContent>
+                <ItemActions>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => save([...shown.order, familiar.id])}
+                    aria-label={`Add ${familiar.name} to the room`}
+                  >
+                    <PlusIcon />
+                    Add
+                  </Button>
+                </ItemActions>
+              </Item>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </ItemGroup>
+        </div>
       )}
     </div>
   )

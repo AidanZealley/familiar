@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from 'lucide-react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,7 +30,7 @@ export const Activity = ({
     >
       <MarkerIcon>{icon}</MarkerIcon>
       <MarkerContent className={cn(active && 'shimmer')}>{label}</MarkerContent>
-      <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]/activity:rotate-90" />
+      <CaretRightIcon className="size-3.5 transition-transform group-data-[panel-open]/activity:rotate-90" />
     </CollapsibleTrigger>
     <CollapsibleContent className="mt-2 ml-6 space-y-2 border bg-muted/40 p-3 font-mono text-xs">
       {children}

@@ -1,5 +1,5 @@
 import { useRoom, useRoomStore } from '@familiar-ai/client/react'
-import { LoaderCircleIcon } from 'lucide-react'
+import { PixelCat } from '@/components/pixel-cat'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
@@ -36,7 +36,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
           'flex items-center gap-1.5 border bg-background px-3 py-1 text-muted-foreground',
         )}
       >
-        <LoaderCircleIcon className="size-3.5 animate-spin" />
+        <PixelCat animated className="size-4" />
         Loading earlier messages
       </div>
     )

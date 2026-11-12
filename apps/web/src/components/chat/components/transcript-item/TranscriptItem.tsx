@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { ClockIcon, HourglassIcon, MoonIcon } from 'lucide-react'
+import { ClockIcon, HourglassIcon, MoonIcon } from '@phosphor-icons/react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { FamiliarLink } from '@/components/familiar-link'
 import { FamiliarTurn } from '../familiar-turn'
@@ -13,9 +13,9 @@ import type { TranscriptItemProps } from './types'
 
 /**
  * One item. In a named room, a Familiar's replies sit beside its portrait,
- * named once per run, and its handoffs, notes and quiet passes line up with
- * them; in a DM they take the full width. People's messages and schedules
- * stand on their own.
+ * named once per run, and its handoffs and quiet passes line up with them;
+ * in a DM they take the full width. People's messages, notes and schedules
+ * stand on their own, notes across the whole conversation.
  */
 export const TranscriptItem = ({
   item,
@@ -39,11 +39,7 @@ export const TranscriptItem = ({
         </div>
       )
     case 'note':
-      return (
-        <div className={gutter}>
-          <RoomNote note={item} />
-        </div>
-      )
+      return <RoomNote note={item} />
     case 'waiting':
       return (
         <FamiliarTurn

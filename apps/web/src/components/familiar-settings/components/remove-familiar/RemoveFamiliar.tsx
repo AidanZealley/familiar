@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Trash2Icon } from 'lucide-react'
+import { TrashIcon } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +34,7 @@ export const RemoveFamiliar = ({ familiar }: RemoveFamiliarProps) => {
       <AlertDialogTrigger
         render={<Button variant="destructive" className="self-start" />}
       >
-        <Trash2Icon />
+        <TrashIcon />
         Remove {familiar.name}
       </AlertDialogTrigger>
       <AlertDialogContent>

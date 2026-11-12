@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { CircleAlertIcon } from 'lucide-react'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { LiveStatus } from '@/components/live-status'
 import { Badge } from '@/components/ui/badge'
@@ -56,7 +56,7 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
               hasUnread && !failed && 'text-foreground',
             )}
           >
-            {failed && <CircleAlertIcon className="size-3 shrink-0" />}
+            {failed && <WarningCircleIcon className="size-3 shrink-0" />}
             <span className="truncate">
               {previewOf(last, familiars, me, room?.kind === 'dm')}
             </span>

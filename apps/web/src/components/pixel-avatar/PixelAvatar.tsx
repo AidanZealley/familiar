@@ -1,12 +1,14 @@
 import { cn } from 'cn'
-import { avatarOf, hueOf, usePortraits } from '@/lib/avatars'
+import { PixelCharacter } from '@/components/pixel-character'
+import { hueOf, imageUrl, portraitOf, usePortraitImages } from '@/lib/avatars'
 import type { PixelAvatarProps } from './types'
 
 /**
- * A Familiar's pixel portrait: square, unframed, its art drawn pixelated at
- * whole multiples of 32px. While it talks, it steps between its strip's two
- * frames; reduced motion keeps it still. Without portraits, its initial on
- * its colour. A crop keeps the middle of the face, so pixels stay whole.
+ * A Familiar's portrait, square and unframed, at whole multiples of 32px so
+ * pixels stay whole: its generated character on a faint square, its initial
+ * on its colour, or the owner's image. While it replies, a character bobs
+ * and an image steps between its strip's two frames; reduced motion keeps
+ * them still. A crop keeps the middle of the face.
  */
 export const PixelAvatar = ({
   familiar,
@@ -15,19 +17,35 @@ export const PixelAvatar = ({
   crop = 'whole',
   className,
 }: PixelAvatarProps) => {
-  const src = avatarOf(familiar, usePortraits())
+  const portrait = portraitOf(familiar, usePortraitImages().names)
   const size = 32 * scale
   const width = crop === 'whole' ? size : size / 2
   const height = crop === 'quarter' ? size / 2 : size
+  const offset = {
+    marginLeft: crop === 'whole' ? 0 : -size / 4,
+    marginTop: crop === 'quarter' ? -size / 4 : 0,
+  }
 
   return (
     <span
       role="img"
       aria-label={talking ? `${familiar.name}, replying` : familiar.name}
-      className={cn('block shrink-0 overflow-hidden', className)}
+      className={cn(
+        'block shrink-0 overflow-hidden',
+        portrait.kind === 'character' && 'bg-muted-foreground/15',
+        className,
+      )}
       style={{ width, height }}
     >
-      {!src ? (
+      {portrait.kind === 'character' ? (
+        <PixelCharacter
+          shape={portrait.shape}
+          colour={portrait.colour}
+          size={size}
+          talking={talking}
+          style={offset}
+        />
+      ) : portrait.kind === 'initial' ? (
         <span
           aria-hidden
           className="grid size-full place-items-center font-heading font-medium text-neutral-900 uppercase"
@@ -40,7 +58,7 @@ export const PixelAvatar = ({
         </span>
       ) : (
         <img
-          src={src}
+          src={imageUrl(portrait.name)}
           alt=""
           width={size * 2}
           height={size}
@@ -49,10 +67,7 @@ export const PixelAvatar = ({
             'max-w-none [image-rendering:pixelated]',
             talking && 'animate-pixel-talk motion-reduce:animate-none',
           )}
-          style={{
-            marginLeft: crop === 'whole' ? 0 : -size / 4,
-            marginTop: crop === 'quarter' ? -size / 4 : 0,
-          }}
+          style={offset}
         />
       )}
     </span>

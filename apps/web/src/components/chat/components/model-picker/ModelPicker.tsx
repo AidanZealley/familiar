@@ -1,6 +1,6 @@
 import { type ModelRef, type ModelThinkingLevel } from '@familiar-ai/client'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { BrainIcon, ChevronDownIcon } from 'lucide-react'
+import { BrainIcon, CaretDownIcon } from '@phosphor-icons/react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,7 +72,7 @@ export const ModelPicker = ({ place = 'composer' }: ModelPickerProps) => {
       <DropdownMenu>
         <DropdownMenuTrigger render={trigger}>
           {current.name}
-          <ChevronDownIcon />
+          <CaretDownIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent {...content} className="w-48">
           <DropdownMenuGroup>
@@ -105,7 +105,7 @@ export const ModelPicker = ({ place = 'composer' }: ModelPickerProps) => {
         <DropdownMenuTrigger render={trigger}>
           <BrainIcon />
           {LEVEL_NAMES[agent.thinkingLevel]}
-          <ChevronDownIcon />
+          <CaretDownIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent {...content} className="w-48">
           <DropdownMenuGroup>

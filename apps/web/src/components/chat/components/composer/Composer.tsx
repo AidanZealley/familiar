@@ -4,10 +4,11 @@ import { useMutation, useMutationState } from '@tanstack/react-query'
 import {
   ArchiveIcon,
   ArrowUpIcon,
-  CircleAlertIcon,
-  AtSignIcon,
+  WarningCircleIcon,
+  AtIcon,
+  NoteIcon,
   SquareIcon,
-} from 'lucide-react'
+} from '@phosphor-icons/react'
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
   InputGroup,
@@ -21,21 +22,27 @@ import { MentionMenu } from './components/mention-menu'
 import { completeMention, mentionQuery, toParts } from './mentions'
 import type { ComposerProps } from './types'
 
-/** What's typed, and the Familiars picked from the `@` menu while typing it. */
-type Draft = { text: string; picked: readonly FamiliarSummary[] }
+/**
+ * What's typed, the Familiars picked from the `@` menu while typing it, and
+ * whether it goes as a note: context no one replies to.
+ */
+type Draft = { text: string; picked: readonly FamiliarSummary[]; note: boolean }
 
-const empty: Draft = { text: '', picked: [] }
+const empty: Draft = { text: '', picked: [], note: false }
 
 export const Composer = ({ room, busy }: ComposerProps) => {
   const store = useRoomStore()
   const familiars = useFamiliars()
   const input = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState<Draft>(empty)
-  const { text } = draft
+  const { text, note } = draft
   const send = useMutation({
     mutationKey: ['composer'],
     // While busy this queues; it's answered after the current replies.
-    mutationFn: ({ text, picked }: Draft) => {
+    mutationFn: ({ text, picked, note }: Draft) => {
+      if (note) {
+        return store.note(text)
+      }
       const message = composeMessage(toParts(text, picked))
       return store.send(message.text, message.mentions)
     },
@@ -58,7 +65,8 @@ export const Composer = ({ room, busy }: ComposerProps) => {
     room.kind === 'room'
       ? familiars.filter((familiar) => room.familiars.includes(familiar.id))
       : []
-  const query = mentionQuery(text)
+  // A note addresses no one.
+  const query = note ? undefined : mentionQuery(text)
   const suggestions =
     query === undefined
       ? []
@@ -69,6 +77,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
 
   const mention = (familiar: FamiliarSummary) => {
     setDraft({
+      ...draft,
       text: completeMention(text, familiar),
       picked: [...draft.picked, familiar],
     })
@@ -80,7 +89,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
     const message = text.trim()
     if (message) {
       setDraft(empty)
-      send.mutate({ text: message, picked: draft.picked })
+      send.mutate({ ...draft, text: message })
     }
   }
 
@@ -125,8 +134,18 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           role="alert"
           className="mb-2 flex items-start gap-1.5 border border-destructive/40 bg-destructive/15 px-3 py-2 text-xs text-destructive backdrop-blur-xl dark:bg-destructive/25"
         >
-          <CircleAlertIcon className="mt-px size-3.5 shrink-0" />
+          <WarningCircleIcon className="mt-px size-3.5 shrink-0" />
           {error.message}
+        </p>
+      )}
+      {note && (
+        <p
+          role="status"
+          className="mb-2 flex items-start gap-1.5 border bg-background/80 px-3 py-2 text-xs text-muted-foreground backdrop-blur-xl"
+        >
+          <NoteIcon className="mt-px size-3.5 shrink-0" />
+          Sends as a note: context for{' '}
+          {room.kind === 'dm' ? title : 'the Familiars here'}, with no reply.
         </p>
       )}
       <InputGroup className="bg-background/80 backdrop-blur-xl has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-[color-mix(in_oklab,var(--color-input)_30%,var(--color-background))]/80 dark:has-disabled:bg-input/30">
@@ -136,8 +155,8 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           onChange={(event) => setDraft({ ...draft, text: event.target.value })}
           onKeyDown={onKeyDown}
           enterKeyHint="enter"
-          aria-label={`Message ${title}`}
-          placeholder={`Message ${title}`}
+          aria-label={note ? `Note for ${title}` : `Message ${title}`}
+          placeholder={note ? `Note for ${title}` : `Message ${title}`}
           rows={1}
           className="max-h-48 p-3 text-sm md:text-sm"
         />
@@ -155,9 +174,22 @@ export const Composer = ({ room, busy }: ComposerProps) => {
                 input.current?.focus()
               }}
             >
-              <AtSignIcon />
+              <AtIcon />
             </InputGroupButton>
           )}
+          <InputGroupButton
+            size="icon-sm"
+            variant={note ? 'secondary' : 'ghost'}
+            aria-label="Send as a note"
+            aria-pressed={note}
+            title="Send as a note"
+            onClick={() => {
+              setDraft({ ...draft, note: !note })
+              input.current?.focus()
+            }}
+          >
+            <NoteIcon weight={note ? 'fill' : 'regular'} />
+          </InputGroupButton>
           <InputGroupButton
             type={showStop ? 'button' : 'submit'}
             size="icon-sm"

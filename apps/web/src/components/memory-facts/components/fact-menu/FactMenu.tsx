@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query'
 import {
   ArchiveIcon,
-  EllipsisIcon,
-  PencilIcon,
-  PinIcon,
-  PinOffIcon,
-} from 'lucide-react'
+  DotsThreeVerticalIcon,
+  PencilSimpleIcon,
+  PushPinIcon,
+  PushPinSlashIcon,
+} from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -35,15 +35,15 @@ export const FactMenu = ({ fact, onEdit }: FactMenuProps) => {
           <Button size="icon-sm" variant="ghost" aria-label="Fact actions" />
         }
       >
-        <EllipsisIcon />
+        <DotsThreeVerticalIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem onClick={onEdit}>
-          <PencilIcon />
+          <PencilSimpleIcon />
           Edit
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setPinned.mutate(!fact.pinned)}>
-          {fact.pinned ? <PinOffIcon /> : <PinIcon />}
+          {fact.pinned ? <PushPinSlashIcon /> : <PushPinIcon />}
           {fact.pinned ? 'Unpin from core' : 'Pin to core'}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => retire.mutate()}>

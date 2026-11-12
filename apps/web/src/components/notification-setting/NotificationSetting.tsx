@@ -1,4 +1,4 @@
-import { BellIcon, BellOffIcon } from 'lucide-react'
+import { BellIcon, BellSlashIcon } from '@phosphor-icons/react'
 import { IconTile } from '@/components/icon-tile'
 import { Button } from '@/components/ui/button'
 import { useNotifications, type NotificationStatus } from './notifications'
@@ -20,7 +20,7 @@ export const NotificationSetting = () => {
 
   return (
     <section className="flex items-center gap-3 border bg-card p-3">
-      <IconTile icon={on ? BellIcon : BellOffIcon} />
+      <IconTile icon={on ? BellIcon : BellSlashIcon} />
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-medium">Notifications</h2>
         <p className="text-xs text-muted-foreground">{explanations[status]}</p>

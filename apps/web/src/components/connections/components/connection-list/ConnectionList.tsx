@@ -1,4 +1,4 @@
-import { SearchIcon } from 'lucide-react'
+import { MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { idOf, needsAttention, whereOf } from '../../status'
 import { ConnectionRow } from './components/connection-row'
@@ -49,7 +49,7 @@ export const ConnectionList = ({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           aria-label="Search connections"

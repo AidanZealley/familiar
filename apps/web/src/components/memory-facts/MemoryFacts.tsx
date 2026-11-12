@@ -1,9 +1,13 @@
-import { BrainIcon, LayersIcon, PinIcon } from 'lucide-react'
+import { BrainIcon, StackIcon } from '@phosphor-icons/react'
 import { useFamiliar } from '@/lib/familiar'
-import { coreFacts, reserveFacts } from '@/lib/memory'
-import { FactList } from './components/fact-list'
-import { MemoryOverview } from './components/memory-overview'
+import { coreFacts, coreSize, reserveFacts } from '@/lib/memory'
+import { BudgetMeter } from './components/budget-meter'
+import { FactSection } from './components/fact-section'
 
+/**
+ * What a Familiar knows now: how much of core's budget it uses, then core's
+ * facts, pinned first then most important, then reserve's.
+ */
 export const MemoryFacts = () => {
   const facts = useFamiliar((state) => state.memory?.facts)
   if (!facts) {
@@ -21,23 +25,17 @@ export const MemoryFacts = () => {
   }
 
   return (
-    <div className="flex flex-col gap-10">
-      <MemoryOverview core={core} reserve={reserve} />
-      <FactList
-        title="Pinned"
-        icon={PinIcon}
-        description="Always in core, whatever their importance."
-        facts={core.filter((fact) => fact.pinned)}
-      />
-      <FactList
-        title="Core"
+    <div className="flex flex-col gap-8">
+      <BudgetMeter size={coreSize(core)} />
+      <FactSection
         icon={BrainIcon}
-        description="Read before every reply, most important first."
-        facts={core.filter((fact) => !fact.pinned)}
+        title="Core"
+        description="Read before every reply, pinned and most important first."
+        facts={core}
       />
-      <FactList
+      <FactSection
+        icon={StackIcon}
         title="Reserve"
-        icon={LayersIcon}
         description="Kept, and brought into a reply when it seems relevant."
         facts={reserve}
       />

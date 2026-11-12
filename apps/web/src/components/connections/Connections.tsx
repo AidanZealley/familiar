@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+import { PixelCat } from '@/components/pixel-cat'
 import { AddServerForm } from './components/add-server-form'
 import { ConnectionDetail } from './components/connection-detail'
 import { ConnectionDrawer } from './components/connection-drawer'
@@ -28,7 +28,9 @@ export const Connections = () => {
     return error ? (
       <ConnectionsError error={error} onRetry={() => void refetch()} />
     ) : (
-      <Spinner />
+      <span role="status" aria-label="Loading">
+        <PixelCat animated className="size-8" />
+      </span>
     )
   }
 

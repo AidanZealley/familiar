@@ -1,5 +1,5 @@
 ---
-import { Download } from '@lucide/astro'
+import DownloadSimple from '@phosphor-icons/core/regular/download-simple.svg'
 import { links } from './links'
 ---
 
@@ -10,7 +10,7 @@ import { links } from './links'
     <a href={links.build}>Build</a>
     <a href={links.github}>GitHub</a>
     <a class="nav-install" href="#install">
-      <Download size={16} />
+      <DownloadSimple class="icon" aria-hidden="true" width={16} height={16} />
       Install
     </a>
   </nav>

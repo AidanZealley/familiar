@@ -1,4 +1,4 @@
-import { CircleAlertIcon } from 'lucide-react'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import { PixelCat } from '@/components/pixel-cat'
 import { connectionProblems } from '@/lib/connection-problems'
 import { useWorkspace } from '@/lib/familiar'
@@ -28,7 +28,7 @@ export const ConnectionStatus = () => {
       )
     default:
       return (
-        <CircleAlertIcon
+        <WarningCircleIcon
           role="img"
           className="size-5 text-destructive"
           aria-label={connectionProblems[connection]}

@@ -1,3 +1,3 @@
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@phosphor-icons/react'
 
-export type IconTileProps = { icon: LucideIcon }
+export type IconTileProps = { icon: Icon }

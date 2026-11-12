@@ -1,6 +1,6 @@
 import { useMutationState } from '@tanstack/react-query'
 import { cn } from 'cn'
-import { Spinner } from '@/components/ui/spinner'
+import { PixelCat } from '@/components/pixel-cat'
 import { useWorkspace } from '@/lib/familiar'
 import { BrowserSignIn } from './components/browser-sign-in'
 import { CancelSignIn } from './components/cancel-sign-in'
@@ -37,7 +37,7 @@ export const SignIn = ({ className }: SignInProps) => {
       ) : (
         <>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner />
+            <PixelCat animated className="size-4" />
             Starting sign-in…
           </p>
           <div>

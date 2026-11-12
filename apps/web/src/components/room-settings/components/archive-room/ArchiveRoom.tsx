@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArchiveIcon, ArchiveRestoreIcon } from 'lucide-react'
+import { ArchiveIcon, BoxArrowUpIcon } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,7 @@ export const ArchiveRoom = ({ room }: ArchiveRoomProps) => {
           disabled={archive.isPending}
           onClick={() => archive.mutate()}
         >
-          <ArchiveRestoreIcon />
+          <BoxArrowUpIcon />
           Unarchive {room.name}
         </Button>
         {error}

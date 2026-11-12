@@ -1,4 +1,8 @@
-import { ChevronLeftIcon, SearchIcon, XIcon } from 'lucide-react'
+import {
+  CaretLeftIcon,
+  MagnifyingGlassIcon,
+  XIcon,
+} from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,7 +61,7 @@ export const SettingsDialog = ({
     <div className="flex flex-col gap-3">
       <InputGroup>
         <InputGroupAddon>
-          <SearchIcon />
+          <MagnifyingGlassIcon />
         </InputGroupAddon>
         <InputGroupInput
           type="search"
@@ -93,16 +97,20 @@ export const SettingsDialog = ({
         showCloseButton={false}
         className="flex flex-col gap-0 overflow-hidden p-0 max-md:inset-0 max-md:h-(--app-height) max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:ring-0 md:h-[min(44rem,calc(100dvh-4rem))] md:max-w-4xl"
       >
-        <header className="flex shrink-0 items-center gap-2 border-b px-2 pt-(--status-bar) md:px-4">
-          <div className="flex h-12 min-w-0 flex-1 items-center gap-2">
+        {/* On a phone it fills the screen, so its header matches the app's.
+            Its buttons' icons, not their padding, line up with the content:
+            the close button's 10px inset is inside the right padding. */}
+        <header className="flex shrink-0 items-center gap-2 border-b pt-(--status-bar) pr-1.5 pl-4 max-md:h-(--chrome) md:pr-3 md:pl-3">
+          <div className="flex h-12 min-w-0 flex-1 items-center gap-2 max-md:h-full">
             {isPhone && current ? (
               <Button
                 variant="ghost"
                 size="icon-lg"
                 aria-label="All settings"
+                className="-ml-2.5"
                 onClick={() => showCategory(undefined)}
               >
-                <ChevronLeftIcon />
+                <CaretLeftIcon />
               </Button>
             ) : (
               media

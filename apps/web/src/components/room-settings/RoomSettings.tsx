@@ -1,14 +1,13 @@
-import { ArchiveIcon, CrownIcon, SettingsIcon, UsersIcon } from 'lucide-react'
+import { ArchiveIcon, GearSixIcon, UsersIcon } from '@phosphor-icons/react'
 import { RoomAvatar } from '@/components/room-avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { useRoomSummary } from '@/lib/workspace'
 import { ArchiveRoom } from './components/archive-room'
 import { GeneralSettings } from './components/general-settings'
-import { LeadSettings } from './components/lead-settings'
 import { MembersSettings } from './components/members-settings'
 import type { RoomSettingsProps } from './types'
 
-/** A named room's name, members and lead, and archiving it. */
+/** A named room's name, its members and their lead, and archiving it. */
 export const RoomSettings = ({ id }: RoomSettingsProps) => {
   const room = useRoomSummary(id)
 
@@ -25,7 +24,7 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
             {
               id: 'general',
               label: 'General',
-              icon: SettingsIcon,
+              icon: GearSixIcon,
               keywords: 'name rename',
               content: <GeneralSettings key={room.id} room={room} />,
             },
@@ -33,19 +32,10 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
               id: 'members',
               label: 'Members',
               icon: UsersIcon,
-              keywords: 'familiars order add remove',
+              keywords: 'familiars order add remove lead crown open',
               description:
-                'The Familiars in this room. In an open room, they take turns in this order.',
+                'The Familiars in this room. Crown one as lead to answer every message that @mentions no one; without a lead the room is open, and they take turns in this order.',
               content: <MembersSettings room={room} />,
-            },
-            {
-              id: 'lead',
-              label: 'Lead',
-              icon: CrownIcon,
-              keywords: 'open',
-              description:
-                'A lead answers every message that @mentions no one, and can hand off. Without one the room is open: each Familiar may answer, in turn, or stay quiet.',
-              content: <LeadSettings room={room} />,
             },
           ],
         },

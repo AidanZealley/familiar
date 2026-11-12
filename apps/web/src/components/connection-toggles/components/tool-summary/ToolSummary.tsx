@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from 'lucide-react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -10,7 +10,7 @@ import type { ToolSummaryProps } from './types'
 export const ToolSummary = ({ tools }: ToolSummaryProps) => (
   <Collapsible className="min-w-0">
     <CollapsibleTrigger className="group/tools flex w-full min-w-0 items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground">
-      <ChevronRightIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]/tools:rotate-90" />
+      <CaretRightIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]/tools:rotate-90" />
       <span className="truncate font-mono">
         {tools.map((tool) => tool.name).join(', ')}
       </span>

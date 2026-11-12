@@ -131,6 +131,19 @@
   }
 }
 
+/* The pixel spinner lights one square of its ring at a time, in turn. */
+@theme {
+  --animate-pixel-spin: pixel-spin 800ms step-end infinite;
+  @keyframes pixel-spin {
+    0% {
+      opacity: 1;
+    }
+    12.5% {
+      opacity: 0.25;
+    }
+  }
+}
+
 @theme inline {
   --font-sans: 'Geist Variable', sans-serif;
   --font-heading: var(--font-mono);

@@ -49,7 +49,9 @@ It holds the conversation, memory, your ChatGPT login, connection keys, notifica
 
 ### Portraits
 
-Without portraits, each Familiar shows its initial on a colour. To give them pictures, put PNGs in the `avatars` folder in the data directory, which `familiar status` shows. Each is a 64×32 strip of two 32×32 frames: the face with its mouth closed, then open, which the web UI alternates while the Familiar replies. Each Familiar's Profile settings then offer them, and Automatic picks one from its ID. Familiar reads the folder as you use it, so new ones show when you reopen the app.
+Each Familiar starts with its own pixel character, generated from its ID, which looks around and blinks. In the web UI, its settings' Profile changes it to its initial on a colour, another character's shape or colour, or one of your own images.
+
+Your own images go in the `avatars` folder in the data directory, which `familiar status` shows and the Image tab names. Each is a 64×32 PNG strip of two 32×32 frames: the face with its mouth closed, then open, which the web UI alternates while the Familiar replies. The file's name is the portrait's name. Familiar reads the folder as you use it, so new images show when you reopen the app.
 
 Dates and reminders use the computer's time zone when Familiar starts. Restart it after you change time zones.
 

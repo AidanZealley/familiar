@@ -283,6 +283,14 @@ export const roomCommands = (api: Api, id: number) => {
           },
         }),
       ),
+    /**
+     * Posts a note: context the room's Familiars see on their next turn,
+     * which no one replies to.
+     */
+    note: (text: string) =>
+      succeed(
+        room.notes.$post({ param, json: { text, requestId: randomId() } }),
+      ),
     /** Stops every turn in the room. */
     stop: () => succeed(room.stop.$post({ param })),
     /**
