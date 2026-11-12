@@ -100,14 +100,14 @@ export function upkeepTools(timeZone: string) {
   const remember = defineTool({
     name: 'remember',
     description:
-      'Save a lasting fact about the person or people the assistant helps: a preference, a decision, something about their life or plans. One statement of at most 300 characters, written so it makes sense on its own months from now.',
+      "Save a lasting fact the assistant couldn't otherwise know next time: about the people it helps, their preferences, decisions and plans, or how to help them well. Not what the assistant already holds itself (schedules, reminders, connections, settings), and not passing events. One statement of at most 300 characters, written so it makes sense on its own months from now.",
     parameters: Type.Object({
       text: Type.String(),
       importance: Type.Integer({
         minimum: 1,
         maximum: 5,
         description:
-          '5: identity, close people, health, standing commitments, and anything they asked to be remembered. 3: ordinary lasting facts. 1: minor preferences and details.',
+          'How badly would a reply about something unrelated go without this? 5: it could be wrong or harmful; who someone is, who matters to them and what could harm them are usually 4 or 5. 4: clearly worse. 4 and 5 go into core, which is read in every conversation and is small. 3: matters only when one subject or task comes up, however firmly stated; likely to. 2: only might come up. 1: hardly matters. Being asked to remember it does not raise this.',
       }),
       sources: Type.Array(Type.String(), { minItems: 1, description: SOURCES }),
       since: Type.Optional(
@@ -139,7 +139,7 @@ export function upkeepTools(timeZone: string) {
   const revise = defineTool({
     name: 'revise_memory',
     description:
-      'Save a new version of a fact that has changed or was wrong; the old version becomes past, ending the day the new one begins. To merge facts that say the same thing, revise one and list the others in merge.',
+      'Save a new version of a fact that has changed or was wrong; the old version becomes past, ending the day the new one begins. The new text replaces the old, so it must keep everything from the old that is still true; if it would drop something, keep that as its own fact. To merge facts that say the same thing, revise one and list the others in merge.',
     parameters: Type.Object({
       id: Type.String(),
       text: Type.String(),
@@ -182,7 +182,7 @@ export function upkeepTools(timeZone: string) {
   const retire = defineTool({
     name: 'retire',
     description:
-      'Mark a fact as no longer true, such as an old address or a finished project. It is kept as history. Not for duplicates: merge those with revise_memory.',
+      'Mark a fact as no longer true, such as an old address, a finished project or a plan whose day has passed. It is kept as history. Not for duplicates: merge those with revise_memory, and not to replace a fact that only partly changed: revise it.',
     parameters: Type.Object({
       id: Type.String(),
       sources: Type.Optional(
