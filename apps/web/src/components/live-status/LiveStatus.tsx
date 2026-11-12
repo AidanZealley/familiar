@@ -1,5 +1,6 @@
 import { cn } from 'cn'
-import { ClockIcon, HourglassIcon } from '@phosphor-icons/react'
+import { ClockIcon } from '@phosphor-icons/react'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { nameOf, useFamiliars } from '@/lib/workspace'
 import type { LiveStatusProps } from './types'
 
@@ -36,7 +37,7 @@ export const LiveStatus = ({ live, className }: LiveStatusProps) => {
   if (live.elsewhere.length) {
     return (
       <span className={cn(line, className)}>
-        <HourglassIcon className="size-3 shrink-0" />
+        <HourglassSpinner />
         <span className="truncate">
           {names(live.elsewhere)} busy in another room
         </span>
