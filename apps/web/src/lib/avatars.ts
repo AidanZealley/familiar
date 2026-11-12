@@ -59,8 +59,8 @@ export const portraitOf = (
 
 /**
  * The owner's own portraits, which the daemon serves from the `avatars`
- * folder in its data directory: 64×32 PNG strips, frame 1 (mouth closed)
- * then frame 2 (open), each named by its file. `folder` says where, for
+ * folder in its data directory: 64×32 PNG strips of two 32×32 frames,
+ * alternated while the Familiar replies, each named by its file. `folder` says where, for
  * the owner to add more; it's missing where nothing serves them.
  */
 export type PortraitImages = { folder?: string; names: string[] }

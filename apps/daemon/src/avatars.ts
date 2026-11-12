@@ -7,7 +7,8 @@ const NAME = /^[\w-]{1,64}$/
 
 /**
  * The owner's own portraits for their Familiars: each a 64×32 PNG strip in
- * `dir`, frame 1 (mouth closed) then frame 2 (open). A Familiar's `avatar`
+ * `dir`, two 32×32 frames side by side that the UI alternates while the
+ * Familiar replies. A Familiar's `avatar`
  * names one. Read on every request, so a strip added or removed shows
  * without a restart; without the folder there are none. The listing says
  * where the folder is, so the web UI can tell the owner where to add more.
