@@ -1,0 +1,259 @@
+{
+  "date": "2026-11-12",
+  "commit": "v0.2.0-58-g4b7be78-dirty",
+  "proactive": {
+    "with": {
+      "passed": 7,
+      "total": 7,
+      "rate": 1
+    },
+    "without": {
+      "passed": 0,
+      "total": 7,
+      "rate": 0
+    },
+    "gain": 1
+  },
+  "restraint": {
+    "passed": 4,
+    "total": 4,
+    "rate": 1
+  },
+  "attribution": {
+    "passed": 4,
+    "total": 4,
+    "rate": 1
+  },
+  "outcomes": [
+    {
+      "probe": "allergy-dinner",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here are a few ideas for Saturday, all peanut-free:\n\n- **Lemon herb roast chicken** with new potatoes and green beans\n- **Salmon teriyaki** with sesame rice and stir-fried greens\n- **Homemade pizza** with a tomato base, mozzarella, and whatever toppings you like\n- **Beef and vegetable stir-fry** with egg noodles (use a soy or ginger sauce, not satay)\n\nIf you'd like something different, tell me what you're in the mood for, or how many people are coming, and I'll tailor it. I can also help with a shopping list. As always with peanut allergies, check labels on sauces and pre-made ingredients, since peanut can hide in them."
+    },
+    {
+      "probe": "allergy-dinner",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Here are a few ideas for Saturday:\n\n- **Slow-roast chicken thighs** with lemon, garlic and potatoes. It's mostly hands-off.\n- **Homemade pizza night**, with a simple dough and a few toppings for everyone to build their own.\n- **Lamb or chickpea curry** with rice and warm naan. It's easy to make ahead.\n- **Salmon traybake** with courgettes, cherry tomatoes and couscous. It's quick, around 30 minutes.\n\nDo you have a preference for meat, veggie, or something light? Tell me how many people are eating and how much time you have, and I can narrow it down and give you a shopping list."
+    },
+    {
+      "probe": "digest-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "The capital of Australia is Canberra."
+    },
+    {
+      "probe": "other-partner-gift",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "I don't know much about her yet, so I'd need a few details. What are her main interests or hobbies? Roughly what's your budget? And is this a big milestone birthday or a more casual one? Tell me a bit about what she enjoys, and I'll suggest some options that fit."
+    },
+    {
+      "probe": "partner-text",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here's a draft you can send to Theo:\n\n\"Hi love, I'm going to be late home tonight. Sorry for the heads-up being last minute. I'll let you know when I'm on my way. Don't wait up for dinner if you're hungry.\"\n\nWant me to make it warmer, more casual, or add an ETA?"
+    },
+    {
+      "probe": "partner-text",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Here's a draft you can send:\n\n\"Hi love, I'm going to be late home tonight, sorry for the short notice. I'll let you know when I'm on my way. Don't wait up for dinner if you're hungry.\"\n\nWant me to make it more casual, or add a rough time?"
+    },
+    {
+      "probe": "daughter-party",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here's one that works well for a seven-year-old at home: a **backyard (or living room) treasure hunt pirate party**.\n\n- **Invites:** Make a rolled-up \"treasure map\" with a tea stain or crumple, and a bit of gold ribbon.\n- **Games:** Hide chocolate coins or plastic gems around the house, with clues that lead from one spot to the next. The final clue leads to a treasure chest with goody bags.\n- **Activities:** Pirate hats and eye patches to decorate, a \"walk the plank\" game using a line of tape on the floor, and a sandcastle or cupcake decorating station.\n- **Food:** Fish and chips in paper cones, \"sea\" jelly in cups with gummy fish, and a pirate-flag cake or cupcakes.\n\nIf Isla has a different favourite theme, like unicorns, dinosaurs or a particular film, I can adapt this. How many kids are coming, and roughly how long do you have to plan?"
+    },
+    {
+      "probe": "daughter-party",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Here are a few ideas that work well at home:\n\n- **Backyard or living-room cinema night:** Project a favourite film onto a sheet, add popcorn and cushions, and let guests vote on the movie.\n- **Murder mystery:** Print a ready-made mystery kit, assign roles, and let everyone guess the culprit over dinner.\n- **DIY pizza or taco bar:** Set out toppings and let guests build their own. It's cheap, messy in a fun way, and works for all ages.\n- **Themed game tournament:** Mix board games, card games or a console tournament with a bracket and small prizes.\n- **Backyard camp-out:** String fairy lights, set up a tent or blankets, and finish with s'mores.\n\nTell me whose birthday it is, roughly how many guests, and your budget, and I can narrow it down and draft a plan or shopping list."
+    },
+    {
+      "probe": "diabetes-lunch",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Hi Theo. Since your lunch timing matters for your insulin, I'd aim for something with a steady carb amount you can count, plus protein and fibre to slow the rise. Some options:\n\n- **Wholegrain wrap** with chicken or chickpeas, salad, hummus, and a piece of fruit\n- **Quinoa or brown rice bowl** with salmon or tofu, roasted veg, and avocado\n- **Pasta salad** made with wholewheat pasta, cheese, beans, and cherry tomatoes\n\nIf you tell me what you usually eat and what time you have lunch, I can suggest something more specific. I can also set a reminder to check your glucose before lunch if that helps."
+    },
+    {
+      "probe": "diabetes-lunch",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "I don't have anything saved about your lunch preferences or what you usually pack, so I can't tailor it yet. Tell me what you like or have on hand, and any dietary needs, and I can suggest something. If you'd like, I can also remind you to pack it the evening before."
+    },
+    {
+      "probe": "room-dinner",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Here are three easy, family-friendly options. All are peanut-free, which keeps them safe for Maya.\n\n1. **Chicken and vegetable traybake:** Roast chicken thighs with potatoes, carrots, and peppers. The protein and fibre help steady blood sugar, and the potatoes give a predictable carb portion.\n2. **Salmon with brown rice and greens:** Quick to cook, and the rice and greens release energy more slowly than white rice.\n3. **Turkey or lentil chilli with beans:** Make a big batch, serve with a measured portion of rice or wholewheat tortillas, and it reheats well for later.\n\nIf you tell me what's already in the fridge or how much time you have, I can narrow it down. For the timing of your insulin around the meal, go with your usual routine."
+    },
+    {
+      "probe": "room-dinner",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Nothing saved about your family's tastes yet, so here are a few easy options:\n\n- **One-pan chicken traybake** with potatoes, carrots and red onion, roasted at 200°C for about 40 minutes.\n- **Spaghetti bolognese**, which you can make ahead and freeze.\n- **Vegetable and chickpea curry** with rice, quick and good for mixed appetites.\n- **Salmon, new potatoes and green beans**, ready in about 25 minutes.\n\nIf you tell me who's eating, any allergies, and what's already in the fridge, I can narrow it down and give you a full recipe. I'll remember your family's preferences from now on."
+    },
+    {
+      "probe": "recall-friday",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Friday evenings are already partly booked: you have pottery at Kiln House at 7pm. Would you like me to build the rest of the evening around that? I can suggest a quick bite beforehand or a relaxed dinner after, and set a reminder to leave in time.\n\nA few things would help me plan it:\n- Do you want to eat before or after class?\n- Are you going alone, or is someone joining you?\n- Do you want something low-key, or are you up for going out?"
+    },
+    {
+      "probe": "recall-friday",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Happy to help. Since I don't have any notes on your plans yet, a few quick questions:\n\n1. **Which Friday?** Do you mean this coming one, 20 March?\n2. **Who's with you?** Solo, a partner, friends, or family?\n3. **Mood:** relaxed night in, something lively, or a bit of both?\n4. **Budget and location:** Are you staying in town or heading out? Roughly what can you spend?\n5. **Anything to fit in?** Food you're craving, a film or show you want to see, a place you've wanted to try?\n\nIf you'd rather not answer all of that, just tell me the vibe and I'll put together a plan with a couple of options."
+    },
+    {
+      "probe": "crowded-core",
+      "kind": "proactive",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Happy to help. I can't look up live listings or opening hours, so I'll need you to check those, but I can narrow it down. Since your mum, June, uses a wheelchair, I'll only suggest places with step-free access.\n\nCould you tell me:\n- **Where** you'd like to meet, or where you're both based?\n- **What sort of food** you both enjoy, and your rough budget?\n- **What time** on Sunday you're thinking?\n\nOnce I have that, I'll suggest a few options and a sensible booking tip. I can also set a reminder to book a table on Saturday if that would help."
+    },
+    {
+      "probe": "crowded-core",
+      "kind": "proactive",
+      "memory": false,
+      "passed": false,
+      "answered": true,
+      "missing": true,
+      "forbidden": [],
+      "reply": "Sunday is 15 March. I can't search for restaurants or check opening hours from here, and I don't have any notes on your mum's favourite places or food. If you tell me roughly where you'll be, the cuisine or vibe you both like, and your budget, I can suggest a few options to check.\n\nI can also set a reminder for Sunday morning to book or leave in time, if that helps."
+    },
+    {
+      "probe": "allergy-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "A transistor is a semiconductor device with three terminals, where a small voltage or current on one terminal (the gate or base) controls a much larger current flowing between the other two (source and drain, or collector and emitter). By switching and amplifying these currents, it acts as the basic building block of digital logic and analog electronics."
+    },
+    {
+      "probe": "diabetes-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Five miles is about 8.05 kilometres (1 mile = 1.609344 km)."
+    },
+    {
+      "probe": "family-restraint",
+      "kind": "restraint",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Soft rain on red leaves,\nAmber light fades through the gray,\nEarth breathes, cool and slow."
+    },
+    {
+      "probe": "own-partner-sam",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Leila loves gardening, so here are a few ideas:\n\n- **A quality tool**, like a good pair of pruners or a hand trowel she'll reach for every day.\n- **Something for the garden itself**, such as a bulb collection for spring, a flowering shrub, or a bench or planter.\n- **A gardening experience**, like a class, a visit to a botanic garden, or a nursery afternoon.\n- **Something for the table**, like a cut-flower subscription or a book on a plant or garden she's been wanting.\n\nIf you tell me your budget, or whether she has a garden or mostly grows things in pots, I can narrow it down."
+    },
+    {
+      "probe": "own-partner-priya",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Happy to help. What do you want to say about Friday? Tell me the gist (plans, a change, a question, something you need from them) and whether you want it casual or more formal. I'll draft it for you to send to Jonas."
+    },
+    {
+      "probe": "other-allergy-dinner",
+      "kind": "attribution",
+      "memory": true,
+      "passed": true,
+      "answered": true,
+      "missing": false,
+      "forbidden": [],
+      "reply": "Something quick and satisfying for one: **garlic butter prawn linguine**. Cook linguine, then fry sliced garlic and chilli in butter, add prawns until pink, toss with the pasta, a splash of pasta water, lemon zest and parsley. About 20 minutes.\n\nIf you'd rather not fish, try **crispy egg fried rice** with whatever veg is in the fridge, or **a single-serve shakshuka** with two eggs poached in spiced tomatoes.\n\nTell me what's in your fridge and I'll tailor it."
+    }
+  ],
+  "skipped": [],
+  "model": "anthropic/claude-haiku-5-5@low",
+  "tokens": {
+    "input": 100,
+    "output": 5453,
+    "cacheRead": 59243,
+    "cacheWrite": 9770,
+    "total": 74566
+  },
+  "elapsedMs": 58108
+}

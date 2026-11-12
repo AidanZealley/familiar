@@ -5,8 +5,21 @@
  */
 export { nextUpkeep, type UpkeepState } from './memory/upkeep/schedule.ts'
 export { saidBy } from './conversation/message.ts'
-export { Facts, type Fact } from './memory/facts.ts'
-export { Episodes, type Episode } from './memory/episodes.ts'
+export {
+  Facts,
+  MemoryUsage,
+  isPast,
+  listFacts,
+  rebalanceCore,
+  type Fact,
+  type FactsState,
+  type UsageState as MemoryUsageState,
+} from './memory/facts.ts'
+export {
+  Episodes,
+  type Episode,
+  type EpisodesState,
+} from './memory/episodes.ts'
 export { createExchangeIndex, type Exchange } from './memory/exchanges.ts'
 export { datesIn } from './memory/episodes.ts'
 export { localDay } from './time.ts'
@@ -15,4 +28,4 @@ export {
   Familiars,
   type FamiliarId,
 } from './workspace/familiars.ts'
-export { RECALL_HEADING } from './memory/recall.ts'
+export { RECALL_HEADING, TERMS } from './memory/recall.ts'

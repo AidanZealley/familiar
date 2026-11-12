@@ -1,0 +1,568 @@
+{
+  "scenario": "maya-v1",
+  "hash": "331ec80eadff",
+  "model": "anthropic/claude-haiku-5-5@low",
+  "facts": {
+    "facts": [
+      {
+        "id": "f1",
+        "text": "Maya Okafor (author ID maya) lives at 14 Elm Row with her partner Theo and their daughter Isla, who is seven.",
+        "importance": 5,
+        "since": "2026-01-05",
+        "sources": [
+          50
+        ],
+        "saved": 1767672000000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f2",
+        "text": "Maya (author ID maya) has a severe peanut allergy and carries an EpiPen; always keep this in mind when discussing food.",
+        "importance": 5,
+        "since": "2026-01-05",
+        "sources": [
+          60
+        ],
+        "saved": 1767672000000,
+        "core": true
+      },
+      {
+        "id": "f3",
+        "text": "Maya and Theo are flying to Lisbon on 23 January 2026 to celebrate their tenth anniversary; Maya has been planning the trip for months.",
+        "importance": 4,
+        "since": "2026-01-05",
+        "sources": [
+          69
+        ],
+        "saved": 1767672000000,
+        "core": true
+      },
+      {
+        "id": "f4",
+        "text": "Theo (author ID theo) is type 1 diabetic; if he asks about meals or timing, that is why.",
+        "importance": 5,
+        "since": "2026-01-06",
+        "sources": [
+          97
+        ],
+        "saved": 1767758400000,
+        "core": true
+      },
+      {
+        "id": "f5",
+        "text": "Theo (author ID theo) works early shifts at Crumb & Co, the bakery on Mill Street, usually up at 4am.",
+        "importance": 3,
+        "since": "2026-01-06",
+        "sources": [
+          107
+        ],
+        "saved": 1767758400000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f6",
+        "text": "Maya Okafor (author ID maya) has a big job interview at Halden Studio on 14 January 2026 for a senior designer role; it matters a lot to her.",
+        "importance": 4,
+        "since": "2026-01-08",
+        "sources": [
+          163
+        ],
+        "saved": 1767931200000,
+        "core": true
+      },
+      {
+        "id": "f7",
+        "text": "Maya Okafor (author ID maya) asked Familiar to set up a daily 7pm digest, a round-up of her day.",
+        "importance": 3,
+        "since": "2026-01-08",
+        "sources": [
+          144
+        ],
+        "saved": 1767931200000,
+        "core": true
+      },
+      {
+        "id": "f8",
+        "text": "Maya Okafor (author ID maya) wants digests and summaries kept to five bullet points at most, because she skims.",
+        "importance": 3,
+        "since": "2026-01-08",
+        "sources": [
+          154
+        ],
+        "saved": 1767931200000,
+        "core": true
+      },
+      {
+        "id": "f9",
+        "text": "Maya (author ID maya) is redoing her kitchen with builder Fenwick & Sons, budget £18,000, with work starting 2 February 2026.",
+        "importance": 3,
+        "since": "2026-01-12",
+        "sources": [
+          199
+        ],
+        "saved": 1768276800000,
+        "core": false,
+        "until": "2026-02-16"
+      },
+      {
+        "id": "f10",
+        "text": "Maya (author ID maya) is nervous about the portfolio review part of her Halden Studio senior designer interview on 14 January 2026.",
+        "importance": 3,
+        "since": "2026-01-12",
+        "sources": [
+          218
+        ],
+        "saved": 1768276800000,
+        "core": true
+      },
+      {
+        "id": "f11",
+        "text": "Maya (author ID maya) took up bouldering in December 2025 and goes to The Arch on Tuesday evenings; she is climbing V3 as of January 2026.",
+        "importance": 2,
+        "since": "2026-01-15",
+        "sources": [
+          246
+        ],
+        "saved": 1768536000000,
+        "core": false
+      },
+      {
+        "id": "f12",
+        "text": "Theo (author ID theo) plays bass in his band Low Tide, which has a gig at the Fleece on 7 February 2026; he wants Maya and him to attend.",
+        "importance": 3,
+        "since": "2026-01-15",
+        "sources": [
+          256
+        ],
+        "saved": 1768536000000,
+        "core": true
+      },
+      {
+        "id": "f13",
+        "text": "Maya said on 15 January 2026 that her Halden Studio senior designer interview (14 January) went OK, though she was unsure how it went.",
+        "importance": 3,
+        "since": "2026-01-15",
+        "sources": [
+          246
+        ],
+        "saved": 1768536000000,
+        "core": true
+      },
+      {
+        "id": "f14",
+        "text": "Maya (author ID maya) is in a book club that meets the first Thursday of every month; January 2026's book was Piranesi.",
+        "importance": 3,
+        "since": "2026-01-28",
+        "sources": [
+          325
+        ],
+        "saved": 1769659200000,
+        "core": true
+      },
+      {
+        "id": "f15",
+        "text": "Theo (author ID theo) left his bakery job at Crumb & Co and from Monday 16 February 2026 works as a mechanic at Spoke Cycles on the high street, with no more 4am starts.",
+        "importance": 4,
+        "since": "2026-02-11",
+        "sources": [
+          445
+        ],
+        "saved": 1770868800000,
+        "core": true
+      },
+      {
+        "id": "f16",
+        "text": "Theo (author ID theo) eats lunch at 1pm on his new work hours, relevant to managing his type 1 diabetes.",
+        "importance": 5,
+        "since": "2026-02-11",
+        "sources": [
+          454
+        ],
+        "saved": 1770868800000,
+        "core": true
+      },
+      {
+        "id": "f17",
+        "text": "Maya Okafor (author ID maya) lives at 14 Elm Row with her partner Theo and their daughter Isla, who is seven. They are moving to 3 Quarry Lane on 1 March 2026.",
+        "importance": 5,
+        "since": "2026-02-16",
+        "sources": [
+          496,
+          50
+        ],
+        "saved": 1771300800000,
+        "replaces": [
+          "f1"
+        ],
+        "core": false,
+        "until": "2026-03-01"
+      },
+      {
+        "id": "f18",
+        "text": "Maya Okafor (author ID maya) lives with her partner Theo and their seven-year-old daughter Isla at 3 Quarry Lane, having moved there from 14 Elm Row on 1 March 2026.",
+        "importance": 5,
+        "since": "2026-03-01",
+        "sources": [
+          601,
+          610,
+          496,
+          50
+        ],
+        "saved": 1772424000000,
+        "replaces": [
+          "f17"
+        ],
+        "core": true
+      }
+    ],
+    "next": 19
+  },
+  "usage": {
+    "facts": {
+      "f1": {
+        "recalled": 1772625600000,
+        "checked": 1770350400000
+      },
+      "f3": {
+        "recalled": 1772107200000,
+        "checked": 1770350400000
+      },
+      "f2": {
+        "recalled": 1772625600000,
+        "checked": 1770350400000
+      },
+      "f6": {
+        "recalled": 1771588800000,
+        "checked": 1770609600000
+      },
+      "f10": {
+        "recalled": 1772625600000,
+        "checked": 1770955200000
+      },
+      "f9": {
+        "recalled": 1771588800000,
+        "checked": 1770955200000
+      },
+      "f11": {
+        "recalled": 1772107200000,
+        "checked": 1771214400000
+      },
+      "f8": {
+        "recalled": 1772626200000,
+        "checked": 1770609600000
+      },
+      "f7": {
+        "recalled": 1772626200000,
+        "checked": 1770609600000
+      },
+      "f4": {
+        "checked": 1770436800000,
+        "recalled": 1771243200000
+      },
+      "f5": {
+        "checked": 1770436800000,
+        "recalled": 1772626200000
+      },
+      "f12": {
+        "recalled": 1771588800000,
+        "checked": 1771214400000
+      },
+      "f14": {
+        "recalled": 1772107200000,
+        "checked": 1772337600000
+      },
+      "f13": {
+        "recalled": 1772107800000,
+        "checked": 1771214400000
+      },
+      "f16": {
+        "recalled": 1771243200000
+      },
+      "f15": {
+        "recalled": 1772107800000
+      },
+      "f17": {
+        "recalled": 1772367000000
+      },
+      "f18": {
+        "recalled": 1772625600000
+      }
+    }
+  },
+  "episodes": {
+    "episodes": [
+      {
+        "id": "e1",
+        "span": "day",
+        "start": "2026-01-05",
+        "end": "2026-01-05",
+        "text": "On 5 January 2026, Maya Okafor introduced herself: she lives at 14 Elm Row with her partner Theo and daughter Isla, who is seven. She asked Familiar to keep her severe peanut allergy and EpiPen in mind whenever food comes up. She also announced that she and Theo fly to Lisbon on 23 January for their tenth anniversary, a trip she has been planning for months.",
+        "at": 1767672000000,
+        "entries": {
+          "from": 50,
+          "to": 72
+        }
+      },
+      {
+        "id": "e2",
+        "span": "day",
+        "start": "2026-01-06",
+        "end": "2026-01-06",
+        "text": "On 6 January 2026, Theo introduced himself to the assistant. He said he is type 1 diabetic, so questions he asks about meals or timing relate to that. He also said he works early shifts at Crumb & Co, the bakery on Mill Street, usually up at 4am. He mentioned that his umbrella blew inside out on the way to work that morning.",
+        "at": 1767758400000,
+        "entries": {
+          "from": 97,
+          "to": 119
+        }
+      },
+      {
+        "id": "e3",
+        "span": "day",
+        "start": "2026-01-08",
+        "end": "2026-01-08",
+        "text": "The recalled notes match what's already saved: Maya's household, peanut allergy, Lisbon trip, and Theo's diabetes and bakery shifts. I've also saved her Halden Studio interview on 14 January, her 7pm digest request, and her five-bullet limit for summaries.",
+        "at": 1767931200000,
+        "entries": {
+          "from": 144,
+          "to": 166
+        }
+      },
+      {
+        "id": "e4",
+        "span": "week",
+        "start": "2026-01-05",
+        "end": "2026-01-11",
+        "text": "Week of 2026-01-05 to 2026-01-11\n\nOn 5 January, Maya Okafor introduced herself. She lives at 14 Elm Row with her partner Theo and their seven-year-old daughter Isla. She asked Familiar to keep her severe peanut allergy and EpiPen in mind whenever food comes up. She also announced that she and Theo fly to Lisbon on 23 January for their tenth anniversary, a trip she has been planning for months.\n\nOn 6 January, Theo introduced himself. He is type 1 diabetic, so his questions about meals or timing relate to that. He works early shifts at Crumb & Co, the bakery on Mill Street, usually up at 4am. That morning his umbrella blew inside out on the way to work.\n\nOn 8 January, the saved notes were checked against the records and matched. Maya's household, peanut allergy, Lisbon trip, and Theo's diabetes and bakery shifts are all current. Two further items were saved: Maya's Halden Studio interview on 14 January, her 7pm digest request, and her limit of five bullets for summaries.",
+        "at": 1768190400000
+      },
+      {
+        "id": "e5",
+        "span": "day",
+        "start": "2026-01-12",
+        "end": "2026-01-12",
+        "text": "On 12 January 2026, Maya Okafor said she is redoing her kitchen with builder Fenwick & Sons, budget £18,000, starting 2 February. She also said she is prepping well for her Halden Studio interview on 14 January but is nervous about the portfolio review part. Familiar saved both details. Nothing in the room's earlier messages needed filing. Theo sent a message about a tuna sandwich for lunch, which needed no action.",
+        "at": 1768276800000,
+        "entries": {
+          "from": 199,
+          "to": 221
+        }
+      },
+      {
+        "id": "e6",
+        "span": "day",
+        "start": "2026-01-15",
+        "end": "2026-01-15",
+        "text": "On 15 January 2026, Maya said her Halden Studio senior designer interview from 14 January went OK, though she wasn't sure. She also said she has taken up bouldering, goes to The Arch on Tuesday evenings, and is climbing V3. Theo said his band Low Tide has a bass gig at the Fleece on 7 February, and he asked whether Maya and he were coming. Three facts were saved: the bouldering, the Low Tide gig, and the interview outcome.",
+        "at": 1768536000000,
+        "entries": {
+          "from": 246,
+          "to": 259
+        }
+      },
+      {
+        "id": "e7",
+        "span": "week",
+        "start": "2026-01-12",
+        "end": "2026-01-18",
+        "text": "**Week of 12–18 January 2026**\n\nOn 12 January, Maya Okafor said she is redoing her kitchen with builder Fenwick & Sons on a budget of £18,000, starting 2 February. She also said she is well prepared for her Halden Studio interview on 14 January but nervous about the portfolio review. Familiar saved both details.\n\nOn 15 January, Maya reported that the Halden Studio senior designer interview went OK, though she wasn't sure of the outcome. She also said she has taken up bouldering, goes to The Arch on Tuesday evenings, and is climbing V3. Familiar saved the interview outcome and the bouldering.\n\nTheo said his band Low Tide has a bass gig at the Fleece on 7 February and asked whether Maya and he were coming. Familiar saved the gig details.",
+        "at": 1768795200000
+      },
+      {
+        "id": "e8",
+        "span": "day",
+        "start": "2026-01-21",
+        "end": "2026-01-21",
+        "text": "On 21 January 2026, Maya Okafor said she was packing for the Lisbon trip with Theo, leaving 23 January for their tenth anniversary, and asked Familiar for flight snacks that are safe with her peanut allergy. Separately, in the #Home room, she reported heavy rain and that Isla refused to wear her coat. The room also showed earlier messages from January 5 to 15: Maya's household, allergy, digest and five-bullet preferences, the Halden Studio interview on 14 January, the Fenwick & Sons kitchen redo (budget £18,000, starting 2 February), and Theo's Low Tide gig at the Fleece on 7 February, which he asked them to attend. Theo's tuna sandwich and umbrella mentions were also shown. No new lasting facts emerged from today's messages.",
+        "at": 1769054400000,
+        "entries": {
+          "from": 294,
+          "to": 307
+        }
+      },
+      {
+        "id": "e9",
+        "span": "week",
+        "start": "2026-01-19",
+        "end": "2026-01-25",
+        "text": "**Week of 19–25 January 2026**\n\nOn 21 January, Maya Okafor said she was packing for Lisbon with Theo. They leave on 23 January for their tenth anniversary. She asked Familiar for flight snacks that are safe with her peanut allergy. In the #Home room, she reported heavy rain and that Isla refused to wear her coat.\n\nThe room also showed earlier messages from 5 to 15 January. These covered Maya's household, her allergy, and her preferences for digests and five-bullet summaries. They also covered the Halden Studio interview on 14 January and the Fenwick & Sons kitchen redo, with a budget of £18,000 and a start date of 2 February. Theo asked them to attend his Low Tide gig at the Fleece on 7 February. Theo's tuna sandwich and umbrella mentions were shown as well.\n\nNo new lasting facts emerged from today's messages.",
+        "at": 1769400000000
+      },
+      {
+        "id": "e10",
+        "span": "day",
+        "start": "2026-01-28",
+        "end": "2026-01-28",
+        "text": "On 28 January 2026, Maya Okafor said she belongs to a book club that meets the first Thursday of each month, and that this month's book is Piranesi. Theo Okafor-Mills asked Familiar to remind him to look out for a camera shop parcel arriving Friday; no reminder was set in this conversation. Earlier messages in the room were shown again: Maya's household, peanut allergy, Lisbon trip on 23 January, 7pm digest and five-bullet limit, Halden Studio interview on 14 January, and Theo's type 1 diabetes and early bakery shifts. The book club detail was saved as a new lasting fact.",
+        "at": 1769659200000,
+        "entries": {
+          "from": 325,
+          "to": 337
+        }
+      },
+      {
+        "id": "e11",
+        "span": "month",
+        "start": "2026-01-01",
+        "end": "2026-01-31",
+        "text": "**January 2026**\n\nMaya Okafor introduced herself on 5 January. She lives at 14 Elm Row with her partner Theo and their seven-year-old daughter Isla. Maya has a severe peanut allergy and carries an EpiPen, so Familiar should consider this whenever food comes up. She and Theo are flying to Lisbon on 23 January for their tenth anniversary.\n\nTheo introduced himself on 6 January. He has type 1 diabetes, so his meal and timing questions relate to that. He works early shifts at Crumb & Co on Mill Street, usually up at 4am.\n\nMaya's preferences are a 7pm daily digest and summaries limited to five bullets.\n\nOn 12 January, Maya said she is redoing her kitchen with Fenwick & Sons, budget £18,000, starting 2 February. She also had her Halden Studio senior designer interview on 14 January, which she felt went OK though she wasn't sure.\n\nMaya took up bouldering at The Arch on Tuesday evenings and is climbing V3. Theo's band Low Tide has a bass gig at the Fleece on 7 February, and he asked them to come.\n\nOn 21 January, Maya asked for peanut-safe flight snacks for the Lisbon trip.\n\nOn 28 January, Maya said she belongs to a book club that meets the first Thursday of each month, and this month's book is Piranesi. Theo asked for a reminder about a camera shop parcel arriving Friday, but no reminder was set in this conversation.",
+        "at": 1769918400000
+      },
+      {
+        "id": "e12",
+        "span": "week",
+        "start": "2026-01-26",
+        "end": "2026-02-01",
+        "text": "**Week of 26 January to 1 February 2026**\n\n**28 January 2026:** Maya Okafor told Familiar she belongs to a book club that meets the first Thursday of each month, and that this month's book is *Piranesi*. Familiar saved the book club schedule as a lasting fact.\n\nTheo Okafor-Mills asked Familiar to remind him to watch for a camera shop parcel arriving Friday. No reminder was set during this conversation, so Theo will need to track the delivery himself.\n\nEarlier context from the room was shown again. It covered Maya's household and peanut allergy, her Lisbon trip on 23 January, the 7pm digest with a five-bullet limit, the Halden Studio interview on 14 January, and Theo's type 1 diabetes and early bakery shifts.",
+        "at": 1770004800000
+      },
+      {
+        "id": "e13",
+        "span": "day",
+        "start": "2026-02-02",
+        "end": "2026-02-02",
+        "text": "Maya reported on 2 February 2026 that Fenwick & Sons started the kitchen redo today, with dust everywhere. She also asked Familiar for tonight's digest as bullet points, five at most, as she prefers. The #Home room showed earlier context: Theo's umbrella blew inside out, Maya gave the kitchen budget of £18,000 and the 2 February start, Theo invited them both to his band Low Tide's gig at the Fleece on 7 February, and Maya mentioned rain and Isla refusing her coat. No new lasting facts emerged today.",
+        "at": 1770091200000,
+        "entries": {
+          "from": 372,
+          "to": 385
+        }
+      },
+      {
+        "id": "e14",
+        "span": "day",
+        "start": "2026-02-07",
+        "end": "2026-02-07",
+        "text": "On 7 February 2026, Theo asked Maya to bring Isla to his band Low Tide's gig at the Fleece that night, with soundcheck at 6 and arrival by 8. Maya confirmed she and Isla would be there by 8. The #Home room also showed earlier messages from 2 February: Fenwick & Sons had started the kitchen redo that day, with dust everywhere, and Theo's umbrella had blown inside out. Maya had given the kitchen budget as £18,000, and Theo had invited them both to the 7 February gig. Nothing new and lasting came up, so no facts were changed.",
+        "at": 1770523200000,
+        "entries": {
+          "from": 409,
+          "to": 421
+        }
+      },
+      {
+        "id": "e15",
+        "span": "week",
+        "start": "2026-02-02",
+        "end": "2026-02-08",
+        "text": "**Week of 2 to 8 February 2026**\n\nFenwick & Sons started the kitchen redo on 2 February, and the house was full of dust. Maya gave the kitchen budget as £18,000. She asked Familiar for her nightly digest as bullet points, five at most, and that preference still holds.\n\nTheo invited Maya and Isla to his band Low Tide's gig at the Fleece. On 7 February he asked Maya to bring Isla that night, with soundcheck at 6 and arrival by 8. Maya confirmed they would be there by 8.\n\nNothing else new and lasting came up that week, and no facts were changed.",
+        "at": 1770609600000
+      },
+      {
+        "id": "e16",
+        "span": "day",
+        "start": "2026-02-11",
+        "end": "2026-02-11",
+        "text": "Familiar's memory is updated for the 11 February 2026 messages from Theo. I retired his old bakery job (f5), saved his new mechanic role at Spoke Cycles starting Monday 16 February, and saved that he now eats lunch at 1pm, which matters for his diabetes.",
+        "at": 1770868800000,
+        "entries": {
+          "from": 445,
+          "to": 457
+        }
+      },
+      {
+        "id": "e17",
+        "span": "week",
+        "start": "2026-02-09",
+        "end": "2026-02-15",
+        "text": "**Week of 9–15 February 2026**\n\n**11 February:** Familiar updated its memory from Theo's messages. Theo retired his old bakery job (ID f5). He saved his new mechanic role at Spoke Cycles, which starts Monday 16 February. He also noted that he now eats lunch at 1pm, which matters because of his diabetes, so Familiar will keep that in mind for scheduling and reminders.",
+        "at": 1771214400000
+      },
+      {
+        "id": "e18",
+        "span": "day",
+        "start": "2026-02-16",
+        "end": "2026-02-16",
+        "text": "Checked.",
+        "at": 1771300800000,
+        "entries": {
+          "from": 496,
+          "to": 509
+        }
+      },
+      {
+        "id": "e19",
+        "span": "day",
+        "start": "2026-02-20",
+        "end": "2026-02-20",
+        "text": "Checked.",
+        "at": 1771646400000,
+        "entries": {
+          "from": 528,
+          "to": 541
+        }
+      },
+      {
+        "id": "e20",
+        "span": "week",
+        "start": "2026-02-16",
+        "end": "2026-02-22",
+        "text": "The week of 2026-02-16 to 2026-02-22 was quiet. On 2026-02-16 there was a check-in, and on 2026-02-20 there was another. No other activity, decisions, projects, or changes were recorded for this period.",
+        "at": 1771819200000
+      },
+      {
+        "id": "e21",
+        "span": "day",
+        "start": "2026-02-26",
+        "end": "2026-02-26",
+        "text": "Checked.",
+        "at": 1772164800000,
+        "entries": {
+          "from": 559,
+          "to": 571
+        }
+      },
+      {
+        "id": "e22",
+        "span": "month",
+        "start": "2026-02-01",
+        "end": "2026-02-28",
+        "text": "In February 2026, Maya's kitchen redo began with Fenwick & Sons on 2 February, with a budget of £18,000. Maya asked Familiar to format her evening digests as bullet points, five at most, and that preference is now in effect. On 7 February, Theo asked Maya to bring Isla to his band Low Tide's gig at the Fleece. Soundcheck was at 6, and Maya confirmed they would arrive by 8.\n\nOn 11 February, Theo's memory was updated. His old bakery job (f5) was retired, and his new mechanic role at Spoke Cycles, starting Monday 16 February, was saved. He also now eats lunch at 1pm, which matters for his diabetes.\n\nEarlier #Home messages about Theo's umbrella blowing inside out, the rain, and Isla refusing her coat were background only and changed no facts. The entries for 16, 20, and 26 February were routine checks with nothing new to record.",
+        "at": 1772337600000
+      },
+      {
+        "id": "e23",
+        "span": "day",
+        "start": "2026-03-01",
+        "end": "2026-03-01",
+        "text": "On 1 March 2026, Maya, Theo and Isla moved into 3 Quarry Lane from 14 Elm Row. Maya posted that boxes were everywhere, and Theo said the keys were on the hook by the door and the corner shop was right outside. The room history also covered the kitchen redo: Fenwick & Sons, budget £18,000, started on 2 February, with dust everywhere. Theo invited them both to his band Low Tide's gig at the Fleece on 7 February, with soundcheck at 6 and arrival by 8. Other room messages covered Maya's bouldering at The Arch (first V4), rain, Isla refusing her coat, Theo's umbrella blowing inside out, and a Saturday dinner plan. Theo asked about dinner restrictions, and Maya said peanuts, plus Isla dislikes mushrooms.",
+        "at": 1772424000000,
+        "entries": {
+          "from": 601,
+          "to": 613
+        }
+      },
+      {
+        "id": "e24",
+        "span": "week",
+        "start": "2026-02-23",
+        "end": "2026-03-01",
+        "text": "**Week of 23 February to 1 March 2026**\n\nOn 26 February, Familiar checked in, with nothing else recorded that day.\n\nOn 1 March 2026, Maya, Theo and Isla moved into 3 Quarry Lane from 14 Elm Row. Maya reported that boxes were everywhere, and Theo told the others the keys were on the hook by the door and that the corner shop was right outside.\n\nThe household's room history also covered the kitchen redo. Fenwick & Sons began work on 2 February on a budget of £18,000, and dust has been everywhere since.\n\nTheo invited Maya and Isla to his band Low Tide's gig at the Fleece on 7 February. Soundcheck was at 6 p.m., with arrival by 8.\n\nOther messages in the room covered Maya's bouldering at The Arch, where she sent her first V4, along with rain, Isla refusing to wear her coat, and Theo's umbrella blowing inside out.\n\nFor a Saturday dinner, Theo asked about dietary restrictions. Maya said she cannot have peanuts, and Isla dislikes mushrooms.",
+        "at": 1772424000000
+      },
+      {
+        "id": "e25",
+        "span": "day",
+        "start": "2026-03-04",
+        "end": "2026-03-04",
+        "text": "On 4 March 2026, Maya asked Familiar to draft a note for Isla's school teacher about her peanut allergy, saying the family avoids peanuts at home, because the school wanted allergy information for a class party. She also asked for tonight's digest as five bullets, as usual. The earlier room history was shown again, covering her introduction, her peanut allergy and EpiPen, the Lisbon trip on 23 January, the 7pm digest, the five-bullet limit, the Halden Studio interview on 14 January, her bouldering at The Arch, and her book club. Her move from 14 Elm Row to 3 Quarry Lane on 1 March was also mentioned.",
+        "at": 1772683200000,
+        "entries": {
+          "from": 636,
+          "to": 649
+        }
+      }
+    ],
+    "next": 26
+  },
+  "clock": 1772769600000,
+  "tokens": {
+    "input": 2363,
+    "output": 20349,
+    "cacheRead": 99243,
+    "cacheWrite": 123191,
+    "total": 245146
+  },
+  "elapsedMs": 149605
+}

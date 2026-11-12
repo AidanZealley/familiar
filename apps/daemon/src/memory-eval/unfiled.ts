@@ -108,7 +108,7 @@ async function waitForUpkeep(
 }
 
 /** How far upkeep has filed `chat`, or null if it never has. */
-async function upkeepThrough(storage: Storage, chat: FamiliarId) {
+export async function upkeepThrough(storage: Storage, chat: FamiliarId) {
   const record = await storage.findDocument(
     { kind: 'familiar.upkeep', scope: { kind: 'session' }, key: String(chat) },
     'current',
@@ -123,7 +123,7 @@ async function upkeepThrough(storage: Storage, chat: FamiliarId) {
 }
 
 /** Every entry in `chat`, oldest first. */
-async function entriesIn(storage: Storage, chat: FamiliarId) {
+export async function entriesIn(storage: Storage, chat: FamiliarId) {
   const entries: EntryRecord[] = []
   let cursor: Parameters<Storage['scanEntries']>[2]
   do {

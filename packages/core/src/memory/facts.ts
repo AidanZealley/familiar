@@ -103,8 +103,11 @@ export const openMemory = async (
 /** Core is at most this many characters as the model sees it, so the prompt stays small however long Familiar runs. */
 export const CORE_BUDGET = 6_000
 
-/** Facts this important or more are in core while there is room. */
-export const CORE_IMPORTANCE = 3
+/**
+ * Facts this important or more are in core while there is room. A lower fact
+ * is found by recall instead, so only ones rated 4 or 5 take a place in core.
+ */
+export const CORE_IMPORTANCE = 4
 
 /**
  * A fact outside core displaces an equally important one inside only if it
