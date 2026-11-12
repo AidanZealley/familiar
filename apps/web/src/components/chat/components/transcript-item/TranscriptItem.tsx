@@ -17,7 +17,13 @@ import type { TranscriptItemProps } from './types'
  * them; in a DM they take the full width. People's messages and schedules
  * stand on their own.
  */
-export const TranscriptItem = ({ item, dm, run, end }: TranscriptItemProps) => {
+export const TranscriptItem = ({
+  item,
+  dm,
+  lead,
+  run,
+  end,
+}: TranscriptItemProps) => {
   // Clear of the portrait column, which a DM doesn't have.
   const gutter = cn(!dm && 'pl-10.5')
 
@@ -40,7 +46,13 @@ export const TranscriptItem = ({ item, dm, run, end }: TranscriptItemProps) => {
       )
     case 'waiting':
       return (
-        <FamiliarTurn familiar={item.familiar} dm={dm} run={run} end={end}>
+        <FamiliarTurn
+          familiar={item.familiar}
+          dm={dm}
+          lead={item.familiar === lead}
+          run={run}
+          end={end}
+        >
           {item.status === 'running' ? (
             <Thinking text="" active />
           ) : (
@@ -79,6 +91,7 @@ export const TranscriptItem = ({ item, dm, run, end }: TranscriptItemProps) => {
           familiar={item.familiar}
           then={item.name}
           dm={dm}
+          lead={item.familiar === lead}
           run={run}
           end={end}
         >

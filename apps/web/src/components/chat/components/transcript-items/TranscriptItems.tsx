@@ -9,7 +9,7 @@ import { TranscriptItem } from '../transcript-item'
 import type { TranscriptItemsProps } from './types'
 
 /** The transcript's items, with the newest turn anchored while it's in view. */
-export const TranscriptItems = ({ items, dm }: TranscriptItemsProps) => {
+export const TranscriptItems = ({ items, dm, lead }: TranscriptItemsProps) => {
   const runs = useMemo(() => replyRuns(items), [items])
   // Each run by its last item, under which a DM shows the time.
   const ends = useMemo(
@@ -49,6 +49,7 @@ export const TranscriptItems = ({ items, dm }: TranscriptItemsProps) => {
       <TranscriptItem
         item={item}
         dm={dm}
+        lead={lead}
         run={runs.get(item.id)}
         end={ends.get(item.id)}
       />

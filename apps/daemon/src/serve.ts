@@ -6,6 +6,7 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono, type MiddlewareHandler } from 'hono'
 import { csrf } from 'hono/csrf'
+import { avatarRoutes } from './avatars.ts'
 
 export type ServeOptions = {
   host: string
@@ -17,6 +18,8 @@ export type ServeOptions = {
   owner: string
   /** The built web UI, served when it exists. */
   webDir?: string
+  /** The owner's portraits for their Familiars, which the web UI offers. */
+  avatarsDir?: string
   label: string
   push?: PushHost
 }
@@ -87,13 +90,18 @@ export const OWNER_ID = 'owner'
 
 /**
  * The daemon's routes: the whole API under `/api`, since everyone who can
- * reach it is the owner, then the built web UI.
+ * reach it is the owner, with the owner's portraits beside it, then the
+ * built web UI.
  */
 export function daemonApp(
   workspace: Workspace,
-  options: Pick<ServeOptions, 'owner' | 'webDir' | 'push'>,
+  options: Pick<ServeOptions, 'owner' | 'webDir' | 'avatarsDir' | 'push'>,
 ) {
-  const app = new Hono().use(browserRequestsSameOrigin()).route(
+  const app = new Hono().use(browserRequestsSameOrigin())
+  if (options.avatarsDir) {
+    app.route('/api/avatars', avatarRoutes(options.avatarsDir))
+  }
+  app.route(
     '/api',
     createHttpApi(workspace, {
       authenticate: (request) =>

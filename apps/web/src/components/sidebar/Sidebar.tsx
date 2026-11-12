@@ -15,7 +15,6 @@ import {
 } from '@/lib/workspace'
 import { ArchivedRooms } from './components/archived-rooms'
 import { ConnectionStatus } from './components/connection-status'
-import { FamiliarPortraits } from './components/familiar-portraits'
 import { FamiliarRow } from './components/familiar-row'
 import { NewMenu } from './components/new-menu'
 import { RoomRow } from './components/room-row'
@@ -30,7 +29,8 @@ const heading =
  * DM, the named rooms, and archived rooms folded away, each the most
  * recently active first; then the one Settings. The workspace's stream
  * carries every room's latest entry, unread count and turns, so the
- * sidebar opens no room's stream of its own.
+ * sidebar opens no room's stream of its own. On a phone it is the home
+ * screen, so it takes the page's background to match the browser's chrome.
  */
 export const Sidebar = ({ className }: SidebarProps) => {
   const familiars = useFamiliars()
@@ -56,17 +56,20 @@ export const Sidebar = ({ className }: SidebarProps) => {
   return (
     <nav
       aria-label="Conversations"
-      className={cn('flex min-h-0 flex-col bg-sidebar', className)}
+      className={cn(
+        'flex min-h-0 flex-col bg-background md:bg-sidebar',
+        className,
+      )}
     >
-      <header className="flex shrink-0 items-center gap-2 px-3 pt-[calc(var(--status-bar)+0.5rem)] pb-2">
-        <h1 className="flex items-center gap-2 font-heading text-sm font-medium tracking-tight">
+      <header className="flex h-(--chrome) shrink-0 items-center gap-2 border-b border-border/60 px-3 pt-(--status-bar)">
+        <h1 className="flex items-baseline gap-1 font-heading text-sm font-medium tracking-tight">
           <ConnectionStatus />
           familiar
         </h1>
         <NewMenu className="ml-auto" />
       </header>
 
-      <div className="shrink-0 px-3 pb-2">
+      <div className="shrink-0 p-3">
         <InputGroup>
           <InputGroupAddon>
             <SearchIcon />
@@ -83,8 +86,6 @@ export const Sidebar = ({ className }: SidebarProps) => {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
-        <FamiliarPortraits familiars={familiars} className="md:hidden" />
-
         <section aria-label="Familiars" className="flex flex-col pb-2">
           <h2 className={heading}>Familiars</h2>
           {dms.map(({ familiar, dm }) => (

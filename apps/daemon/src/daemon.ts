@@ -15,8 +15,9 @@ import { openDaemonWorkspace } from './workspace.ts'
 export async function serve() {
   ensureDataDir(config.dataDir)
   lockDataDir(dataPath('daemon.lock'))
-  // Created so the owner can find where their own plugins go.
+  // Created so the owner can find where their own plugins and portraits go.
   mkdirSync(config.pluginsDir, { recursive: true })
+  mkdirSync(config.avatarsDir, { recursive: true })
 
   const push = openPush({ path: dataPath, contact: config.pushContact })
 
@@ -50,6 +51,7 @@ export async function serve() {
     port: config.port,
     owner: config.owner,
     webDir: config.webDir,
+    avatarsDir: config.avatarsDir,
     label: config.name,
     push: push.host,
   })

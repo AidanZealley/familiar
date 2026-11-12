@@ -4,10 +4,9 @@ import { useMutation, useMutationState } from '@tanstack/react-query'
 import {
   ArchiveIcon,
   ArrowUpIcon,
+  CircleAlertIcon,
   AtSignIcon,
-  CrownIcon,
   SquareIcon,
-  UsersIcon,
 } from 'lucide-react'
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
@@ -16,7 +15,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { nameOf, titleOf, useFamiliars } from '@/lib/workspace'
+import { titleOf, useFamiliars } from '@/lib/workspace'
 import { ModelPicker } from '../model-picker'
 import { MentionMenu } from './components/mention-menu'
 import { completeMention, mentionQuery, toParts } from './mentions'
@@ -106,7 +105,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
 
   if (room.kind === 'room' && room.archived) {
     return (
-      <p className="mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))] flex items-center justify-center gap-1.5 border border-dashed p-3 text-xs text-muted-foreground">
+      <p className="mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))] flex items-center justify-center gap-1.5 border border-dashed bg-background/80 p-3 text-xs text-muted-foreground backdrop-blur-xl">
         <ArchiveIcon className="size-3.5" />
         Archived: its history stays, and it takes no new messages.
       </p>
@@ -121,7 +120,16 @@ export const Composer = ({ room, busy }: ComposerProps) => {
       {suggestions.length > 0 && (
         <MentionMenu familiars={suggestions} onPick={mention} />
       )}
-      <InputGroup className="has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-input/30">
+      {error && (
+        <p
+          role="alert"
+          className="mb-2 flex items-start gap-1.5 border border-destructive/40 bg-destructive/15 px-3 py-2 text-xs text-destructive backdrop-blur-xl dark:bg-destructive/25"
+        >
+          <CircleAlertIcon className="mt-px size-3.5 shrink-0" />
+          {error.message}
+        </p>
+      )}
+      <InputGroup className="bg-background/80 backdrop-blur-xl has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-[color-mix(in_oklab,var(--color-input)_30%,var(--color-background))]/80 dark:has-disabled:bg-input/30">
         <InputGroupTextarea
           ref={input}
           value={text}
@@ -163,21 +171,6 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      {error && (
-        <p className="mt-2 text-xs text-destructive">{error.message}</p>
-      )}
-      {room.kind === 'room' && (
-        <p className="mt-2 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-          {room.lead === undefined ? (
-            <UsersIcon className="size-3.5 shrink-0" />
-          ) : (
-            <CrownIcon className="size-3.5 shrink-0" />
-          )}
-          {room.lead === undefined
-            ? 'Open room: each Familiar here may answer, in turn. @mention one to ask it.'
-            : `${nameOf(familiars, room.lead)} answers anything not addressed to someone. @mention a Familiar to ask it.`}
-        </p>
-      )}
     </form>
   )
 }

@@ -1,15 +1,15 @@
 import { cn } from 'cn'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { Button } from '@/components/ui/button'
-import { PORTRAITS } from '@/lib/avatars'
 import type { AvatarPickerProps } from './types'
 
 const option =
   'size-auto p-1 aria-pressed:bg-muted aria-pressed:ring-2 aria-pressed:ring-primary'
 
-/** Every portrait to choose from, after Automatic: the one the Familiar's ID picks. */
+/** Every portrait to choose from, after Automatic on a row of its own: the one the Familiar's ID picks. */
 export const AvatarPicker = ({
   familiar,
+  portraits,
   value,
   onChange,
 }: AvatarPickerProps) => (
@@ -23,12 +23,12 @@ export const AvatarPicker = ({
       variant="ghost"
       aria-pressed={value === null}
       onClick={() => onChange(null)}
-      className={cn(option, 'gap-2 pr-2.5')}
+      className={cn(option, 'w-full justify-start gap-2 pr-2.5')}
     >
       <PixelAvatar familiar={{ ...familiar, avatar: undefined }} />
       <span className="text-xs">Automatic</span>
     </Button>
-    {PORTRAITS.map((portrait) => (
+    {portraits.map((portrait) => (
       <Button
         key={portrait}
         type="button"

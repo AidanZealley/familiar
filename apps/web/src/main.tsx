@@ -6,6 +6,7 @@ import './index.css'
 import './lib/theme'
 import { AppError } from './components/app-error'
 import { AppLoader } from './components/app-loader'
+import { portraitsQuery } from './lib/avatars'
 import { queryClient } from './lib/familiar'
 import { routeTree } from './routeTree.gen'
 
@@ -20,6 +21,9 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+// Alongside the workspace's stream, so portraits are there when it's ready.
+void queryClient.prefetchQuery(portraitsQuery)
 
 // Only for notifications; the app never needs it to load.
 if ('serviceWorker' in navigator) {

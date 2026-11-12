@@ -45,6 +45,7 @@ beforeEach(() => {
     ),
     dataDir: '/private/data',
     pluginsDir: '/private/data/plugins',
+    avatarsDir: '/private/data/avatars',
     webDir: '/web',
     workDir: '/app',
   })
@@ -85,6 +86,7 @@ test('source checkouts cannot accidentally install a second copy through update'
     cliPath: '/repo/apps/daemon/src/cli.ts',
     dataDir: '/private',
     pluginsDir: '/private/plugins',
+    avatarsDir: '/private/avatars',
     webDir: '/web',
     workDir: '/app',
   })

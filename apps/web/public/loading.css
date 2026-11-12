@@ -16,7 +16,34 @@ body {
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-.app-loader img {
+/*
+ * Familiar's cat, in the text colour: cat.svg's two frames as a mask, the
+ * first showing until it's animated, then stepping between them.
+ */
+.pixel-cat {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url('/cat.svg') 0 0 / 200% 100% no-repeat;
+  mask: url('/cat.svg') 0 0 / 200% 100% no-repeat;
+}
+.pixel-cat[data-animated] {
+  animation: pixel-cat 1s step-end infinite;
+}
+@keyframes pixel-cat {
+  50% {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pixel-cat[data-animated] {
+    animation: none;
+  }
+}
+
+.app-loader .pixel-cat {
   width: 64px;
   height: 64px;
+  color: CanvasText;
 }

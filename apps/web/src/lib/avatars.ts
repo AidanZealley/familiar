@@ -1,21 +1,25 @@
 import type { FamiliarSummary } from '@familiar-ai/client'
+import { queryOptions, useQuery } from '@tanstack/react-query'
 
 /**
- * Familiars' pixel portraits: 64×32 PNG strips in `public/avatars`, frame 1
- * (mouth closed) then frame 2 (open). They aren't committed until their
- * licence is bought (see the app's README), so each portrait falls back to
- * an initial on a colour when its file is missing.
+ * The owner's portraits for their Familiars, which the daemon serves from
+ * the `avatars` folder in its data directory: 64×32 PNG strips, frame 1
+ * (mouth closed) then frame 2 (open). Each is named by its file, which a
+ * Familiar's `avatar` stores. Without any, every Familiar shows its
+ * initial on its colour.
  */
+export const portraitsQuery = queryOptions({
+  queryKey: ['portraits'],
+  queryFn: async () => {
+    const response = await fetch('/api/avatars')
+    return response.ok ? ((await response.json()) as string[]) : []
+  },
+  // The folder rarely changes; reopening the app picks up a change.
+  staleTime: Infinity,
+})
 
-/** Strips with two identical frames, which can't talk, and 101, whose first frame is 100's. */
-const UNUSABLE = new Set([72, 73, 83, 101])
-/**
- * The portraits a Familiar can have, as the `avatar` that stores each
- * choice: its strip's number, three digits, such as `042`.
- */
-export const PORTRAITS = Array.from({ length: 112 }, (_, index) => index)
-  .filter((index) => !UNUSABLE.has(index))
-  .map((index) => String(index).padStart(3, '0'))
+/** The portraits a Familiar can have; none until they've loaded, or without any. */
+export const usePortraits = () => useQuery(portraitsQuery).data ?? []
 
 /** FNV-1a: small, and the same everywhere. */
 const hash = (text: string) => {
@@ -27,20 +31,20 @@ const hash = (text: string) => {
   return value >>> 0
 }
 
-/** The portrait a Familiar gets without a choice: derived from its ID, so it's the same on every device. */
-export const derivedPortrait = (familiar: Pick<FamiliarSummary, 'id'>) =>
-  PORTRAITS[hash(`familiar:${familiar.id}`) % PORTRAITS.length]!
-
 /**
- * A Familiar's portrait file: its chosen `avatar`, else the one its ID
- * derives. Core keeps the choice without reading it, so one this app
- * doesn't offer counts as none.
+ * A Familiar's portrait's URL: its chosen `avatar`, else one its ID picks,
+ * the same on every device; none without portraits. Core keeps the choice
+ * without reading it, so one that isn't among them counts as none.
  */
-export const avatarOf = (familiar: Pick<FamiliarSummary, 'id' | 'avatar'>) => {
-  const chosen = familiar.avatar
+export const avatarOf = (
+  familiar: Pick<FamiliarSummary, 'id' | 'avatar'>,
+  portraits: string[],
+) => {
   const portrait =
-    chosen && PORTRAITS.includes(chosen) ? chosen : derivedPortrait(familiar)
-  return `/avatars/${portrait}.png`
+    familiar.avatar && portraits.includes(familiar.avatar)
+      ? familiar.avatar
+      : portraits[hash(`familiar:${familiar.id}`) % portraits.length]
+  return portrait && `/api/avatars/${portrait}.png`
 }
 
 /** The fallback's colour: one of eight hues that sit on either theme. */

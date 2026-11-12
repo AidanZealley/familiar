@@ -1,3 +1,4 @@
+import { resolvePaths } from '../paths.ts'
 import { openPush } from '../push.ts'
 import { serveWorkspace } from '../serve.ts'
 import { openDemo } from './demo.ts'
@@ -13,5 +14,7 @@ serveWorkspace(workspace, {
   port: Number(process.env.FAMILIAR_DEMO_PORT ?? 4318),
   owner: 'demo',
   label: 'Familiar demo',
+  // Only read, so the demo shows the owner's portraits without touching their data.
+  avatarsDir: resolvePaths().avatarsDir,
   push: push.host,
 })

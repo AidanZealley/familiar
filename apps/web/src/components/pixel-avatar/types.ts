@@ -6,7 +6,11 @@ export type PixelAvatarProps = {
   scale?: 1 | 2 | 3
   /** Its Familiar is replying in the open room: the portrait talks. */
   talking?: boolean
-  /** Only the middle half of the face, for two side by side in a room's. */
-  half?: boolean
+  /**
+   * How much of the face shows, from its middle: all of it, a column half
+   * as wide, or a square half as wide and tall, for a room's grouped
+   * portrait.
+   */
+  crop?: 'whole' | 'half' | 'quarter'
   className?: string
 }
