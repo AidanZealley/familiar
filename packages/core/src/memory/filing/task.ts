@@ -295,7 +295,10 @@ export function createFiling(options: FilingOptions) {
           )
           const record = await familiarRecord(tx, familiar)
           const memory = await memoryOf(tx, familiar, record.name)
-          memory.subjects[0].name = record.name
+          // Its own page is named for it, through renames.
+          if (memory.subjects[0].name !== record.name) {
+            memory.subjects[0].name = record.name
+          }
 
           if (!selected.messages.length) {
             if (selected.end !== undefined) {

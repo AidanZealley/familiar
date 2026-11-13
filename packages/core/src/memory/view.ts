@@ -285,8 +285,9 @@ export function createMemoryIndex(timeZone: string) {
           }
         }
       }
-      // Notes on a subject the query names, even without its words.
-      if (kind !== 'exchange' && hasTerms(query)) {
+      // Notes on a subject the query names, even without its words, unless
+      // the search is already about given subjects.
+      if (kind !== 'exchange' && !about?.length && hasTerms(query)) {
         const subjectsNamed = named(query)
         if (subjectsNamed.length) {
           for (const { id } of index.search('', {
