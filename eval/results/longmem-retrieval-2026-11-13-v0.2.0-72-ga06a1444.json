@@ -1,0 +1,10082 @@
+{
+  "date": "2026-11-13",
+  "commit": "v0.2.0-72-ga06a1444",
+  "set": "full",
+  "small": false,
+  "sessions": [
+    {
+      "type": "single-session-user",
+      "questions": 64,
+      "any": {
+        "5": 0.984375,
+        "10": 1
+      },
+      "all": {
+        "5": 0.984375,
+        "10": 1
+      }
+    },
+    {
+      "type": "single-session-assistant",
+      "questions": 56,
+      "any": {
+        "5": 1,
+        "10": 1
+      },
+      "all": {
+        "5": 1,
+        "10": 1
+      }
+    },
+    {
+      "type": "single-session-preference",
+      "questions": 30,
+      "any": {
+        "5": 0.7,
+        "10": 0.8666666666666667
+      },
+      "all": {
+        "5": 0.7,
+        "10": 0.8666666666666667
+      }
+    },
+    {
+      "type": "multi-session",
+      "questions": 121,
+      "any": {
+        "5": 0.9752066115702479,
+        "10": 0.9834710743801653
+      },
+      "all": {
+        "5": 0.5950413223140496,
+        "10": 0.7768595041322314
+      }
+    },
+    {
+      "type": "knowledge-update",
+      "questions": 72,
+      "any": {
+        "5": 1,
+        "10": 1
+      },
+      "all": {
+        "5": 0.9166666666666666,
+        "10": 0.9722222222222222
+      }
+    },
+    {
+      "type": "temporal-reasoning",
+      "questions": 127,
+      "any": {
+        "5": 0.9291338582677166,
+        "10": 0.968503937007874
+      },
+      "all": {
+        "5": 0.7086614173228346,
+        "10": 0.8110236220472441
+      }
+    },
+    {
+      "type": "abstention",
+      "questions": 30,
+      "any": {
+        "5": 0.9333333333333333,
+        "10": 0.9666666666666667
+      },
+      "all": {
+        "5": 0.6,
+        "10": 0.7333333333333333
+      }
+    },
+    {
+      "type": "answerable",
+      "questions": 470,
+      "any": {
+        "5": 0.9531914893617022,
+        "10": 0.9787234042553191
+      },
+      "all": {
+        "5": 0.7829787234042553,
+        "10": 0.8787234042553191
+      }
+    },
+    {
+      "type": "all",
+      "questions": 500,
+      "any": {
+        "5": 0.952,
+        "10": 0.978
+      },
+      "all": {
+        "5": 0.772,
+        "10": 0.87
+      }
+    }
+  ],
+  "turns": [
+    {
+      "type": "single-session-user",
+      "questions": 64,
+      "any": {
+        "5": 0.96875,
+        "10": 1
+      },
+      "all": {
+        "5": 0.96875,
+        "10": 1
+      }
+    },
+    {
+      "type": "single-session-assistant",
+      "questions": 56,
+      "any": {
+        "5": 0.9285714285714286,
+        "10": 0.9821428571428571
+      },
+      "all": {
+        "5": 0.9285714285714286,
+        "10": 0.9821428571428571
+      }
+    },
+    {
+      "type": "single-session-preference",
+      "questions": 30,
+      "any": {
+        "5": 0.4666666666666667,
+        "10": 0.7
+      },
+      "all": {
+        "5": 0.3333333333333333,
+        "10": 0.5333333333333333
+      }
+    },
+    {
+      "type": "multi-session",
+      "questions": 121,
+      "any": {
+        "5": 0.8512396694214877,
+        "10": 0.9586776859504132
+      },
+      "all": {
+        "5": 0.33884297520661155,
+        "10": 0.5537190082644629
+      }
+    },
+    {
+      "type": "knowledge-update",
+      "questions": 72,
+      "any": {
+        "5": 0.9583333333333334,
+        "10": 1
+      },
+      "all": {
+        "5": 0.8055555555555556,
+        "10": 0.9166666666666666
+      }
+    },
+    {
+      "type": "temporal-reasoning",
+      "questions": 127,
+      "any": {
+        "5": 0.8110236220472441,
+        "10": 0.8976377952755905
+      },
+      "all": {
+        "5": 0.5905511811023622,
+        "10": 0.7559055118110236
+      }
+    },
+    {
+      "type": "abstention",
+      "questions": 9,
+      "any": {
+        "5": 1,
+        "10": 1
+      },
+      "all": {
+        "5": 1,
+        "10": 1
+      }
+    },
+    {
+      "type": "answerable",
+      "questions": 470,
+      "any": {
+        "5": 0.8574468085106383,
+        "10": 0.9404255319148936
+      },
+      "all": {
+        "5": 0.6340425531914894,
+        "10": 0.774468085106383
+      }
+    },
+    {
+      "type": "all",
+      "questions": 479,
+      "any": {
+        "5": 0.860125260960334,
+        "10": 0.941544885177453
+      },
+      "all": {
+        "5": 0.6409185803757829,
+        "10": 0.778705636743215
+      }
+    }
+  ],
+  "unreachable": [],
+  "scores": [
+    {
+      "question": "e47becba",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 257.9421050000001
+    },
+    {
+      "question": "118b2229",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 236.4768949999998
+    },
+    {
+      "question": "51a45a95",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 123.40130700000009
+    },
+    {
+      "question": "58bf7951",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.52222900000015
+    },
+    {
+      "question": "1e043500",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.69894099999965
+    },
+    {
+      "question": "c5e8278d",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.7037309999996
+    },
+    {
+      "question": "6ade9755",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.47644000000037
+    },
+    {
+      "question": "6f9b354f",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.40450400000009
+    },
+    {
+      "question": "58ef2f1c",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.71999400000004
+    },
+    {
+      "question": "f8c5f88b",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.07125999999971
+    },
+    {
+      "question": "5d3d2817",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.64130899999964
+    },
+    {
+      "question": "7527f7e2",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.53014200000052
+    },
+    {
+      "question": "c960da58",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.64443099999971
+    },
+    {
+      "question": "3b6f954b",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.76795000000038
+    },
+    {
+      "question": "726462e0",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.89091000000008
+    },
+    {
+      "question": "94f70d80",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 124.83155100000113
+    },
+    {
+      "question": "66f24dbb",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.51911300000029
+    },
+    {
+      "question": "ad7109d1",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.37490900000012
+    },
+    {
+      "question": "af8d2e46",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.04602499999964
+    },
+    {
+      "question": "dccbc061",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.37753899999916
+    },
+    {
+      "question": "c8c3f81d",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.70629399999962
+    },
+    {
+      "question": "8ebdbe50",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.32074599999942
+    },
+    {
+      "question": "6b168ec8",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.7718420000001
+    },
+    {
+      "question": "75499fd8",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.2439800000011
+    },
+    {
+      "question": "21436231",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.57226600000104
+    },
+    {
+      "question": "95bcc1c8",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.88549899999998
+    },
+    {
+      "question": "0862e8bf",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.13681899999938
+    },
+    {
+      "question": "853b0a1d",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.98267399999895
+    },
+    {
+      "question": "a06e4cfe",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.67297099999996
+    },
+    {
+      "question": "37d43f65",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.63116400000035
+    },
+    {
+      "question": "b86304ba",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.74882100000104
+    },
+    {
+      "question": "d52b4f67",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.29093900000044
+    },
+    {
+      "question": "25e5aa4f",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.44570700000077
+    },
+    {
+      "question": "caf9ead2",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 72.04149499999949
+    },
+    {
+      "question": "8550ddae",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.01505999999972
+    },
+    {
+      "question": "60d45044",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.7612079999999
+    },
+    {
+      "question": "3f1e9474",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.46521800000119
+    },
+    {
+      "question": "86b68151",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 75.72721499999898
+    },
+    {
+      "question": "577d4d32",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.22248299999956
+    },
+    {
+      "question": "ec81a493",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.09747299999981
+    },
+    {
+      "question": "15745da0",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.50805899999978
+    },
+    {
+      "question": "e01b8e2f",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.70316699999967
+    },
+    {
+      "question": "bc8a6e93",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.21545100000003
+    },
+    {
+      "question": "ccb36322",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.85600800000066
+    },
+    {
+      "question": "001be529",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 104.12850500000059
+    },
+    {
+      "question": "b320f3f8",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.09197700000004
+    },
+    {
+      "question": "19b5f2b3",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.56059199999982
+    },
+    {
+      "question": "4fd1909e",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.03639000000112
+    },
+    {
+      "question": "545bd2b5",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.20807799999966
+    },
+    {
+      "question": "8a137a7f",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.58331899999757
+    },
+    {
+      "question": "76d63226",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.1609380000009
+    },
+    {
+      "question": "86f00804",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.80669199999829
+    },
+    {
+      "question": "8e9d538c",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.93826400000034
+    },
+    {
+      "question": "311778f1",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.26438399999824
+    },
+    {
+      "question": "c19f7a0b",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.31199199999901
+    },
+    {
+      "question": "4100d0a0",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.47394500000155
+    },
+    {
+      "question": "29f2956b",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.12691500000074
+    },
+    {
+      "question": "1faac195",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.53616400000101
+    },
+    {
+      "question": "faba32e5",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.69606199999907
+    },
+    {
+      "question": "f4f1d8a4",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.44832400000087
+    },
+    {
+      "question": "c14c00dd",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.72793000000092
+    },
+    {
+      "question": "36580ce8",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.2011960000018
+    },
+    {
+      "question": "3d86fd0a",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.73167699999976
+    },
+    {
+      "question": "a82c026e",
+      "type": "single-session-user",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.45095399999991
+    },
+    {
+      "question": "0862e8bf_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 75.98372000000018
+    },
+    {
+      "question": "15745da0_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 70.81667400000151
+    },
+    {
+      "question": "bc8a6e93_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.13316199999826
+    },
+    {
+      "question": "19b5f2b3_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.56773299999986
+    },
+    {
+      "question": "29f2956b_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.80872799999997
+    },
+    {
+      "question": "f4f1d8a4_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.28202000000238
+    },
+    {
+      "question": "0a995998",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.54297299999962
+    },
+    {
+      "question": "6d550036",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.47651599999881
+    },
+    {
+      "question": "gpt4_59c863d7",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.67666399999871
+    },
+    {
+      "question": "b5ef892d",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.94296000000031
+    },
+    {
+      "question": "e831120c",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.00295899999765
+    },
+    {
+      "question": "3a704032",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.49171900000147
+    },
+    {
+      "question": "gpt4_d84a3211",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 4,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 70.49747500000012
+    },
+    {
+      "question": "aae3761f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 69.30670699999973
+    },
+    {
+      "question": "gpt4_f2262a51",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 73.30668299999888
+    },
+    {
+      "question": "dd2973ad",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.4628249999987
+    },
+    {
+      "question": "c4a1ceb8",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 4,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.61210999999821
+    },
+    {
+      "question": "gpt4_a56e767c",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 6,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.15240300000005
+    },
+    {
+      "question": "6cb6f249",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.15358999999808
+    },
+    {
+      "question": "46a3abf7",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.54990499999985
+    },
+    {
+      "question": "36b9f61e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.49856
+    },
+    {
+      "question": "28dc39ac",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 3,
+          "10": 5
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "unreachable": false,
+      "searchMs": 64.47886199999994
+    },
+    {
+      "question": "gpt4_2f8be40d",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 71.59201199999734
+    },
+    {
+      "question": "2e6d26dc",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 98.58947900000203
+    },
+    {
+      "question": "gpt4_15e38248",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.69086400000015
+    },
+    {
+      "question": "88432d0a",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.64364899999782
+    },
+    {
+      "question": "80ec1f4f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.76575400000002
+    },
+    {
+      "question": "d23cf73b",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.63641199999984
+    },
+    {
+      "question": "gpt4_7fce9456",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 4,
+          "10": 5
+        }
+      },
+      "turns": {
+        "needed": 6,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.87420199999906
+    },
+    {
+      "question": "d682f1a2",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.85335300000224
+    },
+    {
+      "question": "7024f17c",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.39334299999973
+    },
+    {
+      "question": "gpt4_5501fe77",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.25086100000044
+    },
+    {
+      "question": "gpt4_2ba83207",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.05337300000247
+    },
+    {
+      "question": "2318644b",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.85590899999806
+    },
+    {
+      "question": "2ce6a0f2",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.40806599999996
+    },
+    {
+      "question": "gpt4_d12ceb0e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.9880570000023
+    },
+    {
+      "question": "00ca467f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.28115400000024
+    },
+    {
+      "question": "b3c15d39",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.06991700000071
+    },
+    {
+      "question": "gpt4_31ff4165",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 3,
+          "10": 5
+        }
+      },
+      "turns": {
+        "needed": 6,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.81224799999836
+    },
+    {
+      "question": "eeda8a6d",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 99.49097499999698
+    },
+    {
+      "question": "2788b940",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.41284500000256
+    },
+    {
+      "question": "60bf93ed",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.06397300000026
+    },
+    {
+      "question": "9d25d4e0",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.13784799999848
+    },
+    {
+      "question": "129d1232",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.07821999999942
+    },
+    {
+      "question": "60472f9c",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.19981200000257
+    },
+    {
+      "question": "gpt4_194be4b3",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.8517520000023
+    },
+    {
+      "question": "a9f6b44c",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.74402700000064
+    },
+    {
+      "question": "d851d5ba",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.11447199999748
+    },
+    {
+      "question": "5a7937c8",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.80762999999934
+    },
+    {
+      "question": "gpt4_ab202e7f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.19841900000029
+    },
+    {
+      "question": "gpt4_e05b82a6",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 4,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 4,
+          "10": 4
+        }
+      },
+      "unreachable": false,
+      "searchMs": 98.6082439999991
+    },
+    {
+      "question": "gpt4_731e37d7",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.24179200000071
+    },
+    {
+      "question": "edced276",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.58931099999609
+    },
+    {
+      "question": "10d9b85a",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.87701299999753
+    },
+    {
+      "question": "e3038f8c",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.55448900000192
+    },
+    {
+      "question": "2b8f3739",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 99.07577600000513
+    },
+    {
+      "question": "1a8a66a6",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.43520100000023
+    },
+    {
+      "question": "c2ac3c61",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 98.43318699999509
+    },
+    {
+      "question": "bf659f65",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.2277929999982
+    },
+    {
+      "question": "gpt4_372c3eed",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.587950000001
+    },
+    {
+      "question": "gpt4_2f91af09",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.8208569999988
+    },
+    {
+      "question": "81507db6",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 3,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.71664099999907
+    },
+    {
+      "question": "88432d0a_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.24887799999851
+    },
+    {
+      "question": "80ec1f4f_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.70587300000625
+    },
+    {
+      "question": "eeda8a6d_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.6016810000001
+    },
+    {
+      "question": "60bf93ed_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.53662099999929
+    },
+    {
+      "question": "edced276_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.72287700000015
+    },
+    {
+      "question": "gpt4_372c3eed_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.84266599999683
+    },
+    {
+      "question": "8a2466db",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.45660900000075
+    },
+    {
+      "question": "06878be2",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.33997200000158
+    },
+    {
+      "question": "75832dbd",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.61448599999858
+    },
+    {
+      "question": "0edc2aef",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 100.26718499999697
+    },
+    {
+      "question": "35a27287",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.22883699999511
+    },
+    {
+      "question": "32260d93",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.67324300000473
+    },
+    {
+      "question": "195a1a1b",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.95453599999746
+    },
+    {
+      "question": "afdc33df",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.18862499999523
+    },
+    {
+      "question": "caf03d32",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.53195299999788
+    },
+    {
+      "question": "54026fce",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.07607799999823
+    },
+    {
+      "question": "06f04340",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.64606500000082
+    },
+    {
+      "question": "6b7dfb22",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.9749989999982
+    },
+    {
+      "question": "1a1907b4",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.79212700000062
+    },
+    {
+      "question": "09d032c9",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.91959099999804
+    },
+    {
+      "question": "38146c39",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.01168899999902
+    },
+    {
+      "question": "d24813b1",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.80341999999655
+    },
+    {
+      "question": "57f827a0",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.23601200000121
+    },
+    {
+      "question": "95228167",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 111.91098800000327
+    },
+    {
+      "question": "505af2f5",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.58957999999984
+    },
+    {
+      "question": "75f70248",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.70647299999837
+    },
+    {
+      "question": "d6233ab6",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.88577700000315
+    },
+    {
+      "question": "1da05512",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.75679600000149
+    },
+    {
+      "question": "fca70973",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.36435000000347
+    },
+    {
+      "question": "b6025781",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.65260600000329
+    },
+    {
+      "question": "a89d7624",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.11028200000146
+    },
+    {
+      "question": "b0479f84",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.44472600000154
+    },
+    {
+      "question": "1d4e3b97",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.01051000000007
+    },
+    {
+      "question": "07b6f563",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.74146699999983
+    },
+    {
+      "question": "1c0ddc50",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.27182899999752
+    },
+    {
+      "question": "0a34ad58",
+      "type": "single-session-preference",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 98.1347900000037
+    },
+    {
+      "question": "d3ab962e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.53888400000142
+    },
+    {
+      "question": "2311e44b",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.26876300000004
+    },
+    {
+      "question": "cc06de0d",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.29553499999747
+    },
+    {
+      "question": "a11281a2",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.94999799999641
+    },
+    {
+      "question": "4f54b7c9",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.47468999999546
+    },
+    {
+      "question": "85fa3a3f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.23882199999935
+    },
+    {
+      "question": "9aaed6a3",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 101.1401229999974
+    },
+    {
+      "question": "1f2b8d4f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.62325299999793
+    },
+    {
+      "question": "e6041065",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.68963500000245
+    },
+    {
+      "question": "51c32626",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.54427800000121
+    },
+    {
+      "question": "d905b33f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.4380020000026
+    },
+    {
+      "question": "7405e8b1",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.4357799999998
+    },
+    {
+      "question": "f35224e0",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.14715699999942
+    },
+    {
+      "question": "6456829e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.9403949999978
+    },
+    {
+      "question": "a4996e51",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 75.92738200000167
+    },
+    {
+      "question": "3c1045c8",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 75.5448419999957
+    },
+    {
+      "question": "60036106",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.29904300000635
+    },
+    {
+      "question": "681a1674",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 100.42608599999949
+    },
+    {
+      "question": "e25c3b8d",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.11183199999505
+    },
+    {
+      "question": "4adc0475",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.26327100000344
+    },
+    {
+      "question": "4bc144e2",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.01585700000578
+    },
+    {
+      "question": "ef66a6e5",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.42980499999976
+    },
+    {
+      "question": "5025383b",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.11515599999984
+    },
+    {
+      "question": "a1cc6108",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.85345999999845
+    },
+    {
+      "question": "9ee3ecd6",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 101.63642899999832
+    },
+    {
+      "question": "3fdac837",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.64741900000081
+    },
+    {
+      "question": "91b15a6e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 98.54164999999921
+    },
+    {
+      "question": "27016adc",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.3064280000035
+    },
+    {
+      "question": "720133ac",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.29840499999409
+    },
+    {
+      "question": "77eafa52",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.43529400000261
+    },
+    {
+      "question": "8979f9ec",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.31318099999771
+    },
+    {
+      "question": "0100672e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.51234799999656
+    },
+    {
+      "question": "a96c20ee",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.7933669999984
+    },
+    {
+      "question": "92a0aa75",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.31424300000072
+    },
+    {
+      "question": "3fe836c9",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.64170900000317
+    },
+    {
+      "question": "1c549ce4",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.05759099999705
+    },
+    {
+      "question": "6c49646a",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.9035320000039
+    },
+    {
+      "question": "1192316e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.35260299999936
+    },
+    {
+      "question": "0ea62687",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.64746900000318
+    },
+    {
+      "question": "67e0d0f2",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.98282300000574
+    },
+    {
+      "question": "bb7c3b45",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.3148680000013
+    },
+    {
+      "question": "ba358f49",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.44857800000318
+    },
+    {
+      "question": "61f8c8f8",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.74229499999637
+    },
+    {
+      "question": "60159905",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 67.70618100000138
+    },
+    {
+      "question": "ef9cf60a",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.96565600000031
+    },
+    {
+      "question": "73d42213",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 71.29751399999805
+    },
+    {
+      "question": "bc149d6b",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.00503899999603
+    },
+    {
+      "question": "099778bb",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.70225899999787
+    },
+    {
+      "question": "09ba9854",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.70889900000475
+    },
+    {
+      "question": "d6062bb9",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.60696499999904
+    },
+    {
+      "question": "157a136e",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.34241199999815
+    },
+    {
+      "question": "c18a7dc8",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.00286400000186
+    },
+    {
+      "question": "a3332713",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.98843800000031
+    },
+    {
+      "question": "55241a1f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.81429999999818
+    },
+    {
+      "question": "a08a253f",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.11347499999829
+    },
+    {
+      "question": "f0e564bc",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.71588999999949
+    },
+    {
+      "question": "078150f1",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.77205200000026
+    },
+    {
+      "question": "8cf4d046",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.74990500000422
+    },
+    {
+      "question": "a346bb18",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 98.49127500000031
+    },
+    {
+      "question": "37f165cf",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.53707700000086
+    },
+    {
+      "question": "8e91e7d9",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.1691439999995
+    },
+    {
+      "question": "87f22b4a",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.33632099999522
+    },
+    {
+      "question": "e56a43b9",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.3045970000021
+    },
+    {
+      "question": "efc3f7c2",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.1509320000041
+    },
+    {
+      "question": "21d02d0d",
+      "type": "multi-session",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 73.26866800000425
+    },
+    {
+      "question": "2311e44b_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.63014400000247
+    },
+    {
+      "question": "6456829e_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.86060900000302
+    },
+    {
+      "question": "e5ba910e_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.69682399999874
+    },
+    {
+      "question": "a96c20ee_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.5572370000009
+    },
+    {
+      "question": "ba358f49_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.39776400000119
+    },
+    {
+      "question": "09ba9854_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 103.0034749999977
+    },
+    {
+      "question": "gpt4_59149c77",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.62578600000415
+    },
+    {
+      "question": "gpt4_f49edff3",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 100.2204880000063
+    },
+    {
+      "question": "71017276",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.70313200000237
+    },
+    {
+      "question": "b46e15ed",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 62.64454100000148
+    },
+    {
+      "question": "gpt4_fa19884c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.12884399999894
+    },
+    {
+      "question": "0bc8ad92",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.83497499999794
+    },
+    {
+      "question": "af082822",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.06597400000464
+    },
+    {
+      "question": "gpt4_4929293a",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.3681460000007
+    },
+    {
+      "question": "gpt4_b5700ca9",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.3663910000032
+    },
+    {
+      "question": "9a707b81",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.65516999999818
+    },
+    {
+      "question": "gpt4_1d4ab0c9",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.42382799999905
+    },
+    {
+      "question": "gpt4_e072b769",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.00789500000246
+    },
+    {
+      "question": "0db4c65d",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.71814300000551
+    },
+    {
+      "question": "gpt4_1d80365e",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.8808560000034
+    },
+    {
+      "question": "gpt4_7f6b06db",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.9298060000001
+    },
+    {
+      "question": "gpt4_6dc9b45b",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 68.20524999999907
+    },
+    {
+      "question": "gpt4_8279ba02",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.85384999999951
+    },
+    {
+      "question": "gpt4_18c2b244",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.91645499999868
+    },
+    {
+      "question": "gpt4_a1b77f9c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 6,
+        "found": {
+          "5": 3,
+          "10": 5
+        }
+      },
+      "turns": {
+        "needed": 6,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "unreachable": false,
+      "searchMs": 99.02921999999671
+    },
+    {
+      "question": "gpt4_1916e0ea",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.37643899999966
+    },
+    {
+      "question": "gpt4_7a0daae1",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.1717639999988
+    },
+    {
+      "question": "gpt4_468eb063",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.11350500000117
+    },
+    {
+      "question": "gpt4_7abb270c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 6,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 6,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.40077100000053
+    },
+    {
+      "question": "gpt4_1e4a8aeb",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.0460929999972
+    },
+    {
+      "question": "gpt4_4fc4f797",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.63553099999262
+    },
+    {
+      "question": "4dfccbf7",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.41733899999235
+    },
+    {
+      "question": "gpt4_61e13b3c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.5573669999867
+    },
+    {
+      "question": "gpt4_45189cb4",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.8476229999942
+    },
+    {
+      "question": "2ebe6c90",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.50724700000137
+    },
+    {
+      "question": "gpt4_e061b84f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.57411099999445
+    },
+    {
+      "question": "370a8ff4",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.01544699999795
+    },
+    {
+      "question": "gpt4_d6585ce8",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.73415000000386
+    },
+    {
+      "question": "gpt4_4ef30696",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.20261900000332
+    },
+    {
+      "question": "gpt4_ec93e27f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.63213600000017
+    },
+    {
+      "question": "6e984301",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.35354799999914
+    },
+    {
+      "question": "8077ef71",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.6316380000062
+    },
+    {
+      "question": "gpt4_f420262c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 3,
+          "10": 5
+        }
+      },
+      "turns": {
+        "needed": 5,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.4929839999968
+    },
+    {
+      "question": "gpt4_8e165409",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.84605100000044
+    },
+    {
+      "question": "gpt4_74aed68e",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.39062299999932
+    },
+    {
+      "question": "bcbe585f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.39474200000404
+    },
+    {
+      "question": "gpt4_21adecb5",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.10188000000198
+    },
+    {
+      "question": "5e1b23de",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.15400100000261
+    },
+    {
+      "question": "gpt4_98f46fc6",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.29339400000754
+    },
+    {
+      "question": "gpt4_af6db32f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.61651100000017
+    },
+    {
+      "question": "eac54adc",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.74574800000119
+    },
+    {
+      "question": "gpt4_7ddcf75f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.91337699998985
+    },
+    {
+      "question": "gpt4_a2d1d1f6",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.12721299999976
+    },
+    {
+      "question": "gpt4_85da3956",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.22119900000689
+    },
+    {
+      "question": "gpt4_b0863698",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.92464800000016
+    },
+    {
+      "question": "gpt4_68e94287",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.5953659999941
+    },
+    {
+      "question": "gpt4_e414231e",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.00792899999942
+    },
+    {
+      "question": "gpt4_7ca326fa",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.86253199999919
+    },
+    {
+      "question": "gpt4_7bc6cf22",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.88414999999804
+    },
+    {
+      "question": "2ebe6c92",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.06944499998644
+    },
+    {
+      "question": "gpt4_e061b84g",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.66537300001073
+    },
+    {
+      "question": "71017277",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.55594599999313
+    },
+    {
+      "question": "b46e15ee",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 4,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.98214399999415
+    },
+    {
+      "question": "gpt4_d6585ce9",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.07213800000318
+    },
+    {
+      "question": "gpt4_1e4a8aec",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.66726200000267
+    },
+    {
+      "question": "gpt4_f420262d",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.33188000001246
+    },
+    {
+      "question": "gpt4_59149c78",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 100.98811299999943
+    },
+    {
+      "question": "gpt4_e414231f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.6771299999964
+    },
+    {
+      "question": "gpt4_4929293b",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.08183399999689
+    },
+    {
+      "question": "gpt4_468eb064",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.94909099998767
+    },
+    {
+      "question": "gpt4_fa19884d",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.84057100000791
+    },
+    {
+      "question": "9a707b82",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.75243600000977
+    },
+    {
+      "question": "eac54add",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.46083900000667
+    },
+    {
+      "question": "4dfccbf8",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 102.52534800001013
+    },
+    {
+      "question": "0bc8ad93",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.49171000000206
+    },
+    {
+      "question": "6e984302",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.85622899999726
+    },
+    {
+      "question": "gpt4_8279ba03",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.06600400000752
+    },
+    {
+      "question": "gpt4_b5700ca0",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.75097900000401
+    },
+    {
+      "question": "gpt4_68e94288",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.78973799999221
+    },
+    {
+      "question": "gpt4_2655b836",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.70118800000637
+    },
+    {
+      "question": "gpt4_2487a7cb",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.81869300000835
+    },
+    {
+      "question": "gpt4_76048e76",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 121.05100099999981
+    },
+    {
+      "question": "gpt4_2312f94c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.8645899999974
+    },
+    {
+      "question": "0bb5a684",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.86375499999849
+    },
+    {
+      "question": "08f4fc43",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.10489200000302
+    },
+    {
+      "question": "2c63a862",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.25336800000514
+    },
+    {
+      "question": "gpt4_385a5000",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.46428000000014
+    },
+    {
+      "question": "2a1811e2",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.77521299998625
+    },
+    {
+      "question": "bbf86515",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.49320500000613
+    },
+    {
+      "question": "gpt4_5dcc0aab",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 5,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.36879999999655
+    },
+    {
+      "question": "gpt4_0b2f1d21",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.08572899999854
+    },
+    {
+      "question": "f0853d11",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.91764899999544
+    },
+    {
+      "question": "gpt4_6ed717ea",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.89199899999949
+    },
+    {
+      "question": "gpt4_70e84552",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.5603650000121
+    },
+    {
+      "question": "a3838d2b",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 6,
+        "found": {
+          "5": 2,
+          "10": 4
+        }
+      },
+      "turns": {
+        "needed": 6,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.20651099999668
+    },
+    {
+      "question": "gpt4_93159ced",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.53946899999573
+    },
+    {
+      "question": "gpt4_2d58bcd6",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.0441950000095
+    },
+    {
+      "question": "gpt4_65aabe59",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.20842999999877
+    },
+    {
+      "question": "982b5123",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.69711600001028
+    },
+    {
+      "question": "b9cfe692",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.0727840000036
+    },
+    {
+      "question": "gpt4_4edbafa2",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.00016999999934
+    },
+    {
+      "question": "c8090214",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.28739899999346
+    },
+    {
+      "question": "gpt4_483dd43c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.45722499999101
+    },
+    {
+      "question": "e4e14d04",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.57138199999463
+    },
+    {
+      "question": "c9f37c46",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.31604499999958
+    },
+    {
+      "question": "gpt4_2c50253f",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.18180399999255
+    },
+    {
+      "question": "dcfa8644",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.07643299999472
+    },
+    {
+      "question": "gpt4_b4a80587",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.4198919999908
+    },
+    {
+      "question": "gpt4_9a159967",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 3
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.17795299999125
+    },
+    {
+      "question": "cc6d1ec1",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.60756100001163
+    },
+    {
+      "question": "gpt4_8c8961ae",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.35707299999194
+    },
+    {
+      "question": "gpt4_d9af6064",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.79912000001059
+    },
+    {
+      "question": "gpt4_7de946e7",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.63875500000722
+    },
+    {
+      "question": "d01c6aa8",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.20115199999418
+    },
+    {
+      "question": "993da5e2",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.20219100000395
+    },
+    {
+      "question": "a3045048",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.20120500000485
+    },
+    {
+      "question": "gpt4_d31cdae3",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.53969099999813
+    },
+    {
+      "question": "gpt4_cd90e484",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.16287499999453
+    },
+    {
+      "question": "gpt4_88806d6e",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.47046700000647
+    },
+    {
+      "question": "gpt4_4cd9eba1",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.47531300000264
+    },
+    {
+      "question": "gpt4_93f6379c",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 74.88477899999998
+    },
+    {
+      "question": "b29f3365",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.1114910000033
+    },
+    {
+      "question": "gpt4_2f56ae70",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.28536999999778
+    },
+    {
+      "question": "6613b389",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 3,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.27367999999842
+    },
+    {
+      "question": "gpt4_78cf46a3",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.94633500000054
+    },
+    {
+      "question": "gpt4_0a05b494",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.54140500001085
+    },
+    {
+      "question": "gpt4_1a1dc16d",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 106.71497800000361
+    },
+    {
+      "question": "gpt4_2f584639",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.80176500001107
+    },
+    {
+      "question": "gpt4_213fd887",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.10114600000088
+    },
+    {
+      "question": "gpt4_5438fa52",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.15658600001188
+    },
+    {
+      "question": "gpt4_c27434e8",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.68699899999774
+    },
+    {
+      "question": "gpt4_fe651585",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.38229199999478
+    },
+    {
+      "question": "8c18457d",
+      "type": "temporal-reasoning",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.67118399999163
+    },
+    {
+      "question": "gpt4_70e84552_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.60568299998704
+    },
+    {
+      "question": "gpt4_93159ced_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.17704299998877
+    },
+    {
+      "question": "982b5123_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.33679999999003
+    },
+    {
+      "question": "c8090214_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.69315400000778
+    },
+    {
+      "question": "gpt4_c27434e8_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.20093999999517
+    },
+    {
+      "question": "gpt4_fe651585_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.56051499999012
+    },
+    {
+      "question": "6a1eabeb",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.28958799999964
+    },
+    {
+      "question": "6aeb4375",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.60771999999997
+    },
+    {
+      "question": "830ce83f",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.21214800000598
+    },
+    {
+      "question": "852ce960",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.50167099999089
+    },
+    {
+      "question": "945e3d21",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.38714700000128
+    },
+    {
+      "question": "d7c942c3",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.25864099999308
+    },
+    {
+      "question": "71315a70",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.60823399999936
+    },
+    {
+      "question": "89941a93",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.24736299998767
+    },
+    {
+      "question": "ce6d2d27",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.84513099999458
+    },
+    {
+      "question": "9ea5eabc",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.1983290000062
+    },
+    {
+      "question": "07741c44",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.89662300000782
+    },
+    {
+      "question": "a1eacc2a",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.63164099999995
+    },
+    {
+      "question": "184da446",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.32588400000532
+    },
+    {
+      "question": "031748ae",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.22914999999921
+    },
+    {
+      "question": "4d6b87c8",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.88269900000887
+    },
+    {
+      "question": "0f05491a",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.90472500000033
+    },
+    {
+      "question": "08e075c7",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.88955399999395
+    },
+    {
+      "question": "f9e8c073",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.03259400000388
+    },
+    {
+      "question": "41698283",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.13233900000341
+    },
+    {
+      "question": "2698e78f",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.11029599999893
+    },
+    {
+      "question": "b6019101",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.55468899999687
+    },
+    {
+      "question": "45dc21b6",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 73.72871499999019
+    },
+    {
+      "question": "5a4f22c0",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.16294900000503
+    },
+    {
+      "question": "6071bd76",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.8631110000133
+    },
+    {
+      "question": "e493bb7c",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 101.32287899999938
+    },
+    {
+      "question": "618f13b2",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.10454599998775
+    },
+    {
+      "question": "72e3ee87",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.301403999998
+    },
+    {
+      "question": "c4ea545c",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.48883600000408
+    },
+    {
+      "question": "01493427",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.47056200000225
+    },
+    {
+      "question": "6a27ffc2",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.31273499999952
+    },
+    {
+      "question": "2133c1b5",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.03012999999919
+    },
+    {
+      "question": "18bc8abd",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.67835100000957
+    },
+    {
+      "question": "db467c8c",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.47572600000422
+    },
+    {
+      "question": "7a87bd0c",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.95245299999078
+    },
+    {
+      "question": "e61a7584",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.94624499999918
+    },
+    {
+      "question": "1cea1afa",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 99.84765500000503
+    },
+    {
+      "question": "ed4ddc30",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.71719100000337
+    },
+    {
+      "question": "8fb83627",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 3,
+        "found": {
+          "5": 3,
+          "10": 3
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.6554970000143
+    },
+    {
+      "question": "b01defab",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.92929699999513
+    },
+    {
+      "question": "22d2cb42",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.67565699999977
+    },
+    {
+      "question": "0e4e4c46",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.92232100000547
+    },
+    {
+      "question": "4b24c848",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.99448100000154
+    },
+    {
+      "question": "7e974930",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.91474900000321
+    },
+    {
+      "question": "603deb26",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.92346600000747
+    },
+    {
+      "question": "59524333",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 76.79937399999471
+    },
+    {
+      "question": "5831f84d",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.28620400000364
+    },
+    {
+      "question": "eace081b",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.88586900000519
+    },
+    {
+      "question": "affe2881",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.4399790000025
+    },
+    {
+      "question": "50635ada",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.54295299999649
+    },
+    {
+      "question": "e66b632c",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.55301799999143
+    },
+    {
+      "question": "0ddfec37",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.99852399999509
+    },
+    {
+      "question": "f685340e",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.2132830000046
+    },
+    {
+      "question": "cc5ded98",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.92743599999812
+    },
+    {
+      "question": "dfde3500",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.55849799999851
+    },
+    {
+      "question": "69fee5aa",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.07851399999345
+    },
+    {
+      "question": "7401057b",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.2681040000025
+    },
+    {
+      "question": "cf22b7bf",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.84998399998585
+    },
+    {
+      "question": "a2f3aa27",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.53423499999917
+    },
+    {
+      "question": "c7dc5443",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.35843999999634
+    },
+    {
+      "question": "06db6396",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.1315190000023
+    },
+    {
+      "question": "3ba21379",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.20982299999741
+    },
+    {
+      "question": "9bbe84a2",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.97500700000091
+    },
+    {
+      "question": "10e09553",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.6898349999974
+    },
+    {
+      "question": "dad224aa",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.84530700001051
+    },
+    {
+      "question": "ba61f0b9",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.23229100000754
+    },
+    {
+      "question": "42ec0761",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.97692800000368
+    },
+    {
+      "question": "5c40ec5b",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.77544499999203
+    },
+    {
+      "question": "c6853660",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.08824199999799
+    },
+    {
+      "question": "26bdc477",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.50529000000097
+    },
+    {
+      "question": "0977f2af",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 77.61942899999849
+    },
+    {
+      "question": "6aeb4375_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.95906399999512
+    },
+    {
+      "question": "031748ae_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.15021599999454
+    },
+    {
+      "question": "2698e78f_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.48555599999963
+    },
+    {
+      "question": "2133c1b5_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 1,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.52366800000891
+    },
+    {
+      "question": "0ddfec37_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 95.10526300000492
+    },
+    {
+      "question": "f685340e_abs",
+      "type": "abstention",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.93025399999169
+    },
+    {
+      "question": "89941a94",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.72607800000696
+    },
+    {
+      "question": "07741c45",
+      "type": "knowledge-update",
+      "sessions": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "turns": {
+        "needed": 2,
+        "found": {
+          "5": 2,
+          "10": 2
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.93336100000306
+    },
+    {
+      "question": "7161e7e2",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.37147800000093
+    },
+    {
+      "question": "c4f10528",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 90.64279900000838
+    },
+    {
+      "question": "89527b6b",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.45331599999918
+    },
+    {
+      "question": "e9327a54",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.17052300000796
+    },
+    {
+      "question": "4c36ccef",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.56702299999597
+    },
+    {
+      "question": "6ae235be",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.40455599999405
+    },
+    {
+      "question": "7e00a6cb",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 99.53758200000448
+    },
+    {
+      "question": "1903aded",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.7150590000092
+    },
+    {
+      "question": "ceb54acb",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.41164799999387
+    },
+    {
+      "question": "f523d9fe",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.51618700000108
+    },
+    {
+      "question": "0e5e2d1a",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 92.5273440000019
+    },
+    {
+      "question": "fea54f57",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.56030700000701
+    },
+    {
+      "question": "cc539528",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.93894200000796
+    },
+    {
+      "question": "dc439ea3",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 74.57777499999793
+    },
+    {
+      "question": "18dcd5a5",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 74.50221400000737
+    },
+    {
+      "question": "488d3006",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.35673300000781
+    },
+    {
+      "question": "58470ed2",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.68586399999913
+    },
+    {
+      "question": "8cf51dda",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.90274599999248
+    },
+    {
+      "question": "1d4da289",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 97.3086900000053
+    },
+    {
+      "question": "8464fc84",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.66526999999769
+    },
+    {
+      "question": "8aef76bc",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.78214400001161
+    },
+    {
+      "question": "71a3fd6b",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.19836600001145
+    },
+    {
+      "question": "2bf43736",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.33661500000744
+    },
+    {
+      "question": "70b3e69b",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.0728919999965
+    },
+    {
+      "question": "8752c811",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 81.26958999999624
+    },
+    {
+      "question": "3249768e",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.91418200000771
+    },
+    {
+      "question": "1b9b7252",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.1307700000034
+    },
+    {
+      "question": "1568498a",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 78.27292100001068
+    },
+    {
+      "question": "6222b6eb",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.01196799999161
+    },
+    {
+      "question": "e8a79c70",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.41349399999308
+    },
+    {
+      "question": "d596882b",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.70947099999466
+    },
+    {
+      "question": "e3fc4d6e",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 86.19155899999896
+    },
+    {
+      "question": "51b23612",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 99.22084499998891
+    },
+    {
+      "question": "3e321797",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 91.29693399999815
+    },
+    {
+      "question": "e982271f",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.89736899999843
+    },
+    {
+      "question": "352ab8bd",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.92255200000363
+    },
+    {
+      "question": "fca762bc",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.94806000000972
+    },
+    {
+      "question": "7a8d0b71",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 94.94037699999171
+    },
+    {
+      "question": "a40e080f",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.04269100000965
+    },
+    {
+      "question": "8b9d4367",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.71694799998659
+    },
+    {
+      "question": "5809eb10",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 85.5580559999944
+    },
+    {
+      "question": "41275add",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.63434300001245
+    },
+    {
+      "question": "4388e9dd",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 96.52758999999787
+    },
+    {
+      "question": "4baee567",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.27281000000949
+    },
+    {
+      "question": "561fabcd",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 0
+        }
+      },
+      "unreachable": false,
+      "searchMs": 72.31683500000509
+    },
+    {
+      "question": "b759caee",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.75359599999501
+    },
+    {
+      "question": "ac031881",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 79.66393499998958
+    },
+    {
+      "question": "28bcfaac",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 93.9075989999983
+    },
+    {
+      "question": "16c90bf4",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 89.50731499999529
+    },
+    {
+      "question": "c8f1aeed",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 87.66177099999913
+    },
+    {
+      "question": "eaca4986",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 83.02658799999335
+    },
+    {
+      "question": "c7cf7dfd",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 84.10295400000177
+    },
+    {
+      "question": "e48988bc",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.11393200000748
+    },
+    {
+      "question": "1de5cff2",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 82.82538300000306
+    },
+    {
+      "question": "65240037",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 0,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 88.73760399999446
+    },
+    {
+      "question": "778164c6",
+      "type": "single-session-assistant",
+      "sessions": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "turns": {
+        "needed": 1,
+        "found": {
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unreachable": false,
+      "searchMs": 80.80554100000882
+    }
+  ]
+}
