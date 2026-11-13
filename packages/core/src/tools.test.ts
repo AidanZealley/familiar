@@ -159,9 +159,9 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
   expect(seen).toEqual([first, first, second])
 })
 
-// Upkeep runs only Familiar's own memory tools, so its kind of input, plain
+// Memory's calls run only memory's own tools, so their kind of input, plain
 // text with no message entry, is checked here.
-test('input with no person behind it, such as an upkeep pass, has no author', async () => {
+test('input with no person behind it, such as a memory call, has no author', async () => {
   const context = BACKGROUND_CONTEXT
   const faux = fauxProvider()
   const models = createModels()
@@ -212,7 +212,7 @@ test('input with no person behind it, such as an upkeep pass, has no author', as
       }),
       fauxAssistantMessage('Done'),
     ])
-    // How upkeep submits each pass.
+    // How memory submits each call.
     await conversation.submit(
       { type: 'input', content: 'File the day.', requestId: 'pass' },
       context,

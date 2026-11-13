@@ -5,7 +5,9 @@ import type {
 } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
+  fauxAssistantMessage,
   fauxProvider,
+  fauxToolCall,
   type RegisterFauxProviderOptions,
 } from '@earendil-works/pi-ai/providers/faux'
 import {
@@ -30,7 +32,12 @@ export type ScriptedRequest = { context: TranscriptContext } & (
   | { type: 'scheduled' }
   /** Another Familiar handed this on, by name, with a note. */
   | { type: 'handoff'; from: string; note: string }
-  /** Work nobody is waiting on, such as compaction or memory upkeep. */
+  /**
+   * Memory's own call, which answers by calling `call`: filing what people
+   * said (`file`) or tidying a page (`tidy`). `keepNothing` answers it.
+   */
+  | { type: 'memory'; call: 'file' | 'tidy' }
+  /** Work nobody is waiting on, such as compaction. */
   | { type: 'background' }
 )
 
@@ -43,14 +50,43 @@ const inputText = (message: Message) =>
     ? message.content
     : (message.content.findLast((part) => part.type === 'text')?.text ?? '')
 
+/** Memory's call a request is, from the one tool memory's conversation offers. */
+function memoryCall({ messages }: TranscriptContext) {
+  const offered = messages.flatMap((message) =>
+    message.role === 'system'
+      ? (message.toolsAdded ?? []).map((tool) => tool.name)
+      : [],
+  )
+  return offered.includes('file')
+    ? 'file'
+    : offered.includes('tidy')
+      ? 'tidy'
+      : undefined
+}
+
+/**
+ * Memory's call answered keeping nothing: filing nothing, or a page left
+ * without a profile.
+ */
+export const keepNothing = (call: 'file' | 'tidy') =>
+  fauxAssistantMessage(
+    [fauxToolCall(call, call === 'file' ? {} : { profile: '' })],
+    { stopReason: 'toolUse' },
+  )
+
 /**
  * Reads the input a request answers: its newest person's message, schedule,
  * handoff or tool result. Anything after it, such as a recall note or a plugin's note, is
- * context for that input. Compaction and upkeep carry no person's message or
- * schedule, so they read as background unless the script called a tool there.
+ * context for that input. Memory's own calls read as `memory`. Compaction
+ * carries no person's message or schedule, so it reads as background unless
+ * the script called a tool there.
  */
 function readRequest(context: TranscriptContext): ScriptedRequest {
   const { messages } = context
+  const call = memoryCall(context)
+  if (call) {
+    return { type: 'memory', call, context }
+  }
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index]
     if (message.role === 'toolResult') {

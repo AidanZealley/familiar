@@ -73,7 +73,7 @@ import {
   type CapabilitiesChange,
   type FamiliarCapabilities,
 } from './capabilities.ts'
-import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
+import { MEMORY_WRITERS } from './harness.ts'
 import { removeFamiliar } from './remove.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
@@ -92,7 +92,7 @@ export type WorkspaceOptions = {
    */
   chatModel: ModelRef
   /**
-   * What memory upkeep runs on unless a Familiar picks another, at its level
+   * What memory's filing and consolidation run on unless a Familiar picks another, at its level
    * in `modelChoices`: background memory work needs less than a chat does,
    * so it can run on a cheaper model. Must be one of `modelChoices`.
    * Default `chatModel`.
@@ -100,8 +100,8 @@ export type WorkspaceOptions = {
   memoryModel?: ModelRef
   /**
    * The owner's IANA time zone, such as `Europe/London`. Familiar reads every
-   * calendar in it: dates in memory, the days upkeep files and its 04:00
-   * pass, schedules' times and repeats, and current_time's answer. Instants
+   * calendar in it: dates in memory and its nightly 04:00 tidy, schedules'
+   * times and repeats, and current_time's answer. Instants
    * (`now`) don't depend on it. Pass the same zone on every open; changing it
    * affects future calendar calculations, not stored instants or dates.
    */
@@ -109,7 +109,7 @@ export type WorkspaceOptions = {
   /**
    * The models this installation offers, each with the level it starts on:
    * the ones a chat may switch between, and that a Familiar may run its
-   * memory upkeep on. Compaction is sized for each. Must include `chatModel`
+   * memory's calls on. Compaction is sized for each. Must include `chatModel`
    * and any `memoryModel`. Default: only `chatModel`, at medium.
    */
   modelChoices?: readonly ModelChoice[]
@@ -194,7 +194,7 @@ export type WorkspaceOptions = {
   /**
    * For hosts whose process can be evicted between requests, such as a
    * Durable Object. With it, Familiar arms no timer for sleeping work
-   * (schedules, upkeep, retries); it calls this after opening and whenever
+   * (schedules, memory's clock, retries); it calls this after opening and whenever
    * `wake()` changes, and the host keeps its own wakeup armed and calls
    * `resume()` when it fires. Called after the commit that changed the value,
    * so arm a recovery wakeup before opening and before each call that can
@@ -280,7 +280,7 @@ export type Workspace = {
     ): Promise<WorkspaceFamiliar>
     /**
      * Changes who it is, from its next request, and its memoryModel from its
-     * next upkeep pass. Throws a TypeError for a blank name or persona, or a
+     * next memory call. Throws a TypeError for a blank name or persona, or a
      * memoryModel that isn't one of `modelChoices`.
      */
     update(id: FamiliarId, change: FamiliarChange): Promise<void>
@@ -401,12 +401,10 @@ export async function openWorkspace(
       post: rooms.postScheduled,
     })
 
-    // Half the budget leaves room for the prompt, memory and the pass's tool calls.
     const memory = createMemory(harness, {
       now: options.now ?? Date.now,
       memoryModel,
       modelChoices,
-      transcriptTokens: Math.floor(budget / 2),
       timeZone: options.timeZone,
     })
 
@@ -468,7 +466,7 @@ export async function openWorkspace(
         .snapshot()
         .installed()
         .map((extension) => extension.name)
-        .filter((name) => name !== UPKEEP_EXTENSION),
+        .filter((name) => !MEMORY_WRITERS.has(name)),
     })
     // The host's default tools, on the first open only.
     if ((await harness.snapshot(DefaultCapabilities, context)) === undefined) {

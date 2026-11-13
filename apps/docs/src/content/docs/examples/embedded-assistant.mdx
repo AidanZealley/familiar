@@ -57,7 +57,7 @@ defineTool({
   parameters: Type.Object({ taskId }),
   execute: async ({ taskId }, _api, context) => {
     // The person who asked, never a tool argument. Undefined for
-    // work nobody asked for, such as memory upkeep.
+    // work nobody asked for, such as memory filing.
     const author = await familiar(context).author()
     return run(() => {
       if (!author) {
@@ -69,7 +69,7 @@ defineTool({
 })
 ```
 
-Every board tool is available to everyone in the board's room. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory upkeep. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against the author, so the same rules apply to the UI and the tools.
+Every board tool is available to everyone in the board's room. `assign_task_to_me` acts only for a person: the author of the message that started the call, or a schedule's creator, never memory filing. This board lets anyone change any task. A board with rules about who may change what would check them in its operations, against the author, so the same rules apply to the UI and the tools.
 
 ## Only what it needs
 

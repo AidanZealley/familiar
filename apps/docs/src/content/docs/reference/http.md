@@ -51,14 +51,14 @@ The author of `POST /rooms/:room/messages` comes from `authenticate`, never the 
 
 **Memory and schedules**, `memory.*` and `schedules.*`, asked with `{ familiar }`
 
-| Operation          | Method and path                                  | Body         | Success | Errors                   |
-| ------------------ | ------------------------------------------------ | ------------ | ------- | ------------------------ |
-| `memory.revise`    | `PUT /familiars/:familiar/memory/:id`            | `{ text }`   | 204     | 400, 404 missing or past |
-| `memory.retire`    | `POST /familiars/:familiar/memory/:id/retire`    |              | 204     | 404                      |
-| `memory.setPinned` | `PUT /familiars/:familiar/memory/:id/pin`        | `{ pinned }` | 204     | 400, 404                 |
-| `schedules.cancel` | `DELETE /familiars/:familiar/schedules/:id`      |              | 204     | 404                      |
-| `schedules.pause`  | `POST /familiars/:familiar/schedules/:id/pause`  |              | 204     | 404                      |
-| `schedules.resume` | `POST /familiars/:familiar/schedules/:id/resume` |              | 204     | 404                      |
+| Operation          | Method and path                                       | Body | Success                  | Errors |
+| ------------------ | ----------------------------------------------------- | ---- | ------------------------ | ------ |
+| `memory.read`      | `GET /familiars/:familiar/memory/section`             |      | 200 `{ text }`           |        |
+| `memory.read`      | `GET /familiars/:familiar/memory/pages/:subject`      |      | 200 `{ profile, notes }` | 404    |
+| `memory.forget`    | `POST /familiars/:familiar/memory/notes/:note/forget` |      | 204                      | 404    |
+| `schedules.cancel` | `DELETE /familiars/:familiar/schedules/:id`           |      | 204                      | 404    |
+| `schedules.pause`  | `POST /familiars/:familiar/schedules/:id/pause`       |      | 204                      | 404    |
+| `schedules.resume` | `POST /familiars/:familiar/schedules/:id/resume`      |      | 204                      | 404    |
 
 A paused schedule doesn't run until resumed, and keeps showing its `next` time: a repeat skips the times that fall due meanwhile, and a one-off whose time passes runs, late, once resumed.
 
@@ -133,5 +133,5 @@ Apply ops in order to the last whole value. After a reconnect, everything arrive
 `protocol` always comes first. The rest come only from the sources `allow` agrees to for that request when it connects, each asked once:
 
 - The workspace's: `events.familiars` sends the `familiars` document, who each Familiar is; `events.rooms` the `rooms` document, the rooms the person sees, each as `GET /rooms` lists it, with its newest entry, what they haven't read and whose turns are in progress, so a list needs no stream per room; `events.me` the `me` document, the person as `GET /me` says; and `events.account` sends `account`, or `null` once when the host manages credentials itself.
-- A Familiar's, asked with `{ familiar }`: `events.model` sends the `model` document, its model and reasoning level, and `events.memory`, `events.episodes` and `events.schedules` their documents.
+- A Familiar's, asked with `{ familiar }`: `events.model` sends the `model` document, its model and reasoning level, and `events.memory` and `events.schedules` their documents: `memory` is the subjects, which pages are read by.
 - A room's, asked with `{ room }`: `events.room` sends the log's `view` and `ops`, then the `turns` document, its turns in progress by task ID. Each turn is `queued` behind work in this room or not yet delivered, `elsewhere` while its Familiar works in another room, or `running`, with the reply so far (`generation`) and the current round's tool calls (`tools`). Nothing from a Familiar's other rooms is sent, and a reply's earlier rounds show once the turn ends and its reply is copied into the log.

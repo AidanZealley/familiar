@@ -3,19 +3,16 @@ import { createModels } from '@earendil-works/pi-ai/models'
 import {
   createRegistry,
   Harness,
-  type JsonObject,
-  type SessionDocFamilyToken,
   type Storage,
   type Tx,
 } from '@earendil-works/pi-durable'
 import { ReopenableStorage } from '../testing.ts'
 import {
   createFamiliar,
-  familiarDoc,
   Familiars,
   type FamiliarId,
 } from '../workspace/familiars.ts'
-import { openMemory, rememberFact } from './facts.ts'
+import { keyOf, memoryOf, Pages, type Subject } from './store.ts'
 
 /** Test helpers for memory; not part of Familiar. */
 
@@ -46,45 +43,43 @@ export async function onlyFamiliar(tx: Tx) {
 }
 
 /**
- * Storage with a Familiar that already holds these facts, as nightly upkeep
- * would have saved them; the conversation model can't save facts itself.
- * Each is saved now unless given a time, so none is due for review. Closing
- * the storage does nothing, so a test can read it after dismissing Familiar.
+ * Gives `familiar` a page as consolidation would have left it: a subject
+ * with a profile. Returns the subject's ID.
  */
+export async function seedPage(
+  tx: Tx,
+  familiar: FamiliarId,
+  subject: Pick<Subject, 'name' | 'kind'> & Partial<Subject>,
+  profile: string,
+) {
+  const memory = await memoryOf(tx, familiar, 'Familiar')
+  const id = subject.id ?? `s${memory.next.subject++}`
+  if (!memory.subjects.some((other) => other.id === id)) {
+    memory.subjects.push({
+      aliases: [],
+      line: '',
+      changed: 1,
+      tidied: 1,
+      ...subject,
+      id,
+    })
+  }
+  ;(await tx.doc(Pages, keyOf(familiar, id), null)).profile = profile
+  return id
+}
+
+/** Storage with a Familiar whose memory has these profiles, by subject name. */
 export async function storageWith(
-  ...facts: [text: string, importance: number, saved?: number][]
+  ...pages: [name: string, profile: string][]
 ): Promise<Storage> {
-  const now = Date.now()
   const storage = new ReopenableStorage()
   await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
-      const memory = await openMemory(
-        tx,
-        await createFamiliar(tx, { name: 'Familiar' }),
-      )
-      for (const [text, importance, saved = now] of facts) {
-        rememberFact(
-          memory,
-          { text, importance, since: '2026-01-05', sources: [] },
-          saved,
-        )
+      const familiar = await createFamiliar(tx, { name: 'Familiar' })
+      for (const [name, profile] of pages) {
+        await seedPage(tx, familiar, { name, kind: 'topic' }, profile)
       }
     }, BACKGROUND_CONTEXT),
   )
   return storage
 }
-
-/** The store's one Familiar's document, read once it has been dismissed. */
-export const readStored = <T extends JsonObject>(
-  storage: Storage,
-  family: SessionDocFamilyToken<T, null>,
-) =>
-  withHarness(storage, (harness) =>
-    harness.commit(
-      async (tx) =>
-        JSON.parse(
-          JSON.stringify(await familiarDoc(tx, family, await onlyFamiliar(tx))),
-        ) as T,
-      BACKGROUND_CONTEXT,
-    ),
-  )

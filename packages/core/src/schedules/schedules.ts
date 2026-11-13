@@ -180,6 +180,60 @@ export function scheduleOf(schedules: SchedulesState, id: string) {
   return schedule
 }
 
+export type ScheduleChange = Partial<
+  Pick<NewSchedule, 'prompt' | 'at' | 'repeat'>
+>
+
+/**
+ * Changes a schedule's prompt or when it runs, keeping who made it and
+ * where it runs, or throws a ScheduleError saying why not. A new time is a
+ * new schedule under `newId`, so the task sleeping for the old time finds
+ * it gone and stops; a new prompt alone keeps its ID. Returns the schedule
+ * as it now is.
+ */
+export function updateSchedule(
+  schedules: SchedulesState,
+  id: string,
+  change: ScheduleChange,
+  newId: string,
+  now: number,
+  timeZone: string,
+): Schedule {
+  const old = scheduleOf(schedules, id)
+  const prompt = change.prompt ?? old.prompt
+  if (change.at === undefined && change.repeat === undefined) {
+    if (!prompt.trim() || prompt.length > SCHEDULE_LIMITS.prompt) {
+      throw new ScheduleError(
+        `Give the prompt to run, of at most ${SCHEDULE_LIMITS.prompt} characters.`,
+      )
+    }
+    old.prompt = prompt.trim()
+    return old
+  }
+  const rest = { ...schedules }
+  delete rest[id]
+  const added = addSchedule(
+    rest,
+    {
+      id: newId,
+      prompt,
+      at: change.at,
+      repeat: change.repeat,
+      creator: old.creator,
+      room: old.room,
+    },
+    now,
+    timeZone,
+    Infinity,
+  )
+  if (old.paused) {
+    added.paused = true
+  }
+  delete schedules[id]
+  schedules[newId] = added
+  return added
+}
+
 export function cancelSchedule(schedules: SchedulesState, id: string) {
   scheduleOf(schedules, id)
   delete schedules[id]

@@ -85,18 +85,28 @@ test('account and documents arrive whole, take patches and can be null', async (
     'http://familiar.test/api/familiars/7/events',
   )
   server.send(
-    frame('document', { name: 'memory', value: { facts: [], next: 1 } }),
+    frame('document', {
+      name: 'memory',
+      value: {
+        subjects: [],
+        next: { subject: 1, note: 1 },
+        months: [],
+        forgotten: [],
+      },
+    }),
   )
   server.send(frame('document', { name: 'schedules', value: {} }))
   server.send(
-    frame('document.ops', { name: 'memory', ops: [['s', ['next'], 2]] }),
+    frame('document.ops', {
+      name: 'memory',
+      ops: [['s', ['next', 'note'], 2]],
+    }),
   )
   server.send(frame('document', { name: 'schedules', value: null }))
 
   await expect.poll(() => familiar.getState().schedules).toBeNull()
   expect(familiar.getState()).toMatchObject({
-    memory: { facts: [], next: 2 },
-    episodes: undefined,
+    memory: { subjects: [], next: { subject: 1, note: 2 } },
   })
 })
 

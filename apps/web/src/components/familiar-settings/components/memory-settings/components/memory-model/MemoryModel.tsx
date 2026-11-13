@@ -24,8 +24,8 @@ import type { MemoryModelProps } from './types'
 const DEFAULT = 'default'
 
 /**
- * The model this Familiar's nightly memory work runs on. It saves as soon as
- * one is picked and applies from the next night's pass.
+ * The model this Familiar's memory filing and consolidation run on. It saves
+ * as soon as one is picked and applies from the next call.
  */
 export const MemoryModel = ({ familiar }: MemoryModelProps) => {
   const options = useModelOptions()
@@ -34,7 +34,7 @@ export const MemoryModel = ({ familiar }: MemoryModelProps) => {
     mutationFn: (memoryModel: ModelRef | null) =>
       workspace.familiars.update(familiar.id, { memoryModel }),
   })
-  // A model that is no longer offered counts as none: upkeep ignores it too.
+  // A model that is no longer offered counts as none: memory ignores it too.
   const current = options?.find(
     (option) =>
       familiar.memoryModel &&

@@ -5,6 +5,7 @@ import type { TranscriptContext } from '@earendil-works/pi-ai'
 import {
   fauxAssistantMessage,
   fauxProvider,
+  fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import { createModels } from '@familiar-ai/core/models'
 import { afterEach, beforeEach, expect, test } from 'vitest'
@@ -201,7 +202,10 @@ function scripted(replies: {
       ? replies.reply()
       : model.id === 'judge'
         ? fauxAssistantMessage('yes')
-        : fauxAssistantMessage('Nothing to change.')
+        : // Memory files nothing, in its one call.
+          fauxAssistantMessage([fauxToolCall('file', {})], {
+            stopReason: 'toolUse',
+          })
   }
   faux.setResponses([step])
   const wrap = (meter: Parameters<EvalAccess['models']>[0]) => {

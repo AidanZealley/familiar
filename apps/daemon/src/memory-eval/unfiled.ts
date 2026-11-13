@@ -9,10 +9,10 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import type { Author, WorkspaceOptions } from '@familiar-ai/core'
 import { openDaemonWorkspace } from '../workspace.ts'
 import {
-  nextUpkeep,
+  nextTick,
   RECALL_HEADING,
   type FamiliarId,
-  type UpkeepState,
+  type FilingState,
 } from '@familiar-ai/core/diagnostics'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import { scriptedModels } from '@familiar-ai/core/models/scripted'
@@ -23,15 +23,14 @@ import { replyTo } from '../reply.ts'
 
 /**
  * The unfiled test: how much of what was said, compacted out of the model's
- * view and not yet filed by upkeep, automatic recall puts in front of the
- * model. A scripted model replays the scenario with upkeep held off, so
- * everything compacted stays unfiled, then each question is sent to a fresh
- * copy and its recall note is checked for the required strings. No model or
+ * view and never filed, automatic recall puts in front of the model. A
+ * scripted model replays the scenario with filing held off, so memory has
+ * only the conversation itself, then each question is sent to a fresh copy
+ * and its recall note is checked for the required strings. No model or
  * network is involved, so it runs in a minute or two.
  *
- * It isolates retrieval: a year of unfiled conversation competes, where
- * normally only the hours since the last 04:00 pass would, but facts and
- * episodes are empty, so their share of the note costs nothing here.
+ * It isolates the search over exchanges: pages and the journal are empty,
+ * so nothing else competes for the note.
  */
 
 /** As the memory eval, so compaction happens as often. */
@@ -69,10 +68,10 @@ const textOf = (message: Message) =>
 const context = BACKGROUND_CONTEXT
 
 /**
- * Waits for upkeep to schedule its first pass for `until`, firing any
- * earlier timers on the simulated clock while Familiar starts.
+ * Waits for memory's clock to sleep until `until`, firing any earlier
+ * timers on the simulated clock while Familiar starts.
  */
-export async function waitForUpkeep(
+export async function waitForClock(
   storage: Storage,
   clock: ReturnType<typeof createClock>,
   until: number,
@@ -80,14 +79,14 @@ export async function waitForUpkeep(
   const deadline = Date.now() + 60_000
   for (;;) {
     const { items } = await storage.scanTasks(
-      { kind: 'familiar.upkeep' },
+      { kind: 'familiar.memory-clock' },
       2,
       undefined,
       context,
     )
     const state = items[0]?.state
     if (state?.status === 'terminal') {
-      throw new Error(`Memory upkeep ended: ${JSON.stringify(state.outcome)}`)
+      throw new Error(`Memory's clock ended: ${JSON.stringify(state.outcome)}`)
     }
     if (
       items.length === 1 &&
@@ -97,7 +96,7 @@ export async function waitForUpkeep(
       return
     }
     if (Date.now() > deadline) {
-      throw new Error('Memory upkeep never scheduled its first pass.')
+      throw new Error("Memory's clock never scheduled its next tick.")
     }
     await setTimeout(25)
     const due = clock.nextDue()
@@ -107,19 +106,19 @@ export async function waitForUpkeep(
   }
 }
 
-/** How far upkeep has filed `chat`, or null if it never has. */
-export async function upkeepThrough(storage: Storage, chat: FamiliarId) {
+/** How far filing has got through `chat`, or null if it never has. */
+export async function filedThrough(storage: Storage, chat: FamiliarId) {
   const record = await storage.findDocument(
-    { kind: 'familiar.upkeep', scope: { kind: 'session' }, key: String(chat) },
+    { kind: 'familiar.filing', scope: { kind: 'session' }, key: String(chat) },
     'current',
     context,
   )
   const document =
     record && (await storage.document(record.id, 'current', context))
   if (!document) {
-    throw new Error('Memory upkeep document is missing.')
+    throw new Error("Memory's filing document is missing.")
   }
-  return (document.value as UpkeepState).through
+  return (document.value as FilingState).through
 }
 
 /** Every entry in `chat`, oldest first. */
@@ -192,8 +191,8 @@ export async function runUnfiledEval(
   const replayPath = join(directory, 'replay.sqlite')
 
   // Questions are asked the morning after the last day. Opening there first
-  // schedules upkeep's first pass for the night after, past every question;
-  // the replay then starts on the first day, so the pass never comes.
+  // sets memory's clock for the hour after, past every question; the replay
+  // then starts on the first day, so the clock never ticks again.
   const asked = noonOf(scenario.days.at(-1)!.date) + 24 * 60 * 60 * 1000
   const holding = createClock(asked)
   const held = await openNodeSqliteStorage(replayPath)
@@ -204,7 +203,7 @@ export async function runUnfiledEval(
     setTimer: holding.setTimer,
   })
   try {
-    await waitForUpkeep(held, holding, nextUpkeep(asked, EVAL_TIME_ZONE))
+    await waitForClock(held, holding, nextTick(asked))
   } finally {
     await holder.dismiss()
   }
@@ -232,8 +231,8 @@ export async function runUnfiledEval(
   const replay = await openNodeSqliteStorage(replayPath)
   let compactions: number
   try {
-    if ((await upkeepThrough(replay, chat)) !== null) {
-      throw new Error('Upkeep ran during the replay, so nothing is unfiled.')
+    if ((await filedThrough(replay, chat)) !== null) {
+      throw new Error('Filing ran during the replay, so something is filed.')
     }
     compactions = (await entriesIn(replay, chat)).filter(
       (entry) => entry.kind === 'pi.compaction',

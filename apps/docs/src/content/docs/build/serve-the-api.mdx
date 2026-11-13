@@ -20,22 +20,22 @@ Mount it under any path, such as `new Hono().route('/api', createApi(workspace))
 
 `allow(author, operation, resource)` is asked after authentication and the body limit, before the route reads anything or changes anything, and anything but `true` answers 403. `resource` is `{ familiar }` or `{ room }`, the ID in the path, for a Familiar's or a room's operations, so you can refuse per Familiar or per room. You never need to refuse someone else's DM: Familiar answers 404 to anyone but its person, whatever `allow` says. `operation` names one of:
 
-| Group          | Operations                                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `familiars`    | `list`, `create`, and with `{ familiar }`: `update`, `remove`, `dm`                                                     |
-| `rooms`        | `list`, `create`, and with `{ room }`: `update`, `archive`, `post`, `history`, `stop`                                   |
-| `model`        | `options`, `set`, `setThinkingLevel`, with `{ familiar }`                                                               |
-| `capabilities` | `get`, `set`, with `{ familiar }`                                                                                       |
-| `defaults`     | `get`, `set`: the default tools new Familiars start with                                                                |
-| `memory`       | `revise`, `retire`, `setPinned`, with `{ familiar }`                                                                    |
-| `schedules`    | `cancel`, with `{ familiar }`                                                                                           |
-| `account`      | `state`, `signIn`, `answerSignIn`, `cancelSignIn`, `signOut`                                                            |
-| `push`         | `key`, `subscribe`, `unsubscribe`                                                                                       |
-| `connections`  | `list`, `setSecret`, `deleteSecret`                                                                                     |
-| `mcp`          | `add`, `remove`, `reconnect`                                                                                            |
-| `events`       | `familiars`, `rooms`, `account`; `model`, `memory`, `episodes`, `schedules` with `{ familiar }`; `room` with `{ room }` |
+| Group          | Operations                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| `familiars`    | `list`, `create`, and with `{ familiar }`: `update`, `remove`, `dm`                                         |
+| `rooms`        | `list`, `create`, and with `{ room }`: `update`, `archive`, `post`, `history`, `stop`                       |
+| `model`        | `options`, `set`, `setThinkingLevel`, with `{ familiar }`                                                   |
+| `capabilities` | `get`, `set`, with `{ familiar }`                                                                           |
+| `defaults`     | `get`, `set`: the default tools new Familiars start with                                                    |
+| `memory`       | `read`, `forget`, with `{ familiar }`                                                                       |
+| `schedules`    | `cancel`, with `{ familiar }`                                                                               |
+| `account`      | `state`, `signIn`, `answerSignIn`, `cancelSignIn`, `signOut`                                                |
+| `push`         | `key`, `subscribe`, `unsubscribe`                                                                           |
+| `connections`  | `list`, `setSecret`, `deleteSecret`                                                                         |
+| `mcp`          | `add`, `remove`, `reconnect`                                                                                |
+| `events`       | `familiars`, `rooms`, `account`; `model`, `memory`, `schedules` with `{ familiar }`; `room` with `{ room }` |
 
-each as `group.name`, such as `memory.revise`. Core lists each person's own DMs and every named room, but doesn't refuse a room: whether a person may read or post to one is `allow`'s to decide. The `Operation` type is that union, so a misspelt name in a `Set<Operation>` is a type error. Check against a list of what you allow, as above, so an operation Familiar adds later is refused until you add it.
+each as `group.name`, such as `memory.forget`. Core lists each person's own DMs and every named room, but doesn't refuse a room: whether a person may read or post to one is `allow`'s to decide. The `Operation` type is that union, so a misspelt name in a `Set<Operation>` is a type error. Check against a list of what you allow, as above, so an operation Familiar adds later is refused until you add it.
 
 `events.*` decides what each `/events` stream sends: the workspace's, a Familiar's and a room's. Each source is asked once, when a stream connects: revoking someone's access applies from their next connection, not to a stream they already have open. A stream every source refuses answers 403. The account routes don't stream the account: its sign-in page arrives only through `events.account`, so keep that source to the people who sign in.
 
@@ -60,7 +60,7 @@ Familiar records who said what and shows the model each author. It doesn't decid
 - choose who receives each notification, and store and authorize push subscriptions
 - decide which MCP transports, destinations and commands it allows
 
-Each Familiar opts in to the plugins and MCP connections it uses: what it was created with, else the workspace's default tools, changed later with `setCapabilities` (or `PUT /familiars/:familiar/capabilities`). Pass `defaultCapabilities` to `openWorkspace` for the defaults; it fills them in on the first open only, so changes people make later are kept. A Familiar's tools are available for everyone who talks to it. One MCP connection is one session under one account, shared by every Familiar that uses it; give Familiars separate accounts with separate named connections. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `familiar(context).author()`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory upkeep.
+Each Familiar opts in to the plugins and MCP connections it uses: what it was created with, else the workspace's default tools, changed later with `setCapabilities` (or `PUT /familiars/:familiar/capabilities`). Pass `defaultCapabilities` to `openWorkspace` for the defaults; it fills them in on the first open only, so changes people make later are kept. A Familiar's tools are available for everyone who talks to it. One MCP connection is one session under one account, shared by every Familiar that uses it; give Familiars separate accounts with separate named connections. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `familiar(context).author()`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory filing.
 
 Nested calls, and calls rerun after a crash, keep the author of the input that started them, and a message queued while a call runs can't take its place. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
 

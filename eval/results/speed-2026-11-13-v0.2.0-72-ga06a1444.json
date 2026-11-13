@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-13",
+  "commit": "v0.2.0-72-ga06a1444",
+  "options": {
+    "years": 10,
+    "exchangesPerDay": 27,
+    "subjects": 200,
+    "notesPerSubject": 10,
+    "linesPerDay": 3
+  },
+  "journalLines": 10950,
+  "exchanges": 98549,
+  "notes": 2000,
+  "openMs": 9.675882999999885,
+  "firstSearchMs": 7515.070929999998,
+  "firstRecallMs": 7875.012328000001,
+  "warmSearch": {
+    "medianMs": 51.98138500000641,
+    "maxMs": 192.28512300000148
+  },
+  "warmRecall": {
+    "medianMs": 67.92693099999451,
+    "maxMs": 206.96716800000286
+  },
+  "warmDocumentReads": 0,
+  "sectionMs": {
+    "medianMs": 0.2617129999998724,
+    "maxMs": 1.3189709999933257
+  },
+  "sectionChars": 5018
+}

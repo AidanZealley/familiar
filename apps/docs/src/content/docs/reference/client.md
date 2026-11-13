@@ -35,8 +35,7 @@ Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unautho
 | Workspace | `me`         | `Author \| null \| undefined`         | `{ id, name }`: this person's author ID and the name Familiars call them  |
 | Workspace | `account`    | `AccountState \| null \| undefined`   | `null` when the host manages credentials                                  |
 | Familiar  | `model`      | `AgentState \| null \| undefined`     | Its model and reasoning level                                             |
-| Familiar  | `memory`     | `FactsState \| null \| undefined`     |                                                                           |
-| Familiar  | `episodes`   | `EpisodesState \| null \| undefined`  |                                                                           |
+| Familiar  | `memory`     | `MemoryState \| null \| undefined`    | `{ subjects, next, months, forgotten }`: who and what it knows about      |
 | Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                                                           |
 | Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy }`                                                         |
 | Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed                                          |
@@ -89,11 +88,11 @@ Commands return promises that reject with the server's error. They aren't retrie
 | Workspace | `connections` | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`                    |
 | Workspace | `mcp`         | `add(server)`, `remove(name)`, `reconnect(name)`                                                        |
 | Familiar  | `model`       | `options()`, `set(ref)`, `setThinkingLevel(level)`                                                      |
-| Familiar  | `memory`      | `revise(id, text)`, `retire(id)`, `setPinned(id, pinned)`                                               |
+| Familiar  | `memory`      | `section()`, `page(subject)`, `forget(note)`                                                            |
 | Familiar  | `schedules`   | `cancel(id)`, `pause(id)`, `resume(id)`                                                                 |
 | Room      |               | `send(text, mentions?)`, `note(text)`, `retry(reply)`, `stop()`, `read(entry)`, `loadOlder()`           |
 
-`send` and `note` generate the `requestId`. `retry(reply)` tries a failed reply's turn again; the transcript sets `retry` to that ID on a failed reply's last item while it can be. A note is context the room's Familiars see on their next turn, which no one replies to. `loadOlder()` does nothing while a page is loading or once `history.status` is `start`. `familiars.update` takes `{ name?, persona?, avatar?, memoryModel? }`; a `null` persona, avatar or memoryModel returns it to the default. A `memoryModel` is the model that Familiar's memory upkeep runs on, one of the workspace's `modelChoices`. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
+`send` and `note` generate the `requestId`. `retry(reply)` tries a failed reply's turn again; the transcript sets `retry` to that ID on a failed reply's last item while it can be. A note is context the room's Familiars see on their next turn, which no one replies to. `loadOlder()` does nothing while a page is loading or once `history.status` is `start`. `familiars.update` takes `{ name?, persona?, avatar?, memoryModel? }`; a `null` persona, avatar or memoryModel returns it to the default. A `memoryModel` is the model that Familiar's memory filing and consolidation run on, one of the workspace's `modelChoices`. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
 
 ## Transcript
 
@@ -151,7 +150,6 @@ Times are milliseconds since the epoch. Each turn in progress comes last, as its
 
 - `toRoomTranscript(view, history?, turns?)` derives a room's transcript. The room store already does this; use it for other clients.
 - `composeMessage(parts)` turns a composer's text and picked names, `{ kind, id, name }`, into `{ text, mentions }`: each pick becomes `@Name` in the text with a mention spanning it. Pass both to `send`.
-- `CORE_BUDGET` is core memory's limit in characters, measured as the model sees the facts: `id: text`, one per line.
 
 ## React
 

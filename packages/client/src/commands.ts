@@ -12,6 +12,7 @@ import type {
   McpServer,
   Mention,
   ModelOption,
+  PageView,
   PushSubscriptionJson,
   RoomSummary,
 } from '@familiar-ai/core/http'
@@ -199,24 +200,21 @@ export const familiarCommands = (api: Api, id: number) => {
   const param = { familiar: String(id) }
   return {
     memory: {
-      revise: (fact: string, text: string) =>
-        succeed(
-          familiar.memory[':id'].$put({
-            param: { ...param, id: fact },
-            json: { text },
+      /** The memory section of the prompt, exactly as the model sees it now. */
+      section: async (): Promise<string> =>
+        (await read(familiar.memory.section.$get({ param }))).text,
+      /** A subject's page: its profile and notes. */
+      page: (subject: string): Promise<PageView> =>
+        read(
+          familiar.memory.pages[':subject'].$get({
+            param: { ...param, subject },
           }),
         ),
-      retire: (fact: string) =>
+      /** Forgets a note, and blocks what it came from. */
+      forget: (note: string) =>
         succeed(
-          familiar.memory[':id'].retire.$post({
-            param: { ...param, id: fact },
-          }),
-        ),
-      setPinned: (fact: string, pinned: boolean) =>
-        succeed(
-          familiar.memory[':id'].pin.$put({
-            param: { ...param, id: fact },
-            json: { pinned },
+          familiar.memory.notes[':note'].forget.$post({
+            param: { ...param, note },
           }),
         ),
     },

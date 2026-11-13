@@ -38,9 +38,8 @@ export type FamiliarOperation =
   | 'familiars.update'
   | 'familiars.remove'
   | 'familiars.dm'
-  | 'memory.revise'
-  | 'memory.retire'
-  | 'memory.setPinned'
+  | 'memory.read'
+  | 'memory.forget'
   | 'schedules.cancel'
   | 'schedules.pause'
   | 'schedules.resume'
@@ -51,7 +50,6 @@ export type FamiliarOperation =
   | 'capabilities.set'
   | 'events.model'
   | 'events.memory'
-  | 'events.episodes'
   | 'events.schedules'
 
 /** What it can do in one room, asked with that room's ID. */

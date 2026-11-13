@@ -22,7 +22,7 @@ import { evalDirectory } from './longmem-data.ts'
  * A model is named `openai/modelId`.
  */
 
-/** Upkeep and the reply run through the eval's sign-in unless told otherwise. */
+/** Memory and the reply run through the eval's sign-in unless told otherwise. */
 export const MEMORY_MODEL = 'openai/gpt-6-luna'
 export const REPLY_MODEL = 'openai/gpt-6.1-sol'
 /** The judge the published LongMemEval scores use; it needs `OPENAI_API_KEY`. */
@@ -45,7 +45,7 @@ export function parseModel(spec: string): ModelSpec {
   return { provider, modelId: rest.join('/') }
 }
 
-/** Upkeep and the reply run at these levels, as a Familiar's own models would. */
+/** Memory and the reply run at these levels, as a Familiar's own models would. */
 export const choiceOf = (
   spec: string,
   thinkingLevel: ModelChoice['thinkingLevel'],

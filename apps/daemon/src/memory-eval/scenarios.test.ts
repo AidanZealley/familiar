@@ -1,6 +1,7 @@
 import {
   fauxAssistantMessage,
   fauxProvider,
+  fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import { createModels } from '@familiar-ai/core/models'
 import { expect, test } from 'vitest'
@@ -50,9 +51,12 @@ test('a scenario is played in a real workspace and graded on what the model said
     model: { id: string },
   ) => {
     faux.appendResponses([step])
-    return fauxAssistantMessage(
-      model.id === 'reply' ? 'You live in Bristol.' : 'Nothing to change.',
-    )
+    return model.id === 'reply'
+      ? fauxAssistantMessage('You live in Bristol.')
+      : // Memory files nothing, in its one call.
+        fauxAssistantMessage([fauxToolCall('file', {})], {
+          stopReason: 'toolUse',
+        })
   }
   faux.setResponses([step])
   const wrap = (meter: Parameters<EvalAccess['models']>[0]) => {
@@ -87,7 +91,7 @@ test('a scenario is played in a real workspace and graded on what the model said
         text: 'Where do I live?',
         reply: { includes: ['Bristol'], excludes: ['Leeds'] },
         // The section is the memory section of the prompt; its heading is Familiar's.
-        section: { includes: ['What you remember'] },
+        section: { includes: ['What you know about the people'] },
       },
       {
         day: 2,
@@ -104,7 +108,9 @@ test('a scenario is played in a real workspace and graded on what the model said
     ['reply lacks "Leeds"'],
   ])
   expect(result.probes[0].shown.reply).toBe('You live in Bristol.')
-  expect(result.probes[0].shown.section).toContain('What you remember')
+  expect(result.probes[0].shown.section).toContain(
+    'What you know about the people',
+  )
   expect(result.passed).toBe(false)
   expect(result.tokens.total).toBeGreaterThanOrEqual(0)
 })

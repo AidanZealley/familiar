@@ -13,6 +13,7 @@ import {
   addSchedule,
   cancelSchedule,
   Schedules,
+  updateSchedule,
   upcoming,
   type Schedule,
   type SchedulesState,
@@ -49,7 +50,7 @@ const withSchedules = <T>(
     return use(await familiarDoc(tx, Schedules, owner), owner, tx)
   }, context)
 
-/** schedule, list_schedules and cancel_schedule. */
+/** schedule, list_schedules, update_schedule and cancel_schedule. */
 export function scheduleTools(
   task: ScheduleTask,
   timeZone: string,
@@ -58,7 +59,7 @@ export function scheduleTools(
   const schedule = defineTool({
     name: 'schedule',
     description:
-      'Run a prompt in this conversation at a local time, once or repeating; your reply is sent to the owner\'s devices as a notification. Use it for reminders and for anything to do later or regularly. Write the prompt as an instruction to your future self, e.g. "Remind Aidan to call Mum", not as the reminder\'s text. To change a schedule, cancel it and schedule again.',
+      'Run a prompt in this conversation at a local time, once or repeating; your reply is sent to the owner\'s devices as a notification. Use it for reminders and for anything to do later or regularly. Write the prompt as an instruction to your future self, e.g. "Remind Aidan to call Mum", not as the reminder\'s text. To change a schedule, use update_schedule.',
     parameters: Type.Object({
       prompt: Type.String({
         description: 'What to do when it is due, as an instruction to yourself',
@@ -126,6 +127,57 @@ export function scheduleTools(
     },
   })
 
+  const update = defineTool({
+    name: 'update_schedule',
+    description:
+      'Change a schedule by its ID: its prompt, or when it runs. When someone gives feedback about a recurring job ("include the links", "skip the weather"), put it into that job\'s prompt here rather than remembering it.',
+    parameters: Type.Object({
+      id: Type.String(),
+      prompt: Type.Optional(
+        Type.String({
+          description: 'The whole new prompt, as an instruction to yourself',
+        }),
+      ),
+      at: Type.Optional(
+        Type.String({
+          description: 'Once, at this local time instead: YYYY-MM-DD HH:MM',
+        }),
+      ),
+      repeat: Type.Optional(
+        Type.String({
+          description: 'Repeating instead, as five-field cron in local time',
+        }),
+      ),
+    }),
+    // A new time's schedule takes this call's ID, so a rerun finds what it made.
+    replay: 'safe',
+    execute: async ({ id, ...change }, api, context) => {
+      const newId = `s${api.taskId}`
+      const updated = await withSchedules(
+        api,
+        context,
+        async (schedules, owner, tx) => {
+          if (schedules[newId]) {
+            return schedules[newId]
+          }
+          const schedule = updateSchedule(
+            schedules,
+            id,
+            change,
+            newId,
+            api.now(),
+            timeZone,
+          )
+          if (schedule.id === newId) {
+            await startSchedule(tx, task, owner, newId)
+          }
+          return schedule
+        },
+      )
+      return text(`Updated: ${describe(updated, timeZone)}`)
+    },
+  })
+
   const cancel = defineTool({
     name: 'cancel_schedule',
     description: 'Cancel a schedule or reminder by its ID.',
@@ -139,5 +191,5 @@ export function scheduleTools(
     },
   })
 
-  return [schedule, listSchedules, cancel]
+  return [schedule, listSchedules, update, cancel]
 }

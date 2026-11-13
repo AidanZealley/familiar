@@ -1,7 +1,7 @@
 import type { Op } from '@earendil-works/chord/delta'
 import type { AgentState, ConversationView } from '@earendil-works/pi-durable'
 import type { AccountState } from '../account/index.ts'
-import type { EpisodesState, FactsState } from '../memory/index.ts'
+import type { MemoryState } from '../memory/index.ts'
 import type { Author } from '../conversation/message.ts'
 import type { RoomActivity, RoomsState } from '../rooms/index.ts'
 import type { SchedulesState } from '../schedules/index.ts'
@@ -58,10 +58,17 @@ export type {
   PluginSecret,
 } from '../connections/index.ts'
 export type {
-  Episode,
-  EpisodesState,
-  Fact,
-  FactsState,
+  JournalLine,
+  MemoryState,
+  Note,
+  NoteKind,
+  PageState,
+  PageView,
+  Participant,
+  Retired,
+  Standing,
+  Subject,
+  SubjectKind,
 } from '../memory/index.ts'
 
 /**
@@ -80,8 +87,8 @@ export type Documents = {
   me: Author
   /** A Familiar's `/events`: the model its chat is on, and the level. */
   model: AgentState
-  memory: FactsState
-  episodes: EpisodesState
+  /** A Familiar's `/events`: its memory's subjects, which the roster and pages list. */
+  memory: MemoryState
   schedules: SchedulesState
   /** A room's `/events`: its turns in progress, live. */
   turns: RoomActivity
@@ -89,15 +96,12 @@ export type Documents = {
 
 export type DocumentName = keyof Documents
 
-/** Core memory's limit in characters, which clients show it against. */
-export { CORE_BUDGET } from '../memory/facts.ts'
-
 /**
  * Opens every event stream. A client that speaks another version stops
  * before applying any state; bump it on any change an older client would
  * misread.
  */
-export const PROTOCOL_VERSION = 5
+export const PROTOCOL_VERSION = 6
 
 /**
  * Each `/events` (the workspace's, a Familiar's and a room's) is a

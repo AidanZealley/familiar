@@ -4,7 +4,7 @@ import { defineDocFamily, type ModelRef } from '@earendil-works/pi-durable'
 
 /**
  * A model the installation offers, and the reasoning level it starts on.
- * Chats switch between these, and memory upkeep may run on one.
+ * Chats switch between these, and memory's calls may run on one.
  */
 export type ModelChoice = {
   model: ModelRef

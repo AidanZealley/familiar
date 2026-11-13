@@ -1,6 +1,6 @@
 import type { EntryId } from '@earendil-works/pi-durable'
 import {
-  createExchangeIndex,
+  createMemoryIndex,
   datesIn,
   localDay,
   type Exchange,
@@ -192,7 +192,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
   const evidence = new Map(real.map((exchange) => [exchange.id, exchange]))
   const skipped = unquoted(scenario)
 
-  const index = createExchangeIndex(EVAL_TIME_ZONE)
+  const index = createMemoryIndex(EVAL_TIME_ZONE)
   const end = noonOf(scenario.days.at(-1)!.date)
   const result: RecallResult = {
     scenario: scenario.id,
@@ -219,7 +219,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
 
     const started = performance.now()
     for (const exchange of pending) {
-      index.add(exchange)
+      index.addExchange(exchange)
     }
     buildMs += performance.now() - started
     result.buildMs[years] = buildMs
@@ -237,10 +237,15 @@ export function runRecallEval(scenario: Scenario): RecallResult {
     )
     for (const question of scenario.questions) {
       const searchStarted = performance.now()
-      const found = index.search(question.text, now, {
-        limit: 10,
-        ranges: datesIn(question.text, localDay(now, EVAL_TIME_ZONE)),
-      })
+      const found = index
+        .search(question.text, {
+          now,
+          limit: 10,
+          kind: 'exchange',
+          ranges: datesIn(question.text, localDay(now, EVAL_TIME_ZONE)),
+          dates: 'prefer',
+        })
+        .hits.flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
       times.push(performance.now() - searchStarted)
       const texts = found.map((exchange) =>
         (evidence.get(exchange.id)?.text ?? '').toLowerCase(),

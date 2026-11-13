@@ -103,7 +103,7 @@ const table = (title: string, pick: Parameters<typeof rateOf>[1]) => {
 }
 
 console.log(
-  `\nRetrieval recall on ${set} (${scores.length} questions, ${values['small-haystack'] ? 'small' : 'full'} haystacks), exchange search as memory does it today. any: some evidence in the top k; all: every piece is.`,
+  `\nRetrieval recall on ${set} (${scores.length} questions, ${values['small-haystack'] ? 'small' : 'full'} haystacks), memory's search over exchanges and their journal lines, as automatic recall ranks them. any: some evidence in the top k; all: every piece is.`,
 )
 const sessions = table('By answer session', (score) => score.sessions)
 const turns = table(

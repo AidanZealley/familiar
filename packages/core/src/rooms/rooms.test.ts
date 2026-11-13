@@ -13,14 +13,18 @@ import {
   SCHEDULED_KIND,
   type Author,
 } from '../conversation/message.ts'
-import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
+import {
+  keepNothing,
+  scriptedModels,
+  type ScriptedRequest,
+} from '../models/scripted.ts'
 import {
   definePlugin,
   defineTool,
   familiar as services,
   Type,
 } from '../index.ts'
-import { Facts } from '../memory/facts.ts'
+import { Memory } from '../memory/store.ts'
 import { withHarness } from '../memory/testing.ts'
 import type { Notification } from '../notify.ts'
 import { Schedules } from '../schedules/schedules.ts'
@@ -61,7 +65,12 @@ async function open(
 ) {
   const workspace = await openWorkspace({
     storage: new ReopenableStorage(),
-    models: scriptedModels(respond),
+    // Memory files nothing: these tests are about rooms.
+    models: scriptedModels((request, signal) =>
+      request.type === 'memory'
+        ? keepNothing(request.call)
+        : respond(request, signal),
+    ),
     chatModel: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
     ...options,
@@ -1003,17 +1012,17 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
     const ofAda = items.filter(
       (task) =>
         (task.kind === 'familiar.schedule' ||
-          task.kind === 'familiar.upkeep') &&
+          task.kind === 'familiar.memory-clock') &&
         (task.input as { familiar: FamiliarId }).familiar === ada,
     )
     expect(ofAda.map((task) => [task.kind, task.state.status]).sort()).toEqual([
+      ['familiar.memory-clock', 'terminal'],
       ['familiar.schedule', 'terminal'],
-      ['familiar.upkeep', 'terminal'],
     ])
-    expect(await harness.snapshot(Facts, String(ada), context)).toBeUndefined()
+    expect(await harness.snapshot(Memory, String(ada), context)).toBeUndefined()
     expect(
       await harness.snapshot(Schedules, String(ada), context),
     ).toBeUndefined()
-    expect(await harness.snapshot(Facts, String(bo), context)).toBeDefined()
+    expect(await harness.snapshot(Memory, String(bo), context)).toBeDefined()
   })
 })

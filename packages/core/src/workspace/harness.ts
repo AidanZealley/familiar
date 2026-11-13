@@ -6,9 +6,18 @@ import type {
 } from '@earendil-works/pi-durable'
 import { modelKey, type ModelChoice } from '../conversation/models.ts'
 import type { WorkspaceOptions } from './index.ts'
-import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
+import { FILING_EXTENSION, TIDY_EXTENSION } from '../memory/filing/task.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
+
+/**
+ * Memory's own calls' extensions: only memory's conversation selects them,
+ * one call at a time, so no other conversation is offered `file` or `tidy`.
+ */
+export const MEMORY_WRITERS: ReadonlySet<string> = new Set([
+  FILING_EXTENSION,
+  TIDY_EXTENSION,
+])
 
 /** How long a model response may go silent before it fails and is retried. */
 const STREAM_TIMEOUT_MS = 180_000
@@ -66,13 +75,12 @@ export function harnessOptions(
     settings: {
       // What a conversation gets unless it chooses: every installed
       // extension, read each time so MCP servers added later reach chat,
-      // except upkeep's. Its tools write facts directly, and upkeep is their
-      // only writer, so only upkeep's own conversation selects them.
+      // except memory's writers, which only memory's conversation selects.
       get extensions() {
         return registry
           .snapshot()
           .installed()
-          .filter((extension) => extension.name !== UPKEEP_EXTENSION)
+          .filter((extension) => !MEMORY_WRITERS.has(extension.name))
       },
       compaction: base && { ...base, modelOverrides },
       // Without a limit, a stream that goes silent waits forever and blocks

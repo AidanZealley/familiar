@@ -1,7 +1,7 @@
 /**
  * Scripted scenarios for what LongMemEval can't see: several people, rooms
  * and DMs, and a Familiar that does things as well as remembers. Each plays a
- * short conversation through a real workspace with real upkeep, then probes.
+ * short conversation through a real workspace with real filing, then probes.
  *
  * A probe is graded ONLY on behaviour: the words of the reply, the memory
  * section the model is shown, and what recall put in front of it. Never on

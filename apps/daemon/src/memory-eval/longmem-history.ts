@@ -59,7 +59,7 @@ export type HistoryStore = {
   written: Written[]
   /** The first entry the model's view still includes. */
   viewStart: EntryId | undefined
-  /** When the history ends, which is when the first upkeep pass will be due. */
+  /** When the history ends: memory's clock next ticks within the hour after. */
   lastAt: number
 }
 
@@ -90,7 +90,7 @@ const entryTokens = (draft: EntryDraft) =>
  * Creates the store at `path` with a Familiar, then writes `question`'s whole
  * history into its conversation and marks it compacted but for the latest
  * turns. The workspace is first opened at the history's end, so memory's
- * first upkeep pass is due the following 04:00 on the eval clock.
+ * clock next ticks within the hour after, on the eval clock.
  */
 export async function writeHistory(
   path: string,

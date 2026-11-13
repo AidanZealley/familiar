@@ -13,7 +13,8 @@ import {
   type RoomId,
 } from '@familiar-ai/core'
 import {
-  nextUpkeep,
+  nextNight,
+  nextTick,
   RECALL_HEADING,
   textOf,
 } from '@familiar-ai/core/diagnostics'
@@ -28,7 +29,7 @@ import {
 } from './model.ts'
 import { grade, type Probe, type Scenario } from './scenarios.ts'
 import { replyText, settle, within } from './settle.ts'
-import { waitForUpkeep } from './unfiled.ts'
+import { waitForClock } from './unfiled.ts'
 
 const DAY = 24 * 60 * 60 * 1000
 /** Small, as the unfiled eval's is, so what was said leaves the model's view and only memory can bring it back. */
@@ -115,7 +116,8 @@ const authorOf = (name: string): Author => ({ id: name.toLowerCase(), name })
 
 /**
  * Plays `scenario` in a real workspace on `access`'s models: each message in
- * its room at its day's noon, upkeep running at each night in between, then
+ * its room at its day's noon, memory filing and consolidating at each night
+ * in between, then
  * each probe asked at its day, graded on its reply, the memory section its
  * request carried and what recall showed.
  */
@@ -197,7 +199,8 @@ export async function runScenario(
       workspace,
       clock,
       meter,
-      nextUpkeep(clock.now(), EVAL_TIME_ZONE),
+      // Short of memory's next tick, so a day's messages are filed that night.
+      nextTick(clock.now()),
     )
     return within(
       REPLY_TIMEOUT,
@@ -208,7 +211,7 @@ export async function runScenario(
   }
 
   try {
-    await waitForUpkeep(storage, clock, nextUpkeep(clock.now(), EVAL_TIME_ZONE))
+    await waitForClock(storage, clock, nextTick(clock.now()))
     const events = [
       ...scenario.say.map((event) => ({ event, probe: undefined })),
       ...scenario.probes.map((event) => ({
@@ -221,8 +224,8 @@ export async function runScenario(
     for (const { event, probe } of events) {
       if (event.day !== day) {
         if (day >= 0) {
-          // The night between: upkeep files what the last day said.
-          const night = nextUpkeep(clock.now(), EVAL_TIME_ZONE)
+          // The night between: memory files what is left and consolidates.
+          const night = nextNight(clock.now(), EVAL_TIME_ZONE)
           clock.advanceTo(night)
           await settle(workspace, clock, meter, night + DAY / 2)
         }
