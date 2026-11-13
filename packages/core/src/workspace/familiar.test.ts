@@ -8,6 +8,7 @@ import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
 import { defaultPersona, defineTool, Type } from '../index.ts'
 import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
+import { RECALL_HEADING } from '../memory/recall.ts'
 import { TEST_ZONE, testHost, type TestHostOptions } from '../testing.ts'
 
 // One Familiar in a workspace, end to end through its DM.
@@ -34,12 +35,22 @@ async function setup(options: SetupOptions = {}) {
   }
 }
 
-/** Pi's own estimate of a request's size, the one its thresholds use. */
+/**
+ * Pi's own estimate of a request's size, the one its thresholds use,
+ * without what recall adds after the latest message, which compaction
+ * doesn't bound.
+ */
 const tokensOf = (context: TranscriptContext) =>
-  context.messages.reduce(
-    (total, message) => total + estimateMessageTokens(message),
-    0,
-  )
+  context.messages
+    .filter(
+      (message) =>
+        !(
+          message.role === 'user' &&
+          typeof message.content === 'string' &&
+          message.content.startsWith(RECALL_HEADING)
+        ),
+    )
+    .reduce((total, message) => total + estimateMessageTokens(message), 0)
 
 /**
  * A Familiar whose chat compacts past `contextBudget` tokens. The
@@ -135,7 +146,7 @@ test("a host's persona replaces the default and keeps core's instructions", asyn
   expect(custom.sections.conversation).toContain(
     '[Message from {"id":"person-123","name":"Sam"}]',
   )
-  expect(custom.sections.memory).toContain('What you remember')
+  expect(custom.sections.memory).toContain('What you know about the people')
   expect(custom.sections.schedules).toContain('[Scheduled for')
   expect(custom.tools).toEqual(standard.tools)
   expect(custom.tools).toEqual(

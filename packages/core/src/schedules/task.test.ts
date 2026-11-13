@@ -10,6 +10,7 @@ import { expect, test, vi } from 'vitest'
 import { SCHEDULED_KIND } from '../conversation/message.ts'
 import { type Notification, type NotificationContext } from '../index.ts'
 import { onlyFamiliar, withHarness } from '../memory/testing.ts'
+import { nextTick } from '../memory/filing/task.ts'
 import { familiarDoc } from '../workspace/familiars.ts'
 import { fakeClock, inputOf, TEST_ZONE, testHost, timeAt } from '../testing.ts'
 import {
@@ -310,10 +311,13 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
   // Told once open, before any work, so the host can arm its wakeup.
   expect(wakes.length).toBeGreaterThan(0)
   await f.schedule({ at: '2026-10-21 18:00' })
+  // Before it, memory's hourly clock.
+  const tick = nextTick(f.clock.now())
+  expect(tick).toBeLessThan(at(21, 18))
   await vi.waitFor(() =>
-    expect(wakes.at(-1)).toEqual({ active: false, at: at(21, 18) }),
+    expect(wakes.at(-1)).toEqual({ active: false, at: tick }),
   )
-  expect(f.workspace().wake()).toEqual({ active: false, at: at(21, 18) })
+  expect(f.workspace().wake()).toEqual({ active: false, at: tick })
 
   f.answer('**Time to call Mum!**')
   f.clock.advanceTo(at(21, 18))
@@ -326,9 +330,9 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
   await vi.waitFor(() =>
     expect(bodies(f.notifications)).toEqual(['Time to call Mum!']),
   )
-  // Next is upkeep's 04:00 pass.
+  // Next is memory's clock, on the hour.
   await vi.waitFor(() =>
-    expect(f.workspace().wake()).toEqual({ active: false, at: at(22, 4) }),
+    expect(f.workspace().wake()).toEqual({ active: false, at: at(21, 19) }),
   )
 })
 

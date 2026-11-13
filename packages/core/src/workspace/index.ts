@@ -73,7 +73,7 @@ import {
   type CapabilitiesChange,
   type FamiliarCapabilities,
 } from './capabilities.ts'
-import { UPKEEP_EXTENSION } from '../memory/upkeep/index.ts'
+import { MEMORY_WRITERS } from './harness.ts'
 import { removeFamiliar } from './remove.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
@@ -401,12 +401,10 @@ export async function openWorkspace(
       post: rooms.postScheduled,
     })
 
-    // Half the budget leaves room for the prompt, memory and the pass's tool calls.
     const memory = createMemory(harness, {
       now: options.now ?? Date.now,
       memoryModel,
       modelChoices,
-      transcriptTokens: Math.floor(budget / 2),
       timeZone: options.timeZone,
     })
 
@@ -468,7 +466,7 @@ export async function openWorkspace(
         .snapshot()
         .installed()
         .map((extension) => extension.name)
-        .filter((name) => name !== UPKEEP_EXTENSION),
+        .filter((name) => !MEMORY_WRITERS.has(name)),
     })
     // The host's default tools, on the first open only.
     if ((await harness.snapshot(DefaultCapabilities, context)) === undefined) {

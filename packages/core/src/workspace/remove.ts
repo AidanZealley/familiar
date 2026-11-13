@@ -5,9 +5,8 @@ import type {
   SessionDocFamilyToken,
 } from '@earendil-works/pi-durable'
 import { ThinkingLevels } from '../conversation/models.ts'
-import { Episodes } from '../memory/episodes.ts'
-import { Facts, MemoryUsage } from '../memory/facts.ts'
-import { Upkeep } from '../memory/upkeep/schedule.ts'
+import { Filing } from '../memory/filing/task.ts'
+import { Journal, keyOf, Memory, Pages } from '../memory/store.ts'
 import { RoomCursors } from '../rooms/catch-up.ts'
 import type { TurnInput } from '../rooms/log.ts'
 import { leaveRooms } from '../rooms/rooms.ts'
@@ -18,13 +17,12 @@ import { familiarRecord, Familiars, type FamiliarId } from './familiars.ts'
 /**
  * Every document family keyed by a Familiar (see `familiarDoc`): its
  * configuration and memory, which removing it retires. A new family joins
- * this list.
+ * this list. Memory's pages and journal months are keyed by the Familiar
+ * and their own, and listed in its memory index.
  */
 const FAMILIAR_DOCS: SessionDocFamilyToken<JsonObject, null>[] = [
-  Facts,
-  MemoryUsage,
-  Episodes,
-  Upkeep,
+  Memory,
+  Filing,
   Schedules,
   ThinkingLevels,
   RoomCursors,
@@ -49,6 +47,13 @@ export async function removeFamiliar(
     const { upkeep } = await familiarRecord(tx, familiar)
     delete (await tx.doc(Familiars)).familiars[familiar]
     await leaveRooms(tx, familiar)
+    const memory = await tx.doc(Memory, String(familiar), null)
+    for (const subject of memory.subjects) {
+      await tx.retireDoc(Pages, keyOf(familiar, subject.id))
+    }
+    for (const month of memory.months) {
+      await tx.retireDoc(Journal, keyOf(familiar, month))
+    }
     for (const family of FAMILIAR_DOCS) {
       await tx.retireDoc(family, String(familiar))
     }

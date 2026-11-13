@@ -275,13 +275,6 @@ export function familiarRoutes(workspace: Workspace) {
                 stream.document('memory', () => familiar().memory.watch()),
             },
             {
-              operation: 'events.episodes',
-              open: (stream) =>
-                stream.document('episodes', () =>
-                  familiar().memory.watchEpisodes(),
-                ),
-            },
-            {
               operation: 'events.schedules',
               open: (stream) =>
                 stream.document('schedules', () =>

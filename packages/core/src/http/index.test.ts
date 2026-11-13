@@ -180,9 +180,8 @@ const ROUTES = {
   'familiars.update': ['PATCH', '/familiars/7'],
   'familiars.remove': ['DELETE', '/familiars/7'],
   'familiars.dm': ['POST', '/familiars/7/dm'],
-  'memory.revise': ['PUT', '/familiars/7/memory/f1'],
-  'memory.retire': ['POST', '/familiars/7/memory/f1/retire'],
-  'memory.setPinned': ['PUT', '/familiars/7/memory/f1/pin'],
+  'memory.read': ['GET', '/familiars/7/memory/pages/s1'],
+  'memory.forget': ['POST', '/familiars/7/memory/notes/n1/forget'],
   'schedules.cancel': ['DELETE', '/familiars/7/schedules/s1'],
   'schedules.pause': ['POST', '/familiars/7/schedules/s1/pause'],
   'schedules.resume': ['POST', '/familiars/7/schedules/s1/resume'],
@@ -243,7 +242,6 @@ test('each route asks about its own operation and resource alone, and is refused
     '/familiars/7/events': [
       'events.model',
       'events.memory',
-      'events.episodes',
       'events.schedules',
     ],
     '/rooms/9/events': ['events.room'],
@@ -382,27 +380,23 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
 test('familiar routes reach that Familiar, and a missing one is 404', async () => {
   const host = await testHost({
     person: sam,
-    storage: await storageWith(['Lives in Leeds', 4]),
+    storage: await storageWith(['Leeds', 'Where Sam lives.']),
   })
   const app = api(host.workspace())
   const id = host.familiar().id
-  const put = (path: string, body: unknown) =>
-    send(app, 'PUT', path, JSON.stringify(body))
 
-  expect(
-    (await put(`/familiars/${id}/memory/f1`, { text: 'Lives in York' })).status,
-  ).toBe(204)
-  const past = await put(`/familiars/${id}/memory/f1`, { text: 'Again' })
-  expect(past.status).toBe(404)
-  expect(await past.json()).toEqual({
-    error: 'f1 is already past; only current facts can change.',
-  })
-  expect(
-    (await put(`/familiars/${id}/memory/f2/pin`, { pinned: 'yes' })).status,
-  ).toBe(400)
-  expect(
-    (await put('/familiars/999/memory/f1', { text: 'Lives in York' })).status,
-  ).toBe(404)
+  const page = await app.request(`/familiars/${id}/memory/pages/s2`)
+  expect(page.status).toBe(200)
+  expect(await page.json()).toEqual({ profile: 'Where Sam lives.', notes: [] })
+  const missing = await send(
+    app,
+    'POST',
+    `/familiars/${id}/memory/notes/n9/forget`,
+    '',
+  )
+  expect(missing.status).toBe(404)
+  expect(await missing.json()).toEqual({ error: 'No note n9.' })
+  expect((await app.request('/familiars/999/memory/pages/s1')).status).toBe(404)
   expect((await app.request('/familiars/999/events')).status).toBe(404)
 })
 
@@ -428,12 +422,11 @@ test('each stream sends what it is allowed whole first, and 403 when nothing is'
   const own = events(
     await api(workspace).request(`/familiars/${familiar}/events`),
   )
-  await own.until(() => own.names.length === 5)
+  await own.until(() => own.names.length === 4)
   expect(own.names).toEqual([
     'protocol',
     'document model',
     'document memory',
-    'document episodes',
     'document schedules',
   ])
   expect(own.documents.model).toMatchObject({

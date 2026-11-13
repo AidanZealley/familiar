@@ -1,20 +1,16 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
-import { formatAuthor } from '../conversation/message.ts'
+import type { RoomRegistry } from '../rooms/rooms.ts'
 import { localMinute } from '../time.ts'
-import type { Episode, EpisodesState, Span } from './episodes.ts'
-import {
-  entryOf,
-  exchangeId,
-  type Exchange,
-  type ExchangeIndex,
-} from './exchanges.ts'
-import type { Fact, FactsState } from './facts.ts'
-import { describe, describeEpisode } from './recall.ts'
+import { exchangeId, type Exchange } from './exchanges.ts'
+import { describeNote, placeOf } from './filing/batch.ts'
+import { describeHit } from './recall.ts'
+import { isCurrent } from './store.ts'
+import type { MemoryView } from './view.ts'
 
 /**
- * What `read_memory` shows behind an ID: the layer below what recall found,
- * down to the original messages, so a weak summary or a terse fact never
- * makes the detail behind it unreachable.
+ * What `read_memory` shows behind an ID: a subject's page, a note with the
+ * messages it rests on, or an exchange with the ones either side, so a terse
+ * note never makes the conversation behind it unreachable.
  */
 
 /** `read_memory` answers within about this many tokens. */
@@ -29,215 +25,136 @@ function clip(text: string, tokens: number) {
   return `${text.slice(0, Math.max(0, Math.floor((text.length * tokens) / size) - 1))}…`
 }
 
-const showExchange = (
-  { id, at, text, author }: Exchange,
+function showExchange(
+  view: MemoryView,
+  exchange: Exchange,
   tokens: number,
+  rooms: Readonly<RoomRegistry>,
   timeZone: string,
-) =>
-  `${id} (${localMinute(at, timeZone)}${author ? `; author ${formatAuthor(author)}` : ''}):\n${clip(text, tokens)}`
-
-/** The exchange with the one before and after it, the middle one given most room. */
-function readExchange(exchanges: ExchangeIndex, id: string, timeZone: string) {
-  const found = exchanges.around(id)
-  if (!found) {
-    return `No exchange ${id}. The latest message isn't searchable yet: you can already see it.`
-  }
-  const { before, exchange, after } = found
-  return [
-    before && `Before:\n${showExchange(before, READ_TOKENS / 6, timeZone)}`,
-    showExchange(exchange, (READ_TOKENS * 2) / 3, timeZone),
-    after && `After:\n${showExchange(after, READ_TOKENS / 6, timeZone)}`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-}
-
-/**
- * Every version connected to a fact through replacements, in either
- * direction, oldest first: what it replaced, what replaced it, and what
- * else a merge folded in along the way.
- */
-function history(facts: FactsState, fact: Fact) {
-  const byId = new Map(facts.facts.map((other) => [other.id, other]))
-  const seen = new Map([[fact.id, fact]])
-  const queue = [fact]
-  for (let next = queue.pop(); next; next = queue.pop()) {
-    const linked = [
-      ...(next.replaces ?? []).flatMap((id) => byId.get(id) ?? []),
-      ...facts.facts.filter((other) => other.replaces?.includes(next!.id)),
-    ]
-    for (const other of linked) {
-      if (!seen.has(other.id)) {
-        seen.set(other.id, other)
-        queue.push(other)
-      }
-    }
-  }
-  const number = (fact: Fact) => Number(fact.id.slice(1))
-  return [...seen.values()].sort(
-    (a, b) => a.since.localeCompare(b.since) || number(a) - number(b),
-  )
-}
-
-/**
- * As many of `items` as fit in `tokens`, then a note naming the IDs of the
- * rest, and the tokens left.
- */
-function upTo(
-  items: { id: string; text: string }[],
-  tokens: number,
-  rest: (ids: string[]) => string,
 ) {
-  const lines: string[] = []
+  const who = exchange.author ? `${exchange.author.name} in ` : ''
+  const lines = view.linesOf(exchange.id)
+  return [
+    `${exchange.id} (${localMinute(exchange.at, timeZone)}, ${who}${placeOf(rooms, exchange.room)}):`,
+    clip(exchange.text, tokens),
+    ...lines.map((line) => `Journal, on ${line.on}: ${line.text}`),
+  ].join('\n')
+}
+
+/** As many `parts` as fit in `tokens`, then a note naming what was left out. */
+function upTo(parts: { id: string; text: string }[], tokens: number) {
+  const kept: string[] = []
   let left = tokens
-  for (const [index, item] of items.entries()) {
-    const size = estimateTextTokens(item.text)
+  for (const [index, part] of parts.entries()) {
+    const size = estimateTextTokens(part.text)
     if (size > left) {
-      lines.push(rest(items.slice(index).map(({ id }) => id)))
+      kept.push(
+        `Not shown: ${parts
+          .slice(index)
+          .map(({ id }) => id)
+          .join(', ')}.`,
+      )
       break
     }
-    lines.push(item.text)
+    kept.push(part.text)
     left -= size
   }
-  return { lines, left }
+  return kept
 }
 
-/** The fact, how it changed, and the messages it came from, all within the budget. */
-function readFact(
-  facts: FactsState,
-  exchanges: ExchangeIndex,
-  fact: Fact,
-  timeZone: string,
-) {
-  const head = describe(facts, { fact })
-  const parts = [head]
-  let left = READ_TOKENS - estimateTextTokens(head)
-  const versions = history(facts, fact)
-  if (versions.length > 1) {
-    // Half the room at most, so the messages behind it still show.
-    const changed = upTo(
-      versions.map((version) => ({
-        id: version.id,
-        text: describe(facts, { fact: version }),
-      })),
-      left / 2,
-      (ids) => `Not shown: ${ids.join(', ')}.`,
-    )
-    parts.push(`How it changed, oldest first:\n${changed.lines.join('\n')}`)
-    left -= left / 2 - changed.left
-  }
-  const sources = fact.sources.flatMap(
-    (entry) => exchanges.around(exchangeId(entry))?.exchange ?? [],
-  )
-  if (!sources.length) {
-    parts.push('It cites no messages: it was written by hand.')
-  } else {
-    const shown = upTo(
-      sources.map((source) => ({
-        id: source.id,
-        // Each gets an equal share, so one long message can't hide the rest.
-        text: showExchange(source, left / sources.length - 20, timeZone),
-      })),
-      left,
-      (ids) => `Not shown: ${ids.join(', ')}.`,
-    )
-    parts.push(`From:\n${shown.lines.join('\n\n')}`)
-  }
-  return parts.join('\n\n')
-}
-
-const finer: Record<Span, Span[]> = {
-  day: [],
-  week: ['day'],
-  month: ['week', 'day'],
-}
-
-/** The first line of an episode, for a list of them. */
-const firstLine = (text: string) => {
-  const line = text.split(/(?<=[.!?])\s|\n/)[0]
-  return line.length > 160 ? `${line.slice(0, 159)}…` : line
-}
-
-/**
- * A day's episode with its exchanges, oldest first; a week's or month's with
- * the episodes it was rolled up from, to read further.
- */
-function readEpisode(
-  episodes: EpisodesState,
-  exchanges: ExchangeIndex,
-  episode: Episode,
-  timeZone: string,
-) {
-  const head = describeEpisode(episode)
-  if (episode.span !== 'day') {
-    const children = episodes.episodes
-      .filter(
-        (other) =>
-          finer[episode.span].includes(other.span) &&
-          // Overlapping, as rollups are built: a day across a month's end
-          // went into both months.
-          other.start <= episode.end &&
-          other.end >= episode.start,
-      )
-      .sort(
-        (a, b) =>
-          a.start.localeCompare(b.start) ||
-          finer[episode.span].indexOf(a.span) -
-            finer[episode.span].indexOf(b.span),
-      )
-      .map((child) => ({
-        id: child.id,
-        text: describeEpisode({ ...child, text: firstLine(child.text) }),
-      }))
-    return children.length
-      ? [
-          head,
-          'Rolled up from:',
-          ...upTo(
-            children,
-            READ_TOKENS - estimateTextTokens(head),
-            ([id]) => `More from ${id} onwards.`,
-          ).lines,
-        ].join('\n')
-      : head
-  }
-  const said =
-    episode.entries &&
-    exchanges.between(episode.entries.from, episode.entries.to)
-  if (!said?.length) {
-    return `${head}\n\nIts messages aren't recorded.`
-  }
-  return [
-    head,
-    ...upTo(
-      said.map((exchange) => ({
-        id: exchange.id,
-        text: showExchange(exchange, READ_TOKENS, timeZone),
-      })),
-      READ_TOKENS - estimateTextTokens(head),
-      ([id]) => `Left out from ${id} onwards: read_memory ${id} to read on.`,
-    ).lines,
-  ].join('\n\n')
-}
-
-/** What lies behind a fact, an episode or an exchange ID. */
+/** What lies behind a subject, note or exchange ID. */
 export function readMemory(
+  view: MemoryView,
   id: string,
-  facts: FactsState,
-  episodes: EpisodesState,
-  exchanges: ExchangeIndex,
+  rooms: Readonly<RoomRegistry>,
   timeZone: string,
 ) {
-  if (entryOf(id) !== undefined) {
-    return readExchange(exchanges, id, timeZone)
+  if (id.startsWith('x')) {
+    const found = view.around(id)
+    if (!found) {
+      return `No exchange ${id}. The latest message isn't searchable yet: you can already see it.`
+    }
+    const { before, exchange, after } = found
+    return [
+      before &&
+        `Before:\n${showExchange(view, before, READ_TOKENS / 6, rooms, timeZone)}`,
+      showExchange(view, exchange, (READ_TOKENS * 2) / 3, rooms, timeZone),
+      after &&
+        `After:\n${showExchange(view, after, READ_TOKENS / 6, rooms, timeZone)}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
   }
-  const fact = facts.facts.find((fact) => fact.id === id)
-  if (fact) {
-    return readFact(facts, exchanges, fact, timeZone)
+
+  const subject = view.subject(id)
+  if (subject) {
+    const page = view.page(id)
+    const notes = page?.notes ?? []
+    const head = [
+      `${subject.id} ${subject.name} (${subject.kind}${subject.participant ? ', takes part' : ''})${subject.line ? `: ${subject.line}` : ''}`,
+      ...(subject.aliases.length
+        ? [`Also called ${subject.aliases.join(', ')}.`]
+        : []),
+      `Profile: ${page?.profile || '(none yet)'}`,
+    ].join('\n')
+    const current = notes.filter(isCurrent)
+    const past = notes.filter(
+      (note) => !isCurrent(note) && note.retired!.reason !== 'forgotten',
+    )
+    return [
+      head,
+      current.length ? 'Current notes:' : 'No current notes.',
+      ...upTo(
+        [
+          ...current.map((note) => ({
+            id: note.id,
+            text: describeNote(note, subject, rooms),
+          })),
+          ...(past.length
+            ? [
+                { id: 'past', text: 'No longer current:' },
+                ...past.map((note) => ({
+                  id: note.id,
+                  text: `${note.id} (${note.retired!.reason}${'by' in note.retired! ? ` by ${note.retired!.by}` : ''}): ${note.text}`,
+                })),
+              ]
+            : []),
+        ],
+        READ_TOKENS - estimateTextTokens(head),
+      ),
+    ].join('\n')
   }
-  const episode = episodes.episodes.find((episode) => episode.id === id)
-  if (episode) {
-    return readEpisode(episodes, exchanges, episode, timeZone)
+
+  const found = view.note(id)
+  if (found) {
+    const { note } = found
+    const head = [
+      describeHit(found, '', rooms, timeZone),
+      `Rests on: "${note.quote}"`,
+    ].join('\n')
+    const sources = note.sources.flatMap(
+      (entry) => view.around(exchangeId(entry))?.exchange ?? [],
+    )
+    const left = READ_TOKENS - estimateTextTokens(head)
+    return [
+      head,
+      sources.length ? 'From:' : 'Its messages are not searchable yet.',
+      ...upTo(
+        sources.map((source) => ({
+          id: source.id,
+          // Each gets an equal share, so one long message can't hide the rest.
+          text: showExchange(
+            view,
+            source,
+            left / sources.length - 20,
+            rooms,
+            timeZone,
+          ),
+        })),
+        left,
+      ),
+    ].join('\n')
   }
-  return `Nothing has the ID ${id}. Facts start with f, episodes with e and exchanges with x.`
+
+  return `Nothing has the ID ${id}. Subjects start with s, notes with n and exchanges with x.`
 }

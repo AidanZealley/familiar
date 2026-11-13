@@ -4,8 +4,7 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { expect, onTestFinished, test } from 'vitest'
-import { openMemory, rememberFact } from '../memory/facts.ts'
-import { withHarness } from '../memory/testing.ts'
+import { seedPage, withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
 import { definePlugin, defineTool, Type } from '../index.ts'
 import { offeredTools, ReopenableStorage, replyTo } from '../testing.ts'
@@ -36,15 +35,15 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
         name: 'Bo',
         persona: 'You are Bo, a gardener.',
       })
-      rememberFact(
-        await openMemory(tx, ada),
+      await seedPage(
+        tx,
+        ada,
         {
-          text: 'Has a cat called Miso',
-          importance: 4,
-          since: '2026-11-02',
-          sources: [],
+          name: 'Aidan',
+          kind: 'person',
+          participant: { kind: 'person', id: 'aidan' },
         },
-        Date.now(),
+        'Has a cat called Miso',
       )
       return { ada, bo }
     }, BACKGROUND_CONTEXT),
@@ -122,9 +121,11 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
     Object.keys((await read(() => familiar(ada).schedules.watch())) ?? {}),
   ).toHaveLength(1)
   expect((await read(() => familiar(bo).schedules.watch())) ?? {}).toEqual({})
-  expect((await read(() => familiar(bo).memory.watch()))?.facts ?? []).toEqual(
-    [],
-  )
+  expect(
+    (await read(() => familiar(bo).memory.watch()))?.subjects.map(
+      (subject) => subject.kind,
+    ),
+  ).toEqual(['self'])
   expect(
     (await read(() => familiar(ada).watch())).docs['pi.agent']?.thinkingLevel,
   ).toBe('high')

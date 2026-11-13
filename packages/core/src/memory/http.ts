@@ -1,64 +1,40 @@
 import { Hono, type Context } from 'hono'
-import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
-import type { MemoryApi } from './api.ts'
-import { FactError } from './facts.ts'
+import { MemoryError, type MemoryApi } from './api.ts'
 
-/** Answers 204, or 404 when the rules refuse the edit; other failures stay server errors. */
-async function edit(c: Context, run: () => Promise<void>) {
+/** Answers `run`'s value, or 404 when memory refuses; other failures stay server errors. */
+async function answer<T>(c: Context, run: () => Promise<T>) {
   try {
-    await run()
+    return await run()
   } catch (error) {
-    if (error instanceof FactError) {
+    if (error instanceof MemoryError) {
       return c.json({ error: error.message }, 404)
     }
-
     throw error
   }
-
-  return c.body(null, 204)
 }
 
 /**
- * The owner's corrections to a Familiar's memory, mounted at
- * `/familiars/:familiar/memory`. Each edit answers 404, changing nothing,
- * when the fact is missing or already past.
+ * A Familiar's memory, mounted at `/familiars/:familiar/memory`. Its
+ * subjects stream as the `memory` document; pages and the prompt section
+ * are read here, and forgetting is the one change.
  */
 export const memoryRoutes = (memoryOf: (c: Context) => MemoryApi) =>
   new Hono<AccessEnv>()
-    // Saves a new version of a fact.
-    .put(
-      '/:id',
-      can('memory.revise'),
-      validator('json', (body, c) => {
-        if (typeof body?.text !== 'string' || !body.text.trim()) {
-          return c.json({ error: 'text is required' }, 400)
-        }
-
-        return { text: (body.text as string).trim() }
-      }),
-      (c) =>
-        edit(c, () =>
-          memoryOf(c).revise(c.req.param('id'), c.req.valid('json').text),
-        ),
+    // The memory section of the prompt, as the model sees it now.
+    .get('/section', can('memory.read'), async (c) =>
+      c.json({ text: await memoryOf(c).section() }, 200),
     )
-    // Marks a fact no longer true.
-    .post('/:id/retire', can('memory.retire'), (c) =>
-      edit(c, () => memoryOf(c).retire(c.req.param('id'))),
+    // A subject's page: its profile and notes.
+    .get('/pages/:subject', can('memory.read'), (c) =>
+      answer(c, async () =>
+        c.json(await memoryOf(c).page(c.req.param('subject')), 200),
+      ),
     )
-    // Pins a fact into core or unpins it.
-    .put(
-      '/:id/pin',
-      can('memory.setPinned'),
-      validator('json', (body, c) => {
-        if (typeof body?.pinned !== 'boolean') {
-          return c.json({ error: 'pinned must be true or false' }, 400)
-        }
-
-        return { pinned: body.pinned as boolean }
+    // Forgets a note and blocks what it came from.
+    .post('/notes/:note/forget', can('memory.forget'), (c) =>
+      answer(c, async () => {
+        await memoryOf(c).forget(c.req.param('note'))
+        return c.body(null, 204)
       }),
-      (c) =>
-        edit(c, () =>
-          memoryOf(c).setPinned(c.req.param('id'), c.req.valid('json').pinned),
-        ),
     )
