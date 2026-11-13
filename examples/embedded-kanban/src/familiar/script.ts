@@ -2,7 +2,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
-import { scriptedModels } from '@familiar-ai/core/models/scripted'
+import { keepNothing, scriptedModels } from '@familiar-ai/core/models/scripted'
 import type { Status } from '../board/board.ts'
 
 /** Prompts the script recognises, offered as suggestions in the chat. */
@@ -72,8 +72,10 @@ export const createScriptedModels = () =>
               ? `That didn't work: ${request.output}`
               : request.output,
           )
+        case 'memory':
+          return keepNothing(request.call)
         default:
-          // Compaction and memory upkeep get a plain answer.
+          // Compaction gets a plain answer.
           return fauxAssistantMessage('The person tried the task board demo.')
       }
     },

@@ -127,8 +127,8 @@ test('a reminder fires from its alarm, whether the object was evicted or stayed 
     )
     .toEqual([[REMINDER], [REMINDER], instance])
 
-  // Upkeep's nightly pass is then the only sleep left.
-  expect(localMinute(await settled('evicted'), ZONE)).toMatch(/ 04:00$/)
+  // Memory's hourly clock is then the only sleep left.
+  expect(localMinute(await settled('evicted'), ZONE)).toMatch(/ \d\d:00$/)
   expect(textOf((await replies('evicted')).at(-1)!)).toBe(REMINDER)
 })
 

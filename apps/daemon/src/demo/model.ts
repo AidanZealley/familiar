@@ -2,6 +2,7 @@ import type { Provider } from '@earendil-works/pi-ai/models'
 import type { ModelChoice } from '@familiar-ai/core'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import {
+  keepNothing,
   scriptedModels,
   type ScriptedRequest,
 } from '@familiar-ai/core/models/scripted'
@@ -27,6 +28,8 @@ function scenarioReply(request: ScriptedRequest) {
   switch (request.type) {
     case 'background':
       return fauxAssistantMessage('The person tried the demo scenarios.')
+    case 'memory':
+      return keepNothing(request.call)
     case 'scheduled':
       return scheduledReply()
     case 'handoff':

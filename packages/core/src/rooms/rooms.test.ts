@@ -13,7 +13,11 @@ import {
   SCHEDULED_KIND,
   type Author,
 } from '../conversation/message.ts'
-import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
+import {
+  keepNothing,
+  scriptedModels,
+  type ScriptedRequest,
+} from '../models/scripted.ts'
 import {
   definePlugin,
   defineTool,
@@ -61,7 +65,12 @@ async function open(
 ) {
   const workspace = await openWorkspace({
     storage: new ReopenableStorage(),
-    models: scriptedModels(respond),
+    // Memory files nothing: these tests are about rooms.
+    models: scriptedModels((request, signal) =>
+      request.type === 'memory'
+        ? keepNothing(request.call)
+        : respond(request, signal),
+    ),
     chatModel: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
     ...options,

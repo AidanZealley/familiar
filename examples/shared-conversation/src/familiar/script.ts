@@ -4,6 +4,7 @@ import {
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import {
+  keepNothing,
   scriptedModels,
   type ScriptedMessage,
 } from '@familiar-ai/core/models/scripted'
@@ -89,8 +90,10 @@ export const createScriptedModels = () =>
               ? `That didn't work: ${request.output}`
               : request.output,
           )
+        case 'memory':
+          return keepNothing(request.call)
         default:
-          // Compaction and memory upkeep get a plain answer.
+          // Compaction gets a plain answer.
           return fauxAssistantMessage(
             'A group tried the shared conversation demo.',
           )
