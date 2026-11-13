@@ -50,7 +50,12 @@ export function renderSection(
     ...(people.length
       ? people.map((person) => {
           const profile = memory.page(person.id)?.profile
-          return `${person.name} (${person.id})${profile ? `: ${profile}` : ''}`
+          // A workspace name can be a placeholder; what they said they're
+          // called is an alias.
+          const also = person.aliases.length
+            ? `, also called ${person.aliases.join(', ')}`
+            : ''
+          return `${person.name}${also} (${person.id})${profile ? `: ${profile}` : ''}`
         })
       : ['(nobody yet)']),
     ...(others.length

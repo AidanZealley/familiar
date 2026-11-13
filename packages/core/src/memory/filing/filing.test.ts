@@ -290,3 +290,29 @@ test('a batch is one day of messages, at most twenty', async () => {
   expect(f.calls[2]).toContain('A message on Saturday.')
   expect(f.calls[2]).not.toContain('of Friday')
 })
+
+test('filing sees where a reply changed a schedule, and the schedules the Familiar keeps, so it can leave them alone', async () => {
+  const f = await setup(
+    () => ({}),
+    (request) =>
+      request.type === 'message'
+        ? fauxAssistantMessage(
+            [
+              fauxToolCall('schedule', {
+                prompt: 'Tell Aidan the weather.',
+                repeat: '0 7 * * *',
+              }),
+            ],
+            { stopReason: 'toolUse' },
+          )
+        : fauxAssistantMessage('Done.'),
+  )
+  await f.host.say('Every morning at 7, tell me the weather.')
+  await f.at(timeAt('2026-03-06 10:00'))
+  expect(f.calls[0]).toContain(
+    '(Familiar changed its schedules, which now keep this, context only) Scheduled s',
+  )
+  expect(f.calls[0]).toMatch(
+    /Familiar's schedules, which it keeps and runs itself:\\ns\d+, repeating 0 7 \* \* \*: Tell Aidan the weather\./,
+  )
+})

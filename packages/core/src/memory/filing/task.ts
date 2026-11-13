@@ -16,6 +16,7 @@ import {
 import { findModelChoice, type ModelChoice } from '../../conversation/models.ts'
 import { saidBy } from '../../conversation/message.ts'
 import { Rooms } from '../../rooms/rooms.ts'
+import { Schedules } from '../../schedules/schedules.ts'
 import { entriesOf } from '../../pi/entries.ts'
 import { addDays, hourOn, localDay } from '../../time.ts'
 import {
@@ -329,14 +330,12 @@ export function createFiling(options: FilingOptions) {
               ) as PageState,
             )
           }
-          const input = renderBatch(
-            selected,
-            memory,
-            pages,
-            await tx.doc(Rooms),
-            record.name,
+          const input = renderBatch(selected, memory, pages, {
+            rooms: await tx.doc(Rooms),
+            schedules: await familiarDoc(tx, Schedules, familiar),
+            name: record.name,
             timeZone,
-          )
+          })
           return next({
             phase: 'file',
             messages: selected.messages,

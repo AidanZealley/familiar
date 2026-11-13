@@ -1,14 +1,20 @@
 import { estimateTextTokens } from '@earendil-works/pi-ai/utils/estimate'
 import type { EntryId, Tx } from '@earendil-works/pi-durable'
+import type { ToolResultMessage } from '@earendil-works/pi-ai'
 import {
   MESSAGE_KIND,
   saidBy,
+  textOf,
   type Author,
   type InRoom,
 } from '../../conversation/message.ts'
 import type { RoomMessageData } from '../../rooms/log.ts'
 import type { RoomId, RoomRegistry } from '../../rooms/rooms.ts'
 import { entriesOf } from '../../pi/entries.ts'
+import {
+  SCHEDULE_CHANGES,
+  type SchedulesState,
+} from '../../schedules/schedules.ts'
 import { localDay, weekdayMinute } from '../../time.ts'
 import type { FamiliarId } from '../../workspace/familiars.ts'
 import { knownAs, type PeopleState } from '../../workspace/people.ts'
@@ -72,6 +78,13 @@ export const SETTLE_MS = 10 * 60 * 1000
  */
 const CONTEXT = { head: 120, tail: 240 }
 
+/**
+ * How much of a schedule's prompt filing is shown, where a reply changed
+ * one and in the list of what the Familiar keeps: enough to see what the
+ * job is, which is all filing needs to leave it alone.
+ */
+const SCHEDULE_SHOWN = 240
+
 /** How many earlier room entries are searched for the lines a message was shown with. */
 const SHOWN_SCAN = 60
 
@@ -125,8 +138,13 @@ export function placeOf(
   return record?.kind === 'room' ? `#${record.name}` : 'a DM'
 }
 
-type Line =
-  { message: BatchMessage } | { context: string; at: number; who: string }
+/** What the Familiar did or ran between the messages: context, never evidence. */
+type Context = {
+  context: string
+  who: 'reply' | 'scheduled' | 'schedules' | { handoff: string }
+}
+
+type Line = { message: BatchMessage } | Context
 
 /**
  * The next batch after `through`: unfiled person messages at least
@@ -200,17 +218,26 @@ export async function nextBatch(
       lines.push({ message })
       tokens += size
     } else if (said && messages.length) {
-      // Replies, reminders and handoffs follow the conversation: never evidence.
+      // Replies, scheduled runs and handoffs follow the conversation.
       lines.push({
         context: shorten(said.text),
-        at: said.at,
         who:
-          said.role === 'assistant'
-            ? 'reply'
-            : said.role === 'scheduled'
-              ? 'reminder'
-              : `handoff from ${said.from}`,
+          said.role === 'handoff'
+            ? { handoff: said.from }
+            : said.role === 'assistant'
+              ? 'reply'
+              : 'scheduled',
       })
+    } else if (messages.length && entry.kind === 'pi.tool-result') {
+      // A reply that set up, changed or cancelled a schedule: the schedule
+      // keeps what was asked for, so filing must see that it does.
+      const result = entry.model?.[0] as ToolResultMessage | undefined
+      if (result && !result.isError && SCHEDULE_CHANGES.has(result.toolName)) {
+        lines.push({
+          context: clipText(textOf(result), SCHEDULE_SHOWN),
+          who: 'schedules',
+        })
+      }
     }
     end = entry.id
   }
@@ -321,18 +348,44 @@ export function touched(
     .map((subject) => subject.id)
 }
 
+/** How a line of context is introduced. */
+const contextLabel = ({ who }: Context, name: string) =>
+  who === 'reply'
+    ? `${name}'s reply`
+    : who === 'scheduled'
+      ? `${name} ran a scheduled job`
+      : who === 'schedules'
+        ? `${name} changed its schedules, which now keep this`
+        : `handoff from ${who.handoff}`
+
+/** A schedule in the list of what the Familiar keeps itself. */
+const scheduleLine = (
+  { id, repeat, at, prompt }: SchedulesState[string],
+  timeZone: string,
+) =>
+  `${id}, ${repeat === undefined ? `once at ${weekdayMinute(at!, timeZone)}` : `repeating ${repeat}`}: ${clipText(prompt, SCHEDULE_SHOWN)}`
+
 /** The input filing's call is given. */
 export function renderBatch(
   selected: Pick<Selected, 'lines'>,
   memory: MemoryState,
   pages: ReadonlyMap<string, Readonly<PageState>>,
-  rooms: Readonly<RoomRegistry>,
-  name: string,
-  timeZone: string,
+  {
+    rooms,
+    schedules,
+    name,
+    timeZone,
+  }: {
+    rooms: Readonly<RoomRegistry>
+    /** What the Familiar keeps itself, so filing leaves it alone. */
+    schedules: Readonly<SchedulesState>
+    name: string
+    timeZone: string
+  },
 ) {
   const said = selected.lines.map((line) => {
     if ('context' in line) {
-      return `(${name}'s ${line.who}, context only) ${line.context}`
+      return `(${contextLabel(line, name)}, context only) ${line.context}`
     }
     const { message } = line
     return [
@@ -383,9 +436,16 @@ export function renderBatch(
     ]
   })
 
+  const kept = Object.values(schedules).sort((a, b) => a.created - b.created)
+
   return [
     'Messages, oldest first:',
     said.join('\n'),
+    '',
+    `${name}'s schedules, which it keeps and runs itself:`,
+    kept.length
+      ? kept.map((schedule) => scheduleLine(schedule, timeZone)).join('\n')
+      : '(none)',
     '',
     'Roster:',
     roster.join('\n'),
