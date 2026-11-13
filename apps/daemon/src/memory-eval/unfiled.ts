@@ -9,7 +9,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import type { Author, WorkspaceOptions } from '@familiar-ai/core'
 import { openDaemonWorkspace } from '../workspace.ts'
 import {
-  nextTick,
+  nextNight,
   RECALL_HEADING,
   type FamiliarId,
   type FilingState,
@@ -79,7 +79,7 @@ export async function waitForClock(
   const deadline = Date.now() + 60_000
   for (;;) {
     const { items } = await storage.scanTasks(
-      { kind: 'familiar.memory-clock' },
+      { kind: 'familiar.memory' },
       2,
       undefined,
       context,
@@ -191,7 +191,7 @@ export async function runUnfiledEval(
   const replayPath = join(directory, 'replay.sqlite')
 
   // Questions are asked the morning after the last day. Opening there first
-  // sets memory's clock for the hour after, past every question; the replay
+  // sets memory's clock for the night after, past every question; the replay
   // then starts on the first day, so the clock never ticks again.
   const asked = noonOf(scenario.days.at(-1)!.date) + 24 * 60 * 60 * 1000
   const holding = createClock(asked)
@@ -203,7 +203,7 @@ export async function runUnfiledEval(
     setTimer: holding.setTimer,
   })
   try {
-    await waitForClock(held, holding, nextTick(asked))
+    await waitForClock(held, holding, nextNight(asked, EVAL_TIME_ZONE))
   } finally {
     await holder.dismiss()
   }

@@ -12,7 +12,7 @@ import type {
   McpServer,
   Mention,
   ModelOption,
-  PageView,
+  PageState,
   PushSubscriptionJson,
   RoomSummary,
 } from '@familiar-ai/core/http'
@@ -204,13 +204,13 @@ export const familiarCommands = (api: Api, id: number) => {
       section: async (): Promise<string> =>
         (await read(familiar.memory.section.$get({ param }))).text,
       /** A subject's page: its profile and notes. */
-      page: (subject: string): Promise<PageView> =>
+      page: (subject: string): Promise<PageState> =>
         read(
           familiar.memory.pages[':subject'].$get({
             param: { ...param, subject },
           }),
         ),
-      /** Forgets a note, and blocks what it came from. */
+      /** Forgets a note. */
       forget: (note: string) =>
         succeed(
           familiar.memory.notes[':note'].forget.$post({

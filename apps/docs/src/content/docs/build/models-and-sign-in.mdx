@@ -43,6 +43,6 @@ Without an account, the host keeps credentials working itself and a failed reque
 
 `modelChoices` lists the models the installation offers, each with the reasoning level it starts on. `chatModel` is what a new Familiar's chat starts on, and people may switch a Familiar to any other choice. Leave `modelChoices` out and the only choice is `chatModel` at medium.
 
-Memory's filing and consolidation run on `chatModel` unless you set `memoryModel`, which can be a cheaper model: background memory work needs less than a chat does. Each Familiar can pick its own from the choices too (`familiars.update(id, { memoryModel })`; `null` returns it to the workspace's), applying from its next memory call. Both must be in `modelChoices`, and are run at the level listed there.
+Memory's filing and profiles run on `chatModel` unless you set `memoryModel`, which can be a cheaper model: background memory work needs less than a chat does. Each Familiar can pick its own from the choices too (`familiars.update(id, { memoryModel })`; `null` returns it to the workspace's), applying from its next memory call. Both must be in `modelChoices`, and are run at the level listed there.
 
 Each Familiar remembers its current model and level. Change them with its `setModel(ref)` and `setThinkingLevel(level)`, from `workspace.familiars.get(id)`, or over HTTP under `/familiars/:familiar/model`. Both throw a `ModelError` for a choice that isn't on offer.

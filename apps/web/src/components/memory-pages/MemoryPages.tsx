@@ -19,8 +19,8 @@ export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
   const memory = useFamiliar((state) => state.memory)
   // Changes whenever a page does, so the section is read again.
   const revision = memory?.subjects.reduce(
-    (latest, subject) => Math.max(latest, subject.changed),
-    memory.forgotten.length,
+    (latest, subject) => Math.max(latest, subject.changed, subject.profiled),
+    0,
   )
   const section = useQuery({
     queryKey: ['memory', familiar, 'section', revision],
@@ -30,11 +30,7 @@ export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
   if (!memory) {
     return null
   }
-  const subjects = memory.subjects.toSorted(
-    (a, b) =>
-      Number(b.kind === 'self') - Number(a.kind === 'self') ||
-      b.changed - a.changed,
-  )
+  const subjects = memory.subjects.toSorted((a, b) => b.changed - a.changed)
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,9 +46,7 @@ export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
           <Collapsible key={subject.id}>
             <CollapsibleTrigger className="group flex w-full items-center gap-2 py-1 text-left">
               <CaretRightIcon className="shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-              <span className="font-medium">
-                {subject.kind === 'self' ? 'Itself' : subject.name}
-              </span>
+              <span className="font-medium">{subject.name}</span>
               <span className="truncate text-xs text-muted-foreground">
                 {subject.line}
               </span>

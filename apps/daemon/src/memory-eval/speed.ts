@@ -13,12 +13,11 @@ import {
   keyOf,
   localDay,
   MESSAGE_KIND,
-  memoryOf,
+  Memory,
   memoryViews,
   Pages,
   recallNote,
   renderSection,
-  SELF,
   type JournalLine,
   type Note,
 } from '@familiar-ai/core/diagnostics'
@@ -161,11 +160,7 @@ export async function generateStore(path: string, options: SpeedOptions) {
         data: { reason: 'threshold' },
       })
 
-      const memory = await memoryOf(tx, familiar, 'Familiar')
-      ;(await tx.doc(Pages, keyOf(familiar, SELF), null)).profile = profileOf(
-        'You',
-        800,
-      )
+      const memory = await tx.doc(Memory, String(familiar), null)
       let note = 1
       for (let index = 0; index < options.subjects; index++) {
         const id = `s${memory.next.subject++}`
@@ -175,13 +170,10 @@ export async function generateStore(path: string, options: SpeedOptions) {
           id,
           kind: 'person',
           name,
-          aliases: [],
           line: `someone who came up in year ${Math.floor(index / 20) + 1}`,
-          ...(participant && {
-            participant: { kind: 'person' as const, id: `person-${index}` },
-          }),
+          ...(participant && { person: `person-${index}` }),
           changed: start + Math.floor((index / options.subjects) * days) * DAY,
-          tidied: end,
+          profiled: end,
         })
         const notes: Note[] = []
         for (let n = 0; n < options.notesPerSubject; n++) {
@@ -202,14 +194,11 @@ export async function generateStore(path: string, options: SpeedOptions) {
             ]
           notes.push({
             id: `n${note++}`,
-            kind: 'fact',
             text: statements[n % statements.length](name, n),
-            mentions: [],
             since: dayOf(at),
             quote: 'said so',
-            sources: [source.entry],
+            source: source.entry,
             saidBy: USER,
-            origin: 'inferred',
             saved: at,
           })
         }
@@ -230,7 +219,6 @@ export async function generateStore(path: string, options: SpeedOptions) {
               exchange: entry,
               on: dayOf(at - (n === 0 ? DAY : 0)),
               text: `${exchanges[day * options.exchangesPerDay + n * 7].text.slice(0, 120)}`,
-              subjects: [`s${2 + ((day + n) % options.subjects)}`],
               quote: 'said so',
               saidBy: USER,
             },
@@ -327,7 +315,6 @@ export async function measureSpeed(
             limit: 10,
             kind: 'exchange',
             ranges: datesIn(query, localDay(now, EVAL_TIME_ZONE)),
-            dates: 'prefer',
           })
         }, BACKGROUND_CONTEXT)
       }
@@ -370,7 +357,8 @@ export async function measureSpeed(
     }
     const pages = view.subjects().map((subject) => view.page(subject.id))
     return {
-      exchanges: view.search('', { now, limit: 0, kind: 'exchange' }).total,
+      exchanges: view.search('', { now, limit: Infinity, kind: 'exchange' })
+        .length,
       notes: pages.reduce(
         (total, page) => total + (page?.notes.length ?? 0),
         0,

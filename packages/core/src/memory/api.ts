@@ -6,35 +6,25 @@ import {
   keyOf,
   Memory,
   Pages,
-  standingOf,
   type MemoryState,
-  type Note,
-  type Standing,
+  type PageState,
 } from './store.ts'
 import type { MemoryView } from './view.ts'
-
-/** A subject's page as people read it: each note with how well it is supported. */
-export type PageView = {
-  profile: string
-  notes: (Note & { standing: Standing })[]
-}
 
 /** A change memory refuses, such as forgetting a note that isn't there; nothing changed. */
 export class MemoryError extends Error {}
 
 /** What people see of a Familiar's memory, and the one change they make to it. */
 export type MemoryApi = {
-  /** Its subjects, then every change: the roster and what each page is. */
+  /** Its subjects, then every change. */
   watch(): Promise<DocumentWatch<MemoryState>>
   /** A subject's page: its profile and notes. Rejects for no such subject. */
-  page(subject: string): Promise<PageView>
+  page(subject: string): Promise<PageState>
   /** The memory section of the prompt, exactly as the model sees it now. */
   section(): Promise<string>
   /**
-   * Forgets a note: removes its words and quote, keeping a marker, and
-   * records its source messages so filing never writes from them again.
-   * Its page's profile is cleared until consolidation writes it again
-   * without the note. Rejects for no such note.
+   * Forgets a note: removes it and clears its page's profile until the
+   * night writes it again without it. Rejects for no such note.
    */
   forget(note: string): Promise<void>
 }
@@ -57,18 +47,12 @@ export function memoryApi(
       if (!view.subject(subject)) {
         throw new MemoryError(`No subject ${subject}.`)
       }
-      const page = await harness.snapshot(
-        Pages,
-        keyOf(familiar, subject),
-        context,
+      return (
+        (await harness.snapshot(Pages, keyOf(familiar, subject), context)) ?? {
+          profile: '',
+          notes: [],
+        }
       )
-      return {
-        profile: page?.profile ?? '',
-        notes: (page?.notes ?? []).map((note) => ({
-          ...note,
-          standing: standingOf(note),
-        })),
-      }
     },
     section: async () => {
       await view.ready()
@@ -82,16 +66,11 @@ export function memoryApi(
         const entry = memory.subjects.find((each) => each.id === subject)
         const page =
           entry && (await tx.doc(Pages, keyOf(familiar, entry.id), null))
-        const note = page?.notes.find((note) => note.id === id)
-        if (!entry || !page || !note || note.retired?.reason === 'forgotten') {
+        const at = page?.notes.findIndex((note) => note.id === id) ?? -1
+        if (!entry || !page || at === -1) {
           throw new MemoryError(`No note ${id}.`)
         }
-        note.text = ''
-        note.quote = ''
-        note.retired = { reason: 'forgotten', at: now() }
-        memory.forgotten = [
-          ...new Set([...memory.forgotten, ...note.sources]),
-        ].sort((a, b) => a - b)
+        page.notes.splice(at, 1)
         // The profile may say what was forgotten: gone until rewritten.
         page.profile = ''
         entry.changed = now()

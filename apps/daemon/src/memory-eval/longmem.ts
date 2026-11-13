@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { nextNight, nextTick } from '@familiar-ai/core/diagnostics'
+import { nextNight } from '@familiar-ai/core/diagnostics'
 import { copyFileSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { replyTo } from '../reply.ts'
@@ -25,7 +25,7 @@ import { filedThrough, waitForClock } from './unfiled.ts'
  *
  * 1. **Filing.** The whole haystack is written into the Familiar's
  *    conversation with its original dates, then memory, on the memory model,
- *    files it as a backlog and consolidates it, as it would after the
+ *    files it as a backlog and writes profiles, as it would after the
  *    Familiar had been away.
  * 2. **Reply.** The question is asked in the same DM at its date, on a copy
  *    of the filed store, and the reply model answers over what memory holds.
@@ -54,9 +54,9 @@ const stageOf = (meter: Meter, started: number): Stage => ({
 /**
  * When memory files the whole history: the first night after the last
  * message, or the last night before the question if that is later. The
- * pass files every message, each dated from its own time, then consolidates
+ * pass files every message, each dated from its own time, then writes profiles
  * that night, so the question meets memory as a night's work left it and no
- * consolidation is due again before it is asked.
+ * pass is due again before it is asked.
  */
 export function filingTime(lastAt: number, asked: number) {
   let night = nextNight(lastAt, EVAL_TIME_ZONE)
@@ -96,7 +96,7 @@ export async function fileHistory(
   )
   try {
     // The clock is set a moment after opening; moved before then, it would miss it.
-    await waitForClock(storage, clock, nextTick(store.lastAt))
+    await waitForClock(storage, clock, nextNight(store.lastAt, EVAL_TIME_ZONE))
     clock.advanceTo(night)
     await settle(workspace, clock, meter, night + HOUR)
   } finally {

@@ -1012,11 +1012,11 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
     const ofAda = items.filter(
       (task) =>
         (task.kind === 'familiar.schedule' ||
-          task.kind === 'familiar.memory-clock') &&
+          task.kind === 'familiar.memory') &&
         (task.input as { familiar: FamiliarId }).familiar === ada,
     )
     expect(ofAda.map((task) => [task.kind, task.state.status]).sort()).toEqual([
-      ['familiar.memory-clock', 'terminal'],
+      ['familiar.memory', 'terminal'],
       ['familiar.schedule', 'terminal'],
     ])
     expect(await harness.snapshot(Memory, String(ada), context)).toBeUndefined()

@@ -385,7 +385,7 @@ test('familiar routes reach that Familiar, and a missing one is 404', async () =
   const app = api(host.workspace())
   const id = host.familiar().id
 
-  const page = await app.request(`/familiars/${id}/memory/pages/s2`)
+  const page = await app.request(`/familiars/${id}/memory/pages/s1`)
   expect(page.status).toBe(200)
   expect(await page.json()).toEqual({
     profile: 'Where Sam lives.',

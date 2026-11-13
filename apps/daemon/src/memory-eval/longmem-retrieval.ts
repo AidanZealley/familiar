@@ -58,9 +58,8 @@ export async function openMemorySearch(
           limit,
           kind: 'exchange',
           ranges: datesIn(question, localDay(asked, timeZone)),
-          dates: 'prefer',
         })
-        .hits.flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
+        .flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
     }, BACKGROUND_CONTEXT)
   }
   return { search, close: () => harness.close(BACKGROUND_CONTEXT) }

@@ -3,13 +3,7 @@
  * stored conversation, and seeding sample memory (the demo, the eval). Not
  * part of the API a host gives people.
  */
-export {
-  Filing,
-  nextNight,
-  nextTick,
-  nightOf,
-  type FilingState,
-} from './memory/filing/task.ts'
+export { Filing, nextNight, type FilingState } from './memory/filing/task.ts'
 export {
   formatMessage,
   MESSAGE_KIND,
@@ -20,9 +14,7 @@ export {
   Journal,
   keyOf,
   Memory,
-  memoryOf,
   Pages,
-  SELF,
   type JournalLine,
   type MemoryState,
   type Note,

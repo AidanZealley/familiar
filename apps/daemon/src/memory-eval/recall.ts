@@ -243,9 +243,8 @@ export function runRecallEval(scenario: Scenario): RecallResult {
           limit: 10,
           kind: 'exchange',
           ranges: datesIn(question.text, localDay(now, EVAL_TIME_ZONE)),
-          dates: 'prefer',
         })
-        .hits.flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
+        .flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
       times.push(performance.now() - searchStarted)
       const texts = found.map((exchange) =>
         (evidence.get(exchange.id)?.text ?? '').toLowerCase(),

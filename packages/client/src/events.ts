@@ -6,7 +6,7 @@ import type {
 
 // Core's version, typed against it without loading its runtime, so a bump
 // there fails this check until the client is updated to match.
-const PROTOCOL_VERSION: typeof CoreProtocolVersion = 6
+const PROTOCOL_VERSION: typeof CoreProtocolVersion = 7
 
 /**
  * The event stream's state. It goes `open` when the server's handshake

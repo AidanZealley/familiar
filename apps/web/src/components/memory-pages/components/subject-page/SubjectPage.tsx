@@ -7,7 +7,14 @@ import type { SubjectPageProps } from './types'
 export const SubjectPage = ({ familiar, subject }: SubjectPageProps) => {
   const store = useFamiliarStore()
   const page = useQuery({
-    queryKey: ['memory', familiar, 'page', subject.id, subject.changed],
+    queryKey: [
+      'memory',
+      familiar,
+      'page',
+      subject.id,
+      subject.changed,
+      subject.profiled,
+    ],
     queryFn: () => store.memory.page(subject.id),
   })
   if (!page.data) {

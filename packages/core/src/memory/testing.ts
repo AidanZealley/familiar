@@ -12,7 +12,7 @@ import {
   Familiars,
   type FamiliarId,
 } from '../workspace/familiars.ts'
-import { keyOf, memoryOf, Pages, type Subject } from './store.ts'
+import { keyOf, Memory, Pages, type Subject } from './store.ts'
 
 /** Test helpers for memory; not part of Familiar. */
 
@@ -52,14 +52,13 @@ export async function seedPage(
   subject: Pick<Subject, 'name' | 'kind'> & Partial<Subject>,
   profile: string,
 ) {
-  const memory = await memoryOf(tx, familiar, 'Familiar')
+  const memory = await tx.doc(Memory, String(familiar), null)
   const id = subject.id ?? `s${memory.next.subject++}`
   if (!memory.subjects.some((other) => other.id === id)) {
     memory.subjects.push({
-      aliases: [],
       line: '',
       changed: 1,
-      tidied: 1,
+      profiled: 1,
       ...subject,
       id,
     })
