@@ -92,7 +92,7 @@ function memory(seed: Partial<MemoryState> = {}) {
   return { state, pages, months, file, subject, notesOf }
 }
 
-test('an operation is kept only if its quote is in a person message of the batch, and who said it comes from that message', async () => {
+test('an operation is kept only if its quote is in a person message of the batch, who said it comes from that message, and a new subject needs a note', async () => {
   const mind = memory()
   const said = message(1, "Theo's allergic to nuts, so no satay.", {
     author: maya,
@@ -102,6 +102,8 @@ test('an operation is kept only if its quote is in a person message of the batch
   const result = await mind.file([said, message(2, 'What time is it?')], {
     subjects: [
       { ref: 'theo', kind: 'person', name: 'Theo', line: "Maya's son" },
+      // Named, but nothing written about it: not made.
+      { ref: 'satay', kind: 'topic', name: 'Satay', line: 'A dish' },
     ],
     notes: [
       // Quoted from Maya's message, on Theo's page.
@@ -109,6 +111,7 @@ test('an operation is kept only if its quote is in a person message of the batch
         subject: 'theo',
         kind: 'fact',
         text: 'Theo is allergic to nuts.',
+        mentions: ['satay'],
         m: [1],
         quote: "theo's ALLERGIC   to nuts",
       },
@@ -147,8 +150,12 @@ test('an operation is kept only if its quote is in a person message of the batch
     ],
   })
 
-  expect(result.dropped).toHaveLength(2)
+  expect(result.dropped).toHaveLength(3)
+  expect(mind.state.subjects.map((subject) => subject.name)).not.toContain(
+    'Satay',
+  )
   const [allergy, school, time] = mind.notesOf('Theo')
+  expect(allergy.mentions).toEqual([])
   expect(allergy).toMatchObject({
     text: 'Theo is allergic to nuts.',
     saidBy: maya,
@@ -395,7 +402,7 @@ test('repair retires what has passed and plans nobody repeated, and merges notes
   expect(repairPage(page, '2026-03-06', now)).toBe(false)
 })
 
-test('the prompt section holds every profile of who takes part, and the roster only within its budget', () => {
+test('the prompt section holds every profile of who takes part, with what else they are called, and the roster only within its budget', () => {
   const subjects = [
     {
       id: 's1',
@@ -409,7 +416,7 @@ test('the prompt section holds every profile of who takes part, and the roster o
       id: 's2',
       kind: 'person' as const,
       name: 'Aidan',
-      aliases: [],
+      aliases: ['Az'],
       line: '',
       participant: { kind: 'person' as const, id: 'aidan' },
       changed: 5,
@@ -438,7 +445,9 @@ test('the prompt section holds every profile of who takes part, and the roster o
   expect(section).toContain(
     'How you have learned to work:\nWrites dates like 13 Nov.',
   )
-  expect(section).toContain('Aidan (s2): Aidan lives in Leeds with Maya.')
+  expect(section).toContain(
+    'Aidan, also called Az (s2): Aidan lives in Leeds with Maya.',
+  )
   // Most recently changed first, cut at the budget, with how many more.
   const roster = section.split('most recent first:\n')[1].split('\n')
   expect(roster[0]).toBe(

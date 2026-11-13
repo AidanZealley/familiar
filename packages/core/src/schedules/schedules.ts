@@ -51,6 +51,17 @@ export const Schedules = defineDocFamily<SchedulesState, null>({
   checkpointWhen: () => true, // small: always store it whole
 })
 
+/**
+ * The chat tools that change a Familiar's schedules. Memory shows filing
+ * where a reply used one, since what a schedule holds is kept here, never
+ * in memory.
+ */
+export const SCHEDULE_CHANGES: ReadonlySet<string> = new Set([
+  'schedule',
+  'update_schedule',
+  'cancel_schedule',
+])
+
 /** A change the rules refuse; nothing was changed. */
 export class ScheduleError extends Error {}
 

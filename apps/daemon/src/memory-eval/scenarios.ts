@@ -92,12 +92,17 @@ export const scenarios: Scenario[] = [
   {
     id: 'job-instruction-stays-with-the-job',
     tests:
-      'An instruction about one job does not appear in an unrelated reply.',
+      'An instruction about one job stays with the job: it is not in view, nor in an unrelated reply.',
     say: [
       {
         day: 0,
         who: STARTER,
-        text: 'For my Monday newsletter digest, skip anything from sponsors and keep each item to one line.',
+        text: "Every Monday at 8am, send me a digest of the week's top stories from The Verge.",
+      },
+      {
+        day: 0,
+        who: STARTER,
+        text: 'For that Monday digest, skip anything from sponsors and keep each item to one line.',
       },
     ],
     probes: [
@@ -105,9 +110,84 @@ export const scenarios: Scenario[] = [
         day: 2,
         who: STARTER,
         text: 'Suggest a name for my new cat.',
-        reply: { excludes: ['sponsor', 'newsletter'] },
-        section: { excludes: ['sponsor'] },
+        reply: { excludes: ['sponsor', 'digest', 'verge'] },
+        section: { excludes: ['sponsor', 'digest', 'verge', 'one line'] },
         recalled: { excludes: ['sponsor'] },
+      },
+    ],
+  },
+  {
+    id: 'task-instruction-is-not-a-lesson',
+    tests:
+      'An instruction for the task in hand is followed and finished with, not kept as how to work.',
+    say: [
+      {
+        day: 0,
+        who: STARTER,
+        text: 'Write me a short packing list for a weekend camping trip.',
+      },
+      {
+        day: 0,
+        who: STARTER,
+        text: "For this one, leave out the food and put it in the order I'll pack it.",
+      },
+    ],
+    probes: [
+      {
+        day: 2,
+        who: STARTER,
+        text: 'Give me three ideas for a birthday present for a ten-year-old.',
+        section: { excludes: ['food', 'pack'] },
+      },
+    ],
+  },
+  {
+    id: 'general-correction-kept',
+    tests:
+      'A correction to how the Familiar works in general is kept in view and used on another task.',
+    say: [
+      {
+        day: 0,
+        who: STARTER,
+        text: "When's the next full moon?",
+      },
+      {
+        day: 0,
+        who: STARTER,
+        text: 'Whenever you tell me a time, use the 24-hour clock, not am and pm.',
+      },
+    ],
+    probes: [
+      {
+        day: 3,
+        who: STARTER,
+        text: 'Roughly what time does the sun set in London on midsummer day? Just the time.',
+        reply: { includesAny: ['21:', '21.'], excludes: ['pm', 'p.m.'] },
+        section: { includesAny: ['24-hour', '24 hour'] },
+      },
+    ],
+  },
+  {
+    id: 'fact-in-passing',
+    tests:
+      'Something lasting that comes out in passing, inside a request, is kept in view.',
+    say: [
+      {
+        day: 0,
+        who: STARTER,
+        text: "Any ideas for a rainy afternoon with my three-year-old? We're just outside Bath.",
+      },
+    ],
+    probes: [
+      {
+        day: 4,
+        who: STARTER,
+        text: 'Roughly how old is my kid, and where do we live?',
+        reply: { includes: ['Bath'], includesAny: ['three', '3'] },
+        section: {
+          includes: ['Bath'],
+          includesAny: ['three', '3-year', 'toddler'],
+        },
       },
     ],
   },
@@ -189,7 +269,8 @@ export const scenarios: Scenario[] = [
       {
         day: 0,
         who: 'Aidan',
-        text: "I'm planning a surprise party for Maya on 20 June at the Crown pub.",
+        // Not a surprise: a model rightly keeps a surprise from others.
+        text: "I'm organising Maya's birthday party on 20 June at the Crown pub.",
       },
     ],
     probes: [

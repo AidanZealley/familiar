@@ -25,8 +25,8 @@ import type { FileArgs } from './tools.ts'
  * the batch; who said it and where are read from that message, never from
  * the model; and nothing is written from a message someone asked to forget.
  * Anything else is dropped, with the reason, and the rest still applies.
- * People who take part already have pages (`meetPeople`, when the batch is
- * selected).
+ * A subject the call makes must get a note, or it isn't made. People who
+ * take part already have pages (`meetPeople`, when the batch is selected).
  */
 
 /** Where applying reads and writes: a commit's documents, or plain maps in tests. */
@@ -101,6 +101,7 @@ export async function applyFiling(
 
   // New subjects first: notes and lines may name them by ref.
   const refs = new Map<string, string>()
+  const created = new Set<string>()
   const subjectById = (id: string) =>
     memory.subjects.find((subject) => subject.id === id)
   const resolve = (name: string | undefined): Subject | undefined => {
@@ -134,6 +135,7 @@ export async function applyFiling(
       }
       memory.subjects.push(subject)
       refs.set(op.ref, subject.id)
+      created.add(subject.id)
       result.applied++
     } else {
       const subject = subjectById(op.id)
@@ -253,6 +255,29 @@ export async function applyFiling(
     page.notes.push(note)
     changed.add(subject.id)
     result.applied++
+  }
+
+  // A page is for something there is something to know about. A subject
+  // this call made that got no note is only a name, so it goes again; what
+  // else named it (a mention, a journal line) then names nothing.
+  for (const id of created) {
+    if (changed.has(id)) {
+      continue
+    }
+    const index = memory.subjects.findIndex((subject) => subject.id === id)
+    const [subject] = memory.subjects.splice(index, 1)
+    for (const [ref, to] of refs) {
+      if (to === id) {
+        refs.delete(ref)
+      }
+    }
+    for (const page of changed) {
+      for (const note of (await store.page(page)).notes) {
+        note.mentions = note.mentions.filter((other) => other !== id)
+      }
+    }
+    drop(`subject ${subject.name}`, 'no note was written about it')
+    result.applied--
   }
 
   for (const op of args.confirm ?? []) {
