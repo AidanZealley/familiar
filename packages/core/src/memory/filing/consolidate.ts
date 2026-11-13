@@ -19,7 +19,11 @@ import type { TidyArgs } from './tools.ts'
  * stay searchable, a poor one loses nothing.
  */
 
-/** A tentative note nobody repeats is retired after this many days. */
+/**
+ * A tentative plan with no end date that nobody repeats is retired after
+ * this many days. Other notes don't go stale: most true things, such as
+ * "my daughter is two", are said once.
+ */
 export const STALE_DAYS = 60
 
 const DAY = 24 * 60 * 60 * 1000
@@ -29,9 +33,9 @@ export const TIDY_LIMIT = 20
 
 /**
  * The repairs `page` needs on `today`, applied to it: notes past `until`
- * expire, tentative notes nobody repeated in STALE_DAYS go stale, and
- * notes with the same words merge into the oldest. Returns whether anything
- * changed. Never calls a model.
+ * expire, tentative plans without an `until` that nobody repeated in
+ * STALE_DAYS go stale, and notes with the same words merge into the
+ * oldest. Returns whether anything changed. Never calls a model.
  */
 export function repairPage(page: PageState, today: string, now: number) {
   let changed = false
@@ -41,6 +45,8 @@ export function repairPage(page: PageState, today: string, now: number) {
       note.retired = { reason: 'expired', at: now }
       changed = true
     } else if (
+      note.kind === 'plan' &&
+      note.until === undefined &&
       standingOf(note) === 'tentative' &&
       now - note.saved > STALE_DAYS * DAY
     ) {

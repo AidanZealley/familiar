@@ -2,7 +2,7 @@ import type { EntryId } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { timeAt, TEST_ZONE } from '../testing.ts'
 import { applyFiling, type FilingStore } from './filing/apply.ts'
-import type { BatchMessage } from './filing/batch.ts'
+import { meetPeople, type BatchMessage } from './filing/batch.ts'
 import { repairPage } from './filing/consolidate.ts'
 import type { FileArgs } from './filing/tools.ts'
 import { renderSection } from './section.ts'
@@ -72,8 +72,10 @@ function memory(seed: Partial<MemoryState> = {}) {
       return months.get(month)!
     },
   }
-  const file = (messages: BatchMessage[], args: FileArgs) =>
-    applyFiling(
+  // As a pass does: the batch's people have pages before the call.
+  const file = (messages: BatchMessage[], args: FileArgs) => {
+    meetPeople(state, { names: {} }, messages, now)
+    return applyFiling(
       store,
       messages,
       state.subjects.map((s) => s.id),
@@ -83,13 +85,14 @@ function memory(seed: Partial<MemoryState> = {}) {
         timeZone: TEST_ZONE,
       },
     )
+  }
   const subject = (name: string) =>
     state.subjects.find((subject) => subject.name === name)!
   const notesOf = (name: string) => pages.get(subject(name).id)?.notes ?? []
   return { state, pages, months, file, subject, notesOf }
 }
 
-test('an operation is kept only if its quote is in a message it cites, and who said it comes from that message', async () => {
+test('an operation is kept only if its quote is in a person message of the batch, and who said it comes from that message', async () => {
   const mind = memory()
   const said = message(1, "Theo's allergic to nuts, so no satay.", {
     author: maya,
@@ -125,7 +128,7 @@ test('an operation is kept only if its quote is in a message it cites, and who s
         m: [1],
         quote: 'loves football',
       },
-      // A real quote, but from a message it doesn't cite.
+      // A real quote from a message it doesn't cite: that message is its source.
       {
         subject: 'theo',
         kind: 'fact',
@@ -144,8 +147,8 @@ test('an operation is kept only if its quote is in a message it cites, and who s
     ],
   })
 
-  expect(result.dropped).toHaveLength(3)
-  const [allergy, school] = mind.notesOf('Theo')
+  expect(result.dropped).toHaveLength(2)
+  const [allergy, school, time] = mind.notesOf('Theo')
   expect(allergy).toMatchObject({
     text: 'Theo is allergic to nuts.',
     saidBy: maya,
@@ -155,7 +158,8 @@ test('an operation is kept only if its quote is in a message it cites, and who s
     origin: 'inferred',
   })
   expect(school.saidBy).toEqual(aidan)
-  expect(mind.notesOf('Theo')).toHaveLength(2)
+  expect(time).toMatchObject({ sources: [102], saidBy: aidan })
+  expect(mind.notesOf('Theo')).toHaveLength(3)
   // People who take part get pages by code, linked by ID.
   expect(mind.subject('Maya').participant).toEqual({
     kind: 'person',
@@ -251,7 +255,9 @@ test('a repeat confirms, a change replaces, a contradiction retires, and standin
   const late = await mind.file([message(5, 'York was lovely.')], {
     confirm: [{ note: york.id, m: [5], quote: 'York was lovely' }],
   })
-  expect(late.dropped).toEqual([`confirm ${york.id}: no such current note`])
+  expect(late.dropped).toEqual([
+    { what: `confirm ${york.id}`, why: 'no such current note' },
+  ])
 })
 
 test('nothing is written from a forgotten message, and lessons only go on the Familiar’s own page', async () => {
@@ -281,9 +287,9 @@ test('nothing is written from a forgotten message, and lessons only go on the Fa
       ],
     },
   )
-  expect(result.dropped).toEqual([
-    'note 1: its message was forgotten',
-    'journal line 1: its message was forgotten',
+  expect(result.dropped.map((each) => each.why)).toEqual([
+    'its message was forgotten',
+    'its message was forgotten',
   ])
   expect(mind.months.size).toBe(0)
 
@@ -351,18 +357,24 @@ const note = (id: string, extra: Partial<Note>): Note => ({
   ...extra,
 })
 
-test('repair retires what has passed or went unrepeated, and merges notes that say the same', () => {
+test('repair retires what has passed and plans nobody repeated, and merges notes that say the same', () => {
   const DAY = 24 * 60 * 60 * 1000
   const page: PageState = {
     profile: '',
     notes: [
       note('n1', { kind: 'plan', until: '2026-03-01' }),
-      note('n2', { saved: now - 61 * DAY }),
-      note('n3', { saved: now - 61 * DAY, sources: [1, 2] as EntryId[] }),
+      note('n2', { kind: 'plan', saved: now - 61 * DAY }),
+      note('n3', {
+        kind: 'plan',
+        saved: now - 61 * DAY,
+        sources: [1, 2] as EntryId[],
+      }),
       note('n4', { saved: now - 61 * DAY, origin: 'stated' }),
       note('n5', { text: 'Likes tea' }),
       note('n6', { text: 'likes  tea.', sources: [3 as EntryId] }),
-      note('n7', { kind: 'plan', until: '2026-04-01' }),
+      note('n7', { kind: 'plan', until: '2026-04-01', saved: now - 61 * DAY }),
+      // Said once long ago, and still true: only plans go stale.
+      note('n8', { saved: now - 61 * DAY }),
     ],
   }
   expect(repairPage(page, '2026-03-06', now)).toBe(true)
@@ -377,6 +389,7 @@ test('repair retires what has passed or went unrepeated, and merges notes that s
     n5: 'current',
     n6: 'duplicate',
     n7: 'current',
+    n8: 'current',
   })
   expect(page.notes[4].sources).toEqual([1, 3])
   expect(repairPage(page, '2026-03-06', now)).toBe(false)
