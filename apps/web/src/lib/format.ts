@@ -1,12 +1,6 @@
-import type { Episode } from '@familiar-ai/client'
-
 /** A `YYYY-MM-DD` date at local noon, so no time zone moves it a day. */
 export const localDate = (date: string) => new Date(`${date}T12:00:00`)
 
-export const monthFormat = new Intl.DateTimeFormat(undefined, {
-  month: 'long',
-  year: 'numeric',
-})
 const dayFormat = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
@@ -120,16 +114,4 @@ export const formatRepeat = (cron: string) => {
     return `Monthly on the ${ordinal(Number(date))} ${at}`
   }
   return 'Repeats'
-}
-
-/** An episode's dates: `7 Jan` for a day, `22–28 Dec` for a week. */
-export const formatSpan = (episode: Episode) => {
-  const start = localDate(episode.start)
-  if (episode.span === 'day') {
-    return formatDay(start)
-  }
-  if (episode.span === 'month') {
-    return monthFormat.format(start)
-  }
-  return dayFormat.formatRange(start, localDate(episode.end))
 }
