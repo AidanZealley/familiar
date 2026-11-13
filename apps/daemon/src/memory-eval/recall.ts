@@ -15,7 +15,8 @@ import { categories, type Category, type Scenario } from './scenario.ts'
  * harder to find.
  */
 
-const DAY = 24 * 60 * 60 * 1000
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
 
 /** Years of filler added after the scenario, cumulatively. */
 export const PADDING_YEARS = [0, 1, 5, 10] as const
@@ -98,14 +99,19 @@ function random(seed: number) {
   }
 }
 
-/** `days` days of filler from `start`, `EXCHANGES_PER_DAY` a day. */
-export function fillerExchanges(start: number, days: number, firstId: number) {
+/** `days` days of filler from `start`, `perDay` a day. */
+export function fillerExchanges(
+  start: number,
+  days: number,
+  firstId: number,
+  perDay = EXCHANGES_PER_DAY,
+) {
   const next = random(firstId)
   const pick = <T>(items: readonly T[]) =>
     items[Math.floor(next() * items.length)]
   const exchanges: Exchange[] = []
   for (let day = 0; day < days; day++) {
-    for (let index = 0; index < EXCHANGES_PER_DAY; index++) {
+    for (let index = 0; index < perDay; index++) {
       const picks: Picks = {
         person: pick(people),
         project: pick(projects),
@@ -116,7 +122,8 @@ export function fillerExchanges(start: number, days: number, firstId: number) {
       }
       exchanges.push({
         id: `x${firstId + exchanges.length}`,
-        at: start + day * DAY + index * 60 * 60 * 1000,
+        at:
+          start + day * DAY + index * Math.min(HOUR, Math.floor(DAY / perDay)),
         text: pick(templates)(picks),
         last: (firstId + exchanges.length) as EntryId,
       })
