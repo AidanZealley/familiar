@@ -28,6 +28,7 @@ export type {
   Note,
   NoteKind,
   PageState,
+  PageView,
   Participant,
   PushSubscriptionJson,
   Retired,

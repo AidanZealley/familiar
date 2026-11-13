@@ -63,6 +63,7 @@ export type {
   Note,
   NoteKind,
   PageState,
+  PageView,
   Participant,
   Retired,
   Standing,

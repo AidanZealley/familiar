@@ -10,7 +10,7 @@ import { recallNote } from './recall.ts'
 import { memoryOf } from './store.ts'
 import { memoryViews } from './view.ts'
 
-export { MemoryError, type MemoryApi } from './api.ts'
+export { MemoryError, type MemoryApi, type PageView } from './api.ts'
 export type {
   JournalLine,
   JournalState,
@@ -24,7 +24,6 @@ export type {
   Subject,
   SubjectKind,
 } from './store.ts'
-export { standingOf } from './store.ts'
 
 export type MemoryOptions = FilingOptions & {
   /** Familiar's clock. */

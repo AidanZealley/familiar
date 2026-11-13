@@ -6,10 +6,18 @@ import {
   keyOf,
   Memory,
   Pages,
+  standingOf,
   type MemoryState,
-  type PageState,
+  type Note,
+  type Standing,
 } from './store.ts'
 import type { MemoryView } from './view.ts'
+
+/** A subject's page as people read it: each note with how well it is supported. */
+export type PageView = {
+  profile: string
+  notes: (Note & { standing: Standing })[]
+}
 
 /** A change memory refuses, such as forgetting a note that isn't there; nothing changed. */
 export class MemoryError extends Error {}
@@ -19,7 +27,7 @@ export type MemoryApi = {
   /** Its subjects, then every change: the roster and what each page is. */
   watch(): Promise<DocumentWatch<MemoryState>>
   /** A subject's page: its profile and notes. Rejects for no such subject. */
-  page(subject: string): Promise<PageState>
+  page(subject: string): Promise<PageView>
   /** The memory section of the prompt, exactly as the model sees it now. */
   section(): Promise<string>
   /**
@@ -49,12 +57,18 @@ export function memoryApi(
       if (!view.subject(subject)) {
         throw new MemoryError(`No subject ${subject}.`)
       }
-      return (
-        (await harness.snapshot(Pages, keyOf(familiar, subject), context)) ?? {
-          profile: '',
-          notes: [],
-        }
+      const page = await harness.snapshot(
+        Pages,
+        keyOf(familiar, subject),
+        context,
       )
+      return {
+        profile: page?.profile ?? '',
+        notes: (page?.notes ?? []).map((note) => ({
+          ...note,
+          standing: standingOf(note),
+        })),
+      }
     },
     section: async () => {
       await view.ready()
