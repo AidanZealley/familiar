@@ -27,7 +27,7 @@ Familiar: Hello, Sam.
 
 - **`fauxProvider`** is a scripted model provider. Each `setResponses` entry answers one model request. Use it in tests to drive the real harness without model calls. For a script that answers every request, such as a demo, `scriptedModels` from `@familiar-ai/core/models/scripted` hands it each request already read: a person's message, a tool's result, a due schedule or background work.
 - **`MemoryStorage`** keeps everything in memory and loses it when the process exits.
-- **`openWorkspace`** opens the workspace over its storage, resumes any unfinished work and starts background work such as schedules and upkeep.
+- **`openWorkspace`** opens the workspace over its storage, resumes any unfinished work and starts background work such as schedules and memory filing.
 - **`familiars.create`** makes a Familiar. Familiars live in the storage, so a lasting host does this once, on the first open.
 - **`rooms.dm`** gets or creates the DM between a Familiar and a person, by your host's ID for them. People talk to Familiars only in rooms: DMs, and named rooms with one or more Familiars.
 - **`post`** records a message from `author` and starts the Familiar's turn. `requestId` should stay the same if you retry the same logical message, so it's posted once.
