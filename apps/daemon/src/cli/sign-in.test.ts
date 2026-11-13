@@ -8,7 +8,10 @@ import { signIn } from './sign-in.ts'
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
 vi.mock('../config.ts', () => ({
-  config: { name: 'Familiar', model: { provider: 'openai', modelId: 'test' } },
+  config: {
+    name: 'Familiar',
+    chatModel: { provider: 'openai', modelId: 'test' },
+  },
   deviceId: vi.fn(),
 }))
 vi.mock('../models.ts', () => ({ openModels: vi.fn() }))

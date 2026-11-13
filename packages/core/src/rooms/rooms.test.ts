@@ -62,7 +62,7 @@ async function open(
   const workspace = await openWorkspace({
     storage: new ReopenableStorage(),
     models: scriptedModels(respond),
-    model: { provider: 'faux', modelId: 'faux-1' },
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
     ...options,
   })

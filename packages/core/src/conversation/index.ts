@@ -12,12 +12,12 @@ import {
   type ModelRef,
 } from '@earendil-works/pi-durable'
 import {
-  findChatModel,
+  findModelChoice,
   ModelError,
   modelKey,
   modelOptions,
   ThinkingLevels,
-  type ChatModel,
+  type ModelChoice,
   type ModelOption,
   type ThinkingLevelsState,
 } from './models.ts'
@@ -52,26 +52,26 @@ export type ConversationApi = {
 export type ConversationOptions = {
   models: Models
   /** What a new conversation starts on, and what it falls back to. */
-  model: ModelRef
-  chatModels: readonly ChatModel[]
+  chatModel: ModelRef
+  modelChoices: readonly ModelChoice[]
 }
 
 const context = BACKGROUND_CONTEXT
 
-/** `chatModel`'s level: the one last picked for it, else its default. */
-const levelOf = (levels: ThinkingLevelsState, chatModel: ChatModel) =>
-  levels[modelKey(chatModel.model)] ?? chatModel.thinkingLevel
+/** `choice`'s level: the one last picked for it, else its default. */
+const levelOf = (levels: ThinkingLevelsState, choice: ModelChoice) =>
+  levels[modelKey(choice.model)] ?? choice.thinkingLevel
 
 /** `familiar`'s chat, which its ID names. */
 export async function installConversation(
   harness: Harness,
   familiar: FamiliarId,
-  { models, model, chatModels }: ConversationOptions,
+  { models, chatModel, modelChoices }: ConversationOptions,
 ): Promise<ConversationApi> {
-  // Every chat model resolved once, so a catalog missing one fails at startup.
-  const options = modelOptions(models, chatModels)
-  // openWorkspace checked that `model` is one of them.
-  const fallback = findChatModel(options, model)!
+  // Every choice resolved once, so a catalog missing one fails at startup.
+  const options = modelOptions(models, modelChoices)
+  // openWorkspace checked that `chatModel` is one of them.
+  const fallback = findModelChoice(options, chatModel)!
 
   const conversation = await harness.conversation(familiar, context)
   if (!conversation) {
@@ -85,7 +85,7 @@ export async function installConversation(
     await tx.doc(LiveDoc, conversation.id)
     await tx.doc(InboxDoc, conversation.id)
     const levels = await familiarDoc(tx, ThinkingLevels, familiar)
-    const kept = findChatModel(options, agent.model)
+    const kept = findModelChoice(options, agent.model)
     const chosen = kept ?? fallback
     await configure(tx, conversation.id, {
       model: chosen.model,
@@ -100,9 +100,9 @@ export async function installConversation(
       (await harness.watchDoc(AgentDoc, familiar, context))!,
     models: () => options,
     setModel: async (model) => {
-      const chosen = findChatModel(options, model)
+      const chosen = findModelChoice(options, model)
       if (!chosen) {
-        throw new ModelError(`${modelKey(model)} is not a chat model.`)
+        throw new ModelError(`${modelKey(model)} is not a model choice.`)
       }
       await conversation.commit(async (tx) => {
         const levels = await familiarDoc(tx, ThinkingLevels, familiar)
@@ -117,8 +117,8 @@ export async function installConversation(
         // Reads before writes: a transaction cannot read tables after writing.
         const agent = await tx.doc(AgentDoc, conversation.id)
         const levels = await familiarDoc(tx, ThinkingLevels, familiar)
-        // Startup always leaves the conversation on a chat model.
-        const current = findChatModel(options, agent.model)!
+        // Startup always leaves the conversation on a model choice.
+        const current = findModelChoice(options, agent.model)!
         if (!current.thinkingLevels.includes(level)) {
           throw new ModelError(`${current.name} has no ${level} reasoning.`)
         }

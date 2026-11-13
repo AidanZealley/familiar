@@ -66,8 +66,8 @@ export const FamiliarSettings = ({ id }: FamiliarSettingsProps) => {
                 label: 'Memory',
                 icon: BrainIcon,
                 keywords: 'facts episodes history pinned core reserve',
-                description: `What ${name} has filed from its conversations, each night.`,
-                content: <MemorySettings />,
+                description: `What ${name} has filed from its conversations, each night, and the model that files it.`,
+                content: <MemorySettings familiar={familiar} />,
               },
               {
                 id: 'schedules',

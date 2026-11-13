@@ -1,3 +1,4 @@
+import type { ModelRef } from '@earendil-works/pi-durable'
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
@@ -10,9 +11,9 @@ import type { FamiliarId } from './familiars.ts'
 import type { Workspace } from './index.ts'
 
 /**
- * A blank name or persona, or a plugin or connection the workspace hasn't:
- * `familiars.create`, `update` and `setCapabilities` throw TypeErrors for
- * exactly these.
+ * A blank name or persona, a memory model that isn't a model choice, or a
+ * plugin or connection the workspace hasn't: `familiars.create`, `update` and
+ * `setCapabilities` throw TypeErrors for exactly these.
  */
 async function identity(c: Context, run: () => Promise<Response>) {
   try {
@@ -27,6 +28,19 @@ async function identity(c: Context, run: () => Promise<Response>) {
 
 const optional = (value: unknown) =>
   value === undefined || typeof value === 'string'
+
+/** A model as the wire carries it: its provider and its ID in it. */
+const modelRef = (value: unknown) =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { provider?: unknown }).provider === 'string' &&
+  typeof (value as { modelId?: unknown }).modelId === 'string'
+
+/** Only the two fields a model is named by. */
+const pick = ({ provider, modelId }: ModelRef): ModelRef => ({
+  provider,
+  modelId,
+})
 
 const names = (value: unknown) =>
   value === undefined ||
@@ -117,6 +131,12 @@ export function familiarRoutes(workspace: Workspace) {
               400,
             )
           }
+          if (body.memoryModel !== undefined && !modelRef(body.memoryModel)) {
+            return c.json(
+              { error: 'memoryModel must be a provider and modelId' },
+              400,
+            )
+          }
           const capabilities = body.capabilities as
             { plugins?: unknown; mcp?: unknown } | undefined
           if (
@@ -136,6 +156,9 @@ export function familiarRoutes(workspace: Workspace) {
             ...(body.avatar !== undefined && {
               avatar: body.avatar as string,
             }),
+            ...(body.memoryModel !== undefined && {
+              memoryModel: pick(body.memoryModel as ModelRef),
+            }),
             // Without it, the workspace's default tools.
             ...(capabilities !== undefined && {
               capabilities: capabilities as {
@@ -151,7 +174,7 @@ export function familiarRoutes(workspace: Workspace) {
             return c.json({ id }, 201)
           }),
       )
-      // A `null` persona or avatar returns it to the default.
+      // A `null` persona, avatar or memoryModel returns it to the default.
       .patch(
         '/:familiar',
         can('familiars.update'),
@@ -166,21 +189,33 @@ export function familiarRoutes(workspace: Workspace) {
               400,
             )
           }
+          if (
+            body.memoryModel !== undefined &&
+            body.memoryModel !== null &&
+            !modelRef(body.memoryModel)
+          ) {
+            return c.json(
+              { error: 'memoryModel must be a provider and modelId' },
+              400,
+            )
+          }
           // Inline, so the route's type names nothing outside the wire contract.
           return body as {
             name?: string
             persona?: string | null
             avatar?: string | null
+            memoryModel?: { provider: string; modelId: string } | null
           }
         }),
         (c) =>
           identity(c, async () => {
-            const { name, persona, avatar } = c.req.valid('json')
+            const { name, persona, avatar, memoryModel } = c.req.valid('json')
             familiarOf(c)
             await workspace.familiars.update(idOf(c), {
               name,
               persona,
               avatar,
+              memoryModel: memoryModel && pick(memoryModel),
             })
             return c.body(null, 204)
           }),

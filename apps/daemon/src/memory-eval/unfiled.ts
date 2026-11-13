@@ -185,7 +185,7 @@ export async function runUnfiledEval(
   const { models, requests } = recordingModels()
   const options = {
     models,
-    model: { provider: 'faux', modelId: 'faux-1' },
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
     contextBudget: CONTEXT_BUDGET,
     timeZone: EVAL_TIME_ZONE,
   } satisfies Partial<WorkspaceOptions>

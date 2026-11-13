@@ -12,7 +12,7 @@ import { TEST_ZONE, testHost, type TestHostOptions } from '../testing.ts'
 
 // One Familiar in a workspace, end to end through its DM.
 
-type SetupOptions = Omit<TestHostOptions, 'models' | 'model'>
+type SetupOptions = Omit<TestHostOptions, 'models' | 'chatModel'>
 
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
@@ -188,6 +188,31 @@ test('a Familiar refuses a time zone it does not know', async () => {
       `${timeZone} is not a known IANA time zone.`,
     )
   }
+})
+
+test('a memory model must be one of the model choices, at startup and for a Familiar', async () => {
+  const luna = { provider: 'faux', modelId: 'luna' }
+  const choices = {
+    faux: [{ id: 'faux-1' }, { id: 'luna' }],
+    modelChoices: [
+      {
+        model: { provider: 'faux', modelId: 'faux-1' },
+        thinkingLevel: 'medium',
+      },
+    ],
+  } satisfies SetupOptions
+  await expect(setup({ ...choices, memoryModel: luna })).rejects.toThrow(
+    'faux/luna must be one of modelChoices.',
+  )
+
+  const { workspace } = await setup(choices)
+  const id = (await workspace.familiars.list())[0]!.id
+  await expect(
+    workspace.familiars.update(id, { memoryModel: luna }),
+  ).rejects.toThrow('faux/luna must be one of modelChoices.')
+  expect((await workspace.familiars.list())[0]).not.toHaveProperty(
+    'memoryModel',
+  )
 })
 
 // Pi runs the last tool registered under a name, so a plugin's would

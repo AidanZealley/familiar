@@ -5,6 +5,7 @@ import {
   type DocumentObserver,
   type DocumentReader,
   type JsonObject,
+  type ModelRef,
   type SessionDocFamilyToken,
   type Tx,
 } from '@earendil-works/pi-durable'
@@ -34,6 +35,13 @@ export type FamiliarIdentity = {
    * for the host and never reads it. At most `AVATAR_LENGTH` characters.
    */
   avatar?: string
+  /**
+   * What its memory upkeep runs on, instead of the workspace's `memoryModel`:
+   * one of `modelChoices`, at that choice's level. Applies from the next
+   * pass. If a later restart drops it from `modelChoices`, upkeep falls back
+   * to the workspace's.
+   */
+  memoryModel?: ModelRef
 }
 
 /** The longest avatar a Familiar may keep: a choice, not an image. */
@@ -158,6 +166,19 @@ export function checkIdentity<T extends Partial<FamiliarIdentity>>(
     )
   }
   return identity
+}
+
+/** Sets one of a record's optional fields, or removes it for `null`. */
+export function change<K extends 'persona' | 'avatar' | 'memoryModel'>(
+  record: FamiliarRecord,
+  field: K,
+  value: FamiliarRecord[K] | null | undefined,
+) {
+  if (value === null) {
+    delete record[field]
+  } else if (value !== undefined) {
+    record[field] = value
+  }
 }
 
 /**
