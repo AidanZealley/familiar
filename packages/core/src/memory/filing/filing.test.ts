@@ -250,3 +250,43 @@ test('a message only minutes old is filed with one asked to be remembered after 
   expect(f.calls).toHaveLength(1)
   expect(f.calls[0]).toContain('[m2]')
 })
+
+test("a person's page is on the roster of their first call, and is named as the workspace names them now", async () => {
+  const f = await setup(() => ({}))
+  await f.host.say('I ran the Leeds 10k yesterday.')
+  await f.at(timeAt('2026-03-06 10:00'))
+  expect(f.calls[0]).toContain('s2 aidan (person, takes part)')
+  expect(f.calls[0]).toContain('Pages these messages touch:')
+  expect(f.calls[0].split('Pages these messages touch:')[1]).toContain(
+    's2 aidan',
+  )
+
+  // Said under the old name, filed after the rename.
+  await f.host.say('We had pasta for dinner.')
+  await f.host.workspace().people.rename('aidan', 'Aidan Z')
+  await f.at(timeAt('2026-03-06 11:00'))
+  expect(f.calls[1]).toContain('[m1] Aidan Z, in a DM')
+  expect(f.calls[1]).toContain('s2 Aidan Z (person, takes part)')
+  expect((await f.subjects()).map((subject) => subject.name)).toEqual([
+    'Familiar',
+    'Aidan Z',
+  ])
+})
+
+test('a batch is one day of messages, at most twenty', async () => {
+  const f = await setup(() => ({}))
+  for (let n = 1; n <= 21; n++) {
+    await f.host.say(`Message ${n} of Friday.`)
+  }
+  await f.at(timeAt('2026-03-07 09:00'))
+  await f.host.say('A message on Saturday.')
+  await f.at(timeAt('2026-03-07 10:00'))
+
+  expect(f.calls).toHaveLength(3)
+  expect(f.calls[0]).toContain('[m20]')
+  expect(f.calls[0]).not.toContain('[m21]')
+  expect(f.calls[1]).toContain('Message 21 of Friday.')
+  expect(f.calls[1]).not.toContain('[m2]')
+  expect(f.calls[2]).toContain('A message on Saturday.')
+  expect(f.calls[2]).not.toContain('of Friday')
+})

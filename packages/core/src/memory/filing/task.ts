@@ -24,6 +24,7 @@ import {
   type FamiliarId,
   type FamiliarRecord,
 } from '../../workspace/familiars.ts'
+import { People } from '../../workspace/people.ts'
 import {
   isCurrent,
   keyOf,
@@ -35,8 +36,9 @@ import {
   SELF,
   type PageState,
 } from '../store.ts'
-import { applyFiling, type FilingStore } from './apply.ts'
+import { applyFiling, type Dropped, type FilingStore } from './apply.ts'
 import {
+  meetPeople,
   nextBatch,
   renderBatch,
   SETTLE_MS,
@@ -63,6 +65,9 @@ const NIGHT_HOUR = 4
 
 /** A batch whose call fails this many times in a row is skipped and reported. */
 const ATTEMPTS = 3
+
+/** How many of the operations filing dropped are kept to look at. */
+const DROPPED_KEPT = 30
 
 /**
  * The night a time belongs to: nights run from 04:00 to 04:00 on the wall
@@ -97,6 +102,8 @@ export type FilingState = {
   asked: EntryId[]
   /** The night (`nightOf`) last consolidated. */
   consolidated: string | null
+  /** The latest operations filing dropped, oldest first, for inspection. */
+  dropped: (Dropped & { at: number })[]
 }
 
 /** Where a Familiar's filing has got to. */
@@ -112,6 +119,7 @@ export const Filing = defineDocFamily<FilingState, null>({
     failures: 0,
     asked: [],
     consolidated: null,
+    dropped: [],
   }),
   checkpointWhen: () => true, // small: always store it whole
 })
@@ -285,20 +293,21 @@ export function createFiling(options: FilingOptions) {
           const { familiar } = task.input
           const now = runtime.now()
           const filing = await familiarDoc(tx, Filing, familiar)
+          const people = await tx.doc(People)
           // Table reads before any write.
-          const selected = await nextBatch(
-            tx,
-            familiar,
-            filing.through,
-            filing.asked,
+          const selected = await nextBatch(tx, familiar, filing, {
             now,
-          )
+            timeZone,
+            people,
+          })
           const record = await familiarRecord(tx, familiar)
           const memory = await memoryOf(tx, familiar, record.name)
-          // Its own page is named for it, through renames.
+          // Its own page is named for it, through renames, and so are
+          // people's; people get theirs before the call that first shows them.
           if (memory.subjects[0].name !== record.name) {
             memory.subjects[0].name = record.name
           }
+          meetPeople(memory, people, selected.messages, now)
 
           if (!selected.messages.length) {
             if (selected.end !== undefined) {
@@ -363,13 +372,20 @@ export function createFiling(options: FilingOptions) {
           } else {
             const record = await familiarRecord(tx, familiar)
             const memory = await memoryOf(tx, familiar, record.name)
-            await applyFiling(
+            const now = runtime.now()
+            const { dropped } = await applyFiling(
               storeOf(tx, familiar, memory),
               step.messages,
               step.pages,
               args,
-              { now: runtime.now(), timeZone },
+              { now, timeZone },
             )
+            if (dropped.length) {
+              filing.dropped = [
+                ...filing.dropped,
+                ...dropped.map((each) => ({ ...each, at: now })),
+              ].slice(-DROPPED_KEPT)
+            }
           }
           // The operations and the mark, in one commit.
           filing.through = step.through

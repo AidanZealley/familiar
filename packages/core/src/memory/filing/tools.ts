@@ -1,5 +1,6 @@
 import { Type, type Static, type TSchema } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-durable'
+import { LIMITS } from '../store.ts'
 
 /**
  * Filing's and consolidation's single calls. Each tool only receives its
@@ -57,7 +58,9 @@ export const FileArgs = Type.Object({
         Type.Literal('plan'),
         Type.Literal('lesson'),
       ]),
-      text: Type.String(),
+      text: Type.String({
+        description: `One statement, at most ${LIMITS.note} characters.`,
+      }),
       mentions: Type.Optional(
         Type.Array(Type.String(), {
           description: 'Other subjects it names, by id or ref.',
@@ -88,7 +91,9 @@ export const FileArgs = Type.Object({
     Type.Object({
       m: evidence.m,
       on: Type.String({ description: 'The day it happened, YYYY-MM-DD.' }),
-      text: Type.String(),
+      text: Type.String({
+        description: `One line, at most ${LIMITS.line} characters.`,
+      }),
       subjects: Type.Optional(
         Type.Array(Type.String(), {
           description: 'Subjects it is about, by id or ref.',

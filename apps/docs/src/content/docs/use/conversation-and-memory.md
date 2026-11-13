@@ -23,7 +23,7 @@ Only people's own words become memory. Familiar's replies, other Familiars, remi
 
 Before each reply, Familiar sees its own profile, the profile of each person it works with, and a short list of everyone and everything else it knows about. It recalls notes and past conversations that look relevant to your message, and can search everything with its `recall` tool, by date or about someone, and open a page or a conversation with `read_memory`.
 
-Filing happens through the day. Every hour, Familiar files what people said at least ten minutes before. If you ask it to remember something, it files it straight away, and that note counts as asked for. Each night at 04:00 in your time zone it tidies the pages that changed and rewrites their profiles. A note said only once is likely rather than certain; one that nobody repeats in 60 days is retired, and stays searchable.
+Filing happens through the day. Every hour, Familiar files what people said at least ten minutes before. If you ask it to remember something, it files it straight away, and that note counts as asked for. Each night at 04:00 in your time zone it tidies the pages that changed and rewrites their profiles. A note said only once is likely rather than certain. A plan with no date that nobody repeats in 60 days is retired, and stays searchable; other notes stay until they're corrected or over.
 
 Schedules aren't memory. Feedback about a recurring job, such as "include the links in my digest", changes that job's instructions, not what Familiar remembers.
 

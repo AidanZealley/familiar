@@ -9,10 +9,13 @@ import {
 import type { RoomMessageData } from '../../rooms/log.ts'
 import type { RoomId, RoomRegistry } from '../../rooms/rooms.ts'
 import { entriesOf } from '../../pi/entries.ts'
-import { weekdayMinute } from '../../time.ts'
+import { localDay, weekdayMinute } from '../../time.ts'
 import type { FamiliarId } from '../../workspace/familiars.ts'
+import { knownAs, type PeopleState } from '../../workspace/people.ts'
 import {
+  clipText,
   isCurrent,
+  LIMITS,
   normalized,
   SELF,
   STANDING_TEXT,
@@ -54,21 +57,29 @@ export type Batch = {
   input: string
 }
 
-/** A batch holds at most this many messages, or this many tokens of their words. */
-export const BATCH = { messages: 40, tokens: 6_000 }
+/**
+ * A batch holds one local day's messages, at most this many of them or this
+ * many tokens of their words: small batches file more steadily.
+ */
+export const BATCH = { messages: 20, tokens: 6_000 }
 
 /** Filing reads a message once it is this old, so the conversation has settled. */
 export const SETTLE_MS = 10 * 60 * 1000
 
-/** Replies and other inputs are shown cut to this many characters. */
-const CONTEXT_CHARS = 200
+/**
+ * A long reply or other input is shown as its start and its end, which is
+ * where a reply usually asks what the person's next message answers.
+ */
+const CONTEXT = { head: 120, tail: 240 }
 
 /** How many earlier room entries are searched for the lines a message was shown with. */
 const SHOWN_SCAN = 60
 
-const cut = (text: string, length: number) => {
+const shorten = (text: string) => {
   const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > length ? `${flat.slice(0, length - 1)}…` : flat
+  return flat.length > CONTEXT.head + CONTEXT.tail + 1
+    ? `${flat.slice(0, CONTEXT.head)}…${flat.slice(-CONTEXT.tail)}`
+    : flat
 }
 
 /**
@@ -81,6 +92,7 @@ async function shownWith(
   room: RoomId,
   before: EntryId,
   context: string,
+  people: Readonly<PeopleState>,
 ) {
   const shown: BatchMessage['shown'] = []
   const haystack = normalized(context)
@@ -98,7 +110,7 @@ async function shownWith(
     }
     const { author, text } = entry.data as RoomMessageData
     if (text.trim() && haystack.includes(normalized(text))) {
-      shown.unshift({ author, text })
+      shown.unshift({ author: knownAs(people, author), text })
     }
   }
   return shown
@@ -118,22 +130,31 @@ type Line =
 
 /**
  * The next batch after `through`: unfiled person messages at least
- * SETTLE_MS old, or asked to be remembered, oldest first, within BATCH.
- * Undefined `messages` with a `through` means only entries with nothing to
- * file came first, so the mark can move past them. Reads only, so a commit
- * may write after it.
+ * SETTLE_MS old, or asked to be remembered, oldest first, from one day in
+ * `timeZone`, within BATCH. Authors are named as `people` names them now.
+ * Empty `messages` with an `end` means only entries with nothing to file
+ * came first, so the mark can move past them. Reads only, so a commit may
+ * write after it.
  */
 export async function nextBatch(
   tx: Tx,
   familiar: FamiliarId,
-  through: EntryId | null,
-  asked: readonly EntryId[],
-  now: number,
+  { through, asked }: { through: EntryId | null; asked: readonly EntryId[] },
+  {
+    now,
+    timeZone,
+    people,
+  }: {
+    now: number
+    timeZone: string
+    people: Readonly<PeopleState>
+  },
 ) {
   const lines: Line[] = []
   const messages: BatchMessage[] = []
   let end: EntryId | undefined
   let tokens = 0
+  let day: string | undefined
   // A message asked to be remembered is filed now, with those before it.
   const askedThrough = Math.max(-1, ...asked)
   for await (const entry of entriesOf(tx, {
@@ -148,9 +169,12 @@ export async function nextBatch(
         break
       }
       const size = estimateTextTokens(said.text)
+      day ??= localDay(said.at, timeZone)
       if (
         messages.length &&
-        (messages.length >= BATCH.messages || tokens + size > BATCH.tokens)
+        (messages.length >= BATCH.messages ||
+          tokens + size > BATCH.tokens ||
+          localDay(said.at, timeZone) !== day)
       ) {
         break
       }
@@ -158,7 +182,7 @@ export async function nextBatch(
       const message: BatchMessage = {
         m: messages.length + 1,
         entry: entry.id,
-        author: said.author,
+        author: knownAs(people, said.author),
         ...(room !== undefined && { room }),
         at: said.at,
         // One message too long for a batch is cut to fit.
@@ -168,7 +192,7 @@ export async function nextBatch(
             : said.text,
         shown:
           said.context && room !== undefined
-            ? await shownWith(tx, room, entry.id, said.context)
+            ? await shownWith(tx, room, entry.id, said.context, people)
             : [],
         asked: asked.includes(entry.id),
       }
@@ -178,7 +202,7 @@ export async function nextBatch(
     } else if (said && messages.length) {
       // Replies, reminders and handoffs follow the conversation: never evidence.
       lines.push({
-        context: cut(said.text, CONTEXT_CHARS),
+        context: shorten(said.text),
         at: said.at,
         who:
           said.role === 'assistant'
@@ -194,6 +218,52 @@ export async function nextBatch(
 }
 
 export type Selected = Awaited<ReturnType<typeof nextBatch>>
+
+/**
+ * Gives each person in `messages` who has no page one, linked by ID, so
+ * the call that files their first messages already shows it; and names
+ * every person's page as the workspace (`people`) names them now, so a
+ * rename reaches memory and a backlog of older messages can't undo it.
+ * The model only ever makes subjects for those who don't take part.
+ */
+export function meetPeople(
+  memory: MemoryState,
+  people: Readonly<PeopleState>,
+  messages: readonly BatchMessage[],
+  now: number,
+) {
+  for (const subject of memory.subjects) {
+    const name =
+      subject.participant?.kind === 'person'
+        ? people.names[subject.participant.id]
+        : undefined
+    if (name && subject.name !== clipText(name, LIMITS.name)) {
+      subject.name = clipText(name, LIMITS.name)
+    }
+  }
+  for (const author of messages.flatMap((message) => [
+    message.author,
+    ...message.shown.map((shown) => shown.author),
+  ])) {
+    if (
+      !memory.subjects.some(
+        (subject) =>
+          subject.participant?.kind === 'person' &&
+          subject.participant.id === author.id,
+      )
+    ) {
+      memory.subjects.push({
+        id: `s${memory.next.subject++}`,
+        kind: 'person',
+        name: clipText(knownAs(people, author).name, LIMITS.name),
+        aliases: [],
+        participant: { kind: 'person', id: author.id },
+        line: '',
+        changed: now,
+      })
+    }
+  }
+}
 
 const indent = (text: string, by: string) => text.replace(/^/gm, by)
 

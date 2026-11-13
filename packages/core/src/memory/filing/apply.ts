@@ -21,10 +21,12 @@ import type { FileArgs } from './tools.ts'
 
 /**
  * Applying a `file` call: the rules that make memory trustworthy, in plain
- * code. An operation is kept only if its quote is in a person message it
- * cites; who said it and where are read from that message, never from the
- * model; and nothing is written from a message someone asked to forget.
+ * code. An operation is kept only if its quote is in a person message of
+ * the batch; who said it and where are read from that message, never from
+ * the model; and nothing is written from a message someone asked to forget.
  * Anything else is dropped, with the reason, and the rest still applies.
+ * People who take part already have pages (`meetPeople`, when the batch is
+ * selected).
  */
 
 /** Where applying reads and writes: a commit's documents, or plain maps in tests. */
@@ -36,14 +38,19 @@ export type FilingStore = {
   month(month: string): Promise<JournalState>
 }
 
+/** An operation applying left out, and why. */
+export type Dropped = { what: string; why: string }
+
 export type Applied = {
   /** Operations applied. */
   applied: number
-  /** Operations dropped, and why. */
-  dropped: string[]
+  dropped: Dropped[]
 }
 
-/** The cited message whose words hold `quote`, and who said them. */
+/**
+ * The message whose words hold `quote`, and who said them: one it cites,
+ * else any other of the batch, since models often cite a neighbour.
+ */
 export function evidenceFor(
   messages: readonly BatchMessage[],
   m: readonly number[],
@@ -53,7 +60,11 @@ export function evidenceFor(
   if (!words) {
     return undefined
   }
-  for (const message of messages.filter((each) => m.includes(each.m))) {
+  const cited = messages.filter((each) => m.includes(each.m))
+  for (const message of [
+    ...cited,
+    ...messages.filter((each) => !cited.includes(each)),
+  ]) {
     if (normalized(message.text).includes(words)) {
       return { message, said: message.author }
     }
@@ -65,44 +76,6 @@ export function evidenceFor(
     }
   }
   return undefined
-}
-
-/** Each person in the batch's subject, made by code the first time they're filed. */
-function participants(
-  memory: MemoryState,
-  messages: readonly BatchMessage[],
-  now: number,
-) {
-  const people = new Map<string, Author>()
-  for (const message of messages) {
-    for (const author of [
-      message.author,
-      ...message.shown.map((s) => s.author),
-    ]) {
-      people.set(author.id, author)
-    }
-  }
-  for (const author of people.values()) {
-    const subject = memory.subjects.find(
-      (subject) =>
-        subject.participant?.kind === 'person' &&
-        subject.participant.id === author.id,
-    )
-    if (!subject) {
-      memory.subjects.push({
-        id: `s${memory.next.subject++}`,
-        kind: 'person',
-        name: clipText(author.name, LIMITS.name),
-        aliases: [],
-        participant: { kind: 'person', id: author.id },
-        line: '',
-        changed: now,
-      })
-    } else if (subject.name !== author.name) {
-      // The workspace names people: a rename reaches memory.
-      subject.name = clipText(author.name, LIMITS.name)
-    }
-  }
 }
 
 const NOTE_KINDS: NoteKind[] = ['fact', 'preference', 'plan', 'lesson']
@@ -121,13 +94,10 @@ export async function applyFiling(
 ): Promise<Applied> {
   const { memory } = store
   const result: Applied = { applied: 0, dropped: [] }
-  const drop = (what: string, why: string) =>
-    result.dropped.push(`${what}: ${why}`)
+  const drop = (what: string, why: string) => result.dropped.push({ what, why })
   const forgotten = new Set(memory.forgotten)
   const changed = new Set<string>()
   const dayOf = (message: BatchMessage) => localDay(message.at, timeZone)
-
-  participants(memory, messages, now)
 
   // New subjects first: notes and lines may name them by ref.
   const refs = new Map<string, string>()
@@ -204,7 +174,7 @@ export async function applyFiling(
   const check = (m: readonly number[] | undefined, quote: string) => {
     const found = evidenceFor(messages, m ?? [], quote)
     if (!found) {
-      return 'its quote is not in a message it cites'
+      return 'its quote is in no message of the batch'
     }
     if (forgotten.has(found.message.entry)) {
       return 'its message was forgotten'
@@ -221,7 +191,7 @@ export async function applyFiling(
   }
 
   for (const [index, op] of (args.notes ?? []).entries()) {
-    const what = `note ${index + 1}`
+    const what = `note ${index + 1} on ${op.subject} ("${clipText(op.text ?? '', LIMITS.note)}")`
     const found = check(op.m, op.quote)
     if (typeof found === 'string') {
       drop(what, found)
@@ -327,7 +297,7 @@ export async function applyFiling(
   }
 
   for (const [index, op] of (args.journal ?? []).entries()) {
-    const what = `journal line ${index + 1}`
+    const what = `journal line ${index + 1} ("${clipText(op.text ?? '', LIMITS.line)}")`
     const found = check(op.m, op.quote)
     if (typeof found === 'string') {
       drop(what, found)
