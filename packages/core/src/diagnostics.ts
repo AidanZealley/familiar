@@ -30,7 +30,11 @@ export {
   type Subject,
 } from './memory/store.ts'
 export { entryOf, type Exchange } from './memory/exchanges.ts'
-export { memoryViews, type MemoryView } from './memory/view.ts'
+export {
+  createMemoryIndex,
+  memoryViews,
+  type MemoryView,
+} from './memory/view.ts'
 export { createSearchIndex } from './memory/search.ts'
 export { renderSection } from './memory/section.ts'
 export { datesIn } from './memory/dates.ts'

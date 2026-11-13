@@ -97,14 +97,13 @@ const noteSignature = (note: Note) =>
     note.retired,
   ])
 
-function createView(
-  familiar: FamiliarId,
-  read: DocumentReader,
-  timeZone: string,
-  context: Context,
-) {
+/**
+ * The index and everything search shows, in memory: exchanges, pages and
+ * journal lines as they are handed to it, and the ranking. Knows nothing of
+ * where they come from.
+ */
+export function createMemoryIndex(timeZone: string) {
   const index: SearchIndex = createSearchIndex()
-  const reader = transcriptReader(familiar)
 
   let subjects = new Map<string, Subject>()
   const pages = new Map<string, PageState>()
@@ -196,41 +195,6 @@ function createView(
     subjects = new Map(memory?.subjects.map((subject) => [subject.id, subject]))
   }
 
-  // Loading from snapshots, once: a key a commit delivered meanwhile is
-  // newer than any snapshot that hasn't arrived yet, so it is left alone.
-  let loading: Promise<void> | undefined
-  const delivered = new Set<string>()
-  let loaded = false
-
-  const load = async () => {
-    const memory = await read.snapshot(Memory, String(familiar), context)
-    if (!delivered.has('memory')) {
-      setMemory(memory ?? null)
-    }
-    for (const subject of memory?.subjects ?? []) {
-      const page = await read.snapshot(
-        Pages,
-        keyOf(familiar, subject.id),
-        context,
-      )
-      if (!delivered.has(`page:${subject.id}`)) {
-        setPage(subject.id, page ?? null)
-      }
-    }
-    for (const month of memory?.months ?? []) {
-      const journal = await read.snapshot(
-        Journal,
-        keyOf(familiar, month),
-        context,
-      )
-      if (!delivered.has(`journal:${month}`)) {
-        setMonth(month, journal ?? null)
-      }
-    }
-    loaded = true
-    delivered.clear()
-  }
-
   /** The subjects `query` names by name or alias, as whole words. */
   const named = (query: string) => {
     const text = ` ${normalized(query)} `
@@ -261,44 +225,16 @@ function createView(
   }
 
   return {
-    /** Loads pages and journal after a restart. Call it outside a commit. */
-    ready: () => {
-      loading ??= load()
-      return loading
+    /** Adds an exchange whose text is final. */
+    addExchange(exchange: Exchange) {
+      positions.set(exchange.id, exchanges.length)
+      exchanges.push(exchange)
+      putExchange(exchange)
+      index.mark(exchange.last)
     },
-
-    /** Applies a commit's change to one of this Familiar's documents. */
-    apply(kind: string, own: string | undefined, value: unknown) {
-      const key =
-        kind === Memory.definition.kind
-          ? 'memory'
-          : `${kind === Pages.definition.kind ? 'page' : 'journal'}:${own}`
-      if (!loaded) {
-        delivered.add(key)
-      }
-      if (kind === Memory.definition.kind) {
-        setMemory(value as MemoryState | null)
-      } else if (kind === Pages.definition.kind) {
-        setPage(own!, value as PageState | null)
-      } else {
-        setMonth(own!, value as JournalState | null)
-      }
-    },
-
-    /** Brings exchanges up to date with the transcript, in a commit's reads. */
-    async catchUp(tx: Tx) {
-      await reader.read(tx, (exchange) => {
-        positions.set(exchange.id, exchanges.length)
-        exchanges.push(exchange)
-        putExchange(exchange)
-        index.mark(exchange.last)
-      })
-    },
-
-    /** The first entry the model sees verbatim, as of the last catch-up. */
-    get viewStart() {
-      return reader.viewStart
-    },
+    setPage,
+    setMonth,
+    setMemory,
 
     subjects: () => [...subjects.values()],
     subject: (id: string) => subjects.get(id),
@@ -413,6 +349,84 @@ function createView(
       return index.size
     },
   }
+}
+
+/** One Familiar's index, fed from its transcript and its documents' commits. */
+function createView(
+  familiar: FamiliarId,
+  read: DocumentReader,
+  timeZone: string,
+  context: Context,
+) {
+  const memory = createMemoryIndex(timeZone)
+  const reader = transcriptReader(familiar)
+
+  // Loading from snapshots, once: a key a commit delivered meanwhile is
+  // newer than any snapshot that hasn't arrived yet, so it is left alone.
+  let loading: Promise<void> | undefined
+  const delivered = new Set<string>()
+  let loaded = false
+
+  const load = async () => {
+    const state = await read.snapshot(Memory, String(familiar), context)
+    if (!delivered.has('memory')) {
+      memory.setMemory(state ?? null)
+    }
+    for (const subject of state?.subjects ?? []) {
+      const page = await read.snapshot(
+        Pages,
+        keyOf(familiar, subject.id),
+        context,
+      )
+      if (!delivered.has(`page:${subject.id}`)) {
+        memory.setPage(subject.id, page ?? null)
+      }
+    }
+    for (const month of state?.months ?? []) {
+      const journal = await read.snapshot(
+        Journal,
+        keyOf(familiar, month),
+        context,
+      )
+      if (!delivered.has(`journal:${month}`)) {
+        memory.setMonth(month, journal ?? null)
+      }
+    }
+    loaded = true
+    delivered.clear()
+  }
+
+  return Object.assign(memory, {
+    /** Loads pages and journal after a restart. Call it outside a commit. */
+    ready: () => {
+      loading ??= load()
+      return loading
+    },
+
+    /** Applies a commit's change to one of this Familiar's documents. */
+    apply(kind: string, own: string | undefined, value: unknown) {
+      const key =
+        kind === Memory.definition.kind
+          ? 'memory'
+          : `${kind === Pages.definition.kind ? 'page' : 'journal'}:${own}`
+      if (!loaded) {
+        delivered.add(key)
+      }
+      if (kind === Memory.definition.kind) {
+        memory.setMemory(value as MemoryState | null)
+      } else if (kind === Pages.definition.kind) {
+        memory.setPage(own!, value as PageState | null)
+      } else {
+        memory.setMonth(own!, value as JournalState | null)
+      }
+    },
+
+    /** Brings exchanges up to date with the transcript, in a commit's reads. */
+    catchUp: (tx: Tx) => reader.read(tx, memory.addExchange),
+
+    /** The first entry the model sees verbatim, as of the last catch-up. */
+    viewStart: () => reader.viewStart,
+  })
 }
 
 /**

@@ -140,7 +140,7 @@ export function recallNote(
   rooms: Readonly<RoomRegistry>,
   timeZone: string,
 ) {
-  const before = view.viewStart
+  const before = view.viewStart()
   const { hits } = view.search(query, {
     now,
     limit: RECALL_LIMIT * 2,
