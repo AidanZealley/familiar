@@ -28,8 +28,8 @@ const model = { provider: 'openrouter', modelId: 'anthropic/claude-sonnet-5.5' }
 const workspace = await openWorkspace({
   storage: await openNodeSqliteStorage(data('familiar.sqlite')),
   models,
-  model,
-  chatModels: [{ model, thinkingLevel: 'medium' }],
+  chatModel: model,
+  modelChoices: [{ model, thinkingLevel: 'medium' }],
   timeZone: config.timeZone,
   plugins: [github],
   secrets: fileSecretStore(data('secrets.json')),

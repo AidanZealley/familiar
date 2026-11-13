@@ -35,7 +35,7 @@ export {
 export type { HistoryPage } from './pi/entries.ts'
 export {
   ModelError,
-  type ChatModel,
+  type ModelChoice,
   type ModelOption,
 } from './conversation/models.ts'
 export type { MemoryApi } from './memory/index.ts'

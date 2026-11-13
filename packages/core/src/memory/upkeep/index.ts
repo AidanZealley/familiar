@@ -1,5 +1,4 @@
 import type { Context } from '@earendil-works/chord'
-import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import {
   AssistantEntry,
   configure,
@@ -11,10 +10,10 @@ import {
   type EntryId,
   type EntryRecord,
   type Harness,
-  type ModelRef,
   type TaskRuntime,
   type Tx,
 } from '@earendil-works/pi-durable'
+import { findModelChoice, type ModelChoice } from '../../conversation/models.ts'
 import { saidBy } from '../../conversation/message.ts'
 import {
   addEpisode,
@@ -91,8 +90,10 @@ type UpkeepStep =
 export const UPKEEP_EXTENSION = 'familiar.upkeep'
 
 export type UpkeepOptions = {
-  model: ModelRef
-  thinkingLevel: ModelThinkingLevel
+  /** What upkeep runs on unless the Familiar's record picks another. */
+  memoryModel: ModelChoice
+  /** The models a Familiar's record may pick, each at its level. */
+  modelChoices: readonly ModelChoice[]
   transcriptTokens: number
   /** The IANA zone that sets upkeep's 04:00 and the days it files. */
   timeZone: string
@@ -176,7 +177,8 @@ export function createUpkeep(options: UpkeepOptions) {
   /**
    * Sets up a Familiar's upkeep conversation for a pass's job and starts it
    * from nothing, so it never grows and no job sees another's. Set up at each
-   * pass, so a change of model, name or wording applies to the next. Passes
+   * pass, so a change of model, name or wording applies to the next. A
+   * record's model that is no longer a choice falls back to the workspace's. Passes
    * run one at a time, in this task. The reset is appended directly: nothing
    * else runs there, and the last pass settled.
    */
@@ -186,9 +188,12 @@ export function createUpkeep(options: UpkeepOptions) {
     job: 'filing' | 'rollup',
   ) => {
     const conversation = record.upkeep
+    const { model, thinkingLevel } =
+      findModelChoice(options.modelChoices, record.memoryModel) ??
+      options.memoryModel
     await configure(tx, conversation, {
-      model: options.model,
-      thinkingLevel: options.thinkingLevel,
+      model,
+      thinkingLevel,
       // Rollups summarise, with no tools, so they can't change facts.
       ...(job === 'filing'
         ? {

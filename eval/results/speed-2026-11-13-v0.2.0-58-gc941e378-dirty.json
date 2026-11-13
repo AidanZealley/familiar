@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-13",
+  "commit": "v0.2.0-58-gc941e378-dirty",
+  "options": {
+    "years": 10,
+    "exchangesPerDay": 27,
+    "facts": 2000
+  },
+  "exchanges": 98549,
+  "facts": 2000,
+  "episodes": 4292,
+  "openMs": 2.98281500000121,
+  "firstSearchMs": 4212.921943000001,
+  "firstRecallMs": 17893.801482000003,
+  "warmSearch": {
+    "medianMs": 53.503671999998915,
+    "maxMs": 354.558266
+  },
+  "warmRecall": {
+    "medianMs": 14473.140073000002,
+    "maxMs": 14843.150591999998
+  },
+  "warmRecallSplit": {
+    "readMs": 0.23897999999462627,
+    "searchMs": 13744.295710999999,
+    "plainSearchMs": 639.9463050000049
+  },
+  "sectionMs": {
+    "medianMs": 2.76288399999612,
+    "maxMs": 3.1585459999914747
+  },
+  "sectionChars": 7281
+}

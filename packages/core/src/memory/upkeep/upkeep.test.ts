@@ -14,6 +14,7 @@ import {
   TEST_ZONE,
   testHost,
   timeAt,
+  type TestHostOptions,
 } from '../../testing.ts'
 import { readStored, storageWith } from '../testing.ts'
 import { REPLY_KIND } from '../../rooms/log.ts'
@@ -24,9 +25,10 @@ const start = timeAt('2026-10-25 12:00')
 const firstPass = nextUpkeep(start, TEST_ZONE)
 const secondPass = nextUpkeep(firstPass, TEST_ZONE)
 
-async function setup(storage?: Storage) {
+async function setup(storage?: Storage, options: TestHostOptions = {}) {
   const clock = fakeClock(start)
   const host = await testHost({
+    ...options,
     storage,
     timeZone: TEST_ZONE,
     now: clock.now,
@@ -510,6 +512,59 @@ test("a fact said only in a handoff turn's context is filed by the Familiar it w
       sources: [Number(carrier.slice(1))],
     },
   ])
+})
+
+test("upkeep runs on the workspace's memoryModel, a Familiar's own from its next pass, and the chat on its own model", async () => {
+  const ref = (modelId: string) => ({ provider: 'faux', modelId })
+  const { faux, workspace, say, passAt } = await setup(undefined, {
+    faux: [{ id: 'chat' }, { id: 'cheap' }, { id: 'other' }],
+    chatModel: ref('chat'),
+    modelChoices: [
+      { model: ref('chat'), thinkingLevel: 'medium' },
+      { model: ref('cheap'), thinkingLevel: 'low' },
+      { model: ref('other'), thinkingLevel: 'high' },
+    ],
+    memoryModel: ref('cheap'),
+  })
+  // Every request in order; a pass makes one or more, all on its model.
+  const asked: [model: string, reasoning?: string][] = []
+  const record = (text: string) => {
+    const respond: Parameters<typeof faux.setResponses>[0][number] = (
+      _context,
+      options,
+      _state,
+      model,
+    ) => {
+      asked.push([model.id, options?.reasoning])
+      return fauxAssistantMessage(text)
+    }
+    return respond
+  }
+  faux.setResponses([
+    record('Said hello.'),
+    ...Array.from({ length: 4 }, () => record('Nothing to change.')),
+    record('Said hello again.'),
+    ...Array.from({ length: 4 }, () => record('Nothing to change.')),
+  ])
+
+  await say('Hello.')
+  await passAt(firstPass, secondPass)
+  const first = asked.length
+  expect(asked.slice(0, first)).toEqual([
+    ['chat', 'medium'],
+    ...Array(first - 1).fill(['cheap', 'low']),
+  ])
+
+  // The Familiar's own pick applies from the next pass, at its listed level.
+  const [{ id }] = await workspace().familiars.list()
+  await workspace().familiars.update(id, { memoryModel: ref('other') })
+  await say('Hello again.')
+  await passAt(secondPass, nextUpkeep(secondPass, TEST_ZONE))
+  expect(asked.slice(first)).toEqual([
+    ['chat', 'medium'],
+    ...Array(asked.length - first - 1).fill(['other', 'high']),
+  ])
+  expect(asked.length).toBeGreaterThan(first + 1)
 })
 
 test('reopening keeps exactly one upkeep task on its schedule', async () => {

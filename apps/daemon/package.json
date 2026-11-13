@@ -9,6 +9,10 @@
     "sign-in": "node src/cli.ts sign-in",
     "eval:recall": "node src/memory-eval/recall-main.ts",
     "eval:unfiled": "node src/memory-eval/unfiled-main.ts",
+    "eval:longmem": "node src/memory-eval/longmem-main.ts",
+    "eval:longmem-retrieval": "node src/memory-eval/longmem-retrieval-main.ts",
+    "eval:memory-scenarios": "node src/memory-eval/scenarios-main.ts",
+    "eval:memory-speed": "node src/memory-eval/speed-main.ts",
     "typecheck": "tsc",
     "bundle": "pnpm --filter @familiar-ai/web build && node scripts/bundle.ts",
     "test:release": "node scripts/verify-release.ts"

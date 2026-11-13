@@ -4,10 +4,21 @@
  * part of the API a host gives people.
  */
 export { nextUpkeep, type UpkeepState } from './memory/upkeep/schedule.ts'
-export { saidBy } from './conversation/message.ts'
+export {
+  formatMessage,
+  MESSAGE_KIND,
+  saidBy,
+  textOf,
+} from './conversation/message.ts'
 export { Facts, type Fact } from './memory/facts.ts'
 export { Episodes, type Episode } from './memory/episodes.ts'
-export { createExchangeIndex, type Exchange } from './memory/exchanges.ts'
+export {
+  createExchangeIndex,
+  entryOf,
+  transcriptExchanges,
+  type Exchange,
+} from './memory/exchanges.ts'
+export { renderMemorySection } from './memory/extension.ts'
 export { datesIn } from './memory/episodes.ts'
 export { localDay } from './time.ts'
 export {
@@ -15,4 +26,4 @@ export {
   Familiars,
   type FamiliarId,
 } from './workspace/familiars.ts'
-export { RECALL_HEADING } from './memory/recall.ts'
+export { RECALL_HEADING, recallNote } from './memory/recall.ts'

@@ -17,7 +17,8 @@ import {
   type FamiliarId,
 } from '../workspace/familiars.ts'
 
-const render = (facts: FactsState | undefined) => {
+/** The memory prompt section for these facts. */
+export const renderMemorySection = (facts: FactsState | undefined) => {
   const listed = facts ? listFacts(coreFacts(facts)) : ''
   return `What you remember, filed from your conversations each night. Use it without announcing it. You can't save facts yourself: when someone asks you to remember something, say you will. It is filed tonight, and until then recall still finds what was said. Use recall to search what you remember beyond this, including earlier conversations, and read_memory to open what it finds.
 ${listed || '(nothing yet)'}`
@@ -65,7 +66,9 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
         )
         return (
           familiar &&
-          render(await readFamiliarDoc(input.read, Facts, familiar, context))
+          renderMemorySection(
+            await readFamiliarDoc(input.read, Facts, familiar, context),
+          )
         )
       }),
     ],

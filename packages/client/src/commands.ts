@@ -27,12 +27,14 @@ export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
 
 /**
  * A change to who a Familiar is. A `null` persona returns it to the
- * default, and a `null` avatar to the one its ID derives.
+ * default, a `null` avatar to the one its ID derives, and a `null`
+ * memoryModel to the workspace's.
  */
 export type FamiliarChange = {
   name?: string
   persona?: string | null
   avatar?: string | null
+  memoryModel?: ModelRef | null
 }
 
 export type Api = ReturnType<typeof hc<HttpApi>>
@@ -128,7 +130,7 @@ export const workspaceCommands = (api: Api) => ({
           id: number
         }
       ).id,
-    /** A `null` persona or avatar returns it to the default. */
+    /** A `null` persona, avatar or memoryModel returns it to the default. */
     update: (familiar: number, change: FamiliarChange) =>
       succeed(
         api.familiars[':familiar'].$patch({

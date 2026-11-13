@@ -72,7 +72,7 @@ const context = BACKGROUND_CONTEXT
  * Waits for upkeep to schedule its first pass for `until`, firing any
  * earlier timers on the simulated clock while Familiar starts.
  */
-async function waitForUpkeep(
+export async function waitForUpkeep(
   storage: Storage,
   clock: ReturnType<typeof createClock>,
   until: number,
@@ -108,7 +108,7 @@ async function waitForUpkeep(
 }
 
 /** How far upkeep has filed `chat`, or null if it never has. */
-async function upkeepThrough(storage: Storage, chat: FamiliarId) {
+export async function upkeepThrough(storage: Storage, chat: FamiliarId) {
   const record = await storage.findDocument(
     { kind: 'familiar.upkeep', scope: { kind: 'session' }, key: String(chat) },
     'current',
@@ -123,7 +123,7 @@ async function upkeepThrough(storage: Storage, chat: FamiliarId) {
 }
 
 /** Every entry in `chat`, oldest first. */
-async function entriesIn(storage: Storage, chat: FamiliarId) {
+export async function entriesIn(storage: Storage, chat: FamiliarId) {
   const entries: EntryRecord[] = []
   let cursor: Parameters<Storage['scanEntries']>[2]
   do {
@@ -185,7 +185,7 @@ export async function runUnfiledEval(
   const { models, requests } = recordingModels()
   const options = {
     models,
-    model: { provider: 'faux', modelId: 'faux-1' },
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
     contextBudget: CONTEXT_BUDGET,
     timeZone: EVAL_TIME_ZONE,
   } satisfies Partial<WorkspaceOptions>

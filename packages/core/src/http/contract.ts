@@ -97,7 +97,7 @@ export { CORE_BUDGET } from '../memory/facts.ts'
  * before applying any state; bump it on any change an older client would
  * misread.
  */
-export const PROTOCOL_VERSION = 4
+export const PROTOCOL_VERSION = 5
 
 /**
  * Each `/events` (the workspace's, a Familiar's and a room's) is a
