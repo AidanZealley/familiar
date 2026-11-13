@@ -48,8 +48,8 @@ async function setup(
   const contexts: (NotificationContext | undefined)[] = []
 
   // Scheduled inputs take the next answer in turn, and the owner's messages
-  // the answer given for them. Anything else, such as memory upkeep at
-  // 04:00, hears there's nothing to do.
+  // the answer given for them. Anything else, such as memory's hourly
+  // filing, hears there's nothing to do.
   const inputs: string[] = []
   const answers: Answer[] = []
   const ownerAnswers = new Map<string, Answer>()

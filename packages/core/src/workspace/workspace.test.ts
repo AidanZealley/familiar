@@ -26,7 +26,7 @@ const read = async <T>(
 
 test('Familiars in one workspace each keep their own chat, memory, schedules, model level and identity', async () => {
   const storage = new ReopenableStorage()
-  // Ada remembers Miso, as her upkeep would have filed it; Bo knows nothing
+  // Ada remembers Miso, as her memory would have kept it; Bo knows nothing
   // but has a persona of his own.
   const { ada, bo } = await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {

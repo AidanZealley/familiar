@@ -58,7 +58,7 @@ export type ToolServices = {
   /**
    * The person this call runs for: the author of the message that started
    * it, or the creator of a scheduled run, followed back through any
-   * handoffs, read from storage, never from the tool's arguments. Undefined for other work, such as memory upkeep. A
+   * handoffs, read from storage, never from the tool's arguments. Undefined for other work, such as memory filing. A
    * tool that narrows what someone may do checks it against this.
    */
   author(): Promise<Author | undefined>
@@ -106,7 +106,7 @@ export function withServices<P extends TSchema, D extends JsonValue>(
  * The person a tool call runs for, resolved through its persisted call
  * ancestry, never from its arguments: a message's author, or the creator of
  * a scheduled run. Undefined for any other input, such as another
- * Familiar's handoff or memory upkeep.
+ * Familiar's handoff or memory filing.
  */
 async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
   const input = await callInput(tx, taskId)
@@ -127,7 +127,7 @@ async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
  * prompt or another Familiar's handoff, whose data says who it's for and
  * which room it came from (`InRoom`). Nested calls follow their parent. The
  * assistant entry bounds the search, so later queued or placed messages
- * cannot steal it. Undefined for any other input, such as memory upkeep.
+ * cannot steal it. Undefined for any other input, such as memory filing.
  */
 /**
  * The person behind a room entry: a message's author, or a reminder's
@@ -174,7 +174,7 @@ export async function callInput(
     ) {
       return entry
     }
-    // Other input, e.g. upkeep, has no person behind it. Compaction summaries
+    // Other input, e.g. memory filing, has no person behind it. Compaction summaries
     // are history markers, not inputs, and must not hide the original input.
     if (
       !entry.head &&
