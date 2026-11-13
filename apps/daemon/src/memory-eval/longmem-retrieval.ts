@@ -4,7 +4,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import {
   datesIn,
   localDay,
-  transcriptExchanges,
+  memoryViews,
   type Exchange,
 } from '@familiar-ai/core/diagnostics'
 import { createModels } from '@familiar-ai/core/models'
@@ -28,9 +28,11 @@ export type MemorySearch = (
 ) => Promise<Exchange[]>
 
 /**
- * Today's search: the exchange index over the Familiar's whole conversation,
- * built on first use as after a restart. When memory searches differently,
- * this function is the one place to change. Closing releases the store.
+ * Memory's search as automatic recall runs it, over exchanges only: one
+ * index over the Familiar's conversation with its journal lines as keys,
+ * days the question names first, built on first use as after a restart.
+ * When memory searches differently, this function is the one place to
+ * change. Closing releases the store.
  */
 export async function openMemorySearch(
   store: Pick<HistoryStore, 'path' | 'familiar'>,
@@ -41,15 +43,26 @@ export async function openMemorySearch(
     { models: createModels(), registry: createRegistry() },
     BACKGROUND_CONTEXT,
   )
-  const exchanges = transcriptExchanges(store.familiar, timeZone)
-  const search: MemorySearch = ({ question, asked }, limit) =>
-    harness.commit(async (tx) => {
-      const index = await exchanges.catchUp(tx)
-      return index.search(question, asked, {
-        limit,
-        ranges: datesIn(question, localDay(asked, timeZone)),
-      })
+  const view = memoryViews(
+    harness,
+    timeZone,
+    BACKGROUND_CONTEXT,
+  )(store.familiar)
+  const search: MemorySearch = async ({ question, asked }, limit) => {
+    await view.ready()
+    return harness.commit(async (tx) => {
+      await view.catchUp(tx)
+      return view
+        .search(question, {
+          now: asked,
+          limit,
+          kind: 'exchange',
+          ranges: datesIn(question, localDay(asked, timeZone)),
+          dates: 'prefer',
+        })
+        .hits.flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
     }, BACKGROUND_CONTEXT)
+  }
   return { search, close: () => harness.close(BACKGROUND_CONTEXT) }
 }
 

@@ -22,15 +22,17 @@ try {
   const spread = (s: { medianMs: number; maxMs: number }) =>
     `median ${ms(s.medianMs)}, max ${ms(s.maxMs)}`
   console.log(`
-Store: ${result.exchanges.toLocaleString()} exchanges, ${result.facts} facts, ${result.episodes} episodes.
+Store: ${result.exchanges.toLocaleString()} exchanges indexed, ${result.notes.toLocaleString()} notes, ${store.journalLines.toLocaleString()} journal lines.
 Opening the store afresh:             ${ms(result.openMs)}
-First search after restart:           ${ms(result.firstSearchMs)} (index rebuilt from the whole transcript)
-First automatic recall after restart: ${ms(result.firstRecallMs)} (index rebuilt, then facts and episodes searched)
+First search after restart:           ${ms(result.firstSearchMs)} (pages and months loaded, transcript read into the index)
+First automatic recall after restart: ${ms(result.firstRecallMs)} (the same, then notes and exchanges searched)
 Warm search (exchanges only):         ${spread(result.warmSearch)}
 Warm automatic recall:                ${spread(result.warmRecall)}
-  of which reading the documents ${ms(result.warmRecallSplit.readMs)}, searching them ${ms(result.warmRecallSplit.searchMs)}; the same search over plain copies ${ms(result.warmRecallSplit.plainSearchMs)}
+Documents read by warm searches:      ${result.warmDocumentReads}
 Memory prompt section (${result.sectionChars} chars): ${spread(result.sectionMs)}`)
-  console.log(`\nSaved ${saveResult('speed', { options, ...result })}`)
+  console.log(
+    `\nSaved ${saveResult('speed', { options, journalLines: store.journalLines, ...result })}`,
+  )
 } finally {
   rmSync(directory, { recursive: true, force: true })
 }

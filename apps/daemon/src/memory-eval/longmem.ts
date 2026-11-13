@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
-import { nextUpkeep } from '@familiar-ai/core/diagnostics'
+import { nextNight, nextTick } from '@familiar-ai/core/diagnostics'
 import { copyFileSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { replyTo } from '../reply.ts'
@@ -17,15 +17,16 @@ import { judge } from './longmem-judge.ts'
 import type { Run, Saved, Stage } from './longmem-run.ts'
 import { createMeter, type EvalAccess, type Meter } from './model.ts'
 import { replyText, settle, within } from './settle.ts'
-import { upkeepThrough, waitForUpkeep } from './unfiled.ts'
+import { filedThrough, waitForClock } from './unfiled.ts'
 
 /**
  * One LongMemEval question in a real workspace, in three stages that each
  * save their result as soon as they finish:
  *
  * 1. **Filing.** The whole haystack is written into the Familiar's
- *    conversation with its original dates, then memory's upkeep, on the
- *    memory model, files it as it would after the Familiar had been away.
+ *    conversation with its original dates, then memory, on the memory model,
+ *    files it as a backlog and consolidates it, as it would after the
+ *    Familiar had been away.
  * 2. **Reply.** The question is asked in the same DM at its date, on a copy
  *    of the filed store, and the reply model answers over what memory holds.
  * 3. **Judge.** LongMemEval's judge prompts grade the reply.
@@ -51,23 +52,25 @@ const stageOf = (meter: Meter, started: number): Stage => ({
 })
 
 /**
- * When upkeep's pass over the whole history runs: the first night after the
- * last message, or the last night before the question if that is later, so
- * the pass that follows is not due until after the question is asked.
+ * When memory files the whole history: the first night after the last
+ * message, or the last night before the question if that is later. The
+ * pass files every message, each dated from its own time, then consolidates
+ * that night, so the question meets memory as a night's work left it and no
+ * consolidation is due again before it is asked.
  */
 export function filingTime(lastAt: number, asked: number) {
-  let night = nextUpkeep(lastAt, EVAL_TIME_ZONE)
+  let night = nextNight(lastAt, EVAL_TIME_ZONE)
   for (
-    let next = nextUpkeep(night, EVAL_TIME_ZONE);
+    let next = nextNight(night, EVAL_TIME_ZONE);
     next <= asked;
-    next = nextUpkeep(night, EVAL_TIME_ZONE)
+    next = nextNight(night, EVAL_TIME_ZONE)
   ) {
     night = next
   }
   return night
 }
 
-/** Writes and files `question`'s history at `store.path`. Throws if upkeep stopped short. */
+/** Writes and files `question`'s history at `store.path`. Throws if filing stopped short. */
 export async function fileHistory(
   question: Question,
   store: HistoryStore,
@@ -92,12 +95,8 @@ export async function fileHistory(
     'Familiar',
   )
   try {
-    // The pass is scheduled a moment after opening; a clock moved before then would miss it.
-    await waitForUpkeep(
-      storage,
-      clock,
-      nextUpkeep(store.lastAt, EVAL_TIME_ZONE),
-    )
+    // The clock is set a moment after opening; moved before then, it would miss it.
+    await waitForClock(storage, clock, nextTick(store.lastAt))
     clock.advanceTo(night)
     await settle(workspace, clock, meter, night + HOUR)
   } finally {
@@ -106,11 +105,11 @@ export async function fileHistory(
 
   const filed = await openNodeSqliteStorage(store.path)
   try {
-    const through = await upkeepThrough(filed, store.familiar)
+    const through = await filedThrough(filed, store.familiar)
     const last = store.written.at(-1)?.entry
     if (last !== undefined && (through === null || through < last)) {
       throw new Error(
-        `${question.id}: upkeep filed through entry ${through ?? 'none'}, short of the last message (entry ${last}), so it failed: check the sign-in and the models.`,
+        `${question.id}: memory filed through entry ${through ?? 'none'}, short of the last message (entry ${last}), so it failed: check the sign-in and the models.`,
       )
     }
   } finally {
@@ -153,7 +152,7 @@ export async function askQuestion(
       workspace,
       clock,
       meter,
-      nextUpkeep(question.asked, EVAL_TIME_ZONE),
+      nextNight(question.asked, EVAL_TIME_ZONE),
     )
     const answer = await within(
       REPLY_TIMEOUT,
