@@ -17,14 +17,13 @@ export const memory: Scenario = {
 
 const saved = () =>
   fauxAssistantMessage(
-    'Saved. The **Memory** pages show it all: facts, how they changed and a year of episodes.',
+    'Saved. The **Memory** pages show it all: what each of us knows about you, and how it changed.',
   )
 
 export const seed: Scenario = {
   start: () =>
-    fauxAssistantMessage(
-      [fauxToolCall('seed_memory', {}), fauxToolCall('seed_episodes', {})],
-      { stopReason: 'toolUse' },
-    ),
-  replies: { seed_memory: saved, seed_episodes: saved },
+    fauxAssistantMessage([fauxToolCall('seed_memory', {})], {
+      stopReason: 'toolUse',
+    }),
+  replies: { seed_memory: saved },
 }

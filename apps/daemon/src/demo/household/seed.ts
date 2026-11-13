@@ -10,7 +10,7 @@ import type {
 import { OWNER_ID } from '../../serve.ts'
 import type { DemoClock } from '../clock.ts'
 import { seedMcp } from '../scenarios/mcp.ts'
-import { memories, SEED_MESSAGE } from './memory.ts'
+import { SEED_MESSAGE } from './memory.ts'
 import { createScript } from './script.ts'
 import type { Moment, RoomSeed, Said, Story } from './story.ts'
 
@@ -100,21 +100,10 @@ export async function seedHousehold(
   }
 
   // Memory first, as the demo always has: the first Familiar is asked to
-  // seed every Familiar's, in its DM, then the owner pins what they would.
+  // seed every Familiar's, in its DM.
   const dm = await open(workspace, await workspace.rooms.dm(first, OWNER_ID))
   await dm.post({ author, text: SEED_MESSAGE, requestId: 'seed' })
   await settle()
-  for (const [name, id] of familiars) {
-    const { memory } = workspace.familiars.get(id)!
-    const watch = await memory.watch()
-    await watch.stop()
-    for (const text of memories[name]?.pinned ?? []) {
-      const fact = watch.value?.facts.find((fact) => fact.text === text)
-      if (fact) {
-        await memory.setPinned(fact.id, true)
-      }
-    }
-  }
 
   const rooms = new Map<RoomSeed, RoomApi>()
   for (const room of story.rooms) {

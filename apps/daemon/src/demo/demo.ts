@@ -6,7 +6,7 @@ import { WEB_RENDERING } from '../rendering.ts'
 import { OWNER_ID } from '../serve.ts'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { demoClock } from './clock.ts'
-import { seedMemory, seedEpisodes } from './household/memory.ts'
+import { seedMemory } from './household/memory.ts'
 import { scriptOf, seedHousehold, startOf } from './household/seed.ts'
 import { household } from './household/story.ts'
 import { workshopPlugin } from './household/workshop.ts'
@@ -20,7 +20,7 @@ const demoPlugin = definePlugin({
   name: 'demo',
   title: 'Demo',
   secrets: [demoSecret],
-  tools: [fillContext, seedMemory, seedEpisodes, checkDemoKey],
+  tools: [fillContext, seedMemory, checkDemoKey],
 })
 
 /**
