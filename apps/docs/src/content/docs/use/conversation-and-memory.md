@@ -31,9 +31,15 @@ Schedules aren't memory. Feedback about a recurring job, such as "include the li
 
 ## Review memory
 
-Open a Familiar's settings and choose **Memory**. It shows exactly what the model always sees, then each page with its profile and notes, and the words each rests on.
+Open a Familiar's settings and choose **Memory**. Under the memory model are three tabs:
+
+- **Subjects**: everyone and everything the Familiar keeps notes about, with the people who take part listed first. Open one to see its page: a **profile**, rewritten each night from the notes, then the **notes** themselves. Each note says since when it's been true, who said it and where, with a link to that conversation, and the words it rests on.
+- **Journal**: dated lines by month, one per thing worth finding again. The Familiar searches them; they're never in its prompt.
+- **Prompt**: exactly what the model sees before every reply: the profile of each person it works with, and a roster of everything else.
 
 **Forget** removes a note. The page's profile is cleared until it is rewritten that night without the note.
+
+Notes can't be edited. To correct something, tell the Familiar: that night's filing writes the newer value and removes the note it replaces.
 
 Everyone who uses the same Familiar shares its memory. On an installed Familiar, that's you.
 
