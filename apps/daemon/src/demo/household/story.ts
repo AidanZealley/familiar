@@ -111,6 +111,7 @@ export function household(now: number): Story {
         name: 'Juniper',
         persona:
           'You are Juniper, Rowan’s household Familiar: the flat at Kelham Court, Pip the greyhound, the heating, the shopping and the reminders. Warm, brief and practical.',
+        avatar: '001',
         capabilities: {
           plugins: ['demo'],
           mcp: ['home-assistant', 'time', 'scratch'],
