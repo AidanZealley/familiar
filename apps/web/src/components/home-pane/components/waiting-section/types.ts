@@ -1,5 +1,6 @@
 import type { FamiliarSummary, RoomSummary } from '@familiar-ai/client'
 import type { Icon } from '@phosphor-icons/react'
+import type { ReactNode } from 'react'
 
 export type WaitingSectionProps = {
   /** Names the section; shown as a heading, as the sidebar's, with `icon`. */
@@ -9,4 +10,6 @@ export type WaitingSectionProps = {
   familiars: readonly FamiliarSummary[]
   /** DMs as a centred grid of faces; rooms as a list, where the name matters more. */
   layout: 'grid' | 'list'
+  /** More faces after the rooms', such as Familiars replying. */
+  children?: ReactNode
 }
