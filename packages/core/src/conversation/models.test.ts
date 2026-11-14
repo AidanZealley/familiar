@@ -93,6 +93,24 @@ test("a chat follows the workspace's default until it chooses its own", async ()
   expect(await f.say('four')).toEqual(['luna', 'medium'])
 })
 
+test('a default level applies to its model until a Familiar picks its own', async () => {
+  const f = await open()
+  const workspace = f.workspace()
+  await workspace.setModelDefaults({ chat: { ...sol, thinkingLevel: 'high' } })
+  expect(await f.say('one')).toEqual(['sol', 'high'])
+  // Another model runs at its own level, not the default's.
+  await f.familiar().setModel(luna)
+  expect(await f.say('two')).toEqual(['luna', 'medium'])
+
+  await f.familiar().setModel(sol)
+  await f.familiar().setThinkingLevel('minimal')
+  await workspace.setModelDefaults({ chat: { ...sol, thinkingLevel: 'low' } })
+  expect(await f.say('three')).toEqual(['sol', 'minimal'])
+  await expect(
+    workspace.setModelDefaults({ chat: { ...sol, thinkingLevel: 'max' } }),
+  ).rejects.toThrow('has no max reasoning')
+})
+
 test('models and levels outside the model choices are refused', async () => {
   const familiar = (await open()).familiar()
   await expect(

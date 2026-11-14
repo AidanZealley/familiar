@@ -39,6 +39,7 @@ export {
   ModelError,
   type ModelChoice,
   type ModelOption,
+  type ModelSetting,
 } from './conversation/models.ts'
 export type { MemoryApi } from './memory/index.ts'
 export {

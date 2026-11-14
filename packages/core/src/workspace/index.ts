@@ -389,14 +389,14 @@ export async function openWorkspace(
     { model: options.chatModel, thinkingLevel: 'medium' },
   ]
   checkTimeZone(options.timeZone)
-  const settings = createModelSettings(modelChoices, {
+  // Every choice resolved once, so a catalog missing one fails at startup.
+  const offered = modelOptions(options.models, modelChoices)
+  const settings = createModelSettings(offered, {
     chat: options.chatModel,
     memory: options.memoryModel ?? options.chatModel,
   })
   settings.check(options.chatModel)
   settings.check(options.memoryModel ?? options.chatModel)
-  // Every choice resolved once, so a catalog missing one fails at startup.
-  const offered = modelOptions(options.models, modelChoices)
   // Checked before storage opens, like the zone.
   const maxSchedules = checkMaxSchedules(options.maxSchedules)
   const maxHandoffs = checkMaxHandoffs(options.maxHandoffs)

@@ -1,4 +1,4 @@
-import type { ModelRef } from '@familiar-ai/client'
+import type { ModelOption, ModelRef, ModelSetting } from '@familiar-ai/client'
 import { useQuery } from '@tanstack/react-query'
 import { useFamiliarStore, workspace } from './familiar'
 
@@ -27,3 +27,16 @@ export const modelDefaultsQuery = {
   queryKey: ['model-defaults'],
   queryFn: () => workspace.defaults.models(),
 }
+
+/**
+ * The level `option` runs at for a job unless one is picked: the job's
+ * default level if it's the default model, else its own. Core decides the
+ * same way (packages/core/src/workspace/models.ts).
+ */
+export const defaultLevel = (
+  option: ModelOption,
+  fallback: Required<ModelSetting> | undefined,
+) =>
+  fallback && keyOf(fallback) === keyOf(option.model)
+    ? fallback.thinkingLevel
+    : option.thinkingLevel

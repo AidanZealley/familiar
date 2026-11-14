@@ -1,4 +1,6 @@
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
+import type { ModelSetting } from '../conversation/models.ts'
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
@@ -29,17 +31,34 @@ async function identity(c: Context, run: () => Promise<Response>) {
 const optional = (value: unknown) =>
   value === undefined || typeof value === 'string'
 
-/** A model as the wire carries it: its provider and its ID in it. */
+/**
+ * A model as the wire carries it: its provider and its ID in it, and
+ * perhaps a reasoning level, which core checks.
+ */
 const modelRef = (value: unknown) =>
   typeof value === 'object' &&
   value !== null &&
   typeof (value as { provider?: unknown }).provider === 'string' &&
-  typeof (value as { modelId?: unknown }).modelId === 'string'
+  typeof (value as { modelId?: unknown }).modelId === 'string' &&
+  optional((value as { thinkingLevel?: unknown }).thinkingLevel)
+
+type WireSetting = { provider: string; modelId: string; thinkingLevel?: string }
 
 /** Only the two fields a model is named by. */
 const pick = ({ provider, modelId }: ModelRef): ModelRef => ({
   provider,
   modelId,
+})
+
+/** Only the fields a model and its level are named by. */
+const pickSetting = ({
+  thinkingLevel,
+  ...model
+}: WireSetting): ModelSetting => ({
+  ...pick(model),
+  ...(thinkingLevel !== undefined && {
+    thinkingLevel: thinkingLevel as ModelThinkingLevel,
+  }),
 })
 
 const names = (value: unknown) =>
@@ -96,17 +115,14 @@ export const defaultRoutes = (workspace: Workspace) =>
             400,
           )
         }
-        return body as {
-          chat?: { provider: string; modelId: string }
-          memory?: { provider: string; modelId: string }
-        }
+        return body as { chat?: WireSetting; memory?: WireSetting }
       }),
       (c) =>
         identity(c, async () => {
           const { chat, memory } = c.req.valid('json')
           await workspace.setModelDefaults({
-            ...(chat && { chat: pick(chat) }),
-            ...(memory && { memory: pick(memory) }),
+            ...(chat && { chat: pickSetting(chat) }),
+            ...(memory && { memory: pickSetting(memory) }),
           })
           return c.body(null, 204)
         }),
@@ -217,7 +233,7 @@ export function familiarRoutes(workspace: Workspace) {
               chatModel: pick(body.chatModel as ModelRef),
             }),
             ...(body.memoryModel !== undefined && {
-              memoryModel: pick(body.memoryModel as ModelRef),
+              memoryModel: pickSetting(body.memoryModel as WireSetting),
             }),
             // Without it, the workspace's default tools.
             ...(capabilities !== undefined && {
@@ -264,7 +280,7 @@ export function familiarRoutes(workspace: Workspace) {
             persona?: string | null
             avatar?: string | null
             chatModel?: { provider: string; modelId: string } | null
-            memoryModel?: { provider: string; modelId: string } | null
+            memoryModel?: WireSetting | null
           }
         }),
         (c) =>
@@ -277,7 +293,7 @@ export function familiarRoutes(workspace: Workspace) {
               persona,
               avatar,
               chatModel: chatModel && pick(chatModel),
-              memoryModel: memoryModel && pick(memoryModel),
+              memoryModel: memoryModel && pickSetting(memoryModel),
             })
             return c.body(null, 204)
           }),

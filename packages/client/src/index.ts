@@ -27,6 +27,7 @@ export type {
   ModelDefaults,
   ModelDefaultsChange,
   ModelOption,
+  ModelSetting,
   Note,
   PageState,
   PushSubscriptionJson,

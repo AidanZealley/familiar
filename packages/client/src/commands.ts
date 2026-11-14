@@ -15,6 +15,7 @@ import type {
   ModelDefaults,
   ModelDefaultsChange,
   ModelOption,
+  ModelSetting,
   PageState,
   PushSubscriptionJson,
   RoomSummary,
@@ -39,7 +40,7 @@ export type FamiliarChange = {
   persona?: string | null
   avatar?: string | null
   chatModel?: ModelRef | null
-  memoryModel?: ModelRef | null
+  memoryModel?: ModelSetting | null
 }
 
 export type Api = ReturnType<typeof hc<HttpApi>>

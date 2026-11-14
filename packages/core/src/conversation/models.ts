@@ -11,6 +11,13 @@ export type ModelChoice = {
   thinkingLevel: ModelThinkingLevel
 }
 
+/**
+ * A model someone chose for a job, and the reasoning level they chose for
+ * it, if any: without one, it runs at the job's default level for that
+ * model (see workspace/models.ts).
+ */
+export type ModelSetting = ModelRef & { thinkingLevel?: ModelThinkingLevel }
+
 /** A model choice as clients offer it: its name and the levels it supports. */
 export type ModelOption = ModelChoice & {
   name: string

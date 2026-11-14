@@ -48,7 +48,7 @@ export type {
   ModelDefaults,
   ModelDefaultsChange,
 } from '../workspace/index.ts'
-export type { ModelOption } from '../conversation/models.ts'
+export type { ModelOption, ModelSetting } from '../conversation/models.ts'
 export type { AgentState } from '@earendil-works/pi-durable'
 export type { AccountState } from '../account/index.ts'
 export type { Schedule, SchedulesState } from '../schedules/index.ts'

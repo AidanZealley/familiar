@@ -45,6 +45,6 @@ Everyone who uses the same Familiar shares its memory. On an installed Familiar,
 
 ## Models and reasoning
 
-**Settings › Models** sets the default chat model, which Familiars answer with, and the default memory model, which files and profiles their conversations. A smaller memory model costs less. Each Familiar follows the defaults unless its own settings' **Models** gives it its own; **Default** there returns it to the workspace's.
+**Settings › Models** sets the default chat model, which Familiars answer with, and the default memory model, which files and profiles their conversations, each with its reasoning level. A smaller memory model costs less. Each Familiar follows the defaults unless its own settings' **Models** gives it its own; **Default** there returns it to the workspace's.
 
-The model picker in the composer chooses the chat model and its reasoning level, and picking a model gives that Familiar its own. The choice is saved with the Familiar, so every device uses it.
+The model picker in the composer chooses the chat model and its reasoning level, and picking a model gives that Familiar its own. A reasoning level picked there or in its settings is remembered for that model, and stays when the default level changes. The choices are saved with the Familiar, so every device uses them.

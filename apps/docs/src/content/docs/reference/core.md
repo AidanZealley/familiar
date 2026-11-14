@@ -70,17 +70,17 @@ Familiar stores no permissions. A tool, or the app API behind it, enforces narro
 
 **Familiars**
 
-| Member                                        | Meaning                                                                                           |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `familiars.list()`                            | `FamiliarSummary[]`: each Familiar's `id`, `name`, and any `persona` and `avatar`                 |
-| `familiars.watch()`                           | Watch of who each Familiar is                                                                     |
-| `familiars.create({ name, persona, avatar })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one               |
-| `familiars.update(id, change)`                | Change its name, persona, avatar, `chatModel` or `memoryModel`; `null` returns one to the default |
-| `familiars.get(id)`                           | Its `WorkspaceFamiliar`, or `undefined`                                                           |
-| `familiars.remove(id)`                        | Remove it, stopping its work. Throws for no such Familiar                                         |
-| `modelOptions()`                              | `ModelOption[]`: every model a Familiar may run on                                                |
-| `modelDefaults()`                             | `{ chat, memory }`: the models Familiars run on unless they choose their own                      |
-| `setModelDefaults({ chat?, memory? })`        | Each model given replaces that default. Throws a `TypeError` if it isn't offered                  |
+| Member                                        | Meaning                                                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `familiars.list()`                            | `FamiliarSummary[]`: each Familiar's `id`, `name`, and any `persona` and `avatar`                                  |
+| `familiars.watch()`                           | Watch of who each Familiar is                                                                                      |
+| `familiars.create({ name, persona, avatar })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one                                |
+| `familiars.update(id, change)`                | Change its name, persona, avatar, `chatModel` or `memoryModel`; `null` returns one to the default                  |
+| `familiars.get(id)`                           | Its `WorkspaceFamiliar`, or `undefined`                                                                            |
+| `familiars.remove(id)`                        | Remove it, stopping its work. Throws for no such Familiar                                                          |
+| `modelOptions()`                              | `ModelOption[]`: every model a Familiar may run on                                                                 |
+| `modelDefaults()`                             | `{ chat, memory }`: the models and levels Familiars run on unless they choose their own                            |
+| `setModelDefaults({ chat?, memory? })`        | Each `{ provider, modelId, thinkingLevel? }` given replaces that default. Throws a `TypeError` for one not offered |
 
 Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. Its name also titles its notifications and its memory's prompts. An `avatar` is a short string, at most 64 characters, that your UI interprets, such as an index into its set of portraits; core keeps it and never reads it, and without one your UI derives one from the ID.
 
