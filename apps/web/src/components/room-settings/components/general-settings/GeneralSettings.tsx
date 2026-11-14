@@ -17,7 +17,7 @@ export const GeneralSettings = ({ room }: GeneralSettingsProps) => {
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-1 flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
         rename.mutate()
