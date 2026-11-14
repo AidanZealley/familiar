@@ -8,6 +8,7 @@ import {
   ResetEntry,
   type ConversationId,
   type EntryId,
+  type Extension,
   type TaskId,
   type TaskRuntime,
   type Tx,
@@ -341,7 +342,7 @@ export function createFiling(options: FilingOptions) {
       ),
   })
 
-  const filingExtension = defineExtension({
+  const filingExtension: Extension = defineExtension({
     name: FILING_EXTENSION,
     tasks: [NightTask],
     tools: [fileTool],
