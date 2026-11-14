@@ -8,9 +8,9 @@ import { SubjectPage } from './components/subject-page'
 import type { MemoryPagesProps } from './types'
 
 /**
- * A Familiar's memory, in the model's own terms: the prompt section it
- * always sees, its subjects (each a page of notes with a profile), and its
- * journal. A subject's page opens in place of the list; changing tab closes it.
+ * A Familiar's memory, in the model's own terms: its subjects (each a page
+ * of notes with a profile), its journal, and the prompt section it always
+ * sees. A subject's page opens in place of the list; changing tab closes it.
  */
 export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
   const memory = useFamiliar((state) => state.memory)
@@ -32,13 +32,10 @@ export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
       className="gap-4"
     >
       <TabsList>
-        <TabsTrigger value="prompt">Prompt</TabsTrigger>
         <TabsTrigger value="subjects">Subjects</TabsTrigger>
         <TabsTrigger value="journal">Journal</TabsTrigger>
+        <TabsTrigger value="prompt">Prompt</TabsTrigger>
       </TabsList>
-      <TabsContent value="prompt">
-        <PromptSection familiar={familiar} memory={memory} />
-      </TabsContent>
       <TabsContent value="subjects">
         {subject ? (
           <SubjectPage
@@ -56,6 +53,9 @@ export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
       </TabsContent>
       <TabsContent value="journal">
         <Journal familiar={familiar} months={memory.months} />
+      </TabsContent>
+      <TabsContent value="prompt">
+        <PromptSection familiar={familiar} memory={memory} />
       </TabsContent>
     </Tabs>
   )
