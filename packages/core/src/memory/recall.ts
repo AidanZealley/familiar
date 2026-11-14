@@ -12,16 +12,19 @@ import type { Hit, MemoryView } from './view.ts'
  * latest message; the `recall` tool returns it.
  */
 
-/** The first line of automatic recall's note, which follows the latest message. */
-export const RECALL_HEADING =
-  'Recalled from memory for the latest message, oldest first; use it only if relevant:'
+/** How automatic recall's note, which follows the latest message, starts. */
+export const RECALL_HEADING = 'Recalled from memory for the latest message'
 
-/** How much each shows: automatic recall, and the `recall` tool. */
-export const RECALL = { limit: 8, tokens: 1_000 }
-export const RECALL_TOOL = { limit: 10, tokens: 3_000 }
+/**
+ * How much evidence each shows, best first: automatic recall, and the
+ * `recall` tool. Enough that a question which counts, orders or compares
+ * can see every piece, and each exchange long enough to read in context.
+ */
+export const RECALL = { limit: 20, tokens: 6_000 }
+export const RECALL_TOOL = { limit: 25, tokens: 8_000 }
 
 /** About this many characters of an exchange are shown around its first match. */
-const EXCERPT = 300
+const EXCERPT = 800
 
 /** Around the first word of `query` that `text` contains. */
 export function excerpt(text: string, query: string, length = EXCERPT) {
@@ -69,17 +72,17 @@ export function describeHit(
 const dayOf = (hit: Hit, timeZone: string) =>
   hit.kind === 'exchange' ? localDay(hit.exchange.at, timeZone) : hit.note.since
 
-/** As many of `hits`, best first, as fit in `tokens`, then put in time order. */
+/** As many of `hits`, best first, as `budget` allows, then put in time order. */
 function within(
   hits: readonly Hit[],
   query: string,
   rooms: Readonly<RoomRegistry>,
   timeZone: string,
-  tokens: number,
+  { limit, tokens }: { limit: number; tokens: number },
 ) {
   const kept: { hit: Hit; text: string }[] = []
   let left = tokens
-  for (const hit of hits) {
+  for (const hit of hits.slice(0, limit)) {
     const text = describeHit(hit, query, rooms, timeZone)
     left -= estimateTextTokens(text)
     if (left < 0) {
@@ -112,14 +115,21 @@ export function recallNote(
   const before = view.viewStart()
   const hits = view.search(query, {
     now,
-    limit: RECALL.limit,
     // Without a compaction the whole chat is in view: only notes can add anything.
     ...(before === undefined ? { kind: 'note' as const } : { before }),
     ranges: datesIn(query, localDay(now, timeZone)),
   })
-  const kept = within(hits, query, rooms, timeZone, RECALL.tokens)
-  return kept.length ? `${RECALL_HEADING}\n${kept.join('\n')}` : null
+  const kept = within(hits, query, rooms, timeZone, RECALL)
+  return kept.length
+    ? `${RECALL_HEADING}: ${shown(kept.length, hits.length)}, oldest first; use them only if relevant.\n${kept.join('\n')}`
+    : null
 }
+
+/** How many of the matches are shown, so a partial list is never taken for all of them. */
+const shown = (kept: number, total: number) =>
+  kept === total
+    ? `all ${total} match${total === 1 ? '' : 'es'}`
+    : `the best ${kept} of ${total} matches, so not all of them`
 
 /** The `recall` tool's answer: the best matches, within `from` to `to` if given. */
 export function recallText(
@@ -135,11 +145,10 @@ export function recallText(
       : undefined
   const hits = view.search(query, {
     now,
-    limit: RECALL_TOOL.limit,
     ...(range && { ranges: [range] }),
   })
-  const kept = within(hits, query, rooms, timeZone, RECALL_TOOL.tokens)
+  const kept = within(hits, query, rooms, timeZone, RECALL_TOOL)
   return kept.length
-    ? `The best matches, in time order:\n${kept.join('\n')}`
+    ? `Showing ${shown(kept.length, hits.length)}, in time order${kept.length < hits.length ? '. For the rest, search narrower words or days' : ''}:\n${kept.join('\n')}`
     : 'Nothing found.'
 }

@@ -48,7 +48,6 @@ export type Hit =
 
 export type SearchOptions = {
   now: number
-  limit: number
   kind?: 'exchange' | 'note'
   /** Only what covers a day in one of these. */
   ranges?: readonly DateRange[]
@@ -191,9 +190,9 @@ export function createMemoryIndex(timeZone: string) {
     },
     linesOf: (id: string) => lines.get(id) ?? [],
 
-    /** The best matches for `query`, best first: words by relevance, exchanges also by recency. */
+    /** Every match for `query`, best first: words by relevance, exchanges also by recency. */
     search(query: string, options: SearchOptions): Hit[] {
-      const { now, limit, kind, ranges, before } = options
+      const { now, kind, ranges, before } = options
       return index
         .search(query, { kind, ranges })
         .flatMap(({ id, score }): { hit: Hit; score: number }[] => {
@@ -206,7 +205,6 @@ export function createMemoryIndex(timeZone: string) {
           return hit ? [{ hit, score }] : []
         })
         .sort((a, b) => b.score - a.score)
-        .slice(0, limit)
         .map(({ hit }) => hit)
     },
 

@@ -55,10 +55,10 @@ export async function openMemorySearch(
       return view
         .search(question, {
           now: asked,
-          limit,
           kind: 'exchange',
           ranges: datesIn(question, localDay(asked, timeZone)),
         })
+        .slice(0, limit)
         .flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
     }, BACKGROUND_CONTEXT)
   }

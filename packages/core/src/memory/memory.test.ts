@@ -254,7 +254,7 @@ test('search finds an exchange by its journal lines and their days, and a note b
   })
   const ids = (query: string, ranges?: { start: string; end: string }[]) =>
     index
-      .search(query, { now: at, limit: 5, ranges })
+      .search(query, { now: at, ranges })
       .map((hit) => (hit.kind === 'exchange' ? hit.exchange.id : hit.note.id))
 
   expect(ids('climbing')).toEqual(['x1'])

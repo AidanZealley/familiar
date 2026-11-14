@@ -310,12 +310,13 @@ export async function measureSpeed(
         await view.ready()
         return harness.commit(async (tx) => {
           await view.catchUp(tx)
-          return view.search(query, {
-            now,
-            limit: 10,
-            kind: 'exchange',
-            ranges: datesIn(query, localDay(now, EVAL_TIME_ZONE)),
-          })
+          return view
+            .search(query, {
+              now,
+              kind: 'exchange',
+              ranges: datesIn(query, localDay(now, EVAL_TIME_ZONE)),
+            })
+            .slice(0, 10)
         }, BACKGROUND_CONTEXT)
       }
     const recallWith =
@@ -357,8 +358,7 @@ export async function measureSpeed(
     }
     const pages = view.subjects().map((subject) => view.page(subject.id))
     return {
-      exchanges: view.search('', { now, limit: Infinity, kind: 'exchange' })
-        .length,
+      exchanges: view.search('', { now, kind: 'exchange' }).length,
       notes: pages.reduce(
         (total, page) => total + (page?.notes.length ?? 0),
         0,
