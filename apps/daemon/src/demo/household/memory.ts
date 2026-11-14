@@ -6,6 +6,7 @@
 import { Type, defineTool } from '@familiar-ai/core'
 import {
   Familiars,
+  Journal,
   keyOf,
   localDay,
   Memory,
@@ -31,9 +32,18 @@ export type MemorySeed = {
   changes?: { versions: Dated[] }[]
   /** What its profile of the owner says, as the night would have written it. */
   pinned?: string[]
+  /** Journal lines, with how many days ago each happened. */
+  journal?: [text: string, daysAgo: number][]
 }
 
 const juniper: MemorySeed = {
+  journal: [
+    ['Rowan measured the Fenwick Gardens gate at 88 cm.', 2],
+    ['Pip had his booster at Quarry Veterinary Practice.', 9],
+    ['June visited for the weekend.', 16],
+    ['Rowan ordered Opticron Discovery 8x42 binoculars.', 34],
+    ['Ellis fixed the gears on Rowan’s bike.', 47],
+  ],
   facts: [
     ['Name is Rowan. Turned thirty in 2021.', 12],
     [
@@ -222,6 +232,7 @@ const OWNER = { id: OWNER_ID, name: 'Rowan' }
 
 // Calendar arithmetic on UTC dates, from today's day in the demo's zone.
 const dayOf = (date: Date) => date.toISOString().slice(0, 10)
+const DAY = 86_400_000
 const todayAt = (at: number) =>
   new Date(`${localDay(at, DEMO_TIME_ZONE)}T00:00:00Z`)
 
@@ -288,6 +299,23 @@ export const seedMemory = defineTool({
         const page = await tx.doc(Pages, keyOf(id, subject), null)
         page.notes = notes
         page.profile = (seed.pinned ?? []).join(' ')
+        for (const [text, ago] of seed.journal ?? []) {
+          const on = dayOf(new Date(todayAt(api.now()).getTime() - ago * DAY))
+          const month = on.slice(0, 7)
+          if (!memory.months.includes(month)) {
+            memory.months.push(month)
+            memory.months.sort()
+          }
+          const journal = await tx.doc(Journal, keyOf(id, month), null)
+          // Seeded: no exchange to point at.
+          journal.lines.push({
+            exchange: 0 as EntryId,
+            on,
+            text,
+            quote: text,
+            saidBy: OWNER,
+          })
+        }
       }
       return { output: [{ type: 'text', text: 'Memory written.' }] }
     }, context),

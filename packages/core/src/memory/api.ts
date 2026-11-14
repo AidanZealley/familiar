@@ -3,9 +3,11 @@ import type { DocumentWatch, Harness } from '@earendil-works/pi-durable'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { renderSection } from './section.ts'
 import {
+  Journal,
   keyOf,
   Memory,
   Pages,
+  type JournalState,
   type MemoryState,
   type PageState,
 } from './store.ts'
@@ -20,6 +22,8 @@ export type MemoryApi = {
   watch(): Promise<DocumentWatch<MemoryState>>
   /** A subject's page: its profile and notes. Rejects for no such subject. */
   page(subject: string): Promise<PageState>
+  /** A month's journal lines, `YYYY-MM`; none for a month without any. */
+  journal(month: string): Promise<JournalState>
   /** The memory section of the prompt, exactly as the model sees it now. */
   section(): Promise<string>
   /**
@@ -54,6 +58,10 @@ export function memoryApi(
         }
       )
     },
+    journal: async (month) =>
+      (await harness.snapshot(Journal, keyOf(familiar, month), context)) ?? {
+        lines: [],
+      },
     section: async () => {
       await view.ready()
       return renderSection(view)

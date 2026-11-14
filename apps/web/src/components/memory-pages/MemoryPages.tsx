@@ -1,62 +1,62 @@
-import { useQuery } from '@tanstack/react-query'
-import { CaretRightIcon } from '@phosphor-icons/react'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { useFamiliar, useFamiliarStore } from '@/lib/familiar'
+import { useState } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useFamiliar } from '@/lib/familiar'
+import { Journal } from './components/journal'
+import { PromptSection } from './components/prompt-section'
+import { SubjectList } from './components/subject-list'
 import { SubjectPage } from './components/subject-page'
 import type { MemoryPagesProps } from './types'
 
 /**
- * The plainest view of a Familiar's memory: what the model always sees,
- * then each subject's page. Read-only but for forgetting a note. Its real
- * design comes later.
+ * A Familiar's memory, in the model's own terms: its subjects (each a page
+ * of notes with a profile), its journal, and the prompt section it always
+ * sees. A subject's page opens in place of the list; changing tab closes it.
  */
 export const MemoryPages = ({ familiar }: MemoryPagesProps) => {
-  const store = useFamiliarStore()
   const memory = useFamiliar((state) => state.memory)
-  // Changes whenever a page does, so the section is read again.
-  const revision = memory?.subjects.reduce(
-    (latest, subject) => Math.max(latest, subject.changed, subject.profiled),
-    0,
-  )
-  const section = useQuery({
-    queryKey: ['memory', familiar, 'section', revision],
-    queryFn: () => store.memory.section(),
-    enabled: revision !== undefined,
-  })
+  const [tab, setTab] = useState('subjects')
+  const [open, setOpen] = useState<string>()
+  const subject = memory?.subjects.find((each) => each.id === open)
+
   if (!memory) {
     return null
   }
-  const subjects = memory.subjects.toSorted((a, b) => b.changed - a.changed)
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">What it always sees</h3>
-        <pre className="max-h-80 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap">
-          {section.data ?? '…'}
-        </pre>
-      </section>
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">Pages</h3>
-        {subjects.map((subject) => (
-          <Collapsible key={subject.id}>
-            <CollapsibleTrigger className="group flex w-full items-center gap-2 py-1 text-left">
-              <CaretRightIcon className="shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-              <span className="font-medium">{subject.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {subject.line}
-              </span>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2 pb-4 pl-6">
-              <SubjectPage familiar={familiar} subject={subject} />
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
-      </section>
-    </div>
+    <Tabs
+      value={tab}
+      onValueChange={(value: string) => {
+        setTab(value)
+        setOpen(undefined)
+      }}
+      className="gap-4"
+    >
+      <TabsList>
+        <TabsTrigger value="subjects">Subjects</TabsTrigger>
+        <TabsTrigger value="journal">Journal</TabsTrigger>
+        <TabsTrigger value="prompt">Prompt</TabsTrigger>
+      </TabsList>
+      <TabsContent value="subjects">
+        {subject ? (
+          <SubjectPage
+            familiar={familiar}
+            subject={subject}
+            onBack={() => setOpen(undefined)}
+          />
+        ) : (
+          <SubjectList
+            familiar={familiar}
+            subjects={memory.subjects}
+            onOpen={setOpen}
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="journal">
+        <Journal familiar={familiar} months={memory.months} />
+      </TabsContent>
+      <TabsContent value="prompt">
+        <PromptSection familiar={familiar} memory={memory} />
+      </TabsContent>
+    </Tabs>
   )
 }

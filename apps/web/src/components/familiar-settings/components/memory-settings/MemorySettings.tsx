@@ -6,6 +6,6 @@ import type { MemorySettingsProps } from './types'
 export const MemorySettings = ({ familiar }: MemorySettingsProps) => (
   <div className="flex flex-col gap-6 text-sm">
     <MemoryModel familiar={familiar} />
-    <MemoryPages familiar={familiar.id} />
+    <MemoryPages familiar={familiar} />
   </div>
 )

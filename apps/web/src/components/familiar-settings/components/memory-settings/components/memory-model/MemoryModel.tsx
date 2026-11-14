@@ -49,42 +49,44 @@ export const MemoryModel = ({ familiar }: MemoryModelProps) => {
     <Field>
       <FieldLabel>Memory model</FieldLabel>
       <FieldDescription>
-        What {familiar.name} files and summarises its conversations with, each
-        night. A cheaper model can do this well. Default is the installation's
-        memory model. Applies from the next night.
+        What {familiar.name} files its conversations with each night.
       </FieldDescription>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="outline" className="self-start" />}
-          disabled={save.isPending}
-        >
-          {current?.name ?? 'Default'}
-          <CaretDownIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuRadioGroup
-            value={current ? keyOf(current.model) : DEFAULT}
-            onValueChange={(value: string) =>
-              save.mutate(
-                options.find((option) => keyOf(option.model) === value)
-                  ?.model ?? null,
-              )
-            }
+      {/* Its own box: the field stretches its children, and the menu adds
+          hidden siblings to the trigger that would shift the field's own. */}
+      <div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="outline" />}
+            disabled={save.isPending}
           >
-            <DropdownMenuRadioItem value={DEFAULT}>
-              Default
-            </DropdownMenuRadioItem>
-            {options.map((option) => (
-              <DropdownMenuRadioItem
-                key={keyOf(option.model)}
-                value={keyOf(option.model)}
-              >
-                {option.name}
+            {current?.name ?? 'Default'}
+            <CaretDownIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuRadioGroup
+              value={current ? keyOf(current.model) : DEFAULT}
+              onValueChange={(value: string) =>
+                save.mutate(
+                  options.find((option) => keyOf(option.model) === value)
+                    ?.model ?? null,
+                )
+              }
+            >
+              <DropdownMenuRadioItem value={DEFAULT}>
+                Default
               </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+              {options.map((option) => (
+                <DropdownMenuRadioItem
+                  key={keyOf(option.model)}
+                  value={keyOf(option.model)}
+                >
+                  {option.name}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <FieldError>{save.error?.message}</FieldError>
     </Field>
   )

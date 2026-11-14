@@ -1,3 +1,7 @@
-import type { Subject } from '@familiar-ai/client'
+import type { FamiliarSummary, Subject } from '@familiar-ai/client'
 
-export type SubjectPageProps = { familiar: number; subject: Subject }
+export type SubjectPageProps = {
+  familiar: FamiliarSummary
+  subject: Subject
+  onBack: () => void
+}
