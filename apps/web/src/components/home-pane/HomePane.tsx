@@ -1,5 +1,5 @@
 import { ChatDotsIcon, ChecksIcon, HashIcon } from '@phosphor-icons/react'
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { PixelCat } from '@/components/pixel-cat'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,8 +22,8 @@ const plural = (count: number, one: string) =>
  * Beside the sidebar on a wide screen, with nothing open: a catch-up. The
  * faces of DMs and rooms with something unread, or a last reply that
  * failed, newest first, each opening its conversation, so they go as
- * they're read; and each Familiar replying, among the DMs, opening where
- * it's replying. All from the rooms the sidebar already has.
+ * they're read; and each Familiar replying, counted under the title and
+ * among the DMs, opening where it's replying. All from the rooms the sidebar already has.
  * A phone has no such pane: its sidebar is home. With no Familiars yet,
  * the cat invites the first.
  */
@@ -31,7 +31,7 @@ export const HomePane = () => {
   const familiars = useFamiliars()
   const rooms = useRooms()
   const { open: openDialog } = useDialogs()
-  const { waiting, unread, failed, replying } = useMemo(() => {
+  const { waiting, unread, failed, answering, replying } = useMemo(() => {
     const open = rooms.filter((room) => room.kind === 'dm' || !room.archived)
     const failing = (room: (typeof open)[number]) =>
       room.last?.kind === 'reply' && room.last.outcome === 'failed'
@@ -49,6 +49,7 @@ export const HomePane = () => {
         }
       }
     }
+    const answering = replying.size
     for (const room of waiting) {
       if (room.kind === 'dm') {
         replying.delete(room.familiar)
@@ -58,6 +59,7 @@ export const HomePane = () => {
       waiting,
       unread: open.reduce((sum, room) => sum + (room.unread ?? 0), 0),
       failed: open.filter(failing).length,
+      answering,
       replying: [...replying].flatMap(([id, room]) => {
         const familiar = familiars.find((each) => each.id === id)
         return familiar ? [{ familiar, room }] : []
@@ -91,6 +93,8 @@ export const HomePane = () => {
   const counts = [
     unread > 0 && `${unread} unread`,
     failed > 0 && `${failed} failed ${failed === 1 ? 'reply' : 'replies'}`,
+    // Shimmers like the chat's Thinking… marker.
+    answering > 0 && <span className="shimmer">{answering} answering</span>,
   ].filter(Boolean)
 
   return (
@@ -106,7 +110,14 @@ export const HomePane = () => {
               : 'All caught up'}
           </EmptyTitle>
           {counts.length > 0 && (
-            <EmptyDescription>{counts.join(' · ')}</EmptyDescription>
+            <EmptyDescription>
+              {counts.map((count, index) => (
+                <Fragment key={index}>
+                  {index > 0 && ' · '}
+                  {count}
+                </Fragment>
+              ))}
+            </EmptyDescription>
           )}
         </EmptyHeader>
         {(waiting.length > 0 || replying.length > 0) && (

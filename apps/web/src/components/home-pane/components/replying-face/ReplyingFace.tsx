@@ -1,11 +1,12 @@
-import { DotsThreeIcon } from '@phosphor-icons/react'
 import { Link } from '@tanstack/react-router'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import type { ReplyingFaceProps } from './types'
 
 /**
  * A Familiar replying, as a tile beside the DMs waiting: its face talking,
- * a `…` on the corner, opening the conversation it's replying in.
+ * the hourglass that marks work in progress elsewhere on its corner,
+ * opening the conversation it's replying in.
  */
 export const ReplyingFace = ({ familiar, room }: ReplyingFaceProps) => (
   <Link
@@ -22,7 +23,7 @@ export const ReplyingFace = ({ familiar, room }: ReplyingFaceProps) => (
     <span className="relative shrink-0">
       <PixelAvatar familiar={familiar} talking />
       <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center bg-primary px-0.5 text-primary-foreground">
-        <DotsThreeIcon weight="bold" className="size-3" />
+        <HourglassSpinner />
       </span>
     </span>
     <span className="w-full truncate text-center text-xs">{familiar.name}</span>
