@@ -1,5 +1,6 @@
 import {
   localMinute,
+  type Author,
   type CapabilitiesChange,
   type ModelRef,
 } from '@familiar-ai/core'
@@ -18,10 +19,11 @@ import {
 
 /**
  * Rowan's household, as the demo opens it: four Familiars, their DMs and
- * named rooms, and a few days of conversation, written as data. Each message
- * says how each Familiar it reaches replies; the seed (seed.ts) plays it
- * all through the workspace's API, in time order, on a clock started days
- * ago, so everything is dated as written here.
+ * named rooms, and three months of conversation, written as data: what
+ * each Familiar's memory was filed from (see memory.ts), then the last few
+ * days. Each message says how each Familiar it reaches replies; the seed
+ * (seed.ts) plays it all through the workspace's API, in time order, on a
+ * clock started months ago, so everything is dated as written here.
  */
 
 export type FamiliarSeed = {
@@ -34,9 +36,14 @@ export type FamiliarSeed = {
   model?: ModelRef
 }
 
-/** Something the person says, and how each Familiar it reaches replies. */
+/** Rowan's ex, who shares the allotment and posts in its room. */
+export const SAFFRON: Author = { id: 'saffron', name: 'Saffron' }
+
+/** Something a person says, and how each Familiar it reaches replies. */
 export type Said = {
   say: string
+  /** Who says it, when it isn't the owner. */
+  by?: Author
   /** By Familiar name. Mentions are any `@Name` of a Familiar in the room. */
   replies: Record<string, Reply>
 }
@@ -139,6 +146,151 @@ export function household(now: number): Story {
         read: true,
         history: [
           {
+            at: day(98, '08:40'),
+            say: 'Some background for you: Pip is my retired greyhound. He raced as Silver Comet and he’s been with me since 2019.',
+            replies: {
+              Juniper: [
+                say(
+                  'Hello, Pip. I’ll keep his walks, meals and vet visits in mind.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(96, '19:20'),
+            say: 'Pip’s new waterproof coat came from Fell Houndwear: size 66 cm fits him perfectly, so order that size again.',
+            replies: {
+              Juniper: [say('Noted: Fell Houndwear, 66 cm.')],
+            },
+          },
+          {
+            at: day(95, '21:00'),
+            say: 'Saffron and I broke up in April, but we’re still good friends and we still share the allotment.',
+            replies: {
+              Juniper: [say('Thanks for telling me. I’ll keep that in mind.')],
+            },
+          },
+          {
+            at: day(90, '18:05'),
+            say: 'Mum’s coming to stay this weekend. She lives at 7 Orchard Close in Harrogate, and she’s in a wheelchair now, so anywhere we go needs step-free access.',
+            replies: {
+              Juniper: [
+                say(
+                  'Lovely. I’ll check for step-free access wherever you plan to go.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(85, '20:30'),
+            say: 'Dr Celia Moss at Quarry Veterinary Practice says Pip should have a joint supplement every morning from now on. Her surgery is open until 7 on weekdays.',
+            replies: {
+              Juniper: [
+                say(
+                  'Got it. Tell me when the supplement arrives and I’ll remind you each morning.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(80, '20:00'),
+            say: 'Noor Rahman and I worked out the roof for the Reed Shelter hide: each panel has to weigh 8 kg or less so we can lift it up the ladder.',
+            replies: {
+              Juniper: [
+                say('8 kg a panel at most. I’ll flag anything heavier.'),
+              ],
+            },
+          },
+          {
+            at: day(72, '07:50'),
+            say: 'I’ve gone off coffee. Roasted barley tea in the mornings from now on, so put that on the shopping list instead of beans.',
+            replies: {
+              Juniper: [
+                say('Swapped: barley tea on the list, coffee beans off.'),
+              ],
+            },
+          },
+          {
+            at: day(66, '21:15'),
+            say: 'Ellis fixed the gears on Bracken today and drove it back up from Derby. My brother is the only person I trust with that bike.',
+            replies: {
+              Juniper: [say('Good to have Bracken back on the road.')],
+            },
+          },
+          {
+            at: day(52, '19:40'),
+            say: 'Big news: I got Flat 5 at Kelham Court! Rent’s £940 a month and I get the keys in a fortnight.',
+            replies: {
+              Juniper: [say('Congratulations! I’ll start a move list.')],
+            },
+          },
+          {
+            at: day(38, '18:30'),
+            say: 'Saffron’s coming for dinner on Friday. Remember she’s allergic to hazelnuts, and that includes hazelnut oil.',
+            replies: {
+              Juniper: [
+                say(
+                  'I’ll keep hazelnuts and hazelnut oil off Friday’s shopping.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(30, '12:10'),
+            say: 'Reed Shelter is on hold: the landowner hasn’t given Noor and me permission to build the hide yet.',
+            replies: {
+              Juniper: [
+                say(
+                  'That’s a shame. I’ll leave it off your weekends until you hear back.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(24, '09:00'),
+            say: 'Keep reminders to one short line, please. I read them on my watch.',
+            replies: {
+              Juniper: [say('One line it is.')],
+            },
+          },
+          {
+            at: day(17, '20:45'),
+            say: 'Canal Voices update: all six tracks are recorded, lock gates and boat engines at dawn, but there’s no release date yet.',
+            replies: {
+              Juniper: [
+                say('Six tracks done. That’s a lot of early mornings.'),
+              ],
+            },
+          },
+          {
+            at: day(9, '17:30'),
+            say: 'Pip had his teeth checked at Quarry today, and Dr Moss says he’s in great shape for a ten-year-old.',
+            replies: {
+              Juniper: [say('Good news. Well done, Pip.')],
+            },
+          },
+          {
+            at: day(6, '19:00'),
+            say: 'Asha says Tuesday pottery at Kiln House moves to 7:30 from next week.',
+            replies: {
+              Juniper: [say('Tuesdays at 19:30 from next week, then.')],
+            },
+          },
+          {
+            // The demo's own message: each Familiar's memory, as the nights
+            // would have filed it from everything above (see memory.ts).
+            at: day(4, '20:00'),
+            say: 'Demo: write what each of you remembers from the months before.',
+            replies: {
+              Juniper: [
+                use('seed_memory'),
+                say(
+                  'Done. Each of us has a **Memory** page now: open a Familiar’s settings, then Memory.',
+                ),
+              ],
+            },
+          },
+          {
             at: day(3, '08:15'),
             say: 'Every morning at 7:30, remind me to give Pip his joint supplement.',
             replies: {
@@ -215,6 +367,40 @@ export function household(now: number): Story {
         dm: 'Quill',
         history: [
           {
+            at: day(88, '08:30'),
+            say: 'Started at Westfold Archive today, as collections environment coordinator. My manager is Ada Finch.',
+            replies: {
+              Quill: [
+                say('Congratulations. I’ll keep the archive inbox in order.'),
+              ],
+            },
+          },
+          {
+            at: day(70, '17:45'),
+            say: 'Inbox summaries: two lines, most urgent first, and nothing at weekends.',
+            replies: {
+              Quill: [say('Two lines, most urgent first, weekdays only.')],
+            },
+          },
+          {
+            at: day(46, '09:10'),
+            say: 'Store B’s humidity logger now syncs its readings to the archive NAS every night. Ada wants Store B kept between 45 and 55% relative humidity.',
+            replies: {
+              Quill: [say('Noted: nightly sync to the NAS, 45 to 55% RH.')],
+            },
+          },
+          {
+            at: day(21, '14:00'),
+            say: 'Ada has asked me to lead the condition survey: the map stores first, then the photographic store.',
+            replies: {
+              Quill: [
+                say(
+                  'Map stores, then photographic. I’ll keep its emails together.',
+                ),
+              ],
+            },
+          },
+          {
             at: day(2, '08:50'),
             say: 'Anything urgent in the archive inbox?',
             replies: {
@@ -260,6 +446,15 @@ export function household(now: number): Story {
       {
         dm: 'Moss',
         history: [
+          {
+            at: day(92, '07:30'),
+            say: 'Warn me whenever it’s due to go below zero at Willow Bank. The chard is always the first thing to go.',
+            replies: {
+              Moss: [
+                say('I’ll watch the forecast and warn you before any frost.'),
+              ],
+            },
+          },
           {
             at: day(3, '10:00'),
             say: 'Every Saturday at 8, check the forecast and tell me what needs doing at the plot.',
@@ -312,6 +507,13 @@ export function household(now: number): Story {
         dm: 'Spool',
         read: true,
         history: [
+          {
+            at: day(80, '18:00'),
+            say: 'The printer lives in the box room, next to my bedroom, so keep anything noisy to the daytime.',
+            replies: {
+              Spool: [say('Daytime for anything noisy, then.')],
+            },
+          },
           {
             at: day(3, '19:10'),
             say: 'Can you check on the printer?',
@@ -378,6 +580,47 @@ export function household(now: number): Story {
         read: true,
         history: [
           {
+            at: day(75, '10:30'),
+            by: SAFFRON,
+            say: 'Hi all, Saffron here. Rowan and I still share plot 26B, so I’ll be in here too. The shed key lives under the water butt.',
+            replies: {
+              Moss: [
+                say('Welcome, Saffron. Shed key under the water butt: noted.'),
+              ],
+            },
+          },
+          {
+            at: day(58, '08:30'),
+            by: SAFFRON,
+            say: '@Juniper could you remind Rowan and me that the plot rent is £48, due on 1 December?',
+            replies: {
+              Juniper: [
+                say('I’ll put it on Rowan’s list for the end of November.'),
+              ],
+            },
+          },
+          {
+            at: day(44, '16:00'),
+            say: 'Leeks, chard and purple sprouting broccoli are in for the winter. I’m saving borlotti seed again, in paper envelopes.',
+            replies: {
+              Moss: [
+                say(
+                  'A good winter line-up. Keep the envelopes somewhere cool and dry.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(20, '11:00'),
+            by: SAFFRON,
+            say: '@Moss I’ve sown broad beans in the end bed, so please nobody dig there until spring.',
+            replies: {
+              Moss: [
+                say('The end bed stays off the digging list until spring.'),
+              ],
+            },
+          },
+          {
             at: day(3, '09:30'),
             say: 'Saffron says the leeks are ready. Can we lift them on Saturday?',
             replies: {
@@ -414,6 +657,36 @@ export function household(now: number): Story {
         read: true,
         history: [
           {
+            at: day(60, '20:10'),
+            say: 'Swapped the brass nozzle for a 0.4 mm hardened steel one today. Print files are on the NAS under /prints from now on.',
+            replies: {
+              Spool: [
+                say(
+                  'Hardened steel it is: good for PETG and anything abrasive.',
+                ),
+              ],
+              Juniper: quiet('Spool has this.'),
+            },
+          },
+          {
+            at: day(33, '19:30'),
+            say: '@Spool the hallway coat hook you printed in PLA has snapped.',
+            replies: {
+              Spool: [
+                say(
+                  'PLA was the wrong choice for a hook under load. Let’s try something tougher next time.',
+                ),
+              ],
+            },
+          },
+          {
+            at: day(12, '21:00'),
+            say: '@Spool the dryer manual says PETG needs 65 °C for four hours before you print with it.',
+            replies: {
+              Spool: [say('65 °C for four hours before every PETG print.')],
+            },
+          },
+          {
             at: day(2, '21:00'),
             say: 'The hallway coat hook snapped again. Can we print a stronger one?',
             replies: {
@@ -449,6 +722,26 @@ export function household(now: number): Story {
         name: 'Mum’s garden',
         familiars: ['Moss', 'Juniper', 'Quill'],
         history: [
+          {
+            at: day(50, '19:00'),
+            say: '@Moss @Juniper Mum says her chair needs a gate at least 84 cm wide, and beds no higher than 60 cm so she can reach in.',
+            replies: {
+              Moss: [
+                say(
+                  'Then we plan around 84 cm and 60 cm. Raised beds at that height are easy to build.',
+                ),
+              ],
+              Juniper: [say('I’ll check any quote against those two numbers.')],
+            },
+          },
+          {
+            at: day(26, '18:20'),
+            say: '@Moss @Juniper we’re going with Fenwick Gardens: £1,850 for 58 cm beds and an 88 cm gate.',
+            replies: {
+              Moss: [say('Good choice: both clear June’s limits.')],
+              Juniper: [say('Fenwick it is. I’ll keep their details handy.')],
+            },
+          },
           {
             at: day(1, '18:30'),
             note: 'Fenwick Gardens confirmed a site visit at June’s on Thursday at 10:00.',
@@ -517,6 +810,17 @@ export function household(now: number): Story {
         familiars: ['Juniper', 'Quill'],
         read: true,
         history: [
+          {
+            at: day(14, '10:00'),
+            say: '@Juniper moving day! Rivelin Street is empty and we’re into Flat 5. Bins here: black bin on Tuesdays, blue every other Thursday.',
+            replies: {
+              Juniper: [
+                say(
+                  'Welcome home! Bins noted: black on Tuesdays, blue every other Thursday.',
+                ),
+              ],
+            },
+          },
           {
             at: day(3, '11:00'),
             say: 'That’s the last box unpacked! Anything left on the move list?',
