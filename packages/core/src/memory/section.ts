@@ -8,7 +8,7 @@ import { LIMITS, type PageState, type Subject } from './store.ts'
  * cache holds between.
  */
 
-export const MEMORY_INTRO = `What you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: \`recall\` searches everything else you've been told, including earlier conversations by date, and \`read_memory\` opens a page or a conversation.`
+export const MEMORY_INTRO = `What you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: \`recall\` searches everything else you've been told, including earlier conversations by date, and \`read_memory\` opens a page or a conversation. Everyone here works together and shares what you know: what someone told you in a DM can help you in any room. When you use it, say who told you and where.`
 
 export type SectionSource = {
   subjects(): readonly Subject[]
