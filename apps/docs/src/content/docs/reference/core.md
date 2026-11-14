@@ -29,28 +29,28 @@ Opens a workspace over its storage, resumes unfinished work and starts backgroun
 
 A workspace holds Familiars and the rooms where people talk to them. Each Familiar has its own memory, schedules, model and one working context it carries across all its rooms; plugins, MCP servers, secrets and the model login are shared. Familiars and rooms are stored, so a host creates them once, on the first open.
 
-| Option             | Required | Meaning                                                                                                                                                                                                          |
-| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`          | yes      | Pi Durable `Storage`                                                                                                                                                                                             |
-| `models`           | yes      | Pi `Models` with providers registered                                                                                                                                                                            |
-| `chatModel`        | yes      | `{ provider, modelId }` a new Familiar's chat starts on. Must be in `modelChoices`                                                                                                                               |
-| `memoryModel`      |          | `{ provider, modelId }` memory's filing and profiles run on, at its level in `modelChoices`, unless a Familiar picks another. Background memory work can use a cheaper model than the chat. Default: `chatModel` |
-| `timeZone`         | yes      | IANA zone. Throws if invalid                                                                                                                                                                                     |
-| `modelChoices`     |          | `{ model, thinkingLevel }[]` the installation offers: what people may switch a chat to, and what a Familiar's memory may run on. Must include `chatModel` and `memoryModel`. Default: `chatModel` at medium      |
-| `hostInstructions` |          | What the host adds after each Familiar's persona, such as what its UI renders                                                                                                                                    |
-| `account`          |          | `{ login }`: lets the owner sign in to `chatModel.provider`. `login` is Pi's `LoginOptions`; OpenAI needs `getDeviceId`                                                                                          |
-| `plugins`          |          | `FamiliarPlugin[]`                                                                                                                                                                                               |
-| `secrets`          |          | `SecretStore`. Without it, every secret is missing                                                                                                                                                               |
-| `fetch`            |          | `PluginFetch` for tools, used as given. Refuse private destinations the process can reach. Default: on Node, a fetch that refuses every address that isn't public; elsewhere, the runtime's                      |
-| `mcpFetch`         |          | `PluginFetch` for owner-configured HTTP MCP servers                                                                                                                                                              |
-| `mcpStdio`         |          | `McpStdioFactory` for owner-configured local MCP commands                                                                                                                                                        |
-| `contextBudget`    |          | Tokens per request before a Familiar's older context is compacted. Default 64,000                                                                                                                                |
-| `notify`           |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)                                                                                                             |
-| `maxSchedules`     |          | Most schedules each Familiar keeps at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50                                                                                                         |
-| `maxHandoffs`      |          | Most handoffs in a row between a room's Familiars before `hand_off` refuses, a positive whole number. Default `DEFAULT_MAX_HANDOFFS`, 3                                                                          |
-| `people`           |          | `Author[]`: what people are called at first, by host author ID, such as an owner. Used on the first open only; after that, each person's name is theirs to change with `people.rename`                           |
-| `onWake`           |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)                                                                                                           |
-| `now`, `setTimer`  |          | Clock and timer overrides, mainly for tests                                                                                                                                                                      |
+| Option             | Required | Meaning                                                                                                                                                                                                     |
+| ------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`          | yes      | Pi Durable `Storage`                                                                                                                                                                                        |
+| `models`           | yes      | Pi `Models` with providers registered                                                                                                                                                                       |
+| `chatModel`        | yes      | `{ provider, modelId }` Familiars' chats run on by default, until the owner chooses another default or a Familiar its own. Must be in `modelChoices`                                                        |
+| `memoryModel`      |          | `{ provider, modelId }` memory's filing and profiles run on by default, at its level in `modelChoices`, as `chatModel`. Background memory work can use a cheaper model than the chat. Default: `chatModel`  |
+| `timeZone`         | yes      | IANA zone. Throws if invalid                                                                                                                                                                                |
+| `modelChoices`     |          | `{ model, thinkingLevel }[]` the installation offers: what people may switch a chat to, and what a Familiar's memory may run on. Must include `chatModel` and `memoryModel`. Default: `chatModel` at medium |
+| `hostInstructions` |          | What the host adds after each Familiar's persona, such as what its UI renders                                                                                                                               |
+| `account`          |          | `{ login }`: lets the owner sign in to `chatModel.provider`. `login` is Pi's `LoginOptions`; OpenAI needs `getDeviceId`                                                                                     |
+| `plugins`          |          | `FamiliarPlugin[]`                                                                                                                                                                                          |
+| `secrets`          |          | `SecretStore`. Without it, every secret is missing                                                                                                                                                          |
+| `fetch`            |          | `PluginFetch` for tools, used as given. Refuse private destinations the process can reach. Default: on Node, a fetch that refuses every address that isn't public; elsewhere, the runtime's                 |
+| `mcpFetch`         |          | `PluginFetch` for owner-configured HTTP MCP servers                                                                                                                                                         |
+| `mcpStdio`         |          | `McpStdioFactory` for owner-configured local MCP commands                                                                                                                                                   |
+| `contextBudget`    |          | Tokens per request before a Familiar's older context is compacted. Default 64,000                                                                                                                           |
+| `notify`           |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)                                                                                                        |
+| `maxSchedules`     |          | Most schedules each Familiar keeps at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50                                                                                                    |
+| `maxHandoffs`      |          | Most handoffs in a row between a room's Familiars before `hand_off` refuses, a positive whole number. Default `DEFAULT_MAX_HANDOFFS`, 3                                                                     |
+| `people`           |          | `Author[]`: what people are called at first, by host author ID, such as an owner. Used on the first open only; after that, each person's name is theirs to change with `people.rename`                      |
+| `onWake`           |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)                                                                                                      |
+| `now`, `setTimer`  |          | Clock and timer overrides, mainly for tests                                                                                                                                                                 |
 
 ### Notifications
 
@@ -70,14 +70,17 @@ Familiar stores no permissions. A tool, or the app API behind it, enforces narro
 
 **Familiars**
 
-| Member                                        | Meaning                                                                                  |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `familiars.list()`                            | `FamiliarSummary[]`: each Familiar's `id`, `name`, and any `persona` and `avatar`        |
-| `familiars.watch()`                           | Watch of who each Familiar is                                                            |
-| `familiars.create({ name, persona, avatar })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one      |
-| `familiars.update(id, change)`                | Change its name, persona or avatar; a `null` persona or avatar returns it to the default |
-| `familiars.get(id)`                           | Its `WorkspaceFamiliar`, or `undefined`                                                  |
-| `familiars.remove(id)`                        | Remove it, stopping its work. Throws for no such Familiar                                |
+| Member                                        | Meaning                                                                                           |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `familiars.list()`                            | `FamiliarSummary[]`: each Familiar's `id`, `name`, and any `persona` and `avatar`                 |
+| `familiars.watch()`                           | Watch of who each Familiar is                                                                     |
+| `familiars.create({ name, persona, avatar })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one               |
+| `familiars.update(id, change)`                | Change its name, persona, avatar, `chatModel` or `memoryModel`; `null` returns one to the default |
+| `familiars.get(id)`                           | Its `WorkspaceFamiliar`, or `undefined`                                                           |
+| `familiars.remove(id)`                        | Remove it, stopping its work. Throws for no such Familiar                                         |
+| `modelOptions()`                              | `ModelOption[]`: every model a Familiar may run on                                                |
+| `modelDefaults()`                             | `{ chat, memory }`: the models Familiars run on unless they choose their own                      |
+| `setModelDefaults({ chat?, memory? })`        | Each model given replaces that default. Throws a `TypeError` if it isn't offered                  |
 
 Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. Its name also titles its notifications and its memory's prompts. An `avatar` is a short string, at most 64 characters, that your UI interprets, such as an index into its set of portraits; core keeps it and never reads it, and without one your UI derives one from the ID.
 
@@ -123,7 +126,7 @@ Familiars take part with two tools of their own. `stay_quiet` ends a turn withou
 | `id`                                          | Its `FamiliarId`                                                                                                                      |
 | `models()`                                    | `ModelOption[]`: each chat model with its `name` and supported `thinkingLevels`                                                       |
 | `watchModel()`                                | Watch of its model and level, Pi's `AgentState`                                                                                       |
-| `setModel(ref)`                               | Switch model. Throws `ModelError` if it isn't offered                                                                                 |
+| `setModel(ref)`                               | Choose its own chat model. Throws `ModelError` if it isn't offered                                                                    |
 | `setThinkingLevel(level)`                     | Change the current model's level. Throws `ModelError` if unsupported                                                                  |
 | `capabilities()`                              | `{ plugins, mcp }`: the plugin and MCP connection names it uses                                                                       |
 | `setCapabilities({ plugins?, mcp? })`         | Each list given replaces what it uses of that kind, from its next request. Throws a `CapabilityError` for a name the workspace hasn't |

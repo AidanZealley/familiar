@@ -13,7 +13,7 @@ import { FamiliarContext, familiarStreams } from '@/lib/familiar'
 import { useStream } from '@/lib/streams'
 import { useFamiliarSummary } from '@/lib/workspace'
 import { MemorySettings } from './components/memory-settings'
-import { ModelSettings } from './components/model-settings'
+import { ModelsSettings } from './components/models-settings'
 import { ProfileSettings } from './components/profile-settings'
 import { RemoveFamiliar } from './components/remove-familiar'
 import { ToolsSettings } from './components/tools-settings'
@@ -46,12 +46,12 @@ export const FamiliarSettings = ({ id }: FamiliarSettingsProps) => {
                 content: <ProfileSettings key={id} familiar={familiar} />,
               },
               {
-                id: 'model',
-                label: 'Model',
+                id: 'models',
+                label: 'Models',
                 icon: CpuIcon,
-                keywords: 'thinking reasoning',
-                description: `What ${name} answers with, through the workspace's model account. Also in its DM's composer.`,
-                content: <ModelSettings />,
+                keywords: 'chat memory thinking reasoning default',
+                description: `What ${name} answers and remembers with. Each follows the default in Settings › Models unless it's set here.`,
+                content: <ModelsSettings familiar={familiar} />,
               },
               {
                 id: 'tools',
@@ -66,7 +66,7 @@ export const FamiliarSettings = ({ id }: FamiliarSettingsProps) => {
                 label: 'Memory',
                 icon: BrainIcon,
                 keywords: 'notes pages profiles people forget',
-                description: `What ${name} keeps from its conversations, and the model that files it.`,
+                description: `What ${name} keeps from its conversations.`,
                 content: <MemorySettings familiar={familiar} />,
               },
               {

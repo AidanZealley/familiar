@@ -37,6 +37,7 @@ async function open(modelChoices = both) {
   )
   return {
     familiar: host.familiar,
+    workspace: host.workspace,
     reopen: host.reopen,
     /** Sends `text` and returns the model and level that answered it. */
     say: async (text: string) => {
@@ -73,6 +74,23 @@ test('a model no longer offered falls back to the default', async () => {
   await f.familiar().setModel(luna)
   await f.reopen({ modelChoices: [both[0]] })
   expect(await f.say('hello')).toEqual(['sol', 'low'])
+})
+
+test("a chat follows the workspace's default until it chooses its own", async () => {
+  const f = await open()
+  const workspace = f.workspace()
+  const id = f.familiar().id
+  await workspace.setModelDefaults({ chat: luna })
+  expect(await f.say('one')).toEqual(['luna', 'medium'])
+
+  await f.familiar().setModel(sol)
+  await workspace.setModelDefaults({ chat: luna })
+  expect(await f.say('two')).toEqual(['sol', 'low'])
+
+  await workspace.familiars.update(id, { chatModel: null })
+  expect(await f.say('three')).toEqual(['luna', 'medium'])
+  await f.reopen()
+  expect(await f.say('four')).toEqual(['luna', 'medium'])
 })
 
 test('models and levels outside the model choices are refused', async () => {

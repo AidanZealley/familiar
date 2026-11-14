@@ -12,6 +12,8 @@ import type {
   JournalLine,
   McpServer,
   Mention,
+  ModelDefaults,
+  ModelDefaultsChange,
   ModelOption,
   PageState,
   PushSubscriptionJson,
@@ -30,12 +32,13 @@ export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
 /**
  * A change to who a Familiar is. A `null` persona returns it to the
  * default, a `null` avatar to the one its ID derives, and a `null`
- * memoryModel to the workspace's.
+ * chatModel or memoryModel to the workspace's default.
  */
 export type FamiliarChange = {
   name?: string
   persona?: string | null
   avatar?: string | null
+  chatModel?: ModelRef | null
   memoryModel?: ModelRef | null
 }
 
@@ -132,7 +135,7 @@ export const workspaceCommands = (api: Api) => ({
           id: number
         }
       ).id,
-    /** A `null` persona, avatar or memoryModel returns it to the default. */
+    /** A `null` persona, avatar or model returns it to the default. */
     update: (familiar: number, change: FamiliarChange) =>
       succeed(
         api.familiars[':familiar'].$patch({
@@ -160,8 +163,17 @@ export const workspaceCommands = (api: Api) => ({
         )
       ).room,
   },
-  /** The plugins and MCP connections a new Familiar uses by default. */
+  /**
+   * The plugins and MCP connections a new Familiar uses by default, and the
+   * models every Familiar runs on unless it chooses its own.
+   */
   defaults: {
+    /** The default models, and every model a Familiar may choose from. */
+    models: (): Promise<ModelDefaults & { options: ModelOption[] }> =>
+      read(api.defaults.models.$get()),
+    /** Each model given replaces that job's default. */
+    setModels: (change: ModelDefaultsChange) =>
+      succeed(api.defaults.models.$put({ json: change })),
     capabilities: (): Promise<FamiliarCapabilities> =>
       read(api.defaults.capabilities.$get()),
     /** Each list given replaces that kind's defaults. */
@@ -255,6 +267,7 @@ export const familiarCommands = (api: Api, id: number) => {
     model: {
       options: (): Promise<ModelOption[]> =>
         read(familiar.model.options.$get({ param })),
+      /** Its own model, instead of the default; `update` returns it. */
       set: (model: ModelRef) =>
         succeed(familiar.model.$put({ param, json: model })),
       setThinkingLevel: (level: ModelThinkingLevel) =>

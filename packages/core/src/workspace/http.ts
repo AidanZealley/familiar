@@ -11,7 +11,7 @@ import type { FamiliarId } from './familiars.ts'
 import type { Workspace } from './index.ts'
 
 /**
- * A blank name or persona, a memory model that isn't a model choice, or a
+ * A blank name or persona, a model that isn't a model choice, or a
  * plugin or connection the workspace hasn't: `familiars.create`, `update` and
  * `setCapabilities` throw TypeErrors for exactly these.
  */
@@ -55,12 +55,62 @@ const capabilitiesChange = validator('json', (body, c) => {
   return body as { plugins?: string[]; mcp?: string[] }
 })
 
+/** A model given for each named field, as far as its shape. */
+const models = (body: Record<string, unknown> | undefined, fields: string[]) =>
+  fields.every(
+    (field) =>
+      body?.[field] === undefined ||
+      body[field] === null ||
+      modelRef(body[field]),
+  )
+
 /**
  * The workspace's defaults, mounted at `/defaults`: the plugins and MCP
- * connections a new Familiar uses unless its creator chooses.
+ * connections a new Familiar uses unless its creator chooses, and the
+ * models every Familiar runs on unless it chooses its own.
  */
 export const defaultRoutes = (workspace: Workspace) =>
   new Hono<AccessEnv>()
+    // The defaults, and every model they and a Familiar may choose from.
+    .get('/models', can('defaults.get'), async (c) =>
+      c.json(
+        {
+          ...(await workspace.modelDefaults()),
+          options: workspace.modelOptions(),
+        },
+        200,
+      ),
+    )
+    // Each model given replaces that job's default.
+    .put(
+      '/models',
+      can('defaults.set'),
+      validator('json', (body, c) => {
+        if (
+          !models(body, ['chat', 'memory']) ||
+          body.chat === null ||
+          body.memory === null
+        ) {
+          return c.json(
+            { error: 'chat and memory must each be a provider and modelId' },
+            400,
+          )
+        }
+        return body as {
+          chat?: { provider: string; modelId: string }
+          memory?: { provider: string; modelId: string }
+        }
+      }),
+      (c) =>
+        identity(c, async () => {
+          const { chat, memory } = c.req.valid('json')
+          await workspace.setModelDefaults({
+            ...(chat && { chat: pick(chat) }),
+            ...(memory && { memory: pick(memory) }),
+          })
+          return c.body(null, 204)
+        }),
+    )
     .get('/capabilities', can('defaults.get'), async (c) =>
       c.json(await workspace.defaultCapabilities(), 200),
     )
@@ -131,9 +181,16 @@ export function familiarRoutes(workspace: Workspace) {
               400,
             )
           }
-          if (body.memoryModel !== undefined && !modelRef(body.memoryModel)) {
+          if (
+            !models(body, ['chatModel', 'memoryModel']) ||
+            body.chatModel === null ||
+            body.memoryModel === null
+          ) {
             return c.json(
-              { error: 'memoryModel must be a provider and modelId' },
+              {
+                error:
+                  'chatModel and memoryModel must be a provider and modelId',
+              },
               400,
             )
           }
@@ -156,6 +213,9 @@ export function familiarRoutes(workspace: Workspace) {
             ...(body.avatar !== undefined && {
               avatar: body.avatar as string,
             }),
+            ...(body.chatModel !== undefined && {
+              chatModel: pick(body.chatModel as ModelRef),
+            }),
             ...(body.memoryModel !== undefined && {
               memoryModel: pick(body.memoryModel as ModelRef),
             }),
@@ -174,7 +234,7 @@ export function familiarRoutes(workspace: Workspace) {
             return c.json({ id }, 201)
           }),
       )
-      // A `null` persona, avatar or memoryModel returns it to the default.
+      // A `null` persona, avatar or model returns it to the default.
       .patch(
         '/:familiar',
         can('familiars.update'),
@@ -189,13 +249,12 @@ export function familiarRoutes(workspace: Workspace) {
               400,
             )
           }
-          if (
-            body.memoryModel !== undefined &&
-            body.memoryModel !== null &&
-            !modelRef(body.memoryModel)
-          ) {
+          if (!models(body, ['chatModel', 'memoryModel'])) {
             return c.json(
-              { error: 'memoryModel must be a provider and modelId' },
+              {
+                error:
+                  'chatModel and memoryModel must be a provider and modelId',
+              },
               400,
             )
           }
@@ -204,17 +263,20 @@ export function familiarRoutes(workspace: Workspace) {
             name?: string
             persona?: string | null
             avatar?: string | null
+            chatModel?: { provider: string; modelId: string } | null
             memoryModel?: { provider: string; modelId: string } | null
           }
         }),
         (c) =>
           identity(c, async () => {
-            const { name, persona, avatar, memoryModel } = c.req.valid('json')
+            const { name, persona, avatar, chatModel, memoryModel } =
+              c.req.valid('json')
             familiarOf(c)
             await workspace.familiars.update(idOf(c), {
               name,
               persona,
               avatar,
+              chatModel: chatModel && pick(chatModel),
               memoryModel: memoryModel && pick(memoryModel),
             })
             return c.body(null, 204)

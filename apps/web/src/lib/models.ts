@@ -1,6 +1,6 @@
 import type { ModelRef } from '@familiar-ai/client'
 import { useQuery } from '@tanstack/react-query'
-import { useFamiliarStore } from './familiar'
+import { useFamiliarStore, workspace } from './familiar'
 
 /** How the app keys a model, to match a choice to the one in use. */
 export const keyOf = (model: ModelRef) => `${model.provider}/${model.modelId}`
@@ -17,4 +17,13 @@ export const useModelOptions = () => {
     queryFn: () => familiar.model.options(),
     staleTime: Infinity,
   }).data
+}
+
+/**
+ * The workspace's default models, and every model they and a Familiar may
+ * choose from. Changed only from Settings, which refetches it.
+ */
+export const modelDefaultsQuery = {
+  queryKey: ['model-defaults'],
+  queryFn: () => workspace.defaults.models(),
 }

@@ -10,6 +10,8 @@ export {
   type FamiliarIdentity,
   type FamiliarSummary,
   type FamiliarsState,
+  type ModelDefaults,
+  type ModelDefaultsChange,
   type Workspace,
   type WorkspaceFamiliar,
   type WorkspaceOptions,

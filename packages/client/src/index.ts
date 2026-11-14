@@ -24,6 +24,8 @@ export type {
   McpServer,
   MemoryState,
   Mention,
+  ModelDefaults,
+  ModelDefaultsChange,
   ModelOption,
   Note,
   PageState,

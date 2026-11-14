@@ -45,6 +45,8 @@ export type {
   FamiliarIdentity,
   FamiliarsState,
   FamiliarSummary,
+  ModelDefaults,
+  ModelDefaultsChange,
 } from '../workspace/index.ts'
 export type { ModelOption } from '../conversation/models.ts'
 export type { AgentState } from '@earendil-works/pi-durable'

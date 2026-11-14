@@ -31,7 +31,7 @@ Schedules aren't memory. Feedback about a recurring job, such as "include the li
 
 ## Review memory
 
-Open a Familiar's settings and choose **Memory**. Under the memory model are three tabs:
+Open a Familiar's settings and choose **Memory**. It has three tabs:
 
 - **Subjects**: everyone and everything the Familiar keeps notes about, with the people who take part listed first. Open one to see its page: a **profile**, rewritten each night from the notes, then the **notes** themselves. Each note says since when it's been true, who said it and where, with a link to that conversation, and the words it rests on.
 - **Journal**: dated lines by month, one per thing worth finding again. The Familiar searches them; they're never in its prompt.
@@ -45,4 +45,6 @@ Everyone who uses the same Familiar shares its memory. On an installed Familiar,
 
 ## Models and reasoning
 
-The model picker in the composer chooses the chat model and its reasoning level. The choice is saved with the conversation, so every device uses it. Filing and profiles run on the Familiar's memory model, chosen in its settings.
+**Settings › Models** sets the default chat model, which Familiars answer with, and the default memory model, which files and profiles their conversations. A smaller memory model costs less. Each Familiar follows the defaults unless its own settings' **Models** gives it its own; **Default** there returns it to the workspace's.
+
+The model picker in the composer chooses the chat model and its reasoning level, and picking a model gives that Familiar its own. The choice is saved with the Familiar, so every device uses it.
