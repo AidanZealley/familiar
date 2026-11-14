@@ -18,7 +18,7 @@ import {
   type NamedRoom,
 } from '@/lib/workspace'
 import { ArchivedRooms } from './components/archived-rooms'
-import { ConnectionStatus } from './components/connection-status'
+import { HomeLogo } from './components/home-logo'
 import { FamiliarRow } from './components/familiar-row'
 import { RoomRow } from './components/room-row'
 import { SectionHeading } from './components/section-heading'
@@ -66,8 +66,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
     >
       <header className="flex h-(--chrome) shrink-0 items-center gap-2 border-b border-border/60 px-3 pt-(--status-bar)">
         <h1 className="flex items-baseline gap-1 font-heading text-sm font-medium tracking-tight">
-          <ConnectionStatus />
-          familiar
+          <HomeLogo />
         </h1>
       </header>
 
