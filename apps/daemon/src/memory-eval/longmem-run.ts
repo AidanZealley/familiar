@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -26,6 +27,8 @@ export type RunKey = {
   models: { memory: string; reply: string; judge: string }
   /** A hash of the code that decides what filing and replies do. */
   code: string
+  /** The code hash of the run whose filed stores this one reuses (`--reask`). */
+  filedBy?: string
 }
 
 export type Stage = { tokens: TokenTotals; elapsedMs: number }
@@ -58,9 +61,9 @@ export function openRun(
   const keyFile = join(directory, 'run.json')
   if (existsSync(keyFile)) {
     const made = JSON.parse(readFileSync(keyFile, 'utf8')) as RunKey
-    const differs = (['set', 'haystack', 'models', 'code'] as const).filter(
-      (field) => !same(made[field], key[field]),
-    )
+    const differs = (
+      ['set', 'haystack', 'models', 'code', 'filedBy'] as const
+    ).filter((field) => !same(made[field], key[field]))
     if (differs.length) {
       throw new RunMismatch(
         `${directory} was made with a different ${differs
@@ -104,6 +107,37 @@ export function openRun(
 }
 
 export type Run = ReturnType<typeof openRun>
+
+/** A run's key, as saved in its directory. */
+export const keyOf = (directory: string) =>
+  JSON.parse(readFileSync(join(directory, 'run.json'), 'utf8')) as RunKey
+
+/**
+ * Gives `to` the filed stores of every question `from` has filed and `to`
+ * hasn't, so only the reply and the verdict run again. For changes that
+ * touch only what a reply sees: filing stays as `from`'s code left it.
+ */
+export function reuseFilings(from: Run, to: Run) {
+  for (const saved of from.all()) {
+    const store = from.storePath(saved.question)
+    if (!saved.filing || !existsSync(store) || to.read(saved.question)) {
+      continue
+    }
+    for (const suffix of ['', '-wal', '-shm']) {
+      if (existsSync(`${store}${suffix}`)) {
+        copyFileSync(
+          `${store}${suffix}`,
+          `${to.storePath(saved.question)}${suffix}`,
+        )
+      }
+    }
+    to.write({
+      question: saved.question,
+      type: saved.type,
+      filing: saved.filing,
+    })
+  }
+}
 
 /**
  * A hash of the code that decides what filing and a reply do: Familiar's own
