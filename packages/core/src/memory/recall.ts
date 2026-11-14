@@ -100,10 +100,14 @@ function within(
     .map(({ text }) => text)
 }
 
+const idOf = (hit: Hit) =>
+  hit.kind === 'exchange' ? hit.exchange.id : hit.note.id
+
 /**
  * Automatic recall's note for the latest message, or null when nothing
- * matched: notes, and exchanges compaction took out of the model's view,
- * on the days the message names if it names any.
+ * matched: notes, and exchanges compaction took out of the model's view.
+ * What falls on the days the message names comes first, then the rest: a
+ * date read wrongly, such as last June for next June, only costs ranking.
  */
 export function recallNote(
   view: MemoryView,
@@ -113,12 +117,18 @@ export function recallNote(
   timeZone: string,
 ) {
   const before = view.viewStart()
-  const hits = view.search(query, {
+  const options = {
     now,
     // Without a compaction the whole chat is in view: only notes can add anything.
     ...(before === undefined ? { kind: 'note' as const } : { before }),
-    ranges: datesIn(query, localDay(now, timeZone)),
-  })
+  }
+  const ranges = datesIn(query, localDay(now, timeZone))
+  const dated = new Set(
+    ranges.length ? view.search(query, { ...options, ranges }).map(idOf) : [],
+  )
+  const hits = view
+    .search(query, options)
+    .sort((a, b) => Number(dated.has(idOf(b))) - Number(dated.has(idOf(a))))
   const kept = within(hits, query, rooms, timeZone, RECALL)
   return kept.length
     ? `${RECALL_HEADING}: ${shown(kept.length, hits.length)}, oldest first; use them only if relevant.\n${kept.join('\n')}`
