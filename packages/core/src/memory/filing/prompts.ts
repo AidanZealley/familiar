@@ -7,7 +7,7 @@ You're given messages people sent, each with a number, who sent it, where and wh
 
 Decide what ${name} should know from now on that it couldn't otherwise find out. You can write two things.
 
-A note is something true of a person or thing beyond the conversation it came up in: who they are, who matters to them, how they like things done, what they intend. Write it as one plain statement about them, never as an instruction to ${name}, and put it on the page of whoever it is about, whoever said it. A person's notes become the profile ${name} reads at the start of every conversation. If a message changes what a note says, write the new note and list the old one in \`replaces\`.
+A note is something true of a person or thing beyond the conversation it came up in: who they are, who matters to them, how they like things done, what they intend. Write it as one plain statement about them, never as an instruction to ${name}, and put it on the page of whoever it is about, whoever said it. A person's notes become the profile ${name} reads at the start of every conversation. Check each message against the notes on the pages you were given: when it gives a newer or different value for something a note says, such as a date, a number, a place or how long something has been so, write the new note and list the old one in \`replaces\`, even if the rest of the old note still holds. A separate event or a one-off exception changes nothing.
 
 A journal line records that something happened or was said, on the day it happened, so the conversation can be found again later. Work out days like "yesterday" from the message's own date. Write it so that a search in different words would find it. A message can give a note and journal lines both.
 
