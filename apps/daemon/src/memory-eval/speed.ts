@@ -199,7 +199,6 @@ export async function generateStore(path: string, options: SpeedOptions) {
             quote: 'said so',
             source: source.entry,
             saidBy: USER,
-            saved: at,
           })
         }
         const page = await tx.doc(Pages, keyOf(familiar, id), null)

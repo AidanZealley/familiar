@@ -198,7 +198,6 @@ export async function applyFiling(
       source: found.message.entry,
       saidBy: found.said,
       ...(found.message.room !== undefined && { room: found.message.room }),
-      saved: now,
     })
     subject.changed = now
   }

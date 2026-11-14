@@ -66,7 +66,7 @@ export function describeHit(
     subject.person === note.saidBy.id
       ? `first-hand from ${note.saidBy.name}`
       : `said by ${note.saidBy.name}`
-  return `${note.id}, about ${subject.name} (${subject.id}), since ${note.since}, ${said} in ${placeOf(rooms, note.room)}: ${note.text}`
+  return `${note.id}, about ${subject.name} (${subject.id}), since ${note.since}, ${said}${hit.said ? ` on ${localDay(hit.said, timeZone)}` : ''} in ${placeOf(rooms, note.room)}: ${note.text}`
 }
 
 const dayOf = (hit: Hit, timeZone: string) =>

@@ -130,7 +130,6 @@ test('applying keeps only what a quote supports, says who said it from the messa
             quote: 'vegetarian',
             source: 1 as EntryId,
             saidBy: { id: 'maya', name: 'Maya' },
-            saved: 0,
           },
         ],
       },
@@ -248,7 +247,6 @@ test('search finds an exchange by its journal lines and their days, and a note b
         quote: 'Leeds',
         source: 3 as EntryId,
         saidBy: { id: 'aidan', name: 'aidan' },
-        saved: 0,
       },
     ],
   })

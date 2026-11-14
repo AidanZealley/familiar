@@ -243,7 +243,6 @@ function notesAsOf(seed: MemorySeed, now: Date, first: number) {
       // Seeded: no message to rest on.
       source: 0 as EntryId,
       saidBy: OWNER,
-      saved: since.getTime(),
     })
   for (const { versions } of seed.changes ?? []) {
     const [text, ago] = versions.at(-1)!

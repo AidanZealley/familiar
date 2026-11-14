@@ -73,8 +73,6 @@ export type Note = {
   /** Who said it and where, read from the source, never from the model. */
   saidBy: Author
   room?: RoomId
-  /** When it was written, in ms. */
-  saved: number
 }
 
 export type PageState = {
