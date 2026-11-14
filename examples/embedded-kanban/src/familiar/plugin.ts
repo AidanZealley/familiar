@@ -75,7 +75,7 @@ export const boardPlugin = (board: Board) =>
         parameters: Type.Object({ taskId }),
         execute: async ({ taskId }, _api, context) => {
           // The person who asked, never a tool argument. Undefined for
-          // work nobody asked for, such as memory upkeep.
+          // work nobody asked for, such as memory filing.
           const author = await familiar(context).author()
           return run(() => {
             if (!author) {

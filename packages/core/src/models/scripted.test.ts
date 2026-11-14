@@ -19,7 +19,7 @@ test('a script reads who said what and tool results', async () => {
   )
   const { say } = await testHost({
     models,
-    model: { provider: 'faux', modelId: 'scripted' },
+    chatModel: { provider: 'faux', modelId: 'scripted' },
     plugins: [
       definePlugin({
         name: 'checks',

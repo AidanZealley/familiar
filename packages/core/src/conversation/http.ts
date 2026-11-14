@@ -5,7 +5,7 @@ import type { ConversationApi } from './index.ts'
 import { can, type AccessEnv } from '../access.ts'
 import { ModelError } from './models.ts'
 
-/** Answers 204, or 400 when the chat models refuse the change. */
+/** Answers 204, or 400 when the model choices refuse the change. */
 async function change(c: Context, run: () => Promise<void>) {
   try {
     await run()

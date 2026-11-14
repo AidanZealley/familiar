@@ -8,11 +8,12 @@ import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
 import { defaultPersona, defineTool, Type } from '../index.ts'
 import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
+import { RECALL_HEADING } from '../memory/recall.ts'
 import { TEST_ZONE, testHost, type TestHostOptions } from '../testing.ts'
 
 // One Familiar in a workspace, end to end through its DM.
 
-type SetupOptions = Omit<TestHostOptions, 'models' | 'model'>
+type SetupOptions = Omit<TestHostOptions, 'models' | 'chatModel'>
 
 // A scripted model: each test lists what it replies, so Familiar runs for real
 // (storage, tools, prompt) with no network.
@@ -34,12 +35,22 @@ async function setup(options: SetupOptions = {}) {
   }
 }
 
-/** Pi's own estimate of a request's size, the one its thresholds use. */
+/**
+ * Pi's own estimate of a request's size, the one its thresholds use,
+ * without what recall adds after the latest message, which compaction
+ * doesn't bound.
+ */
 const tokensOf = (context: TranscriptContext) =>
-  context.messages.reduce(
-    (total, message) => total + estimateMessageTokens(message),
-    0,
-  )
+  context.messages
+    .filter(
+      (message) =>
+        !(
+          message.role === 'user' &&
+          typeof message.content === 'string' &&
+          message.content.startsWith(RECALL_HEADING)
+        ),
+    )
+    .reduce((total, message) => total + estimateMessageTokens(message), 0)
 
 /**
  * A Familiar whose chat compacts past `contextBudget` tokens. The
@@ -135,7 +146,7 @@ test("a host's persona replaces the default and keeps core's instructions", asyn
   expect(custom.sections.conversation).toContain(
     '[Message from {"id":"person-123","name":"Sam"}]',
   )
-  expect(custom.sections.memory).toContain('What you remember')
+  expect(custom.sections.memory).toContain('What you know about the people')
   expect(custom.sections.schedules).toContain('[Scheduled for')
   expect(custom.tools).toEqual(standard.tools)
   expect(custom.tools).toEqual(
@@ -188,6 +199,31 @@ test('a Familiar refuses a time zone it does not know', async () => {
       `${timeZone} is not a known IANA time zone.`,
     )
   }
+})
+
+test('a memory model must be one of the model choices, at startup and for a Familiar', async () => {
+  const luna = { provider: 'faux', modelId: 'luna' }
+  const choices = {
+    faux: [{ id: 'faux-1' }, { id: 'luna' }],
+    modelChoices: [
+      {
+        model: { provider: 'faux', modelId: 'faux-1' },
+        thinkingLevel: 'medium',
+      },
+    ],
+  } satisfies SetupOptions
+  await expect(setup({ ...choices, memoryModel: luna })).rejects.toThrow(
+    'faux/luna must be one of modelChoices.',
+  )
+
+  const { workspace } = await setup(choices)
+  const id = (await workspace.familiars.list())[0]!.id
+  await expect(
+    workspace.familiars.update(id, { memoryModel: luna }),
+  ).rejects.toThrow('faux/luna must be one of modelChoices.')
+  expect((await workspace.familiars.list())[0]).not.toHaveProperty(
+    'memoryModel',
+  )
 })
 
 // Pi runs the last tool registered under a name, so a plugin's would

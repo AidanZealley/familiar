@@ -54,6 +54,7 @@ export default defineConfig({
           items: [
             'use/install',
             'use/conversation-and-memory',
+            'use/how-memory-works',
             'use/reminders-and-notifications',
             'use/tools-and-connections',
             'use/extend',

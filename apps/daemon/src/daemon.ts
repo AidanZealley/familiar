@@ -26,8 +26,8 @@ export async function serve() {
     {
       storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),
       models,
-      model: config.model,
-      chatModels: config.chatModels,
+      chatModel: config.chatModel,
+      modelChoices: config.modelChoices,
       // The machine's zone, so the owner's calendar is the one their clock shows.
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       hostInstructions: WEB_RENDERING,

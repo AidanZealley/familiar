@@ -1,25 +1,25 @@
 import type { Provider } from '@earendil-works/pi-ai/models'
-import type { ChatModel } from '@familiar-ai/core'
+import type { ModelChoice } from '@familiar-ai/core'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import {
+  keepNothing,
   scriptedModels,
   type ScriptedRequest,
 } from '@familiar-ai/core/models/scripted'
-import { SEED_MESSAGE } from './household/memory.ts'
 import type { DemoClock } from './clock.ts'
 import type { Script } from './household/script.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
 import { compact } from './scenarios/compaction.ts'
 import { key } from './scenarios/connections.ts'
 import { mcp } from './scenarios/mcp.ts'
-import { memory, seed } from './scenarios/memory.ts'
+import { memory } from './scenarios/memory.ts'
 import { remind, scheduledReply } from './scenarios/schedules.ts'
 import type { Scenario } from './scenarios/scenario.ts'
 
 const scenarios = { tool, memory, remind, key, mcp, slow, compact, error }
 const replies: NonNullable<Scenario['replies']> = Object.assign(
   {},
-  ...[...Object.values(scenarios), seed].map((scenario) => scenario.replies),
+  ...Object.values(scenarios).map((scenario) => scenario.replies),
 )
 
 /** The scenarios' answers to anything the household's script doesn't cover. */
@@ -27,6 +27,8 @@ function scenarioReply(request: ScriptedRequest) {
   switch (request.type) {
     case 'background':
       return fauxAssistantMessage('The person tried the demo scenarios.')
+    case 'memory':
+      return keepNothing(request.call)
     case 'scheduled':
       return scheduledReply()
     case 'handoff':
@@ -37,9 +39,6 @@ function scenarioReply(request: ScriptedRequest) {
         fauxAssistantMessage(request.output)
       )
     case 'message': {
-      if (request.text === SEED_MESSAGE) {
-        return seed.start()
-      }
       const matched = Object.entries(scenarios).find(([word]) =>
         new RegExp(`\\b${word}\\b`).test(request.text.toLowerCase()),
       )
@@ -49,7 +48,7 @@ function scenarioReply(request: ScriptedRequest) {
 }
 
 /** Two scripted models that answer alike, so the model picker has a choice. */
-export const demoChatModels: ChatModel[] = [
+export const demoModelChoices: ModelChoice[] = [
   { model: { provider: 'faux', modelId: 'faux-1' }, thinkingLevel: 'low' },
   { model: { provider: 'faux', modelId: 'faux-2' }, thinkingLevel: 'medium' },
 ]

@@ -34,7 +34,7 @@ export const WaitingFace = ({ room, familiars, layout }: WaitingFaceProps) => {
   const count = cn(
     'h-4 min-w-4 px-1 text-center text-[10px] leading-4 tabular-nums',
     failed
-      ? 'bg-destructive text-background'
+      ? 'bg-[color-mix(in_oklab,var(--color-destructive)_20%,var(--color-background))] text-destructive'
       : 'bg-primary text-primary-foreground',
   )
   const mark = failed ? '!' : unread

@@ -15,7 +15,7 @@ async function daemon(webDir?: string, avatarsDir?: string) {
     {
       storage: new MemoryStorage(),
       models,
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
     },
     'Familiar',

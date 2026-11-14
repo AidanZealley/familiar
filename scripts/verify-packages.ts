@@ -108,7 +108,7 @@ const models = scriptedModels(
   (request) => fauxAssistantMessage(request.type === 'message' ? 'Packed host works, ' + request.author.name : 'Background'),
   { models: [{ id: 'packed' }] },
 )
-const workspace = await openWorkspace({ storage: new MemoryStorage(), models, account: {}, model: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
+const workspace = await openWorkspace({ storage: new MemoryStorage(), models, account: {}, chatModel: { provider: 'faux', modelId: 'packed' }, timeZone: 'UTC' })
 try {
   const familiar = await workspace.familiars.create({ name: 'Packed' })
   const dm = await workspace.rooms.get(await workspace.rooms.dm(familiar.id, 'consumer'))

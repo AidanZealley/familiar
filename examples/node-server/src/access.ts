@@ -16,9 +16,8 @@ const OWNER = new Set<Operation>([
   'model.options',
   'model.set',
   'model.setThinkingLevel',
-  'memory.revise',
-  'memory.retire',
-  'memory.setPinned',
+  'memory.read',
+  'memory.forget',
   'schedules.cancel',
   'schedules.pause',
   'schedules.resume',
@@ -33,7 +32,6 @@ const OWNER = new Set<Operation>([
   'events.room',
   'events.model',
   'events.memory',
-  'events.episodes',
   'events.schedules',
 ])
 

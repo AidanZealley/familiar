@@ -47,8 +47,8 @@ async function setup(
   const contexts: (NotificationContext | undefined)[] = []
 
   // Scheduled inputs take the next answer in turn, and the owner's messages
-  // the answer given for them. Anything else, such as memory upkeep at
-  // 04:00, hears there's nothing to do.
+  // the answer given for them. Anything else, such as memory's hourly
+  // filing, hears there's nothing to do.
   const inputs: string[] = []
   const answers: Answer[] = []
   const ownerAnswers = new Map<string, Answer>()
@@ -310,6 +310,7 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
   // Told once open, before any work, so the host can arm its wakeup.
   expect(wakes.length).toBeGreaterThan(0)
   await f.schedule({ at: '2026-10-21 18:00' })
+  // It comes before memory's nightly clock.
   await vi.waitFor(() =>
     expect(wakes.at(-1)).toEqual({ active: false, at: at(21, 18) }),
   )
@@ -326,7 +327,7 @@ test('with onWake, a reminder arms no timer and runs when the host resumes', asy
   await vi.waitFor(() =>
     expect(bodies(f.notifications)).toEqual(['Time to call Mum!']),
   )
-  // Next is upkeep's 04:00 pass.
+  // Next is memory's clock, at night.
   await vi.waitFor(() =>
     expect(f.workspace().wake()).toEqual({ active: false, at: at(22, 4) }),
   )

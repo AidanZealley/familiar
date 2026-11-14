@@ -5,6 +5,7 @@ import {
   type DocumentObserver,
   type DocumentReader,
   type JsonObject,
+  type ModelRef,
   type SessionDocFamilyToken,
   type Tx,
 } from '@earendil-works/pi-durable'
@@ -21,7 +22,7 @@ export type FamiliarId = ConversationId
 
 /** Who a Familiar is. */
 export type FamiliarIdentity = {
-  /** What it's called: in its default persona, its notifications and memory upkeep's prompts. */
+  /** What it's called: in its default persona, its notifications and memory's prompts. */
   name: string
   /**
    * Who it is in conversation, in place of `defaultPersona(name)`, used
@@ -34,6 +35,13 @@ export type FamiliarIdentity = {
    * for the host and never reads it. At most `AVATAR_LENGTH` characters.
    */
   avatar?: string
+  /**
+   * What its memory's filing and consolidation run on, instead of the workspace's `memoryModel`:
+   * one of `modelChoices`, at that choice's level. Applies from the next
+   * pass. If a later restart drops it from `modelChoices`, memory falls back
+   * to the workspace's.
+   */
+  memoryModel?: ModelRef
 }
 
 /** The longest avatar a Familiar may keep: a choice, not an image. */
@@ -41,9 +49,9 @@ export const AVATAR_LENGTH = 64
 
 export type FamiliarRecord = FamiliarIdentity & {
   /**
-   * Where memory upkeep works each night: filing the chat with the writing
-   * tools, and rolling up weeks and months with none. Each pass sets it up
-   * for its job and starts it from nothing.
+   * Where memory's model calls run, one at a time: filing what people said,
+   * and tidying a page. Each call sets it up for its job and starts it from
+   * nothing. Named for the nightly upkeep it replaced.
    */
   upkeep: ConversationId
 }
@@ -160,9 +168,22 @@ export function checkIdentity<T extends Partial<FamiliarIdentity>>(
   return identity
 }
 
+/** Sets one of a record's optional fields, or removes it for `null`. */
+export function change<K extends 'persona' | 'avatar' | 'memoryModel'>(
+  record: FamiliarRecord,
+  field: K,
+  value: FamiliarRecord[K] | null | undefined,
+) {
+  if (value === null) {
+    delete record[field]
+  } else if (value !== undefined) {
+    record[field] = value
+  }
+}
+
 /**
- * Creates a Familiar: its chat, whose ID is its own, and memory upkeep's
- * conversation. Opening the Familiar sets its chat up; each pass, upkeep's.
+ * Creates a Familiar: its chat, whose ID is its own, and memory's
+ * conversation. Opening the Familiar sets its chat up; each of memory's calls, memory's.
  */
 export async function createFamiliar(tx: Tx, identity: FamiliarIdentity) {
   const ownerless = { ownership: { kind: 'ownerless' } } as const

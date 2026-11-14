@@ -3,6 +3,7 @@ import {
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
 import {
+  keepNothing,
   scriptedModels,
   type ScriptedRequest,
 } from '@familiar-ai/core/models/scripted'
@@ -31,6 +32,8 @@ function reply(request: ScriptedRequest) {
       return fauxAssistantMessage(REMINDER)
     case 'background':
       return fauxAssistantMessage('Nothing to note.')
+    case 'memory':
+      return keepNothing(request.call)
     case 'handoff':
       return fauxAssistantMessage(`On it: ${request.note}`)
     case 'message': {

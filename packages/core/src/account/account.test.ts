@@ -159,7 +159,7 @@ const model = { provider: 'faux', modelId: 'faux-1' }
 
 test('a reply failing on a login that stopped working marks it expired, and a working one recovers', async () => {
   const { faux, models } = fauxModels()
-  const host = await testHost({ models, model, account: {} })
+  const host = await testHost({ models, chatModel: model, account: {} })
   const familiar = host.workspace()
   const say = async (text: string) => {
     await host.say(text)

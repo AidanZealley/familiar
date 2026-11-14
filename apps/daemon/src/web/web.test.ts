@@ -43,7 +43,7 @@ async function setup(
     {
       storage: new MemoryStorage(),
       models,
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'Asia/Kolkata',
       plugins: [webPlugin],
       defaultCapabilities: { plugins: [webPlugin.name] },

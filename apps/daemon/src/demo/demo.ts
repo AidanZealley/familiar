@@ -6,11 +6,11 @@ import { WEB_RENDERING } from '../rendering.ts'
 import { OWNER_ID } from '../serve.ts'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { demoClock } from './clock.ts'
-import { seedMemory, seedEpisodes } from './household/memory.ts'
+import { seedMemory } from './household/memory.ts'
 import { scriptOf, seedHousehold, startOf } from './household/seed.ts'
 import { household } from './household/story.ts'
 import { workshopPlugin } from './household/workshop.ts'
-import { createDemoModels, demoChatModels } from './model.ts'
+import { createDemoModels, demoModelChoices } from './model.ts'
 import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
 import { demoMcpFetch, demoMcpStdio } from './scenarios/mcp.ts'
@@ -20,7 +20,7 @@ const demoPlugin = definePlugin({
   name: 'demo',
   title: 'Demo',
   secrets: [demoSecret],
-  tools: [fillContext, seedMemory, seedEpisodes, checkDemoKey],
+  tools: [fillContext, seedMemory, checkDemoKey],
 })
 
 /**
@@ -32,7 +32,7 @@ export async function openDemo(notify?: Notify) {
   const clock = demoClock(startOf(story))
   const models = createDemoModels(scriptOf(story), clock)
   // Signed in already, as an owner of a real daemon would be.
-  await models.login(demoChatModels[0].model.provider, 'oauth', {
+  await models.login(demoModelChoices[0].model.provider, 'oauth', {
     prompt: async () => '',
     notify: () => {},
   })
@@ -40,8 +40,8 @@ export async function openDemo(notify?: Notify) {
     {
       storage: new MemoryStorage(),
       models,
-      model: demoChatModels[0].model,
-      chatModels: demoChatModels,
+      chatModel: demoModelChoices[0].model,
+      modelChoices: demoModelChoices,
       timeZone: DEMO_TIME_ZONE,
       now: clock.now,
       hostInstructions: WEB_RENDERING,

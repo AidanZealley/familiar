@@ -8,7 +8,6 @@ export type { Store, StoreOptions } from './mirror.ts'
 export type { FamiliarChange, RoomChange, RoomSetup } from './commands.ts'
 export type { Connection } from './events.ts'
 export type { History } from './log.ts'
-export { CORE_BUDGET } from './memory.ts'
 export { composeMessage, type Picked } from './mentions.ts'
 export { toRoomTranscript } from './transcript.ts'
 export type { ToolCall, Transcript, TranscriptItem } from './transcript.ts'
@@ -17,17 +16,17 @@ export type {
   AccountState,
   AgentState,
   ConnectionInfo,
-  Episode,
-  EpisodesState,
-  Fact,
-  FactsState,
   FamiliarIdentity,
   FamiliarsState,
   FamiliarSummary,
+  JournalLine,
   McpConnectionInfo,
   McpServer,
+  MemoryState,
   Mention,
   ModelOption,
+  Note,
+  PageState,
   PushSubscriptionJson,
   Room,
   RoomActivity,
@@ -38,6 +37,7 @@ export type {
   RoomTurn,
   Schedule,
   SchedulesState,
+  Subject,
   TurnActivity,
 } from '@familiar-ai/core/http'
 export type { ModelThinkingLevel } from '@earendil-works/pi-ai'

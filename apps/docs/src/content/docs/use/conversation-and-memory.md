@@ -13,27 +13,36 @@ Long conversations don't fill up. When the model's context gets close to its bud
 
 ## What it remembers
 
-Familiar keeps its own notes alongside the conversation:
+The conversation itself is the record, and every past exchange stays searchable, including ones the model no longer sees. Alongside it, Familiar keeps:
 
-- **Facts** are lasting things about you and your life, each dated from when it became true.
-- **Episodes** are summaries of what happened each day, rolled up into weeks and months.
-- **Past exchanges** stay searchable, including ones the model no longer sees.
+- **Pages**, one for each person or thing it knows about. A page holds **notes**: what is true of them beyond one conversation, such as who matters to them, how they like things done and what they intend. Each note quotes the message it came from and says who said it and where, so something Maya told Familiar about Theo stays marked as hers.
+- A **profile** on each page, written from its notes: what Familiar should have in mind about them whatever the conversation is about.
+- A **journal** of dated lines, each the key to the conversation it came from, so "when did I set up the digest?" or "what was going on in March?" finds it again.
 
-Before each reply, Familiar recalls facts, episodes and past exchanges that look relevant. It can also search memory with its `recall` and `read_memory` tools when you ask about something specific.
+Only people's own words become memory. Familiar's replies, other Familiars, reminders, tool results and web pages never do, and a note whose quote isn't in what someone said is thrown away.
 
-The filing happens overnight. At 04:00 in your time zone, Familiar files lasting facts from the day's conversation, writes the day's episode, rolls episodes up into weeks and months and reviews older facts. Something you said this afternoon is in the conversation straight away. It becomes a fact the next morning.
+Before each reply, Familiar sees the profile of each person it works with and a short list of everyone and everything else it knows about. It recalls notes and past conversations that look relevant to your message, and can search everything with its `recall` tool, by date, and open a page or a conversation with `read_memory`.
 
-## Review and correct memory
+Filing happens each night at 04:00 in your time zone: Familiar files what people said that day, then rewrites the profile of each page whose notes changed. A note that something has changed replaces the old one, which stays findable in the conversation it came from.
 
-Open **Memory** in the header.
+Schedules aren't memory. Feedback about a recurring job, such as "include the links in my digest", changes that job's instructions, not what Familiar remembers.
 
-- **Facts** groups facts into **Pinned**, **Core** and **Reserve**. Core facts are read before every reply. Reserve facts come in when they seem relevant. Pinned facts stay in core whatever their importance.
-- Use a fact's menu to edit it, pin or unpin it or retire it. Editing saves a new version that is true from today. Retiring marks it no longer true. Familiar treats your correction as the source.
-- **History** shows how facts changed over time.
-- **Episodes** lists the daily, weekly and monthly summaries.
+[How memory works](/familiar/use/how-memory-works/) explains all of this in depth: what filing keeps and why, how it's checked, how a reply finds what it needs, and the research behind it.
+
+## Review memory
+
+Open a Familiar's settings and choose **Memory**. Under the memory model are three tabs:
+
+- **Subjects**: everyone and everything the Familiar keeps notes about, with the people who take part listed first. Open one to see its page: a **profile**, rewritten each night from the notes, then the **notes** themselves. Each note says since when it's been true, who said it and where, with a link to that conversation, and the words it rests on.
+- **Journal**: dated lines by month, one per thing worth finding again. The Familiar searches them; they're never in its prompt.
+- **Prompt**: exactly what the model sees before every reply: the profile of each person it works with, and a roster of everything else.
+
+**Forget** removes a note. The page's profile is cleared until it is rewritten that night without the note.
+
+Notes can't be edited. To correct something, tell the Familiar: that night's filing writes the newer value and removes the note it replaces.
 
 Everyone who uses the same Familiar shares its memory. On an installed Familiar, that's you.
 
 ## Models and reasoning
 
-The model picker in the composer chooses the chat model and its reasoning level. The choice is saved with the conversation, so every device uses it. Nightly upkeep always runs on the model Familiar was set up with.
+The model picker in the composer chooses the chat model and its reasoning level. The choice is saved with the conversation, so every device uses it. Filing and profiles run on the Familiar's memory model, chosen in its settings.

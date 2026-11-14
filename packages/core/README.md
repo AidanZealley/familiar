@@ -29,7 +29,7 @@ faux.setResponses([fauxAssistantMessage('Hello, Sam.')])
 const workspace = await openWorkspace({
   storage: new MemoryStorage(),
   models,
-  model: { provider: 'faux', modelId: 'demo' },
+  chatModel: { provider: 'faux', modelId: 'demo' },
   timeZone: 'Europe/London',
 })
 try {

@@ -21,7 +21,7 @@ export class Bot extends DurableObject<Env> {
   readonly workspace = new DurableWorkspace(this.ctx, {
     workspace: () => ({
       models: testModels(),
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: this.env.TIME_ZONE,
       notify: (notification) =>
         this.env.OUTBOX.get(

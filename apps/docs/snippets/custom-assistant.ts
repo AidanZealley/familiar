@@ -10,7 +10,7 @@ models.setProvider(openaiProvider())
 export const workspace = await openWorkspace({
   storage,
   models,
-  model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
+  chatModel: { provider: 'openai', modelId: 'gpt-6.1-sol' },
   timeZone: 'Europe/London',
   hostInstructions: 'Replies render as Markdown.',
   plugins: [greeting],

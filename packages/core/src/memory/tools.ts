@@ -1,73 +1,133 @@
 import { Type } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
-import type { ExchangesOf } from './exchanges.ts'
-import { Episodes } from './episodes.ts'
-import { Facts, markRecalled, MemoryUsage } from './facts.ts'
-import { readMemory } from './read.ts'
-import { recallAll } from './recall.ts'
-import { familiarDoc, familiarFor } from '../workspace/familiars.ts'
+import { defineTool, type ToolExecutionApi } from '@earendil-works/pi-durable'
+import type { Context } from '@earendil-works/chord'
+import { Rooms, type RoomRegistry } from '../rooms/rooms.ts'
+import { localMinute } from '../time.ts'
+import { familiarFor } from '../workspace/familiars.ts'
+import { exchangeId, placeOf, type Exchange } from './exchanges.ts'
+import { clipText } from './store.ts'
+import { describeHit, recallText } from './recall.ts'
+import type { MemoryView, ViewOf } from './view.ts'
+
+/** How much of an exchange `read_memory` shows, and of those either side. */
+const SHOWN = { exchange: 6_000, beside: 1_500 }
+
+const showExchange = (
+  view: MemoryView,
+  exchange: Exchange,
+  length: number,
+  rooms: Readonly<RoomRegistry>,
+  timeZone: string,
+) =>
+  [
+    `${exchange.id} (${localMinute(exchange.at, timeZone)}, ${exchange.author ? `${exchange.author.name} in ` : ''}${placeOf(rooms, exchange.room)}):`,
+    exchange.text.length > length
+      ? `${exchange.text.slice(0, length)}…`
+      : exchange.text,
+    ...view
+      .linesOf(exchange.id)
+      .map((line) => `Journal, on ${line.on}: ${line.text}`),
+  ].join('\n')
+
+/** What lies behind a subject, note or exchange ID. */
+export function readMemory(
+  view: MemoryView,
+  id: string,
+  rooms: Readonly<RoomRegistry>,
+  timeZone: string,
+) {
+  const subject = view.subject(id)
+  if (subject) {
+    const page = view.page(id)
+    return [
+      `${subject.id} ${subject.name}${subject.line ? `: ${subject.line}` : ''}`,
+      `Profile: ${page?.profile || '(none yet)'}`,
+      ...(page?.notes ?? []).map(
+        (note) =>
+          `${describeHit({ kind: 'note', note, subject }, '', rooms, timeZone)}\n  Rests on: "${note.quote}"`,
+      ),
+    ].join('\n')
+  }
+  const note = view.note(id)
+  const around = view.around(note ? exchangeId(note.note.source) : id)
+  if (note) {
+    return [
+      describeHit(note, '', rooms, timeZone),
+      `Rests on: "${note.note.quote}"`,
+      around
+        ? `From:\n${showExchange(view, around.exchange, SHOWN.exchange, rooms, timeZone)}`
+        : 'Its message is not searchable yet.',
+    ].join('\n')
+  }
+  if (around) {
+    const { before, exchange, after } = around
+    return [
+      before &&
+        `Before:\n${showExchange(view, before, SHOWN.beside, rooms, timeZone)}`,
+      showExchange(view, exchange, SHOWN.exchange, rooms, timeZone),
+      after &&
+        `After:\n${showExchange(view, after, SHOWN.beside, rooms, timeZone)}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+  }
+  return `Nothing has the ID ${id}. Subjects start with s, notes with n and conversations with x; the latest message isn't searchable yet, but you can already see it.`
+}
 
 const text = (text: string) => ({
   output: [{ type: 'text' as const, text }],
 })
 
-/**
- * The tools that read memory, for the chat and for upkeep. Both search the
- * exchanges too, so each catches the index up with the transcript first.
- * Reads come before the one write, since a transaction can't read after
- * writing.
- */
-export function createMemoryTools(exchangesOf: ExchangesOf, timeZone: string) {
+/** The chat's memory tools; both catch the view up with the transcript first. */
+export function createMemoryTools(viewOf: ViewOf, timeZone: string) {
+  const read = async (
+    api: ToolExecutionApi,
+    context: Context,
+    answer: (view: MemoryView, rooms: Readonly<RoomRegistry>) => string,
+  ) => {
+    const familiar = await api.commit(
+      (tx) => familiarFor(tx, api.conversationId),
+      context,
+    )
+    const view = viewOf(familiar)
+    await view.ready()
+    return api
+      .commit(async (tx) => {
+        await view.catchUp(tx)
+        return answer(view, await tx.doc(Rooms))
+      }, context)
+      .then(text)
+  }
+
   const recall = defineTool({
     name: 'recall',
     description:
-      "Search everything you remember beyond what you always see: facts, including ones no longer true, each with when it was true; episodes, summaries of each day, week and month; and exchanges, the original messages with their replies. Use it when you need something you don't see, such as an earlier address, a detail of an old project or what was going on at a time. Results are grouped by kind; read_memory opens any of them.",
-    parameters: Type.Object({ query: Type.String() }),
+      "Search everything you've been told beyond what you always see: notes about people and things, and the conversations themselves, with the dated journal lines that make them findable. from and to keep only what happened on those days. read_memory opens any result.",
+    parameters: Type.Object({
+      query: Type.String({
+        description: 'Words to search for; empty to list what is in from–to.',
+      }),
+      from: Type.Optional(
+        Type.String({ description: 'First day, YYYY-MM-DD.' }),
+      ),
+      to: Type.Optional(Type.String({ description: 'Last day, YYYY-MM-DD.' })),
+    }),
     execute: (args, api, context) =>
-      api
-        .commit(async (tx) => {
-          const familiar = await familiarFor(tx, api.conversationId)
-          const index = await exchangesOf(familiar).catchUp(tx)
-          const facts = await familiarDoc(tx, Facts, familiar)
-          const usage = await familiarDoc(tx, MemoryUsage, familiar)
-          const episodes = await familiarDoc(tx, Episodes, familiar)
-          const found = recallAll(
-            facts,
-            episodes,
-            index,
-            args.query,
-            api.now(),
-            timeZone,
-          )
-          // Only the chat counts as use; upkeep's searches are housekeeping.
-          if (api.conversationId === familiar) {
-            markRecalled(usage, found.used, api.now())
-          }
-          return found.text
-        }, context)
-        .then(text),
+      read(api, context, (view, rooms) =>
+        recallText(view, args, api.now(), rooms, timeZone),
+      ),
   })
 
-  const read = defineTool({
+  const readMemoryTool = defineTool({
     name: 'read_memory',
     description:
-      'Open what lies behind an ID from recall: for an exchange (x…), it and the messages either side; for a fact (f…), how it changed and the messages it came from; for a day episode (e…), its exchanges; for a week or month, the episodes it was rolled up from.',
+      'Open what lies behind an ID: a person or thing (s…), with its profile and notes; a note (n…), with the message it rests on; or a conversation (x…), with the ones either side.',
     parameters: Type.Object({ id: Type.String() }),
     execute: (args, api, context) =>
-      api
-        .commit(async (tx) => {
-          const familiar = await familiarFor(tx, api.conversationId)
-          const index = await exchangesOf(familiar).catchUp(tx)
-          return readMemory(
-            args.id.trim(),
-            await familiarDoc(tx, Facts, familiar),
-            await familiarDoc(tx, Episodes, familiar),
-            index,
-            timeZone,
-          )
-        }, context)
-        .then(text),
+      read(api, context, (view, rooms) =>
+        readMemory(view, clipText(args.id, 40), rooms, timeZone),
+      ),
   })
 
-  return [recall, read]
+  return [recall, readMemoryTool]
 }

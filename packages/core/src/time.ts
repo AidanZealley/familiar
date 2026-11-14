@@ -4,8 +4,8 @@ import { defineExtension, defineTool } from '@earendil-works/pi-durable'
 /**
  * Time: the model's current_time tool, and every conversion between an
  * instant and a calendar. Familiar reads calendars in one IANA time zone,
- * given by its host, so a day means the same thing in episodes, recall,
- * schedules and upkeep. Nothing here reads the process's own zone.
+ * given by its host, so a day means the same thing in memory, recall and
+ * schedules. Nothing here reads the process's own zone.
  *
  * Calendar days (`YYYY-MM-DD`) need no zone: their arithmetic runs on UTC
  * dates. Only turning an instant into a day or minute, or back, does.

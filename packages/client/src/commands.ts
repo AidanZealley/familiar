@@ -9,9 +9,11 @@ import type {
   FamiliarCapabilities,
   FamiliarIdentity,
   FamiliarSummary,
+  JournalLine,
   McpServer,
   Mention,
   ModelOption,
+  PageState,
   PushSubscriptionJson,
   RoomSummary,
 } from '@familiar-ai/core/http'
@@ -27,12 +29,14 @@ export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
 
 /**
  * A change to who a Familiar is. A `null` persona returns it to the
- * default, and a `null` avatar to the one its ID derives.
+ * default, a `null` avatar to the one its ID derives, and a `null`
+ * memoryModel to the workspace's.
  */
 export type FamiliarChange = {
   name?: string
   persona?: string | null
   avatar?: string | null
+  memoryModel?: ModelRef | null
 }
 
 export type Api = ReturnType<typeof hc<HttpApi>>
@@ -128,7 +132,7 @@ export const workspaceCommands = (api: Api) => ({
           id: number
         }
       ).id,
-    /** A `null` persona or avatar returns it to the default. */
+    /** A `null` persona, avatar or memoryModel returns it to the default. */
     update: (familiar: number, change: FamiliarChange) =>
       succeed(
         api.familiars[':familiar'].$patch({
@@ -197,24 +201,30 @@ export const familiarCommands = (api: Api, id: number) => {
   const param = { familiar: String(id) }
   return {
     memory: {
-      revise: (fact: string, text: string) =>
-        succeed(
-          familiar.memory[':id'].$put({
-            param: { ...param, id: fact },
-            json: { text },
+      /** The memory section of the prompt, exactly as the model sees it now. */
+      section: async (): Promise<string> =>
+        (await read(familiar.memory.section.$get({ param }))).text,
+      /** A subject's page: its profile and notes. */
+      page: (subject: string): Promise<PageState> =>
+        read(
+          familiar.memory.pages[':subject'].$get({
+            param: { ...param, subject },
           }),
         ),
-      retire: (fact: string) =>
+      /** A month's journal lines, `YYYY-MM`, in the order they were filed. */
+      journal: async (month: string): Promise<JournalLine[]> =>
+        (
+          await read(
+            familiar.memory.journal[':month'].$get({
+              param: { ...param, month },
+            }),
+          )
+        ).lines,
+      /** Forgets a note. */
+      forget: (note: string) =>
         succeed(
-          familiar.memory[':id'].retire.$post({
-            param: { ...param, id: fact },
-          }),
-        ),
-      setPinned: (fact: string, pinned: boolean) =>
-        succeed(
-          familiar.memory[':id'].pin.$put({
-            param: { ...param, id: fact },
-            json: { pinned },
+          familiar.memory.notes[':note'].forget.$post({
+            param: { ...param, note },
           }),
         ),
     },

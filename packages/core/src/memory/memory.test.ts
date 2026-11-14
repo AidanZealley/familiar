@@ -1,502 +1,264 @@
-import { createModels } from '@earendil-works/pi-ai/models'
+import type { TranscriptContext } from '@earendil-works/pi-ai'
+import type { EntryId } from '@earendil-works/pi-durable'
 import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import {
-  createRegistry,
-  Harness,
-  MemoryStorage,
-  type EntryId,
-} from '@earendil-works/pi-durable'
-import { CORE_BUDGET, coreFacts, listFacts, MemoryUsage } from './facts.ts'
-import {
-  onlyFamiliar,
-  readStored,
-  storageWith,
-  withHarness,
-} from './testing.ts'
-import { createFamiliar, familiarDoc } from '../workspace/familiars.ts'
-import {
-  fakeClock,
-  ReopenableStorage,
-  TEST_ZONE,
-  replyTo,
-  testHost,
-  timeAt,
-} from '../testing.ts'
-import { RECALL_HEADING } from './recall.ts'
-import { nextUpkeep } from './upkeep/schedule.ts'
-import { createMemory } from './index.ts'
-import { Upkeep } from './upkeep/schedule.ts'
-import { harnessOptions } from '../workspace/harness.ts'
 import { expect, test, vi } from 'vitest'
-import type { WorkspaceFamiliar } from '../index.ts'
-import type { TestHostOptions } from '../testing.ts'
+import { scriptedModels } from '../models/scripted.ts'
+import { fakeClock, testHost, TEST_ZONE, timeAt } from '../testing.ts'
+import { applyFiling, type FileArgs } from './filing/apply.ts'
+import type { BatchMessage } from './filing/batch.ts'
+import type { JournalState, MemoryState, PageState } from './store.ts'
+import { createMemoryIndex } from './view.ts'
 
-type SetupOptions = Omit<TestHostOptions, 'models' | 'model'> & {
-  contextWindow?: number
-}
+const said = (context: TranscriptContext) => JSON.stringify(context.messages)
 
-// A scripted model: each test lists what it replies, so Familiar runs for real
-// (storage, tools, prompt) with no network.
-async function setup({ contextWindow, ...options }: SetupOptions = {}) {
+test('messages are filed at night in one call, then each changed page gets its profile; forgetting removes a note and its profile', async () => {
+  const clock = fakeClock(timeAt('2026-03-06 09:00'))
+  const filing: string[] = []
   const host = await testHost({
-    faux: [{ id: 'faux-1', contextWindow }],
     timeZone: TEST_ZONE,
-    ...options,
-  })
-  const familiar = host.familiar()
-  const memory = async () => {
-    const watch = await familiar.memory.watch()
-    await watch.stop()
-    return watch.value
-  }
-  return {
-    faux: host.faux,
-    familiar,
-    dm: host.dm,
-    say: host.say,
-    memory,
-    dismiss: host.dismiss,
-  }
-}
-
-/** The system prompt sections of one request. */
-const sectionsOf = (context: TranscriptContext) =>
-  context.messages.flatMap((message) =>
-    message.role === 'system' ? [message.sections ?? {}] : [],
-  )
-
-/** The text of every tool result sent back in one request. */
-const toolResultsOf = (context: TranscriptContext) =>
-  context.messages.flatMap((message) =>
-    message.role === 'toolResult'
-      ? [
-          message.content
-            .map((part) => ('text' in part ? part.text : ''))
-            .join(''),
-        ]
-      : [],
-  )
-
-test('neither the chat nor a conversation that chooses nothing is given the tools that write facts', async () => {
-  const registry = createRegistry()
-  const model = { provider: 'faux', modelId: 'faux-1' }
-  const harness = await Harness.open(
-    new MemoryStorage(),
-    harnessOptions(
-      { models: createModels(), model, chatModels: [] },
-      registry,
-      64_000,
-    ),
-    BACKGROUND_CONTEXT,
-  )
-  try {
-    const memory = createMemory(harness, {
-      now: Date.now,
-      model,
-      thinkingLevel: 'low',
-      transcriptTokens: 1_000,
-      timeZone: TEST_ZONE,
-    })
-    for (const extension of memory.extensions) {
-      registry.install(extension)
-    }
-    const chat = await harness.commit(
-      (tx) => createFamiliar(tx, { name: 'Familiar' }),
-      BACKGROUND_CONTEXT,
-    )
-    await memory.open(chat)
-    // As a host's own extension might: a conversation that chooses nothing.
-    // Upkeep's passes select them; upkeep.test.ts files facts with them.
-    const other = await harness.commit(
-      async (tx) =>
-        (await tx.createConversation({ ownership: { kind: 'ownerless' } })).id,
-      BACKGROUND_CONTEXT,
-    )
-    const toolsIn = async (id: typeof other) =>
-      (
-        await (await harness.conversation(id, BACKGROUND_CONTEXT))!.agent(
-          BACKGROUND_CONTEXT,
-        )
-      ).tools.map((tool) => tool.name)
-    const writers = ['remember', 'revise_memory', 'retire']
-    for (const tools of [await toolsIn(other), await toolsIn(chat)]) {
-      expect(tools).toContain('recall')
-      expect(tools.filter((name) => writers.includes(name))).toEqual([])
-    }
-  } finally {
-    await harness.close(BACKGROUND_CONTEXT)
-  }
-})
-
-test('the prompt shows current core facts within budget, and nothing past', async () => {
-  const { faux, familiar, say, memory } = await setup({
-    storage: await storageWith(
-      ['Lives in Leeds', 5],
-      ['Works at Northbank', 5],
-      ...Array.from(
-        { length: 70 },
-        (_, index) =>
-          [`Fact ${index}: ${'something worth keeping '.repeat(4)}`, 4] as [
-            string,
-            number,
-          ],
-      ),
-    ),
-  })
-  await familiar.memory.revise('f1', 'Lives in York')
-  await familiar.memory.retire('f2')
-  let prompt: Record<string, string | null>[] = []
-  faux.setResponses([
-    (context) => {
-      prompt = sectionsOf(context)
-      return fauxAssistantMessage('York.')
-    },
-  ])
-  const state = (await memory())!
-  const core = coreFacts(state)
-  expect(core.length).toBeLessThan(state.facts.length - 2)
-  expect(listFacts(core).length).toBeLessThanOrEqual(CORE_BUDGET)
-
-  await say('Where do I live?')
-  const shown = prompt.findLast((sections) => sections.memory)?.memory ?? ''
-  expect(shown).toContain(listFacts(core))
-  expect(shown).toContain('f73: Lives in York')
-  // Past facts and facts that didn't fit stay out.
-  expect(shown).not.toContain('Leeds')
-  expect(shown).not.toContain('Northbank')
-  expect(shown).not.toContain('Fact 69:')
-})
-
-/** The recalled-memory note in one request, if any. */
-const recalledIn = (context: TranscriptContext) =>
-  context.messages
-    .flatMap((message) =>
-      message.role === 'user' && typeof message.content === 'string'
-        ? [message.content]
-        : [],
-    )
-    .find((content) => content.startsWith(RECALL_HEADING))
-
-test('a relevant fact outside core reaches the model, and the prompt stays the same', async () => {
-  const storage = await storageWith(
-    ['Lives in Leeds', 4],
-    ["Pip's waterproof coat is 66 cm, from Fell Houndwear", 2],
-  )
-  const { faux, say, memory, dismiss } = await setup({ storage })
-  const seen: { note?: string; memory?: string | null }[] = []
-  const capture = (reply: string) => (context: TranscriptContext) => {
-    seen.push({
-      note: recalledIn(context),
-      memory: sectionsOf(context).findLast((sections) => sections.memory)
-        ?.memory,
-    })
-    return fauxAssistantMessage(reply)
-  }
-  faux.setResponses([
-    capture('Morning!'),
-    capture('66 cm, from Fell Houndwear.'),
-  ])
-  await say('Good morning!')
-  const before = await memory()
-  await say("What size is Pip's coat?")
-
-  expect(seen[0].note).toBeUndefined()
-  expect(seen[1].note).toMatch(
-    /\nf2 \(since 2026-01-05\): Pip's waterproof coat is 66 cm/,
-  )
-  expect(seen[1].note).not.toContain('Leeds')
-  expect(seen[1].memory).toBe(seen[0].memory)
-  expect(seen[1].memory).not.toContain('Pip')
-  // Recalling a fact records its use apart from the facts clients receive.
-  expect(await memory()).toEqual(before)
-  await dismiss()
-  expect((await readStored(storage, MemoryUsage)).facts).toEqual({
-    f2: { recalled: expect.any(Number) },
-  })
-})
-
-test("recall searches a person's words, not the line naming them", async () => {
-  const storage = await storageWith(['Aidan keeps bees in the garden', 2])
-  const { faux, say } = await setup({ storage })
-  const notes: (string | undefined)[] = []
-  const capture = (context: TranscriptContext) => {
-    notes.push(recalledIn(context))
-    return fauxAssistantMessage('Noted.')
-  }
-  faux.setResponses([capture, capture])
-  // Sent by aidan, but says nothing about Aidan or bees.
-  await say('Good morning!')
-  await say('How are the bees?')
-  expect(notes[0]).toBeUndefined()
-  expect(notes[1]).toContain('Aidan keeps bees')
-})
-
-test('messages queued behind a reply are each recalled for in their own run', async () => {
-  const storage = await storageWith(['Keeps bees in the garden', 2])
-  const { faux, dm } = await setup({ storage })
-  let release = () => {}
-  const held = new Promise<void>((resolve) => (release = resolve))
-  const notes: (string | undefined)[] = []
-  const capture = async (context: TranscriptContext) => {
-    notes.push(recalledIn(context))
-    await held
-    return fauxAssistantMessage('Noted.')
-  }
-  faux.setResponses([capture, capture, capture])
-  const sent: EntryId[] = []
-  const send = async (author: string, text: string) =>
-    sent.push(
-      await dm().post({
-        author: { id: author, name: author },
-        text,
-        requestId: text,
-      }),
-    )
-  await send('ann', 'How are the bees?')
-  await vi.waitFor(() => expect(notes).toHaveLength(1))
-  await send('bob', 'Thanks')
-  await send('carol', 'And the bees now?')
-  release()
-  for (const entry of sent) {
-    await replyTo(dm(), entry)
-  }
-  expect(notes.map((note) => note?.includes('Keeps bees'))).toEqual([
-    true,
-    undefined,
-    true,
-  ])
-})
-
-test('recall goes last, so a revision mid-run leaves the earlier messages unchanged', async () => {
-  const { faux, familiar, say } = await setup({
-    storage: await storageWith(['Prefers green tea', 1]),
-  })
-  const requests: TranscriptContext['messages'][] = []
-  faux.setResponses([
-    async (context) => {
-      requests.push(context.messages)
-      await familiar.memory.revise('f1', 'Prefers black tea')
-      return fauxAssistantMessage(fauxToolCall('current_time', {}), {
-        stopReason: 'toolUse',
-      })
-    },
-    (context) => {
-      requests.push(context.messages)
-      return fauxAssistantMessage('Black tea it is.')
-    },
-  ])
-  await say('What tea do I like?')
-
-  const [first, second] = requests
-  expect(recalledIn({ messages: first } as TranscriptContext)).toBe(
-    first.at(-1)?.content,
-  )
-  // Everything before the first request's note is the start of the second.
-  expect(second.slice(0, first.length - 1)).toEqual(first.slice(0, -1))
-})
-
-test('a retried request recalls exactly what the first attempt did', async () => {
-  const { faux, familiar, say } = await setup({
-    storage: await storageWith(['Prefers green tea', 1]),
-  })
-  const notes: (string | undefined)[] = []
-  faux.setResponses([
-    async (context) => {
-      notes.push(recalledIn(context))
-      // Memory changes between the attempts.
-      await familiar.memory.revise('f1', 'Prefers black tea')
-      return fauxAssistantMessage('', {
-        stopReason: 'error',
-        errorMessage: '503 server busy',
-      })
-    },
-    (context) => {
-      notes.push(recalledIn(context))
-      return fauxAssistantMessage('Tea, then.')
-    },
-  ])
-  await say('What tea do I like?')
-  expect(notes[0]).toContain('f1 (since')
-  expect(notes[1]).toBe(notes[0])
-})
-
-type Faux = Awaited<ReturnType<typeof setup>>['faux']
-type Step = (context: TranscriptContext) => AssistantMessage
-
-/**
- * Answers compaction's summary requests itself and every other request from
- * `steps` in turn, then 'Lovely.', so compaction never takes a scripted step.
- */
-const script = (faux: Faux, steps: Step[] = []) => {
-  const respond = (context: TranscriptContext) => {
-    faux.appendResponses([respond])
-    if (JSON.stringify(context.messages[0]).includes('context summarization')) {
-      return fauxAssistantMessage('## Goal\nThe weather.')
-    }
-    return steps.shift()?.(context) ?? fauxAssistantMessage('Lovely.')
-  }
-  faux.setResponses([respond])
-}
-
-/** Says something worth remembering, then enough weather to compact it away. */
-const compactAway = async (
-  familiar: WorkspaceFamiliar,
-  say: (text: string) => Promise<void>,
-) => {
-  await say('My bike lock code is 7291, keep it safe.')
-  for (let day = 1; day <= 20; day++) {
-    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
-  }
-  const view = await familiar.watch()
-  await view.stop()
-  expect(JSON.stringify(view.value.entries)).not.toContain('7291')
-}
-
-const compacting = { contextWindow: 16_000, contextBudget: 2_000 }
-
-test('automatic recall and the recall tool find an exchange compaction took out of the context', async () => {
-  const { faux, familiar, say } = await setup(compacting)
-  script(faux)
-  await compactAway(familiar, say)
-
-  let note: string | undefined
-  let results: string[] = []
-  script(faux, [
-    (context) => {
-      note = recalledIn(context)
-      return fauxAssistantMessage(
-        fauxToolCall('recall', { query: 'bike lock code' }),
-        { stopReason: 'toolUse' },
-      )
-    },
-    (context) => {
-      results = toolResultsOf(context)
-      return fauxAssistantMessage('7291.')
-    },
-  ])
-  await say('What was my bike lock code?')
-  expect(note).toMatch(
-    /Earlier conversation, not yet reviewed:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
-  )
-  expect(results.at(-1)).toMatch(
-    /Exchanges:\nx\d+ \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): \{"id":"aidan","name":"aidan"\}: My bike lock code is 7291/,
-  )
-})
-
-test("recall finds what a room showed the Familiar with a turn, apart from the person's own words", async () => {
-  const { faux, dm, say } = await setup()
-  await dm().note({ text: 'The garage code is 4417.', requestId: 'garage' })
-  faux.setResponses([fauxAssistantMessage('Hello.')])
-  await say('Good morning!')
-
-  let results: string[] = []
-  faux.setResponses([
-    fauxAssistantMessage(fauxToolCall('recall', { query: 'garage code' }), {
-      stopReason: 'toolUse',
-    }),
-    (context) => {
-      results = toolResultsOf(context)
-      return fauxAssistantMessage('4417.')
-    },
-  ])
-  await say('What is the garage code?')
-  // The note was never said by the person, so it follows their words, set apart.
-  expect(results.at(-1)).toMatch(
-    /Exchanges:\nx\d+ \(.*\): .*: Good morning! \[Shown from the room with it, said by others\] .*\[Note\]: The garage code is 4417\./,
-  )
-})
-
-test("a compaction's summary, stored after the message it kept, doesn't hide that message from recall", async () => {
-  const { faux, familiar, say } = await setup({
-    storage: await storageWith(['Aidan keeps bees in the garden', 2]),
-    ...compacting,
-  })
-  const notes: (string | undefined)[] = []
-  const step: Step = (context) => {
-    notes.push(recalledIn(context))
-    return fauxAssistantMessage('Lovely.')
-  }
-  script(
-    faux,
-    Array.from({ length: 20 }, () => step),
-  )
-  for (let day = 1; day <= 20; day++) {
-    await say(`Day ${day}: the weather was ${'mild and grey, '.repeat(20)}`)
-  }
-
-  const view = await familiar.watch()
-  await view.stop()
-  const [summary] = view.value.entries
-  expect(summary.kind).toBe('pi.compaction')
-  expect(summary.id).toBeGreaterThan(view.value.entries[1].id)
-  // Recall searched each day's words, never the summary or aidan's name.
-  expect(notes).toHaveLength(20)
-  expect(notes.join('\n')).not.toContain('bees')
-})
-
-test('automatic recall leaves out what is still in view and what upkeep has reviewed', async () => {
-  const storage = new ReopenableStorage()
-  const first = await setup({ storage, ...compacting })
-  let note: string | undefined
-  // Before any compaction, everything is in view.
-  script(first.faux, [
-    (context) => {
-      note = recalledIn(context)
-      return fauxAssistantMessage('Noted.')
-    },
-  ])
-  await first.say('My bike lock code is 7291.')
-  await first.say('What was my bike lock code again?')
-  expect(note).toBeUndefined()
-
-  await compactAway(first.familiar, first.say)
-  await first.dismiss()
-  // As if tonight's pass had reviewed everything so far.
-  await withHarness(storage, (harness) =>
-    harness.commit(async (tx) => {
-      const familiar = await onlyFamiliar(tx)
-      const { items } = await tx.scanEntries(
-        { conversationId: familiar, order: 'descending' },
-        1,
-      )
-      ;(await familiarDoc(tx, Upkeep, familiar)).through = items[0].id
-    }, BACKGROUND_CONTEXT),
-  )
-
-  const second = await setup({ storage, ...compacting })
-  note = 'unset'
-  script(second.faux, [
-    (context) => {
-      note = recalledIn(context)
-      return fauxAssistantMessage('Noted.')
-    },
-  ])
-  await second.say('What was my bike lock code?')
-  expect(note).toBeUndefined()
-})
-
-test('upkeep passes are not shown unfiled exchanges', async () => {
-  const clock = fakeClock(timeAt('2026-10-25 12:00'))
-  const { faux, familiar, say } = await setup({
-    ...compacting,
     now: clock.now,
     setTimer: clock.setTimer,
+    models: scriptedModels((request) => {
+      const input = said(request.context)
+      if (input.includes('You keep the memory of')) {
+        filing.push(input)
+        const args: FileArgs = {
+          subjects: [{ name: 'Grace', kind: 'person', line: "aidan's sister" }],
+          notes: [
+            {
+              subject: 'Grace',
+              text: 'Grace lives in Leeds.',
+              m: [1],
+              quote: 'Grace just moved to Leeds',
+            },
+            // Not in any message: thrown away.
+            {
+              subject: 'Grace',
+              text: 'Grace is a nurse.',
+              m: [1],
+              quote: 'she nurses',
+            },
+          ],
+        }
+        return fauxAssistantMessage([fauxToolCall('file', args)], {
+          stopReason: 'toolUse',
+        })
+      }
+      if (input.includes('You write the profile')) {
+        return fauxAssistantMessage('Lives in Leeds.')
+      }
+      return fauxAssistantMessage('Noted.')
+    }),
   })
-  script(faux)
-  await compactAway(familiar, say)
-
-  const notes: (string | undefined)[] = []
-  const review: Step = (context) => {
-    notes.push(recalledIn(context))
-    return fauxAssistantMessage('A day of weather and a bike lock.')
+  const idle = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await vi.waitFor(() => expect(host.workspace().wake().active).toBe(false))
   }
-  script(faux, [review, review])
-  clock.advanceTo(nextUpkeep(clock.now(), TEST_ZONE))
-  await vi.waitFor(() => expect(notes.length).toBeGreaterThan(0))
-  expect(notes.join('\n')).not.toContain('Earlier conversation')
+  const memory = () => host.familiar().memory
+  const subjects = async () => {
+    const watch = await memory().watch()
+    await watch.stop()
+    return watch.value!.subjects
+  }
+
+  await host.say('My sister Grace just moved to Leeds.')
+  await idle()
+  expect(filing).toHaveLength(0)
+
+  clock.advanceTo(timeAt('2026-03-07 04:00'))
+  await idle()
+  expect(filing).toHaveLength(1)
+  expect(filing[0]).toContain('[m1] aidan, in a DM, Fri 2026-03-06 09:00:')
+  expect(filing[0]).toContain('(Familiar: its reply, context only) Noted.')
+
+  const grace = (await subjects()).find((subject) => subject.name === 'Grace')!
+  const page = await memory().page(grace.id)
+  expect(page).toMatchObject({
+    profile: 'Lives in Leeds.',
+    notes: [{ text: 'Grace lives in Leeds.', saidBy: { id: 'aidan' } }],
+  })
+  // Aidan's page was made by code; with no notes it needs no call.
+  expect(await memory().section()).toContain('Grace (s2): aidan')
+
+  await memory().forget(page.notes[0].id)
+  expect(await memory().page(grace.id)).toEqual({ profile: '', notes: [] })
+  await expect(memory().forget(page.notes[0].id)).rejects.toThrow('No note')
+})
+
+const message = (
+  m: number,
+  text: string,
+  shown: BatchMessage['shown'] = [],
+): BatchMessage => ({
+  m,
+  entry: (m * 10) as EntryId,
+  author: { id: 'maya', name: 'Maya' },
+  at: timeAt('2026-03-06 09:00'),
+  text,
+  shown,
+})
+
+test('applying keeps only what a quote supports, says who said it from the message, and replaces notes', async () => {
+  const memory: MemoryState = {
+    subjects: [
+      {
+        id: 's1',
+        kind: 'person',
+        name: 'Maya',
+        person: 'maya',
+        line: '',
+        changed: 0,
+        profiled: 0,
+      },
+    ],
+    next: { subject: 2, note: 2 },
+    months: [],
+  }
+  const pages = new Map<string, PageState>([
+    [
+      's1',
+      {
+        profile: '',
+        notes: [
+          {
+            id: 'n1',
+            text: 'Maya is vegetarian.',
+            since: '2025-01-01',
+            quote: 'vegetarian',
+            source: 1 as EntryId,
+            saidBy: { id: 'maya', name: 'Maya' },
+          },
+        ],
+      },
+    ],
+  ])
+  const months = new Map<string, JournalState>()
+  const store = {
+    memory,
+    page: async (id: string) =>
+      pages.get(id) ?? pages.set(id, { profile: '', notes: [] }).get(id)!,
+    month: async (month: string) =>
+      months.get(month) ?? months.set(month, { lines: [] }).get(month)!,
+  }
+  await applyFiling(
+    store,
+    [
+      message(1, 'I eat fish again now.'),
+      message(2, 'What do you think of this?', [
+        {
+          author: { id: 'theo', name: 'Theo' },
+          text: 'I ran the Leeds 10k yesterday',
+        },
+      ]),
+    ],
+    ['s1'],
+    {
+      subjects: [
+        { name: 'Theo', kind: 'person', line: '' },
+        { name: 'Nobody', kind: 'topic', line: '' },
+      ],
+      notes: [
+        {
+          subject: 's1',
+          text: 'Maya eats fish.',
+          m: [1],
+          quote: 'eat fish again',
+          replaces: ['n1'],
+        },
+        {
+          subject: 's1',
+          text: 'Maya likes jazz.',
+          m: [1],
+          quote: 'I love jazz',
+        },
+      ],
+      journal: [
+        {
+          on: '2026-03-05',
+          text: 'Theo ran the Leeds 10k.',
+          m: [1],
+          quote: 'Leeds 10k',
+        },
+      ],
+    },
+    { now: 5, timeZone: TEST_ZONE },
+  )
+  expect(pages.get('s1')!.notes.map((note) => note.text)).toEqual([
+    'Maya eats fish.',
+  ])
+  // A subject is made only when a note lands on it.
+  expect(memory.subjects.map((subject) => subject.name)).toEqual(['Maya'])
+  // Found in the room line shown with message 2, so it is Theo's words.
+  expect(months.get('2026-03')!.lines).toMatchObject([
+    { exchange: 20, on: '2026-03-05', saidBy: { id: 'theo' } },
+  ])
+})
+
+test('search finds an exchange by its journal lines and their days, and a note by its subject', () => {
+  const index = createMemoryIndex(TEST_ZONE)
+  const at = timeAt('2026-03-06 09:00')
+  index.addExchange({
+    id: 'x1',
+    at,
+    text: 'Had a great time at the weekend.',
+    last: 2 as EntryId,
+  })
+  index.addExchange({
+    id: 'x3',
+    at,
+    text: 'Lunch was fine.',
+    last: 4 as EntryId,
+  })
+  index.setMonth('2026-03', {
+    lines: [
+      {
+        exchange: 1 as EntryId,
+        on: '2026-02-14',
+        text: 'Aidan went climbing in the Peak District.',
+        quote: 'great time',
+        saidBy: { id: 'aidan', name: 'aidan' },
+      },
+    ],
+  })
+  index.setMemory({
+    subjects: [
+      {
+        id: 's1',
+        kind: 'person',
+        name: 'Grace',
+        line: '',
+        changed: 0,
+        profiled: 0,
+      },
+    ],
+    next: { subject: 2, note: 2 },
+    months: ['2026-03'],
+  })
+  index.setPage('s1', {
+    profile: '',
+    notes: [
+      {
+        id: 'n1',
+        text: 'Lives in Leeds.',
+        since: '2026-03-06',
+        quote: 'Leeds',
+        source: 3 as EntryId,
+        saidBy: { id: 'aidan', name: 'aidan' },
+      },
+    ],
+  })
+  const ids = (query: string, ranges?: { start: string; end: string }[]) =>
+    index
+      .search(query, { now: at, ranges })
+      .map((hit) => (hit.kind === 'exchange' ? hit.exchange.id : hit.note.id))
+
+  expect(ids('climbing')).toEqual(['x1'])
+  expect(ids('', [{ start: '2026-02-14', end: '2026-02-14' }])).toEqual(['x1'])
+  expect(ids('climbing', [{ start: '2026-01-01', end: '2026-01-31' }])).toEqual(
+    [],
+  )
+  expect(ids('where does Grace live')).toEqual(['n1'])
 })

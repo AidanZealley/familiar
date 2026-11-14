@@ -3,16 +3,38 @@
  * stored conversation, and seeding sample memory (the demo, the eval). Not
  * part of the API a host gives people.
  */
-export { nextUpkeep, type UpkeepState } from './memory/upkeep/schedule.ts'
-export { saidBy } from './conversation/message.ts'
-export { Facts, type Fact } from './memory/facts.ts'
-export { Episodes, type Episode } from './memory/episodes.ts'
-export { createExchangeIndex, type Exchange } from './memory/exchanges.ts'
-export { datesIn } from './memory/episodes.ts'
+export { Filing, nextNight, type FilingState } from './memory/filing/task.ts'
+export {
+  formatMessage,
+  MESSAGE_KIND,
+  saidBy,
+  textOf,
+} from './conversation/message.ts'
+export {
+  Journal,
+  keyOf,
+  LIMITS,
+  Memory,
+  Pages,
+  type JournalLine,
+  type MemoryState,
+  type Note,
+  type PageState,
+  type Subject,
+} from './memory/store.ts'
+export { entryOf, type Exchange } from './memory/exchanges.ts'
+export {
+  createMemoryIndex,
+  memoryViews,
+  type MemoryView,
+} from './memory/view.ts'
+export { createSearchIndex } from './memory/search.ts'
+export { renderSection } from './memory/section.ts'
+export { datesIn } from './memory/dates.ts'
 export { localDay } from './time.ts'
 export {
   familiarDoc,
   Familiars,
   type FamiliarId,
 } from './workspace/familiars.ts'
-export { RECALL_HEADING } from './memory/recall.ts'
+export { RECALL_HEADING, recallNote } from './memory/recall.ts'

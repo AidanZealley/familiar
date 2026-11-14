@@ -7,11 +7,11 @@ import {
 import { expect, test } from 'vitest'
 import { harnessOptions } from '../workspace/harness.ts'
 import { fauxModels, testHost } from '../testing.ts'
-import { ModelError, type ChatModel } from './models.ts'
+import { ModelError, type ModelChoice } from './models.ts'
 
 const sol = { provider: 'faux', modelId: 'sol' }
 const luna = { provider: 'faux', modelId: 'luna' }
-const both: ChatModel[] = [
+const both: ModelChoice[] = [
   { model: sol, thinkingLevel: 'low' },
   { model: luna, thinkingLevel: 'medium' },
 ]
@@ -22,8 +22,12 @@ const solAndLuna = [
 ]
 
 // Each reply records the model and level its request was sent with.
-async function open(chatModels = both) {
-  const host = await testHost({ faux: solAndLuna, model: sol, chatModels })
+async function open(modelChoices = both) {
+  const host = await testHost({
+    faux: solAndLuna,
+    chatModel: sol,
+    modelChoices,
+  })
   const requests: [string, ModelThinkingLevel | undefined][] = []
   host.faux.setResponses(
     Array.from({ length: 20 }, () => (_context, options, _state, model) => {
@@ -67,11 +71,11 @@ test('the model and level survive a restart', async () => {
 test('a model no longer offered falls back to the default', async () => {
   const f = await open()
   await f.familiar().setModel(luna)
-  await f.reopen({ chatModels: [both[0]] })
+  await f.reopen({ modelChoices: [both[0]] })
   expect(await f.say('hello')).toEqual(['sol', 'low'])
 })
 
-test('models and levels outside the chat models are refused', async () => {
+test('models and levels outside the model choices are refused', async () => {
   const familiar = (await open()).familiar()
   await expect(
     familiar.setModel({ provider: 'faux', modelId: 'other' }),
@@ -83,7 +87,7 @@ test('every chat model compacts at the same budget', () => {
   const { models } = fauxModels(solAndLuna)
   // Familiar passes settings as an object, not Pi's function form.
   const settings = harnessOptions(
-    { models, model: sol, chatModels: both },
+    { models, chatModel: sol, modelChoices: both },
     createRegistry(),
     2_000,
   ).settings as HarnessSettings

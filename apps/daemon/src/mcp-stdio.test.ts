@@ -61,7 +61,7 @@ async function setup() {
     {
       storage: new MemoryStorage(),
       models,
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
       mcpStdio: (config) => {
         const child = stdioTransport(config)

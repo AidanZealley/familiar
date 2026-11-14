@@ -1,0 +1,64 @@
+---
+// One night's filing, from the unfiled messages to written profiles.
+---
+
+<figure class="diagram" aria-label="One night of filing">
+  <div class="diagram-box">
+    <strong>04:00 · the night's work starts</strong>
+    <p>
+      The Familiar's memory task wakes and picks up where its progress mark
+      left off.
+    </p>
+  </div>
+  <div class="diagram-arrow">next 20 messages from people</div>
+  <div class="diagram-box">
+    <strong>A batch</strong>
+    <p>
+      Each message numbered, with who sent it, where and when. Between them, as
+      context only: the Familiar's replies (shortened), scheduled jobs it ran,
+      and schedule changes a reply made.
+    </p>
+    <small>
+      Also shown: the schedules it keeps, the roster, and the pages the
+      messages touch.
+    </small>
+  </div>
+  <div class="diagram-arrow">one call on the memory model</div>
+  <div class="diagram-box accent">
+    <strong>file</strong>
+    <p>Notes, journal lines, and new subjects if a note needs one.</p>
+  </div>
+  <div class="diagram-arrow">plain code, no model</div>
+  <div class="diagram-row">
+    <div class="diagram-box">
+      <strong>Quote check</strong>
+      <p>
+        Each note and line must quote a person's message in the batch, or it is
+        dropped.
+      </p>
+    </div>
+    <div class="diagram-box">
+      <strong>Attribution</strong>
+      <p>Who said it and where are read from that message, never the model.</p>
+    </div>
+    <div class="diagram-box">
+      <strong>Write</strong>
+      <p>
+        Notes onto pages, replaced notes removed, lines into the month's
+        journal, and the progress mark: all in one commit.
+      </p>
+    </div>
+  </div>
+  <div class="diagram-arrow">repeat until caught up, then</div>
+  <div class="diagram-box accent">
+    <strong>Profiles</strong>
+    <p>
+      For each page whose notes changed: one small text-only call that rewrites
+      its profile from the notes.
+    </p>
+  </div>
+  <figcaption>
+    If a call fails, the night stops where it is and the next night carries on
+    from the mark.
+  </figcaption>
+</figure>

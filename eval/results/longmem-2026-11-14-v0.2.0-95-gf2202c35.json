@@ -1,0 +1,1559 @@
+{
+  "date": "2026-11-14",
+  "commit": "v0.2.0-95-gf2202c35",
+  "set": "dev",
+  "haystack": "full",
+  "models": {
+    "memory": "openai/gpt-6-luna",
+    "reply": "openai/gpt-6.1-sol",
+    "judge": "openai/gpt-6.1-sol"
+  },
+  "contextBudget": 12000,
+  "code": "9125a8b764ae",
+  "summary": {
+    "questions": 40,
+    "correct": 36,
+    "types": {
+      "single-session-user": {
+        "questions": 5,
+        "correct": 5
+      },
+      "single-session-assistant": {
+        "questions": 4,
+        "correct": 4
+      },
+      "single-session-preference": {
+        "questions": 4,
+        "correct": 4
+      },
+      "multi-session": {
+        "questions": 8,
+        "correct": 6
+      },
+      "knowledge-update": {
+        "questions": 5,
+        "correct": 5
+      },
+      "temporal-reasoning": {
+        "questions": 8,
+        "correct": 8
+      },
+      "abstention": {
+        "questions": 6,
+        "correct": 4
+      }
+    },
+    "tokens": {
+      "filing": {
+        "input": 2553653,
+        "output": 185623,
+        "cacheRead": 7424,
+        "cacheWrite": 0,
+        "total": 2746700
+      },
+      "reply": {
+        "input": 479183,
+        "output": 8870,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 488053
+      },
+      "judge": {
+        "input": 8601,
+        "output": 200,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 8801
+      },
+      "total": {
+        "input": 3041437,
+        "output": 194693,
+        "cacheRead": 7424,
+        "cacheWrite": 0,
+        "total": 3243554
+      }
+    }
+  },
+  "outcomes": [
+    {
+      "question": "21436231",
+      "type": "single-session-user",
+      "filing": {
+        "tokens": {
+          "input": 67801,
+          "output": 4732,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 72533
+        },
+        "elapsedMs": 116438
+      },
+      "reply": {
+        "tokens": {
+          "input": 7411,
+          "output": 32,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7443
+        },
+        "elapsedMs": 2758,
+        "text": "You caught **12 largemouth bass** on your Lake Michigan trip—you told me in our DM on May 21, 2023."
+      },
+      "judge": {
+        "tokens": {
+          "input": 153,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 158
+        },
+        "elapsedMs": 2745,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "70b3e69b",
+      "type": "single-session-assistant",
+      "filing": {
+        "tokens": {
+          "input": 63871,
+          "output": 4888,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68759
+        },
+        "elapsedMs": 116733
+      },
+      "reply": {
+        "tokens": {
+          "input": 7347,
+          "output": 85,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7432
+        },
+        "elapsedMs": 6576,
+        "text": "The example I gave in our earlier DM was **Manolo García**, the Barcelona-born singer-songwriter known for his solo work and the band *El Último de la Fila*.\n\nI described him as supporting unity between Catalonia and Spain, but I should qualify that: I didn’t provide a reliable source for that characterization, so it shouldn’t be treated as a verified account of his political views."
+      },
+      "judge": {
+        "tokens": {
+          "input": 240,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 245
+        },
+        "elapsedMs": 4497,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "8a2466db",
+      "type": "single-session-preference",
+      "filing": {
+        "tokens": {
+          "input": 64167,
+          "output": 4714,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68881
+        },
+        "elapsedMs": 111815
+      },
+      "reply": {
+        "tokens": {
+          "input": 8461,
+          "output": 404,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8865
+        },
+        "elapsedMs": 12832,
+        "text": "Absolutely—you previously mentioned in our DM that you enjoy **Adobe Premiere Pro** and are learning **Lumetri color grading**, so I’d start with these:\n\n| Resource | Best for | Cost |\n|---|---|---|\n| [Adobe Premiere tutorials](https://helpx.adobe.com/premiere-pro/tutorials.html) | Official lessons on editing, audio, color correction, and exporting; many include practice files. | Free tutorials; software subscription required to practice |\n| **Premiere Gal** on YouTube | Approachable Premiere walkthroughs covering captions, effects, sound, and editing workflows. | Free videos; optional paid resources |\n| **Justin Odisho** on YouTube | Short, focused Premiere tutorials—useful when you want to learn a particular effect or technique. | Free videos |\n| [Film Editing Pro](https://www.filmeditingpro.com/) | Editing craft: pacing, cutting to music, building tension, and telling a story—not just operating software. | Free tutorials and paid courses |\n| [LinkedIn Learning](https://www.linkedin.com/learning/) | Structured Premiere courses you can follow from beginning to end. Search for “Premiere Pro Essential Training.” | Paid; some libraries provide access |\n| [Frame.io Insider](https://blog.frame.io/) | Deeper articles on editing workflows, color management, audio, and professional post-production. | Free |\n\n**For color grading specifically:** start with Adobe’s lessons on **Lumetri Color and video scopes**. Learn exposure and white-balance correction before experimenting with LUTs or stylized looks.\n\n**A practical first project:** make a 30–60-second video using five to ten clips. Work through it in separate passes: story and cuts → sound → color → captions and export. You’ll learn more by finishing one small edit than by watching lots of disconnected tutorials.\n\nAre you most interested in editing **social media videos, cinematic short films, or personal/travel footage**?"
+      },
+      "judge": {
+        "tokens": {
+          "input": 549,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 554
+        },
+        "elapsedMs": 2860,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_d12ceb0e",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 57269,
+          "output": 4160,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 61429
+        },
+        "elapsedMs": 99083
+      },
+      "reply": {
+        "tokens": {
+          "input": 20020,
+          "output": 455,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 20475
+        },
+        "elapsedMs": 18595,
+        "text": "Using the ages you previously shared with me in DMs:\n\n- **You:** 32\n- **Mom:** 55\n- **Dad:** 58\n- **Grandma:** 75\n- **Grandpa:** 78\n\nThe average is:\n\n\\[\n(32 + 55 + 58 + 75 + 78) \\div 5 = \\boxed{59.6\\text{ years}}\n\\]\n\nThat’s based on the ages you gave in May 2023, including the two grandparents you mentioned."
+      },
+      "judge": {
+        "tokens": {
+          "input": 235,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 240
+        },
+        "elapsedMs": 2490,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "d7c942c3",
+      "type": "knowledge-update",
+      "filing": {
+        "tokens": {
+          "input": 65940,
+          "output": 4800,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 70740
+        },
+        "elapsedMs": 116533
+      },
+      "reply": {
+        "tokens": {
+          "input": 7659,
+          "output": 54,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7713
+        },
+        "elapsedMs": 5462,
+        "text": "Yes—last you told me in our DM, your mom had switched from her paper list to **the same grocery list app you use**, so you could share lists and keep track of what you both need. You mentioned that on April 30."
+      },
+      "judge": {
+        "tokens": {
+          "input": 155,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 160
+        },
+        "elapsedMs": 2238,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_e061b84g",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 65695,
+          "output": 4215,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 69910
+        },
+        "elapsedMs": 103877
+      },
+      "reply": {
+        "tokens": {
+          "input": 8032,
+          "output": 39,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8071
+        },
+        "elapsedMs": 3531,
+        "text": "It was your **company’s annual charity soccer tournament**. You mentioned it here in our DM on June 17, when you asked for injury-prevention and recovery tips."
+      },
+      "judge": {
+        "tokens": {
+          "input": 228,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 233
+        },
+        "elapsedMs": 2862,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "0ddfec37_abs",
+      "type": "abstention",
+      "filing": {
+        "tokens": {
+          "input": 62330,
+          "output": 4595,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 66925
+        },
+        "elapsedMs": 106255
+      },
+      "reply": {
+        "tokens": {
+          "input": 8102,
+          "output": 45,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8147
+        },
+        "elapsedMs": 6001,
+        "text": "You told me in our May 20 DM that you’d collected **15 autographed baseballs in your first three months**, including a signed Mike Trout ball. You mentioned baseballs rather than footballs."
+      },
+      "judge": {
+        "tokens": {
+          "input": 166,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 171
+        },
+        "elapsedMs": 3507,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "58ef2f1c",
+      "type": "single-session-user",
+      "filing": {
+        "tokens": {
+          "input": 64092,
+          "output": 4464,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68556
+        },
+        "elapsedMs": 112578
+      },
+      "reply": {
+        "tokens": {
+          "input": 7747,
+          "output": 50,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7797
+        },
+        "elapsedMs": 5114,
+        "text": "You volunteered at the **“Love is in the Air” fundraising dinner on Valentine’s Day, February 14**. You mentioned it here in our DM and said you especially enjoyed the bidding and the chance to meet new people."
+      },
+      "judge": {
+        "tokens": {
+          "input": 170,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 175
+        },
+        "elapsedMs": 2343,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "8752c811",
+      "type": "single-session-assistant",
+      "filing": {
+        "tokens": {
+          "input": 64087,
+          "output": 5037,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 69124
+        },
+        "elapsedMs": 125310
+      },
+      "reply": {
+        "tokens": {
+          "input": 20510,
+          "output": 701,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 21211
+        },
+        "elapsedMs": 25660,
+        "text": "The 27th parameter on the list I gave you in our DM was **Sound effects** — “e.g., ambient, diegetic, non-diegetic.”"
+      },
+      "judge": {
+        "tokens": {
+          "input": 205,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 210
+        },
+        "elapsedMs": 2350,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "b0479f84",
+      "type": "single-session-preference",
+      "filing": {
+        "tokens": {
+          "input": 61864,
+          "output": 4399,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 66263
+        },
+        "elapsedMs": 105689
+      },
+      "reply": {
+        "tokens": {
+          "input": 8455,
+          "output": 224,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8679
+        },
+        "elapsedMs": 9312,
+        "text": "Yes! You mentioned in an earlier DM that you enjoyed *Our Planet*, *Free Solo*, and *Tiger King*, so here are four picks for tonight:\n\n- **My Octopus Teacher** — A filmmaker’s encounters with a wild octopus in a South African kelp forest. Beautiful, intimate, and unexpectedly moving. **85 minutes.**\n- **The Rescue** — The story of the 2018 Thai cave rescue, from the filmmakers behind *Free Solo*. Gripping and emotional, with remarkable teamwork. **107 minutes.**\n- **Chasing Coral** — Follows a team documenting coral bleaching. Stunning underwater photography, but a sobering watch. **89 minutes.**\n- **Fire of Love** — The lives and work of volcanologists Katia and Maurice Krafft, told through extraordinary archival footage. A compelling blend of science, love, and adventure. **93 minutes.**\n\n**My pick: *The Rescue*** if you want to be completely absorbed; *My Octopus Teacher* if you’re in a quieter mood. Streaming availability varies by country and service."
+      },
+      "judge": {
+        "tokens": {
+          "input": 397,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 402
+        },
+        "elapsedMs": 2632,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "51c32626",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 63334,
+          "output": 5116,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68450
+        },
+        "elapsedMs": 118392
+      },
+      "reply": {
+        "tokens": {
+          "input": 7893,
+          "output": 48,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7941
+        },
+        "elapsedMs": 4648,
+        "text": "You told me in our DM on **May 22, 2023** that you had already submitted your sentiment-analysis paper to **ACL**, before your master’s thesis. You didn’t mention the exact submission date."
+      },
+      "judge": {
+        "tokens": {
+          "input": 166,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 171
+        },
+        "elapsedMs": 3348,
+        "correct": false,
+        "said": "no"
+      }
+    },
+    {
+      "question": "0ddfec37",
+      "type": "knowledge-update",
+      "filing": {
+        "tokens": {
+          "input": 61597,
+          "output": 4826,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 66423
+        },
+        "elapsedMs": 112238
+      },
+      "reply": {
+        "tokens": {
+          "input": 8859,
+          "output": 44,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8903
+        },
+        "elapsedMs": 4625,
+        "text": "You added **15 autographed baseballs** in your first three months of collecting, including a signed Mike Trout ball. You told me that in our DM on July 11, 2023."
+      },
+      "judge": {
+        "tokens": {
+          "input": 154,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 159
+        },
+        "elapsedMs": 2423,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_4929293a",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 58823,
+          "output": 4116,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 62939
+        },
+        "elapsedMs": 98738
+      },
+      "reply": {
+        "tokens": {
+          "input": 7783,
+          "output": 59,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7842
+        },
+        "elapsedMs": 4720,
+        "text": "**Michael’s engagement party happened first.** You told me in our DMs that you attended it on **6 May 2023**, while your cousin’s wedding—where you were a bridesmaid—was on **15 June 2023**, about six weeks later."
+      },
+      "judge": {
+        "tokens": {
+          "input": 245,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 250
+        },
+        "elapsedMs": 4197,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_fe651585_abs",
+      "type": "abstention",
+      "filing": {
+        "tokens": {
+          "input": 66326,
+          "output": 4992,
+          "cacheRead": 7424,
+          "cacheWrite": 0,
+          "total": 78742
+        },
+        "elapsedMs": 126769
+      },
+      "reply": {
+        "tokens": {
+          "input": 31932,
+          "output": 426,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 32358
+        },
+        "elapsedMs": 15301,
+        "text": "You told me in our DM that Alex adopted a baby girl in January 2023, but I don’t have a date for when Tom became a parent. When did Tom’s first child arrive?"
+      },
+      "judge": {
+        "tokens": {
+          "input": 163,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 168
+        },
+        "elapsedMs": 2484,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "bc8a6e93",
+      "type": "single-session-user",
+      "filing": {
+        "tokens": {
+          "input": 66475,
+          "output": 4352,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 70827
+        },
+        "elapsedMs": 108298
+      },
+      "reply": {
+        "tokens": {
+          "input": 7881,
+          "output": 38,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7919
+        },
+        "elapsedMs": 4007,
+        "text": "You baked a **lemon blueberry cake**! You told me in our DM that it was a huge hit—the tangy lemon and sweet blueberries were a perfect combination."
+      },
+      "judge": {
+        "tokens": {
+          "input": 156,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 161
+        },
+        "elapsedMs": 3439,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "8aef76bc",
+      "type": "single-session-assistant",
+      "filing": {
+        "tokens": {
+          "input": 62745,
+          "output": 4510,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 67255
+        },
+        "elapsedMs": 106937
+      },
+      "reply": {
+        "tokens": {
+          "input": 8058,
+          "output": 80,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8138
+        },
+        "elapsedMs": 5176,
+        "text": "I recommended **Mod Podge** in our earlier DIY chat here in your DM, to seal the woven newspaper vase.\n\nOne important clarification: it makes the paper **water-resistant, not waterproof**. For fresh flowers, put a reused glass jar inside to hold the water and keep the newspaper dry. Apply thin coats of Mod Podge, letting each dry according to the label."
+      },
+      "judge": {
+        "tokens": {
+          "input": 221,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 226
+        },
+        "elapsedMs": 2245,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "06f04340",
+      "type": "single-session-preference",
+      "filing": {
+        "tokens": {
+          "input": 65564,
+          "output": 4544,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 70108
+        },
+        "elapsedMs": 110922
+      },
+      "reply": {
+        "tokens": {
+          "input": 21381,
+          "output": 511,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 21892
+        },
+        "elapsedMs": 21750,
+        "text": "You previously mentioned in our DM that you’d harvested cherry tomatoes and were cooking with basil and mint. **If you still have those available, I’d build dinner around roasted cherry-tomato and basil pasta.**\n\n- **Main:** Roast cherry tomatoes with olive oil, garlic, salt and pepper at 200°C for 20–25 minutes, until blistered. Toss with pasta, a splash of pasta water and plenty of fresh basil. Finish with Parmesan or white beans for a dairy-free option.\n- **Side:** A cucumber-and-mint salad with lemon juice and olive oil—fresh and crisp alongside the pasta.\n- **Dessert:** Berries with yogurt and a little chopped mint.\n\nIf your garden peppers are ready too, roast some alongside the tomatoes.\n\nWhat’s ready to harvest now, and how many people are you feeding?"
+      },
+      "judge": {
+        "tokens": {
+          "input": 328,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 333
+        },
+        "elapsedMs": 4826,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "60472f9c",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 57602,
+          "output": 4169,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 61771
+        },
+        "elapsedMs": 100614
+      },
+      "reply": {
+        "tokens": {
+          "input": 7549,
+          "output": 63,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7612
+        },
+        "elapsedMs": 5425,
+        "text": "You’ve been working on **two projects alongside your thesis**:\n\n1. **Data Mining project** — using the Bike Sharing dataset.\n2. **Database Systems group project**.\n\nYou mentioned both in our DMs, including that you’d created separate Trello boards for them and your thesis."
+      },
+      "judge": {
+        "tokens": {
+          "input": 182,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 187
+        },
+        "elapsedMs": 4465,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "7a87bd0c",
+      "type": "knowledge-update",
+      "filing": {
+        "tokens": {
+          "input": 63503,
+          "output": 4124,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 67627
+        },
+        "elapsedMs": 103023
+      },
+      "reply": {
+        "tokens": {
+          "input": 7939,
+          "output": 47,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7986
+        },
+        "elapsedMs": 3165,
+        "text": "The last time you updated me in our DM, on September 30, you’d been sticking to your daily tidying routine for **four weeks**—and said it was making a big difference in your apartment!"
+      },
+      "judge": {
+        "tokens": {
+          "input": 151,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 156
+        },
+        "elapsedMs": 2464,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_468eb064",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 61519,
+          "output": 5003,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 66522
+        },
+        "elapsedMs": 113761
+      },
+      "reply": {
+        "tokens": {
+          "input": 19591,
+          "output": 658,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 20249
+        },
+        "elapsedMs": 22834,
+        "text": "You met with **Emma, a freelance writer**. You told me in our DM that you caught up over lunch on Tuesday, 11 April, and that she was a potential collaborator on a project you’re working on."
+      },
+      "judge": {
+        "tokens": {
+          "input": 228,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 233
+        },
+        "elapsedMs": 2458,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "f685340e_abs",
+      "type": "abstention",
+      "filing": {
+        "tokens": {
+          "input": 59176,
+          "output": 4099,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 63275
+        },
+        "elapsedMs": 101009
+      },
+      "reply": {
+        "tokens": {
+          "input": 7849,
+          "output": 37,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7886
+        },
+        "elapsedMs": 3590,
+        "text": "You told me in our DM that you play **every other Sunday** with friends at the local park—though you mentioned **tennis**, rather than table tennis."
+      },
+      "judge": {
+        "tokens": {
+          "input": 153,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 158
+        },
+        "elapsedMs": 2045,
+        "correct": false,
+        "said": "no"
+      }
+    },
+    {
+      "question": "c14c00dd",
+      "type": "single-session-user",
+      "filing": {
+        "tokens": {
+          "input": 62397,
+          "output": 5057,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 67454
+        },
+        "elapsedMs": 122017
+      },
+      "reply": {
+        "tokens": {
+          "input": 8246,
+          "output": 37,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8283
+        },
+        "elapsedMs": 3519,
+        "text": "You told me in our DM that you’re using a **lavender-scented shampoo from Trader Joe’s**. You didn’t mention the exact product name."
+      },
+      "judge": {
+        "tokens": {
+          "input": 152,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 157
+        },
+        "elapsedMs": 3434,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "3249768e",
+      "type": "single-session-assistant",
+      "filing": {
+        "tokens": {
+          "input": 65261,
+          "output": 5406,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 70667
+        },
+        "elapsedMs": 123313
+      },
+      "reply": {
+        "tokens": {
+          "input": 20129,
+          "output": 633,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 20762
+        },
+        "elapsedMs": 23136,
+        "text": "The fifth bottle was **absinthe**, from our earlier DM about gin-based cocktails. It adds a strong anise-and-herbal note, usually in tiny amounts—a rinse or a few drops—in drinks such as the **Corpse Reviver No. 2**.\n\nThe full list was sweet vermouth, dry vermouth, Campari, elderflower liqueur, and absinthe."
+      },
+      "judge": {
+        "tokens": {
+          "input": 225,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 230
+        },
+        "elapsedMs": 2435,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "07b6f563",
+      "type": "single-session-preference",
+      "filing": {
+        "tokens": {
+          "input": 65482,
+          "output": 4093,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 69575
+        },
+        "elapsedMs": 100048
+      },
+      "reply": {
+        "tokens": {
+          "input": 7672,
+          "output": 236,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7908
+        },
+        "elapsedMs": 7686,
+        "text": "Absolutely! You previously mentioned an **iPhone 13 Pro in our DM**—if that’s still your phone, these are useful options:\n\n- **Protective case:** Look for raised edges around the screen and cameras. Spigen and OtterBox are worth considering; choose a MagSafe-compatible case if you want magnetic accessories.\n- **Tempered-glass screen protector:** Helps protect against scratches and some impacts. An installation frame makes fitting easier.\n- **10,000mAh power bank:** Handy for long days out. Anker, Belkin and Mophie offer options—use a USB-C-to-Lightning cable for wired charging.\n- **20W USB-C charger:** A compact way to fast-charge your iPhone with a compatible Lightning cable.\n- **MagSafe wallet or grip:** Adds convenient card storage or a more secure hold. Remove the wallet before wireless charging.\n- **Adjustable phone stand:** Useful for video calls, watching videos or following recipes without holding your phone.\n\n**My starting picks:** a protective case, screen protector and power bank.\n\nAre you still using the iPhone 13 Pro, and what’s your budget?"
+      },
+      "judge": {
+        "tokens": {
+          "input": 400,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 405
+        },
+        "elapsedMs": 2525,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "0100672e",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 67748,
+          "output": 4615,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 72363
+        },
+        "elapsedMs": 111354
+      },
+      "reply": {
+        "tokens": {
+          "input": 7723,
+          "output": 30,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7753
+        },
+        "elapsedMs": 4714,
+        "text": "You spent **$12 per mug**—you told me in our DMs that you bought five mugs for $60 total."
+      },
+      "judge": {
+        "tokens": {
+          "input": 148,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 153
+        },
+        "elapsedMs": 2265,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "2133c1b5",
+      "type": "knowledge-update",
+      "filing": {
+        "tokens": {
+          "input": 67708,
+          "output": 4689,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 72397
+        },
+        "elapsedMs": 111667
+      },
+      "reply": {
+        "tokens": {
+          "input": 7621,
+          "output": 45,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7666
+        },
+        "elapsedMs": 3451,
+        "text": "You last told me in our DM on **15 October 2023** that you’d been living in Harajuku for **three months**, which puts your move around **July 2023**."
+      },
+      "judge": {
+        "tokens": {
+          "input": 151,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 156
+        },
+        "elapsedMs": 3844,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_b4a80587",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 70670,
+          "output": 4693,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 75363
+        },
+        "elapsedMs": 113313
+      },
+      "reply": {
+        "tokens": {
+          "input": 8159,
+          "output": 46,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8205
+        },
+        "elapsedMs": 4619,
+        "text": "The **new prime lens arrived first**. You told me in our DM that you took your new 50mm f/1.8 lens on the coastal road trip and used it to photograph your friends."
+      },
+      "judge": {
+        "tokens": {
+          "input": 240,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 245
+        },
+        "elapsedMs": 2852,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_93159ced_abs",
+      "type": "abstention",
+      "filing": {
+        "tokens": {
+          "input": 72841,
+          "output": 5239,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 78080
+        },
+        "elapsedMs": 129093
+      },
+      "reply": {
+        "tokens": {
+          "input": 20422,
+          "output": 414,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 20836
+        },
+        "elapsedMs": 16339,
+        "text": "You previously told me in our DM that you’d been working professionally for **9 years**. I don’t have your Google start date recorded, so I can’t confirm how much of that was before you joined."
+      },
+      "judge": {
+        "tokens": {
+          "input": 167,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 172
+        },
+        "elapsedMs": 3006,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "118b2229",
+      "type": "single-session-user",
+      "filing": {
+        "tokens": {
+          "input": 63185,
+          "output": 4551,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 67736
+        },
+        "elapsedMs": 108316
+      },
+      "reply": {
+        "tokens": {
+          "input": 8316,
+          "output": 31,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8347
+        },
+        "elapsedMs": 5451,
+        "text": "You told me in our DM that your commute takes **45 minutes each way**—so **90 minutes total per workday**."
+      },
+      "judge": {
+        "tokens": {
+          "input": 148,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 153
+        },
+        "elapsedMs": 2719,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "55241a1f",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 64361,
+          "output": 4505,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68866
+        },
+        "elapsedMs": 108988
+      },
+      "reply": {
+        "tokens": {
+          "input": 8357,
+          "output": 54,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8411
+        },
+        "elapsedMs": 4123,
+        "text": "Based on the counts you shared in our DMs:\n\n- **Facebook Live** (vegan recipes): 12 comments\n- **Most popular YouTube video** (social media analytics): 21 comments\n\n**Total: 33 comments.**"
+      },
+      "judge": {
+        "tokens": {
+          "input": 180,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 185
+        },
+        "elapsedMs": 2162,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "2698e78f",
+      "type": "knowledge-update",
+      "filing": {
+        "tokens": {
+          "input": 64773,
+          "output": 4598,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 69371
+        },
+        "elapsedMs": 107453
+      },
+      "reply": {
+        "tokens": {
+          "input": 7559,
+          "output": 41,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7600
+        },
+        "elapsedMs": 3711,
+        "text": "You see Dr. Smith **every week**, according to what you last told me in our DM. Earlier, you’d mentioned every two weeks, but your more recent update was weekly."
+      },
+      "judge": {
+        "tokens": {
+          "input": 143,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 148
+        },
+        "elapsedMs": 2404,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_f420262c",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 67690,
+          "output": 5278,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 72968
+        },
+        "elapsedMs": 120337
+      },
+      "reply": {
+        "tokens": {
+          "input": 31228,
+          "output": 1338,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 32566
+        },
+        "elapsedMs": 51193,
+        "text": "Based on the flights you told me about in our DMs, the order from earliest to latest—excluding today—is:\n\n1. **JetBlue** — San Francisco → Boston, shortly before November 17, 2022.\n2. **Delta Air Lines** — Boston ↔ Atlanta, January 15, 2023.\n3. **United Airlines** — Boston → Chicago, January 28, 2023.\n4. **American Airlines** — New York → Los Angeles, February 10, 2023.\n\nI’ve left out planned trips, including your Spirit Airlines trip."
+      },
+      "judge": {
+        "tokens": {
+          "input": 316,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 321
+        },
+        "elapsedMs": 2349,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "a96c20ee_abs",
+      "type": "abstention",
+      "filing": {
+        "tokens": {
+          "input": 62675,
+          "output": 4819,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 67494
+        },
+        "elapsedMs": 112337
+      },
+      "reply": {
+        "tokens": {
+          "input": 7288,
+          "output": 30,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7318
+        },
+        "elapsedMs": 4056,
+        "text": "You presented your poster at **Harvard University**, at your first research conference—you told me about it in our earlier DMs."
+      },
+      "judge": {
+        "tokens": {
+          "input": 153,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 158
+        },
+        "elapsedMs": 2857,
+        "correct": false,
+        "said": "no"
+      }
+    },
+    {
+      "question": "7405e8b1",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 59450,
+          "output": 4306,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 63756
+        },
+        "elapsedMs": 102663
+      },
+      "reply": {
+        "tokens": {
+          "input": 8422,
+          "output": 77,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8499
+        },
+        "elapsedMs": 5878,
+        "text": "Yes—based on the discounts you told me about in our DMs, you received **40% off your first HelloFresh order**, compared with **20% off your UberEats order**. HelloFresh’s discount was **20 percentage points higher**, or twice the percentage discount.\n\nYou didn’t specify whether that UberEats order was your first, though."
+      },
+      "judge": {
+        "tokens": {
+          "input": 205,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 210
+        },
+        "elapsedMs": 4830,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "dcfa8644",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 58843,
+          "output": 5268,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 64111
+        },
+        "elapsedMs": 126484
+      },
+      "reply": {
+        "tokens": {
+          "input": 8223,
+          "output": 50,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8273
+        },
+        "elapsedMs": 5136,
+        "text": "**14 days** had passed—from January 10, 2023, when you bought your Adidas running shoes, to January 24, when you noticed the broken Converse shoelace, as you told me in our DM."
+      },
+      "judge": {
+        "tokens": {
+          "input": 262,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 267
+        },
+        "elapsedMs": 3466,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "29f2956b_abs",
+      "type": "abstention",
+      "filing": {
+        "tokens": {
+          "input": 63999,
+          "output": 4431,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68430
+        },
+        "elapsedMs": 106812
+      },
+      "reply": {
+        "tokens": {
+          "input": 33197,
+          "output": 997,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 34194
+        },
+        "elapsedMs": 38804,
+        "text": "I don’t have a daily **violin** practice duration recorded for you. You previously told me in a DM that you practice **guitar for 30 minutes daily**—was that what you meant?"
+      },
+      "judge": {
+        "tokens": {
+          "input": 161,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 166
+        },
+        "elapsedMs": 3019,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "9ee3ecd6",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 62657,
+          "output": 4077,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 66734
+        },
+        "elapsedMs": 98610
+      },
+      "reply": {
+        "tokens": {
+          "input": 8466,
+          "output": 48,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8514
+        },
+        "elapsedMs": 3679,
+        "text": "You previously told me in our DM that the skincare reward you were aiming for required **300 points total**. That’s your target for that reward—not necessarily every Sephora skincare reward, as point requirements and availability vary."
+      },
+      "judge": {
+        "tokens": {
+          "input": 171,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 176
+        },
+        "elapsedMs": 2993,
+        "correct": false,
+        "said": "no"
+      }
+    },
+    {
+      "question": "gpt4_2655b836",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 55759,
+          "output": 4327,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 60086
+        },
+        "elapsedMs": 105397
+      },
+      "reply": {
+        "tokens": {
+          "input": 7846,
+          "output": 53,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 7899
+        },
+        "elapsedMs": 4867,
+        "text": "The first issue was with your **GPS system on March 22, 2023**, a week after your first service on March 15. You told me in our DM that the dealership replaced the entire system, and it worked flawlessly afterward."
+      },
+      "judge": {
+        "tokens": {
+          "input": 241,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 246
+        },
+        "elapsedMs": 3872,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "gpt4_5501fe77",
+      "type": "multi-session",
+      "filing": {
+        "tokens": {
+          "input": 63737,
+          "output": 5028,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 68765
+        },
+        "elapsedMs": 118245
+      },
+      "reply": {
+        "tokens": {
+          "input": 21655,
+          "output": 553,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 22208
+        },
+        "elapsedMs": 21827,
+        "text": "**TikTok had the largest reported follower gain**, based on what you told me in our DMs:\n\n| Platform | Reported growth |\n|---|---:|\n| TikTok | About **200 followers** in three weeks |\n| Twitter | **120 followers** over the month, from 420 to 540 |\n| Facebook | Roughly **0**, holding steady around 800 |\n\nYou shared the TikTok and Twitter figures on May 29 and the Facebook update on May 30. I don’t have an Instagram growth figure, so TikTok leads among the platforms with reported numbers, though the reporting periods differ slightly."
+      },
+      "judge": {
+        "tokens": {
+          "input": 252,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 257
+        },
+        "elapsedMs": 2452,
+        "correct": true,
+        "said": "yes"
+      }
+    },
+    {
+      "question": "cc6d1ec1",
+      "type": "temporal-reasoning",
+      "filing": {
+        "tokens": {
+          "input": 70637,
+          "output": 4788,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 75425
+        },
+        "elapsedMs": 107706
+      },
+      "reply": {
+        "tokens": {
+          "input": 8195,
+          "output": 57,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 8252
+        },
+        "elapsedMs": 4914,
+        "text": "You’d been birdwatching for **about two months** when you attended the local Audubon Society workshop in April 2023. You told me in our May 2023 DM that you’d started about three months earlier and attended the workshop a month earlier."
+      },
+      "judge": {
+        "tokens": {
+          "input": 241,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 246
+        },
+        "elapsedMs": 2675,
+        "correct": true,
+        "said": "yes"
+      }
+    }
+  ]
+}

@@ -10,8 +10,8 @@ export const workspace = await openWorkspace({
   storage,
   models,
   account: { login: { getDeviceId: deviceId, agentName: 'Familiar' } },
-  model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
-  chatModels: [
+  chatModel: { provider: 'openai', modelId: 'gpt-6.1-sol' },
+  modelChoices: [
     {
       model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
       thinkingLevel: 'low',

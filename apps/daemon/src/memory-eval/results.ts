@@ -27,5 +27,5 @@ export const percent = (part: number, whole: number) =>
 /** A table row: a left-aligned label, then right-aligned columns. */
 export const row = (cells: string[]) =>
   cells
-    .map((cell, index) => (index ? cell.padStart(10) : cell.padEnd(15)))
+    .map((cell, index) => (index ? cell.padStart(10) : cell.padEnd(28)))
     .join('')

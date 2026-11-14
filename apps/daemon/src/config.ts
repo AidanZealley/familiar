@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import type { ChatModel } from '@familiar-ai/core'
+import type { ModelChoice } from '@familiar-ai/core'
 import { resolvePaths } from './paths.ts'
 import { readSettings } from './settings.ts'
 
 /**
- * The models the chat can switch between, each with the reasoning level it
- * starts on. Adding a model here offers it everywhere: the picker, its
- * default level and its compaction thresholds. The first is the default.
+ * The models this installation offers, each with the reasoning level it
+ * starts on. Adding a model here offers it everywhere: the chat picker, the
+ * memory model setting, its default level and its compaction thresholds. The
+ * first is the default chat model.
  */
-const chatModels = [
+const modelChoices = [
   {
     model: { provider: 'openai', modelId: 'gpt-6.1-sol' },
     thinkingLevel: 'low',
@@ -19,7 +20,7 @@ const chatModels = [
     model: { provider: 'openai', modelId: 'gpt-6-luna' },
     thinkingLevel: 'medium',
   },
-] satisfies ChatModel[]
+] satisfies ModelChoice[]
 
 const paths = resolvePaths()
 const settings = readSettings(paths.dataDir)
@@ -31,11 +32,11 @@ const settings = readSettings(paths.dataDir)
 export const config = {
   ...paths,
   ...settings,
-  model: settings.explicit.model
+  chatModel: settings.explicit.model
     ? { provider: 'openai', modelId: settings.explicit.model }
-    : chatModels[0].model,
+    : modelChoices[0].model,
   host: process.env.FAMILIAR_HOST ?? '127.0.0.1',
-  chatModels,
+  modelChoices,
   /** Sent to push services so they can contact the installation's owner. */
   pushContact:
     process.env.FAMILIAR_PUSH_CONTACT ?? 'mailto:familiar@example.com',

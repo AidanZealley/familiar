@@ -1,6 +1,6 @@
 import type { EntryId } from '@earendil-works/pi-durable'
 import {
-  createExchangeIndex,
+  createMemoryIndex,
   datesIn,
   localDay,
   type Exchange,
@@ -15,7 +15,8 @@ import { categories, type Category, type Scenario } from './scenario.ts'
  * harder to find.
  */
 
-const DAY = 24 * 60 * 60 * 1000
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
 
 /** Years of filler added after the scenario, cumulatively. */
 export const PADDING_YEARS = [0, 1, 5, 10] as const
@@ -98,14 +99,19 @@ function random(seed: number) {
   }
 }
 
-/** `days` days of filler from `start`, `EXCHANGES_PER_DAY` a day. */
-export function fillerExchanges(start: number, days: number, firstId: number) {
+/** `days` days of filler from `start`, `perDay` a day. */
+export function fillerExchanges(
+  start: number,
+  days: number,
+  firstId: number,
+  perDay = EXCHANGES_PER_DAY,
+) {
   const next = random(firstId)
   const pick = <T>(items: readonly T[]) =>
     items[Math.floor(next() * items.length)]
   const exchanges: Exchange[] = []
   for (let day = 0; day < days; day++) {
-    for (let index = 0; index < EXCHANGES_PER_DAY; index++) {
+    for (let index = 0; index < perDay; index++) {
       const picks: Picks = {
         person: pick(people),
         project: pick(projects),
@@ -116,7 +122,8 @@ export function fillerExchanges(start: number, days: number, firstId: number) {
       }
       exchanges.push({
         id: `x${firstId + exchanges.length}`,
-        at: start + day * DAY + index * 60 * 60 * 1000,
+        at:
+          start + day * DAY + index * Math.min(HOUR, Math.floor(DAY / perDay)),
         text: pick(templates)(picks),
         last: (firstId + exchanges.length) as EntryId,
       })
@@ -185,7 +192,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
   const evidence = new Map(real.map((exchange) => [exchange.id, exchange]))
   const skipped = unquoted(scenario)
 
-  const index = createExchangeIndex(EVAL_TIME_ZONE)
+  const index = createMemoryIndex(EVAL_TIME_ZONE)
   const end = noonOf(scenario.days.at(-1)!.date)
   const result: RecallResult = {
     scenario: scenario.id,
@@ -212,7 +219,7 @@ export function runRecallEval(scenario: Scenario): RecallResult {
 
     const started = performance.now()
     for (const exchange of pending) {
-      index.add(exchange)
+      index.addExchange(exchange)
     }
     buildMs += performance.now() - started
     result.buildMs[years] = buildMs
@@ -230,10 +237,14 @@ export function runRecallEval(scenario: Scenario): RecallResult {
     )
     for (const question of scenario.questions) {
       const searchStarted = performance.now()
-      const found = index.search(question.text, now, {
-        limit: 10,
-        ranges: datesIn(question.text, localDay(now, EVAL_TIME_ZONE)),
-      })
+      const found = index
+        .search(question.text, {
+          now,
+          kind: 'exchange',
+          ranges: datesIn(question.text, localDay(now, EVAL_TIME_ZONE)),
+        })
+        .slice(0, 10)
+        .flatMap((hit) => (hit.kind === 'exchange' ? [hit.exchange] : []))
       times.push(performance.now() - searchStarted)
       const texts = found.map((exchange) =>
         (evidence.get(exchange.id)?.text ?? '').toLowerCase(),

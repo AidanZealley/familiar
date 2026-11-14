@@ -11,7 +11,7 @@ import {
 
 /** What a Familiar's stream has sent, as plain data. */
 export type FamiliarState = { connection: Connection } & MirroredDocuments<
-  'model' | 'memory' | 'episodes' | 'schedules'
+  'model' | 'memory' | 'schedules'
 >
 
 export type FamiliarStore = Store<FamiliarState> &
@@ -35,7 +35,6 @@ export function createFamiliarStore(
     connection: 'connecting',
     model: undefined,
     memory: undefined,
-    episodes: undefined,
     schedules: undefined,
   }))
   const mirror = openMirror(

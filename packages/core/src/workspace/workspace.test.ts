@@ -4,8 +4,7 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { expect, onTestFinished, test } from 'vitest'
-import { openMemory, rememberFact } from '../memory/facts.ts'
-import { withHarness } from '../memory/testing.ts'
+import { seedPage, withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
 import { definePlugin, defineTool, Type } from '../index.ts'
 import { offeredTools, ReopenableStorage, replyTo } from '../testing.ts'
@@ -27,7 +26,7 @@ const read = async <T>(
 
 test('Familiars in one workspace each keep their own chat, memory, schedules, model level and identity', async () => {
   const storage = new ReopenableStorage()
-  // Ada remembers Miso, as her upkeep would have filed it; Bo knows nothing
+  // Ada remembers Miso, as her memory would have kept it; Bo knows nothing
   // but has a persona of his own.
   const { ada, bo } = await withHarness(storage, (harness) =>
     harness.commit(async (tx) => {
@@ -36,15 +35,15 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
         name: 'Bo',
         persona: 'You are Bo, a gardener.',
       })
-      rememberFact(
-        await openMemory(tx, ada),
+      await seedPage(
+        tx,
+        ada,
         {
-          text: 'Has a cat called Miso',
-          importance: 4,
-          since: '2026-11-02',
-          sources: [],
+          name: 'Aidan',
+          kind: 'person',
+          person: 'aidan',
         },
-        Date.now(),
+        'Has a cat called Miso',
       )
       return { ada, bo }
     }, BACKGROUND_CONTEXT),
@@ -74,7 +73,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
       },
       { models: [{ id: 'sol', reasoning: true }] },
     ),
-    model: { provider: 'faux', modelId: 'sol' },
+    chatModel: { provider: 'faux', modelId: 'sol' },
     timeZone: 'UTC',
     hostInstructions: 'Replies render as plain text.',
   })
@@ -122,9 +121,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
     Object.keys((await read(() => familiar(ada).schedules.watch())) ?? {}),
   ).toHaveLength(1)
   expect((await read(() => familiar(bo).schedules.watch())) ?? {}).toEqual({})
-  expect((await read(() => familiar(bo).memory.watch()))?.facts ?? []).toEqual(
-    [],
-  )
+  expect((await read(() => familiar(bo).memory.watch()))?.subjects).toEqual([])
   expect(
     (await read(() => familiar(ada).watch())).docs['pi.agent']?.thinkingLevel,
   ).toBe('high')
@@ -152,7 +149,7 @@ test("a Familiar is offered only the plugins it opted in to, from its next reque
       }
       return fauxAssistantMessage('Hello.')
     }),
-    model: { provider: 'faux', modelId: 'faux-1' },
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
     timeZone: 'UTC',
     plugins: [
       definePlugin({
@@ -211,7 +208,7 @@ test("a host's default tools fill in on the first open only, so a change made la
     openWorkspace({
       storage,
       models: scriptedModels(() => fauxAssistantMessage('Hello.')),
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
       plugins: [
         definePlugin({ name: 'weather', title: 'Weather', tools: [] }),
@@ -245,7 +242,7 @@ test("a person's host name fills in on the first open only; the name they choose
         shown.push(JSON.stringify(request.context.messages.at(-1)))
         return fauxAssistantMessage('Hello.')
       }),
-      model: { provider: 'faux', modelId: 'faux-1' },
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
       timeZone: 'UTC',
       people: [{ id: 'aidan', name }],
     })

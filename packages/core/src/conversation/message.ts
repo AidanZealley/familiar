@@ -175,7 +175,7 @@ export const readMessage = (
  * The input a generation request answers, read from its entry so the words
  * are exactly as sent, without the room's context or the model copy's
  * header. Undefined outside a request, or for an input `saidBy` doesn't
- * read, such as upkeep's.
+ * read, such as memory's.
  */
 export async function answeredInput(tx: Tx, taskId: TaskId) {
   const task = await tx.task(taskId)
