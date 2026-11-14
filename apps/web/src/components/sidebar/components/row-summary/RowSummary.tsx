@@ -45,7 +45,7 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
           </time>
         )}
       </div>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex h-4 min-w-0 items-center gap-2">
         {room?.turns.length ? (
           <LiveStatus live={live} className="flex-1" />
         ) : last ? (
