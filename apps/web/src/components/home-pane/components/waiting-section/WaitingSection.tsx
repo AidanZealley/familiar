@@ -11,6 +11,7 @@ export const WaitingSection = ({
   rooms,
   familiars,
   layout,
+  children,
 }: WaitingSectionProps) => (
   <section aria-label={label} className="flex flex-col gap-2">
     {Icon && (
@@ -34,6 +35,7 @@ export const WaitingSection = ({
           layout={layout === 'grid' ? 'tile' : 'row'}
         />
       ))}
+      {children}
     </div>
   </section>
 )
