@@ -1,7 +1,7 @@
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { Hono, type Context } from 'hono'
 import { validator } from 'hono/validator'
-import type { ConversationApi } from './index.ts'
+import type { WorkspaceFamiliar } from '../workspace/index.ts'
 import { can, type AccessEnv } from '../access.ts'
 import { ModelError } from './models.ts'
 
@@ -22,12 +22,13 @@ async function change(c: Context, run: () => Promise<void>) {
 
 /**
  * A Familiar's model and reasoning level, mounted at `/familiars/:familiar/model`.
+ * Setting its model chooses its own, instead of the workspace's default.
  * The current ones stream from the Familiar's `/events` as `model`.
  */
 export const modelRoutes = (
   familiarOf: (
     c: Context,
-  ) => Pick<ConversationApi, 'models' | 'setModel' | 'setThinkingLevel'>,
+  ) => Pick<WorkspaceFamiliar, 'models' | 'setModel' | 'setThinkingLevel'>,
 ) =>
   new Hono<AccessEnv>()
     // The models the Familiar may switch to.

@@ -1,4 +1,5 @@
 import type { Context } from '@earendil-works/chord'
+import type { ModelSetting } from '../conversation/models.ts'
 import {
   defineDoc,
   type ConversationId,
@@ -36,12 +37,18 @@ export type FamiliarIdentity = {
    */
   avatar?: string
   /**
-   * What its memory's filing and consolidation run on, instead of the workspace's `memoryModel`:
-   * one of `modelChoices`, at that choice's level. Applies from the next
-   * pass. If a later restart drops it from `modelChoices`, memory falls back
-   * to the workspace's.
+   * What its chat runs on, instead of the workspace's default: one of
+   * `modelChoices`. Applies from its next request. If a later restart drops
+   * it from `modelChoices`, the chat follows the default again.
    */
-  memoryModel?: ModelRef
+  chatModel?: ModelRef
+  /**
+   * What its memory's filing and consolidation run on, instead of the
+   * workspace's default: one of `modelChoices`, at the level given, else as
+   * workspace/models.ts says. Applies from the next pass. If a later
+   * restart drops it from `modelChoices`, memory follows the default again.
+   */
+  memoryModel?: ModelSetting
 }
 
 /** The longest avatar a Familiar may keep: a choice, not an image. */
@@ -169,7 +176,9 @@ export function checkIdentity<T extends Partial<FamiliarIdentity>>(
 }
 
 /** Sets one of a record's optional fields, or removes it for `null`. */
-export function change<K extends 'persona' | 'avatar' | 'memoryModel'>(
+export function change<
+  K extends 'persona' | 'avatar' | 'chatModel' | 'memoryModel',
+>(
   record: FamiliarRecord,
   field: K,
   value: FamiliarRecord[K] | null | undefined,

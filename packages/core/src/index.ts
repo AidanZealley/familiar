@@ -10,6 +10,8 @@ export {
   type FamiliarIdentity,
   type FamiliarSummary,
   type FamiliarsState,
+  type ModelDefaults,
+  type ModelDefaultsChange,
   type Workspace,
   type WorkspaceFamiliar,
   type WorkspaceOptions,
@@ -37,6 +39,7 @@ export {
   ModelError,
   type ModelChoice,
   type ModelOption,
+  type ModelSetting,
 } from './conversation/models.ts'
 export type { MemoryApi } from './memory/index.ts'
 export {

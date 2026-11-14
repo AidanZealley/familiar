@@ -13,7 +13,7 @@ import {
   type TaskRuntime,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { findModelChoice, type ModelChoice } from '../../conversation/models.ts'
+import type { ModelChoice } from '../../conversation/models.ts'
 import { Rooms } from '../../rooms/rooms.ts'
 import { Schedules } from '../../schedules/schedules.ts'
 import { addDays, hourOn, localDay } from '../../time.ts'
@@ -98,10 +98,8 @@ type Step =
   | ({ phase: 'profiling'; subject: string; changed: number } & Call)
 
 export type FilingOptions = {
-  /** What memory's calls run on unless the Familiar's record picks another. */
-  memoryModel: ModelChoice
-  /** The models a Familiar's record may pick, each at its level. */
-  modelChoices: readonly ModelChoice[]
+  /** What `record`'s memory calls run on, at that choice's level. */
+  memoryModelOf: (tx: Tx, record: FamiliarRecord) => Promise<ModelChoice>
   /** The IANA zone that sets the nights and dates what was said. */
   timeZone: string
 }
@@ -115,8 +113,7 @@ export function createFiling(options: FilingOptions) {
 
   /**
    * Sets up the Familiar's memory conversation for one call, from nothing,
-   * so no call sees another's. A record's model that is no longer a choice
-   * falls back to the workspace's.
+   * so no call sees another's.
    */
   const startCall = async (
     tx: Tx,
@@ -125,9 +122,7 @@ export function createFiling(options: FilingOptions) {
     withFile: boolean,
     input: string,
   ): Promise<Call> => {
-    const { model, thinkingLevel } =
-      findModelChoice(options.modelChoices, record.memoryModel) ??
-      options.memoryModel
+    const { model, thinkingLevel } = await options.memoryModelOf(tx, record)
     await configure(tx, record.upkeep, {
       model,
       thinkingLevel,

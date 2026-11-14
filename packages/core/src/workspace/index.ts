@@ -30,8 +30,11 @@ import {
 } from '../conversation/index.ts'
 import {
   findModelChoice,
+  ModelError,
   modelKey,
+  modelOptions,
   type ModelChoice,
+  type ModelOption,
 } from '../conversation/models.ts'
 import { DEFAULT_CONTEXT_BUDGET, harnessOptions } from './harness.ts'
 import { createMcp } from '../mcp/manager.ts'
@@ -74,6 +77,12 @@ import {
   type FamiliarCapabilities,
 } from './capabilities.ts'
 import { MEMORY_WRITERS } from './harness.ts'
+import {
+  ChosenDefaults,
+  createModelSettings,
+  type ModelDefaults,
+  type ModelDefaultsChange,
+} from './models.ts'
 import { removeFamiliar } from './remove.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
@@ -82,20 +91,23 @@ export type {
   FamiliarCapabilities,
 } from './capabilities.ts'
 export { CapabilityError } from './capabilities.ts'
+export type { ModelDefaults, ModelDefaultsChange } from './models.ts'
 
 export type WorkspaceOptions = {
   storage: Storage
   models: Models
   /**
-   * What each Familiar's chat starts on until someone picks another. Must be
-   * one of `modelChoices`.
+   * What Familiars' chats run on by default, until the owner chooses
+   * another default (`setModelDefaults`) or a Familiar its own. Must be one
+   * of `modelChoices`.
    */
   chatModel: ModelRef
   /**
-   * What memory's filing and consolidation run on unless a Familiar picks another, at its level
-   * in `modelChoices`: background memory work needs less than a chat does,
-   * so it can run on a cheaper model. Must be one of `modelChoices`.
-   * Default `chatModel`.
+   * What memory's filing and consolidation run on by default, at its level
+   * in `modelChoices`, until the owner chooses another default or a Familiar
+   * its own: background memory work needs less than a chat does, so it can
+   * run on a cheaper model. Must be one of `modelChoices`. Default
+   * `chatModel`.
    */
   memoryModel?: ModelRef
   /**
@@ -210,6 +222,12 @@ export type WorkspaceOptions = {
  */
 export type WorkspaceFamiliar = ConversationApi & {
   id: FamiliarId
+  /**
+   * Puts its chat on one of `models()` instead of the workspace's default,
+   * on the level last picked for it, else its default. Throws a ModelError
+   * for any other model. `familiars.update` returns it to the default.
+   */
+  setModel(model: ModelRef): Promise<void>
   memory: MemoryApi
   schedules: SchedulesApi
   /**
@@ -233,12 +251,13 @@ export type FamiliarsState = { familiars: Record<string, FamiliarIdentity> }
 const identities = (registry: Readonly<Registry> | null): FamiliarsState => ({
   familiars: Object.fromEntries(
     Object.entries(registry?.familiars ?? {}).map(
-      ([id, { name, persona, avatar, memoryModel }]) => [
+      ([id, { name, persona, avatar, chatModel, memoryModel }]) => [
         id,
         {
           name,
           ...(persona !== undefined && { persona }),
           ...(avatar !== undefined && { avatar }),
+          ...(chatModel !== undefined && { chatModel }),
           ...(memoryModel !== undefined && { memoryModel }),
         },
       ],
@@ -249,12 +268,13 @@ const identities = (registry: Readonly<Registry> | null): FamiliarsState => ({
 /**
  * A change to who a Familiar is. A `null` persona returns it to the
  * default, a `null` avatar to the one its ID derives, and a `null`
- * memoryModel to the workspace's.
+ * chatModel or memoryModel to the workspace's default.
  */
 export type FamiliarChange = {
   name?: string
   persona?: string | null
   avatar?: string | null
+  chatModel?: ModelRef | null
   memoryModel?: ModelRef | null
 }
 
@@ -271,17 +291,17 @@ export type Workspace = {
     get(id: FamiliarId): WorkspaceFamiliar | undefined
     /**
      * Creates one using `capabilities`, or else the workspace's default
-     * tools. Throws a TypeError for a blank name or persona, or a memoryModel
-     * that isn't one of `modelChoices`, and a CapabilityError for a plugin or
-     * connection the workspace hasn't.
+     * tools. Throws a TypeError for a blank name or persona, or a chatModel
+     * or memoryModel that isn't one of `modelChoices`, and a CapabilityError
+     * for a plugin or connection the workspace hasn't.
      */
     create(
       identity: FamiliarIdentity & { capabilities?: CapabilitiesChange },
     ): Promise<WorkspaceFamiliar>
     /**
-     * Changes who it is, from its next request, and its memoryModel from its
-     * next memory call. Throws a TypeError for a blank name or persona, or a
-     * memoryModel that isn't one of `modelChoices`.
+     * Changes who it is and its chatModel from its next request, and its
+     * memoryModel from its next memory call. Throws a TypeError for a blank
+     * name or persona, or a model that isn't one of `modelChoices`.
      */
     update(id: FamiliarId, change: FamiliarChange): Promise<void>
     /**
@@ -317,6 +337,16 @@ export type Workspace = {
    * workspace hasn't.
    */
   setDefaultCapabilities(change: CapabilitiesChange): Promise<void>
+  /** The models a Familiar may run on, with their names and levels. */
+  modelOptions(): ModelOption[]
+  /** What Familiars' chats and memory run on unless they choose their own. */
+  modelDefaults(): Promise<ModelDefaults>
+  /**
+   * Changes the defaults; each model given replaces that job's. A Familiar
+   * that follows the chat default moves from its next request. Throws a
+   * TypeError for a model that isn't one of `modelChoices`.
+   */
+  setModelDefaults(change: ModelDefaultsChange): Promise<void>
   /**
    * Where people talk to Familiars: DMs, one per Familiar and person, and
    * named rooms with one or more Familiars.
@@ -359,15 +389,14 @@ export async function openWorkspace(
     { model: options.chatModel, thinkingLevel: 'medium' },
   ]
   checkTimeZone(options.timeZone)
-  const choice = (model: ModelRef) => {
-    const found = findModelChoice(modelChoices, model)
-    if (!found) {
-      throw new TypeError(`${modelKey(model)} must be one of modelChoices.`)
-    }
-    return found
-  }
-  choice(options.chatModel)
-  const memoryModel = choice(options.memoryModel ?? options.chatModel)
+  // Every choice resolved once, so a catalog missing one fails at startup.
+  const offered = modelOptions(options.models, modelChoices)
+  const settings = createModelSettings(offered, {
+    chat: options.chatModel,
+    memory: options.memoryModel ?? options.chatModel,
+  })
+  settings.check(options.chatModel)
+  settings.check(options.memoryModel ?? options.chatModel)
   // Checked before storage opens, like the zone.
   const maxSchedules = checkMaxSchedules(options.maxSchedules)
   const maxHandoffs = checkMaxHandoffs(options.maxHandoffs)
@@ -403,8 +432,7 @@ export async function openWorkspace(
 
     const memory = createMemory(harness, {
       now: options.now ?? Date.now,
-      memoryModel,
-      modelChoices,
+      memoryModelOf: settings.memoryOf,
       timeZone: options.timeZone,
     })
 
@@ -485,13 +513,17 @@ export async function openWorkspace(
     const open = async (id: FamiliarId) => {
       // Core as installed now, and what it chose.
       await harness.commit((tx) => reselect(tx, id, available()), context)
+      const conversation = await installConversation(harness, id, offered)
+      await harness.commit((tx) => settings.applyChatModels(tx, [id]), context)
       const familiar: WorkspaceFamiliar = {
         id,
-        ...(await installConversation(harness, id, {
-          models: options.models,
-          chatModel: options.chatModel,
-          modelChoices,
-        })),
+        ...conversation,
+        setModel: async (model) => {
+          if (!findModelChoice(modelChoices, model)) {
+            throw new ModelError(`${modelKey(model)} is not a model choice.`)
+          }
+          await update(id, { chatModel: model })
+        },
         memory: await memory.open(id),
         schedules: await schedules.open(harness, id),
         capabilities: async () =>
@@ -507,6 +539,35 @@ export async function openWorkspace(
       }
       opened.set(id, familiar)
       return familiar
+    }
+
+    const update = async (
+      id: FamiliarId,
+      { name, persona, avatar, chatModel, memoryModel }: FamiliarChange,
+    ) => {
+      checkIdentity({
+        name,
+        persona: persona ?? undefined,
+        avatar: avatar ?? undefined,
+      })
+      for (const model of [chatModel, memoryModel]) {
+        if (model) {
+          settings.check(model)
+        }
+      }
+      await harness.commit(async (tx) => {
+        const record = await familiarRecord(tx, id)
+        if (name !== undefined) {
+          record.name = name
+        }
+        change(record, 'persona', persona)
+        change(record, 'avatar', avatar)
+        change(record, 'chatModel', chatModel)
+        change(record, 'memoryModel', memoryModel)
+        if (chatModel !== undefined) {
+          await settings.applyChatModels(tx, [id])
+        }
+      }, context)
     }
 
     const list = async () =>
@@ -529,8 +590,10 @@ export async function openWorkspace(
           viewWatch((await harness.watchDoc(Familiars, context))!, identities),
         get: (id) => opened.get(id),
         create: async ({ capabilities, ...identity }) => {
-          if (identity.memoryModel) {
-            choice(identity.memoryModel)
+          for (const model of [identity.chatModel, identity.memoryModel]) {
+            if (model) {
+              settings.check(model)
+            }
           }
           return open(
             await harness.commit(async (tx) => {
@@ -540,25 +603,7 @@ export async function openWorkspace(
             }, context),
           )
         },
-        update: async (id, { name, persona, avatar, memoryModel }) => {
-          checkIdentity({
-            name,
-            persona: persona ?? undefined,
-            avatar: avatar ?? undefined,
-          })
-          if (memoryModel) {
-            choice(memoryModel)
-          }
-          await harness.commit(async (tx) => {
-            const record = await familiarRecord(tx, id)
-            if (name !== undefined) {
-              record.name = name
-            }
-            change(record, 'persona', persona)
-            change(record, 'avatar', avatar)
-            change(record, 'memoryModel', memoryModel)
-          }, context)
-        },
+        update,
         remove: async (id) => {
           await removeFamiliar(harness, id, context)
           opened.delete(id)
@@ -582,6 +627,11 @@ export async function openWorkspace(
           (tx) => setDefaultCapabilities(tx, available(), change),
           context,
         ),
+      modelOptions: () => offered,
+      modelDefaults: async () =>
+        settings.defaults(await harness.snapshot(ChosenDefaults, context)),
+      setModelDefaults: (change) =>
+        harness.commit((tx) => settings.setDefaults(tx, change), context),
       rooms: rooms.api,
       account: account?.api,
       mcp: mcp.api,

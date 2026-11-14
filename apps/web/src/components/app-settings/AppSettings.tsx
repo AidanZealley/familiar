@@ -2,6 +2,7 @@ import {
   GearSixIcon,
   BellIcon,
   CpuIcon,
+  KeyIcon,
   PaletteIcon,
   PlugIcon,
   SparkleIcon,
@@ -15,6 +16,7 @@ import { useWorkspace } from '@/lib/familiar'
 import { AppearanceSettings } from './components/appearance-settings'
 import { DefaultTools } from './components/default-tools'
 import { ModelAccount } from './components/model-account'
+import { ModelDefaults } from './components/model-defaults'
 import { YourProfile } from './components/your-profile'
 
 /** The one Settings: you and this device, then the workspace. */
@@ -92,9 +94,18 @@ export const AppSettings = () => {
               content: <DefaultTools />,
             },
             {
+              id: 'models',
+              label: 'Models',
+              icon: CpuIcon,
+              keywords: 'chat memory default thinking',
+              description:
+                "What every Familiar answers and remembers with, unless it has its own in its settings' Models.",
+              content: <ModelDefaults />,
+            },
+            {
               id: 'account',
               label: 'Model account',
-              icon: CpuIcon,
+              icon: KeyIcon,
               keywords: 'chatgpt sign in sign out provider',
               description: 'Every Familiar answers through this sign-in.',
               content: <ModelAccount />,
