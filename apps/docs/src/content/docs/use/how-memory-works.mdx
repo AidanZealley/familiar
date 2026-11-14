@@ -127,7 +127,7 @@ If a call fails, the night stops where it is. Nothing is skipped: the next night
 
 ### Why nightly
 
-Filing in small batches keeps each call easy to get right, and the transcript is searchable the moment a message is sent, so nothing waits on filing to be found. Nightly is enough for notes and profiles, and it means a day of ordinary conversation is a handful of small calls.
+Filing in small batches keeps each call easy to get right. Running it nightly costs little and loses little, because nothing waits on filing to be found. A Familiar keeps one working context across all its rooms, so the day's conversation is usually still in the model's view, word for word. If that context has been summarised in the meantime, the earlier exchanges are already searchable. Only notes and profiles wait for the night, which matters only when a Familiar is busy enough to summarise its context several times a day.
 
 ## Reading: what the model sees
 
@@ -204,7 +204,7 @@ Contributors can run both with `pnpm eval:longmem` and `pnpm eval:memory-scenari
 
 ## Limits
 
-- Notes and profiles are a night behind. A fact said this morning is in the transcript, and search can find it, but it isn't in a profile until tomorrow.
+- Notes and profiles are a night behind. A lasting fact said this morning is still in the model's view, or searchable if the context has been summarised since, but it isn't a note or part of a profile until tomorrow. That only shows on a Familiar busy enough to summarise its context during the day.
 - Memory is only as good as what people said. It never infers from tools, the web or the Familiar's own replies, by design.
 - Word search can miss evidence that shares no words with the question and has no journal line that bridges them.
 - Replacing a note relies on the memory model noticing that a message changes it. When it misses one, the newer conversation is still found by search, but the old note stays until something replaces it.
