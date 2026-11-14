@@ -43,7 +43,7 @@ export const ConnectionToggles = ({
             key={`${connection.kind}:${connection.name}`}
             variant="outline"
             size="sm"
-            className="flex-nowrap"
+            className="flex-nowrap items-start"
           >
             <ItemMedia variant="icon">
               {connection.kind === 'plugin' ? <PlugIcon /> : <HardDrivesIcon />}
