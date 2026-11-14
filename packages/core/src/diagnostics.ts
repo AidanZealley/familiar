@@ -13,6 +13,7 @@ export {
 export {
   Journal,
   keyOf,
+  LIMITS,
   Memory,
   Pages,
   type JournalLine,

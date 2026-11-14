@@ -10,7 +10,6 @@ import type {
 import { OWNER_ID } from '../../serve.ts'
 import type { DemoClock } from '../clock.ts'
 import { seedMcp } from '../scenarios/mcp.ts'
-import { SEED_MESSAGE } from './memory.ts'
 import { createScript } from './script.ts'
 import type { Moment, RoomSeed, Said, Story } from './story.ts'
 
@@ -36,8 +35,8 @@ export const startOf = (story: Story) =>
 
 /**
  * Plays `story` into a fresh workspace through its API, on `clock`, which
- * starts at `startOf(story)`: who's who, their tools and memory, then every
- * room's history in time order, letting schedules fall due on the way. Then
+ * starts at `startOf(story)`: who's who and their tools, then every room's
+ * history in time order, memory seeded on the way (see memory.ts), letting schedules fall due on the way. Then
  * real time resumes and each room's `live` message is sent and left
  * running. `first` is the Familiar the daemon created, the story's first.
  */
@@ -99,12 +98,6 @@ export async function seedHousehold(
     clock.set(at)
   }
 
-  // Memory first, as the demo always has: the first Familiar is asked to
-  // seed every Familiar's, in its DM.
-  const dm = await open(workspace, await workspace.rooms.dm(first, OWNER_ID))
-  await dm.post({ author, text: SEED_MESSAGE, requestId: 'seed' })
-  await settle()
-
   const rooms = new Map<RoomSeed, RoomApi>()
   for (const room of story.rooms) {
     const id =
@@ -124,9 +117,9 @@ export async function seedHousehold(
     }))
 
   let requests = 0
-  const post = (room: RoomSeed, { say }: Said) =>
+  const post = (room: RoomSeed, { say, by }: Said) =>
     rooms.get(room)!.post({
-      author,
+      author: by ?? author,
       text: say,
       requestId: `story-${++requests}`,
       mentions: mentionsIn(say, members(room)),
