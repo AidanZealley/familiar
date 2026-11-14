@@ -44,13 +44,7 @@ const recency = (ageMs: number) => Math.max(0.25, 0.5 ** (ageMs / YEAR))
 
 export type Hit =
   | { kind: 'exchange'; exchange: Exchange; lines: readonly JournalLine[] }
-  | {
-      kind: 'note'
-      note: Note
-      subject: Subject
-      /** When its source message was sent, if that exchange is indexed. */
-      said?: number
-    }
+  | { kind: 'note'; note: Note; subject: Subject }
 
 export type SearchOptions = {
   now: number
@@ -162,16 +156,7 @@ export function createMemoryIndex(timeZone: string) {
     const subject = subjects.get(notes.get(id) ?? '')
     const note =
       subject && pages.get(subject.id)?.notes.find((n) => n.id === id)
-    const source = note && positions.get(exchangeId(note.source))
-    return (
-      note &&
-      subject && {
-        kind: 'note',
-        note,
-        subject,
-        ...(source !== undefined && { said: exchanges[source].at }),
-      }
-    )
+    return note && subject && { kind: 'note', note, subject }
   }
 
   return {
