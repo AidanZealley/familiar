@@ -27,8 +27,11 @@ export type RunKey = {
   models: { memory: string; reply: string; judge: string }
   /** A hash of the code that decides what filing and replies do. */
   code: string
-  /** The code hash of the run whose filed stores this one reuses (`--reask`). */
-  filedBy?: string
+  /**
+   * Another run's stages this one reuses, made by that run's code: its
+   * filing (`--reask`), or its filing and replies (`--rejudge`).
+   */
+  reused?: { code: string; through: Reused }
 }
 
 export type Stage = { tokens: TokenTotals; elapsedMs: number }
@@ -62,7 +65,7 @@ export function openRun(
   if (existsSync(keyFile)) {
     const made = JSON.parse(readFileSync(keyFile, 'utf8')) as RunKey
     const differs = (
-      ['set', 'haystack', 'models', 'code', 'filedBy'] as const
+      ['set', 'haystack', 'models', 'code', 'reused'] as const
     ).filter((field) => !same(made[field], key[field]))
     if (differs.length) {
       throw new RunMismatch(
@@ -112,15 +115,24 @@ export type Run = ReturnType<typeof openRun>
 export const keyOf = (directory: string) =>
   JSON.parse(readFileSync(join(directory, 'run.json'), 'utf8')) as RunKey
 
+/** The last stage reused from another run; the stages after it run again. */
+export type Reused = 'filing' | 'reply'
+
 /**
- * Gives `to` the filed stores of every question `from` has filed and `to`
- * hasn't, so only the reply and the verdict run again. For changes that
- * touch only what a reply sees: filing stays as `from`'s code left it.
+ * Gives `to` the filed store and saved stages, through `through`, of every
+ * question `from` has done that far and `to` hasn't started. `filing`
+ * re-asks: for changes that touch only what a reply sees. `reply` re-judges:
+ * the same replies graded by another judge.
  */
-export function reuseFilings(from: Run, to: Run) {
+export function reuse(from: Run, to: Run, through: Reused) {
   for (const saved of from.all()) {
     const store = from.storePath(saved.question)
-    if (!saved.filing || !existsSync(store) || to.read(saved.question)) {
+    if (
+      !saved[through] ||
+      !saved.filing ||
+      !existsSync(store) ||
+      to.read(saved.question)
+    ) {
       continue
     }
     for (const suffix of ['', '-wal', '-shm']) {
@@ -135,6 +147,7 @@ export function reuseFilings(from: Run, to: Run) {
       question: saved.question,
       type: saved.type,
       filing: saved.filing,
+      ...(through === 'reply' && { reply: saved.reply }),
     })
   }
 }
