@@ -19,7 +19,6 @@
     "eval:longmem": "pnpm --filter @familiar-ai/daemon eval:longmem",
     "eval:longmem-retrieval": "pnpm --filter @familiar-ai/daemon eval:longmem-retrieval",
     "eval:memory-scenarios": "pnpm --filter @familiar-ai/daemon eval:memory-scenarios",
-    "eval:memory-speed": "pnpm --filter @familiar-ai/daemon eval:memory-speed",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
