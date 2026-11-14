@@ -9,6 +9,7 @@ import type {
   FamiliarCapabilities,
   FamiliarIdentity,
   FamiliarSummary,
+  JournalLine,
   McpServer,
   Mention,
   ModelOption,
@@ -210,6 +211,15 @@ export const familiarCommands = (api: Api, id: number) => {
             param: { ...param, subject },
           }),
         ),
+      /** A month's journal lines, `YYYY-MM`, in the order they were filed. */
+      journal: async (month: string): Promise<JournalLine[]> =>
+        (
+          await read(
+            familiar.memory.journal[':month'].$get({
+              param: { ...param, month },
+            }),
+          )
+        ).lines,
       /** Forgets a note. */
       forget: (note: string) =>
         succeed(

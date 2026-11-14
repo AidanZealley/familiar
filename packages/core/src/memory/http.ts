@@ -16,11 +16,15 @@ async function answer<T>(c: Context, run: () => Promise<T>) {
 
 /**
  * A Familiar's memory, mounted at `/familiars/:familiar/memory`. Its
- * subjects stream as the `memory` document; pages and the prompt section
- * are read here, and forgetting is the one change.
+ * subjects stream as the `memory` document; pages, journal months and the
+ * prompt section are read here, and forgetting is the one change.
  */
 export const memoryRoutes = (memoryOf: (c: Context) => MemoryApi) =>
   new Hono<AccessEnv>()
+    // A month's journal lines, `YYYY-MM`.
+    .get('/journal/:month', can('memory.read'), async (c) =>
+      c.json(await memoryOf(c).journal(c.req.param('month')), 200),
+    )
     // The memory section of the prompt, as the model sees it now.
     .get('/section', can('memory.read'), async (c) =>
       c.json({ text: await memoryOf(c).section() }, 200),

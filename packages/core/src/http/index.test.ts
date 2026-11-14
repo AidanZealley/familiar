@@ -391,6 +391,8 @@ test('familiar routes reach that Familiar, and a missing one is 404', async () =
     profile: 'Where Sam lives.',
     notes: [],
   })
+  const journal = await app.request(`/familiars/${id}/memory/journal/2026-01`)
+  expect(await journal.json()).toEqual({ lines: [] })
   const missing = await send(
     app,
     'POST',
