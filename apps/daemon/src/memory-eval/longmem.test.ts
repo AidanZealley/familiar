@@ -180,6 +180,7 @@ test('a usage limit trips the meter, and everything it reports into', async () =
 /** Scripted models for the three stages, counting what each is asked. */
 function scripted(replies: {
   reply: () => ReturnType<typeof fauxAssistantMessage>
+  judge?: () => ReturnType<typeof fauxAssistantMessage>
 }) {
   const faux = fauxProvider({
     models: [{ id: 'memory' }, { id: 'reply' }, { id: 'judge' }],
@@ -201,7 +202,7 @@ function scripted(replies: {
     return model.id === 'reply'
       ? replies.reply()
       : model.id === 'judge'
-        ? fauxAssistantMessage('yes')
+        ? (replies.judge?.() ?? fauxAssistantMessage('yes'))
         : // Memory files nothing, in its one call.
           fauxAssistantMessage([fauxToolCall('file', {})], {
             stopReason: 'toolUse',
@@ -288,6 +289,30 @@ test('a limit stops a question cleanly, and a rerun skips what was saved', async
   const summary = summarise([run.read(question.id)!])
   expect(summary).toMatchObject({ questions: 1, correct: 1 })
   expect(summary.tokens.total.total).toBeGreaterThanOrEqual(0)
+})
+
+test('a limit on the judge stops the question as a limit, keeping the reply', async () => {
+  const question: Question = questionOf(entry())
+  const { access } = scripted({
+    reply: () => fauxAssistantMessage('Too much cheese.'),
+    judge: () =>
+      fauxAssistantMessage([], {
+        stopReason: 'error',
+        errorMessage:
+          'The ChatGPT user has reached their Subscription Sharing usage limit.',
+      }),
+  })
+  const run = openRun(join(directory, 'judge-limit'), key)
+  const error = await runQuestion(question, {
+    run,
+    access,
+    root: createMeter(Infinity),
+    scratch: directory,
+  }).catch((e) => e)
+  expect(error).toBeInstanceOf(UsageLimitError)
+  const stopped = run.read(question.id)!
+  expect(stopped.reply?.text).toBe('Too much cheese.')
+  expect(stopped.judge).toBeUndefined()
 })
 
 test('a run refuses saved work made with another model, set or code', () => {

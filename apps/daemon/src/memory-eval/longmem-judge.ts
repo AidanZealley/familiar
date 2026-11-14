@@ -1,5 +1,6 @@
 import type { MutableModels } from '@earendil-works/pi-ai/models'
 import { isAbstention, type Question } from './longmem-data.ts'
+import { classifyLimit, UsageLimitError } from './model.ts'
 
 /**
  * LongMemEval's judge: the prompts it grades a model's answer with, one for
@@ -89,6 +90,11 @@ export async function judge(
       : { maxTokens: 16, temperature: 0 },
   )
   if (message.stopReason === 'error' || message.stopReason === 'aborted') {
+    // A usage limit stops the run as a limit, so `--wait` sleeps through it.
+    const limit = classifyLimit(message.errorMessage, Date.now())
+    if (limit) {
+      throw new UsageLimitError(message.errorMessage!, limit.resetAt)
+    }
     throw new Error(
       `The judge failed: ${message.errorMessage ?? message.stopReason}.`,
     )
