@@ -13,7 +13,7 @@ import {
 } from './longmem-data.ts'
 import { CONTEXT_BUDGET } from './longmem-history.ts'
 import { STAGES, summarise } from './longmem-report.ts'
-import { codeHash, openRun, RunMismatch } from './longmem-run.ts'
+import { codeHash, keyOf, openRun, reuse, RunMismatch } from './longmem-run.ts'
 import { runSet } from './longmem-set.ts'
 import { readSets } from './longmem-sets.ts'
 import {
@@ -36,6 +36,8 @@ const { values } = parseArgs({
     wait: { type: 'boolean', default: false },
     'projection-only': { type: 'boolean', default: false },
     run: { type: 'string' },
+    reask: { type: 'string' },
+    rejudge: { type: 'string' },
     fresh: { type: 'boolean', default: false },
   },
 })
@@ -72,13 +74,50 @@ const entries = await readDataset(await ensureDataset(undefined, console.log))
 const ids = idsOf(set, readSets(entries), entries)
 const byId = new Map(entries.map((entry) => [entry.question_id, entry]))
 
+const runDirectory = (name: string) => join(evalDirectory(), 'longmem', name)
 let run: ReturnType<typeof openRun>
 try {
+  // --reask <run>: reuse that run's filing, so only replies and verdicts
+  // run. --rejudge <run>: reuse its filing and replies, so only verdicts do.
+  if (values.reask && values.rejudge) {
+    throw new RunMismatch('Pass --reask or --rejudge, not both.')
+  }
+  const from = values.rejudge ?? values.reask
+  const through = values.rejudge ? 'reply' : 'filing'
+  const source = from && runDirectory(from)
+  const sourceKey = source ? keyOf(source) : undefined
+  if (
+    sourceKey &&
+    (sourceKey.set !== set ||
+      sourceKey.haystack !== haystack ||
+      sourceKey.models.memory !== access.names.memory ||
+      (through === 'reply' && sourceKey.models.reply !== access.names.reply))
+  ) {
+    throw new RunMismatch(
+      `${source} was made for another set, haystack or model, so its ${through === 'reply' ? 'filing and replies' : 'filing'} can't be reused here.`,
+    )
+  }
   run = openRun(
-    join(evalDirectory(), 'longmem', values.run ?? `${set}-${haystack}`),
-    { set, haystack, models: access.names, code: codeHash() },
+    runDirectory(
+      values.run ??
+        (from
+          ? `${from}-re${through === 'reply' ? 'judge' : 'ask'}`
+          : `${set}-${haystack}`),
+    ),
+    {
+      set,
+      haystack,
+      models: access.names,
+      code: codeHash(),
+      ...(sourceKey && {
+        reused: { code: sourceKey.reused?.code ?? sourceKey.code, through },
+      }),
+    },
     { fresh: values.fresh },
   )
+  if (source && sourceKey) {
+    reuse(openRun(source, sourceKey), run, through)
+  }
 } catch (error) {
   if (error instanceof RunMismatch) {
     console.error(error.message)

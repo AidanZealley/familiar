@@ -8,18 +8,16 @@ import {
 } from '@earendil-works/pi-durable'
 import { textOf } from '../conversation/message.ts'
 import { familiarOf, type FamiliarId } from '../workspace/familiars.ts'
-import type { FilingApi } from './filing/task.ts'
 import { renderSection } from './section.ts'
 import { createMemoryTools } from './tools.ts'
 import type { ViewOf } from './view.ts'
 
 export type MemoryExtensionOptions = {
   viewOf: ViewOf
-  filing: Pick<FilingApi, 'startPass'>
   /**
    * Automatic recall's note for the input `request` answers, or null.
-   * `query` is the model's copy of that input, searched when no person sent
-   * it. Hooks can't read the transcript, so the owner of the Harness does.
+   * `query` is the model's copy of that input. Hooks can't read the
+   * transcript, so the owner of the Harness does.
    */
   recall: (
     familiar: FamiliarId,
@@ -31,17 +29,14 @@ export type MemoryExtensionOptions = {
 }
 
 /**
- * Memory in the chat: the section of the prompt it always sees, evidence
- * recalled for the latest message, and the tools to search, open and ask
- * memory to keep something.
+ * Memory in the chat: the prompt section it always sees, evidence recalled
+ * for the latest message, and the tools to search and open memory.
  */
 export const createMemoryExtension = (options: MemoryExtensionOptions) =>
   defineExtension({
     name: 'familiar.memory',
-    tools: createMemoryTools(options.viewOf, options.filing, options.timeZone),
+    tools: createMemoryTools(options.viewOf, options.timeZone),
     sections: [
-      // Changes only when a profile or the roster does, so the provider's
-      // prompt cache holds between.
       section('memory', async (input, context) => {
         const familiar = await familiarOf(
           input.read,
@@ -59,20 +54,17 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
     hooks: [
       hook(GenerationTask, {
         // Recalled evidence goes after everything else, for this request
-        // only: the prompt, the stored transcript and every earlier message
-        // stay byte for byte the same, so the provider's prompt cache holds.
+        // only, so the prompt and every earlier message stay byte for byte
+        // the same and the provider's prompt cache holds.
         beforeRequest: async ({ messages }, api, context) => {
           const latest = messages.findLast((message) => message.role === 'user')
           const familiar = await familiarOf(api, api.conversationId, context)
-
           // Only the Familiar's chat: memory's own calls are never shown more.
           if (!latest || familiar !== api.conversationId) {
             return
           }
-
           // Searched once per run and memoised, so a retried or follow-up
-          // request shows exactly what the first one did, even if memory has
-          // changed since.
+          // request shows exactly what the first one did.
           let recalled = await api.memo<{ note: string | null }>(
             'familiar.recall',
             context,
@@ -87,7 +79,6 @@ export const createMemoryExtension = (options: MemoryExtensionOptions) =>
           if (recalled.note === null) {
             return
           }
-
           const note: Message = {
             role: 'user',
             content: recalled.note,

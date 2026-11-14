@@ -21,7 +21,7 @@ A host opens one workspace over one storage, and makes its Familiars and rooms o
 
 - **Storage.** `MemoryStorage` for tests, Pi Durable's SQLite storage on Node, or a Durable Object on Workers. Only one live workspace may own a storage at a time.
 - **Models and credentials.** A `Models` instance with providers registered and a credential store. See [Models and sign-in](/familiar/build/models-and-sign-in/).
-- **Time zone.** An IANA zone such as `Europe/London`. Memory's dates and nightly tidy, and schedules, use it.
+- **Time zone.** An IANA zone such as `Europe/London`. Memory's dates and nightly filing, and schedules, use it.
 - **Identity.** Who sent each message. Familiar records an `Author` with a stable `id` and a display `name`. It doesn't authenticate anyone.
 - **Audience.** Which rooms each person reaches: a DM each with a Familiar, named rooms shared by a group, or both. Everyone a Familiar serves shares what it remembers, its tools and its schedules, so separate audiences, such as tenants, get separate workspaces over separate storage.
 - **Authorization.** Which operations each person may use, with `createHttpApi`'s `allow`, and narrower rules about your app's data and actions, which tools check against the call's author, `familiar(context).author()`. Attribution grants nothing.

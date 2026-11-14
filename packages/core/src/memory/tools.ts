@@ -1,119 +1,133 @@
 import { Type } from '@earendil-works/pi-ai'
-import { defineTool } from '@earendil-works/pi-durable'
-import { MESSAGE_KIND } from '../conversation/message.ts'
-import { Rooms } from '../rooms/rooms.ts'
-import { callInput } from '../tools.ts'
-import { familiarDoc, familiarFor } from '../workspace/familiars.ts'
-import type { FilingApi } from './filing/task.ts'
-import { Filing } from './filing/task.ts'
-import { readMemory } from './read.ts'
-import { recallAll } from './recall.ts'
-import type { ViewOf } from './view.ts'
+import { defineTool, type ToolExecutionApi } from '@earendil-works/pi-durable'
+import type { Context } from '@earendil-works/chord'
+import { Rooms, type RoomRegistry } from '../rooms/rooms.ts'
+import { localMinute } from '../time.ts'
+import { familiarFor } from '../workspace/familiars.ts'
+import { exchangeId, placeOf, type Exchange } from './exchanges.ts'
+import { clipText } from './store.ts'
+import { describeHit, recallText } from './recall.ts'
+import type { MemoryView, ViewOf } from './view.ts'
+
+/** How much of an exchange `read_memory` shows, and of those either side. */
+const SHOWN = { exchange: 6_000, beside: 1_500 }
+
+const showExchange = (
+  view: MemoryView,
+  exchange: Exchange,
+  length: number,
+  rooms: Readonly<RoomRegistry>,
+  timeZone: string,
+) =>
+  [
+    `${exchange.id} (${localMinute(exchange.at, timeZone)}, ${exchange.author ? `${exchange.author.name} in ` : ''}${placeOf(rooms, exchange.room)}):`,
+    exchange.text.length > length
+      ? `${exchange.text.slice(0, length)}…`
+      : exchange.text,
+    ...view
+      .linesOf(exchange.id)
+      .map((line) => `Journal, on ${line.on}: ${line.text}`),
+  ].join('\n')
+
+/** What lies behind a subject, note or exchange ID. */
+export function readMemory(
+  view: MemoryView,
+  id: string,
+  rooms: Readonly<RoomRegistry>,
+  timeZone: string,
+) {
+  const subject = view.subject(id)
+  if (subject) {
+    const page = view.page(id)
+    return [
+      `${subject.id} ${subject.name}${subject.line ? `: ${subject.line}` : ''}`,
+      `Profile: ${page?.profile || '(none yet)'}`,
+      ...(page?.notes ?? []).map(
+        (note) =>
+          `${describeHit({ kind: 'note', note, subject }, '', rooms, timeZone)}\n  Rests on: "${note.quote}"`,
+      ),
+    ].join('\n')
+  }
+  const note = view.note(id)
+  const around = view.around(note ? exchangeId(note.note.source) : id)
+  if (note) {
+    return [
+      describeHit(note, '', rooms, timeZone),
+      `Rests on: "${note.note.quote}"`,
+      around
+        ? `From:\n${showExchange(view, around.exchange, SHOWN.exchange, rooms, timeZone)}`
+        : 'Its message is not searchable yet.',
+    ].join('\n')
+  }
+  if (around) {
+    const { before, exchange, after } = around
+    return [
+      before &&
+        `Before:\n${showExchange(view, before, SHOWN.beside, rooms, timeZone)}`,
+      showExchange(view, exchange, SHOWN.exchange, rooms, timeZone),
+      after &&
+        `After:\n${showExchange(view, after, SHOWN.beside, rooms, timeZone)}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+  }
+  return `Nothing has the ID ${id}. Subjects start with s, notes with n and conversations with x; the latest message isn't searchable yet, but you can already see it.`
+}
 
 const text = (text: string) => ({
   output: [{ type: 'text' as const, text }],
 })
 
-/**
- * The chat's memory tools. The two that read catch the view up with the
- * transcript first; `remember` takes no content, only marks the message
- * it answers as asked-for and has it filed now.
- */
-export function createMemoryTools(
-  viewOf: ViewOf,
-  filing: Pick<FilingApi, 'startPass'>,
-  timeZone: string,
-) {
+/** The chat's memory tools; both catch the view up with the transcript first. */
+export function createMemoryTools(viewOf: ViewOf, timeZone: string) {
+  const read = async (
+    api: ToolExecutionApi,
+    context: Context,
+    answer: (view: MemoryView, rooms: Readonly<RoomRegistry>) => string,
+  ) => {
+    const familiar = await api.commit(
+      (tx) => familiarFor(tx, api.conversationId),
+      context,
+    )
+    const view = viewOf(familiar)
+    await view.ready()
+    return api
+      .commit(async (tx) => {
+        await view.catchUp(tx)
+        return answer(view, await tx.doc(Rooms))
+      }, context)
+      .then(text)
+  }
+
   const recall = defineTool({
     name: 'recall',
     description:
-      "Search everything you've been told beyond what you always see: notes about people and things, including ones no longer true, and the conversations themselves, with the dated journal lines that make them findable. Use it when you need something you don't see. from and to keep only what happened on those days; about keeps only what concerns one person or thing. It says how many match and whether you've seen them all; read_memory opens any result.",
+      "Search everything you've been told beyond what you always see: notes about people and things, and the conversations themselves, with the dated journal lines that make them findable. from and to keep only what happened on those days. read_memory opens any result.",
     parameters: Type.Object({
       query: Type.String({
-        description:
-          'Words to search for; empty to list everything in from–to or about.',
+        description: 'Words to search for; empty to list what is in from–to.',
       }),
       from: Type.Optional(
         Type.String({ description: 'First day, YYYY-MM-DD.' }),
       ),
       to: Type.Optional(Type.String({ description: 'Last day, YYYY-MM-DD.' })),
-      about: Type.Optional(
-        Type.String({ description: 'A subject: its ID (s…) or name.' }),
-      ),
-      offset: Type.Optional(
-        Type.Integer({
-          minimum: 0,
-          description: 'Matches to skip, for the next page.',
-        }),
-      ),
     }),
-    execute: async (args, api, context) => {
-      const familiar = await api.commit(
-        (tx) => familiarFor(tx, api.conversationId),
-        context,
-      )
-      const view = viewOf(familiar)
-      await view.ready()
-      return api
-        .commit(async (tx) => {
-          await view.catchUp(tx)
-          return recallAll(view, args, api.now(), await tx.doc(Rooms), timeZone)
-        }, context)
-        .then(text)
-    },
+    execute: (args, api, context) =>
+      read(api, context, (view, rooms) =>
+        recallText(view, args, api.now(), rooms, timeZone),
+      ),
   })
 
-  const read = defineTool({
+  const readMemoryTool = defineTool({
     name: 'read_memory',
     description:
-      'Open what lies behind an ID: a person or thing (s…), with its profile and notes; a note (n…), with the messages it rests on; or a conversation (x…), with the exchanges either side.',
+      'Open what lies behind an ID: a person or thing (s…), with its profile and notes; a note (n…), with the message it rests on; or a conversation (x…), with the ones either side.',
     parameters: Type.Object({ id: Type.String() }),
-    execute: async (args, api, context) => {
-      const familiar = await api.commit(
-        (tx) => familiarFor(tx, api.conversationId),
-        context,
-      )
-      const view = viewOf(familiar)
-      await view.ready()
-      return api
-        .commit(async (tx) => {
-          await view.catchUp(tx)
-          return readMemory(view, args.id.trim(), await tx.doc(Rooms), timeZone)
-        }, context)
-        .then(text)
-    },
+    execute: (args, api, context) =>
+      read(api, context, (view, rooms) =>
+        readMemory(view, clipText(args.id, 40), rooms, timeZone),
+      ),
   })
 
-  const remember = defineTool({
-    name: 'remember',
-    description:
-      "Call this when someone asks you to remember what they've just said. It takes nothing: their message is kept in memory as asked for, from now on.",
-    parameters: Type.Object({}),
-    // Marking twice changes nothing.
-    replay: 'safe',
-    execute: (_args, api, context) =>
-      api
-        .commit(async (tx) => {
-          const familiar = await familiarFor(tx, api.conversationId)
-          const input = await callInput(tx, api.taskId)
-          if (
-            input?.kind !== MESSAGE_KIND ||
-            input.conversationId !== familiar
-          ) {
-            return "Only a person's own message can be remembered, and this isn't one."
-          }
-          await filing.startPass(tx, familiar)
-          const progress = await familiarDoc(tx, Filing, familiar)
-          if (progress.through !== null && input.id <= progress.through) {
-            return 'That message is already in memory.'
-          }
-          if (!progress.asked.includes(input.id)) {
-            progress.asked.push(input.id)
-          }
-          return 'Kept: it is being filed now.'
-        }, context)
-        .then(text),
-  })
-
-  return [recall, read, remember]
+  return [recall, readMemoryTool]
 }

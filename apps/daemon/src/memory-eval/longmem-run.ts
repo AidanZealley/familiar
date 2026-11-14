@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -26,6 +27,11 @@ export type RunKey = {
   models: { memory: string; reply: string; judge: string }
   /** A hash of the code that decides what filing and replies do. */
   code: string
+  /**
+   * Another run's stages this one reuses, made by that run's code: its
+   * filing (`--reask`), or its filing and replies (`--rejudge`).
+   */
+  reused?: { code: string; through: Reused }
 }
 
 export type Stage = { tokens: TokenTotals; elapsedMs: number }
@@ -58,9 +64,9 @@ export function openRun(
   const keyFile = join(directory, 'run.json')
   if (existsSync(keyFile)) {
     const made = JSON.parse(readFileSync(keyFile, 'utf8')) as RunKey
-    const differs = (['set', 'haystack', 'models', 'code'] as const).filter(
-      (field) => !same(made[field], key[field]),
-    )
+    const differs = (
+      ['set', 'haystack', 'models', 'code', 'reused'] as const
+    ).filter((field) => !same(made[field], key[field]))
     if (differs.length) {
       throw new RunMismatch(
         `${directory} was made with a different ${differs
@@ -104,6 +110,47 @@ export function openRun(
 }
 
 export type Run = ReturnType<typeof openRun>
+
+/** A run's key, as saved in its directory. */
+export const keyOf = (directory: string) =>
+  JSON.parse(readFileSync(join(directory, 'run.json'), 'utf8')) as RunKey
+
+/** The last stage reused from another run; the stages after it run again. */
+export type Reused = 'filing' | 'reply'
+
+/**
+ * Gives `to` the filed store and saved stages, through `through`, of every
+ * question `from` has done that far and `to` hasn't started. `filing`
+ * re-asks: for changes that touch only what a reply sees. `reply` re-judges:
+ * the same replies graded by another judge.
+ */
+export function reuse(from: Run, to: Run, through: Reused) {
+  for (const saved of from.all()) {
+    const store = from.storePath(saved.question)
+    if (
+      !saved[through] ||
+      !saved.filing ||
+      !existsSync(store) ||
+      to.read(saved.question)
+    ) {
+      continue
+    }
+    for (const suffix of ['', '-wal', '-shm']) {
+      if (existsSync(`${store}${suffix}`)) {
+        copyFileSync(
+          `${store}${suffix}`,
+          `${to.storePath(saved.question)}${suffix}`,
+        )
+      }
+    }
+    to.write({
+      question: saved.question,
+      type: saved.type,
+      filing: saved.filing,
+      ...(through === 'reply' && { reply: saved.reply }),
+    })
+  }
+}
 
 /**
  * A hash of the code that decides what filing and a reply do: Familiar's own

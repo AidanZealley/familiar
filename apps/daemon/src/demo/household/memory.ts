@@ -8,11 +8,12 @@ import {
   Familiars,
   keyOf,
   localDay,
-  memoryOf,
+  Memory,
   Pages,
   type FamiliarId,
   type Note,
 } from '@familiar-ai/core/diagnostics'
+import type { EntryId, Tx } from '@earendil-works/pi-durable'
 import { OWNER_ID } from '../../serve.ts'
 import { DEMO_TIME_ZONE } from '../scenarios/scenario.ts'
 
@@ -26,11 +27,9 @@ type Dated = [text: string, monthsAgo: number]
 export type MemorySeed = {
   /** Notes still true, with how many months ago they became true. */
   facts: Dated[]
-  /** Notes that changed, each version with when it became true; the last is still true. */
+  /** Notes that changed, each version with when it became true; only the last is kept. */
   changes?: { versions: Dated[] }[]
-  /** Notes that stopped being true with nothing to replace them. */
-  retired?: [text: string, since: number, until: number][]
-  /** What its profile of the owner says, as consolidation would have written it. */
+  /** What its profile of the owner says, as the night would have written it. */
   pinned?: string[]
 }
 
@@ -135,7 +134,6 @@ const juniper: MemorySeed = {
       ],
     },
   ],
-  retired: [['Commutes on the number 14 bus with a £64 monthly pass.', 11, 4]],
   pinned: [
     'Name is Rowan. Turned thirty in 2021.',
     'Retired greyhound Pip (racing name Silver Comet), home since 2019. Vet: Dr Celia Moss at Quarry Veterinary Practice.',
@@ -228,7 +226,7 @@ const todayAt = (at: number) =>
   new Date(`${localDay(at, DEMO_TIME_ZONE)}T00:00:00Z`)
 
 /**
- * The owner's page as filing and consolidation would have left it, dated
+ * The owner's page as filing would have left it, dated
  * back from now: each note true since the 10th of its month and said by the
  * owner. Seeded notes cite no messages; the demo has none to cite.
  */
@@ -236,37 +234,19 @@ function notesAsOf(seed: MemorySeed, now: Date, first: number) {
   const monthsAgo = (count: number) =>
     new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - count, 10))
   const notes: Note[] = []
-  const save = (text: string, since: Date) => {
-    const note: Note = {
+  const save = (text: string, since: Date) =>
+    notes.push({
       id: `n${first + notes.length}`,
-      kind: 'fact',
       text,
-      mentions: [],
       since: dayOf(since),
       quote: text,
-      sources: [],
+      // Seeded: no message to rest on.
+      source: 0 as EntryId,
       saidBy: OWNER,
-      origin: 'stated',
-      saved: since.getTime(),
-    }
-    notes.push(note)
-    return note
-  }
+    })
   for (const { versions } of seed.changes ?? []) {
-    let previous: Note | undefined
-    for (const [text, ago] of versions) {
-      const note = save(text, monthsAgo(ago))
-      if (previous) {
-        previous.until = note.since
-        previous.retired = { reason: 'superseded', by: note.id, at: note.saved }
-      }
-      previous = note
-    }
-  }
-  for (const [text, from, until] of seed.retired ?? []) {
-    const note = save(text, monthsAgo(from))
-    note.until = dayOf(monthsAgo(until))
-    note.retired = { reason: 'obsolete', at: monthsAgo(until).getTime() }
+    const [text, ago] = versions.at(-1)!
+    save(text, monthsAgo(ago))
   }
   for (const [text, ago] of seed.facts) {
     save(text, monthsAgo(ago))
@@ -275,7 +255,7 @@ function notesAsOf(seed: MemorySeed, now: Date, first: number) {
 }
 
 /** Each Familiar with a memory seed, by ID, from the registry. */
-async function seeded(tx: Parameters<typeof memoryOf>[0]) {
+async function seeded(tx: Tx) {
   const { familiars } = await tx.doc(Familiars)
   return Object.entries(familiars).flatMap(([id, { name }]) =>
     memories[name]
@@ -291,8 +271,8 @@ export const seedMemory = defineTool({
   parameters: Type.Object({}),
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
-      for (const [id, name, seed] of await seeded(tx)) {
-        const memory = await memoryOf(tx, id, name)
+      for (const [id, , seed] of await seeded(tx)) {
+        const memory = await tx.doc(Memory, String(id), null)
         const subject = `s${memory.next.subject++}`
         const notes = notesAsOf(seed, todayAt(api.now()), memory.next.note)
         memory.next.note += notes.length
@@ -300,11 +280,10 @@ export const seedMemory = defineTool({
           id: subject,
           kind: 'person',
           name: OWNER.name,
-          aliases: [],
           line: '',
-          participant: { kind: 'person', id: OWNER.id },
+          person: OWNER.id,
           changed: api.now(),
-          tidied: api.now(),
+          profiled: api.now(),
         })
         const page = await tx.doc(Pages, keyOf(id, subject), null)
         page.notes = notes

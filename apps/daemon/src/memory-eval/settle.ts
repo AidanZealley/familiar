@@ -4,7 +4,7 @@ import type { ReplyData } from '@familiar-ai/core'
 import type { createClock } from './clock.ts'
 import type { Meter } from './model.ts'
 
-/** Timers due within this long fire even while work runs: Pi's retry backoff, never the hourly memory clock. */
+/** Timers due within this long fire even while work runs: Pi's retry backoff, never the nightly memory clock. */
 const BACKOFF = 5 * 60 * 1000
 /** How long, in real time, such a timer stands before it is fired. */
 const STOOD = 3_000

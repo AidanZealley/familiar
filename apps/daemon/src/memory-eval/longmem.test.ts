@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
@@ -21,7 +21,7 @@ import {
 import { writeHistory } from './longmem-history.ts'
 import { projectTokens, summarise } from './longmem-report.ts'
 import { groupsOf, openMemorySearch } from './longmem-retrieval.ts'
-import { openRun, RunMismatch, type RunKey } from './longmem-run.ts'
+import { openRun, reuse, RunMismatch, type RunKey } from './longmem-run.ts'
 import { runQuestion } from './longmem.ts'
 import { runSet, SAMPLE, type SetOptions } from './longmem-set.ts'
 import {
@@ -302,6 +302,37 @@ test('a run refuses saved work made with another model, set or code', () => {
   expect(() =>
     openRun(path, { ...key, code: 'y' }, { fresh: true }),
   ).not.toThrow()
+})
+
+test('a reask run takes over filing alone, and a rejudge run filing and replies', () => {
+  const filed = openRun(join(directory, 'filed'), key)
+  const tokens = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 2 }
+  filed.write({
+    question: 'q',
+    type: 'multi-session',
+    filing: { tokens, elapsedMs: 1 },
+    reply: { tokens, elapsedMs: 1, text: 'old' },
+  })
+  writeFileSync(filed.storePath('q'), 'store')
+  const reask = openRun(join(directory, 'reask'), {
+    ...key,
+    code: 'y',
+    reused: { code: key.code, through: 'filing' },
+  })
+  reuse(filed, reask, 'filing')
+  expect(existsSync(reask.storePath('q'))).toBe(true)
+  expect(reask.read('q')).toEqual({
+    question: 'q',
+    type: 'multi-session',
+    filing: { tokens, elapsedMs: 1 },
+  })
+  const rejudge = openRun(join(directory, 'rejudge'), {
+    ...key,
+    models: { ...key.models, judge: 'other' },
+    reused: { code: key.code, through: 'reply' },
+  })
+  reuse(filed, rejudge, 'reply')
+  expect(rejudge.read('q')?.reply?.text).toBe('old')
 })
 
 test('the projection is the mean of what the measured questions cost, stage by stage', () => {

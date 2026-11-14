@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-14",
+  "commit": "v0.2.0-89-g1cfe6f19",
+  "models": {
+    "memory": "openai/gpt-6-luna",
+    "reply": "openai/gpt-6.1-sol",
+    "judge": "openai/gpt-6.1-sol"
+  },
+  "results": [
+    {
+      "id": "schedule-set-up",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "What do you know about me?",
+          "shown": {
+            "reply": "Not much yet, Aidan. From what you’ve told me in this DM:\n\n- Your name is **Aidan**.\n- You want a digest of the latest **Hacker News stories about 3D printing**, every weekday at **8am**.\n- That digest is scheduled for **UK time**—though that doesn’t necessarily mean you live in the UK.\n\nI don’t yet know your work, location, hobbies, or other personal details. Your digest request suggests an interest in 3D printing, but I wouldn’t assume more than that.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation. Everyone here works together and shares what you know: what someone told you in a DM can help you in any room. When you use it, say who told you and where.\n\nPeople you work with:\nAidan (s1)\n</memory>",
+            "recalled": ""
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 7194,
+        "output": 534,
+        "cacheRead": 5120,
+        "cacheWrite": 0,
+        "total": 12848
+      }
+    }
+  ]
+}

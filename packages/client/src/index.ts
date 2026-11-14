@@ -26,12 +26,8 @@ export type {
   Mention,
   ModelOption,
   Note,
-  NoteKind,
   PageState,
-  PageView,
-  Participant,
   PushSubscriptionJson,
-  Retired,
   Room,
   RoomActivity,
   RoomListing,
@@ -41,9 +37,7 @@ export type {
   RoomTurn,
   Schedule,
   SchedulesState,
-  Standing,
   Subject,
-  SubjectKind,
   TurnActivity,
 } from '@familiar-ai/core/http'
 export type { ModelThinkingLevel } from '@earendil-works/pi-ai'

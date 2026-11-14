@@ -1,14 +1,14 @@
-import { MEMORY_INTRO } from './filing/prompts.ts'
-import { LIMITS, SELF, type PageState, type Subject } from './store.ts'
+import { LIMITS, type PageState, type Subject } from './store.ts'
 
 /**
- * The memory section of the chat's prompt: the only memory always in view.
- * The Familiar's own profile, the profile of each person who takes part,
- * and a roster of everyone and everything else, most recently changed
- * first, within its budget. It grows with the number of people, not with
- * how long the Familiar has run, and changes only when a profile or the
- * roster does, so the provider's prompt cache holds between.
+ * The memory section of the chat's prompt, the only memory always in view:
+ * the profile of each person who takes part, and a roster of everyone and
+ * everything else, most recently changed first, within its budget. It
+ * changes only when a profile or the roster does, so the provider's prompt
+ * cache holds between.
  */
+
+export const MEMORY_INTRO = `What you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: \`recall\` searches everything else you've been told, including earlier conversations by date, and \`read_memory\` opens a page or a conversation. Everyone here works together and shares what you know: what someone told you in a DM can help you in any room. When you use it, say who told you and where.`
 
 export type SectionSource = {
   subjects(): readonly Subject[]
@@ -20,31 +20,25 @@ export function renderSection(
   rosterBudget: number = LIMITS.roster,
 ) {
   const subjects = memory.subjects()
-  const self = memory.page(SELF)?.profile
-  const people = subjects.filter(
-    (subject) => subject.participant?.kind === 'person',
-  )
+  const people = subjects.filter((subject) => subject.person !== undefined)
   const others = subjects
-    .filter((subject) => subject.kind !== 'self' && !people.includes(subject))
+    .filter((subject) => subject.person === undefined)
     .sort((a, b) => b.changed - a.changed)
 
   const roster: string[] = []
   let size = 0
   for (const subject of others) {
     const line = `${subject.name} (${subject.id})${subject.line ? `: ${subject.line}` : ''}`
-    if (size + line.length + 1 > rosterBudget) {
+    size += line.length + 1
+    if (size > rosterBudget) {
       break
     }
     roster.push(line)
-    size += line.length + 1
   }
   const left = others.length - roster.length
 
   return [
     MEMORY_INTRO,
-    '',
-    'How you have learned to work:',
-    self || '(nothing yet)',
     '',
     'People you work with:',
     ...(people.length

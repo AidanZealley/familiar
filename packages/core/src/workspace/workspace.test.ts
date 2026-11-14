@@ -41,7 +41,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
         {
           name: 'Aidan',
           kind: 'person',
-          participant: { kind: 'person', id: 'aidan' },
+          person: 'aidan',
         },
         'Has a cat called Miso',
       )
@@ -121,11 +121,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
     Object.keys((await read(() => familiar(ada).schedules.watch())) ?? {}),
   ).toHaveLength(1)
   expect((await read(() => familiar(bo).schedules.watch())) ?? {}).toEqual({})
-  expect(
-    (await read(() => familiar(bo).memory.watch()))?.subjects.map(
-      (subject) => subject.kind,
-    ),
-  ).toEqual(['self'])
+  expect((await read(() => familiar(bo).memory.watch()))?.subjects).toEqual([])
   expect(
     (await read(() => familiar(ada).watch())).docs['pi.agent']?.thinkingLevel,
   ).toBe('high')

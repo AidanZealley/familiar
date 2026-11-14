@@ -10,7 +10,7 @@ import {
   type Said,
 } from '../conversation/message.ts'
 import { formatHandoff } from '../rooms/log.ts'
-import type { RoomId } from '../rooms/rooms.ts'
+import type { RoomId, RoomRegistry } from '../rooms/rooms.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { entriesOf } from '../pi/entries.ts'
 
@@ -32,6 +32,15 @@ const inputText = (said: Exclude<Said, { role: 'assistant' }>) => {
   return said.context
     ? `${text}\n[Shown from the room with it, said by others]\n${said.context}`
     : text
+}
+
+/** Where a message was said, as filing and recall show it. */
+export function placeOf(
+  rooms: Readonly<RoomRegistry>,
+  room: RoomId | undefined,
+) {
+  const record = room === undefined ? undefined : rooms.rooms[room]
+  return record?.kind === 'room' ? `#${record.name}` : 'a DM'
 }
 
 /** An exchange's ID: `x` and its input's entry ID. */

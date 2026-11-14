@@ -14,7 +14,6 @@ import {
 } from '@familiar-ai/core'
 import {
   nextNight,
-  nextTick,
   RECALL_HEADING,
   textOf,
 } from '@familiar-ai/core/diagnostics'
@@ -93,7 +92,12 @@ const sectionOf = (messages: Message[]) =>
     '',
   )
 
-/** What recall put in front of the model: the note after the message, and recall's results. */
+/**
+ * What memory put in front of the model: automatic recall's note after the
+ * message, whole, and the notes among the `recall` tool's results. A search
+ * the model chose also finds past conversations, which are the record, not
+ * something memory kept, so only its notes count.
+ */
 const recalledIn = (requests: readonly TranscriptContext[]) => {
   const notes = new Set<string>()
   for (const { messages } of requests) {
@@ -105,7 +109,11 @@ const recalledIn = (requests: readonly TranscriptContext[]) => {
         notes.add(textOf(message))
       }
       if (message.role === 'toolResult' && message.toolName === 'recall') {
-        notes.add(textOf(message))
+        for (const line of textOf(message).split('\n')) {
+          if (/^n\d+, /.test(line)) {
+            notes.add(line)
+          }
+        }
       }
     }
   }
@@ -116,7 +124,7 @@ const authorOf = (name: string): Author => ({ id: name.toLowerCase(), name })
 
 /**
  * Plays `scenario` in a real workspace on `access`'s models: each message in
- * its room at its day's noon, memory filing and consolidating at each night
+ * its room at its day's noon, memory filing and writing profiles each night
  * in between, then
  * each probe asked at its day, graded on its reply, the memory section its
  * request carried and what recall showed.
@@ -199,8 +207,8 @@ export async function runScenario(
       workspace,
       clock,
       meter,
-      // Short of memory's next tick, so a day's messages are filed that night.
-      nextTick(clock.now()),
+      // Short of memory's night, so a day's messages are filed then.
+      nextNight(clock.now(), EVAL_TIME_ZONE),
     )
     return within(
       REPLY_TIMEOUT,
@@ -211,7 +219,7 @@ export async function runScenario(
   }
 
   try {
-    await waitForClock(storage, clock, nextTick(clock.now()))
+    await waitForClock(storage, clock, nextNight(clock.now(), EVAL_TIME_ZONE))
     const events = [
       ...scenario.say.map((event) => ({ event, probe: undefined })),
       ...scenario.probes.map((event) => ({
@@ -224,7 +232,7 @@ export async function runScenario(
     for (const { event, probe } of events) {
       if (event.day !== day) {
         if (day >= 0) {
-          // The night between: memory files what is left and consolidates.
+          // The night between: memory files what is left and writes profiles.
           const night = nextNight(clock.now(), EVAL_TIME_ZONE)
           clock.advanceTo(night)
           await settle(workspace, clock, meter, night + DAY / 2)

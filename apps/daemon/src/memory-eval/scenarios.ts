@@ -189,7 +189,7 @@ export const scenarios: Scenario[] = [
       {
         day: 0,
         who: 'Aidan',
-        text: "I'm planning a surprise party for Maya on 20 June at the Crown pub.",
+        text: 'Maya starts her new job at the library on 3 June.',
       },
     ],
     probes: [
@@ -197,9 +197,9 @@ export const scenarios: Scenario[] = [
         day: 3,
         who: 'Theo',
         room: 'kitchen',
-        text: 'Is anything planned for Maya in June?',
+        text: "What's Maya up to in June?",
         reply: {
-          includes: ['party', 'Aidan'],
+          includes: ['library', 'Aidan'],
           includesAny: ['DM', 'direct message', 'private', 'told me'],
         },
       },

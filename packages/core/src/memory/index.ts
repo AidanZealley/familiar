@@ -2,27 +2,22 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Harness } from '@earendil-works/pi-durable'
 import { answeredInput } from '../conversation/message.ts'
 import { Rooms } from '../rooms/rooms.ts'
-import { familiarRecord, type FamiliarId } from '../workspace/familiars.ts'
+import type { FamiliarId } from '../workspace/familiars.ts'
 import { memoryApi } from './api.ts'
 import { createMemoryExtension } from './extension.ts'
 import { createFiling, type FilingOptions } from './filing/task.ts'
 import { recallNote } from './recall.ts'
-import { memoryOf } from './store.ts'
+import { Memory } from './store.ts'
 import { memoryViews } from './view.ts'
 
-export { MemoryError, type MemoryApi, type PageView } from './api.ts'
+export { MemoryError, type MemoryApi } from './api.ts'
 export type {
   JournalLine,
   JournalState,
   MemoryState,
   Note,
-  NoteKind,
   PageState,
-  Participant,
-  Retired,
-  Standing,
   Subject,
-  SubjectKind,
 } from './store.ts'
 
 export type MemoryOptions = FilingOptions & {
@@ -42,14 +37,12 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
   const filing = createFiling(options)
   const extension = createMemoryExtension({
     viewOf,
-    filing,
     timeZone: options.timeZone,
     recall: async (familiar, model, request) => {
       const view = viewOf(familiar)
       await view.ready()
       return harness.commit(async (tx) => {
-        // The input's own words, as sent: a person's message, a reminder's
-        // prompt or a handoff's note, so the model copy's header and the
+        // The input's own words, as sent, so the model copy's header and the
         // room's context, which the next turn may show again, match nothing.
         const query = (await answeredInput(tx, request))?.text ?? model
         await view.catchUp(tx)
@@ -65,13 +58,13 @@ export function createMemory(harness: Harness, options: MemoryOptions) {
   })
 
   return {
-    extensions: [extension, ...filing.extensions],
+    extensions: [extension, filing.extension],
     /** Starts `familiar`'s filing and returns its memory. */
     open: async (familiar: FamiliarId) => {
       await harness.commit(async (tx) => {
         await filing.start(tx, familiar)
         // Watches only attach to documents that exist.
-        await memoryOf(tx, familiar, (await familiarRecord(tx, familiar)).name)
+        await tx.doc(Memory, String(familiar), null)
       }, context)
       return memoryApi(harness, familiar, viewOf(familiar), options.now)
     },

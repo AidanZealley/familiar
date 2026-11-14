@@ -6,7 +6,7 @@ import type {
 } from '@earendil-works/pi-durable'
 import { modelKey, type ModelChoice } from '../conversation/models.ts'
 import type { WorkspaceOptions } from './index.ts'
-import { FILING_EXTENSION, TIDY_EXTENSION } from '../memory/filing/task.ts'
+import { FILING_EXTENSION } from '../memory/filing/task.ts'
 
 export const DEFAULT_CONTEXT_BUDGET = 64_000
 
@@ -14,10 +14,7 @@ export const DEFAULT_CONTEXT_BUDGET = 64_000
  * Memory's own calls' extensions: only memory's conversation selects them,
  * one call at a time, so no other conversation is offered `file` or `tidy`.
  */
-export const MEMORY_WRITERS: ReadonlySet<string> = new Set([
-  FILING_EXTENSION,
-  TIDY_EXTENSION,
-])
+export const MEMORY_WRITERS: ReadonlySet<string> = new Set([FILING_EXTENSION])
 
 /** How long a model response may go silent before it fails and is retried. */
 const STREAM_TIMEOUT_MS = 180_000

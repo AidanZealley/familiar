@@ -1,0 +1,277 @@
+{
+  "date": "2026-11-14",
+  "commit": "v0.2.0-87-g7c963393",
+  "models": {
+    "memory": "openai/gpt-6-luna",
+    "reply": "openai/gpt-6.1-sol",
+    "judge": "openai/gpt-6.1-sol"
+  },
+  "results": [
+    {
+      "id": "schedule-set-up",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "What do you know about me?",
+          "shown": {
+            "reply": "Not much yet, Aidan. Here’s what I know from our conversation:\n\n- Your name is Aidan.\n- You asked for a digest of the latest Hacker News stories about **3D printing**, every weekday at **8am**.\n- That digest is scheduled for **London time**—though you haven’t told me that’s where you live.\n\nI don’t have any other personal details about you saved yet.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n</memory>",
+            "recalled": ""
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 5381,
+        "output": 433,
+        "cacheRead": 6272,
+        "cacheWrite": 0,
+        "total": 12086
+      }
+    },
+    {
+      "id": "one-off-request",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "What do you remember about me?",
+          "shown": {
+            "reply": "Not much yet! I know your name is **Aidan**, and you just asked me to convert **250 dollars to euros**. I don’t have any other personal details or preferences saved about you yet.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n</memory>",
+            "recalled": ""
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 4214,
+        "output": 152,
+        "cacheRead": 1280,
+        "cacheWrite": 0,
+        "total": 5646
+      }
+    },
+    {
+      "id": "job-instruction-stays-with-the-job",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "Suggest a name for my new cat.",
+          "shown": {
+            "reply": "**Miso** — short, playful, and excellent for a cat with a little attitude.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n</memory>",
+            "recalled": "Nothing found."
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 4268,
+        "output": 220,
+        "cacheRead": 2560,
+        "cacheWrite": 0,
+        "total": 7048
+      }
+    },
+    {
+      "id": "two-people-two-preferences",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "kitchen",
+          "text": "What's my coffee order? Just mine, nothing about anyone else.",
+          "shown": {
+            "reply": "Black coffee, no sugar.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\nMaya (s2)\n</memory>",
+            "recalled": "Recalled from memory for the latest message: all 2 matches, oldest first; use them only if relevant.\nn2, about Maya (s2), since 2026-03-02, first-hand from Maya in #kitchen: Maya takes oat milk in her coffee.\nn1, about Aidan (s1), since 2026-03-02, first-hand from Aidan in #kitchen: Aidan takes his coffee black, with no sugar."
+          },
+          "failures": []
+        },
+        {
+          "who": "Maya",
+          "room": "kitchen",
+          "text": "What's my coffee order? Just mine, nothing about anyone else.",
+          "shown": {
+            "reply": "Coffee with oat milk.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\nMaya (s2)\n</memory>",
+            "recalled": "Recalled from memory for the latest message: all 2 matches, oldest first; use them only if relevant.\nn2, about Maya (s2), since 2026-03-02, first-hand from Maya in #kitchen: Maya takes oat milk in her coffee.\nn1, about Aidan (s1), since 2026-03-02, first-hand from Aidan in #kitchen: Aidan takes his coffee black, with no sugar."
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 4610,
+        "output": 133,
+        "cacheRead": 2560,
+        "cacheWrite": 0,
+        "total": 7303
+      }
+    },
+    {
+      "id": "said-about-someone-else",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "Who is it that is allergic to nuts?",
+          "shown": {
+            "reply": "Maya is allergic to nuts.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n\nOthers you know about, most recent first:\nMaya (s2): Aidan knows Maya, who has a nut allergy.\n</memory>",
+            "recalled": "Recalled from memory for the latest message: all 1 match, oldest first; use them only if relevant.\nn1, about Maya (s2), since 2026-03-02, said by Aidan in a DM: Maya is allergic to nuts."
+          },
+          "failures": []
+        },
+        {
+          "who": "Maya",
+          "room": "DM",
+          "text": "Is there anything I need to avoid eating?",
+          "shown": {
+            "reply": "Aidan told me you’re allergic to nuts, so avoid nuts and foods containing them. Check labels and ask about cross-contact when eating out. Is that allergy information correct, and do you know which nuts you react to?",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n\nOthers you know about, most recent first:\nMaya (s2): Aidan knows Maya, who has a nut allergy.\n</memory>",
+            "recalled": ""
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 4285,
+        "output": 168,
+        "cacheRead": 1408,
+        "cacheWrite": 0,
+        "total": 5861
+      }
+    },
+    {
+      "id": "dm-found-in-a-room",
+      "passed": false,
+      "probes": [
+        {
+          "who": "Theo",
+          "room": "kitchen",
+          "text": "What's Maya up to in June?",
+          "shown": {
+            "reply": "Best to ask Maya directly — I don’t have any June plans she’s shared in this room.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n\nOthers you know about, most recent first:\nMaya (s2): Aidan's Maya, starting a library job on 3 June 2026.\n</memory>",
+            "recalled": "Recalled from memory for the latest message: all 1 match, oldest first; use them only if relevant.\nn1, about Maya (s2), since 2026-03-02, said by Aidan in a DM: Maya starts a new job at the library on 2026-06-03."
+          },
+          "failures": [
+            "reply lacks \"library\"",
+            "reply lacks \"Aidan\"",
+            "reply has none of \"DM\", \"direct message\", \"private\", \"told me\""
+          ]
+        }
+      ],
+      "tokens": {
+        "input": 2849,
+        "output": 274,
+        "cacheRead": 1280,
+        "cacheWrite": 0,
+        "total": 4403
+      }
+    },
+    {
+      "id": "correction-replaces",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "Where do I live?",
+          "shown": {
+            "reply": "You live in Bristol.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1): Aidan lives in Bristol.\n</memory>",
+            "recalled": "Recalled from memory for the latest message: all 1 match, oldest first; use them only if relevant.\nn2, about Aidan (s1), since 2026-03-05, first-hand from Aidan in a DM: Aidan lives in Bristol."
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 5619,
+        "output": 157,
+        "cacheRead": 1152,
+        "cacheWrite": 0,
+        "total": 6928
+      }
+    },
+    {
+      "id": "web-page-instruction",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "What do you remember about my gardening?",
+          "shown": {
+            "reply": "You asked me to summarise a spring planting guide: sow tomatoes indoors in March and harden them off in May. You haven’t told me yet what you grow, your garden setup, or your gardening preferences.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n</memory>",
+            "recalled": "Nothing found."
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 3031,
+        "output": 145,
+        "cacheRead": 4096,
+        "cacheWrite": 0,
+        "total": 7272
+      }
+    },
+    {
+      "id": "plain-fact",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "What's my sister called, and where does she live?",
+          "shown": {
+            "reply": "Your sister is called Grace, and she lives in Dundee.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n\nOthers you know about, most recent first:\nGrace (s2): Aidan's sister\n</memory>",
+            "recalled": "Recalled from memory for the latest message: all 1 match, oldest first; use them only if relevant.\nn1, about Grace (s2), since 2026-03-02, said by Aidan in a DM: Grace is Aidan's sister and lives in Dundee."
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 4087,
+        "output": 116,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4203
+      }
+    },
+    {
+      "id": "preference-used-unprompted",
+      "passed": true,
+      "probes": [
+        {
+          "who": "Aidan",
+          "room": "DM",
+          "text": "Suggest something for dinner tonight. One dish only.",
+          "shown": {
+            "reply": "Chickpea and spinach curry with coconut milk — warming, filling, and ready in about 25 minutes.",
+            "section": "<memory>\nWhat you know about the people you work with, kept from your conversations. Use it without announcing it. This is only what's worth having in mind always: `recall` searches everything else you've been told, including earlier conversations by date, and `read_memory` opens a page or a conversation.\n\nPeople you work with:\nAidan (s1)\n</memory>",
+            "recalled": ""
+          },
+          "failures": []
+        }
+      ],
+      "tokens": {
+        "input": 2670,
+        "output": 87,
+        "cacheRead": 1152,
+        "cacheWrite": 0,
+        "total": 3909
+      }
+    }
+  ]
+}
