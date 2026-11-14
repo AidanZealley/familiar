@@ -183,7 +183,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           )}
           <InputGroupButton
             size="icon-sm"
-            className="size-8"
+            className="ml-auto size-8"
             variant={note ? 'secondary' : 'ghost'}
             aria-label="Send as a note"
             aria-pressed={note}
@@ -199,7 +199,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
             type={showStop ? 'button' : 'submit'}
             size="icon-sm"
             variant={showStop ? 'secondary' : 'default'}
-            className="ml-auto size-8"
+            className="size-8"
             aria-label={showStop ? 'Stop' : 'Send'}
             disabled={!showStop && !text.trim()}
             onClick={showStop ? () => abort.mutate() : undefined}
