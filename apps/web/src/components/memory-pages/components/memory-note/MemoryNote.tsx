@@ -1,3 +1,4 @@
+import { EraserIcon } from '@phosphor-icons/react'
 import { useMutation } from '@tanstack/react-query'
 import {
   AlertDialog,
@@ -40,14 +41,10 @@ export const MemoryNote = ({ familiar, note, subject }: MemoryNoteProps) => {
       <AlertDialog>
         <AlertDialogTrigger
           render={
-            <Button
-              size="xs"
-              variant="ghost"
-              className="text-muted-foreground"
-              disabled={forget.isPending}
-            />
+            <Button size="xs" variant="outline" disabled={forget.isPending} />
           }
         >
+          <EraserIcon data-icon="inline-start" />
           Forget
         </AlertDialogTrigger>
         <AlertDialogContent>
