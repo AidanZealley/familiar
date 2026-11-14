@@ -1,14 +1,14 @@
 import { cn } from 'cn'
 import type { CategoryBodyProps } from './types'
 
-/** A category's heading, what it's for, and its settings. */
+/** A category's heading, what it's for, and its settings, which fill the rest of its height. */
 export const CategoryBody = ({
   category,
   heading = true,
 }: CategoryBodyProps) => (
   <section
     aria-label={category.label}
-    className="flex flex-col gap-6 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-6"
+    className="flex min-h-full flex-col gap-6 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-6"
   >
     {(heading || category.description) && (
       <header className="flex flex-col gap-1">
@@ -29,6 +29,6 @@ export const CategoryBody = ({
         )}
       </header>
     )}
-    {category.content}
+    <div className="flex flex-1 flex-col">{category.content}</div>
   </section>
 )
