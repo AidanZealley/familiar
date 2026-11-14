@@ -1,7 +1,7 @@
-import type { Note, Subject } from '@familiar-ai/client'
+import type { FamiliarSummary, Note, Subject } from '@familiar-ai/client'
 
 export type MemoryNoteProps = {
-  familiar: number
+  familiar: FamiliarSummary
   note: Note
   subject: Subject
 }

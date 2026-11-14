@@ -44,8 +44,8 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
   }
 
   return (
-    <form onSubmit={submit}>
-      <FieldGroup className="gap-6">
+    <form onSubmit={submit} className="flex flex-1 flex-col">
+      <FieldGroup className="flex-1 gap-6">
         <Field>
           <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
           <Input

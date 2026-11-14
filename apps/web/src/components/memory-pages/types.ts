@@ -1,1 +1,3 @@
-export type MemoryPagesProps = { familiar: number }
+import type { FamiliarSummary } from '@familiar-ai/client'
+
+export type MemoryPagesProps = { familiar: FamiliarSummary }

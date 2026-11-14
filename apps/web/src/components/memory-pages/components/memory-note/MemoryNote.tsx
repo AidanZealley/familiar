@@ -1,39 +1,75 @@
 import { useMutation } from '@tanstack/react-query'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { useFamiliarStore } from '@/lib/familiar'
 import { formatDate } from '@/lib/format'
+import { SaidIn } from '../said-in'
 import type { MemoryNoteProps } from './types'
 
-/** One note: what it says, who said it, its quote, and Forget. */
+/** One note and where it came from, with Forget. */
 export const MemoryNote = ({ familiar, note, subject }: MemoryNoteProps) => {
   const store = useFamiliarStore()
   const forget = useMutation({
-    mutationKey: ['memory', familiar],
+    mutationKey: ['memory', familiar.id],
     mutationFn: () => store.memory.forget(note.id),
   })
-  const firstHand = subject.person === note.saidBy.id
 
   return (
-    <li className="flex items-start gap-3">
-      <div className="min-w-0 flex-1">
-        <p>{note.text}</p>
-        <p className="text-xs text-muted-foreground">
-          {firstHand ? 'first-hand' : `said by ${note.saidBy.name}`} · since{' '}
-          {formatDate(note.since)}
-        </p>
-        <p className="text-xs text-muted-foreground italic">“{note.quote}”</p>
+    <li className="flex items-start gap-2">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span>{note.text}</span>
+        <span className="text-xs text-muted-foreground">
+          since {formatDate(note.since)} ·{' '}
+          <SaidIn saidBy={note.saidBy} room={note.room} /> · “{note.quote}”
+        </span>
         {forget.error && (
-          <p className="text-xs text-destructive">{forget.error.message}</p>
+          <span className="text-xs text-destructive">
+            {forget.error.message}
+          </span>
         )}
       </div>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={forget.isPending}
-        onClick={() => forget.mutate()}
-      >
-        Forget
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger
+          render={
+            <Button
+              size="xs"
+              variant="ghost"
+              className="text-muted-foreground"
+              disabled={forget.isPending}
+            />
+          }
+        >
+          Forget
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Forget this note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{note.text}” goes from {subject.name}’s page, and the profile is
+              cleared until it’s rewritten tonight. The conversation it came
+              from stays. If it’s wrong, tell {familiar.name} instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogCancel
+              variant="destructive"
+              onClick={() => forget.mutate()}
+            >
+              Forget
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   )
 }
