@@ -92,7 +92,12 @@ const sectionOf = (messages: Message[]) =>
     '',
   )
 
-/** What recall put in front of the model: the note after the message, and recall's results. */
+/**
+ * What memory put in front of the model: automatic recall's note after the
+ * message, whole, and the notes among the `recall` tool's results. A search
+ * the model chose also finds past conversations, which are the record, not
+ * something memory kept, so only its notes count.
+ */
 const recalledIn = (requests: readonly TranscriptContext[]) => {
   const notes = new Set<string>()
   for (const { messages } of requests) {
@@ -104,7 +109,11 @@ const recalledIn = (requests: readonly TranscriptContext[]) => {
         notes.add(textOf(message))
       }
       if (message.role === 'toolResult' && message.toolName === 'recall') {
-        notes.add(textOf(message))
+        for (const line of textOf(message).split('\n')) {
+          if (/^n\d+, /.test(line)) {
+            notes.add(line)
+          }
+        }
       }
     }
   }
