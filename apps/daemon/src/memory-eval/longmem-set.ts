@@ -140,6 +140,11 @@ export async function runSet(options: SetOptions): Promise<SetOutcome> {
       }
       await pool(pending(), options.parallel, go)
       return undefined
+    } catch (error) {
+      // A limit or cap trips the meter, which aborts every other call; one of
+      // those can fail first. The meter's reason is why the attempt stopped.
+      root.check()
+      throw error
     } finally {
       used += root.totals().total
     }
