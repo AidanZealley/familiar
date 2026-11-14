@@ -1,0 +1,38 @@
+---
+// What reaches the model when it replies.
+---
+
+<figure class="diagram" aria-label="What the model sees when it replies">
+  <div class="diagram-row">
+    <div class="diagram-box">
+      <strong>Every request</strong>
+      <p>
+        The memory section: profiles of the people it works with and the
+        roster. Changes only when a profile or the roster does, so the
+        provider's prompt cache holds.
+      </p>
+    </div>
+    <div class="diagram-box">
+      <strong>Every message</strong>
+      <p>
+        Automatic recall: a search on the message's own words. Up to 20 items,
+        oldest first, appended after the message for that reply only.
+      </p>
+    </div>
+    <div class="diagram-box">
+      <strong>When it decides</strong>
+      <p>
+        <code>recall</code> searches everything, optionally between two dates.
+        <code>read_memory</code> opens a page, a note or a whole exchange.
+      </p>
+    </div>
+  </div>
+  <div class="diagram-arrow">all evidence carries its date, who said it and where</div>
+  <div class="diagram-box accent">
+    <strong>The reply</strong>
+    <p>
+      Written by the chat model, which sees the recent conversation verbatim
+      and everything else through memory.
+    </p>
+  </div>
+</figure>

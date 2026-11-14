@@ -1,0 +1,216 @@
+---
+title: How memory works
+description: What a Familiar remembers, how it decides, how it finds things again, and why it's built that way.
+---
+
+import FilingExample from '../../../components/memory/FilingExample.astro'
+import FilingNight from '../../../components/memory/FilingNight.astro'
+import MemoryLayers from '../../../components/memory/MemoryLayers.astro'
+import ReplyAssembly from '../../../components/memory/ReplyAssembly.astro'
+
+A Familiar talks with you for months or years in one conversation, across DMs and shared rooms. Its model can only read so much at once, so most of that conversation is out of view at any moment. Memory is how it still knows who you are, what you care about and what was said, without rereading everything.
+
+This page explains how that works in depth: what is kept, who decides, how it's checked, how it's found again, and the research the design rests on. For the everyday side (reviewing and forgetting) see [Conversation and memory](/familiar/use/conversation-and-memory/).
+
+## The short version
+
+- The **conversation itself** is the record. Every message and reply is kept and searchable.
+- Each night, the Familiar's **memory model** reads what people said that day and writes two kinds of thing: **notes**, which are what's true of someone now, and **journal lines**, which are dated keys that make a conversation easy to find again.
+- Code checks that every note **quotes a real message from a person**, and records who said it and where. A model never decides attribution, and nothing from a web page, a tool or the Familiar itself can become memory.
+- Each person or thing gets a **page** of notes, and a short **profile** written from them.
+- Before each reply, the Familiar sees the **profiles of the people it works with**, plus **evidence recalled** for the message, and it can **search** everything else.
+
+## Two kinds of knowledge
+
+Memory holds two different things, and the design keeps them apart.
+
+**State** is what is true of someone now: who they are, who matters to them, how they like things done, what they intend. It's small, it changes by replacement ("I've moved to Leeds" replaces "lives in York"), and some of it is worth having in mind in every conversation.
+
+**History** is what happened and what was said. It only grows, it's never wrong later (it stays true that you said something on a Tuesday), and it should only be in view when it's relevant.
+
+Mixing the two causes most of the problems memory systems have. Storing history as facts produces stale copies. Scoring every fact for importance asks a model to guess, on the day, what will matter in a year. Keeping them apart removes the need to score anything.
+
+<MemoryLayers />
+
+The layers map closely onto the hierarchy Anthropic describes in [The components of agent memory](https://www.anthropic.com/research/components-of-agent-memory): searchable transcripts at the bottom, notes and per-entity representations above them, and a small injected layer at the top, with a background process moving information up the hierarchy.
+
+## What's kept
+
+### The transcript
+
+Every message, reply, scheduled run and handoff in the Familiar's conversation is stored as it happened. Memory never copies or rewrites it. When older messages are summarised for the model to save context, the stored messages stay whole, and search still reaches them.
+
+For search, the transcript is read as **exchanges**: one input (a person's message, a scheduled prompt or a handoff) together with the replies to it. That's the smallest piece worth finding again. LongMemEval found that retrieving whole rounds like this answers better than replacing them with extracted facts or summaries, which lose information ([Wu et al., 2025](https://arxiv.org/abs/2410.10813)).
+
+### Pages and notes
+
+A **subject** is anyone or anything the Familiar keeps knowledge about: a person who takes part in the workspace, someone who doesn't (a partner, a child, a GP), or a topic with a life of its own (a home, a project, a pet). Each subject has one **page**.
+
+A page holds **notes**. Each note is one plain statement about its subject, written as a fact about them, never as an instruction to the Familiar. Each note carries:
+
+- the **quote** it rests on, copied word for word from one message;
+- the **message** it came from, so the conversation behind it is always reachable;
+- **who said it** and **where** (a DM or a named room), read from that message by code;
+- **since**, the day it became true.
+
+A note lives on the page of whoever it's about, whoever said it. If Maya says Theo is allergic to nuts, that note goes on Theo's page, marked as said by Maya. The Familiar can then tell first-hand knowledge from second-hand.
+
+People who take part get their pages automatically, linked to their workspace identity, so a rename in the app reaches memory, and two people with the same name stay apart. The memory model only creates pages for people and things that don't take part, and only when it has a note to put on them.
+
+### Profiles
+
+Each page has a **profile**: at most 800 characters on what the Familiar should have in mind about that subject whatever the conversation is about. It leads with who they are and who matters to them, then how they like things done, then what's going on for them now.
+
+Profiles are where hindsight lives. They're rewritten from the current notes whenever a page changes, so a profile reflects everything known, not the guess made on the day a fact was learned. And because they're derived from notes that stay searchable, a poor profile loses nothing.
+
+### The journal
+
+The **journal** is a list of dated lines, one per thing worth finding again: an event, a decision, a purchase, a number, a recommendation. Each line points at the exchange it came from and is dated by **when it happened**, worked out from the message ("yesterday", "last Friday"), not when it was said.
+
+Journal lines are never shown on their own. They're extra search keys on their exchange, so a later question in different words, or about a date range, finds the original conversation. This follows LongMemEval's finding that facts work best as additional keys on the original round rather than as a replacement for it, and that indexing events by when they happened helps questions about time ([Wu et al., 2025](https://arxiv.org/abs/2410.10813)).
+
+The journal is stored one document per month. A month that's over is never rewritten, so years of history cost nothing to keep.
+
+## What becomes memory
+
+The memory model is told what memory is for, not given a rulebook: decide what the Familiar should know from now on **that it couldn't otherwise find out**. Anthropic's article found that explaining the purpose of memory works better than fixed rules, and that agents which stored only what the environment couldn't show them did better than ones that stored everything ([Anthropic](https://www.anthropic.com/research/components-of-agent-memory)).
+
+<FilingExample />
+
+In practice:
+
+- **Lasting truths become notes.** Who someone is, who matters to them, how they like things done, what they intend. People rarely announce these; they come out in passing, inside a question or a request.
+- **Things that happened become journal lines.** A message often gives both: "my sister moved to Leeds last month" is a lasting truth and an event with a date.
+- **What the Familiar can look up isn't kept.** Its schedules, its rooms and who's in them, what its tools return. When a reply sets up or changes a schedule, the schedule holds the job and how to do it. Filing is shown the Familiar's schedules, and where a reply changed one, so it can see that the job already has a home.
+- **Requests that were simply carried out aren't kept**, nor are instructions about how to do one job. A request shows something about a person only sometimes: "book the vegetarian option" does; "convert 250 dollars to euros" doesn't.
+- **Questions, guesses, and anything only the Familiar said aren't kept**, and neither are passwords or other secrets.
+
+### Only people's own words
+
+Every note and journal line must quote a message written by a person in the workspace. Plain code checks that the quote really appears in a person's message in the batch, ignoring case, spacing and punctuation. Anything that fails is dropped. Who said it and where are then read from that message, never taken from the model.
+
+That one rule gives three guarantees by construction:
+
+1. **Attribution is reliable.** A note says who told the Familiar, and that comes from the stored message.
+2. **Injection can't reach memory.** A web page, an email or a tool result saying "remember that…" isn't a person's message, so it can't be quoted.
+3. **Nothing comes from the Familiar's own words.** Its replies are shown to the memory model as context, so it can follow the conversation, but they can't be quoted as evidence.
+
+The quote check follows [Nod](https://github.com/n8n-io/nod), n8n's personal agent, which applies the same rule and scores 93.2% on LongMemEval.
+
+When a room shows the Familiar earlier messages along with a new one, those lines come with their authors, and their words can be quoted too, attributed to whoever said them.
+
+### When something changes
+
+If a message gives a newer or different value for something a note says (a new address, a new date, how long something has been so), filing writes the new note and names the old one it replaces. The old note is removed from the page. It isn't lost: the conversation it came from is still there and still searchable.
+
+A separate event or a one-off exception changes nothing. "I had the fish tonight" doesn't end "vegetarian".
+
+## Filing, night by night
+
+<FilingNight />
+
+Filing runs once a night at 04:00 in the workspace's time zone, as one task per Familiar. It reads people's messages in **batches of up to 20**, oldest first, from wherever its **progress mark** left off. Each batch is one call on the Familiar's **memory model**, which can be a smaller, cheaper model than the chat one (see [Models and sign-in](/familiar/build/models-and-sign-in/)).
+
+The call is given:
+
+- **the messages**, each numbered, with who sent it, where and the local time. Dates such as "yesterday" are worked out from each message's own time, so a backlog files exactly as live conversation would;
+- **context between them**, marked as never evidence: the Familiar's replies (their start and end, where a reply usually asks what the next message answers), scheduled jobs it ran, and the result whenever a reply set up, changed or cancelled a schedule;
+- **the schedules it keeps**, so nothing about them is copied;
+- **the roster** of every subject it knows;
+- **the pages the messages touch**: those named in the messages and the authors' own, with their current notes, so it can see what's already known and what a message changes.
+
+The model answers with a single `file` call listing notes, journal lines and any new subjects. Code then checks every quote, reads attribution, writes the notes and lines, removes replaced notes, and moves the progress mark, **all in one commit**. A crash halfway can't leave memory half-written or a batch filed twice.
+
+When every message is filed, the night ends with **profiles**: each page whose notes changed gets one small text-only call that rewrites its profile from its current notes, oldest first, with their dates and who said them. A page with no notes gets an empty profile and no call.
+
+If a call fails, the night stops where it is. Nothing is skipped: the next night picks up from the same mark.
+
+### Why nightly
+
+Filing in small batches keeps each call easy to get right, and the transcript is searchable the moment a message is sent, so nothing waits on filing to be found. Nightly is enough for notes and profiles, and it means a day of ordinary conversation is a handful of small calls.
+
+## Reading: what the model sees
+
+<ReplyAssembly />
+
+### Always in view
+
+The **memory section** of the prompt is short and stable:
+
+1. a paragraph explaining what memory is and how to search it;
+2. for each person who takes part, their name and profile;
+3. a roster of everyone and everything else, most recently changed first, within 2,000 characters, ending "…and N more, which recall finds" if it's cut.
+
+It grows with the number of people, not with how long the Familiar has run. It changes only when a profile or the roster does, so the model provider's prompt cache keeps working between requests. Anthropic's article warns that a wrong note in the injected layer is carried into every session ([Anthropic](https://www.anthropic.com/research/components-of-agent-memory)), so this layer holds only profiles rewritten from evidence, never raw notes.
+
+### Recalled for each message
+
+Before each reply, memory searches on the words of the incoming message and appends what it finds after the message, for that reply only. It shows:
+
+- notes that match;
+- past exchanges that match and are **no longer in the model's view**, because they were summarised out of its context. Anything still in view needs no recalling.
+
+If the message names days or months ("in March", "on 4 June"), what falls on those days ranks first and everything else that matches follows. A date read wrongly, say last June for next June, only changes the order and never hides the evidence.
+
+It shows up to 20 items within about 6,000 tokens, in time order, and says how many of the matches it's showing. LongMemEval found that giving the reader evidence as dated items in time order helps it reason across them ([Wu et al., 2025](https://arxiv.org/abs/2410.10813)). Each item carries its date, who said it and where, and for a note whether it was first-hand.
+
+The search runs once per reply and is remembered, so a retried request shows exactly what the first one did, and the stored conversation and earlier messages stay byte for byte the same.
+
+### Searched when needed
+
+The model has two memory tools:
+
+- **`recall`** searches notes and past conversations with their journal lines, optionally limited to a date range with `from` and `to`. It shows up to 25 results within about 8,000 tokens and says when they aren't all of the matches, so the model never mistakes a partial list for everything when it counts or compares.
+- **`read_memory`** opens what lies behind an ID: a page (`s…`) with its profile and notes, a note (`n…`) with the message it rests on, or an exchange (`x…`) with the ones either side.
+
+### How search works
+
+Search is one word index over exchanges and notes, held in the Familiar's process and kept up to date as memory changes, so a search never reads storage on the hot path.
+
+- An exchange is indexed by its words, with its journal lines as extra keys, and by the days it covers: its own day and the days its journal lines name.
+- A note is indexed by its words and its subject's name, so "what do you know about Grace" finds Grace's notes.
+- Matching ignores common words and allows prefixes and small misspellings. An older exchange counts for less: its score halves with each year since it was said, never dropping below a quarter.
+
+There are no embeddings. LongMemEval found that dense retrieval beats plain word search, but Nod closes that gap without vectors by writing extra keys at filing time, and Familiar does the same with journal lines. Embeddings would need a second model and a vector store on every host. The search sits behind one small interface, so if word search with journal keys ever stops finding the evidence, that's where vectors would go.
+
+## Several people, several rooms
+
+- **Each Familiar keeps its own memory**, from what it witnessed in its DMs and rooms. No Familiar reads another's, and nothing is shared between them. Anthropic found that one writer per page kept every fact, where a table shared by several writers lost some ([Anthropic](https://www.anthropic.com/research/components-of-agent-memory)).
+- **Everyone who uses a Familiar shares what it knows.** A workspace assumes trust between its people, so what someone told the Familiar in a DM can help in any room. The Familiar is told to say who told it and where when it uses something. If people mustn't share information, give them [separate workspaces](/familiar/build/serve-the-api/#one-workspace-per-tenant).
+- **Where something was said is recorded** on every note and journal line, so a later privacy rule would have what it needs.
+
+## Forgetting
+
+**Forget**, on a note in the app's Memory page, removes the note and clears its page's profile until the night rewrites it without the note. The conversation it came from stays: the transcript is the record. See [Review memory](/familiar/use/conversation-and-memory/#review-memory).
+
+## How it's stored
+
+Memory is three kinds of Pi Durable document per Familiar, committed with everything else Familiar does:
+
+- `familiar.memory`, the index: the subjects (each with its one-line roster description and when it last changed) and which journal months exist. This is what clients stream as `memory`.
+- `familiar.page`, one per subject: its profile and notes.
+- `familiar.journal`, one per month: that month's lines.
+
+No document grows with the whole of memory. The search index is rebuilt from these and the transcript when the process starts.
+
+## How it's measured
+
+Memory is tested two ways:
+
+- **[LongMemEval](https://arxiv.org/abs/2410.10813)**, a public benchmark of 500 questions, each asked after about 50 earlier conversations. It covers single facts, preferences, knowledge that changed, questions spanning several conversations, questions about time, and questions that can't be answered from what was said. Familiar writes each history into a real workspace with its original dates, lets memory file it, then asks the question. On a 40-question development set, with `gpt-6-luna` filing and `gpt-6.1-sol` answering and judging, it answers 36 to 37 correctly.
+- **Scripted scenarios** for what LongMemEval can't see, because it has one user and no tasks: a schedule that mustn't leak into memory, a one-off request that mustn't be kept, two people with different preferences in one room, a fact one person tells about another, a DM fact used in a room, a correction, and a web page that tries to plant a memory. All ten pass.
+
+Contributors can run both with `pnpm eval:longmem` and `pnpm eval:memory-scenarios`; see [Development](/familiar/contribute/development/).
+
+## Limits
+
+- Notes and profiles are a night behind. A fact said this morning is in the transcript, and search can find it, but it isn't in a profile until tomorrow.
+- Memory is only as good as what people said. It never infers from tools, the web or the Familiar's own replies, by design.
+- Word search can miss evidence that shares no words with the question and has no journal line that bridges them.
+- Replacing a note relies on the memory model noticing that a message changes it. When it misses one, the newer conversation is still found by search, but the old note stays until something replaces it.
+
+## Sources
+
+- Di Wu, Hongwei Wang, Wenhao Yu, Yuwei Zhang, Kai-Wei Chang and Dong Yu. [LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory](https://arxiv.org/abs/2410.10813). ICLR 2025.
+- Anthropic. [The components of agent memory](https://www.anthropic.com/research/components-of-agent-memory). 2026.
+- n8n. [Nod](https://github.com/n8n-io/nod), an open-source personal agent, and its LongMemEval results.

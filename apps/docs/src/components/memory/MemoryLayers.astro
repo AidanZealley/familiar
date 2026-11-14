@@ -1,0 +1,56 @@
+---
+// The four layers of a Familiar's memory, from what is always in view down
+// to the transcript everything else is derived from.
+---
+
+<figure class="diagram" aria-label="The layers of a Familiar's memory">
+  <div class="diagram-label">Always in view</div>
+  <div class="diagram-box accent">
+    <strong>Memory section of the prompt</strong>
+    <p>
+      The profile of each person the Familiar works with, and a one-line roster
+      of everyone and everything else it knows about.
+    </p>
+    <small>Bounded by the number of people, not by how long it has run.</small>
+  </div>
+  <div class="diagram-arrow">profiles are written from notes</div>
+  <div class="diagram-label">Kept and searched</div>
+  <div class="diagram-row">
+    <div class="diagram-box">
+      <strong>Pages</strong>
+      <p>
+        One per person or thing. Notes: what is true of them now, each resting
+        on a quoted message.
+      </p>
+      <small>Change by replacement.</small>
+    </div>
+    <div class="diagram-box">
+      <strong>Journal</strong>
+      <p>
+        Dated lines, one per thing worth finding again, each pointing at the
+        exchange it came from.
+      </p>
+      <small>Only grows. One document per month.</small>
+    </div>
+  </div>
+  <div class="diagram-arrow">notes and journal lines quote it</div>
+  <div class="diagram-label">Ground truth</div>
+  <div class="diagram-box">
+    <strong>Transcript</strong>
+    <p>
+      The Familiar's whole conversation across every room and DM, exactly as it
+      happened. Never copied, never summarised away.
+    </p>
+  </div>
+  <div class="diagram-box quiet">
+    <strong>Search (derived)</strong>
+    <p>
+      One word index over notes, journal lines and past exchanges, kept in
+      memory and rebuilt from the layers above. It owns nothing.
+    </p>
+  </div>
+  <figcaption>
+    Each layer has one job. Only the top one reaches every request; the rest
+    are found when they're needed.
+  </figcaption>
+</figure>

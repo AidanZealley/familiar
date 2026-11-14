@@ -59,7 +59,7 @@ Also run:
 
 CI runs the main checks and `pnpm test:packages` on every pull request. The workerd tests, the CLI on macOS, Linux and Windows, and the docs build run when a pull request changes their files.
 
-Use the faux provider, or `scriptedModels` for a script that answers every request, to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model.
+Use the faux provider, or `scriptedModels` for a script that answers every request, to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model. `pnpm eval:memory-scenarios` and `pnpm eval:longmem` run memory on real models, through an eval-only sign-in.
 
 ## The docs site
 

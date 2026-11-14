@@ -27,6 +27,8 @@ Filing happens each night at 04:00 in your time zone: Familiar files what people
 
 Schedules aren't memory. Feedback about a recurring job, such as "include the links in my digest", changes that job's instructions, not what Familiar remembers.
 
+[How memory works](/familiar/use/how-memory-works/) explains all of this in depth: what filing keeps and why, how it's checked, how a reply finds what it needs, and the research behind it.
+
 ## Review memory
 
 Open a Familiar's settings and choose **Memory**. It shows exactly what the model always sees, then each page with its profile and notes, and the words each rests on.
