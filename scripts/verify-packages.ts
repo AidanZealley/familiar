@@ -130,7 +130,7 @@ try {
   run('node', ['host.js'])
 
   // The client in a browser build, with no workspace aliases, must not pull
-  // in core's, Pi's or React's runtime.
+  // in core, model providers or React. Pi's transcript helper is allowed.
   const requireWeb = createRequire(resolve(root, 'apps/web/package.json'))
   const { build } = await import(requireWeb.resolve('vite'))
   await writeFile(
@@ -144,11 +144,30 @@ try {
     plugins: [
       {
         name: 'check-client-runtime',
-        moduleParsed(module: { id: string }) {
-          assert.doesNotMatch(
-            module.id,
-            /node_modules\/(?:@familiar-ai\/core|@earendil-works\/pi-(?:ai|durable)|react)\//,
-          )
+        generateBundle(
+          _options: unknown,
+          bundle: Record<
+            string,
+            {
+              type: string
+              modules?: Record<string, { renderedLength: number }>
+            }
+          >,
+        ) {
+          for (const chunk of Object.values(bundle)) {
+            for (const [id, module] of Object.entries(chunk.modules ?? {})) {
+              if (module.renderedLength === 0) {
+                continue
+              }
+              assert.doesNotMatch(
+                id,
+                /node_modules\/(?:@familiar-ai\/core|@earendil-works\/pi-ai|react)\//,
+              )
+              if (id.includes('/node_modules/@earendil-works/pi-durable/')) {
+                assert.match(id, /\/dist\/(?:harness\/transcript|ids)\.js$/)
+              }
+            }
+          }
         },
       },
     ],
