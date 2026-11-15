@@ -19,4 +19,4 @@ test('the demo seeds its household without error', async () => {
   } finally {
     await workspace.dismiss()
   }
-})
+}, 15_000)

@@ -7,9 +7,9 @@ packages:
 # the client's Hono types the server's routes. MCP transports cross the
 # core/daemon boundary and use the same SDK version.
 catalog:
-  '@earendil-works/chord': 1.4.0
-  '@earendil-works/pi-ai': 1.4.0
-  '@earendil-works/pi-durable': 1.4.0
+  '@earendil-works/chord': 1.5.2
+  '@earendil-works/pi-ai': 1.5.2
+  '@earendil-works/pi-durable': 1.5.2
   '@modelcontextprotocol/client': 2.4.0
   '@modelcontextprotocol/server': 2.4.0
   hono: 4.13.13

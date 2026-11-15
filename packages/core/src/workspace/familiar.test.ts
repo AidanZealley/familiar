@@ -254,8 +254,10 @@ test('usage totals the model spend of every reply', async () => {
   const once = (await workspace.usage()).models['faux/faux-1']
   await say('Hi again')
   const twice = (await workspace.usage()).models['faux/faux-1']
-  expect(once.input).toBeGreaterThan(0)
-  expect(twice.input).toBeGreaterThan(once.input)
+  expect(once.cacheWrite).toBeGreaterThan(0)
+  expect(twice.cacheRead + twice.cacheWrite).toBeGreaterThan(
+    once.cacheRead + once.cacheWrite,
+  )
   expect(twice.output).toBeGreaterThan(once.output)
 })
 
@@ -275,7 +277,7 @@ test('closed reports a storage failure so the host can reopen persisted state', 
       requestId: 'fail',
     }),
   ).rejects.toThrow()
-  expect(await workspace.closed).toEqual({ reason: 'failed', error: failure })
+  expect(await workspace.closed).toEqual({ kind: 'failed', error: failure })
   const { familiar: reopened } = await setup({ storage })
   const view = await reopened.watch()
   expect(JSON.stringify(view.value)).toContain('Saved before failure.')

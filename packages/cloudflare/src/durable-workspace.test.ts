@@ -52,7 +52,7 @@ test('a failed workspace resets the object with its recovery alarm intact', asyn
   await opening
   const recoveryAlarm = alarm
   expect(recoveryAlarm).not.toBeNull()
-  end({ reason: 'failed', error: new Error('storage unavailable') })
+  end({ kind: 'failed', error: new Error('storage unavailable') })
   await Promise.resolve()
   expect(abort).toHaveBeenCalledWith('Workspace storage failed')
   expect(alarm).toBe(recoveryAlarm)

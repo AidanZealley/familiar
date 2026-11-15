@@ -1,3 +1,4 @@
+import type { EntryQuery } from '@earendil-works/pi-durable'
 import { hc } from 'hono/client'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
@@ -329,6 +330,22 @@ export const roomCommands = (api: Api, id: number) => {
      */
     read: (entry: number) =>
       succeed(room.read.$post({ param, json: { entry } })),
+    entries: (query: Omit<EntryQuery, 'conversationId'>, limit: number) =>
+      read(
+        room.entries.$get({
+          param,
+          query: {
+            ...(query.minEntryId !== undefined && {
+              min: String(query.minEntryId),
+            }),
+            ...(query.maxEntryId !== undefined && {
+              max: String(query.maxEntryId),
+            }),
+            order: query.order ?? 'descending',
+            limit: String(limit),
+          },
+        }),
+      ),
     history: async (before: number) =>
       read(room.history.$get({ param, query: { before: String(before) } })),
   }
@@ -352,3 +369,5 @@ const randomId = () =>
   ).join('')
 
 export type FetchHistory = ReturnType<typeof roomCommands>['history']
+
+export type FetchEntries = ReturnType<typeof roomCommands>['entries']

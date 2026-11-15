@@ -97,7 +97,7 @@ export type DocumentName = keyof Documents
  * before applying any state; bump it on any change an older client would
  * misread.
  */
-export const PROTOCOL_VERSION = 7
+export const PROTOCOL_VERSION = 8
 
 /**
  * Each `/events` (the workspace's, a Familiar's and a room's) is a

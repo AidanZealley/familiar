@@ -7,6 +7,7 @@ import type {
 } from '@earendil-works/pi-ai'
 import type {
   ConversationView,
+  TranscriptView,
   EntryRecord,
   ToolSlot,
 } from '@earendil-works/pi-durable'
@@ -47,6 +48,7 @@ export type ToolCall = {
 
 /** Item IDs are unique across the transcript and stable across updates: use them as keys. */
 export type TranscriptItem =
+  | { type: 'gap'; id: string; after: number; upTo: number }
   | {
       type: 'message'
       id: string
@@ -135,20 +137,34 @@ export type Transcript = {
 }
 
 /**
- * What a chat UI shows for a room: its log, after any `history` loaded
- * before it (oldest first), then each turn in progress, from `turns`.
+ * What a chat UI shows for a room: its assembled log, then each turn in
+ * progress. Pi's TranscriptView supplies loaded history and missing ranges.
  * Pure, so any client can reuse it.
  */
 export function toRoomTranscript(
-  view: ConversationView,
-  history: readonly EntryRecord[] = [],
+  view: ConversationView | TranscriptView,
   turns: RoomActivity = {},
 ): Transcript {
-  const entries = [...history, ...view.entries]
+  const rows =
+    'items' in view
+      ? view.items
+      : view.entries.map((entry) => ({ kind: 'entry' as const, entry }))
+  const entries = rows.flatMap((row) =>
+    row.kind === 'entry' ? [row.entry] : [],
+  )
   const retryable = retryableIn(entries, turns)
   const items: TranscriptItem[] = []
-  for (const entry of entries) {
-    items.push(...toItems(entry, retryable.has(entry.id)))
+  for (const row of rows) {
+    if (row.kind === 'entry') {
+      items.push(...toItems(row.entry, retryable.has(row.entry.id)))
+    } else if (row.kind === 'gap') {
+      items.push({
+        type: 'gap',
+        id: `gap:${row.after}:${row.upTo}`,
+        after: row.after,
+        upTo: row.upTo,
+      })
+    }
   }
   for (const [task, turn] of Object.entries(turns)) {
     items.push(toActive(task, turn))

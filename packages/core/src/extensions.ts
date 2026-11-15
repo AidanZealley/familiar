@@ -1,15 +1,11 @@
 /** Pinned Pi authoring contracts, available through a Familiar-owned import path. */
 export type * from '@earendil-works/pi-durable'
+export type { Context, ContextKey } from '@earendil-works/chord/context'
+export type { JsonValue } from '@earendil-works/chord/json'
+export type { Draft } from '@earendil-works/chord/delta'
+export { Type } from 'typebox'
+export type { Static, TSchema } from 'typebox'
 export type {
-  Context,
-  ContextKey,
-  JsonValue,
-  Draft,
-} from '@earendil-works/chord'
-export { Type } from '@earendil-works/pi-ai'
-export type {
-  Static,
-  TSchema,
   Tool,
   Usage,
   AssistantMessage,

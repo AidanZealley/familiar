@@ -1,4 +1,4 @@
-import type { Context } from '@earendil-works/chord'
+import type { Context } from '@earendil-works/chord/context'
 import type {
   CommitPublication,
   DocumentReader,
@@ -282,9 +282,10 @@ function createView(
 /** Each open Familiar's view, made on first use, following `observer`'s commits. */
 export function memoryViews(
   observer: DocumentReader & {
-    subscribeCommits(
-      listener: (publication: CommitPublication) => void,
-    ): () => void
+    observeCommits(observer: {
+      advance(publication: CommitPublication): void
+      end(): void
+    }): { detach(): void }
   },
   timeZone: string,
   context: Context,
@@ -296,22 +297,27 @@ export function memoryViews(
     Journal.definition.kind,
   ])
 
-  observer.subscribeCommits(({ changes }) => {
-    for (const change of changes) {
-      if (
-        change.type !== 'document' ||
-        !kinds.has(change.record.kind) ||
-        change.record.key === undefined
-      ) {
-        continue
+  observer.observeCommits({
+    advance: ({ changes }) => {
+      for (const change of changes) {
+        if (
+          change.type !== 'document' ||
+          !kinds.has(change.record.kind) ||
+          change.record.key === undefined
+        ) {
+          continue
+        }
+        const { kind, key } = change.record
+        const { familiar, own } =
+          kind === Memory.definition.kind
+            ? { familiar: Number(key) as FamiliarId, own: undefined }
+            : readKey(key)
+        views
+          .get(familiar)
+          ?.apply(kind, own, change.kind === 'retire' ? null : change.value)
       }
-      const { kind, key } = change.record
-      const { familiar, own } =
-        kind === Memory.definition.kind
-          ? { familiar: Number(key) as FamiliarId, own: undefined }
-          : readKey(key)
-      views.get(familiar)?.apply(kind, own, change.value)
-    }
+    },
+    end: () => {},
   })
 
   return (familiar: FamiliarId) => {
