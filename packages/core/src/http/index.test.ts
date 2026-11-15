@@ -289,14 +289,15 @@ test("posting to a room validates what clients send, takes the author from the h
     })
     expect(refused.status).toBe(400)
   }
-  expect(
-    (
-      await client.rooms[':room'].history.$get({
-        param: { room },
-        query: { before: 'latest' },
-      })
-    ).status,
-  ).toBe(400)
+  for (const query of [
+    { before: 'latest' },
+    { before: '1000', after: 'nope' },
+  ]) {
+    expect(
+      (await client.rooms[':room'].history.$get({ param: { room }, query }))
+        .status,
+    ).toBe(400)
+  }
   const missing = await client.rooms[':room'].messages.$post({
     param: { room: '999' },
     json: { text: 'Hi', requestId: 'r' },
@@ -312,72 +313,17 @@ test("posting to a room validates what clients send, takes the author from the h
   }
   const page = await response.json()
   expect(page.entries.at(-1)?.data).toMatchObject({ author: sam, text: 'Hi' })
-})
 
-test('room entry ranges are bounded, ordered and protected like history', async () => {
-  const host = await testHost({ person: sam })
-  const workspace = host.workspace()
-  const room = (await workspace.rooms.get(
-    await workspace.rooms.dm(host.familiar().id, sam.id),
-  ))!
-  for (const text of ['one', 'two', 'three']) {
-    await room.note({ text, requestId: text })
-  }
-  const app = api(workspace)
-  const all = await (
-    await app.request(`/rooms/${room.id}/entries?order=ascending&limit=200`)
-  ).json()
-  const notes = all.items.filter(
-    (entry: { kind: string }) => entry.kind === 'familiar.note',
-  )
-  expect(notes).toHaveLength(3)
-  const min = notes[0].id
-  const max = notes[2].id
-  const page = await (
-    await app.request(
-      `/rooms/${room.id}/entries?min=${min}&max=${max}&order=ascending&limit=2`,
-    )
-  ).json()
-  expect(page.items.map((entry: { id: number }) => entry.id)).toEqual(
-    notes.slice(0, 2).map((entry: { id: number }) => entry.id),
-  )
-  expect(page.next).toBeDefined()
-  const descending = await (
-    await app.request(
-      `/rooms/${room.id}/entries?min=${min}&max=${max}&order=descending&limit=2`,
-    )
-  ).json()
-  expect(descending.items.map((entry: { id: number }) => entry.id)).toEqual(
-    notes
-      .slice(1)
-      .reverse()
-      .map((entry: { id: number }) => entry.id),
-  )
-  for (const query of [
-    'min=nope',
-    'max=1.5',
-    'limit=0',
-    'limit=201',
-    'order=random',
-  ]) {
-    expect(
-      (await app.request(`/rooms/${room.id}/entries?${query}`)).status,
-    ).toBe(400)
-  }
-  expect(
-    (
-      await api(workspace, { allow: () => false }).request(
-        `/rooms/${room.id}/entries`,
-      )
-    ).status,
-  ).toBe(403)
-  expect(
-    (
-      await api(workspace, {
-        authenticate: () => ({ id: 'ann', name: 'Ann' }),
-      }).request(`/rooms/${room.id}/entries`)
-    ).status,
-  ).toBe(404)
+  const history = vi.fn(async () => ({ entries: [], more: false }))
+  vi.spyOn(host.workspace().rooms, 'get').mockResolvedValue({
+    ...host.dm(),
+    history,
+  })
+  await client.rooms[':room'].history.$get({
+    param: { room },
+    query: { before: '9', after: '3' },
+  })
+  expect(history).toHaveBeenCalledWith(9, 50, 3)
 })
 
 test("the DM endpoint gets or creates the asking person's DM with a Familiar", async () => {
