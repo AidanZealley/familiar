@@ -9,7 +9,7 @@ import { fetchOf, openMirror, type Store, type StoreOptions } from './mirror.ts'
 export type RoomState = LogState & { connection: Connection }
 
 export type RoomStore = Store<RoomState> &
-  Omit<ReturnType<typeof roomCommands>, 'history' | 'entries'> & {
+  Omit<ReturnType<typeof roomCommands>, 'history'> & {
     /**
      * Loads the next older page into the transcript. `history.status` shows
      * progress and failure, so this never rejects.
@@ -32,11 +32,7 @@ export function createRoomStore(
   options: StoreOptions = {},
 ): RoomStore {
   const fetch = fetchOf(options)
-  const {
-    entries,
-    history: _history,
-    ...commands
-  } = roomCommands(createApi(baseUrl, fetch), room)
+  const { history, ...commands } = roomCommands(createApi(baseUrl, fetch), room)
   const store = createStore<RoomState>()(() => ({
     connection: 'connecting',
     view: undefined,
@@ -46,7 +42,7 @@ export function createRoomStore(
   }))
   const { setState: set, getState: get } = store
   // The log owns the view, history, turns and the transcript derived from them.
-  const log = createLog(set, get, entries)
+  const log = createLog(set, get, history)
   const mirror = openMirror(
     `${baseUrl}/rooms/${room}/events`,
     fetch,

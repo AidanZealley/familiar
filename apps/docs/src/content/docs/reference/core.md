@@ -109,7 +109,7 @@ A list shows each room as a `RoomListing`: its setup, with `last`, its newest en
 | `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                                                    |
 | `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far                                                   |
 | `read(person, entry)`                          | Mark it read by a person, by host author ID, up to `entry`, the newest they've seen; never back. Their own messages mark it read up to them |
-| `history(before, limit)`                       | `{ entries, more }`: committed entries older than `before`, newest first                                                                    |
+| `history(before, limit, after?)`               | `{ entries, more }`: committed entries older than `before`, newest first; optional `after` reads a gap oldest first                                                                    |
 | `retry(reply)`                                 | Try a failed reply's turn again, by its entry ID: its Familiar answers the same entry anew, after it. Asking twice starts it once           |
 | `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                                                     |
 
