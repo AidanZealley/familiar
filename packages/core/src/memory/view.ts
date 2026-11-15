@@ -1,6 +1,6 @@
 import type { Context } from '@earendil-works/chord/context'
 import type {
-  CommitPublication,
+  Session,
   DocumentReader,
   EntryId,
   Tx,
@@ -281,12 +281,7 @@ function createView(
 
 /** Each open Familiar's view, made on first use, following `observer`'s commits. */
 export function memoryViews(
-  observer: DocumentReader & {
-    observeCommits(observer: {
-      advance(publication: CommitPublication): void
-      end(): void
-    }): { detach(): void }
-  },
+  observer: DocumentReader & Pick<Session, 'observeCommits'>,
   timeZone: string,
   context: Context,
 ) {

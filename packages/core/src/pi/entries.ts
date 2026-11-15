@@ -27,34 +27,23 @@ export async function* entriesOf(tx: Tx, query: EntryQuery) {
 
 /**
  * Up to `limit` committed entries of `conversation` older than entry
- * `before`, newest first, including those compaction or a view marker took
- * out of the view.
+ * `before`, newest first. With `after`, reads the bounded gap oldest first.
  */
 export async function historyOf(
   conversation: Conversation,
   before: EntryId,
   limit: number,
+  after?: EntryId,
 ): Promise<HistoryPage> {
-  // Entry IDs are ascending integers, and the bound is inclusive.
-  const query = { maxEntryId: (before - 1) as EntryId }
-  const entries: EntryRecord[] = []
-
-  let cursor: Cursor | undefined
-
-  // One past the limit tells whether more exist.
-  do {
-    const page = await conversation.entries(
-      query,
-      limit + 1 - entries.length,
-      cursor,
-      BACKGROUND_CONTEXT,
-    )
-    entries.push(...page.items)
-    cursor = page.next
-  } while (cursor && entries.length <= limit)
-
-  return {
-    entries: entries.slice(0, limit),
-    more: entries.length > limit,
-  }
+  const page = await conversation.entries(
+    {
+      maxEntryId: (before - 1) as EntryId,
+      ...(after !== undefined && { minEntryId: (after + 1) as EntryId }),
+      order: after === undefined ? 'descending' : 'ascending',
+    },
+    limit,
+    undefined,
+    BACKGROUND_CONTEXT,
+  )
+  return { entries: [...page.items], more: page.next !== undefined }
 }

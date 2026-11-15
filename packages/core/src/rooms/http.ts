@@ -1,9 +1,4 @@
-import type {
-  Page,
-  EntryRecord,
-  Cursor,
-  EntryId,
-} from '@earendil-works/pi-durable'
+import type { EntryId } from '@earendil-works/pi-durable'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
@@ -180,83 +175,34 @@ export function roomRoutes(rooms: RoomsApi) {
           return c.body(null, 204)
         },
       )
-      .get(
-        '/:room/entries',
-        can('rooms.history'),
-        validator(
-          'query',
-          (
-            query: {
-              min?: string
-              max?: string
-              limit?: string
-              order?: string
-            },
-            c,
-          ) => {
-            const minEntryId =
-              query.min === undefined ? undefined : Number(query.min)
-            const maxEntryId =
-              query.max === undefined ? undefined : Number(query.max)
-            const limit = query.limit === undefined ? 50 : Number(query.limit)
-            const order = query.order ?? 'descending'
-            if (
-              (minEntryId !== undefined && !Number.isSafeInteger(minEntryId)) ||
-              (maxEntryId !== undefined && !Number.isSafeInteger(maxEntryId)) ||
-              !Number.isSafeInteger(limit) ||
-              limit < 1 ||
-              limit > 200 ||
-              (order !== 'ascending' && order !== 'descending')
-            ) {
-              return c.json(
-                { error: 'Invalid entry range, order or limit' },
-                400,
-              )
-            }
-            return {
-              ...query,
-              limit: String(limit),
-              order: order as 'ascending' | 'descending',
-            }
-          },
-        ),
-        async (c) => {
-          const query = c.req.valid('query')
-          const page = await (
-            await roomOf(c)
-          ).entries(
-            {
-              ...(query.min !== undefined && {
-                minEntryId: Number(query.min) as EntryId,
-              }),
-              ...(query.max !== undefined && {
-                maxEntryId: Number(query.max) as EntryId,
-              }),
-              order: query.order,
-            },
-            Number(query.limit),
-          )
-          return c.json(page) as unknown as TypedResponse<
-            Page<EntryRecord, Cursor>,
-            200,
-            'json'
-          >
-        },
-      )
-      // A page of entries older than `before`, newest first.
+      // History before an entry, or the bounded gap after another.
       .get(
         '/:room/history',
         can('rooms.history'),
         validator('query', (query, c) => {
           const before = Number(query.before)
-          if (!Number.isSafeInteger(before)) {
-            return c.json({ error: 'before must be an entry ID' }, 400)
+          const after =
+            query.after === undefined ? undefined : Number(query.after)
+          if (
+            !Number.isSafeInteger(before) ||
+            (after !== undefined && !Number.isSafeInteger(after))
+          ) {
+            return c.json({ error: 'before and after must be entry IDs' }, 400)
           }
-          return { before: before as EntryId }
+          // Keep the query's string shape for Hono's inferred client contract.
+          return {
+            before: String(before),
+            ...(after !== undefined && { after: String(after) }),
+          }
         }),
         async (c) => {
           const room = await roomOf(c)
-          const page = await room.history(c.req.valid('query').before, 50)
+          const { before, after } = c.req.valid('query')
+          const page = await room.history(
+            Number(before) as EntryId,
+            50,
+            after === undefined ? undefined : (Number(after) as EntryId),
+          )
           // Pi's entries are already JSON, but their recursive types are too
           // deep for Hono to convert, so the client gets the page's own type.
           return c.json(page) as unknown as TypedResponse<

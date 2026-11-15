@@ -7,7 +7,7 @@ import {
 } from '@earendil-works/pi-durable'
 import type { RoomActivity, StreamEvent } from '@familiar-ai/core/http'
 import type { StoreApi } from 'zustand/vanilla'
-import type { FetchEntries } from './commands.ts'
+import type { FetchHistory } from './commands.ts'
 import { toRoomTranscript, type Transcript } from './transcript.ts'
 
 /** Fetch status for the earlier-message control. Pi owns the loaded entries. */
@@ -24,11 +24,16 @@ export type LogState = {
 export const createLog = (
   set: StoreApi<LogState>['setState'],
   get: StoreApi<LogState>['getState'],
-  entries: FetchEntries,
+  history: FetchHistory,
 ) => {
-  const transcript = new ConversationTranscript((query, limit) =>
-    entries(query, limit),
-  )
+  const transcript = new ConversationTranscript(async (query) => {
+    const page = await history(
+      query.maxEntryId! + 1,
+      query.minEntryId === undefined ? undefined : query.minEntryId - 1,
+    )
+    // The helper only needs to know whether the HTTP page continues.
+    return { items: page.entries, ...(page.more && { next: {} }) }
+  })
   let merged: TranscriptView | undefined
   let rendered:
     | {

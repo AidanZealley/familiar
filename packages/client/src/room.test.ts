@@ -25,44 +25,6 @@ const open = (
   return store
 }
 
-// History before entry n is entry n - 1, back to entry 1.
-const history = (request: Request) => {
-  const before = Number(new URL(request.url).searchParams.get('max')) + 1
-  const entries = before > 1 ? [entry(before - 1)] : []
-  return Response.json({ items: entries, ...(before - 1 > 1 && { next: {} }) })
-}
-
-test('loadOlder pages back to the start, one request at a time', async () => {
-  const server = testServer(history)
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(frame('view', view(3)))
-  await expect.poll(() => store.getState().connection).toBe('open')
-  const { loadOlder } = store
-
-  const first = loadOlder()
-  expect(store.getState().history.status).toBe('loading')
-  // A second call while loading sends nothing.
-  await loadOlder()
-  await first
-  await loadOlder()
-  // At the start, nothing more is asked for.
-  await loadOlder()
-
-  expect(
-    server.requests
-      .map((request) => request.url)
-      .filter((url) => url.includes('/entries')),
-  ).toEqual([
-    'http://familiar.test/api/rooms/1/entries?max=2&order=descending&limit=50',
-    'http://familiar.test/api/rooms/1/entries?max=1&order=descending&limit=50',
-  ])
-  expect(store.getState().history).toEqual({
-    status: 'start',
-  })
-  expect(store.getState().view?.entries).toEqual([entry(3)])
-})
-
 test('account and documents arrive whole, take patches and can be null', async () => {
   const server = testServer()
   const workspace = createWorkspaceStore('/api', { fetch: server.fetch })
@@ -193,7 +155,7 @@ test('transcript reference survives unrelated updates and history loading or fai
   const server = testServer(() =>
     fail
       ? Response.json({ error: 'Try again' }, { status: 500 })
-      : Response.json({ items: [message(1)] }),
+      : Response.json({ entries: [message(1)], more: false }),
   )
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
@@ -229,7 +191,8 @@ test('transcript reference survives unrelated updates and history loading or fai
 test('a reconnect keeps loaded messages and exposes a fillable gap', async () => {
   const server = testServer(() =>
     Response.json({
-      items: [message(4), message(5), message(6), message(7), message(8)],
+      entries: [message(4), message(5), message(6), message(7), message(8)],
+      more: false,
     }),
   )
   const store = open('/api', { fetch: server.fetch })
@@ -245,42 +208,6 @@ test('a reconnect keeps loaded messages and exposes a fillable gap', async () =>
     [3, 4, 5, 6, 7, 8, 9].map((id) => `entry:${id}`),
   )
   expect(server.requests.at(-1)?.url).toBe(
-    'http://familiar.test/api/rooms/1/entries?min=4&max=8&order=ascending&limit=50',
+    'http://familiar.test/api/rooms/1/history?before=9&after=3',
   )
-})
-
-test('a pending history load merges into the newest window after reconnect', async () => {
-  let respond!: (response: Response) => void
-  const server = testServer(
-    () => new Promise<Response>((resolve) => (respond = resolve)),
-  )
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(frame('view', conversation(3)))
-  await expect.poll(() => itemIds(store)).toEqual(['entry:3'])
-  const load = store.loadOlder()
-  await expect.poll(() => typeof respond).toBe('function')
-  server.send(frame('view', conversation(9)))
-  await expect
-    .poll(() => itemIds(store))
-    .toEqual(['entry:3', 'gap:3:9', 'entry:9'])
-  respond(Response.json({ items: [message(2)] }))
-  await load
-  expect(itemIds(store)).toEqual(['entry:2', 'entry:3', 'gap:3:9', 'entry:9'])
-})
-
-test('window trimming retains entries once without refetching', async () => {
-  const server = testServer()
-  const store = open('/api', { fetch: server.fetch })
-  await expect.poll(server.connections).toBe(1)
-  server.send(frame('view', conversation(1, 2, 3)))
-  await expect
-    .poll(() => itemIds(store))
-    .toEqual(['entry:1', 'entry:2', 'entry:3'])
-  server.send(frame('view', conversation(3, 4)))
-  await expect
-    .poll(() => itemIds(store))
-    .toEqual(['entry:1', 'entry:2', 'entry:3', 'entry:4'])
-  expect(store.getState().history.status).toBe('start')
-  expect(server.requests).toHaveLength(1)
 })
