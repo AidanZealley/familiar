@@ -160,7 +160,7 @@ export class DurableWorkspace {
       onWake: (wake) => void this.#arm(wake).catch(() => {}),
     })
     void workspace.closed.then((end) => {
-      if (end.reason === 'failed' && this.#runtime.status !== 'terminated') {
+      if (end.kind === 'failed' && this.#runtime.status !== 'terminated') {
         // Keep the recovery alarm: the next instance reopens persisted work.
         this.#ctx.abort('Workspace storage failed')
       }

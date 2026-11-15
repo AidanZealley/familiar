@@ -1,4 +1,5 @@
-import { Type, type Static } from '@earendil-works/pi-ai'
+import { Type, type Static } from 'typebox'
+
 import { defineTool } from '@earendil-works/pi-durable'
 import type { Author } from '../../conversation/message.ts'
 import { localDay } from '../../time.ts'

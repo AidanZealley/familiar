@@ -101,9 +101,22 @@ export async function streamEvents(
           data: { name, value: watch.value },
         } as StreamEvent)
         if (!signal.aborted) {
-          watch.start((_value, ops) =>
-            send({ event: 'document.ops', data: { name, ops } }),
-          )
+          watch.start(async (call) => {
+            if (call.kind === 'value') {
+              if (call.retired) {
+                await send({
+                  event: 'document',
+                  data: { name, value: null },
+                } as StreamEvent)
+              }
+              if (!call.retired || call.ops.length) {
+                await send({
+                  event: 'document.ops',
+                  data: { name, ops: call.ops },
+                })
+              }
+            }
+          })
         }
       },
       view: async (open) => {
@@ -113,7 +126,11 @@ export async function streamEvents(
         }
         await send({ event: 'view', data: watch.value })
         if (!signal.aborted) {
-          watch.start((_value, ops) => send({ event: 'ops', data: ops }))
+          watch.start(async (call) => {
+            if (call.kind === 'value') {
+              await send({ event: 'ops', data: call.ops })
+            }
+          })
         }
       },
     }

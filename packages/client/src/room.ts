@@ -9,12 +9,13 @@ import { fetchOf, openMirror, type Store, type StoreOptions } from './mirror.ts'
 export type RoomState = LogState & { connection: Connection }
 
 export type RoomStore = Store<RoomState> &
-  Omit<ReturnType<typeof roomCommands>, 'history'> & {
+  Omit<ReturnType<typeof roomCommands>, 'history' | 'entries'> & {
     /**
-     * Loads the next older page into `history`. Its `status` shows
+     * Loads the next older page into the transcript. `history.status` shows
      * progress and failure, so this never rejects.
      */
     loadOlder(): Promise<void>
+    loadGap(after: number, upTo: number): Promise<void>
   }
 
 /**
@@ -31,17 +32,21 @@ export function createRoomStore(
   options: StoreOptions = {},
 ): RoomStore {
   const fetch = fetchOf(options)
-  const { history, ...commands } = roomCommands(createApi(baseUrl, fetch), room)
+  const {
+    entries,
+    history: _history,
+    ...commands
+  } = roomCommands(createApi(baseUrl, fetch), room)
   const store = createStore<RoomState>()(() => ({
     connection: 'connecting',
     view: undefined,
-    history: { entries: [], status: 'more' },
+    history: { status: 'more' },
     turns: undefined,
     transcript: undefined,
   }))
   const { setState: set, getState: get } = store
   // The log owns the view, history, turns and the transcript derived from them.
-  const log = createLog(set, get, history)
+  const log = createLog(set, get, entries)
   const mirror = openMirror(
     `${baseUrl}/rooms/${room}/events`,
     fetch,
@@ -58,5 +63,6 @@ export function createRoomStore(
     ...mirror.readable,
     ...commands,
     loadOlder: log.loadOlder,
+    loadGap: log.loadGap,
   }
 }

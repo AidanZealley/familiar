@@ -1,5 +1,6 @@
-import { Type } from '@earendil-works/pi-ai'
-import type { Context } from '@earendil-works/chord'
+import { Type } from 'typebox'
+
+import type { Context } from '@earendil-works/chord/context'
 import type { ToolExecutionApi, Tx } from '@earendil-works/pi-durable'
 import type { InRoom } from '../conversation/message.ts'
 import { callInput, defineTool, familiar } from '../tools.ts'

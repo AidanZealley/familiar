@@ -3,7 +3,7 @@ import { createRegistry, Harness } from '@earendil-works/pi-durable'
 import { expect, test } from 'vitest'
 import { fauxModels, ReopenableStorage } from '../testing.ts'
 import { createFamiliar } from '../workspace/familiars.ts'
-import { post, REPLY_KIND, VIEW_KIND } from './log.ts'
+import { post, REPLY_KIND } from './log.ts'
 import { dmWith } from './rooms.ts'
 import type { TurnTask } from './turn.ts'
 import { historyOf } from '../pi/entries.ts'
@@ -54,16 +54,15 @@ test("a room's view keeps its newest entries once it's long, and history reaches
   const log = (await harness.conversation(room, context))!
   const watch = await log.watch(context)
   await watch.stop()
-  const [marker, ...shown] = watch.value.entries
-  expect(marker.kind).toBe(VIEW_KIND)
+  const shown = watch.value.entries
   // Never more than the limit in view, and always the newest.
-  expect(shown.length).toBeLessThanOrEqual(200)
+  expect(shown).toHaveLength(50)
   expect(shown.at(-1)!.id).toBe(posted.at(-1))
-  expect(shown[0].id).toBe(marker.head)
+  expect(watch.value.before).toBeDefined()
 
   // Paging back from the view's start reaches the first entry.
   const older: number[] = []
-  let before = marker.head!
+  let before = shown[0].id
   for (;;) {
     const page = await historyOf(log, before, 50)
     older.push(

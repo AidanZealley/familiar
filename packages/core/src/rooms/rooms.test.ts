@@ -674,8 +674,10 @@ test("the rooms list previews each room's newest entry, counts what each person 
     await watch.stop()
   })
   let rooms = watch.value.rooms
-  watch.start(async (value) => {
-    rooms = value.rooms
+  watch.start(async (call) => {
+    if (call.kind === 'value') {
+      rooms = call.value.rooms
+    }
   })
   const listed = (to: RoomApi) => rooms[to.id]
 

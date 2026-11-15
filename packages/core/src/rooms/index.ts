@@ -1,6 +1,10 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
+  type EntryQuery,
+  type Page,
+  type EntryRecord,
+  type Cursor,
   type ConversationWatch,
   type EntryId,
   type Harness,
@@ -108,6 +112,11 @@ export type RoomApi = {
    * `more` says whether older ones exist.
    */
   history(before: EntryId, limit: number): Promise<HistoryPage>
+  /** A bounded page in either direction, for transcript history and gaps. */
+  entries(
+    query: Omit<EntryQuery, 'conversationId'>,
+    limit: number,
+  ): Promise<Page<EntryRecord, Cursor>>
   /** The log's committed view, then every commit's changes to it. */
   watch(): Promise<ConversationWatch>
   /**
@@ -251,6 +260,13 @@ export function createRooms(
       harness.commit((tx) => markRead(tx, id, person, entry), context),
     history: async (before, limit) =>
       historyOf((await harness.conversation(id, context))!, before, limit),
+    entries: async (query, limit) =>
+      (await harness.conversation(id, context))!.entries(
+        query,
+        limit,
+        undefined,
+        context,
+      ),
     watch: async () =>
       (await harness.conversation(id, context))!.watch(context),
     watchTurns: () => watchActivity(harness, id),

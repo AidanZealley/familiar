@@ -1,7 +1,6 @@
 import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
 import type { RoomActivity } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'
-import { carryOver, type History } from './log.ts'
 import { composeMessage } from './mentions.ts'
 import {
   HANDOFF_KIND,
@@ -51,6 +50,7 @@ const viewOf = (...entries: EntryRecord[]) =>
 
 test("people's messages and copied replies render in order, with each reply's tool calls settled", () => {
   const view = viewOf(
+    said(1, 'Hello'),
     said(2, 'What time is it?'),
     replied(3, 2, [
       assistant([text('Checking.'), clock]),
@@ -58,7 +58,7 @@ test("people's messages and copied replies render in order, with each reply's to
       assistant([text('Noon.')]),
     ]),
   )
-  const { items, busy } = toRoomTranscript(view, [said(1, 'Hello')])
+  const { items, busy } = toRoomTranscript(view)
   expect(busy).toBe(false)
   expect(items).toEqual([
     expect.objectContaining({ type: 'message', text: 'Hello', at: 1000 }),
@@ -114,7 +114,7 @@ test("a failed reply can be tried again until its Familiar's next reply to the s
     false,
     false,
   ])
-  const retrying = toRoomTranscript(viewOf(said(2, 'Hi'), failed), [], {
+  const retrying = toRoomTranscript(viewOf(said(2, 'Hi'), failed), {
     7: { familiar: 3, cause: 2, status: 'queued' },
   } as unknown as RoomActivity).items
   expect(retrying[1]).not.toHaveProperty('retry')
@@ -178,7 +178,7 @@ test("a host's note is an item of its own, with no author", () => {
 test('each turn in progress shows what it waits for, then its reply as it streams', () => {
   const view = viewOf(said(1, 'Hello'))
   const items = (turns: RoomActivity) =>
-    toRoomTranscript(view, [], turns).items.slice(1)
+    toRoomTranscript(view, turns).items.slice(1)
 
   expect(
     items({
@@ -245,7 +245,7 @@ test('each turn in progress shows what it waits for, then its reply as it stream
       ],
     }),
   ])
-  expect(toRoomTranscript(view, [], { 7: {} } as never).busy).toBe(true)
+  expect(toRoomTranscript(view, { 7: {} } as never).busy).toBe(true)
 })
 
 test('a message keeps the mentions its author picked', () => {
@@ -270,15 +270,4 @@ test('a message keeps the mentions its author picked', () => {
     entry(1, MESSAGE_KIND, { author: aidan, text, at: 1, mentions }),
   )
   expect(toRoomTranscript(view).items[0]).toMatchObject({ mentions })
-})
-
-test('history starts over when a new view leaves a gap, and is kept when it starts in place', () => {
-  const history = [said(1, 'one'), said(2, 'two')]
-  const loaded: History = { entries: history, status: 'start' }
-  const view = viewOf(said(3, 'three'))
-  expect(carryOver(loaded, view, viewOf(said(20, 'much later')))).toEqual({
-    entries: [],
-    status: 'more',
-  })
-  expect(carryOver(loaded, view, view)).toBe(loaded)
 })

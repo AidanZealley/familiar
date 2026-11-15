@@ -219,7 +219,11 @@ async function until(
   try {
     if (!done(watch.value)) {
       await new Promise<void>((resolve) =>
-        watch.start(async (state) => {
+        watch.start(async (call) => {
+          if (call.kind !== 'value') {
+            return
+          }
+          const state = call.value
           if (done(state)) {
             resolve()
           }

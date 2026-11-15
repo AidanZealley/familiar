@@ -7,6 +7,7 @@ export const view = (...ids: number[]) =>
   ({
     conversation: {},
     entries: ids.map(entry),
+    ...(ids[0] > 1 && { before: ids[0] - 1 }),
     docs: {},
   }) as unknown as ConversationView
 
@@ -51,7 +52,7 @@ export function testServer(
         streams.push(controller)
         if (handshake) {
           controller.enqueue(
-            new TextEncoder().encode(frame('protocol', { version: 7 })),
+            new TextEncoder().encode(frame('protocol', { version: 8 })),
           )
         }
         request.signal.addEventListener('abort', () =>

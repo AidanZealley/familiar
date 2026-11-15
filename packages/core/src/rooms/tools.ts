@@ -1,4 +1,5 @@
-import { Type, type Message } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
+import { type Message } from '@earendil-works/pi-ai'
 import type { ToolRegistration } from '@earendil-works/pi-durable'
 import {
   HANDOFF_KIND,

@@ -22,7 +22,11 @@ export async function replyTo(room: RoomApi, entry: number) {
         void watch.closed.then(() =>
           reject(new Error('The room closed before a reply came.')),
         )
-        watch.start(async (view) => {
+        watch.start(async (call) => {
+          if (call.kind !== 'value') {
+            return
+          }
+          const view = call.value
           const reply = find(view)
           if (reply) {
             resolve(reply)
