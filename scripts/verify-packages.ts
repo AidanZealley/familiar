@@ -118,7 +118,7 @@ try {
   const reply = await new Promise((resolve) => {
     const find = (view) => view.entries.find((e) => e.kind === 'familiar.reply' && e.data.cause === entry)
     if (find(watch.value)) resolve(find(watch.value))
-    watch.start(async (view) => { if (find(view)) resolve(find(view)) })
+    watch.start(async (call) => { if (call.kind === 'value' && find(call.value)) resolve(find(call.value)) })
   })
   await watch.stop()
   assert.match(JSON.stringify(reply), /Packed host works, Consumer/)

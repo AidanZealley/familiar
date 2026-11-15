@@ -44,7 +44,9 @@ try {
   })
   // The room's log: the message now, the reply once the turn ends.
   const watch = await dm.watch()
-  watch.start(async (view) => console.log(view.entries.at(-1)?.data))
+  watch.start(async (call) => {
+    if (call.kind === 'value') console.log(call.value.entries.at(-1)?.data)
+  })
 } finally {
   await workspace.dismiss()
 }
