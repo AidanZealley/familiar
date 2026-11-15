@@ -1,6 +1,8 @@
-import type { Context, ContextKey, JsonValue } from '@earendil-works/chord'
+import type { Context, ContextKey } from '@earendil-works/chord/context'
+import type { JsonValue } from '@earendil-works/chord/json'
 import { withContextValue } from '@earendil-works/chord/context'
-import type { TSchema } from '@earendil-works/pi-ai'
+import type { TSchema } from 'typebox'
+
 import type {
   EntryId,
   EntryRecord,
@@ -29,8 +31,8 @@ import { entriesOf } from './pi/entries.ts'
  */
 
 export { defineTool } from '@earendil-works/pi-durable'
-export { Type } from '@earendil-works/pi-ai'
-export type { Static, TSchema } from '@earendil-works/pi-ai'
+export { Type } from 'typebox'
+export type { Static, TSchema } from 'typebox'
 
 export type ToolDetails = JsonValue
 export type ToolContext = Context

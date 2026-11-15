@@ -54,7 +54,7 @@ export function derivedWatch<T extends JsonValue>(compute: () => T) {
       .then(() => deliver(next, ops))
       .catch((error: unknown) =>
         end({
-          reason: 'listener_error',
+          kind: 'listener_error',
           error: error instanceof Error ? error : new Error(String(error)),
         }),
       )
@@ -72,12 +72,13 @@ export function derivedWatch<T extends JsonValue>(compute: () => T) {
       return sent
     },
     start: (next) => {
-      listener = (value, ops) => next(value, ops, BACKGROUND_CONTEXT)
+      listener = (value, ops) =>
+        next({ kind: 'value', value, ops, retired: false }, BACKGROUND_CONTEXT)
       // Anything that changed since acquisition.
       queueMicrotask(flush)
     },
     stop: () => {
-      end({ reason: 'stopped' })
+      end({ kind: 'stopped' })
       return closed
     },
     closed,
@@ -95,7 +96,7 @@ export function derivedWatch<T extends JsonValue>(compute: () => T) {
         return false
       }
       sources.add(source as WatchHandle<unknown>)
-      void source.closed.then(end, () => end({ reason: 'cancelled' }))
+      void source.closed.then(end, () => end({ kind: 'aborted' }))
       source.start(async () => {
         before?.()
         update()
@@ -105,7 +106,7 @@ export function derivedWatch<T extends JsonValue>(compute: () => T) {
       return true
     },
     /** Ends it, as when a source can't be opened. */
-    end: () => end({ reason: 'cancelled' }),
+    end: () => end({ kind: 'aborted' }),
   }
 }
 

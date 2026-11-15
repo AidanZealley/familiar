@@ -412,29 +412,6 @@ function recipients(
 }
 
 /**
- * A room's log never compacts, so its view, which a room's stream sends
- * whole, would grow forever. Past this many entries a marker moves the
- * view's start forward to keep the newest `VIEW_KEEP`, as compaction does
- * for a chat, and clients page back through `history` as they do there.
- */
-const VIEW_LIMIT = 200
-const VIEW_KEEP = 100
-
-/** The kind of the marker that starts a room's view, which shows nothing. */
-export const VIEW_KIND = 'familiar.view'
-
-/**
- * Where a room's view should start, given its entries since it last did,
- * oldest first: undefined while there are fewer than VIEW_LIMIT.
- */
-export const viewStart = (entries: readonly EntryId[]) =>
-  entries.length < VIEW_LIMIT ? undefined : entries[entries.length - VIEW_KEEP]
-
-/** Starts `room`'s view at `head`, keeping everything after it in view. */
-const startView = (tx: Tx, room: RoomId, head: EntryId) =>
-  tx.appendEntry(room, { kind: VIEW_KIND, head })
-
-/**
  * What a turn task is given: whose turn, in which room, for which entry, and
  * why. An open room's turns go one after another: each but the first waits
  * for the turn `after` it to end, so it's shown that turn's reply.
@@ -521,21 +498,6 @@ export async function postAll(
       }
     }
   }
-  // The entries in view, newest first, up to as many as could need moving.
-  const head = (await tx.latestHeadMarker(room))?.head
-  const { items } = await tx.scanEntries(
-    {
-      conversationId: room,
-      order: 'descending',
-      ...(head !== undefined && { minEntryId: head }),
-    },
-    VIEW_LIMIT,
-  )
-  const inView = items
-    .filter((item) => item.head === undefined)
-    .reverse()
-    .map((item) => item.id)
-
   const results = []
   for (const [index, { entry, requestId }] of postings.entries()) {
     const already = posted[index]
@@ -554,7 +516,6 @@ export async function postAll(
     const appended = await tx.appendEntry(room, entry as EntryDraft)
     tx.placeSubmission(submission.id, appended.id)
     await noteShown(tx, room, appended.id, entry)
-    inView.push(appended.id)
 
     const turns: TaskId<TurnResult>[] = []
     for (const { familiar, addressed } of recipients(record, entry)) {
@@ -570,10 +531,6 @@ export async function postAll(
       )
     }
     results.push({ entry: appended.id, turns })
-  }
-  const start = viewStart(inView)
-  if (start !== undefined) {
-    await startView(tx, room, start)
   }
   return results
 }

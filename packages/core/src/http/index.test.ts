@@ -314,6 +314,72 @@ test("posting to a room validates what clients send, takes the author from the h
   expect(page.entries.at(-1)?.data).toMatchObject({ author: sam, text: 'Hi' })
 })
 
+test('room entry ranges are bounded, ordered and protected like history', async () => {
+  const host = await testHost({ person: sam })
+  const workspace = host.workspace()
+  const room = (await workspace.rooms.get(
+    await workspace.rooms.dm(host.familiar().id, sam.id),
+  ))!
+  for (const text of ['one', 'two', 'three']) {
+    await room.note({ text, requestId: text })
+  }
+  const app = api(workspace)
+  const all = await (
+    await app.request(`/rooms/${room.id}/entries?order=ascending&limit=200`)
+  ).json()
+  const notes = all.items.filter(
+    (entry: { kind: string }) => entry.kind === 'familiar.note',
+  )
+  expect(notes).toHaveLength(3)
+  const min = notes[0].id
+  const max = notes[2].id
+  const page = await (
+    await app.request(
+      `/rooms/${room.id}/entries?min=${min}&max=${max}&order=ascending&limit=2`,
+    )
+  ).json()
+  expect(page.items.map((entry: { id: number }) => entry.id)).toEqual(
+    notes.slice(0, 2).map((entry: { id: number }) => entry.id),
+  )
+  expect(page.next).toBeDefined()
+  const descending = await (
+    await app.request(
+      `/rooms/${room.id}/entries?min=${min}&max=${max}&order=descending&limit=2`,
+    )
+  ).json()
+  expect(descending.items.map((entry: { id: number }) => entry.id)).toEqual(
+    notes
+      .slice(1)
+      .reverse()
+      .map((entry: { id: number }) => entry.id),
+  )
+  for (const query of [
+    'min=nope',
+    'max=1.5',
+    'limit=0',
+    'limit=201',
+    'order=random',
+  ]) {
+    expect(
+      (await app.request(`/rooms/${room.id}/entries?${query}`)).status,
+    ).toBe(400)
+  }
+  expect(
+    (
+      await api(workspace, { allow: () => false }).request(
+        `/rooms/${room.id}/entries`,
+      )
+    ).status,
+  ).toBe(403)
+  expect(
+    (
+      await api(workspace, {
+        authenticate: () => ({ id: 'ann', name: 'Ann' }),
+      }).request(`/rooms/${room.id}/entries`)
+    ).status,
+  ).toBe(404)
+})
+
 test("the DM endpoint gets or creates the asking person's DM with a Familiar", async () => {
   const host = await testHost({ person: sam })
   const familiar = String(host.familiar().id)
@@ -562,7 +628,7 @@ test('a client leaving stops every watch, even one still opening', async () => {
   await stream.reader.cancel()
   await vi.waitFor(() => expect(stopView).toHaveBeenCalledOnce())
 
-  const stop = vi.fn(async () => ({ reason: 'stopped' as const }))
+  const stop = vi.fn(async () => ({ kind: 'stopped' as const }))
   const start = vi.fn()
   opened({ value: {}, start, stop, closed: new Promise(() => {}) })
   await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce())
@@ -581,13 +647,13 @@ test('a watch closing ends the stream and stops everything else', async () => {
     } as unknown as Workspace['account'],
   }
   let close!: () => void
-  const stopFamiliars = vi.fn(async () => ({ reason: 'stopped' as const }))
+  const stopFamiliars = vi.fn(async () => ({ kind: 'stopped' as const }))
   vi.spyOn(workspace.familiars, 'watch').mockResolvedValue({
     value: { familiars: {} },
     start: vi.fn(),
     stop: stopFamiliars,
     closed: new Promise(
-      (resolve) => (close = () => resolve({ reason: 'stopped' })),
+      (resolve) => (close = () => resolve({ kind: 'stopped' })),
     ),
   })
 

@@ -1,4 +1,9 @@
-import type { EntryId } from '@earendil-works/pi-durable'
+import type {
+  Page,
+  EntryRecord,
+  Cursor,
+  EntryId,
+} from '@earendil-works/pi-durable'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
@@ -173,6 +178,69 @@ export function roomRoutes(rooms: RoomsApi) {
             c.req.valid('json').entry as EntryId,
           )
           return c.body(null, 204)
+        },
+      )
+      .get(
+        '/:room/entries',
+        can('rooms.history'),
+        validator(
+          'query',
+          (
+            query: {
+              min?: string
+              max?: string
+              limit?: string
+              order?: string
+            },
+            c,
+          ) => {
+            const minEntryId =
+              query.min === undefined ? undefined : Number(query.min)
+            const maxEntryId =
+              query.max === undefined ? undefined : Number(query.max)
+            const limit = query.limit === undefined ? 50 : Number(query.limit)
+            const order = query.order ?? 'descending'
+            if (
+              (minEntryId !== undefined && !Number.isSafeInteger(minEntryId)) ||
+              (maxEntryId !== undefined && !Number.isSafeInteger(maxEntryId)) ||
+              !Number.isSafeInteger(limit) ||
+              limit < 1 ||
+              limit > 200 ||
+              (order !== 'ascending' && order !== 'descending')
+            ) {
+              return c.json(
+                { error: 'Invalid entry range, order or limit' },
+                400,
+              )
+            }
+            return {
+              ...query,
+              limit: String(limit),
+              order: order as 'ascending' | 'descending',
+            }
+          },
+        ),
+        async (c) => {
+          const query = c.req.valid('query')
+          const page = await (
+            await roomOf(c)
+          ).entries(
+            {
+              ...(query.min !== undefined && {
+                minEntryId: Number(query.min) as EntryId,
+              }),
+              ...(query.max !== undefined && {
+                maxEntryId: Number(query.max) as EntryId,
+              }),
+              order: query.order,
+            },
+            Number(query.limit),
+          )
+          return c.json(page) as unknown as TypedResponse<
+            Page<EntryRecord, Cursor>,
+            200,
+            'json'
+          >
         },
       )
       // A page of entries older than `before`, newest first.

@@ -43,7 +43,11 @@ try {
       }
     }
     show(watch.value)
-    watch.start(async (view) => show(view))
+    watch.start(async (call) => {
+      if (call.kind === 'value') {
+        show(call.value)
+      }
+    })
   })
   await watch.stop()
   for (const item of transcript.items) {

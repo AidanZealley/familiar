@@ -8,6 +8,7 @@ import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
 import { Thinking } from '../thinking'
 import { Handoff } from './components/handoff'
+import { TranscriptGap } from './components/transcript-gap'
 import { RoomNote } from './components/room-note'
 import { ScheduledPrompt } from './components/scheduled-prompt'
 import type { TranscriptItemProps } from './types'
@@ -29,6 +30,8 @@ export const TranscriptItem = ({
   const gutter = cn(!dm && 'pl-10.5')
 
   switch (item.type) {
+    case 'gap':
+      return <TranscriptGap after={item.after} upTo={item.upTo} />
     case 'message':
       return <PersonMessage message={item} />
     case 'scheduled':

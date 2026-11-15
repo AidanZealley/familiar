@@ -640,7 +640,13 @@ export async function openWorkspace(
         mcp.connections,
         options.secrets,
       ),
-      onCommit: (listener) => harness.subscribeCommits(() => listener()),
+      onCommit: (listener) => {
+        const observation = harness.observeCommits({
+          advance: () => listener(),
+          end: () => {},
+        })
+        return () => observation.detach()
+      },
       usage: () => harness.usage(context),
       closed: harness.closed,
       wake: () => harness.wake(),

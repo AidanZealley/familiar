@@ -1,6 +1,7 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
+
 import { defineTool, type ToolExecutionApi } from '@earendil-works/pi-durable'
-import type { Context } from '@earendil-works/chord'
+import type { Context } from '@earendil-works/chord/context'
 import { Rooms, type RoomRegistry } from '../rooms/rooms.ts'
 import { localMinute } from '../time.ts'
 import { familiarFor } from '../workspace/familiars.ts'

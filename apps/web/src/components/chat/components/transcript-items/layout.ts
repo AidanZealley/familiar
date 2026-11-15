@@ -60,7 +60,7 @@ export const replyRuns = (items: readonly TranscriptItem[]) => {
 const timeOf = (item: TranscriptItem) =>
   item.type === 'scheduled'
     ? item.due
-    : item.type === 'waiting'
+    : item.type === 'waiting' || item.type === 'gap'
       ? undefined
       : item.at
 

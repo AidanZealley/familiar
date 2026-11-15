@@ -1,5 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
+
 import {
   fauxAssistantMessage,
   fauxToolCall,
@@ -172,7 +173,7 @@ async function openChat(responses: FauxResponseStep[]) {
       ),
     /** The inbox, the running run and the transcript, as Pi shows them. */
     view: async () => {
-      const { value } = await chat.viewState(context)
+      const { value } = await chat.watch(context)
       return {
         queued: (
           value.docs['pi.inbox'] as { items: { id: number }[] }
@@ -253,7 +254,7 @@ test('a room post is one commit: a write submission, its entry and the task it c
   await post('m1')
   await post('m1')
 
-  const entries = (await room.viewState(context)).value.entries
+  const entries = (await room.watch(context)).value.entries
   expect(entries.map((entry) => entry.data)).toEqual([{ text: 'm1' }])
   expect(
     await harness.commit(
@@ -503,7 +504,7 @@ test('a task can wait on tasks it does not own, finished or not, and resumes onc
 
 // Rooms: a room's stream sends its turns as a document of their own, as
 // views leave it out, and a marker starts a long room's view (rooms/log.ts).
-test("a conversation's view shows only Pi's own documents, and an entry's head starts it", async () => {
+test("a conversation's view shows only Pi's own documents and retains history before head markers", async () => {
   const harness = await Harness.open(
     new ReopenableStorage(),
     harnessOptions(),
@@ -535,9 +536,8 @@ test("a conversation's view shows only Pi's own documents, and an entry's head s
   const watch = await log.watch(context)
   await watch.stop()
   expect(watch.value.docs['test.notes']).toBeUndefined()
-  const [marker, ...shown] = watch.value.entries
-  expect(marker.kind).toBe('test.marker')
-  expect(shown.map((entry) => entry.id)).toEqual(ids.slice(1))
+  expect(watch.value.entries.slice(0, 3).map((entry) => entry.id)).toEqual(ids)
+  expect(watch.value.entries.at(-1)?.kind).toBe('test.marker')
   await harness.close(context)
 })
 

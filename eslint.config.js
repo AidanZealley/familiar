@@ -40,12 +40,11 @@ const workersOnly = [
 const portable = [...nodeOnly, ...workersOnly]
 
 // The client ships to browsers, so it shares core's and Pi's types but never
-// their code. Chord is the exception: the client applies its ops.
+// their code, except Pi's browser-safe transcript helper and Chord's ops.
 const typesOnlyFromPi = {
   group: [
     '@earendil-works/pi-ai',
     '@earendil-works/pi-ai/*',
-    '@earendil-works/pi-durable',
     '@earendil-works/pi-durable/*',
   ],
   message: 'The client may only import types from Pi.',
@@ -122,7 +121,19 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
-        { patterns: [...portable, typesOnlyFromPi], paths: typesOnlyFromCore },
+        {
+          patterns: [...portable, typesOnlyFromPi],
+          paths: [
+            ...typesOnlyFromCore,
+            {
+              name: '@earendil-works/pi-durable',
+              allowImportNames: ['ConversationTranscript'],
+              allowTypeImports: true,
+              message:
+                'Only the transcript helper and types belong in the client.',
+            },
+          ],
+        },
       ],
     },
   },
