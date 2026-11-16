@@ -37,9 +37,8 @@ Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unautho
 | Familiar  | `model`      | `AgentState \| null \| undefined`     | Its model and reasoning level                                             |
 | Familiar  | `memory`     | `MemoryState \| null \| undefined`    | `{ subjects, next, months, forgotten }`: who and what it knows about      |
 | Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                                                           |
-| Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy }`                                                         |
+| Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy, earlier }`                                                |
 | Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed                                          |
-| Room      | `history`    | `{ status }`                          | Earlier-message load state                                                |
 | Room      | `turns`      | `RoomActivity \| null \| undefined`   | Turns in progress, as streamed                                            |
 
 Each document is `undefined` until it arrives and `null` when the stream sends none.
@@ -76,7 +75,7 @@ A reply that stayed quiet is never `last`. A `last` reply whose `outcome` is `fa
 
 ## Commands
 
-Commands return promises that reject with the server's error. They aren't retried. Each one calls the [route operation](/familiar/reference/http/) of the same name, except `loadOlder()`, which calls `rooms.history` and never rejects: `history.status` shows its progress and any failure.
+Commands return promises that reject with the server's error. They aren't retried. Each one calls the [route operation](/familiar/reference/http/) of the same name, except `loadOlder()` and `loadGap(gap)`, which call `rooms.history`.
 
 | Store     | Group         | Commands                                                                                                |
 | --------- | ------------- | ------------------------------------------------------------------------------------------------------- |
@@ -92,7 +91,7 @@ Commands return promises that reject with the server's error. They aren't retrie
 | Familiar  | `schedules`   | `cancel(id)`, `pause(id)`, `resume(id)`                                                                 |
 | Room      |               | `send(text, mentions?)`, `note(text)`, `retry(reply)`, `stop()`, `read(entry)`, `loadOlder()`           |
 
-`send` and `note` generate the `requestId`. `retry(reply)` tries a failed reply's turn again; the transcript sets `retry` to that ID on a failed reply's last item while it can be. A note is context the room's Familiars see on their next turn, which no one replies to. `loadOlder()` does nothing while a page is loading or once `history.status` is `start`. `familiars.update` takes `{ name?, persona?, avatar?, chatModel?, memoryModel? }`; a `null` persona, avatar or model returns it to the default. `chatModel` is the model that Familiar answers with and `memoryModel` the one its memory filing and consolidation run on, each one of the workspace's `modelChoices`. A `memoryModel` may carry a `thinkingLevel`. `defaults.models()` returns the workspace's `{ chat, memory }` defaults, each with its `thinkingLevel`, and every `ModelOption`; `defaults.setModels({ chat?, memory? })` changes them, each a model with an optional level. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
+`send` and `note` generate the `requestId`. `retry(reply)` tries a failed reply's turn again; the transcript sets `retry` to that ID on a failed reply's last item while it can be. A note is context the room's Familiars see on their next turn, which no one replies to. `loadOlder()` loads the page before the transcript's start while `transcript.earlier` is true; calls made while one loads share it. `familiars.update` takes `{ name?, persona?, avatar?, chatModel?, memoryModel? }`; a `null` persona, avatar or model returns it to the default. `chatModel` is the model that Familiar answers with and `memoryModel` the one its memory filing and consolidation run on, each one of the workspace's `modelChoices`. A `memoryModel` may carry a `thinkingLevel`. `defaults.models()` returns the workspace's `{ chat, memory }` defaults, each with its `thinkingLevel`, and every `ModelOption`; `defaults.setModels({ chat?, memory? })` changes them, each a model with an optional level. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
 
 ## Transcript
 
