@@ -12,7 +12,7 @@ import type { Author } from './conversation/message.ts'
 import type { FamiliarPlugin } from './index.ts'
 import { ReopenableStorage, replyTo, testHost } from './testing.ts'
 import { createPlugins } from './plugins/index.ts'
-import { obj, str } from '@earendil-works/pi-schema'
+import * as schema from '@earendil-works/pi-schema'
 import { defineTool, familiar as services } from './tools.ts'
 
 // Tools as plugins use them. Who a tool call runs for: a
@@ -54,7 +54,7 @@ test('tools and nested calls retain their author across rounds while another aut
       defineTool({
         name: 'outer',
         description: 'Test nested calls',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         execute: async (_args, api, context) => {
           seen.push(await services(context).author())
           await held
@@ -65,7 +65,7 @@ test('tools and nested calls retain their author across rounds while another aut
       defineTool({
         name: 'inner',
         description: 'Report attribution',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         execute: async (_args, _api, context) => {
           seen.push(await services(context).author())
           return output
@@ -113,7 +113,7 @@ test('a replay-safe interrupted tool resolves the same author after reopening', 
       defineTool({
         name: 'identify',
         description: 'Report attribution',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         replay: 'safe',
         execute: async (_args, _api, context) => {
           seen.push(await services(context).author())
@@ -180,7 +180,7 @@ test('input with no person behind it, such as a memory call, has no author', asy
           defineTool({
             name: 'identify',
             description: 'Report attribution',
-            parameters: obj({}),
+            parameters: schema.obj({}),
             execute: async (_args, _api, context) => {
               seen.push(await services(context).author())
               return { output: [] }
@@ -233,7 +233,7 @@ test('a tool keeps its last reported details unless its result replaces them, af
       defineTool({
         name: 'lookup',
         description: 'Look up a value.',
-        parameters: obj({ value: str() }),
+        parameters: schema.obj({ value: schema.str() }),
         execute: async ({ value }, api, context) => {
           await api.details({ source: value }, context)
           return output
@@ -242,7 +242,7 @@ test('a tool keeps its last reported details unless its result replaces them, af
       defineTool({
         name: 'override',
         description: 'Return final details.',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         execute: async (_args, api, context) => {
           await api.details({ stale: true }, context)
           return { ...output, details: { final: true } }
@@ -282,7 +282,7 @@ test('Stop aborts a running tool', async () => {
       defineTool({
         name: 'wait',
         description: 'Wait for cancellation.',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         execute: async (_args, _api, context) => {
           const signal = context.abortSignal!
           started(signal)

@@ -1,4 +1,4 @@
-import { obj, opt, str } from '@earendil-works/pi-schema'
+import * as schema from '@earendil-works/pi-schema'
 import { type Message } from '@earendil-works/pi-ai'
 import type { ToolRegistration } from '@earendil-works/pi-durable'
 import {
@@ -60,8 +60,10 @@ export function roomTools(maxHandoffs: number): ToolRegistration[] {
     name: STAY_QUIET,
     description:
       "Say nothing this turn, when you weren't addressed directly and have nothing distinct to add. Ends your turn.",
-    parameters: obj({
-      reason: opt(str({ description: 'Why; nobody is shown it' })),
+    parameters: schema.obj({
+      reason: schema.opt(
+        schema.str({ description: 'Why; nobody is shown it' }),
+      ),
     }),
     replay: 'safe',
     // Ends the run, as the turn's quiet outcome records (see turn.ts).
@@ -75,9 +77,9 @@ export function roomTools(maxHandoffs: number): ToolRegistration[] {
     name: HAND_OFF,
     description:
       'Ask another assistant in this room to take a turn once you finish; they answer in the room themselves.',
-    parameters: obj({
-      to: str({ description: 'Their name' }),
-      note: str({ description: 'What you want from them' }),
+    parameters: schema.obj({
+      to: schema.str({ description: 'Their name' }),
+      note: schema.str({ description: 'What you want from them' }),
     }),
     // Only checks the handoff: the turn posts it, from this call's result.
     replay: 'safe',

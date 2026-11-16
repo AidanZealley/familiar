@@ -28,7 +28,7 @@ Familiar loads every `.ts` and `.js` file directly in this folder when it starts
 Save this as `hello.ts`:
 
 ```ts
-import { definePlugin, defineTool, familiar, obj } from '@familiar-ai/core'
+import { definePlugin, defineTool, familiar, schema } from '@familiar-ai/core'
 
 export default definePlugin({
   name: 'hello',
@@ -37,7 +37,7 @@ export default definePlugin({
     defineTool({
       name: 'hello',
       description: 'Greet the person who asked.',
-      parameters: obj({}),
+      parameters: schema.obj({}),
       replay: 'safe',
       execute: async (_args, _api, context) => {
         const author = await familiar(context).author()
@@ -65,7 +65,7 @@ Node runs TypeScript directly, so there's no build step. Write `import type` for
 A plugin can declare secrets, such as an API token. You paste the value on the **Connections** page. Familiar keeps it and adds it to a request only if the request goes exactly where the plugin declared. The plugin's code never sees it:
 
 ```ts
-import { definePlugin, defineTool, familiar, obj } from '@familiar-ai/core'
+import { definePlugin, defineTool, familiar, schema } from '@familiar-ai/core'
 
 const API = 'https://api.tasks.example'
 
@@ -88,7 +88,7 @@ export default definePlugin({
     defineTool({
       name: 'list_tasks',
       description: 'List my open tasks.',
-      parameters: obj({}),
+      parameters: schema.obj({}),
       replay: 'safe',
       execute: async (_args, _api, context) => {
         const response = await familiar(context).authorizedFetch(

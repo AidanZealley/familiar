@@ -15,9 +15,9 @@ import { fakeClock, inputOf, TEST_ZONE, testHost, timeAt } from '../testing.ts'
 import {
   defineTool,
   familiar,
-  obj,
   type Author,
   type FamiliarPlugin,
+  schema,
 } from '../index.ts'
 import { Schedules } from './schedules.ts'
 
@@ -249,7 +249,7 @@ test('a one-off runs at its time for whoever asked, whatever request IDs people 
           defineTool({
             name: 'identify',
             description: 'Report the creator',
-            parameters: obj({}),
+            parameters: schema.obj({}),
             execute: async (_args, _api, context) => {
               seen.push(await familiar(context).author())
               return { output: [{ type: 'text', text: 'Identified' }] }

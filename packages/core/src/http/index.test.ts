@@ -10,9 +10,9 @@ import type { Author } from '../conversation/message.ts'
 import {
   defineTool,
   MESSAGE_LIMITS,
-  obj,
   type RoomActivity,
   type Workspace,
+  schema,
 } from '../index.ts'
 import { storageWith } from '../memory/testing.ts'
 import { testHost } from '../testing.ts'
@@ -484,7 +484,7 @@ test("a room's stream shows its own turn's reply as it runs, and only that a Fam
           defineTool({
             name: 'wait',
             description: 'Waits.',
-            parameters: obj({}),
+            parameters: schema.obj({}),
             execute: async (_args, api, context) => {
               await api.details({ waiting: 'for the oven' }, context)
               await held

@@ -1,5 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
-import { num, obj, defineTool, definePlugin } from '@familiar-ai/core'
+import { defineTool, definePlugin, schema } from '@familiar-ai/core'
 import { WATCH_MINUTES } from './story.ts'
 
 /**
@@ -11,8 +11,8 @@ const watchPrint = defineTool({
   name: 'watch_print',
   description:
     'Watches the printer’s camera until the print reaches a layer, then says how it looks.',
-  parameters: obj({
-    layer: num({ description: 'The layer to wait for' }),
+  parameters: schema.obj({
+    layer: schema.num({ description: 'The layer to wait for' }),
   }),
   execute: async ({ layer }, _api, context) => {
     await setTimeout(WATCH_MINUTES * 60_000, undefined, {

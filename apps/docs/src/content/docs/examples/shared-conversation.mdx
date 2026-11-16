@@ -105,7 +105,7 @@ A tool never takes the person as an argument. It reads `familiar(context).author
 defineTool({
   name: 'count_me_in',
   description: 'Adds the person asking to the guest list.',
-  parameters: obj({}),
+  parameters: schema.obj({}),
   execute: async (_args, _api, context) => {
     const author = await familiar(context).author()
     if (!author) {

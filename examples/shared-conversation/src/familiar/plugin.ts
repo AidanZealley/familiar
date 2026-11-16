@@ -2,8 +2,8 @@ import {
   definePlugin,
   defineTool,
   familiar,
-  obj,
   type Author,
+  schema,
 } from '@familiar-ai/core'
 
 const result = (text: string, isError = false) => ({
@@ -27,7 +27,7 @@ export const guestListPlugin = () => {
       defineTool({
         name: 'who_am_i',
         description: 'Says who the host signed the person asking in as.',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         replay: 'safe',
         execute: async (_args, _api, context) => {
           const author = await familiar(context).author()
@@ -39,7 +39,7 @@ export const guestListPlugin = () => {
       defineTool({
         name: 'count_me_in',
         description: 'Adds the person asking to the guest list.',
-        parameters: obj({}),
+        parameters: schema.obj({}),
         execute: async (_args, _api, context) => {
           const author = await familiar(context).author()
           if (!author) {
