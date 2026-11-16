@@ -7,7 +7,6 @@ export type { RoomState, RoomStore } from './room.ts'
 export type { Store, StoreOptions } from './mirror.ts'
 export type { FamiliarChange, RoomChange, RoomSetup } from './commands.ts'
 export type { Connection } from './events.ts'
-export type { History } from './log.ts'
 export { composeMessage, type Picked } from './mentions.ts'
 export { toRoomTranscript } from './transcript.ts'
 export type {

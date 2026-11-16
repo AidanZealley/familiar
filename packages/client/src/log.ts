@@ -14,14 +14,10 @@ import {
   type TranscriptGap,
 } from './transcript.ts'
 
-/** Loading the entries before the transcript's start. */
-export type History = { status: 'more' | 'loading' | 'failed' | 'start' }
-
 /** The room store's log fields, which this module owns. */
 export type LogState = {
   /** The room log's view: Pi's window of its newest entries. */
   view: ConversationView | undefined
-  history: History
   /** The room's turns in progress, live. */
   turns: RoomActivity | null | undefined
   /** Every entry loaded, then the turns; unchanged by unrelated updates. */
@@ -30,8 +26,9 @@ export type LogState = {
 
 /**
  * Pi's ConversationTranscript holds every entry the room has shown or
- * loaded, and the gaps between; the log adds the room's turns and the status
- * of loading earlier entries.
+ * loaded, the gaps between and whether earlier entries exist; the log adds
+ * the room's turns. Loads reject on failure, so whoever shows a load shows
+ * its progress and failure.
  */
 export const createLog = (
   set: StoreApi<LogState>['setState'],
@@ -53,45 +50,21 @@ export const createLog = (
         : view && toRoomTranscript(view, turns ?? {}),
     }
   }
-  const reach = (): History => ({
-    status: merged?.items[0]?.kind === 'earlier' ? 'more' : 'start',
+
+  const receive = (view: ConversationView | undefined) => ({
+    view,
+    ...show(view && transcript.merge(view)),
   })
 
-  /** Loads the page before the transcript's start; `history` owns its progress and failure. */
-  const loadOlder = async () => {
-    const { status } = get().history
-    if (!merged || status === 'loading' || status === 'start') {
-      return
-    }
-    set({ history: { status: 'loading' } })
-    try {
-      const shown = show(await transcript.loadEarlier(BACKGROUND_CONTEXT))
-      set({ ...shown, history: reach() })
-    } catch {
-      set({ history: { status: 'failed' } })
-    }
-  }
-
-  const receive = (view: ConversationView | undefined) => {
-    const shown = show(view && transcript.merge(view))
-    const { status } = get().history
-    return {
-      view,
-      ...shown,
-      // A load keeps its status until it settles, and a failure until retried.
-      history:
-        status === 'loading' || status === 'failed' ? get().history : reach(),
-    }
-  }
-
   return {
-    loadOlder,
-    /** Loads the next page of `gap`; rejects if that fails. */
-    loadGap: async (gap: TranscriptGap) =>
-      set(show(await transcript.fillGap(gap, BACKGROUND_CONTEXT))),
     receive,
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>
       receive(applyImmutable(get().view, ops)),
     turns: (turns: LogState['turns']) => show(merged, turns),
+    // Pi shares concurrent loads of the same page, so callers needn't guard.
+    loadOlder: async () =>
+      set(show(await transcript.loadEarlier(BACKGROUND_CONTEXT))),
+    loadGap: async (gap: TranscriptGap) =>
+      set(show(await transcript.fillGap(gap, BACKGROUND_CONTEXT))),
   }
 }

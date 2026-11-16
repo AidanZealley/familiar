@@ -150,7 +150,7 @@ test('transcript arrives atomically with views and operations and retains stream
   expect(observed).toEqual([['entry:1'], ['entry:1', 'turn:5'], ['entry:1']])
 })
 
-test('transcript reference survives unrelated updates and history loading or failure', async () => {
+test('transcript reference survives unrelated updates and a failed load, and loading earlier reaches the start', async () => {
   let fail = true
   const server = testServer(() =>
     fail
@@ -168,26 +168,19 @@ test('transcript reference survives unrelated updates and history loading or fai
   const unrelated = store.getState().transcript
   expect(unrelated).toBe(initial)
 
-  const load = store.loadOlder()
-  expect(store.getState().history.status).toBe('loading')
+  expect(store.getState().transcript?.earlier).toBe(true)
+  await expect(store.loadOlder()).rejects.toThrow()
   expect(store.getState().transcript).toBe(unrelated)
-  await load
-  expect(store.getState().history.status).toBe('failed')
-  expect(store.getState().transcript).toBe(unrelated)
-  // A failure waits for a retry rather than resetting on the next commit.
-  server.send(frame('ops', []))
-  await tick()
-  expect(store.getState().history.status).toBe('failed')
   fail = false
   const published: (string[] | undefined)[] = []
   const unsubscribe = store.subscribe(() => published.push(itemIds(store)))
   await store.loadOlder()
   unsubscribe()
-  expect(published).toEqual([['entry:2'], ['entry:1', 'entry:2']])
+  expect(published).toEqual([['entry:1', 'entry:2']])
   expect(itemIds(store)).toEqual(['entry:1', 'entry:2'])
   expect(store.getState().transcript).not.toBe(unrelated)
   const loaded = store.getState().transcript
-  await store.loadOlder()
+  expect(loaded?.earlier).toBe(false)
   store.disconnect()
   expect(store.getState().transcript).toBe(loaded)
 })
