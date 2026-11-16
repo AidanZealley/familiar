@@ -3,13 +3,19 @@ import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Message, MessageContent } from '@/components/ui/message'
 import { ReplyText } from '../reply-text'
 import { RetryReply } from './components/retry-reply'
+import { Retrying } from '../retrying'
 import { Thinking } from '../thinking'
 import { ToolCall } from '../tool-call'
 import type { ReplyProps } from './types'
 
 export const Reply = ({ reply }: ReplyProps) => {
-  // Nothing visible has arrived yet, so the reply is still thinking.
-  const waiting = reply.streaming && !reply.text && reply.toolCalls.length === 0
+  // Nothing visible has arrived yet, so the reply is still thinking, unless
+  // it's waiting to try the model again.
+  const waiting =
+    reply.streaming &&
+    !reply.retrying &&
+    !reply.text &&
+    reply.toolCalls.length === 0
 
   return (
     <Message className="text-sm">
@@ -23,6 +29,7 @@ export const Reply = ({ reply }: ReplyProps) => {
         {reply.text && (
           <ReplyText text={reply.text} streaming={reply.streaming} />
         )}
+        {reply.retrying && <Retrying retrying={reply.retrying} />}
         {reply.stopped && (
           <Marker className="text-muted-foreground">
             <MarkerIcon>

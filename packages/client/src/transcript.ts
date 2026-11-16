@@ -84,7 +84,10 @@ export type TranscriptItem =
        * call, so a client may leave it out.
        */
       quiet?: true
+      /** Why it failed, or the model's error. */
       error?: string
+      /** Still being generated, and waiting to try the model again. */
+      retrying?: Retrying
       /**
        * A failed reply's entry ID, which a room's `retry` tries again: on
        * its last item only, while it's its Familiar's newest reply to what
@@ -132,7 +135,11 @@ export type TranscriptItem =
       id: string
       familiar: number
       status: TurnActivity['status']
+      retrying?: Retrying
     }
+
+/** A model request that failed and is tried again `at`, in ms since the epoch. */
+export type Retrying = { at: number; error: string }
 
 export type Transcript = {
   items: TranscriptItem[]
@@ -273,31 +280,69 @@ function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
       },
     ]
   })
-  // A run that failed before saying anything still shows that it failed.
-  if (!items.length && reply.outcome === 'failed') {
-    return [
-      {
-        type: 'reply',
-        id,
-        familiar: reply.familiar,
-        name: reply.name,
-        text: '',
-        thinking: '',
-        toolCalls: [],
-        streaming: false,
-        stopped: false,
-        error: 'The reply failed.',
-      },
-    ]
+  if (reply.outcome !== 'failed') {
+    return items
   }
-  return items
+  const error = failureText(reply.failure)
+  const last = items.at(-1)
+  // Says why on its last item, unless the model's own error already does.
+  if (last?.type === 'reply') {
+    last.error ??= error
+    return items
+  }
+  // A run that failed before saying anything still shows that it failed.
+  return [
+    {
+      type: 'reply',
+      id,
+      familiar: reply.familiar,
+      name: reply.name,
+      text: '',
+      thinking: '',
+      toolCalls: [],
+      streaming: false,
+      stopped: false,
+      error,
+    },
+  ]
+}
+
+/** Why a reply failed, in words, from the reason and detail Pi settled it with. */
+function failureText(failure: ReplyData['failure']) {
+  const detail = failure?.detail
+  switch (failure?.reason) {
+    case 'model_error':
+      return detail ? `The model failed: ${detail}` : 'The model failed.'
+    case 'no_model':
+      return detail
+        ? `No model to answer with: ${detail}`
+        : 'No model to answer with.'
+    case 'turn_limit':
+      return detail
+        ? `Stopped at its limit of ${detail}.`
+        : 'Stopped at its turn limit.'
+    case 'restart_limit':
+      return 'Interrupted too many times to finish.'
+    case 'interrupted':
+      return 'Interrupted before it finished.'
+    default:
+      return 'The reply failed.'
+  }
 }
 
 /** A turn in progress: its reply so far, or what it's waiting for. */
 function toActive(task: string, turn: TurnActivity): TranscriptItem {
   const id = `turn:${task}`
+  const retrying =
+    turn.status === 'running' ? turn.generation?.retry : undefined
   if (turn.status !== 'running' || (!turn.generation?.message && !turn.tools)) {
-    return { type: 'waiting', id, familiar: turn.familiar, status: turn.status }
+    return {
+      type: 'waiting',
+      id,
+      familiar: turn.familiar,
+      status: turn.status,
+      ...(retrying && { retrying }),
+    }
   }
   const calls = new Map<string, ToolCall>()
   const partial = turn.generation?.message as AssistantMessage | undefined
@@ -330,7 +375,7 @@ function toActive(task: string, turn: TurnActivity): TranscriptItem {
     call.output = slot.output ?? ''
     call.details = slot.details
   }
-  return { ...reply, streaming: true }
+  return { ...reply, streaming: true, ...(retrying && { retrying }) }
 }
 
 function toReply(

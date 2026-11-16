@@ -79,16 +79,30 @@ test("people's messages and copied replies render in order, with each reply's to
     expect.objectContaining({ type: 'reply', id: 'entry:3:2', text: 'Noon.' }),
   ])
 
-  // A stopped reply says so; a failed one with nothing said still shows it failed.
+  // A stopped reply says so; a failed one with nothing said still shows it
+  // failed, and one that stopped at a limit says why on its last item.
   const stopped = toRoomTranscript(
     viewOf(
       replied(4, 2, [assistant([text('Half')], 'aborted')], 'stopped'),
       replied(5, 2, [], 'failed'),
+      entry(6, REPLY_KIND, {
+        familiar: 3,
+        name: 'Ada',
+        cause: 1,
+        outcome: 'failed',
+        failure: { reason: 'turn_limit', detail: '40 turns' },
+        messages: [assistant([text('Still working')])],
+      }),
     ),
   ).items
   expect(stopped).toMatchObject([
     { type: 'reply', text: 'Half', stopped: true },
     { type: 'reply', error: 'The reply failed.', retry: 5 },
+    {
+      type: 'reply',
+      text: 'Still working',
+      error: 'Stopped at its limit of 40 turns.',
+    },
   ])
 })
 
@@ -197,6 +211,20 @@ test('each turn in progress shows what it waits for, then its reply as it stream
   expect(
     items({ 7: { familiar: 3, cause: 1, status: 'running' } } as never),
   ).toEqual([{ type: 'waiting', id: 'turn:7', familiar: 3, status: 'running' }])
+  // Waiting to try the model again, with why.
+  const retrying = { at: 5000, error: 'Rate limited' }
+  expect(
+    items({
+      7: {
+        familiar: 3,
+        cause: 1,
+        status: 'running',
+        generation: { attempt: 1, retry: retrying },
+      },
+    } as never),
+  ).toEqual([
+    { type: 'waiting', id: 'turn:7', familiar: 3, status: 'running', retrying },
+  ])
 
   // The reply so far keeps the turn's ID, as does a later round's tools.
   const streaming = items({
