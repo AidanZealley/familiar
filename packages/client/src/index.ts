@@ -10,7 +10,12 @@ export type { Connection } from './events.ts'
 export type { History } from './log.ts'
 export { composeMessage, type Picked } from './mentions.ts'
 export { toRoomTranscript } from './transcript.ts'
-export type { ToolCall, Transcript, TranscriptItem } from './transcript.ts'
+export type {
+  ToolCall,
+  Transcript,
+  TranscriptItem,
+  TranscriptGap,
+} from './transcript.ts'
 export type {
   Author,
   AccountState,
@@ -46,6 +51,9 @@ export type {
 export type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 export type {
   ConversationView,
+  TranscriptView,
   EntryRecord,
   ModelRef,
 } from '@earendil-works/pi-durable'
+
+export { ConversationTranscript } from '@earendil-works/pi-durable'

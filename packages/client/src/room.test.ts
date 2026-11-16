@@ -188,10 +188,10 @@ test('transcript reference survives unrelated updates and history loading or fai
   expect(store.getState().transcript).toBe(loaded)
 })
 
-test('a reconnect keeps loaded messages and exposes a fillable gap', async () => {
+test('a reconnect retains history and forwards a gap even after a newer window narrows it', async () => {
   const server = testServer(() =>
     Response.json({
-      items: [message(4), message(5), message(6), message(7), message(8)],
+      items: [message(4), message(5), message(6), message(7)],
     }),
   )
   const store = open('/api', { fetch: server.fetch })
@@ -202,11 +202,19 @@ test('a reconnect keeps loaded messages and exposes a fillable gap', async () =>
   await expect
     .poll(() => itemIds(store))
     .toEqual(['entry:3', 'gap:3:9', 'entry:9'])
-  await store.loadGap(3, 9)
+  const gap = store
+    .getState()
+    .transcript!.items.find((item) => item.type === 'gap')!
+  // Keep the UI's descriptor while a newer window narrows the missing range.
+  server.send(frame('view', conversation(8, 9)))
+  await expect
+    .poll(() => itemIds(store))
+    .toEqual(['entry:3', 'gap:3:8', 'entry:8', 'entry:9'])
+  await store.loadGap(gap.gap)
   expect(itemIds(store)).toEqual(
     [3, 4, 5, 6, 7, 8, 9].map((id) => `entry:${id}`),
   )
   expect(server.requests.at(-1)?.url).toBe(
-    'http://familiar.test/api/rooms/1/history?minEntryId=4&maxEntryId=8&order=ascending&limit=50',
+    'http://familiar.test/api/rooms/1/history?minEntryId=4&maxEntryId=7&order=ascending&limit=50',
   )
 })

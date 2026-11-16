@@ -1,3 +1,4 @@
+import type { TranscriptGap } from './transcript.ts'
 import type { RoomActivity } from '@familiar-ai/core/http'
 import { createStore } from 'zustand/vanilla'
 import { createApi, roomCommands } from './commands.ts'
@@ -15,7 +16,7 @@ export type RoomStore = Store<RoomState> &
      * progress and failure, so this never rejects.
      */
     loadOlder(): Promise<void>
-    loadGap(after: number, upTo: number): Promise<void>
+    loadGap(gap: TranscriptGap): Promise<void>
   }
 
 /**
