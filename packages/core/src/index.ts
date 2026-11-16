@@ -34,7 +34,7 @@ export {
   MessageError,
   type Author,
 } from './conversation/message.ts'
-export type { HistoryPage } from './pi/entries.ts'
+export type { HistoryQuery, HistoryPage } from './rooms/index.ts'
 export {
   ModelError,
   type ModelChoice,

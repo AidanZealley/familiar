@@ -32,18 +32,18 @@ People talk to Familiars only in rooms. A DM is a room with one Familiar and one
 
 **Rooms**, `rooms.*`, asked with `{ room }` except `list` and `create`
 
-| Operation       | Method and path                   | Body                                      | Success                           | Errors                  |
-| --------------- | --------------------------------- | ----------------------------------------- | --------------------------------- | ----------------------- |
-| `rooms.list`    | `GET /rooms`                      |                                           | 200 `RoomSummary[]`               |                         |
-| `rooms.create`  | `POST /rooms`                     | `{ name, familiars, lead? }`              | 201 `{ id }`                      | 400 refused             |
-| `rooms.update`  | `PATCH /rooms/:room`              | `{ name?, familiars?, lead?, archived? }` | 204                               | 400 refused             |
-| `rooms.archive` | `DELETE /rooms/:room`             |                                           | 204                               | 400 a DM                |
-| `rooms.post`    | `POST /rooms/:room/messages`      | `{ text, requestId, mentions? }`          | 202                               | 400 refused or archived |
-| `rooms.note`    | `POST /rooms/:room/notes`         | `{ text, requestId }`                     | 202                               | 400 refused or archived |
-| `rooms.read`    | `POST /rooms/:room/read`          | `{ entry }`                               | 204                               | 400 bad `entry`         |
-| `rooms.history` | `GET /rooms/:room/history?before` |                                           | 200 `{ entries, more }`, up to 50 | 400 bad `before`        |
-| `rooms.retry`   | `POST /rooms/:room/retry`         | `{ reply }`                               | 202                               | 400 not a failed reply  |
-| `rooms.stop`    | `POST /rooms/:room/stop`          |                                           | 202                               |                         |
+| Operation       | Method and path              | Body                                      | Success                | Errors                  |
+| --------------- | ---------------------------- | ----------------------------------------- | ---------------------- | ----------------------- |
+| `rooms.list`    | `GET /rooms`                 |                                           | 200 `RoomSummary[]`    |                         |
+| `rooms.create`  | `POST /rooms`                | `{ name, familiars, lead? }`              | 201 `{ id }`           | 400 refused             |
+| `rooms.update`  | `PATCH /rooms/:room`         | `{ name?, familiars?, lead?, archived? }` | 204                    | 400 refused             |
+| `rooms.archive` | `DELETE /rooms/:room`        |                                           | 204                    | 400 a DM                |
+| `rooms.post`    | `POST /rooms/:room/messages` | `{ text, requestId, mentions? }`          | 202                    | 400 refused or archived |
+| `rooms.note`    | `POST /rooms/:room/notes`    | `{ text, requestId }`                     | 202                    | 400 refused or archived |
+| `rooms.read`    | `POST /rooms/:room/read`     | `{ entry }`                               | 204                    | 400 bad `entry`         |
+| `rooms.history` | `GET /rooms/:room/history`   |                                           | 200 `{ items, next? }` | 400 invalid query       |
+| `rooms.retry`   | `POST /rooms/:room/retry`    | `{ reply }`                               | 202                    | 400 not a failed reply  |
+| `rooms.stop`    | `POST /rooms/:room/stop`     |                                           | 202                    |                         |
 
 `GET /rooms` lists every named room and the person's own DMs, never anyone else's, each as a `RoomListing`: its setup, `last`, its newest entry worth showing, `unread`, how many entries the person hasn't read, and `turns`, its turns in progress as `{ familiar, status }` (see [the client's rooms list](/familiar/reference/client/#rooms-list)). Archiving hides a named room and closes it to new messages, keeping its history; `PATCH` with `archived: false`, the only value it takes, unarchives it. `POST /rooms/:room/read` marks the room read by the person asking up to `entry`, the newest they've seen, and never moves their marker back; their own messages move it too.
 
@@ -136,4 +136,4 @@ Apply ops in order to the last whole value. After a reconnect, everything arrive
 - A Familiar's, asked with `{ familiar }`: `events.model` sends the `model` document, its model and reasoning level, and `events.memory` and `events.schedules` their documents: `memory` is the subjects, which pages are read by.
 - A room's, asked with `{ room }`: `events.room` sends the log's `view` and `ops`, then the `turns` document, its turns in progress by task ID. Each turn is `queued` behind work in this room or not yet delivered, `elsewhere` while its Familiar works in another room, or `running`, with the reply so far (`generation`) and the current round's tool calls (`tools`). Nothing from a Familiar's other rooms is sent, and a reply's earlier rounds show once the turn ends and its reply is copied into the log.
 
-Room history keeps the `{ entries, more }` response. `before` is exclusive; optional `after` is also exclusive and reads the bounded gap oldest first. Without `after`, history is newest first.
+Room history accepts Pi's inclusive `minEntryId` and `maxEntryId` bounds, `order` (`ascending` or `descending`, default `descending`), and `limit` (1–200, default 50). It returns Pi's page unchanged as `{ items, next? }`; the transcript loader uses it directly.
