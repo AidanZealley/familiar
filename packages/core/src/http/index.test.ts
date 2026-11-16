@@ -1,3 +1,4 @@
+import { BACKGROUND_CONTEXT as context } from '@earendil-works/chord/context'
 import { applyImmutable, type Op } from '@earendil-works/chord/delta'
 import {
   fauxAssistantMessage,
@@ -590,6 +591,34 @@ test('a client leaving stops every watch, even one still opening', async () => {
   opened({ value: {}, start, stop, closed: new Promise(() => {}) })
   await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce())
   expect(start).not.toHaveBeenCalled()
+})
+
+test('a retired document streams as null, and as its new value once made again', async () => {
+  const host = await testHost({ person: sam })
+  const workspace = host.workspace()
+  let listen!: Parameters<WatchHandle<unknown>['start']>[0]
+  vi.spyOn(workspace.familiars, 'watch').mockResolvedValue({
+    value: { familiars: { 1: { name: 'Ada' } } },
+    start: (listener: typeof listen) => (listen = listener),
+    stop: async () => ({ kind: 'stopped' }),
+    closed: new Promise(() => {}),
+  } as never)
+  const stream = events(await api(workspace).request('/events'))
+  await stream.until(() => stream.names.includes('document familiars'))
+  await vi.waitFor(() => expect(listen).toBeDefined())
+  const value = (ops: Op[], next: unknown) =>
+    listen({ kind: 'value', value: next, ops, retired: true }, context)
+
+  // A change folded in before the retirement isn't applied to nothing.
+  const renamed = { familiars: { 1: { name: 'Bo' } } }
+  await value([['s', ['familiars', '1', 'name'], 'Bo']], renamed)
+  await stream.until(() => stream.documents.familiars === null)
+  // Made again since: the root replacement is its new value.
+  const again = { familiars: {} }
+  await value([['r', again]], again)
+  await stream.until(() => stream.documents.familiars !== null)
+  expect(stream.documents.familiars).toEqual(again)
+  await stream.reader.cancel()
 })
 
 test('a watch closing ends the stream and stops everything else', async () => {
