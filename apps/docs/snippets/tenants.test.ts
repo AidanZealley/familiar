@@ -58,7 +58,10 @@ test('the session chooses the tenant, and tenants never see each other', async (
   const history = async (person: string) =>
     JSON.stringify(
       await (
-        await as(person, `/rooms/${await room(person)}/history?before=1000000`)
+        await as(
+          person,
+          `/rooms/${await room(person)}/history?maxEntryId=1000000`,
+        )
       ).json(),
     )
 

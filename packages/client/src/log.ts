@@ -26,14 +26,7 @@ export const createLog = (
   get: StoreApi<LogState>['getState'],
   history: FetchHistory,
 ) => {
-  const transcript = new ConversationTranscript(async (query) => {
-    const page = await history(
-      query.maxEntryId! + 1,
-      query.minEntryId === undefined ? undefined : query.minEntryId - 1,
-    )
-    // The helper only needs to know whether the HTTP page continues.
-    return { items: page.entries, ...(page.more && { next: {} }) }
-  })
+  const transcript = new ConversationTranscript(history)
   let merged: TranscriptView | undefined
   let rendered:
     | {
