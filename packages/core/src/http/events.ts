@@ -102,19 +102,27 @@ export async function streamEvents(
         } as StreamEvent)
         if (!signal.aborted) {
           watch.start(async (call) => {
-            if (call.kind === 'value') {
-              if (call.retired) {
-                await send({
-                  event: 'document',
-                  data: { name, value: null },
-                } as StreamEvent)
+            if (call.kind !== 'value') {
+              return
+            }
+            // Retired, the client's document is null. Ops folded in with the
+            // retirement change the document before it, unless they start
+            // with a root replacement, which drops what came before it: the
+            // document made again since.
+            if (call.retired) {
+              await send({
+                event: 'document',
+                data: { name, value: null },
+              } as StreamEvent)
+              if (call.ops[0]?.[0] !== 'r') {
+                return
               }
-              if (!call.retired || call.ops.length) {
-                await send({
-                  event: 'document.ops',
-                  data: { name, ops: call.ops },
-                })
-              }
+            }
+            if (call.ops.length) {
+              await send({
+                event: 'document.ops',
+                data: { name, ops: call.ops },
+              })
             }
           })
         }
