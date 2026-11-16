@@ -1,4 +1,4 @@
-import { obj, opt, str } from '@earendil-works/pi-schema'
+import * as schema from '@earendil-works/pi-schema'
 
 import type { Context } from '@earendil-works/chord/context'
 import type { ToolExecutionApi, Tx } from '@earendil-works/pi-durable'
@@ -61,17 +61,17 @@ export function scheduleTools(
     name: 'schedule',
     description:
       'Run a prompt in this conversation at a local time, once or repeating; your reply is sent to the owner\'s devices as a notification. Use it for reminders and for anything to do later or regularly. Write the prompt as an instruction to your future self, e.g. "Remind Aidan to call Mum", not as the reminder\'s text. To change a schedule, use update_schedule.',
-    parameters: obj({
-      prompt: str({
+    parameters: schema.obj({
+      prompt: schema.str({
         description: 'What to do when it is due, as an instruction to yourself',
       }),
-      at: opt(
-        str({
+      at: schema.opt(
+        schema.str({
           description: 'Once, at this local time: YYYY-MM-DD HH:MM',
         }),
       ),
-      repeat: opt(
-        str({
+      repeat: schema.opt(
+        schema.str({
           description:
             'Repeating, as five-field cron (minute hour day-of-month month day-of-week) in local time, e.g. 0 7 * * 1-5 for 07:00 on weekdays. Runs at most hourly; closer times are skipped.',
         }),
@@ -111,7 +111,7 @@ export function scheduleTools(
     name: 'list_schedules',
     description:
       'Every schedule (reminders included) with its ID, when it next runs and its prompt.',
-    parameters: obj({}),
+    parameters: schema.obj({}),
     replay: 'safe',
     execute: async (_args, api, context) => {
       const schedules = await withSchedules(api, context, (schedules) =>
@@ -132,20 +132,20 @@ export function scheduleTools(
     name: 'update_schedule',
     description:
       'Change a schedule by its ID: its prompt, or when it runs. When someone gives feedback about a recurring job ("include the links", "skip the weather"), put it into that job\'s prompt here rather than remembering it.',
-    parameters: obj({
-      id: str(),
-      prompt: opt(
-        str({
+    parameters: schema.obj({
+      id: schema.str(),
+      prompt: schema.opt(
+        schema.str({
           description: 'The whole new prompt, as an instruction to yourself',
         }),
       ),
-      at: opt(
-        str({
+      at: schema.opt(
+        schema.str({
           description: 'Once, at this local time instead: YYYY-MM-DD HH:MM',
         }),
       ),
-      repeat: opt(
-        str({
+      repeat: schema.opt(
+        schema.str({
           description: 'Repeating instead, as five-field cron in local time',
         }),
       ),
@@ -182,7 +182,7 @@ export function scheduleTools(
   const cancel = defineTool({
     name: 'cancel_schedule',
     description: 'Cancel a schedule or reminder by its ID.',
-    parameters: obj({ id: str() }),
+    parameters: schema.obj({ id: schema.str() }),
     replay: 'safe',
     execute: async ({ id }, api, context) => {
       await withSchedules(api, context, (schedules) =>

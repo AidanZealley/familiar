@@ -1,4 +1,4 @@
-import { definePlugin, defineTool, familiar, obj } from '@familiar-ai/core'
+import { definePlugin, defineTool, familiar, schema } from '@familiar-ai/core'
 
 type Task = { id: string; title: string }
 
@@ -22,7 +22,7 @@ export const tasks = definePlugin({
     defineTool({
       name: 'list_tasks',
       description: "List the owner's open tasks.",
-      parameters: obj({}),
+      parameters: schema.obj({}),
       replay: 'safe',
       execute: async (_args, _api, context) => {
         const response = await familiar(context).authorizedFetch(

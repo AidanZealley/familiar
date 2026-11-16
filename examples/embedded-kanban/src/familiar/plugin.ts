@@ -1,12 +1,4 @@
-import {
-  definePlugin,
-  defineTool,
-  familiar,
-  obj,
-  oneOf,
-  opt,
-  str,
-} from '@familiar-ai/core'
+import { definePlugin, defineTool, familiar, schema } from '@familiar-ai/core'
 import {
   BoardError,
   STATUS_LABELS,
@@ -15,10 +7,10 @@ import {
   type Task,
 } from '../board/board.ts'
 
-const status = oneOf(['todo', 'in_progress', 'done'], {
+const status = schema.oneOf(['todo', 'in_progress', 'done'], {
   description: 'todo, in_progress or done',
 })
-const taskId = str({ description: 'The task ID, such as T-3' })
+const taskId = schema.str({ description: 'The task ID, such as T-3' })
 
 const describeTask = (task: Task) =>
   `${task.id} "${task.title}" (${STATUS_LABELS[task.status]}, ${
@@ -53,7 +45,7 @@ export const boardPlugin = (board: Board) =>
         name: 'list_tasks',
         description:
           'Lists the tasks on the board, optionally only those with one status.',
-        parameters: obj({ status: opt(status) }),
+        parameters: schema.obj({ status: schema.opt(status) }),
         replay: 'safe',
         execute: ({ status }) =>
           run(() => {
@@ -72,14 +64,14 @@ export const boardPlugin = (board: Board) =>
       defineTool({
         name: 'create_task',
         description: 'Adds a task to the board, in Todo.',
-        parameters: obj({ title: str() }),
+        parameters: schema.obj({ title: schema.str() }),
         execute: ({ title }) =>
           run(() => `Created ${describeTask(board.create(title))}.`),
       }),
       defineTool({
         name: 'assign_task_to_me',
         description: 'Assigns a task to the person asking.',
-        parameters: obj({ taskId }),
+        parameters: schema.obj({ taskId }),
         execute: async ({ taskId }, _api, context) => {
           // The person who asked, never a tool argument. Undefined for
           // work nobody asked for, such as memory filing.
@@ -97,7 +89,7 @@ export const boardPlugin = (board: Board) =>
       defineTool({
         name: 'move_task',
         description: 'Moves a task to another status column.',
-        parameters: obj({ taskId, status }),
+        parameters: schema.obj({ taskId, status }),
         execute: ({ taskId, status }) =>
           run(() => `Moved ${describeTask(board.move(taskId, status))}.`),
       }),
