@@ -3,7 +3,7 @@ import {
   fauxAssistantMessage,
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
-import type { WatchHandle } from '@earendil-works/pi-durable'
+import type { EntryId, WatchHandle } from '@earendil-works/pi-durable'
 import { testClient } from 'hono/testing'
 import { expect, test, vi } from 'vitest'
 import type { Author } from '../conversation/message.ts'
@@ -302,7 +302,7 @@ test("posting to a room validates what clients send, takes the author from the h
 
   const response = await client.rooms[':room'].history.$get({
     param: { room },
-    query: { maxEntryId: String(Number.MAX_SAFE_INTEGER) },
+    query: { maxEntryId: Number.MAX_SAFE_INTEGER as EntryId },
   })
   if (!response.ok) {
     throw new Error(`history failed: ${response.status}`)
@@ -318,10 +318,10 @@ test("posting to a room validates what clients send, takes the author from the h
   await client.rooms[':room'].history.$get({
     param: { room },
     query: {
-      minEntryId: '4',
-      maxEntryId: '8',
+      minEntryId: 4 as EntryId,
+      maxEntryId: 8 as EntryId,
       order: 'ascending',
-      limit: '20',
+      limit: 20,
     },
   })
   expect(history).toHaveBeenCalledWith(
@@ -361,8 +361,12 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
   const ann_ = as({ id: 'ann', name: 'Ann' }).rooms[':room']
   const room = { room: String(sams) }
   expect(
-    (await ann_.history.$get({ param: room, query: { maxEntryId: '1000' } }))
-      .status,
+    (
+      await ann_.history.$get({
+        param: room,
+        query: { maxEntryId: 1000 as EntryId },
+      })
+    ).status,
   ).toBe(404)
   expect(
     (
