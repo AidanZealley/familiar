@@ -31,7 +31,7 @@ export const TranscriptItem = ({
 
   switch (item.type) {
     case 'gap':
-      return <TranscriptGap after={item.after} upTo={item.upTo} />
+      return <TranscriptGap gap={item.gap} />
     case 'message':
       return <PersonMessage message={item} />
     case 'scheduled':

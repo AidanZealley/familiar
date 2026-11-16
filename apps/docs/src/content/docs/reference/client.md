@@ -98,7 +98,7 @@ Commands return promises that reject with the server's error. They aren't retrie
 
 ```ts
 type TranscriptItem =
-  | { type: 'gap'; id: string; after: number; upTo: number }
+  | { type: 'gap'; id: string; gap: TranscriptGap }
   | {
       type: 'message'
       id: string
@@ -149,7 +149,8 @@ Times are milliseconds since the epoch. Each turn in progress comes last, as its
 
 ## Helpers
 
-- `toRoomTranscript(view, turns?)` derives a room's transcript. The room store already does this; use it for other clients.
+- `ConversationTranscript` is re-exported from Pi for clients that assemble their own history. Its gap objects pass directly to `loadGap`.
+- `toRoomTranscript(view, turns?)` renders an assembled Pi `TranscriptView` as Familiar items. The room store already does this; use it for other clients.
 - `composeMessage(parts)` turns a composer's text and picked names, `{ kind, id, name }`, into `{ text, mentions }`: each pick becomes `@Name` in the text with a mention spanning it. Pass both to `send`.
 
 ## React
@@ -162,4 +163,4 @@ Import from `@familiar-ai/client/react`. Requires React 18 or 19. The bindings a
 | `useRoom(selector)` | Select from state. Compares with `Object.is`           |
 | `useRoomStore()`    | The nearest provider's store, for its commands         |
 
-The transcript retains loaded history across reconnects. A `gap` item marks missing messages; `loadGap(after, upTo)` fills it through the history endpoint and rejects if loading fails.
+The transcript retains loaded history across reconnects. A `gap` item marks missing messages; `loadGap(gap)` fills it through the history endpoint and rejects if loading fails.

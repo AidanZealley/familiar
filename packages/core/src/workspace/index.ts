@@ -358,12 +358,6 @@ export type Workspace = {
   account?: AccountApi
   connections: ConnectionsApi
   mcp: McpApi
-  /**
-   * Called after every commit. Listeners run synchronously, so keep them quick
-   * and don't call back into the workspace. Returns a function that stops
-   * listening.
-   */
-  onCommit(listener: () => void): () => void
   usage(): Promise<UsageState>
   /**
    * When the workspace next needs a running process: `active` while work can
@@ -640,13 +634,6 @@ export async function openWorkspace(
         mcp.connections,
         options.secrets,
       ),
-      onCommit: (listener) => {
-        const observation = harness.observeCommits({
-          advance: () => listener(),
-          end: () => {},
-        })
-        return () => observation.detach()
-      },
       usage: () => harness.usage(context),
       closed: harness.closed,
       wake: () => harness.wake(),

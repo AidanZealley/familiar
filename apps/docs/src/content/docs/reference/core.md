@@ -157,7 +157,6 @@ Forgetting removes a note and clears its page's profile until the night's work r
 
 | Member               | Meaning                                                                       |
 | -------------------- | ----------------------------------------------------------------------------- |
-| `onCommit(listener)` | Called synchronously after every commit. Returns an unsubscribe function      |
 | `usage()`            | Pi's usage totals for the workspace                                           |
 | `wake()`, `resume()` | For hosts that pass `onWake`                                                  |
 | `closed`             | Settles on dismissal or a storage failure. A failed instance must be reopened |

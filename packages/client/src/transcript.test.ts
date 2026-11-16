@@ -1,4 +1,4 @@
-import type { ConversationView, EntryRecord } from '@earendil-works/pi-durable'
+import type { TranscriptView, EntryRecord } from '@earendil-works/pi-durable'
 import type { RoomActivity } from '@familiar-ai/core/http'
 import { expect, test } from 'vitest'
 import { composeMessage } from './mentions.ts'
@@ -46,7 +46,11 @@ const replied = (
   entry(id, REPLY_KIND, { familiar: 3, name: 'Ada', cause, outcome, messages })
 
 const viewOf = (...entries: EntryRecord[]) =>
-  ({ conversation: {}, entries, docs: {} }) as unknown as ConversationView
+  ({
+    conversation: {},
+    items: entries.map((entry) => ({ kind: 'entry', entry })),
+    docs: {},
+  }) as unknown as TranscriptView
 
 test("people's messages and copied replies render in order, with each reply's tool calls settled", () => {
   const view = viewOf(

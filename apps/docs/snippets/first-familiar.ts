@@ -1,4 +1,8 @@
-import { toRoomTranscript, type Transcript } from '@familiar-ai/client'
+import {
+  ConversationTranscript,
+  toRoomTranscript,
+  type Transcript,
+} from '@familiar-ai/client'
 import { openWorkspace } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import {
@@ -34,10 +38,11 @@ try {
   })
 
   // The room's log, as a chat UI would show it, once the reply is in.
+  const history = new ConversationTranscript(dm.history)
   const watch = await dm.watch()
   const transcript = await new Promise<Transcript>((resolve) => {
     const show = (view: typeof watch.value) => {
-      const shown = toRoomTranscript(view)
+      const shown = toRoomTranscript(history.merge(view))
       if (shown.items.some((item) => item.type === 'reply')) {
         resolve(shown)
       }

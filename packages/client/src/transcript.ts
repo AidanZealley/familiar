@@ -6,7 +6,6 @@ import type {
   UserMessage,
 } from '@earendil-works/pi-ai'
 import type {
-  ConversationView,
   TranscriptView,
   EntryRecord,
   ToolSlot,
@@ -46,9 +45,14 @@ export type ToolCall = {
   details?: unknown
 }
 
+export type TranscriptGap = Extract<
+  TranscriptView['items'][number],
+  { kind: 'gap' }
+>
+
 /** Item IDs are unique across the transcript and stable across updates: use them as keys. */
 export type TranscriptItem =
-  | { type: 'gap'; id: string; after: number; upTo: number }
+  | { type: 'gap'; id: string; gap: TranscriptGap }
   | {
       type: 'message'
       id: string
@@ -142,13 +146,10 @@ export type Transcript = {
  * Pure, so any client can reuse it.
  */
 export function toRoomTranscript(
-  view: ConversationView | TranscriptView,
+  view: TranscriptView,
   turns: RoomActivity = {},
 ): Transcript {
-  const rows =
-    'items' in view
-      ? view.items
-      : view.entries.map((entry) => ({ kind: 'entry' as const, entry }))
+  const rows = view.items
   const entries = rows.flatMap((row) =>
     row.kind === 'entry' ? [row.entry] : [],
   )
@@ -161,8 +162,7 @@ export function toRoomTranscript(
       items.push({
         type: 'gap',
         id: `gap:${row.after}:${row.upTo}`,
-        after: row.after,
-        upTo: row.upTo,
+        gap: row,
       })
     }
   }
