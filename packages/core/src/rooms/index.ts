@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
+  LiveDoc,
   type ConversationWatch,
   type ConversationWindow,
   type EntryQuery,
@@ -9,8 +10,10 @@ import {
   type Page,
   type EntryId,
   type Harness,
+  type Tx,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
+import { declineWaiting } from '../questions/index.ts'
 import {
   admitMessage,
   admitNote,
@@ -35,6 +38,7 @@ import {
   dmWith,
   Rooms,
   seenBy,
+  Turns,
   updateRoom,
   type RoomChange,
   type RoomId,
@@ -189,6 +193,21 @@ const context = BACKGROUND_CONTEXT
  * Rooms: where people talk to Familiars. Install `extension` before the
  * Harness resumes; schedules post due reminders with `postScheduled`.
  */
+/** The Familiars whose current run answers one of `room`'s turns. */
+async function answeringIn(tx: Tx, room: RoomId) {
+  const familiars: FamiliarId[] = []
+  for (const turn of Object.values(await tx.doc(Turns))) {
+    if (String(turn.room) !== String(room) || turn.submission === undefined) {
+      continue
+    }
+    const live = await tx.doc(LiveDoc, turn.familiar)
+    if (live.run?.inputs.includes(turn.submission)) {
+      familiars.push(turn.familiar)
+    }
+  }
+  return familiars
+}
+
 export function createRooms(
   harness: Harness,
   options: {
@@ -221,25 +240,25 @@ export function createRooms(
     id,
     post: async (message) => {
       const { author, text, requestId } = admitMessage(message)
-      const posted = await harness.commit(
-        (tx) =>
-          post(
-            tx,
-            turn,
-            id,
-            {
-              kind: MESSAGE_KIND,
-              data: {
-                author,
-                text,
-                at: options.now(),
-                ...(message.mentions && { mentions: message.mentions }),
-              },
+      const posted = await harness.commit(async (tx) => {
+        // A Familiar waiting on the person here gets this instead.
+        await declineWaiting(tx, await answeringIn(tx, id))
+        return post(
+          tx,
+          turn,
+          id,
+          {
+            kind: MESSAGE_KIND,
+            data: {
+              author,
+              text,
+              at: options.now(),
+              ...(message.mentions && { mentions: message.mentions }),
             },
-            requestId,
-          ),
-        context,
-      )
+          },
+          requestId,
+        )
+      }, context)
       return posted.entry
     },
     note: async (note) => {

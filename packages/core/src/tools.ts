@@ -11,7 +11,7 @@ import type {
   ToolTaskInput,
   Tx,
 } from '@earendil-works/pi-durable'
-import type { PluginFetch } from './connections/index.ts'
+import type { PluginFetch, ToolAnnotations } from './connections/index.ts'
 import {
   HANDOFF_KIND,
   MESSAGE_KIND,
@@ -29,7 +29,27 @@ import { entriesOf } from './pi/entries.ts'
  * through Pi's context, where `familiar(context)` reads it.
  */
 
-export { defineTool } from '@earendil-works/pi-durable'
+/**
+ * A plain Pi tool that may say, as MCP tools do, whether it only reads or is
+ * destructive. For a plugin's tool, that sets whether Familiar asks the
+ * person before it runs; one that says neither asks.
+ */
+export type FamiliarTool<
+  TParameters extends object = object,
+  TDetails extends JsonValue = JsonValue,
+> = ToolRegistration<TParameters, TDetails> & {
+  readonly annotations?: ToolAnnotations
+}
+
+/** A tool, typed from its parameters. */
+export function defineTool<
+  TParameters extends object,
+  TDetails extends JsonValue = JsonValue,
+>(
+  tool: FamiliarTool<TParameters, TDetails>,
+): FamiliarTool<TParameters, TDetails> {
+  return tool
+}
 
 export type ToolDetails = JsonValue
 export type ToolContext = Context

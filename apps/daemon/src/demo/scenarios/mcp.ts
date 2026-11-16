@@ -88,6 +88,28 @@ const services: Record<string, Tool[]> = {
       set_bed_temperature: 'Sets the print bed’s temperature.',
     }),
   ],
+  // Asks the person mid-call, as Topsail does before a print.
+  'bench.demo.invalid': [
+    ...pretend(true, {
+      bench_status: 'Gets what the workbench’s printer is doing.',
+    }),
+    {
+      name: 'start_print',
+      description: 'Starts printing a file. Asks the person first.',
+      inputSchema: {
+        type: 'object',
+        properties: { file: { type: 'string' } },
+        required: ['file'],
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true },
+    },
+    {
+      name: 'log_spool',
+      description: 'Logs a new filament spool, asking the person for details.',
+      inputSchema: { type: 'object' },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+  ],
   'mcp-server-time': pretend(true, {
     get_current_time: 'Gets the current time in a time zone.',
     convert_time: 'Converts a time between time zones.',
@@ -100,17 +122,71 @@ function serve(tools: Tool[]) {
     { capabilities: { tools: {} } },
   )
   server.setRequestHandler('tools/list', () => ({ tools }))
-  server.setRequestHandler('tools/call', ({ params }) => ({
-    content: [
-      {
-        type: 'text',
-        text:
-          params.name === 'echo'
-            ? String(params.arguments?.text ?? '')
-            : 'Done.',
-      },
-    ],
-  }))
+  server.setRequestHandler('tools/call', async ({ params }, context) => {
+    const text = (text: string) => ({
+      content: [{ type: 'text' as const, text }],
+    })
+    switch (params.name) {
+      case 'echo':
+        return text(String(params.arguments?.text ?? ''))
+      case 'start_print': {
+        const file = String(params.arguments?.file ?? 'benchy.gcode')
+        const answer = await context.mcpReq.elicitInput(
+          {
+            message: `Start printing ${file}? Make sure the bed is clear.`,
+            requestedSchema: {
+              type: 'object',
+              properties: {
+                approve: { type: 'boolean', title: 'Run this action' },
+              },
+              required: ['approve'],
+            },
+          },
+          { timeout: 24 * 60 * 60_000 },
+        )
+        return answer.action === 'accept' && answer.content?.approve
+          ? text(`Printing ${file}.`)
+          : { ...text('The person declined this action.'), isError: true }
+      }
+      case 'log_spool': {
+        const answer = await context.mcpReq.elicitInput(
+          {
+            message: 'Tell me about the new spool.',
+            requestedSchema: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', title: 'Name', maxLength: 40 },
+                material: {
+                  type: 'string',
+                  title: 'Material',
+                  oneOf: [
+                    { const: 'pla', title: 'PLA' },
+                    { const: 'petg', title: 'PETG' },
+                    { const: 'abs', title: 'ABS' },
+                  ],
+                },
+                grams: {
+                  type: 'integer',
+                  title: 'Weight (g)',
+                  minimum: 0,
+                  maximum: 5000,
+                  default: 1000,
+                },
+                dried: { type: 'boolean', title: 'Dried', default: false },
+              },
+              required: ['name', 'material'],
+            },
+          },
+          { timeout: 24 * 60 * 60_000 },
+        )
+        return answer.action === 'accept'
+          ? text(`Logged ${JSON.stringify(answer.content)}.`)
+          : text('The person didn’t log a spool.')
+      }
+      default:
+        return text('Done.')
+    }
+  })
   return server
 }
 
@@ -173,7 +249,21 @@ export async function seedMcp(workspace: Workspace) {
     'token',
     DEMO_TOKEN,
   )
+  // As an owner would: routine actions run, unlocking still asks.
+  for (const tool of ['lock', 'turn_off', 'turn_on']) {
+    await workspace.connections.setPolicy(
+      { kind: 'mcp', name: 'home-assistant' },
+      tool,
+      'allow',
+    )
+  }
   await http('notes', 'https://notes.demo.invalid/mcp')
+  await workspace.connections.setPolicy(
+    { kind: 'mcp', name: 'notes' },
+    undefined,
+    'allow',
+  )
+  await http('bench', 'http://bench.demo.invalid/mcp')
   await http('printer', 'http://printer.demo.invalid/mcp', true)
   await http('nas', 'http://nas.local:8080/mcp')
   await stdio(

@@ -1,6 +1,7 @@
 import { WarningCircleIcon, SquareIcon } from '@phosphor-icons/react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Message, MessageContent } from '@/components/ui/message'
+import { Question } from '../question'
 import { ReplyText } from '../reply-text'
 import { RetryReply } from './components/retry-reply'
 import { Retrying } from '../retrying'
@@ -10,12 +11,13 @@ import type { ReplyProps } from './types'
 
 export const Reply = ({ reply }: ReplyProps) => {
   // Nothing visible has arrived yet, so the reply is still thinking, unless
-  // it's waiting to try the model again.
+  // it's waiting to try the model again or for the person.
   const waiting =
     reply.streaming &&
     !reply.retrying &&
     !reply.text &&
-    reply.toolCalls.length === 0
+    reply.toolCalls.length === 0 &&
+    !reply.questions?.length
 
   return (
     <Message className="text-sm">
@@ -25,6 +27,9 @@ export const Reply = ({ reply }: ReplyProps) => {
         )}
         {reply.toolCalls.map((call) => (
           <ToolCall key={call.id} call={call} />
+        ))}
+        {reply.questions?.map((question) => (
+          <Question key={question.id} question={question} />
         ))}
         {reply.text && (
           <ReplyText text={reply.text} streaming={reply.streaming} />

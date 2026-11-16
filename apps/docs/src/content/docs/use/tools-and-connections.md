@@ -29,4 +29,14 @@ Connections shows each server's status, for example **Ready**, **Needs a token**
 A local command runs with the same permissions as Familiar's own user account. Only add servers you trust. Anyone who can reach your Familiar can add one.
 :::
 
+## Asking before a tool runs
+
+A connection's tool can run as soon as a Familiar calls it, ask you first, or never run. By default, a tool asks unless it says it only reads, or that it changes nothing that matters. That's MCP's own rule for tools that don't say.
+
+When a tool asks, the reply shows **Waiting for you** with **Approve** and **Decline**, and you get a notification if they're turned on. Declining tells the Familiar you said no. If you send the Familiar a new message instead, the question is declined and it reads your message.
+
+An MCP server can also ask you something itself while a tool runs, such as "Start printing benchy.gcode?" or a short form. Its question shows the same way. Familiar shows yes or no, text, number and single-choice questions; anything else can only be declined.
+
+On a connection's page, **Approval** sets every tool's choice at once, and each tool has its own, which wins. A server that asks before its risky actions, as many printer and home servers do, can be set to **Runs** so you're asked once, by the server.
+
 To give Familiar tools of your own, written in TypeScript, see [Extend your Familiar](/familiar/use/extend/).

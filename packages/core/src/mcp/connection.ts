@@ -1,8 +1,8 @@
 import {
-  defineTool,
-  type Extension,
-  type Registry,
-} from '@earendil-works/pi-durable'
+  BACKGROUND_CONTEXT,
+  withAbortSignal,
+} from '@earendil-works/chord/context'
+import type { Extension, Registry } from '@earendil-works/pi-durable'
 import { createToolSearchTool } from '@earendil-works/pi-durable/tool-search'
 import {
   Client,
@@ -11,18 +11,29 @@ import {
   type Tool,
   type Transport,
 } from '@modelcontextprotocol/client'
-import type { PluginFetch, SecretStore } from '../connections/index.ts'
-import { httpTransport } from './http-transport.ts'
 import type {
-  McpConnectionInfo,
-  McpServer,
-  McpStdioFactory,
-  McpStatus,
-  McpToolInfo,
-} from './servers.ts'
+  ListedConnection,
+  PluginFetch,
+  SecretStore,
+} from '../connections/index.ts'
+import { parseForm, type QuestionsApi } from '../questions/index.ts'
+import type { FamiliarId } from '../workspace/familiars.ts'
+import { idleDeadline, type IdleDeadline } from './deadline.ts'
+import { httpTransport } from './http-transport.ts'
+import type { McpServer, McpStdioFactory, McpStatus } from './servers.ts'
+import { defineTool } from '../tools.ts'
 import { toolResult } from './tool-result.ts'
 
 const TIMEOUT_MS = 15_000
+/** How long a local server has to answer the protocol probe (see below). */
+const STDIO_PROBE_MS = 3_000
+/** How long a call may go without the server answering or reporting progress. */
+const CALL_IDLE_MS = 60_000
+/**
+ * The SDK's own limit on a call, which can't pause while the person
+ * answers a question, so only `CALL_IDLE_MS` applies in practice.
+ */
+const CALL_MAX_MS = 24 * 60 * 60_000
 
 /** The extension a server's tools are installed as, once for every Familiar. */
 export const mcpExtensionName = (server: string) => `familiar.mcp.${server}`
@@ -39,6 +50,8 @@ export function openConnection(
     fetch?: PluginFetch
     secrets?: SecretStore
     stdio?: McpStdioFactory
+    /** Where a server's questions for the person go; without it, it can't ask. */
+    questions?: Pick<QuestionsApi, 'ask'>
     /** The server forgot its session; the owner of connections replaces this one. */
     expired(): void
   },
@@ -46,7 +59,7 @@ export function openConnection(
   const extensionName = mcpExtensionName(server.name)
   const closing = new AbortController()
   const { signal } = closing
-  let info: McpConnectionInfo = {
+  let info: Extract<ListedConnection, { kind: 'mcp' }> = {
     ...server,
     kind: 'mcp',
     title: server.name,
@@ -72,6 +85,18 @@ export function openConnection(
   const client = new Client(
     { name: 'familiar', version: '1.0.0' },
     {
+      // Servers can ask the person mid-call, through Familiar's questions.
+      capabilities: options.questions ? { elicitation: { form: {} } } : {},
+      // A 2026 server asks between a call's requests, so nothing times out
+      // while the person decides; older servers still connect as before.
+      // A local process silent this long is an older one: the SDK starts
+      // it afresh the old way rather than waiting out the connect timeout.
+      versionNegotiation: {
+        mode: 'auto',
+        ...(server.transport.type === 'stdio' && {
+          probe: { timeoutMs: STDIO_PROBE_MS },
+        }),
+      },
       listChanged: {
         tools: {
           onChanged: (error, tools) => {
@@ -89,6 +114,55 @@ export function openConnection(
       },
     },
   )
+
+  // Calls in progress, newest last. MCP doesn't say which call a server's
+  // question belongs to, so it's shown with the newest, and every call's
+  // deadline waits while it's open.
+  const calls: {
+    familiar: FamiliarId
+    callId: string
+    tool: string
+    deadline: IdleDeadline
+  }[] = []
+
+  const { questions } = options
+  if (questions) {
+    client.setRequestHandler('elicitation/create', async (request, ctx) => {
+      const call = calls.at(-1)
+      if (!call || request.params.mode === 'url') {
+        return { action: 'decline' }
+      }
+      const waiting = [...calls]
+      waiting.forEach((call) => call.deadline.pause())
+      try {
+        const form =
+          'requestedSchema' in request.params
+            ? parseForm(request.params.requestedSchema)
+            : undefined
+        const answer = await questions.ask(
+          {
+            kind: 'elicitation',
+            familiar: call.familiar,
+            callId: call.callId,
+            tool: call.tool,
+            server: server.name,
+            message: request.params.message,
+            ...(form && { form }),
+          },
+          withAbortSignal(ctx.mcpReq.signal, BACKGROUND_CONTEXT),
+        )
+        return answer.action === 'accept'
+          ? { action: 'accept', content: answer.content ?? {} }
+          : // Moved on: dismissed rather than refused.
+            { action: answer.action === 'moved-on' ? 'cancel' : 'decline' }
+      } catch {
+        // Stopped, or the server gave up waiting.
+        return { action: 'cancel' }
+      } finally {
+        waiting.forEach((call) => call.deadline.resume())
+      }
+    })
+  }
 
   // The server's tools as deferred Pi tools, found through tool_search,
   // which every server's extension carries. Pi offers one tool per name, so
@@ -108,7 +182,16 @@ export function openConnection(
             description: tool.description ?? tool.name,
             parameters: tool.inputSchema,
             deferred: true,
-            execute: async (args, _api, context) => {
+            ...(tool.annotations && { annotations: tool.annotations }),
+            execute: async (args, api, context) => {
+              const deadline = idleDeadline(CALL_IDLE_MS, context.abortSignal)
+              const call = {
+                familiar: api.conversationId,
+                callId: api.callId,
+                tool: name,
+                deadline,
+              }
+              calls.push(call)
               try {
                 return toolResult(
                   await client.callTool(
@@ -116,10 +199,20 @@ export function openConnection(
                       name: tool.name,
                       arguments: args as Record<string, unknown>,
                     },
-                    { signal: context.abortSignal },
+                    {
+                      signal: deadline.signal,
+                      timeout: CALL_MAX_MS,
+                      onprogress: deadline.restart,
+                    },
                   ),
                 )
               } catch (error) {
+                if (deadline.expired) {
+                  throw new Error(
+                    `${server.name} didn't answer for ${CALL_IDLE_MS / 1000}s.`,
+                    { cause: error },
+                  )
+                }
                 if (!context.abortSignal?.aborted && !signal.aborted) {
                   if (error instanceof SdkHttpError && error.status === 401) {
                     failed(error)
@@ -131,6 +224,9 @@ export function openConnection(
                   }
                 }
                 throw error
+              } finally {
+                deadline.done()
+                calls.splice(calls.indexOf(call), 1)
               }
             },
           })
@@ -146,8 +242,13 @@ export function openConnection(
           ...(tool.description !== undefined && {
             description: tool.description,
           }),
-          readOnly: tool.annotations?.readOnlyHint === true,
-        })) satisfies McpToolInfo[],
+          ...(tool.annotations && {
+            annotations: {
+              readOnlyHint: tool.annotations.readOnlyHint,
+              destructiveHint: tool.annotations.destructiveHint,
+            },
+          }),
+        })),
       )
     }
   }

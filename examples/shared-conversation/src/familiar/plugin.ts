@@ -26,6 +26,7 @@ export const guestListPlugin = () => {
     tools: [
       defineTool({
         name: 'who_am_i',
+        annotations: { readOnlyHint: true },
         description: 'Says who the host signed the person asking in as.',
         parameters: schema.obj({}),
         replay: 'safe',
@@ -38,6 +39,7 @@ export const guestListPlugin = () => {
       }),
       defineTool({
         name: 'count_me_in',
+        annotations: { destructiveHint: false },
         description: 'Adds the person asking to the guest list.',
         parameters: schema.obj({}),
         execute: async (_args, _api, context) => {

@@ -90,6 +90,7 @@ export {
   checkPlugins,
   definePlugin,
   type FamiliarPlugin,
+  type FamiliarTool,
 } from './plugins/index.ts'
 export {
   ConnectionError,
@@ -99,8 +100,19 @@ export {
   type ConnectionsApi,
   type PluginFetch,
   type PluginSecret,
+  type Policy,
   type SecretStore,
+  type ToolAnnotations,
+  type ToolInfo,
 } from './connections/index.ts'
+export {
+  QuestionError,
+  QuestionGone,
+  type Answer,
+  type Form,
+  type FormField,
+  type Question,
+} from './questions/index.ts'
 export {
   McpConfigError,
   type McpApi,

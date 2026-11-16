@@ -686,6 +686,7 @@ async function writeMemory(tx: Tx, familiar: FamiliarId, seed: MemorySeed) {
 
 export const seedMemory = defineTool({
   name: 'seed_memory',
+  annotations: { destructiveHint: false },
   description:
     'Demo only: fills each household Familiar’s memory with what its earlier months would have left.',
   parameters: schema.obj({}),

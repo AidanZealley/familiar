@@ -1,7 +1,7 @@
 import {
   ConnectionError,
   type Connection,
-  type ConnectionsApi,
+  type ConnectionsSource,
   type SecretStore,
 } from '../connections/index.ts'
 import type { FamiliarPlugin } from './types.ts'
@@ -28,16 +28,17 @@ export function createConnections(
     return { plugin, secret }
   }
 
-  const api: ConnectionsApi = {
+  const api: ConnectionsSource = {
     list: () =>
       Promise.all(
         plugins.map(async (plugin) => ({
           kind: 'plugin' as const,
           name: plugin.name,
           title: plugin.title,
-          tools: plugin.tools.map(({ name, description }) => ({
+          tools: plugin.tools.map(({ name, description, annotations }) => ({
             name,
             description,
+            ...(annotations && { annotations }),
           })),
           secrets: await Promise.all(
             (plugin.secrets ?? []).map(async (secret) => ({

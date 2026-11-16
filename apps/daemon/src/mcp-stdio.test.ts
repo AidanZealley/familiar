@@ -139,18 +139,26 @@ test("a command gets literal arguments and none of the daemon's private environm
   await expect.poll(() => exited(second)).toBe(true)
 })
 
-test('removing a server during startup closes its process', async () => {
-  const { familiar, children } = await setup()
-  await familiar.mcp.add({
-    ...server,
-    transport: {
-      ...server.transport,
-      args: [server.transport.args[0], '--wait-for-close'],
-    },
-  })
-  await expect.poll(() => children[0]?.pid).toBeTypeOf('number')
-  const pid = children[0].pid!
-  await familiar.mcp.remove('local')
-  await expect.poll(() => exited(pid)).toBe(true)
-  expect(await familiar.connections.list()).toEqual([])
-})
+test(
+  'removing a server during startup closes its process',
+  { timeout: 15_000 },
+  async () => {
+    const { familiar, children } = await setup()
+    await familiar.mcp.add({
+      ...server,
+      transport: {
+        ...server.transport,
+        args: [server.transport.args[0], '--wait-for-close'],
+      },
+    })
+    // It's started once a short-lived copy has been probed for the
+    // protocol's version, which a server this silent never answers.
+    await expect
+      .poll(() => children[0]?.pid, { timeout: 8_000 })
+      .toBeTypeOf('number')
+    const pid = children[0].pid!
+    await familiar.mcp.remove('local')
+    await expect.poll(() => exited(pid)).toBe(true)
+    expect(await familiar.connections.list()).toEqual([])
+  },
+)

@@ -3,10 +3,11 @@ import type { Harness, Registry } from '@earendil-works/pi-durable'
 import {
   ConnectionError,
   type Connection,
-  type ConnectionsApi,
+  type ConnectionsSource,
   type PluginFetch,
   type SecretStore,
 } from '../connections/index.ts'
+import type { QuestionsApi } from '../questions/index.ts'
 import { openConnection } from './connection.ts'
 import {
   McpServers,
@@ -25,6 +26,7 @@ export async function createMcp(
     fetch?: PluginFetch
     secrets?: SecretStore
     stdio?: McpStdioFactory
+    questions?: Pick<QuestionsApi, 'ask'>
   },
 ) {
   const entries = new Map<string, ReturnType<typeof openConnection>>()
@@ -119,7 +121,7 @@ export async function createMcp(
         start(entry.server)
       }
     })
-  const connections: ConnectionsApi = {
+  const connections: ConnectionsSource = {
     list: () =>
       Promise.all(
         [...entries.values()].map(async (entry) => {

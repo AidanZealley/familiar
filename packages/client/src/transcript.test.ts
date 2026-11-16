@@ -277,6 +277,27 @@ test('each turn in progress shows what it waits for, then its reply as it stream
       ],
     }),
   ])
+  // A turn waiting on the person shows its question, even before its reply.
+  const question = {
+    id: 'q1',
+    familiar: 3,
+    callId: 'c3',
+    tool: 'unlock',
+    at: 1,
+    kind: 'tool',
+    arguments: {},
+  }
+  expect(
+    items({
+      7: { familiar: 3, cause: 1, status: 'running', questions: [question] },
+    } as unknown as RoomActivity),
+  ).toEqual([
+    expect.objectContaining({
+      type: 'reply',
+      id: 'turn:7',
+      questions: [question],
+    }),
+  ])
   expect(toRoomTranscript(view, { 7: {} } as never).busy).toBe(true)
 })
 

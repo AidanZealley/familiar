@@ -42,6 +42,7 @@ import type { McpApi, McpStdioFactory } from '../mcp/servers.ts'
 import { createMemory, type MemoryApi } from '../memory/index.ts'
 import type { Notify } from '../notify.ts'
 import { createPersona } from '../persona.ts'
+import { createQuestions, type QuestionsApi } from '../questions/index.ts'
 import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
 import { checkMaxHandoffs, createRooms, type RoomsApi } from '../rooms/index.ts'
 import { Shown } from '../rooms/log.ts'
@@ -358,6 +359,8 @@ export type Workspace = {
   account?: AccountApi
   connections: ConnectionsApi
   mcp: McpApi
+  /** Questions for the person while Familiars work, which the chat shows. */
+  questions: Pick<QuestionsApi, 'answer'>
   usage(): Promise<UsageState>
   /**
    * When the workspace next needs a running process: `active` while work can
@@ -424,6 +427,12 @@ export async function openWorkspace(
       post: rooms.postScheduled,
     })
 
+    const questions = createQuestions(harness, {
+      registry: () => registry.snapshot(),
+      notify: options.notify,
+      now: options.now,
+    })
+
     const memory = createMemory(harness, {
       now: options.now ?? Date.now,
       memoryModelOf: settings.memoryOf,
@@ -450,6 +459,7 @@ export async function openWorkspace(
         ...memory.extensions,
         schedules.extension,
         rooms.extension,
+        questions.extension,
       ].map(plugins.provide),
       ...plugins.extensions,
     ]
@@ -462,6 +472,7 @@ export async function openWorkspace(
       fetch: options.mcpFetch,
       stdio: options.mcpStdio,
       secrets: options.secrets,
+      questions,
     })
 
     // What people are called, on the first open only, as with the default
@@ -478,6 +489,7 @@ export async function openWorkspace(
       await tx.doc(Rooms)
       await tx.doc(Turns)
       await tx.doc(Shown)
+      await questions.clear(tx)
     }, context)
 
     // What a Familiar can be given: the workspace's now.
@@ -633,7 +645,9 @@ export async function openWorkspace(
         plugins.api,
         mcp.connections,
         options.secrets,
+        harness,
       ),
+      questions: { answer: questions.answer },
       usage: () => harness.usage(context),
       closed: harness.closed,
       wake: () => harness.wake(),

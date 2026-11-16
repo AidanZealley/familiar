@@ -1,5 +1,7 @@
-import type { ToolRegistration } from '@earendil-works/pi-durable'
 import type { PluginSecret } from '../connections/index.ts'
+import type { FamiliarTool } from '../tools.ts'
+
+export type { FamiliarTool } from '../tools.ts'
 
 /**
  * Tools that aren't core's, grouped under a stable name with the secrets they
@@ -11,5 +13,5 @@ export type FamiliarPlugin = {
   /** For the owner, on the Connections page. */
   title: string
   secrets?: readonly PluginSecret[]
-  tools: readonly ToolRegistration[]
+  tools: readonly FamiliarTool[]
 }
