@@ -2,6 +2,10 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
   type ConversationWatch,
+  type EntryQuery,
+  type EntryRecord,
+  type Cursor,
+  type Page,
   type EntryId,
   type Harness,
   type WatchHandle,
@@ -37,7 +41,13 @@ import {
 } from './rooms.ts'
 import { roomTools } from './tools.ts'
 import { createTurnTask } from './turn.ts'
-import { historyOf, type HistoryPage } from '../pi/entries.ts'
+
+/** Pi's entry bounds and ordering, scoped to one room. */
+export type HistoryQuery = Pick<
+  EntryQuery,
+  'minEntryId' | 'maxEntryId' | 'order'
+>
+export type HistoryPage = Page<EntryRecord, Cursor>
 
 export type {
   HandoffData,
@@ -103,11 +113,8 @@ export type RoomApi = {
    * unread from here; a person's own messages mark it read up to them.
    */
   read(person: string, entry: EntryId): Promise<void>
-  /**
-   * Up to `limit` committed entries older than entry `before`, newest first.
-   * With `after`, reads that gap oldest first. `more` says whether the page continues.
-   */
-  history(before: EntryId, limit: number, after?: EntryId): Promise<HistoryPage>
+  /** A bounded page of the room's entries, using Pi's query and page shapes. */
+  history(query: HistoryQuery, limit: number): Promise<HistoryPage>
   /** The log's committed view, then every commit's changes to it. */
   watch(): Promise<ConversationWatch>
   /**
@@ -249,12 +256,12 @@ export function createRooms(
       harness.commit((tx) => retryTurn(tx, turn, id, reply), context),
     read: (person, entry) =>
       harness.commit((tx) => markRead(tx, id, person, entry), context),
-    history: async (before, limit, after) =>
-      historyOf(
-        (await harness.conversation(id, context))!,
-        before,
+    history: async (query, limit) =>
+      (await harness.conversation(id, context))!.entries(
+        query,
         limit,
-        after,
+        undefined,
+        context,
       ),
     watch: async () =>
       (await harness.conversation(id, context))!.watch(context),

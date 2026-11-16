@@ -1,4 +1,4 @@
-import type { EntryId } from '@earendil-works/pi-durable'
+import type { EntryId, ScanOrder } from '@earendil-works/pi-durable'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
@@ -13,7 +13,7 @@ import {
   type RoomSetup,
 } from './rooms.ts'
 import type { RoomApi, RoomsApi } from './index.ts'
-import { type HistoryPage } from '../pi/entries.ts'
+import type { HistoryPage } from './index.ts'
 
 /** Answers `run`'s response, or 400 when the rooms' or messages' rules refuse it. */
 async function refusable(c: Context, run: () => Promise<Response>) {
@@ -175,36 +175,57 @@ export function roomRoutes(rooms: RoomsApi) {
           return c.body(null, 204)
         },
       )
-      // History before an entry, or the bounded gap after another.
       .get(
         '/:room/history',
         can('rooms.history'),
         validator('query', (query, c) => {
-          const before = Number(query.before)
-          const after =
-            query.after === undefined ? undefined : Number(query.after)
+          const { minEntryId, maxEntryId, order, limit } = query
           if (
-            !Number.isSafeInteger(before) ||
-            (after !== undefined && !Number.isSafeInteger(after))
+            ![minEntryId, maxEntryId, limit].every(
+              (value) =>
+                value === undefined || Number.isSafeInteger(Number(value)),
+            ) ||
+            (limit !== undefined &&
+              (Number(limit) < 1 || Number(limit) > 200)) ||
+            (order !== undefined &&
+              order !== 'ascending' &&
+              order !== 'descending')
           ) {
-            return c.json({ error: 'before and after must be entry IDs' }, 400)
+            return c.json(
+              { error: 'Invalid history bounds, order or limit' },
+              400,
+            )
           }
-          // Keep the query's string shape for Hono's inferred client contract.
+          // Hono infers the HTTP client query from this string-valued shape.
           return {
-            before: String(before),
-            ...(after !== undefined && { after: String(after) }),
+            ...(minEntryId !== undefined && { minEntryId }),
+            ...(maxEntryId !== undefined && { maxEntryId }),
+            ...(order !== undefined && { order: order as ScanOrder }),
+            ...(limit !== undefined && { limit }),
           }
         }),
         async (c) => {
-          const room = await roomOf(c)
-          const { before, after } = c.req.valid('query')
-          const page = await room.history(
-            Number(before) as EntryId,
-            50,
-            after === undefined ? undefined : (Number(after) as EntryId),
+          const {
+            minEntryId,
+            maxEntryId,
+            order = 'descending',
+            limit = '50',
+          } = c.req.valid('query')
+          const page = await (
+            await roomOf(c)
+          ).history(
+            {
+              ...(minEntryId !== undefined && {
+                minEntryId: Number(minEntryId) as EntryId,
+              }),
+              ...(maxEntryId !== undefined && {
+                maxEntryId: Number(maxEntryId) as EntryId,
+              }),
+              order,
+            },
+            Number(limit),
           )
-          // Pi's entries are already JSON, but their recursive types are too
-          // deep for Hono to convert, so the client gets the page's own type.
+          // Avoid Hono expanding Pi's recursive JSON types.
           return c.json(page) as unknown as TypedResponse<
             HistoryPage,
             200,

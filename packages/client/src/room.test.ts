@@ -155,7 +155,7 @@ test('transcript reference survives unrelated updates and history loading or fai
   const server = testServer(() =>
     fail
       ? Response.json({ error: 'Try again' }, { status: 500 })
-      : Response.json({ entries: [message(1)], more: false }),
+      : Response.json({ items: [message(1)] }),
   )
   const store = open('/api', { fetch: server.fetch })
   await expect.poll(server.connections).toBe(1)
@@ -191,8 +191,7 @@ test('transcript reference survives unrelated updates and history loading or fai
 test('a reconnect keeps loaded messages and exposes a fillable gap', async () => {
   const server = testServer(() =>
     Response.json({
-      entries: [message(4), message(5), message(6), message(7), message(8)],
-      more: false,
+      items: [message(4), message(5), message(6), message(7), message(8)],
     }),
   )
   const store = open('/api', { fetch: server.fetch })
@@ -208,6 +207,6 @@ test('a reconnect keeps loaded messages and exposes a fillable gap', async () =>
     [3, 4, 5, 6, 7, 8, 9].map((id) => `entry:${id}`),
   )
   expect(server.requests.at(-1)?.url).toBe(
-    'http://familiar.test/api/rooms/1/history?before=9&after=3',
+    'http://familiar.test/api/rooms/1/history?minEntryId=4&maxEntryId=8&order=ascending&limit=50',
   )
 })

@@ -195,7 +195,7 @@ const ROUTES = {
   'rooms.post': ['POST', '/rooms/9/messages'],
   'rooms.note': ['POST', '/rooms/9/notes'],
   'rooms.read': ['POST', '/rooms/9/read'],
-  'rooms.history': ['GET', '/rooms/9/history?before=1'],
+  'rooms.history': ['GET', '/rooms/9/history?maxEntryId=1'],
   'rooms.retry': ['POST', '/rooms/9/retry'],
   'rooms.stop': ['POST', '/rooms/9/stop'],
 } satisfies Record<
@@ -289,14 +289,10 @@ test("posting to a room validates what clients send, takes the author from the h
     })
     expect(refused.status).toBe(400)
   }
-  for (const query of [
-    { before: 'latest' },
-    { before: '1000', after: 'nope' },
-  ]) {
-    expect(
-      (await client.rooms[':room'].history.$get({ param: { room }, query }))
-        .status,
-    ).toBe(400)
+  for (const query of ['maxEntryId=latest', 'order=random', 'limit=201']) {
+    expect((await app.request(`/rooms/${room}/history?${query}`)).status).toBe(
+      400,
+    )
   }
   const missing = await client.rooms[':room'].messages.$post({
     param: { room: '999' },
@@ -306,24 +302,32 @@ test("posting to a room validates what clients send, takes the author from the h
 
   const response = await client.rooms[':room'].history.$get({
     param: { room },
-    query: { before: String(Number.MAX_SAFE_INTEGER) },
+    query: { maxEntryId: String(Number.MAX_SAFE_INTEGER) },
   })
   if (!response.ok) {
     throw new Error(`history failed: ${response.status}`)
   }
   const page = await response.json()
-  expect(page.entries.at(-1)?.data).toMatchObject({ author: sam, text: 'Hi' })
+  expect(page.items.at(-1)?.data).toMatchObject({ author: sam, text: 'Hi' })
 
-  const history = vi.fn(async () => ({ entries: [], more: false }))
+  const history = vi.fn(async () => ({ items: [] }))
   vi.spyOn(host.workspace().rooms, 'get').mockResolvedValue({
     ...host.dm(),
     history,
   })
   await client.rooms[':room'].history.$get({
     param: { room },
-    query: { before: '9', after: '3' },
+    query: {
+      minEntryId: '4',
+      maxEntryId: '8',
+      order: 'ascending',
+      limit: '20',
+    },
   })
-  expect(history).toHaveBeenCalledWith(9, 50, 3)
+  expect(history).toHaveBeenCalledWith(
+    { minEntryId: 4, maxEntryId: 8, order: 'ascending' },
+    20,
+  )
 })
 
 test("the DM endpoint gets or creates the asking person's DM with a Familiar", async () => {
@@ -357,7 +361,7 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
   const ann_ = as({ id: 'ann', name: 'Ann' }).rooms[':room']
   const room = { room: String(sams) }
   expect(
-    (await ann_.history.$get({ param: room, query: { before: '1000' } }))
+    (await ann_.history.$get({ param: room, query: { maxEntryId: '1000' } }))
       .status,
   ).toBe(404)
   expect(

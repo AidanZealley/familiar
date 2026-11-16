@@ -62,13 +62,13 @@ type Message = {
 /** Everything the bot's model said in the DM, oldest first, once copied there. */
 const replies = async (bot: string) => {
   const response = await server.fetch(
-    `/${bot}/api/rooms/${await dm(bot)}/history?before=${Number.MAX_SAFE_INTEGER}`,
+    `/${bot}/api/rooms/${await dm(bot)}/history?maxEntryId=${Number.MAX_SAFE_INTEGER}`,
   )
   expect(response.status).toBe(200)
-  const { entries } = (await response.json()) as {
-    entries: { kind: string; data: { messages?: Message[] } }[]
+  const { items } = (await response.json()) as {
+    items: { kind: string; data: { messages?: Message[] } }[]
   }
-  return entries
+  return items
     .toReversed()
     .filter((entry) => entry.kind === 'familiar.reply')
     .flatMap((entry) => entry.data.messages ?? [])
@@ -176,7 +176,7 @@ test('a terminated bot stays terminated, keeps its history and has no alarm', as
   expect(
     (
       await server.fetch(
-        `/ended/api/rooms/${await dm('ended')}/history?before=1`,
+        `/ended/api/rooms/${await dm('ended')}/history?maxEntryId=1`,
       )
     ).status,
   ).toBe(410)

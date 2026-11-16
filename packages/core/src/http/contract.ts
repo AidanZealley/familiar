@@ -19,7 +19,7 @@ export type {
   NOTE_KIND,
   SCHEDULED_KIND,
 } from '../conversation/message.ts'
-export type { HistoryPage } from '../pi/entries.ts'
+export type { HistoryQuery, HistoryPage } from '../rooms/index.ts'
 export type {
   HandoffData,
   Mention,

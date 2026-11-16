@@ -3,6 +3,7 @@ import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type {
   HttpApi,
+  HistoryQuery,
   Connection as ConnectionKey,
   ConnectionInfo,
   CapabilitiesChange,
@@ -329,13 +330,19 @@ export const roomCommands = (api: Api, id: number) => {
      */
     read: (entry: number) =>
       succeed(room.read.$post({ param, json: { entry } })),
-    history: (before: number, after?: number) =>
+    history: (query: HistoryQuery, limit: number) =>
       read(
         room.history.$get({
           param,
           query: {
-            before: String(before),
-            ...(after !== undefined && { after: String(after) }),
+            ...(query.minEntryId !== undefined && {
+              minEntryId: String(query.minEntryId),
+            }),
+            ...(query.maxEntryId !== undefined && {
+              maxEntryId: String(query.maxEntryId),
+            }),
+            order: query.order ?? 'descending',
+            limit: String(limit),
           },
         }),
       ),
