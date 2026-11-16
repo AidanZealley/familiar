@@ -1,4 +1,12 @@
-import { Type, type Static } from 'typebox'
+import {
+  arr,
+  int,
+  obj,
+  oneOf,
+  opt,
+  str,
+  type Static,
+} from '@earendil-works/pi-schema'
 
 import { defineTool } from '@earendil-works/pi-durable'
 import type { Author } from '../../conversation/message.ts'
@@ -23,54 +31,52 @@ import type { BatchMessage } from './batch.ts'
  */
 
 const evidence = {
-  m: Type.Array(Type.Integer(), {
+  m: arr(int(), {
     description: 'The numbers of the messages it rests on.',
   }),
-  quote: Type.String({
+  quote: str({
     description: 'Words copied exactly from one of those messages.',
   }),
 }
 
-export const FileArgs = Type.Object({
-  subjects: Type.Optional(
-    Type.Array(
-      Type.Object({
-        name: Type.String(),
-        kind: Type.Union([Type.Literal('person'), Type.Literal('topic')]),
-        line: Type.String({
+export const FileArgs = obj({
+  subjects: opt(
+    arr(
+      obj({
+        name: str(),
+        kind: oneOf(['person', 'topic']),
+        line: str({
           description: 'One line for the roster, such as "Maya\'s partner".',
         }),
       }),
       { description: 'New subjects, which notes then name by name.' },
     ),
   ),
-  notes: Type.Optional(
-    Type.Array(
-      Type.Object({
-        subject: Type.String({
+  notes: opt(
+    arr(
+      obj({
+        subject: str({
           description:
             "The page it goes on: an id, s…, or a new subject's name.",
         }),
-        text: Type.String({
+        text: str({
           description: `One statement, at most ${LIMITS.note} characters.`,
         }),
-        since: Type.Optional(
-          Type.String({ description: 'When it became true, YYYY-MM-DD.' }),
-        ),
+        since: opt(str({ description: 'When it became true, YYYY-MM-DD.' })),
         ...evidence,
-        replaces: Type.Optional(
-          Type.Array(Type.String(), {
+        replaces: opt(
+          arr(str(), {
             description: 'Notes, n…, this one replaces.',
           }),
         ),
       }),
     ),
   ),
-  journal: Type.Optional(
-    Type.Array(
-      Type.Object({
-        on: Type.String({ description: 'The day it happened, YYYY-MM-DD.' }),
-        text: Type.String({
+  journal: opt(
+    arr(
+      obj({
+        on: str({ description: 'The day it happened, YYYY-MM-DD.' }),
+        text: str({
           description: `One line, at most ${LIMITS.line} characters.`,
         }),
         ...evidence,

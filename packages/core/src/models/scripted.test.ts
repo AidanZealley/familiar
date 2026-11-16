@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { definePlugin, defineTool, Type } from '../index.ts'
+import { definePlugin, defineTool, obj } from '../index.ts'
 import { testHost } from '../testing.ts'
 import { fauxAssistantMessage, fauxToolCall } from './faux.ts'
 import { scriptedModels, type ScriptedRequest } from './scripted.ts'
@@ -28,7 +28,7 @@ test('a script reads who said what and tool results', async () => {
           defineTool({
             name: 'check',
             description: 'Checks.',
-            parameters: Type.Object({}),
+            parameters: obj({}),
             execute: async () => ({
               output: [{ type: 'text', text: 'Checked' }],
             }),

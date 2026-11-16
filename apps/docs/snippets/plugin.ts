@@ -1,4 +1,4 @@
-import { definePlugin, defineTool, familiar, Type } from '@familiar-ai/core'
+import { definePlugin, defineTool, familiar, obj } from '@familiar-ai/core'
 
 export const greeting = definePlugin({
   name: 'greeting',
@@ -7,7 +7,7 @@ export const greeting = definePlugin({
     defineTool({
       name: 'greet',
       description: 'Greet the person who asked.',
-      parameters: Type.Object({}),
+      parameters: obj({}),
       // Repeating this tool after a crash has no outside effect.
       replay: 'safe',
       execute: async (_args, _api, context) => {

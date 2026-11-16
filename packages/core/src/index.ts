@@ -75,13 +75,12 @@ export {
 export type { Notification, NotificationContext, Notify } from './notify.ts'
 export { localMinute } from './time.ts'
 
+export * from '@earendil-works/pi-schema'
+
 // Extending Familiar: tools, plugins, their connections and MCP servers.
 export {
   defineTool,
   familiar,
-  Type,
-  type Static,
-  type TSchema,
   type ToolContext,
   type ToolResult,
   type ToolDetails,

@@ -1,4 +1,4 @@
-import { Type } from 'typebox'
+import { obj, opt, str } from '@earendil-works/pi-schema'
 
 import { defineExtension, defineTool } from '@earendil-works/pi-durable'
 
@@ -176,10 +176,8 @@ export function createTime(timeZone: string) {
   const currentTime = defineTool({
     name: 'current_time',
     description: `The current date and time, in the owner's time zone (${timeZone}) unless one is given.`,
-    parameters: Type.Object({
-      timeZone: Type.Optional(
-        Type.String({ description: 'IANA time zone, e.g. Europe/London' }),
-      ),
+    parameters: obj({
+      timeZone: opt(str({ description: 'IANA time zone, e.g. Europe/London' })),
     }),
     replay: 'safe',
     execute: async (args, api) => ({

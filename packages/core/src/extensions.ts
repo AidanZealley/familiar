@@ -3,8 +3,7 @@ export type * from '@earendil-works/pi-durable'
 export type { Context, ContextKey } from '@earendil-works/chord/context'
 export type { JsonValue } from '@earendil-works/chord/json'
 export type { Draft } from '@earendil-works/chord/delta'
-export { Type } from 'typebox'
-export type { Static, TSchema } from 'typebox'
+export * from '@earendil-works/pi-schema'
 export type {
   Tool,
   Usage,

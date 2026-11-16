@@ -9,7 +9,7 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 
 | Import                                | Contents                                                                                                                                                       |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `Type`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                          |
+| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `obj`, `str`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                    |
 | `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                                                                                                |
 | `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                                                               |
 | `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                                                               |
@@ -109,7 +109,7 @@ A list shows each room as a `RoomListing`: its setup, with `last`, its newest en
 | `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                                                    |
 | `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far                                                   |
 | `read(person, entry)`                          | Mark it read by a person, by host author ID, up to `entry`, the newest they've seen; never back. Their own messages mark it read up to them |
-| `history(before, limit, after?)`               | `{ entries, more }`: committed entries older than `before`, newest first; optional `after` reads a gap oldest first                                                                    |
+| `history(before, limit, after?)`               | `{ entries, more }`: committed entries older than `before`, newest first; optional `after` reads a gap oldest first                         |
 | `retry(reply)`                                 | Try a failed reply's turn again, by its entry ID: its Familiar answers the same entry anew, after it. Asking twice starts it once           |
 | `stop()`                                       | Stop this room's turns, leaving other rooms' work alone                                                                                     |
 
@@ -176,3 +176,5 @@ One MCP connection is one session with its server, under one account, shared by 
 `add` throws `McpConfigError`, saving nothing, for a server of the wrong shape: a bad name, an unknown transport, or a URL that isn't `http://` or `https://` or carries credentials, a query or a fragment. Familiar saves any server of the right shape and connects through the transport the host passed, `mcpFetch` or `mcpStdio`. The host owns which protocols, destinations and commands those transports allow. A server whose transport the host didn't pass, or whose connection fails, shows `{ type: 'failed', error }` in `connections.list()` and never stops Familiar opening. An HTTP server with a bearer token and no token set shows `needs-auth`.
 
 `Workspace`, `WorkspaceFamiliar`, `RoomApi`, `RoomsApi`, `Room`, `RoomMessage`, `Mention`, `ReplyData`, `HistoryPage`, `ModelChoice`, `ModelOption`, `Notification`, `NotificationContext`, `Notify`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `RoomError`, `CapabilityError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.
+
+Schema builders and types are re-exported from the pinned `@earendil-works/pi-schema`, including `obj`, `str`, `opt`, `oneOf`, `Schema` and `Static`.

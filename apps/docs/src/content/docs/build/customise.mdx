@@ -24,7 +24,7 @@ Each Familiar has its own identity, given to `familiars.create` and changed with
 
 The daemon includes web search and page reading. Core has no tools of its own beyond time, memory and schedules. A plugin adds yours: plain Pi Durable tools, grouped under a stable `name` with a `title` for the Connections page and any `secrets` they share.
 
-Import `defineTool` and `Type` from `@familiar-ai/core` rather than installing your own copy of Pi, so they match the Pi version Familiar runs:
+Import `defineTool` and schema builders such as `obj` and `str` from `@familiar-ai/core` rather than installing your own copy of Pi, so they match the Pi version Familiar runs:
 
 <Code code={plugin} lang="ts" title="greeting.ts" />
 

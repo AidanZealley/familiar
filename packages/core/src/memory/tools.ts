@@ -1,4 +1,4 @@
-import { Type } from 'typebox'
+import { obj, opt, str } from '@earendil-works/pi-schema'
 
 import { defineTool, type ToolExecutionApi } from '@earendil-works/pi-durable'
 import type { Context } from '@earendil-works/chord/context'
@@ -104,14 +104,12 @@ export function createMemoryTools(viewOf: ViewOf, timeZone: string) {
     name: 'recall',
     description:
       "Search everything you've been told beyond what you always see: notes about people and things, and the conversations themselves, with the dated journal lines that make them findable. from and to keep only what happened on those days. read_memory opens any result.",
-    parameters: Type.Object({
-      query: Type.String({
+    parameters: obj({
+      query: str({
         description: 'Words to search for; empty to list what is in from–to.',
       }),
-      from: Type.Optional(
-        Type.String({ description: 'First day, YYYY-MM-DD.' }),
-      ),
-      to: Type.Optional(Type.String({ description: 'Last day, YYYY-MM-DD.' })),
+      from: opt(str({ description: 'First day, YYYY-MM-DD.' })),
+      to: opt(str({ description: 'Last day, YYYY-MM-DD.' })),
     }),
     execute: (args, api, context) =>
       read(api, context, (view, rooms) =>
@@ -123,7 +121,7 @@ export function createMemoryTools(viewOf: ViewOf, timeZone: string) {
     name: 'read_memory',
     description:
       'Open what lies behind an ID: a person or thing (s…), with its profile and notes; a note (n…), with the message it rests on; or a conversation (x…), with the ones either side.',
-    parameters: Type.Object({ id: Type.String() }),
+    parameters: obj({ id: str() }),
     execute: (args, api, context) =>
       read(api, context, (view, rooms) =>
         readMemory(view, clipText(args.id, 40), rooms, timeZone),

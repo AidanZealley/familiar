@@ -6,7 +6,7 @@ import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { defaultPersona, defineTool, Type } from '../index.ts'
+import { defaultPersona, defineTool, obj } from '../index.ts'
 import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
 import { RECALL_HEADING } from '../memory/recall.ts'
 import { TEST_ZONE, testHost, type TestHostOptions } from '../testing.ts'
@@ -36,9 +36,8 @@ async function setup(options: SetupOptions = {}) {
 }
 
 /**
- * Pi's own estimate of a request's size, the one its thresholds use,
- * without what recall adds after the latest message, which compaction
- * doesn't bound.
+ * Estimate the full prompt without recall added after the latest message.
+ * Pi's compaction thresholds can reuse reported usage instead.
  */
 const tokensOf = (context: TranscriptContext) =>
   context.messages
@@ -73,7 +72,8 @@ const compactingHost = (
   })
 
 test('compaction keeps requests under the context budget', async () => {
-  const budget = 2_200
+  // Leave room for the native tool schemas while forcing compaction of the history.
+  const budget = 2_600
   const requests: number[] = []
   const { familiar: current, say } = await compactingHost(budget, (request) => {
     requests.push(tokensOf(request.context))
@@ -232,7 +232,7 @@ test("a plugin can't take the name of one of core's tools", async () => {
   const impostor = defineTool({
     name: 'schedule',
     description: 'Not the real one.',
-    parameters: Type.Object({}),
+    parameters: obj({}),
     execute: async () => ({ output: [] }),
   })
   await expect(

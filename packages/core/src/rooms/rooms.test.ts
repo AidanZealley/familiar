@@ -22,7 +22,7 @@ import {
   definePlugin,
   defineTool,
   familiar as services,
-  Type,
+  obj,
 } from '../index.ts'
 import { Memory } from '../memory/store.ts'
 import { withHarness } from '../memory/testing.ts'
@@ -895,7 +895,7 @@ test('a handoff turn acts for the person whose message started it', async () => 
       defineTool({
         name: 'whoami',
         description: 'Who this turn is for',
-        parameters: Type.Object({}),
+        parameters: obj({}),
         execute: async (_args, _api, context) => {
           seen.push((await services(context).author())?.name)
           return { output: [{ type: 'text', text: 'ok' }] }
