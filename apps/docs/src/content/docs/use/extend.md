@@ -38,6 +38,7 @@ export default definePlugin({
       name: 'hello',
       description: 'Greet the person who asked.',
       parameters: schema.obj({}),
+      annotations: { readOnlyHint: true },
       replay: 'safe',
       execute: async (_args, _api, context) => {
         const author = await familiar(context).author()
@@ -103,6 +104,10 @@ export default definePlugin({
 ```
 
 Keep a plugin's `name` the same once you've set its secret: the secret is saved under it.
+
+## Asking before it runs
+
+A tool can say what it does, as MCP tools do: `annotations: { readOnlyHint: true }` for one that only reads, `{ destructiveHint: false }` for one whose changes are easily undone. Either runs at once. A tool that says neither asks you first in the chat, until you choose otherwise on the Connections page. See [Asking before a tool runs](/familiar/use/tools-and-connections/#asking-before-a-tool-runs).
 
 ## What a tool can use
 

@@ -9,6 +9,7 @@ import {
 import type { DemoClock } from './clock.ts'
 import type { Script } from './household/script.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
+import { ask } from './scenarios/ask.ts'
 import { compact } from './scenarios/compaction.ts'
 import { key } from './scenarios/connections.ts'
 import { mcp } from './scenarios/mcp.ts'
@@ -16,7 +17,17 @@ import { memory } from './scenarios/memory.ts'
 import { remind, scheduledReply } from './scenarios/schedules.ts'
 import type { Scenario } from './scenarios/scenario.ts'
 
-const scenarios = { tool, memory, remind, key, mcp, slow, compact, error }
+const scenarios = {
+  tool,
+  memory,
+  remind,
+  key,
+  mcp,
+  ask,
+  slow,
+  compact,
+  error,
+}
 const replies: NonNullable<Scenario['replies']> = Object.assign(
   {},
   ...Object.values(scenarios).map((scenario) => scenario.replies),

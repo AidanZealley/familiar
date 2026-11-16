@@ -18,6 +18,7 @@ import type {
   Mention,
   NOTE_KIND as CoreNoteKind,
   NoteData,
+  Question,
   REPLY_KIND as CoreReplyKind,
   ReplyData,
   RoomActivity,
@@ -73,6 +74,12 @@ export type TranscriptItem =
       text: string
       thinking: string
       toolCalls: ToolCall[]
+      /**
+       * What its Familiar is waiting for the person to answer before it goes
+       * on, oldest first: whether to run a call, or a server's question.
+       * Only while it's still replying.
+       */
+      questions?: Question[]
       /** When it was generated, in ms since the epoch; absent before it starts. */
       at?: number
       /** Still being generated. */
@@ -335,7 +342,10 @@ function toActive(task: string, turn: TurnActivity): TranscriptItem {
   const id = `turn:${task}`
   const retrying =
     turn.status === 'running' ? turn.generation?.retry : undefined
-  if (turn.status !== 'running' || (!turn.generation?.message && !turn.tools)) {
+  if (
+    turn.status !== 'running' ||
+    (!turn.generation?.message && !turn.tools && !turn.questions)
+  ) {
     return {
       type: 'waiting',
       id,
@@ -375,7 +385,12 @@ function toActive(task: string, turn: TurnActivity): TranscriptItem {
     call.output = slot.output ?? ''
     call.details = slot.details
   }
-  return { ...reply, streaming: true, ...(retrying && { retrying }) }
+  return {
+    ...reply,
+    streaming: true,
+    ...(retrying && { retrying }),
+    ...(turn.questions && { questions: turn.questions }),
+  }
 }
 
 function toReply(

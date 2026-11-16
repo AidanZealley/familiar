@@ -70,6 +70,8 @@ function mcpServer() {
     /** The next call finds its session gone. */
     expire: false,
     requests: [] as Request[],
+    /** Each POST's JSON-RPC method, in order. */
+    methods: [] as (string | undefined)[],
   }
   const fetch: PluginFetch = async (input, init) => {
     const request = new Request(input, init)
@@ -81,6 +83,9 @@ function mcpServer() {
       request.method === 'POST'
         ? ((await request.clone().json()) as { method?: string })
         : undefined
+    if (message) {
+      state.methods.push(message.method)
+    }
     if (state.expire && message?.method === 'tools/call') {
       state.expire = false
       return new Response(null, { status: 404 })
@@ -175,6 +180,8 @@ async function connected(
   await use(host)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
+  // Calls here run at once: asking first is questions.test.ts's.
+  await familiar.connections.setPolicy(connection, undefined, 'allow')
   return host
 }
 
@@ -270,7 +277,7 @@ test('a connection waits for its token, persists, follows tool changes and is cl
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
   expect((await info(familiar)).tools).toEqual([
-    { name: 'echo', description: 'Echo a nested message.', readOnly: false },
+    { name: 'echo', description: 'Echo a nested message.', default: 'ask' },
   ])
   expect(
     server.state.requests.every(
@@ -356,10 +363,15 @@ test('redirects fail without sending a bearer token to a different endpoint', as
   await familiar.mcp.add(home)
   await familiar.connections.setSecret(connection, 'token', 'test-token')
   await expect.poll(() => status(familiar)).toBe('failed')
-  // Either refuses to follow it: the token never reaches another endpoint.
-  expect(sent).toEqual([
-    [home.transport.url, expect.stringMatching(/^(error|manual)$/)],
-  ])
+  // Either refuses to follow it: the token never reaches another endpoint,
+  // whether probing for the protocol's version or starting the session.
+  expect(sent).not.toEqual([])
+  expect(sent).toEqual(
+    sent.map(() => [
+      home.transport.url,
+      expect.stringMatching(/^(error|manual)$/),
+    ]),
+  )
 })
 
 test('deferred tools are found by search, checked against nested schemas and read back', async () => {
@@ -481,6 +493,7 @@ test('parallel expired calls do not reconnect a replacement session', async () =
   await use(host)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
+  await familiar.connections.setPolicy(connection, undefined, 'allow')
 
   // Keep an owner edit pending so both expiry callbacks queue before reconnect starts.
   const blocked = deferred()
@@ -520,11 +533,10 @@ test('parallel expired calls do not reconnect a replacement session', async () =
   // This owner edit runs after the queued expiry callbacks: one automatic and one explicit reconnect.
   await familiar.mcp.reconnect('test')
   await expect.poll(() => status(familiar)).toBe('connected')
+  // Each connection starts by probing for the protocol's version; one
+  // replaced mid-start may never reach `initialize`.
   expect(
-    server.state.requests.filter(
-      (request) =>
-        request.method === 'POST' && !request.headers.has('mcp-session-id'),
-    ),
+    server.state.methods.filter((method) => method === 'server/discover'),
   ).toHaveLength(3)
 })
 
@@ -584,3 +596,65 @@ test('a Familiar with no MCP connection has no tool search', async () => {
   expect(await offered(boDm)).not.toContain('tool_search')
   expect(await offered(host.dm())).toContain('tool_search')
 })
+
+// A server can ask the person mid-call: the question waits in the chat, and
+// the answer goes back to the server, which finishes the call.
+test.for(['accept', 'decline'] as const)(
+  'a server asks mid-call and the person answers: %s',
+  async (action) => {
+    const server = mcpServer()
+    const host = await connected(server)
+    server.state.call = async (_request, context) => {
+      const answer = await context.mcpReq.elicitInput({
+        message: 'Start printing benchy.gcode?',
+        requestedSchema: {
+          type: 'object',
+          properties: { approve: { type: 'boolean' } },
+          required: ['approve'],
+        },
+      })
+      return { content: [{ type: 'text', text: JSON.stringify(answer) }] }
+    }
+    const watch = await host.dm().watchTurns()
+    watch.start(async () => {})
+    onTestFinished(() => void watch.stop())
+    const replying = converse(host, 'Print it.', [
+      searchFor('echo'),
+      callEcho(),
+      fauxAssistantMessage('Done.'),
+    ])
+    const asked = () =>
+      Object.values(watch.value).flatMap((turn) =>
+        'questions' in turn ? (turn.questions ?? []) : [],
+      )[0]
+    await expect.poll(asked).toMatchObject({
+      kind: 'elicitation',
+      server: 'test',
+      tool: 'mcp__test__echo',
+      message: 'Start printing benchy.gcode?',
+      form: [{ name: 'approve', type: 'boolean', required: true }],
+    })
+    const question = asked()!
+    await host
+      .workspace()
+      .questions.answer(
+        question.familiar,
+        question.id,
+        action === 'accept'
+          ? { action, content: { approve: true } }
+          : { action },
+      )
+    const requests = await replying
+    expect(lastResult(requests[2])).toMatchObject({
+      content: [
+        {
+          text: expect.stringContaining(
+            action === 'accept'
+              ? '"action":"accept","content":{"approve":true}'
+              : '"action":"decline"',
+          ),
+        },
+      ],
+    })
+  },
+)

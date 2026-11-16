@@ -58,7 +58,17 @@ export type {
   Connection,
   ConnectionInfo,
   PluginSecret,
+  Policy,
+  ToolAnnotations,
+  ToolInfo,
 } from '../connections/index.ts'
+export type {
+  Answer,
+  Form,
+  FormContent,
+  FormField,
+  Question,
+} from '../questions/index.ts'
 export type {
   JournalLine,
   MemoryState,

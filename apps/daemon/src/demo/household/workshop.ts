@@ -9,6 +9,7 @@ import { WATCH_MINUTES } from './story.ts'
  */
 const watchPrint = defineTool({
   name: 'watch_print',
+  annotations: { readOnlyHint: true },
   description:
     'Watches the printer’s camera until the print reaches a layer, then says how it looks.',
   parameters: schema.obj({

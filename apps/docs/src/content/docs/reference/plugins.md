@@ -12,7 +12,7 @@ type FamiliarPlugin = {
   name: string // keys its secrets, so keep it stable
   title: string // shown on the Connections page
   secrets?: PluginSecret[]
-  tools: ToolRegistration[] // plain Pi Durable tools
+  tools: FamiliarTool[] // Pi Durable tools, with optional annotations
 }
 ```
 
@@ -24,7 +24,7 @@ Throws, naming the plugin, unless the plugins can run together: unique plugin na
 
 ## defineTool(tool)
 
-Pi Durable's `defineTool`, re-exported from `@familiar-ai/core` at the version Familiar runs. Familiar adds nothing to the tool itself.
+A Pi Durable tool, at the version Familiar runs, with one optional field Familiar reads: `annotations`.
 
 | Field                         | Meaning                                                                                            |
 | ----------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -33,8 +33,11 @@ Pi Durable's `defineTool`, re-exported from `@familiar-ai/core` at the version F
 | `execute(args, api, context)` | Runs the tool. Returns a `ToolResult`                                                              |
 | `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'`                              |
 | `structuredOutputSchema`      | Optional schema for output that other tools and code mode read                                     |
+| `annotations`                 | `{ readOnlyHint?, destructiveHint? }`, as MCP tools declare them                                   |
 
 Tool schemas use Pi's native builders. `schema.obj` rejects undeclared properties by default; use `schema.obj(properties, { open: true })` when a tool intentionally accepts them.
+
+A plugin's tool runs at once when it says `readOnlyHint: true` or `destructiveHint: false`. Otherwise it asks the person first, and a declined call returns `Tool call blocked: The person declined this call.` to the model. The owner's choice on the Connections page, per connection or per tool, overrides either. Core's own tools never ask.
 
 `api` is Pi's `ToolExecutionApi`. `context` is the call's context: `context.abortSignal` is set when the call can be cancelled.
 

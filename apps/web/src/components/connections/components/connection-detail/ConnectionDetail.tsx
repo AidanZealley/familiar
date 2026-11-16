@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { workspace } from '@/lib/familiar'
 import { cn } from 'cn'
 import { statusOf } from '../../status'
+import { PolicyMenu } from '../policy-menu'
 import { StatusDot } from '../status-dot'
 import { TransportDetails } from '../transport-details'
 import { RemoveServer } from './components/remove-server'
@@ -131,6 +132,16 @@ export const ConnectionDetail = ({
           <TransportDetails transport={connection.transport} />
         </section>
       )}
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-medium">Approval</h3>
+          <PolicyMenu connection={connection} policy={connection.policy} />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Whether its tools run when a Familiar calls them, ask you first in the
+          chat, or never run. A tool's own choice below wins.
+        </p>
+      </section>
       <ToolList connection={connection} />
     </section>
   )

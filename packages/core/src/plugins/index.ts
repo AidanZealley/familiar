@@ -11,7 +11,7 @@ import { withServices, type ToolServices } from '../tools.ts'
 import { createConnections } from './connections.ts'
 import type { FamiliarPlugin } from './types.ts'
 
-export type { FamiliarPlugin } from './types.ts'
+export type { FamiliarPlugin, FamiliarTool } from './types.ts'
 
 /** The extension a plugin's tools are installed as, once for every Familiar. */
 export const pluginExtensionName = (plugin: string) =>

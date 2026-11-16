@@ -16,7 +16,9 @@ export type {
   TranscriptGap,
   Retrying,
 } from './transcript.ts'
+export { answerFor, shapeOf, type QuestionShape } from './questions.ts'
 export type {
+  Answer,
   Author,
   AccountState,
   AgentState,
@@ -24,6 +26,8 @@ export type {
   FamiliarIdentity,
   FamiliarsState,
   FamiliarSummary,
+  Form,
+  FormField,
   JournalLine,
   McpConnectionInfo,
   McpServer,
@@ -35,7 +39,9 @@ export type {
   ModelSetting,
   Note,
   PageState,
+  Policy,
   PushSubscriptionJson,
+  Question,
   Room,
   RoomActivity,
   RoomListing,
@@ -46,6 +52,8 @@ export type {
   Schedule,
   SchedulesState,
   Subject,
+  ToolAnnotations,
+  ToolInfo,
   TurnActivity,
 } from '@familiar-ai/core/http'
 export type { ModelThinkingLevel } from '@earendil-works/pi-ai'

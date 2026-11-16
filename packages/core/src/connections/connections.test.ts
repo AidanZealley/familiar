@@ -186,7 +186,7 @@ test('a secret must declare an exact HTTPS origin', () => {
   }
 })
 
-test("plugin connections expose their tools' names and descriptions", async () => {
+test("plugin connections expose their tools' names, descriptions and policies", async () => {
   const { api } = await setup()
   const response = await api.request('/connections')
   expect(response.status).toBe(200)
@@ -194,7 +194,15 @@ test("plugin connections expose their tools' names and descriptions", async () =
     expect.objectContaining({
       kind: 'plugin',
       name: 'echo',
-      tools: [{ name: 'echo_key', description: 'Calls the echo service.' }],
+      // The test host allows every plugin's tools.
+      policy: 'allow',
+      tools: [
+        {
+          name: 'echo_key',
+          description: 'Calls the echo service.',
+          default: 'allow',
+        },
+      ],
     }),
   ])
 })

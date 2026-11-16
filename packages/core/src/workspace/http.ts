@@ -9,6 +9,7 @@ import { streamEvents } from '../http/events.ts'
 import { found } from '../http/found.ts'
 import { memoryRoutes } from '../memory/http.ts'
 import { scheduleRoutes } from '../schedules/http.ts'
+import { QuestionError, QuestionGone, type Answer } from '../questions/index.ts'
 import type { FamiliarId } from './familiars.ts'
 import type { Workspace } from './index.ts'
 
@@ -26,6 +27,28 @@ async function identity(c: Context, run: () => Promise<Response>) {
     }
     throw error
   }
+}
+
+/** An answer as the wire carries it, checked against its question by core. */
+function answerOf(body: unknown): Answer | undefined {
+  const { action, content } = (body ?? {}) as Record<string, unknown>
+  if (action === 'decline' && content === undefined) {
+    return { action }
+  }
+  if (action !== 'accept') {
+    return undefined
+  }
+  if (content === undefined) {
+    return { action }
+  }
+  return typeof content === 'object' &&
+    content !== null &&
+    !Array.isArray(content) &&
+    Object.values(content).every((value) =>
+      ['string', 'number', 'boolean'].includes(typeof value),
+    )
+    ? { action, content: content as Record<string, string | number | boolean> }
+    : undefined
 }
 
 const optional = (value: unknown) =>
@@ -318,6 +341,35 @@ export function familiarRoutes(workspace: Workspace) {
             await familiarOf(c).setCapabilities({ plugins, mcp })
             return c.body(null, 204)
           }),
+      )
+      // Answers a question it's waiting on: approve or decline a call, or
+      // fill in a server's form.
+      .post(
+        '/:familiar/questions/:question',
+        can('questions.answer'),
+        validator('json', (body, c) => {
+          const answer = answerOf(body)
+          return answer ?? c.json({ error: 'not an answer' }, 400)
+        }),
+        async (c) => {
+          familiarOf(c)
+          try {
+            await workspace.questions.answer(
+              idOf(c),
+              c.req.param('question'),
+              c.req.valid('json'),
+            )
+          } catch (error) {
+            if (error instanceof QuestionGone) {
+              return c.json({ error: error.message }, 409)
+            }
+            if (error instanceof QuestionError) {
+              return c.json({ error: error.message }, 400)
+            }
+            throw error
+          }
+          return c.body(null, 204)
+        },
       )
       // The DM between this Familiar and whoever asks, created if new.
       .post('/:familiar/dm', can('familiars.dm'), async (c) => {

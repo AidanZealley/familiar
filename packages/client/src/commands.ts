@@ -2,6 +2,7 @@ import { hc } from 'hono/client'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type {
+  Answer,
   HttpApi,
   HistoryQuery,
   Connection as ConnectionKey,
@@ -17,6 +18,8 @@ import type {
   ModelDefaultsChange,
   ModelOption,
   ModelSetting,
+  Policy,
+  Question,
   PageState,
   PushSubscriptionJson,
   RoomSummary,
@@ -114,6 +117,27 @@ export const workspaceCommands = (api: Api) => ({
         api.connections[':kind'][':name'].secrets[':secret'].$delete({
           param: { ...connection, secret },
         }),
+      ),
+    /**
+     * Whether `tool` runs at once, asks first or never runs; without a
+     * tool, every tool of the connection without its own. `null` goes back
+     * to the default.
+     */
+    setPolicy: (
+      connection: ConnectionKey,
+      tool: string | undefined,
+      policy: Policy | null,
+    ) =>
+      succeed(
+        tool === undefined
+          ? api.connections[':kind'][':name'].policy.$put({
+              param: connection,
+              json: { policy },
+            })
+          : api.connections[':kind'][':name'].tools[':tool'].policy.$put({
+              param: { ...connection, tool },
+              json: { policy },
+            }),
       ),
   },
   mcp: {
@@ -324,6 +348,20 @@ export const roomCommands = (api: Api, id: number) => {
       succeed(room.retry.$post({ param, json: { reply } })),
     /** Stops every turn in the room. */
     stop: () => succeed(room.stop.$post({ param })),
+    /**
+     * Answers a question a reply here is waiting on. Rejects when it's no
+     * longer waiting, such as when someone else answered it first.
+     */
+    answer: (question: Question, answer: Answer) =>
+      succeed(
+        api.familiars[':familiar'].questions[':question'].$post({
+          param: {
+            familiar: String(question.familiar),
+            question: question.id,
+          },
+          json: answer,
+        }),
+      ),
     /**
      * Marks the room read by the signed-in person up to `entry`, the newest
      * they've seen; never back from where it was.

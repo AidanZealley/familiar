@@ -43,6 +43,7 @@ export const boardPlugin = (board: Board) =>
     tools: [
       defineTool({
         name: 'list_tasks',
+        annotations: { readOnlyHint: true },
         description:
           'Lists the tasks on the board, optionally only those with one status.',
         parameters: schema.obj({ status: schema.opt(status) }),
@@ -63,6 +64,7 @@ export const boardPlugin = (board: Board) =>
       }),
       defineTool({
         name: 'create_task',
+        annotations: { destructiveHint: false },
         description: 'Adds a task to the board, in Todo.',
         parameters: schema.obj({ title: schema.str() }),
         execute: ({ title }) =>
@@ -70,6 +72,7 @@ export const boardPlugin = (board: Board) =>
       }),
       defineTool({
         name: 'assign_task_to_me',
+        annotations: { destructiveHint: false },
         description: 'Assigns a task to the person asking.',
         parameters: schema.obj({ taskId }),
         execute: async ({ taskId }, _api, context) => {
@@ -88,6 +91,7 @@ export const boardPlugin = (board: Board) =>
       }),
       defineTool({
         name: 'move_task',
+        annotations: { destructiveHint: false },
         description: 'Moves a task to another status column.',
         parameters: schema.obj({ taskId, status }),
         execute: ({ taskId, status }) =>

@@ -42,18 +42,10 @@ export type McpStatus =
   | { type: 'connecting' | 'connected' | 'disconnected' | 'needs-auth' }
   | { type: 'failed'; error: string }
 
-/** A server's tool: its description, if the server gives one, and whether it says it only reads. */
-export type McpToolInfo = {
-  name: string
-  description?: string
-  readOnly: boolean
-}
-
-export type McpConnectionInfo = Omit<PluginConnectionInfo, 'kind' | 'tools'> & {
+export type McpConnectionInfo = Omit<PluginConnectionInfo, 'kind'> & {
   status: McpStatus
   kind: 'mcp'
   transport: McpServer['transport']
-  tools: McpToolInfo[]
 }
 
 export type McpApi = {

@@ -9,6 +9,7 @@ import {
   type WatchHandle,
 } from '@earendil-works/pi-durable'
 import { derivedWatch } from '../pi/watch.ts'
+import { pendingIn, Questions, type Question } from '../questions/index.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { Turns, type RoomId, type TurnRecord } from './rooms.ts'
 
@@ -41,6 +42,8 @@ export type TurnActivity = {
       generation?: LiveState['generation']
       /** The current round's tool calls. */
       tools?: LiveState['tools']
+      /** What its Familiar is waiting for the person to answer, oldest first. */
+      questions?: Question[]
     }
 )
 
@@ -67,6 +70,7 @@ export const turnsIn = (
 export function activityOf(
   turns: Readonly<Record<string, TurnRecord>>,
   chatOf: (familiar: FamiliarId) => Chat,
+  questions?: Parameters<typeof pendingIn>[0],
 ): RoomActivity {
   // A run answering any of these inputs is this room's.
   const here = new Set(
@@ -77,12 +81,14 @@ export function activityOf(
     const { live, inbox } = chatOf(familiar)
     const run = live?.run
     if (submission !== undefined && run?.inputs.includes(submission)) {
+      const asking = pendingIn(questions, familiar)
       activity[task] = {
         familiar,
         cause,
         status: 'running',
         ...(live!.generation && { generation: live!.generation }),
         ...(live!.tools && { tools: live!.tools }),
+        ...(asking.length > 0 && { questions: asking }),
       }
       continue
     }
@@ -169,10 +175,12 @@ export async function watchActivity(
 ): Promise<WatchHandle<RoomActivity>> {
   // Opening the workspace creates the turns document.
   const turns = (await harness.watchDoc(Turns, context))!
+  const questions = (await harness.watchDoc(Questions, context))!
   const chats = chatsOf(harness)
   const derived = derivedWatch(() =>
-    activityOf(turnsIn(turns.value, room), chats.chatOf),
+    activityOf(turnsIn(turns.value, room), chats.chatOf, questions.value),
   )
   derived.follow(turns, () => chats.follow(derived, turnsIn(turns.value, room)))
+  derived.follow(questions)
   return derived.watch
 }

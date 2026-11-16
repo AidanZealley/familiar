@@ -114,7 +114,7 @@ export function household(now: number): Story {
         avatar: '001',
         capabilities: {
           plugins: ['demo'],
-          mcp: ['home-assistant', 'time', 'scratch'],
+          mcp: ['home-assistant', 'time', 'scratch', 'bench'],
         },
       },
       {
