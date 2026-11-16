@@ -8,7 +8,11 @@ import {
 import type { RoomActivity, StreamEvent } from '@familiar-ai/core/http'
 import type { StoreApi } from 'zustand/vanilla'
 import type { FetchHistory } from './commands.ts'
-import { toRoomTranscript, type Transcript } from './transcript.ts'
+import {
+  toRoomTranscript,
+  type Transcript,
+  type TranscriptGap,
+} from './transcript.ts'
 
 /** Fetch status for the earlier-message control. Pi owns the loaded entries. */
 export type History = { status: 'more' | 'loading' | 'failed' | 'start' }
@@ -84,14 +88,8 @@ export const createLog = (
 
   return {
     loadOlder,
-    loadGap: async (after: number, upTo: number) => {
-      const gap = merged?.items.find(
-        (item) =>
-          item.kind === 'gap' && item.after === after && item.upTo === upTo,
-      )
-      if (gap?.kind === 'gap') {
-        set(show(await transcript.fillGap(gap, BACKGROUND_CONTEXT)))
-      }
+    loadGap: async (gap: TranscriptGap) => {
+      set(show(await transcript.fillGap(gap, BACKGROUND_CONTEXT)))
     },
     receive,
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>

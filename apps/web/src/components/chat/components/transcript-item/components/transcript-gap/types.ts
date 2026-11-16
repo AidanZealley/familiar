@@ -1,1 +1,3 @@
-export type TranscriptGapProps = { after: number; upTo: number }
+import type { TranscriptGap } from '@familiar-ai/client'
+
+export type TranscriptGapProps = { gap: TranscriptGap }
