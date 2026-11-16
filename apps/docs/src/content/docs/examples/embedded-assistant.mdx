@@ -54,7 +54,7 @@ The board is the only place tasks change. Its UI and Familiar's tools call the s
 defineTool({
   name: 'assign_task_to_me',
   description: 'Assigns a task to the person asking.',
-  parameters: Type.Object({ taskId }),
+  parameters: obj({ taskId }),
   execute: async ({ taskId }, _api, context) => {
     // The person who asked, never a tool argument. Undefined for
     // work nobody asked for, such as memory filing.

@@ -10,6 +10,7 @@ catalog:
   '@earendil-works/chord': 1.5.2
   '@earendil-works/pi-ai': 1.5.2
   '@earendil-works/pi-durable': 1.5.2
+  '@earendil-works/pi-schema': 1.5.2
   '@modelcontextprotocol/client': 2.4.0
   '@modelcontextprotocol/server': 2.4.0
   hono: 4.13.13

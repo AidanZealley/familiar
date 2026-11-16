@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
-import { Type } from 'typebox'
+import { obj } from '@earendil-works/pi-schema'
 
 import {
   fauxAssistantMessage,
@@ -128,13 +128,13 @@ async function openChat(responses: FauxResponseStep[]) {
   const echo = defineTool({
     name: 'echo',
     description: 'Echoes',
-    parameters: Type.Object({}),
+    parameters: obj({}),
     execute: async () => ({ output: [{ type: 'text', text: 'echoed' }] }),
   })
   const hush = defineTool({
     name: 'hush',
     description: 'Ends the run',
-    parameters: Type.Object({}),
+    parameters: obj({}),
     execute: async () => ({
       output: [{ type: 'text', text: 'hushed' }],
       control: { terminate: true },
@@ -579,7 +579,7 @@ test("a conversation's removed extensions stay off while ones installed later re
     defineTool({
       name,
       description: name,
-      parameters: Type.Object({}),
+      parameters: obj({}),
       execute: async () => ({ output: [] }),
     })
   const a = defineExtension({ name: 'a', tools: [tool('a'), tool('shared')] })

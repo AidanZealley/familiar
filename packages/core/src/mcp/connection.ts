@@ -1,5 +1,3 @@
-import { Type } from 'typebox'
-
 import {
   defineTool,
   type Extension,
@@ -108,13 +106,16 @@ export function openConnection(
           return defineTool({
             name,
             description: tool.description ?? tool.name,
-            parameters: Type.Unsafe<Record<string, unknown>>(tool.inputSchema),
+            parameters: tool.inputSchema,
             deferred: true,
             execute: async (args, _api, context) => {
               try {
                 return toolResult(
                   await client.callTool(
-                    { name: tool.name, arguments: args },
+                    {
+                      name: tool.name,
+                      arguments: args as Record<string, unknown>,
+                    },
                     { signal: context.abortSignal },
                   ),
                 )

@@ -6,7 +6,7 @@ import {
 import { expect, onTestFinished, test } from 'vitest'
 import { seedPage, withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
-import { definePlugin, defineTool, Type } from '../index.ts'
+import { definePlugin, defineTool, obj } from '../index.ts'
 import { offeredTools, ReopenableStorage, replyTo } from '../testing.ts'
 import { createFamiliar } from './familiars.ts'
 import {
@@ -159,7 +159,7 @@ test("a Familiar is offered only the plugins it opted in to, from its next reque
           defineTool({
             name: 'forecast',
             description: "Tomorrow's weather",
-            parameters: Type.Object({}),
+            parameters: obj({}),
             execute: async () => ({ output: [{ type: 'text', text: 'Rain' }] }),
           }),
         ],

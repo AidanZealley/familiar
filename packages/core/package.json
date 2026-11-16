@@ -61,10 +61,10 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "typebox": "1.3.27",
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
+    "@earendil-works/pi-schema": "catalog:",
     "@modelcontextprotocol/client": "catalog:",
     "croner": "11.0.0",
     "hono": "catalog:",
