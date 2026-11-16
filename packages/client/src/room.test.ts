@@ -174,6 +174,10 @@ test('transcript reference survives unrelated updates and history loading or fai
   await load
   expect(store.getState().history.status).toBe('failed')
   expect(store.getState().transcript).toBe(unrelated)
+  // A failure waits for a retry rather than resetting on the next commit.
+  server.send(frame('ops', []))
+  await tick()
+  expect(store.getState().history.status).toBe('failed')
   fail = false
   const published: (string[] | undefined)[] = []
   const unsubscribe = store.subscribe(() => published.push(itemIds(store)))
