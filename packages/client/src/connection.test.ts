@@ -117,6 +117,16 @@ test('a dropped or ended stream reconnects and the fresh view replaces the old',
     'reconnecting',
     'open',
   ])
+  // Each reconnect continues right after the newest entry the client has.
+  expect(
+    server.requests
+      .map((request) => request.url)
+      .filter((url) => url.includes('/events')),
+  ).toEqual([
+    'http://familiar.test/api/rooms/1/events',
+    'http://familiar.test/api/rooms/1/events?from=2',
+    'http://familiar.test/api/rooms/1/events?from=3',
+  ])
 })
 
 test.each([

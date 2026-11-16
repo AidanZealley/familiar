@@ -294,6 +294,9 @@ test("posting to a room validates what clients send, takes the author from the h
       400,
     )
   }
+  expect((await app.request(`/rooms/${room}/events?from=latest`)).status).toBe(
+    400,
+  )
   const missing = await client.rooms[':room'].messages.$post({
     param: { room: '999' },
     json: { text: 'Hi', requestId: 'r' },
@@ -384,7 +387,7 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
       })
     ).status,
   ).toBe(404)
-  expect((await ann_.events.$get({ param: room })).status).toBe(404)
+  expect((await ann_.events.$get({ param: room, query: {} })).status).toBe(404)
 
   // A note to one's own room is accepted.
   expect(

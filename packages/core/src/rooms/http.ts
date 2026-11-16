@@ -242,26 +242,41 @@ export function roomRoutes(rooms: RoomsApi) {
         await (await roomOf(c)).stop()
         return c.body(null, 202)
       })
-      // The room's log, then its turns in progress, live.
-      .get('/:room/events', (c) => {
-        // Found only once the stream is allowed.
-        let room: RoomApi
-        return streamEvents(
-          c,
-          [
-            {
-              operation: 'events.room',
-              open: async (stream) => {
-                await stream.view(() => room.watch())
-                await stream.document('turns', () => room.watchTurns())
+      // The room's log, then its turns in progress, live. A client that
+      // reconnects asks `from` the entry after its newest, to miss nothing.
+      .get(
+        '/:room/events',
+        validator('query', ({ from }, c) => {
+          const entry = from === undefined ? undefined : Number(from)
+          if (entry !== undefined && !Number.isSafeInteger(entry)) {
+            return c.json({ error: 'from must be an entry ID' }, 400)
+          }
+          // Pi's window: `{}` is its default, the newest entries.
+          const window: { from?: EntryId } =
+            entry === undefined ? {} : { from: entry as EntryId }
+          return window
+        }),
+        (c) => {
+          const window = c.req.valid('query')
+          // Found only once the stream is allowed.
+          let room: RoomApi
+          return streamEvents(
+            c,
+            [
+              {
+                operation: 'events.room',
+                open: async (stream) => {
+                  await stream.view(() => room.watch(window))
+                  await stream.document('turns', () => room.watchTurns())
+                },
               },
+            ],
+            { room: idOf(c) },
+            async () => {
+              room = await roomOf(c)
             },
-          ],
-          { room: idOf(c) },
-          async () => {
-            room = await roomOf(c)
-          },
-        )
-      })
+          )
+        },
+      )
   )
 }

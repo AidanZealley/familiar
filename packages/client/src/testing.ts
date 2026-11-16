@@ -36,7 +36,7 @@ export function testServer(
     const request = new Request(new URL(url, 'http://familiar.test'), init)
     requests.push(request)
 
-    if (!request.url.endsWith('/events')) {
+    if (!new URL(request.url).pathname.endsWith('/events')) {
       return answer(request)
     }
 
@@ -72,7 +72,9 @@ export function testServer(
     cancellations: () => cancellations,
     /** How many times the event stream has been requested. */
     connections: () =>
-      requests.filter((request) => request.url.endsWith('/events')).length,
+      requests.filter((request) =>
+        new URL(request.url).pathname.endsWith('/events'),
+      ).length,
     /** Writes to the newest stream: frames, or raw bytes in any split. */
     send: (chunk: string | Uint8Array) =>
       streams

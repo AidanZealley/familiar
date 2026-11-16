@@ -106,7 +106,7 @@ A list shows each room as a `RoomListing`: its setup, with `last`, its newest en
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `post({ author, text, requestId, mentions? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once                                     |
 | `note({ text, requestId })`                    | Post a host's note: shown to each Familiar in the room on its next turn, with no turn of its own. Returns its entry ID                      |
-| `watch()`                                      | The log's committed view as `value`, then `start(listener)` and `stop()`                                                                    |
+| `watch(window?)`                               | The log's committed view as `value`, then `start(listener)` and `stop()`. `window` is Pi's: the newest 50 entries, or `{ from }` an entry   |
 | `watchTurns()`                                 | Its turns in progress: each one `queued`, `elsewhere` or `running`, with the reply so far                                                   |
 | `read(person, entry)`                          | Mark it read by a person, by host author ID, up to `entry`, the newest they've seen; never back. Their own messages mark it read up to them |
 | `history(query, limit)`                        | Pi's `{ items, next? }` page for inclusive `minEntryId`/`maxEntryId` bounds and `order`                                                     |

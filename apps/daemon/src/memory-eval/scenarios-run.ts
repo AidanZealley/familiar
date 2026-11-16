@@ -15,9 +15,9 @@ import {
 import {
   nextNight,
   RECALL_HEADING,
+  replyTo,
   textOf,
 } from '@familiar-ai/core/diagnostics'
-import { replyTo } from '../reply.ts'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
 import {

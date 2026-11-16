@@ -2,6 +2,7 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
   type ConversationWatch,
+  type ConversationWindow,
   type EntryQuery,
   type EntryRecord,
   type Cursor,
@@ -115,8 +116,12 @@ export type RoomApi = {
   read(person: string, entry: EntryId): Promise<void>
   /** A bounded page of the room's entries, using Pi's query and page shapes. */
   history(query: HistoryQuery, limit: number): Promise<HistoryPage>
-  /** The log's committed view, then every commit's changes to it. */
-  watch(): Promise<ConversationWatch>
+  /**
+   * The log's committed view, then every commit's changes to it. `window`
+   * is Pi's: by default the newest 50 entries, or from an entry, such as
+   * right after the newest a client has.
+   */
+  watch(window?: ConversationWindow): Promise<ConversationWatch>
   /**
    * The turns in progress here, by task ID: whether each is waiting for its
    * Familiar or being answered, with the reply as it streams. Shows nothing
@@ -263,8 +268,8 @@ export function createRooms(
         undefined,
         context,
       ),
-    watch: async () =>
-      (await harness.conversation(id, context))!.watch(context),
+    watch: async (window) =>
+      (await harness.conversation(id, context))!.watch(context, window),
     watchTurns: () => watchActivity(harness, id),
     stop: () => stop(id),
   })

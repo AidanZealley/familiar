@@ -41,7 +41,7 @@ export const fetchOf = (options: StoreOptions): typeof globalThis.fetch =>
  * caller wires up with `on`.
  */
 export function openMirror<State extends { connection: Connection }>(
-  url: string,
+  url: string | (() => string),
   fetch: typeof globalThis.fetch,
   store: StoreApi<State>,
   receive = (name: DocumentName, value: unknown): object => ({

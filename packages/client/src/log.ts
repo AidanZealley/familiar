@@ -61,6 +61,8 @@ export const createLog = (
     apply: (ops: Extract<StreamEvent, { event: 'ops' }>['data']) =>
       receive(applyImmutable(get().view, ops)),
     turns: (turns: LogState['turns']) => show(merged, turns),
+    /** Where a new watch continues the transcript: Pi's `resume` window. */
+    resume: () => transcript.resume,
     // Pi shares concurrent loads of the same page, so callers needn't guard.
     loadOlder: async () =>
       set(show(await transcript.loadEarlier(BACKGROUND_CONTEXT))),

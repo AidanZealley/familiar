@@ -1,3 +1,4 @@
+import { replyTo } from '@familiar-ai/core/diagnostics'
 import { createModels } from '@earendil-works/pi-ai/models'
 import {
   fauxAssistantMessage,
@@ -13,7 +14,6 @@ import {
 import { afterEach, expect, test } from 'vitest'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { webPlugin } from './plugin.ts'
-import { replyTo } from '../reply.ts'
 
 const KEY = 'BSA-test-0123456789'
 
