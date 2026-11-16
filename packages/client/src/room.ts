@@ -1,9 +1,9 @@
-import type { TranscriptGap } from './transcript.ts'
 import type { RoomActivity } from '@familiar-ai/core/http'
 import { createStore } from 'zustand/vanilla'
 import { createApi, roomCommands } from './commands.ts'
 import type { Connection } from './events.ts'
 import { createLog, type LogState } from './log.ts'
+import type { TranscriptGap } from './transcript.ts'
 import { fetchOf, openMirror, type Store, type StoreOptions } from './mirror.ts'
 
 /** What a room's stream has sent, as plain data, with its transcript. */
@@ -16,6 +16,10 @@ export type RoomStore = Store<RoomState> &
      * progress and failure, so this never rejects.
      */
     loadOlder(): Promise<void>
+    /**
+     * Loads the next page of entries missing at `gap`, a transcript item's
+     * gap; rejects if that fails, so its caller shows the failure.
+     */
     loadGap(gap: TranscriptGap): Promise<void>
   }
 
