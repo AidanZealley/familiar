@@ -12,8 +12,8 @@ export type RoomState = LogState & { connection: Connection }
 export type RoomStore = Store<RoomState> &
   Omit<ReturnType<typeof roomCommands>, 'history'> & {
     /**
-     * Loads the next older page into the transcript. `history.status` shows
-     * progress and failure, so this never rejects.
+     * Loads the page before the transcript's start, while its `earlier` is
+     * true; rejects if that fails, so its caller shows the failure.
      */
     loadOlder(): Promise<void>
     /**
@@ -41,12 +41,11 @@ export function createRoomStore(
   const store = createStore<RoomState>()(() => ({
     connection: 'connecting',
     view: undefined,
-    history: { status: 'more' },
     turns: undefined,
     transcript: undefined,
   }))
   const { setState: set, getState: get } = store
-  // The log owns the view, history, turns and the transcript derived from them.
+  // The log owns the view, turns and the transcript derived from them.
   const log = createLog(set, get, history)
   const mirror = openMirror(
     `${baseUrl}/rooms/${room}/events`,

@@ -138,6 +138,8 @@ export type Transcript = {
   items: TranscriptItem[]
   /** A Familiar has a turn in progress here. */
   busy: boolean
+  /** Entries exist before the first item, Pi's `earlier` marker. */
+  earlier: boolean
 }
 
 /**
@@ -169,7 +171,11 @@ export function toRoomTranscript(
   for (const [task, turn] of Object.entries(turns)) {
     items.push(toActive(task, turn))
   }
-  return { items, busy: Object.keys(turns).length > 0 }
+  return {
+    items,
+    busy: Object.keys(turns).length > 0,
+    earlier: rows[0]?.kind === 'earlier',
+  }
 }
 
 /**
