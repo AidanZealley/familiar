@@ -1,7 +1,6 @@
 import type { Context, ContextKey } from '@earendil-works/chord/context'
 import type { JsonValue } from '@earendil-works/chord/json'
 import { withContextValue } from '@earendil-works/chord/context'
-import type { TSchema } from 'typebox'
 
 import type {
   EntryId,
@@ -31,8 +30,6 @@ import { entriesOf } from './pi/entries.ts'
  */
 
 export { defineTool } from '@earendil-works/pi-durable'
-export { Type } from 'typebox'
-export type { Static, TSchema } from 'typebox'
 
 export type ToolDetails = JsonValue
 export type ToolContext = Context
@@ -81,7 +78,7 @@ export function familiar(context: Context): ToolServices {
 }
 
 /** `tool`, given `services` and its call's author whenever it runs. */
-export function withServices<P extends TSchema, D extends JsonValue>(
+export function withServices<P extends object, D extends JsonValue>(
   tool: ToolRegistration<P, D>,
   services: Omit<ToolServices, 'author'>,
 ): ToolRegistration<P, D> {

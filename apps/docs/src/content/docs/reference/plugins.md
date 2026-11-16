@@ -26,13 +26,15 @@ Throws, naming the plugin, unless the plugins can run together: unique plugin na
 
 Pi Durable's `defineTool`, re-exported from `@familiar-ai/core` at the version Familiar runs. Familiar adds nothing to the tool itself.
 
-| Field                         | Meaning                                                                |
-| ----------------------------- | ---------------------------------------------------------------------- |
-| `name`, `description`         | What the model sees                                                    |
-| `parameters`                  | A TypeBox schema built with `Type`. Arguments are validated against it |
-| `execute(args, api, context)` | Runs the tool. Returns a `ToolResult`                                  |
-| `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'`  |
-| `structuredOutputSchema`      | Optional schema for output that other tools and code mode read         |
+| Field                         | Meaning                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| `name`, `description`         | What the model sees                                                                  |
+| `parameters`                  | A JSON Schema built with Pi builders such as `obj` and `str`. Pi validates arguments |
+| `execute(args, api, context)` | Runs the tool. Returns a `ToolResult`                                                |
+| `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'`                |
+| `structuredOutputSchema`      | Optional schema for output that other tools and code mode read                       |
+
+Tool schemas use Pi's native builders. `obj` rejects undeclared properties by default; use `obj(properties, { open: true })` when a tool intentionally accepts them.
 
 `api` is Pi's `ToolExecutionApi`. `context` is the call's context: `context.abortSignal` is set when the call can be cancelled.
 

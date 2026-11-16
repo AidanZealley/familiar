@@ -1,4 +1,4 @@
-import { Type, defineTool, familiar } from '@familiar-ai/core'
+import { obj, defineTool, familiar } from '@familiar-ai/core'
 import {
   fauxAssistantMessage,
   fauxToolCall,
@@ -24,7 +24,7 @@ export const demoFetch: PluginFetch = async (input, init) => {
 export const checkDemoKey = defineTool({
   name: 'check_demo_key',
   description: 'Demo only: checks the demo key from the Connections page.',
-  parameters: Type.Object({}),
+  parameters: obj({}),
   execute: async (_args, _api, context) => {
     const response = await familiar(context).authorizedFetch(
       'key',

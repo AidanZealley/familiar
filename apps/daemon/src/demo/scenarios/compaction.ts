@@ -1,4 +1,4 @@
-import { Type, defineTool } from '@familiar-ai/core'
+import { obj, defineTool } from '@familiar-ai/core'
 import {
   fauxAssistantMessage,
   fauxToolCall,
@@ -10,7 +10,7 @@ import { textOf, type Scenario } from './scenario.ts'
 export const fillContext = defineTool({
   name: 'fill_context',
   description: 'Demo only: pads the context so it can be compacted.',
-  parameters: Type.Object({}),
+  parameters: obj({}),
   execute: async () => ({
     output: [
       { type: 'text', text: 'Padding for the compaction demo. '.repeat(1400) },

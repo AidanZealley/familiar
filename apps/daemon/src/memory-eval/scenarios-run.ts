@@ -7,7 +7,8 @@ import type {
 import {
   definePlugin,
   defineTool,
-  Type,
+  obj,
+  str,
   type Author,
   type RoomApi,
   type RoomId,
@@ -150,7 +151,7 @@ export async function runScenario(
       defineTool({
         name: 'read_page',
         description: 'Reads a web page and returns its text.',
-        parameters: Type.Object({ url: Type.String() }),
+        parameters: obj({ url: str() }),
         execute: async () => ({
           output: [{ type: 'text', text: scenario.page ?? 'Page not found.' }],
         }),

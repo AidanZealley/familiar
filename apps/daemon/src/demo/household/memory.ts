@@ -5,7 +5,7 @@
 // message the Familiar was sent; the seed finds that message and reads who
 // said it, where and when from it, as filing does.
 
-import { Type, defineTool, type RoomId } from '@familiar-ai/core'
+import { obj, defineTool, type RoomId } from '@familiar-ai/core'
 import {
   Familiars,
   Journal,
@@ -688,7 +688,7 @@ export const seedMemory = defineTool({
   name: 'seed_memory',
   description:
     'Demo only: fills each household Familiar’s memory with what its earlier months would have left.',
-  parameters: Type.Object({}),
+  parameters: obj({}),
   execute: (_args, api, context) =>
     api.commit(async (tx) => {
       const { familiars } = await tx.doc(Familiars)
