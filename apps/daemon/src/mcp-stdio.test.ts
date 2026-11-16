@@ -1,3 +1,4 @@
+import { replyTo } from '@familiar-ai/core/diagnostics'
 import { fileURLToPath } from 'node:url'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import {
@@ -14,7 +15,6 @@ import {
 import { afterEach, expect, onTestFinished, test, vi } from 'vitest'
 import { stdioTransport } from './mcp-stdio.ts'
 import { openDaemonWorkspace } from './workspace.ts'
-import { replyTo } from './reply.ts'
 
 // Owner-configured commands run as the daemon's user, through the daemon's
 // stdio transport. Core owns the connection; these check what the child

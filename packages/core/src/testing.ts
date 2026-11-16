@@ -4,25 +4,21 @@ import {
   fauxProvider,
   type FauxModelDefinition,
 } from '@earendil-works/pi-ai/providers/faux'
-import {
-  MemoryStorage,
-  type EntryId,
-  type SetTimer,
-} from '@earendil-works/pi-durable'
-import type { ConversationView } from '@earendil-works/pi-durable'
+import { MemoryStorage, type SetTimer } from '@earendil-works/pi-durable'
 import { onTestFinished } from 'vitest'
 import type { Author } from './conversation/message.ts'
 import {
   openWorkspace,
-  type RoomApi,
   type RoomMessage,
   type WorkspaceOptions,
 } from './index.ts'
 import { RECALL_HEADING } from './memory/recall.ts'
-import { REPLY_KIND, type ReplyData } from './rooms/log.ts'
+import { replyTo } from './rooms/reply.ts'
 import { parseMinute } from './time.ts'
 
 /** Test helpers; not part of Familiar. */
+
+export { replyTo }
 
 /** A clock that moves only when told to, firing the timers that fall due. */
 export function fakeClock(start: number) {
@@ -92,42 +88,6 @@ export type TestHostOptions = Partial<WorkspaceOptions> & {
   faux?: FauxModelDefinition[]
   /** Whose DM with Familiar #1 `dm` is. Default aidan. */
   person?: Author
-}
-
-/**
- * The reply in `room` that answers `entry`, once there is one. Never
- * settles for a turn stopped before it said anything.
- */
-export async function replyTo(room: RoomApi, entry: EntryId) {
-  const watch = await room.watch()
-  const find = (view: ConversationView) =>
-    view.entries.find(
-      (candidate) =>
-        candidate.kind === REPLY_KIND &&
-        (candidate.data as unknown as ReplyData).cause === entry,
-    )?.data as unknown as ReplyData | undefined
-  try {
-    return (
-      find(watch.value) ??
-      (await new Promise<ReplyData>((resolve, reject) => {
-        void watch.closed.then(() =>
-          reject(new Error('The room closed before a reply came.')),
-        )
-        watch.start(async (call) => {
-          if (call.kind !== 'value') {
-            return
-          }
-          const view = call.value
-          const reply = find(view)
-          if (reply) {
-            resolve(reply)
-          }
-        })
-      }))
-    )
-  } finally {
-    await watch.stop()
-  }
 }
 
 /**

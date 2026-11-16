@@ -28,9 +28,12 @@ export type Connection =
   | 'failed'
   | 'outdated'
 
-/** Opens the `/events` stream at `url` and mirrors its handshake into `connection`. */
+/**
+ * Opens the `/events` stream at `url` and mirrors its handshake into
+ * `connection`. A function `url` is asked again for each reconnect.
+ */
 export const openEvents = (
-  url: string,
+  url: string | (() => string),
   fetch: typeof globalThis.fetch,
   connection: (value: Connection) => void,
 ) => {
@@ -41,8 +44,9 @@ export const openEvents = (
     events.close()
     connection('outdated')
   }
-  const events = new EventSource(url, {
-    fetch: (url, init) => connect(fetch, url, init),
+  const urlOf = typeof url === 'string' ? () => url : url
+  const events = new EventSource(urlOf(), {
+    fetch: (_url, init) => connect(fetch, urlOf(), init),
   })
   // EventSource fires open before reading each response, including reconnects.
   events.addEventListener(

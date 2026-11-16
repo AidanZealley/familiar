@@ -47,8 +47,13 @@ export function createRoomStore(
   const { setState: set, getState: get } = store
   // The log owns the view, turns and the transcript derived from them.
   const log = createLog(set, get, history)
+  const events = `${baseUrl}/rooms/${room}/events`
   const mirror = openMirror(
-    `${baseUrl}/rooms/${room}/events`,
+    // A reconnect continues from the transcript's newest entry.
+    () => {
+      const from = log.resume()?.from
+      return from === undefined ? events : `${events}?from=${from}`
+    },
     fetch,
     store,
     (name, value) =>
