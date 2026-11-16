@@ -148,9 +148,14 @@ test('work cut off by a reload resumes from the heartbeat alarm', async () => {
   // the reply, about six seconds at the stream's pace, to stream again in full.
   await sleep(10_000)
   const touched = Date.now()
-  const [cut, retried, ...rest] = await replies('interrupted')
+  const [retried, partial, ...rest] = (
+    await replies('interrupted')
+  ).toReversed()
   expect(rest).toEqual([])
-  expect(cut).toMatchObject({ stopReason: 'aborted' })
+  // Pi defers progress writes: a crash before the first flush leaves no partial.
+  if (partial) {
+    expect(partial).toMatchObject({ stopReason: 'aborted' })
+  }
   expect(retried).toMatchObject({
     stopReason: 'stop',
     content: [{ type: 'text', text: SLOW_REPLY }],
