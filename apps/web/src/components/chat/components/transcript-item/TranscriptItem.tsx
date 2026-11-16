@@ -6,6 +6,7 @@ import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { FamiliarTurn } from '../familiar-turn'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
+import { Retrying } from '../retrying'
 import { Thinking } from '../thinking'
 import { Handoff } from './components/handoff'
 import { TranscriptGap } from './components/transcript-gap'
@@ -53,7 +54,9 @@ export const TranscriptItem = ({
           run={run}
           end={end}
         >
-          {item.status === 'running' ? (
+          {item.retrying ? (
+            <Retrying retrying={item.retrying} />
+          ) : item.status === 'running' ? (
             <Thinking text="" active />
           ) : (
             <Marker role="status">

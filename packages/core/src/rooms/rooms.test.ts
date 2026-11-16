@@ -754,7 +754,11 @@ test('retrying a failed reply has its Familiar answer the same message again, on
   })
   await expect.poll(async () => (await replies(dm)).length).toBe(1)
   const failed = (await log(dm)).find((entry) => entry.kind === REPLY_KIND)!
-  expect(failed.data).toMatchObject({ cause: asked, outcome: 'failed' })
+  expect(failed.data).toMatchObject({
+    cause: asked,
+    outcome: 'failed',
+    failure: { reason: 'model_error', detail: 'Failed on purpose.' },
+  })
 
   // Only a failed reply can be tried again.
   await expect(dm.retry(asked)).rejects.toThrow('Only a failed reply')

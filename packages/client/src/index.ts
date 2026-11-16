@@ -14,6 +14,7 @@ export type {
   Transcript,
   TranscriptItem,
   TranscriptGap,
+  Retrying,
 } from './transcript.ts'
 export type {
   Author,
