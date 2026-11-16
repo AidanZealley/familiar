@@ -64,9 +64,15 @@ export const createLog = (
     /** Where a new watch continues the transcript: Pi's `resume` window. */
     resume: () => transcript.resume,
     // Pi shares concurrent loads of the same page, so callers needn't guard.
-    loadOlder: async () =>
-      set(show(await transcript.loadEarlier(BACKGROUND_CONTEXT))),
-    loadGap: async (gap: TranscriptGap) =>
-      set(show(await transcript.fillGap(gap, BACKGROUND_CONTEXT))),
+    // A load's own result can be older than a view merged as it settled, so
+    // the transcript comes from merging the newest view again.
+    loadOlder: async () => {
+      await transcript.loadEarlier(BACKGROUND_CONTEXT)
+      set(receive(get().view))
+    },
+    loadGap: async (gap: TranscriptGap) => {
+      await transcript.fillGap(gap, BACKGROUND_CONTEXT)
+      set(receive(get().view))
+    },
   }
 }
