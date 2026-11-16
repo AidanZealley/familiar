@@ -215,7 +215,7 @@ try {
     'portable',
     ['ES2023', 'DOM'],
     [],
-    `import { defineTool, obj, str } from '@familiar-ai/core'
+    `import { defineTool, schema } from '@familiar-ai/core'
 import { createHttpApi, type HttpApi } from '@familiar-ai/core/http'
 import { hook, ToolTask } from '@familiar-ai/core/extensions'
 import { localDay } from '@familiar-ai/core/diagnostics'
@@ -235,7 +235,7 @@ declare const ok: never
 defineTool({
   name: 'search',
   description: 'Search',
-  parameters: obj({ query: str() }),
+  parameters: schema.obj({ query: schema.str() }),
   execute: async (args) => {
     // @ts-expect-error
     const query: number = args.query

@@ -1,4 +1,4 @@
-import { obj, defineTool, familiar } from '../index.ts'
+import { defineTool, familiar, schema } from '../index.ts'
 import {
   fauxAssistantMessage,
   fauxToolCall,
@@ -36,7 +36,7 @@ const echo = definePlugin({
     defineTool({
       name: 'echo_key',
       description: 'Calls the echo service.',
-      parameters: obj({}),
+      parameters: schema.obj({}),
       execute: async (_args, _api, context) => {
         const response = await familiar(context).authorizedFetch(
           'key',

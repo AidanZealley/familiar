@@ -1,4 +1,4 @@
-import { obj, opt, str } from '@earendil-works/pi-schema'
+import * as schema from '@earendil-works/pi-schema'
 
 import { defineExtension, defineTool } from '@earendil-works/pi-durable'
 
@@ -176,8 +176,10 @@ export function createTime(timeZone: string) {
   const currentTime = defineTool({
     name: 'current_time',
     description: `The current date and time, in the owner's time zone (${timeZone}) unless one is given.`,
-    parameters: obj({
-      timeZone: opt(str({ description: 'IANA time zone, e.g. Europe/London' })),
+    parameters: schema.obj({
+      timeZone: schema.opt(
+        schema.str({ description: 'IANA time zone, e.g. Europe/London' }),
+      ),
     }),
     replay: 'safe',
     execute: async (args, api) => ({

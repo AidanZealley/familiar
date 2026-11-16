@@ -7,11 +7,10 @@ import type {
 import {
   definePlugin,
   defineTool,
-  obj,
-  str,
   type Author,
   type RoomApi,
   type RoomId,
+  schema,
 } from '@familiar-ai/core'
 import {
   nextNight,
@@ -151,7 +150,7 @@ export async function runScenario(
       defineTool({
         name: 'read_page',
         description: 'Reads a web page and returns its text.',
-        parameters: obj({ url: str() }),
+        parameters: schema.obj({ url: schema.str() }),
         execute: async () => ({
           output: [{ type: 'text', text: scenario.page ?? 'Page not found.' }],
         }),

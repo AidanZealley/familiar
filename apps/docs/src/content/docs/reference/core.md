@@ -9,7 +9,7 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 
 | Import                                | Contents                                                                                                                                                       |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `obj`, `str`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                    |
+| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `schema`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                        |
 | `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                                                                                                |
 | `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                                                               |
 | `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                                                               |
@@ -177,4 +177,4 @@ One MCP connection is one session with its server, under one account, shared by 
 
 `Workspace`, `WorkspaceFamiliar`, `RoomApi`, `RoomsApi`, `Room`, `RoomMessage`, `Mention`, `ReplyData`, `HistoryPage`, `ModelChoice`, `ModelOption`, `Notification`, `NotificationContext`, `Notify`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `MESSAGE_LIMITS`, `MessageError`, `RoomError`, `CapabilityError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.
 
-Schema builders and types are re-exported from the pinned `@earendil-works/pi-schema`, including `obj`, `str`, `opt`, `oneOf`, `Schema` and `Static`.
+The `schema` namespace re-exports the pinned `@earendil-works/pi-schema`, including `schema.obj`, `schema.str`, `schema.opt`, `schema.oneOf`, `schema.Schema` and `schema.Static`.

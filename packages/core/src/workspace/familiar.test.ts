@@ -6,7 +6,7 @@ import type { AssistantMessage, TranscriptContext } from '@earendil-works/pi-ai'
 import { estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test, vi } from 'vitest'
-import { defaultPersona, defineTool, obj } from '../index.ts'
+import { defaultPersona, defineTool, schema } from '../index.ts'
 import { scriptedModels, type ScriptedRequest } from '../models/scripted.ts'
 import { RECALL_HEADING } from '../memory/recall.ts'
 import { TEST_ZONE, testHost, type TestHostOptions } from '../testing.ts'
@@ -232,7 +232,7 @@ test("a plugin can't take the name of one of core's tools", async () => {
   const impostor = defineTool({
     name: 'schedule',
     description: 'Not the real one.',
-    parameters: obj({}),
+    parameters: schema.obj({}),
     execute: async () => ({ output: [] }),
   })
   await expect(

@@ -1,12 +1,4 @@
-import {
-  arr,
-  int,
-  obj,
-  oneOf,
-  opt,
-  str,
-  type Static,
-} from '@earendil-works/pi-schema'
+import * as schema from '@earendil-works/pi-schema'
 
 import { defineTool } from '@earendil-works/pi-durable'
 import type { Author } from '../../conversation/message.ts'
@@ -31,52 +23,54 @@ import type { BatchMessage } from './batch.ts'
  */
 
 const evidence = {
-  m: arr(int(), {
+  m: schema.arr(schema.int(), {
     description: 'The numbers of the messages it rests on.',
   }),
-  quote: str({
+  quote: schema.str({
     description: 'Words copied exactly from one of those messages.',
   }),
 }
 
-export const FileArgs = obj({
-  subjects: opt(
-    arr(
-      obj({
-        name: str(),
-        kind: oneOf(['person', 'topic']),
-        line: str({
+export const FileArgs = schema.obj({
+  subjects: schema.opt(
+    schema.arr(
+      schema.obj({
+        name: schema.str(),
+        kind: schema.oneOf(['person', 'topic']),
+        line: schema.str({
           description: 'One line for the roster, such as "Maya\'s partner".',
         }),
       }),
       { description: 'New subjects, which notes then name by name.' },
     ),
   ),
-  notes: opt(
-    arr(
-      obj({
-        subject: str({
+  notes: schema.opt(
+    schema.arr(
+      schema.obj({
+        subject: schema.str({
           description:
             "The page it goes on: an id, s…, or a new subject's name.",
         }),
-        text: str({
+        text: schema.str({
           description: `One statement, at most ${LIMITS.note} characters.`,
         }),
-        since: opt(str({ description: 'When it became true, YYYY-MM-DD.' })),
+        since: schema.opt(
+          schema.str({ description: 'When it became true, YYYY-MM-DD.' }),
+        ),
         ...evidence,
-        replaces: opt(
-          arr(str(), {
+        replaces: schema.opt(
+          schema.arr(schema.str(), {
             description: 'Notes, n…, this one replaces.',
           }),
         ),
       }),
     ),
   ),
-  journal: opt(
-    arr(
-      obj({
-        on: str({ description: 'The day it happened, YYYY-MM-DD.' }),
-        text: str({
+  journal: schema.opt(
+    schema.arr(
+      schema.obj({
+        on: schema.str({ description: 'The day it happened, YYYY-MM-DD.' }),
+        text: schema.str({
           description: `One line, at most ${LIMITS.line} characters.`,
         }),
         ...evidence,
@@ -85,7 +79,7 @@ export const FileArgs = obj({
   ),
 })
 
-export type FileArgs = Static<typeof FileArgs>
+export type FileArgs = schema.Static<typeof FileArgs>
 
 /** Only receives its answer and ends the call; the pass applies it. */
 export const fileTool = defineTool({
