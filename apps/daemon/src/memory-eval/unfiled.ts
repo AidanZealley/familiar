@@ -11,6 +11,7 @@ import { openDaemonWorkspace } from '../workspace.ts'
 import {
   nextNight,
   RECALL_HEADING,
+  replyTo,
   type FamiliarId,
   type FilingState,
 } from '@familiar-ai/core/diagnostics'
@@ -19,7 +20,6 @@ import { scriptedModels } from '@familiar-ai/core/models/scripted'
 import { createClock, EVAL_TIME_ZONE, noonOf } from './clock.ts'
 import { isSkipped, unquoted } from './recall.ts'
 import { categories, type Category, type Scenario } from './scenario.ts'
-import { replyTo } from '../reply.ts'
 
 /**
  * The unfiled test: how much of what was said, compacted out of the model's

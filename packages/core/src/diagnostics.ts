@@ -38,3 +38,4 @@ export {
   type FamiliarId,
 } from './workspace/familiars.ts'
 export { RECALL_HEADING, recallNote } from './memory/recall.ts'
+export { replyTo } from './rooms/reply.ts'

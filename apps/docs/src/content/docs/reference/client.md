@@ -162,4 +162,4 @@ Import from `@familiar-ai/client/react`. Requires React 18 or 19. The bindings a
 | `useRoom(selector)` | Select from state. Compares with `Object.is`           |
 | `useRoomStore()`    | The nearest provider's store, for its commands         |
 
-The transcript retains loaded history across reconnects. A `gap` item marks missing messages; `loadGap(gap)` fills it through the history endpoint and rejects if loading fails.
+The transcript retains loaded history across reconnects, and a reconnect resumes right after its newest entry. A `gap` item marks messages still missing, as after a disconnect too long to resume; `loadGap(gap)` fills it through the history endpoint and rejects if loading fails.
