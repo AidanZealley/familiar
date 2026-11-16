@@ -78,6 +78,12 @@ export type ReplyData = {
   cause: EntryId
   /** `quiet` when it chose to say nothing, with `stay_quiet`. */
   outcome: 'answered' | 'quiet' | 'failed' | 'stopped'
+  /**
+   * Why a `failed` reply failed, as Pi settled its input: a reason such as
+   * `model_error`, `no_model`, `turn_limit` or `restart_limit`, and its
+   * detail, such as the model's error text.
+   */
+  failure?: { reason: string; detail?: string }
   /** Its run's assistant and tool-result messages, in order. */
   messages: Message[]
   /** When it was posted, in ms since the epoch. */

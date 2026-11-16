@@ -117,7 +117,8 @@ type TranscriptItem =
       at?: number
       streaming: boolean
       stopped: boolean
-      error?: string
+      error?: string // why it failed, or the model's error
+      retrying?: Retrying
     }
   | {
       type: 'scheduled'
@@ -132,7 +133,11 @@ type TranscriptItem =
       id: string
       familiar: number
       status: 'queued' | 'elsewhere' | 'running'
+      retrying?: Retrying
     }
+
+// A model request that failed, tried again `at`.
+type Retrying = { at: number; error: string }
 
 type ToolCall = {
   id: string
@@ -144,7 +149,7 @@ type ToolCall = {
 }
 ```
 
-Times are milliseconds since the epoch. Each turn in progress comes last, as its streaming reply or as `waiting`: `queued` behind work in this room, `elsewhere` while its Familiar works in another room, or `running` before anything shows. While a reply streams, only its current round shows; the whole reply, with every tool call, replaces it when the turn ends.
+Times are milliseconds since the epoch. Each turn in progress comes last, as its streaming reply or as `waiting`: `queued` behind work in this room, `elsewhere` while its Familiar works in another room, or `running` before anything shows. `retrying` is set while a turn waits to try the model again after a failed request. While a reply streams, only its current round shows; the whole reply, with every tool call, replaces it when the turn ends.
 
 ## Helpers
 

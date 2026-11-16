@@ -201,6 +201,15 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         : !settled || settled.reason === 'aborted'
           ? 'stopped'
           : 'failed'
+    const failure =
+      outcome === 'failed' && settled?.status === 'unanswered'
+        ? {
+            reason: settled.reason,
+            ...(typeof settled.detail === 'string' && {
+              detail: settled.detail,
+            }),
+          }
+        : undefined
     // Recorded as it was prepared, so a turn whose Familiar was removed
     // since can still file what it said. Without it, nothing was delivered.
     const turn = turns[taskId]
@@ -222,7 +231,15 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         {
           entry: {
             kind: REPLY_KIND,
-            data: { familiar, name: turn.name, cause, outcome, messages, at },
+            data: {
+              familiar,
+              name: turn.name,
+              cause,
+              outcome,
+              ...(failure && { failure }),
+              messages,
+              at,
+            },
           },
           requestId: `reply:${taskId}`,
         },
