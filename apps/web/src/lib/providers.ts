@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+import { check } from './http'
 
 /** A model provider that takes an API key, and whether it has a credential. */
 export type ProviderKey = { id: string; name: string; set: boolean }
@@ -29,13 +30,4 @@ export async function setProviderKey(id: string, key: string | null) {
       body: key === null ? undefined : JSON.stringify({ key }),
     }),
   )
-}
-
-async function check(response: Response) {
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as {
-      error?: string
-    }
-    throw new Error(body.error ?? response.statusText)
-  }
 }

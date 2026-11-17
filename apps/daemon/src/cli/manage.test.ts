@@ -60,6 +60,7 @@ beforeEach(() => {
     name: 'Familiar',
     owner: 'owner',
     port: 4325,
+    maxComputers: 10,
   })
 })
 afterEach(() => {

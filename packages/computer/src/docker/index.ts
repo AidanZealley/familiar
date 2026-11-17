@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { networkInterfaces } from 'node:os'
+import { homedir, networkInterfaces } from 'node:os'
 import { promisify } from 'node:util'
 import type { FamiliarId } from '@familiar-ai/core'
 import { Client, type CallToolResult } from '@modelcontextprotocol/client'
@@ -29,6 +29,12 @@ export type DockerHostOptions = {
 export const COMPUTER_IMAGE = 'ghcr.io/aidanzealley/familiar-computer:dev'
 
 const exec = promisify(execFile)
+/**
+ * Where every Docker CLI process runs: the user's home, never inside an
+ * install, data or temporary folder, which a process outliving the host
+ * would keep from being deleted on Windows.
+ */
+const DOCKER_CWD = homedir()
 /** Where a computer's home is: its disk, kept while it sleeps. */
 const HOME = '/home/computer'
 const HOST_LABEL = 'familiar-ai.host'
@@ -58,13 +64,18 @@ const ownAddresses = () =>
 
 /** Runs the Docker CLI, which honours `DOCKER_HOST` (such as `ssh://…`) and Docker contexts. */
 const docker = async (...args: string[]) =>
-  (await exec('docker', args, { maxBuffer: 16 * 1024 * 1024 })).stdout.trim()
+  (
+    await exec('docker', args, {
+      cwd: DOCKER_CWD,
+      maxBuffer: 16 * 1024 * 1024,
+    })
+  ).stdout.trim()
 
 /** Why Docker couldn't do something, for the person or the model. */
 function reasonOf(error: unknown) {
   const { code, stderr } = error as { code?: string; stderr?: string }
   if (code === 'ENOENT') {
-    return "Docker isn't installed."
+    return 'Install Docker to give Familiars computers.'
   }
   return (
     stderr?.trim() || (error instanceof Error ? error.message : String(error))
@@ -443,6 +454,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
           ],
           // The Docker CLI's own settings, such as DOCKER_HOST.
           env: process.env as Record<string, string>,
+          cwd: DOCKER_CWD,
         }),
       )
       .then(() => client)
