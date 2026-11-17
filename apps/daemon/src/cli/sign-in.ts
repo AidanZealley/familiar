@@ -70,13 +70,7 @@ export async function signIn() {
   } finally {
     terminal.close()
   }
-  const model = models.getModel(
-    config.chatModel.provider,
-    config.chatModel.modelId,
-  )
-  console.log(
-    model
-      ? `\nSigned in. ${model.name} is available.`
-      : `\nSigned in, but ${config.chatModel.modelId} is not in the catalog; set FAMILIAR_MODEL.`,
-  )
+  // A running daemon offers ChatGPT's models from its next start, unless
+  // it already did, waiting for this sign-in.
+  console.log('\nSigned in to ChatGPT.')
 }

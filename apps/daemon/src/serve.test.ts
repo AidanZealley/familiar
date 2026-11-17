@@ -2,13 +2,17 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MemoryStorage } from '@earendil-works/pi-durable'
+import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic'
+import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
 import { expect, onTestFinished, test, vi } from 'vitest'
-import { daemonApp, OWNER_ID } from './serve.ts'
+import { daemonApp, OWNER_ID, type ServeOptions } from './serve.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
-async function daemon(webDir?: string, avatarsDir?: string) {
+async function daemon(
+  options: Pick<ServeOptions, 'webDir' | 'avatarsDir' | 'models'> = {},
+) {
   const models = createModels()
   models.setProvider(fauxProvider().provider)
   const { workspace, familiar } = await openDaemonWorkspace(
@@ -26,7 +30,7 @@ async function daemon(webDir?: string, avatarsDir?: string) {
   ))!
   vi.spyOn(workspace.rooms, 'get').mockResolvedValue(dm)
   const abort = vi.spyOn(dm, 'stop')
-  const app = daemonApp(workspace, { owner: 'Aidan', webDir, avatarsDir })
+  const app = daemonApp(workspace, { owner: 'Aidan', ...options })
   /** A Stop, which has no body, as a page or client sends it. */
   const post = (headers: Record<string, string>) =>
     app.request(`/api/rooms/${dm.id}/stop`, { method: 'POST', headers })
@@ -94,7 +98,7 @@ test.each<Record<string, string>>([
 test("the daemon's own UI refuses to be framed", async () => {
   const webDir = mkdtempSync(join(tmpdir(), 'familiar-web-'))
   writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>UI</title>')
-  const { app } = await daemon(webDir)
+  const { app } = await daemon({ webDir })
 
   // The page itself, and the client-side routes it answers for.
   for (const path of ['/', '/schedules']) {
@@ -115,7 +119,7 @@ test("the owner's portraits are listed and served, and nothing outside them", as
   writeFileSync(join(avatarsDir, '042.png'), 'strip')
   writeFileSync(join(avatarsDir, 'notes.txt'), 'not a portrait')
   writeFileSync(join(dataDir, 'secret.png'), 'private')
-  const { app } = await daemon(undefined, avatarsDir)
+  const { app } = await daemon({ avatarsDir })
   const get = (path: string) => app.request(path, { headers: { host: local } })
 
   expect(await (await get('/api/avatars')).json()).toEqual({
@@ -132,4 +136,48 @@ test("the owner's portraits are listed and served, and nothing outside them", as
   ]) {
     expect((await get(path)).status).toBe(404)
   }
+})
+
+test("provider keys are saved write-only, only by the owner's network", async () => {
+  // Pi also finds a key in the environment, as a developer's may have.
+  for (const name of ['API_KEY', 'AUTH_TOKEN', 'OAUTH_TOKEN']) {
+    vi.stubEnv(`ANTHROPIC_${name}`, '')
+  }
+  const models = createModels()
+  models.setProvider(openaiProvider())
+  models.setProvider(anthropicProvider())
+  const { app } = await daemon({ models })
+  const send = (method: string, path: string, host = local, body?: object) =>
+    app.request(`/api/providers${path}`, {
+      method,
+      headers: { host, 'content-type': 'application/json' },
+      body: body && JSON.stringify(body),
+    })
+  const listed = async () => (await send('GET', '')).json()
+
+  expect(
+    (await send('PUT', '/anthropic/key', 'evil.example', { key: 'k' })).status,
+  ).toBe(401)
+  // OpenAI's credential is the ChatGPT sign-in.
+  expect((await send('PUT', '/openai/key', local, { key: 'k' })).status).toBe(
+    404,
+  )
+  expect(await listed()).toEqual([
+    { id: 'anthropic', name: 'Anthropic', set: false },
+  ])
+
+  expect(
+    (await send('PUT', '/anthropic/key', local, { key: ' sk-test ' })).status,
+  ).toBe(204)
+  expect(await models.getAuth('anthropic')).toMatchObject({
+    auth: { apiKey: 'sk-test' },
+  })
+  expect(await listed()).toEqual([
+    { id: 'anthropic', name: 'Anthropic', set: true },
+  ])
+
+  expect((await send('DELETE', '/anthropic/key')).status).toBe(204)
+  expect(await listed()).toEqual([
+    { id: 'anthropic', name: 'Anthropic', set: false },
+  ])
 })

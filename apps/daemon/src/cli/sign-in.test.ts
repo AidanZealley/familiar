@@ -8,10 +8,7 @@ import { signIn } from './sign-in.ts'
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
 vi.mock('../config.ts', () => ({
-  config: {
-    name: 'Familiar',
-    chatModel: { provider: 'openai', modelId: 'test' },
-  },
+  config: { name: 'Familiar' },
   deviceId: vi.fn(),
 }))
 vi.mock('../models.ts', () => ({ openModels: vi.fn() }))
@@ -29,10 +26,7 @@ beforeEach(() => {
   vi.stubEnv('SSH_CONNECTION', '')
   vi.stubEnv('DISPLAY', '')
   vi.stubEnv('WAYLAND_DISPLAY', '')
-  vi.mocked(openModels).mockReturnValue({
-    login,
-    getModel: () => ({ name: 'Test' }),
-  } as never)
+  vi.mocked(openModels).mockReturnValue({ login } as never)
   vi.mocked(createInterface).mockReturnValue(terminal as never)
   vi.mocked(spawn).mockReturnValue({ on: vi.fn(), unref: vi.fn() } as never)
 })
