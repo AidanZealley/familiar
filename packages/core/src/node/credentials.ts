@@ -2,18 +2,19 @@ import type { Credential, CredentialStore } from '../models/index.ts'
 import { encryptedJsonFile } from './vault.ts'
 
 /**
- * Credentials in one encrypted JSON file (pi's auth.json shape). pi-ai refreshes OAuth
- * tokens through `modify`, so a rotated token is saved before it is used.
- * `modify` awaits the refresh, so changes queue to keep one refresh from
- * overwriting another.
+ * Credentials in one encrypted JSON file (pi's auth.json shape), under the
+ * key at `keyPath`. pi-ai refreshes OAuth tokens through `modify`, so a
+ * rotated token is saved before it is used. `modify` awaits the refresh, so
+ * changes queue to keep one refresh from overwriting another. Callers get
+ * copies, so nothing reaches the store without being saved.
  */
 export function fileCredentialStore(
   path: string,
-  key: Uint8Array,
+  keyPath: string,
 ): CredentialStore {
   const file = encryptedJsonFile<Record<string, Credential>>(
     path,
-    key,
+    keyPath,
     'provider-credentials',
     () => ({}),
   )

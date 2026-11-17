@@ -91,38 +91,29 @@ type SecretStore = {
 
 `@familiar-ai/core/node` has what a Node host needs beyond core. The daemon and the [Node server example](/familiar/examples/node-server/) both use it.
 
-| Export                           | What it does                                                                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `fileSecretStore(path, key)`     | A `SecretStore` in one encrypted JSON file                                                                                          |
-| `fileCredentialStore(path, key)` | Model credentials, such as a ChatGPT login, in one encrypted JSON file. Refreshed tokens are saved before they're used              |
-| `lockDataDir(path)`              | Claims a data directory for this process through a lock file. Throws while another process holds it, and takes over a crashed one's |
-| `jsonFile(path, initial)`        | A private JSON file, rewritten whole and atomically by `save()`, for a host's own state                                             |
+| Export                               | What it does                                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `fileSecretStore(path, keyPath)`     | A `SecretStore` in one encrypted JSON file                                                                                          |
+| `fileCredentialStore(path, keyPath)` | Model credentials, such as a ChatGPT login, in one encrypted JSON file. Refreshed tokens are saved before they're used              |
+| `lockDataDir(path)`                  | Claims a data directory for this process through a lock file. Throws while another process holds it, and takes over a crashed one's |
+| `jsonFile(path, initial)`            | A private JSON file, rewritten whole and atomically by `save()`, for a host's own state                                             |
 
-Both credential stores require a 32-byte `Uint8Array` key. They use AES-256-GCM,
-with separate authenticated purposes for connection and provider credentials.
-An incorrect key or damaged file stops opening the store without overwriting it.
+Both credential stores encrypt their file with AES-256-GCM under the 32-byte key
+at `keyPath`, which they create on the first save. The two can share a key. A
+plaintext file from an earlier version is encrypted the first time it's opened.
+A missing or wrong key, or a damaged file, stops the store opening and changes
+nothing.
 
 ```ts
-import { fileSecretStore, fileVaultKey } from '@familiar-ai/core/node'
+import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 
-const path = '/private/app/secrets.json'
-const key = fileVaultKey('/private/app/vault.key', [path])
-const secrets = fileSecretStore(path, key)
+lockDataDir('/private/app/daemon.lock')
+const secrets = fileSecretStore(
+  '/private/app/secrets.json',
+  '/private/app/vault.key',
+)
 ```
 
-Create and lock the private data directory before opening stores. Each file has
-one writer; reuse the same store instance rather than opening it for each request.
-`fileVaultKey(path, protectedFiles)` loads a raw 32-byte key or creates one with
-private permissions. It refuses to create a replacement when a protected file
-already exists. Include every file that uses this key in `protectedFiles`.
-A host with its own key management can supply its key directly instead.
-
-`encryptedJsonFile(path, key, purpose, initial)` provides the same encrypted
-storage for other host-owned JSON values. Use a stable, distinct purpose for
-each kind of data. `save(value)` atomically replaces the file and publishes the
-new in-memory value only after the write succeeds.
-
-Back up the key along with the encrypted files and keep it private. Losing the
-key makes those credentials unreadable. A running host can decrypt them, so the
-host machine and backend remain trusted. These helpers provide storage, not
-account permissions or private browser sign-in.
+Lock the directory before opening a store, and keep one instance of each. Back
+up the key with the files it encrypts: without it they can't be read. The
+running host can decrypt them, so its machine stays trusted.

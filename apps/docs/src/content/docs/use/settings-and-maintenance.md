@@ -49,14 +49,15 @@ It holds the conversation, memory, your ChatGPT login, connection keys, notifica
 
 ### Stored credentials
 
-Familiar encrypts connection secrets in `secrets.json` and model-provider
-credentials in `auth.json` using AES-256-GCM. It creates a private `vault.key`
-in the data directory automatically. No key setup is needed.
+Familiar encrypts connection keys in `secrets.json` and your ChatGPT login in
+`auth.json`, under a `vault.key` it creates in the data directory. There's
+nothing to set up. Files from before encryption are encrypted the first time
+Familiar starts, so delete any older backups that hold them unencrypted.
 
-Stop Familiar before backing up or restoring the data directory. Keep
-`vault.key` with both encrypted files in your backup. Without the original key,
-the stored credentials cannot be recovered. A missing or incorrect key stops
-credential storage from opening; Familiar does not replace existing data.
+Stop Familiar before backing up or restoring the data directory, and keep
+`vault.key` with the files in every backup. Without it they can't be read: if
+it's lost, Familiar says so and leaves them alone. Delete them, then sign in
+and enter your connection keys again.
 
 Keep the machine and its backups private. Encryption protects copied credential
 files when the key is absent. The running daemon can decrypt them, and someone

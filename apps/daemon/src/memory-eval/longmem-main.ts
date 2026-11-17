@@ -58,9 +58,9 @@ const haystack = values['small-haystack'] ? 'small' : 'full'
 const count = (tokens: number) => Math.round(tokens).toLocaleString()
 
 // Before anything else, so a missing sign-in never gets as far as the network.
-let access: ReturnType<typeof evalAccess>
+let access: Awaited<ReturnType<typeof evalAccess>>
 try {
-  access = evalAccess({
+  access = await evalAccess({
     model: values.model,
     memoryModel: values['memory-model'],
     judge: values.judge,

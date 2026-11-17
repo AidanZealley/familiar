@@ -3,11 +3,14 @@ import { encryptedJsonFile } from './vault.ts'
 
 type SecretsFile = Record<string, Record<string, Record<string, string>>>
 
-/** Plugins' and MCP servers' secrets in one encrypted JSON file, nested by kind, name and secret. */
-export function fileSecretStore(path: string, key: Uint8Array): SecretStore {
+/**
+ * Plugins' and MCP servers' secrets in one encrypted JSON file under the key
+ * at `keyPath`, nested by kind, name and secret.
+ */
+export function fileSecretStore(path: string, keyPath: string): SecretStore {
   const file = encryptedJsonFile<SecretsFile>(
     path,
-    key,
+    keyPath,
     'connection-secrets',
     () => ({}),
   )

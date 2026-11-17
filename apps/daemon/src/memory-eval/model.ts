@@ -9,7 +9,7 @@ import type {
 import type { ModelChoice } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { openaiProvider } from '@familiar-ai/core/models/openai'
-import { fileCredentialStore, fileVaultKey } from '@familiar-ai/core/node'
+import { fileCredentialStore } from '@familiar-ai/core/node'
 import { evalDirectory } from './longmem-data.ts'
 
 /**
@@ -299,7 +299,7 @@ export type AccessOptions = {
  * anything reaches the network: the sign-in exists and each model is one the
  * provider lists.
  */
-export function evalAccess(
+export async function evalAccess(
   {
     model = REPLY_MODEL,
     memoryModel = MEMORY_MODEL,
@@ -307,18 +307,17 @@ export function evalAccess(
   }: AccessOptions = {},
   env = process.env,
   home = homedir(),
-): EvalAccess {
-  const file = authFile(home)
-  if (!existsSync(file)) {
+): Promise<EvalAccess> {
+  // Shared across stages: they must queue their token refreshes together.
+  const chatgpt = fileCredentialStore(
+    authFile(home),
+    join(evalDirectory(home), 'vault.key'),
+  )
+  if (!(await chatgpt.read('openai'))) {
     throw new Error(
       `The eval has no ChatGPT sign-in. Run FAMILIAR_DATA_DIR=${evalDirectory(home)} pnpm sign-in.`,
     )
   }
-  // Shared across stages, including serialized OAuth refreshes.
-  const chatgpt = fileCredentialStore(
-    file,
-    fileVaultKey(join(evalDirectory(home), 'vault.key'), [file]),
-  )
   const signIn = (meter: Meter) => {
     const models = createModels({ credentials: chatgpt })
     models.setProvider(meter.wrap(openaiProvider()))

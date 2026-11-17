@@ -19,9 +19,9 @@ const { values } = parseArgs({
   },
 })
 
-let access: ReturnType<typeof evalAccess>
+let access: Awaited<ReturnType<typeof evalAccess>>
 try {
-  access = evalAccess({
+  access = await evalAccess({
     model: values.model,
     memoryModel: values['memory-model'],
   })
