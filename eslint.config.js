@@ -107,8 +107,9 @@ export default defineConfig([
     },
   },
   {
-    // Node-only: core's Node helpers.
-    files: ['packages/core/src/node/**/*.ts'],
+    // Node-only: core's Node helpers, and computers, whose agent runs a
+    // browser and a shell and whose host keeps encrypted files.
+    files: ['packages/core/src/node/**/*.ts', 'packages/computer/**/*.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

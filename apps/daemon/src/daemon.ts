@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
+import { computerPlugin, openComputers } from '@familiar-ai/computer'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -21,6 +22,11 @@ export async function serve() {
 
   const push = openPush({ path: dataPath, contact: config.pushContact })
 
+  const computers = openComputers({
+    path: dataPath('computers.json'),
+    keyPath: dataPath('vault.key'),
+  })
+
   const models = openModels()
   const { modelChoices, chatModel } = await offeredModels(models)
   const { workspace } = await openDaemonWorkspace(
@@ -38,7 +44,10 @@ export async function serve() {
         account: { login: { getDeviceId: deviceId, agentName: config.name } },
       }),
       notify: push.notify,
-      plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
+      plugins: await loadPlugins(config.pluginsDir, [
+        webPlugin,
+        computerPlugin(computers),
+      ]),
       // What Familiars call the owner, until they choose another name.
       people: [{ id: OWNER_ID, name: config.owner }],
       // Web search and pages are useful to any Familiar; others opt in.
@@ -59,5 +68,6 @@ export async function serve() {
     label: config.name,
     push: push.host,
     models,
+    computers,
   })
 }
