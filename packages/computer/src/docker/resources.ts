@@ -36,6 +36,22 @@ export function reasonOf(error: unknown) {
   )
 }
 
+/**
+ * `image`'s repository and tag as `docker image ls` shows them, with
+ * Docker's implicit `latest`. A tag's colon comes after the last `/`, so a
+ * registry's port isn't one. Undefined for a reference by digest, whose
+ * tags can't be told apart, so nothing is removed for it.
+ */
+export function imageRepository(image: string) {
+  if (image.includes('@')) {
+    return undefined
+  }
+  const colon = image.lastIndexOf(':')
+  return colon > image.lastIndexOf('/')
+    ? { repository: image.slice(0, colon), tag: image.slice(colon + 1) }
+    : { repository: image, tag: 'latest' }
+}
+
 /** A container or volume this host made: its Familiar's, unless shared. */
 export type Owned = { name: string; familiar?: FamiliarId; running?: boolean }
 
@@ -218,7 +234,12 @@ export function dockerResources(hostId: string, image: string) {
      * image's last tag, so it's checked here.
      */
     removeOldImages: async () => {
-      const repository = image.slice(0, image.lastIndexOf(':'))
+      const reference = imageRepository(image)
+      if (!reference) {
+        return
+      }
+      const { repository } = reference
+      const current = `${repository}:${reference.tag}`
       const tags = await docker(
         'image',
         'ls',
@@ -229,7 +250,7 @@ export function dockerResources(hostId: string, image: string) {
       for (const tag of tags.split('\n')) {
         if (
           tag &&
-          tag !== image &&
+          tag !== current &&
           !tag.endsWith(':<none>') &&
           !(await docker(
             'container',
