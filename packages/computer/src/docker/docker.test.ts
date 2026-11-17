@@ -36,6 +36,16 @@ const hasImage = (() => {
 
 const owner = { id: 'owner', name: 'Owner' }
 
+/**
+ * Makes `tag` a copy of the computers' image with its own ID, as another
+ * release's would have, so the test never touches the real image's tags.
+ */
+const imageCopy = (tag: string) =>
+  execFileSync('docker', ['build', '--quiet', '--tag', tag, '-'], {
+    input: `FROM ${COMPUTER_IMAGE}\nLABEL familiar-ai.test=${tag}\n`,
+    encoding: 'utf8',
+  }).trim()
+
 const call = (name: string, args: JsonObject) =>
   fauxAssistantMessage(fauxToolCall(name, args), { stopReason: 'toolUse' })
 
@@ -60,9 +70,20 @@ test.skipIf(!hasImage)(
   async () => {
     // Its own host ID, so it never touches another host's computers.
     const hostId = `test${randomBytes(3).toString('hex')}`
+    // Images in a repository of its own, so removing old versions only
+    // ever finds its own.
+    const repository = `familiar-computer-${hostId}`
+    const image = `${repository}:v1`
+    imageCopy(image)
+    const tags = () =>
+      docker('image', 'ls', '--format', '{{.Tag}}', repository)
+        .split('\n')
+        .filter(Boolean)
+        .sort()
     let maxComputers = 1
     const host = dockerHost({
       hostId,
+      image,
       idleMs: 3000,
       maxComputers: () => maxComputers,
     })
@@ -79,6 +100,9 @@ test.skipIf(!hasImage)(
       await host.sync([])
       for (const kind of ['container', 'volume']) {
         expect(labelled(kind)).toBe('')
+      }
+      for (const tag of tags()) {
+        docker('image', 'rm', `${repository}:${tag}`)
       }
     })
 
@@ -258,6 +282,43 @@ test.skipIf(!hasImage)(
     expect(docker('volume', 'ls', '-q', '--filter', `name=^${theirs}$`)).toBe(
       theirs,
     )
+
+    // After an update, a host on the new version removes old versions no
+    // container uses, keeping the one Cy's computer and the proxy use...
+    const cy = (ada.id + 2000) as FamiliarId
+    await host.sync([cy])
+    expect(await run('echo kept > marker.txt', cy)).toMatch(/Exit code 0/)
+    await vi.waitFor(
+      async () => expect(await host.status(cy)).toEqual({ state: 'asleep' }),
+      { timeout: 30_000, interval: 500 },
+    )
+    imageCopy(`${repository}:unused`)
+    const v2 = imageCopy(`${repository}:v2`)
+    const updated = dockerHost({ hostId, image: `${repository}:v2` })
+    await vi.waitFor(() => expect(tags()).toEqual(['v1', 'v2']), {
+      timeout: 30_000,
+      interval: 500,
+    })
+    // ...then wakes Cy's computer on the new one, its disk as it was, after
+    // which nothing uses the old one.
+    const updatedRun = await updated.call(cy, 'run_command', {
+      command: 'cat marker.txt',
+      timeout_seconds: 30,
+    })
+    expect(JSON.stringify(updatedRun.content)).toMatch(/was asleep.*kept/s)
+    expect(
+      docker(
+        'container',
+        'inspect',
+        '--format',
+        '{{.Image}}',
+        `familiar-${hostId}-${cy}`,
+      ),
+    ).toBe(v2)
+    await vi.waitFor(() => expect(tags()).toEqual(['v2']), {
+      timeout: 30_000,
+      interval: 500,
+    })
   },
   240_000,
 )

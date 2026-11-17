@@ -194,6 +194,58 @@ export function dockerResources(hostId: string, image: string) {
     },
 
     /**
+     * Whether `familiar`'s container was made from another image than the
+     * one `image` names now, compared by ID, so a moved tag counts too.
+     */
+    outdated: async (familiar: FamiliarId) => {
+      const [made, current] = await Promise.all([
+        docker(
+          'container',
+          'inspect',
+          '--format',
+          '{{.Image}}',
+          container(familiar),
+        ),
+        docker('image', 'inspect', '--format', '{{.Id}}', image),
+      ])
+      return made !== current
+    },
+
+    /**
+     * Removes the other tags of `image`'s repository, such as earlier
+     * releases' images, each unless a container uses it, whichever host's:
+     * those stay until a later try. Docker alone would refuse only an
+     * image's last tag, so it's checked here.
+     */
+    removeOldImages: async () => {
+      const repository = image.slice(0, image.lastIndexOf(':'))
+      const tags = await docker(
+        'image',
+        'ls',
+        '--format',
+        '{{.Repository}}:{{.Tag}}',
+        repository,
+      )
+      for (const tag of tags.split('\n')) {
+        if (
+          tag &&
+          tag !== image &&
+          !tag.endsWith(':<none>') &&
+          !(await docker(
+            'container',
+            'ls',
+            '--all',
+            '--quiet',
+            '--filter',
+            `ancestor=${tag}`,
+          ))
+        ) {
+          await docker('image', 'rm', tag).catch(() => {})
+        }
+      }
+    },
+
+    /**
      * The command whose stdio reaches `familiar`'s agent. `socat` retries
      * for up to a minute while a computer that has just started opens its
      * socket.

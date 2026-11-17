@@ -92,7 +92,8 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   /**
    * The image: fetched in the background from the start, unless it's here
    * already, and again each minute while that fails, such as before Docker
-   * is installed.
+   * is installed. Once it's here, its other versions that no container
+   * uses are removed, so the machine keeps one.
    */
   let setup:
     | { state: 'setting-up'; done: Promise<void> }
@@ -104,6 +105,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       .then(
         () => {
           setup = { state: 'ready' }
+          void resources.removeOldImages().catch(() => {})
         },
         (error) => {
           setup = { state: 'unavailable', reason: reasonOf(error) }
@@ -197,6 +199,13 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
           throw new Error(reason)
         }
         await resources.createComputer(familiar)
+      }
+      // Made from an earlier image, such as before an update: made again
+      // on this one, on the same disk.
+      if (found && !found.running && (await resources.outdated(familiar))) {
+        await docker('rm', found.name)
+        await resources.createComputer(familiar)
+        void resources.removeOldImages().catch(() => {})
       }
       if (!found?.running) {
         await docker('start', resources.container(familiar))
