@@ -25,7 +25,7 @@ const modelChoices = [
   choice('xai', 'grok-4.3', 'low'),
   choice('groq', 'openai/gpt-oss-120b', 'medium'),
   choice('groq', 'openai/gpt-oss-20b', 'low'),
-  choice('mistral', 'mistral-large-4', 'medium'),
+  choice('mistral', 'mistral-large-4', 'high'),
   choice('mistral', 'mistral-small-2603', 'off'),
 ]
 

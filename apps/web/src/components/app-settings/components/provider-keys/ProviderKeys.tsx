@@ -31,7 +31,14 @@ export const ProviderKeys = () => {
         await setProviderKey(provider, key)
       }
     },
-    onSuccess: () => setDrafts({}),
+    // Clears only the drafts this change saved, so removing one key keeps
+    // another key still being typed.
+    onSuccess: (_, keys) =>
+      setDrafts((drafts) =>
+        Object.fromEntries(
+          Object.entries(drafts).filter(([provider]) => !(provider in keys)),
+        ),
+      ),
     // Keys saved before one failed are still saved, so refresh anyway.
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: providerKeysQuery.queryKey }),
