@@ -32,9 +32,10 @@ const install = (...specs: string[]) =>
 const core = await manifest('core')
 const client = await manifest('client')
 const cloudflare = await manifest('cloudflare')
+const computer = await manifest('computer')
 // Every entry the source manifests export, so one missing from a package's
 // publishConfig.exports fails to import.
-const entries = [core, client].flatMap(({ name, exports }) =>
+const entries = [core, client, computer].flatMap(({ name, exports }) =>
   Object.keys(exports).map((key) => name + key.slice(1)),
 )
 
