@@ -3,8 +3,12 @@ import { createServer, request, type IncomingMessage } from 'node:http'
 import { BlockList, connect, isIP, Socket, type LookupFunction } from 'node:net'
 import type { Duplex } from 'node:stream'
 
-/** The proxy's port, for HTTP and HTTPS (CONNECT) to the public internet. */
-export const PROXY_PORT = 3128
+/**
+ * Where the proxy listens in its container, for HTTP and HTTPS (CONNECT) to
+ * the public internet: a Unix socket in a volume every computer mounts
+ * read-only, their only way out.
+ */
+export const PROXY_SOCKET = '/run/familiar-proxy/proxy.sock'
 
 /** The environment variable that gives the proxy the Docker machine's own addresses. */
 export const OWN_ADDRESSES = 'FAMILIAR_OWN_ADDRESSES'
@@ -131,15 +135,18 @@ function join(from: Duplex, to: Socket) {
 }
 
 /**
- * A Docker computer's only way out of its network, run beside it: an HTTP
- * proxy (CONNECT for HTTPS) on `port` to the public internet only, never the
- * Docker machine (its `own` addresses, public ones included), the LAN or a
- * tailnet.
+ * Docker computers' only way out, run beside them: an HTTP proxy (CONNECT
+ * for HTTPS) listening on `listen`, a port or a Unix socket's path, to the
+ * public internet only, never the Docker machine (its `own` addresses,
+ * public ones included), the LAN or a tailnet.
  */
 export function startProxy({
-  port = PROXY_PORT,
+  listen,
   own = [],
-}: { port?: number; own?: readonly string[] } = {}) {
+}: {
+  listen: number | string
+  own?: readonly string[]
+}) {
   const allows = publicOnly(own)
   const proxy = createServer((incoming, outgoing) => {
     // A plain-HTTP request names its whole URL.
@@ -194,7 +201,7 @@ export function startProxy({
     socket.on('close', () => onward.destroy())
   })
 
-  proxy.listen(port)
+  proxy.listen(listen)
   return proxy
 }
 

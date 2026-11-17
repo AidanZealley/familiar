@@ -60,7 +60,12 @@ test.skipIf(!hasImage)(
   async () => {
     // Its own host ID, so it never touches another host's computers.
     const hostId = `test${randomBytes(3).toString('hex')}`
-    const host = dockerHost({ hostId, idleMs: 3000 })
+    let maxComputers = 1
+    const host = dockerHost({
+      hostId,
+      idleMs: 3000,
+      maxComputers: () => maxComputers,
+    })
     const labelled = (kind: string) =>
       docker(
         kind,
@@ -72,7 +77,7 @@ test.skipIf(!hasImage)(
       )
     onTestFinished(async () => {
       await host.sync([])
-      for (const kind of ['container', 'volume', 'network']) {
+      for (const kind of ['container', 'volume']) {
         expect(labelled(kind)).toBe('')
       }
     })
@@ -145,9 +150,14 @@ test.skipIf(!hasImage)(
         .join('\n')
     }
 
-    // The public internet, through the proxy, but nothing on the Docker
-    // host's addresses (its LAN, tailnet and Docker's bridges, the
-    // computer's own gateway among them), through the proxy or around it.
+    // No network, only the proxy: the public internet, for the browser and
+    // the shell, but nothing on the Docker host's addresses (its LAN,
+    // tailnet and Docker's bridges), through the proxy or around it.
+    expect(await run('ls /sys/class/net')).toMatch(/^lo\s+Exit code 0/)
+    const page = await host.call(ada.id, 'browser_navigate', {
+      url: 'https://example.com/',
+    })
+    expect(JSON.stringify(page.content)).toContain('Example Domain')
     expect(
       await run('curl -sS -o /dev/null -w "%{http_code}" https://example.com/'),
     ).toMatch(/^200/)
@@ -192,11 +202,22 @@ test.skipIf(!hasImage)(
     expect(woken).toMatch(/was asleep/)
     expect(woken).toMatch(/kept/)
 
-    // Turning the capability off removes its computer, disk and network.
+    // Past the limit, another Familiar gets no computer and is told why,
+    // until the limit, read live, is raised.
+    const other = (ada.id + 1000) as FamiliarId
+    expect(await host.status(other)).toEqual({
+      state: 'unavailable',
+      reason: expect.stringMatching(/allows 1 computer at most/),
+    })
+    expect(await run('true', other)).toMatch(/couldn't start.*allows 1/s)
+    maxComputers = 2
+    expect(await host.status(other)).toEqual({ state: 'none' })
+
+    // Turning the capability off removes its computer and disk.
     await ada.setCapabilities({ plugins: [] })
     await vi.waitFor(
       () => {
-        for (const kind of ['container', 'volume', 'network']) {
+        for (const kind of ['container', 'volume']) {
           expect(
             docker(
               kind,
