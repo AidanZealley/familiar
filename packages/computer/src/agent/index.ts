@@ -1,12 +1,13 @@
 import { rm } from 'node:fs/promises'
-import { createServer } from 'node:net'
+import { connect, createServer } from 'node:net'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 import { openBrowser } from './browser.ts'
 import { computerServer } from './server.ts'
+import { PROXY_PORT } from './socket.ts'
 
-export { AGENT_SOCKET } from './socket.ts'
+export { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
 
 export type AgentOptions = {
   /** The Unix socket to listen on. */
@@ -15,6 +16,12 @@ export type AgentOptions = {
   dataDir: string
   /** Where commands run and relative paths start. Default the user's home. */
   home?: string
+  /**
+   * A proxy's Unix socket, for a computer with no network of its own: the
+   * agent passes each connection to 127.0.0.1:`PROXY_PORT` on to it, so
+   * `HTTP_PROXY` and `HTTPS_PROXY` can point there.
+   */
+  proxySocket?: string
 }
 
 /**
@@ -25,6 +32,10 @@ export type AgentOptions = {
  * so a new connection finds its pages as they were.
  */
 export async function startAgent(options: AgentOptions) {
+  // First, so a taken port fails the start before anything else is open.
+  const proxy = options.proxySocket
+    ? await passOn(options.proxySocket)
+    : undefined
   const browser = openBrowser(resolve(options.dataDir, 'browser'))
   const home = options.home ?? homedir()
   // A socket left by an agent that stopped.
@@ -42,7 +53,22 @@ export async function startAgent(options: AgentOptions) {
   return {
     stop: async () => {
       server.close()
+      proxy?.close()
       await browser.close()
     },
   }
+}
+
+/** Passes each connection to 127.0.0.1:`PROXY_PORT` on to `socket`. */
+async function passOn(socket: string) {
+  const server = createServer((local) => {
+    const onward = connect(socket)
+    local.on('error', () => onward.destroy())
+    onward.on('error', () => local.destroy())
+    local.pipe(onward).pipe(local)
+  })
+  await new Promise<void>((done, fail) =>
+    server.once('error', fail).listen(PROXY_PORT, '127.0.0.1', done),
+  )
+  return server
 }
