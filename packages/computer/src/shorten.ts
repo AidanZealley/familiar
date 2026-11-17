@@ -7,8 +7,8 @@ export const MAX_TEXT = 20_000
 
 /**
  * The most text the computer collects for one result, to bound what it
- * sends: well over `MAX_TEXT`, so where it cuts, perhaps through a password,
- * is never in what the model sees.
+ * sends. Where it cuts, perhaps through a password, the host removes what's
+ * left of one (`redact`).
  */
 export const KEEP_TEXT = 2 * MAX_TEXT
 

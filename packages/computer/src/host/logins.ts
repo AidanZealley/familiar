@@ -37,14 +37,21 @@ export function originOf(site: string) {
  */
 export function computerLogins(dir: string, keyPath: string) {
   /**
-   * Every password each computer has been given or had saved while the host
-   * runs, kept only in memory, so one replaced or deleted is still removed
-   * from what a sign-in under way or a page that echoed it shows later.
+   * Every password each computer has had saved while the host runs, kept
+   * only in memory, so one replaced or deleted is still removed from what a
+   * sign-in under way or a page that echoed it shows later. One deleted
+   * before the host restarted is forgotten.
    */
   const known = new Map<FamiliarId, Set<string>>()
   const remember = (familiar: FamiliarId, password: string) => {
     const passwords = known.get(familiar) ?? new Set()
     known.set(familiar, passwords.add(password))
+  }
+  /** Remembers every password in `saved`, before it's replaced or deleted. */
+  const rememberSaved = (familiar: FamiliarId, saved: Saved) => {
+    for (const { password } of Object.values(saved)) {
+      remember(familiar, password)
+    }
   }
 
   const fileOf = (familiar: FamiliarId) =>
@@ -63,22 +70,19 @@ export function computerLogins(dir: string, keyPath: string) {
         username,
       })),
     /** `site`'s login, to give the computer. */
-    get: (familiar: FamiliarId, site: string): Login | undefined => {
-      const login = fileOf(familiar).value[site]
-      if (login) {
-        remember(familiar, login.password)
-      }
-      return login
-    },
+    get: (familiar: FamiliarId, site: string): Login | undefined =>
+      fileOf(familiar).value[site],
     /** Saves `login` for `site`, an exact origin, in place of any before. */
     set: (familiar: FamiliarId, site: string, login: Login) => {
       mkdirSync(dir, { recursive: true, mode: 0o700 })
       const file = fileOf(familiar)
+      rememberSaved(familiar, file.value)
       file.save({ ...file.value, [site]: login })
       remember(familiar, login.password)
     },
     delete: (familiar: FamiliarId, site: string) => {
       const file = fileOf(familiar)
+      rememberSaved(familiar, file.value)
       if (site in file.value) {
         const { [site]: _, ...rest } = file.value
         file.save(rest)
@@ -91,27 +95,50 @@ export function computerLogins(dir: string, keyPath: string) {
     },
     /**
      * `text` with every password `familiar`'s computer has (or has had,
-     * while the host runs) replaced, so a page or command that shows one
-     * never reaches the model. Longest first, so one inside another goes
-     * whole.
+     * while the host runs) removed (see `redact`), so a page or command
+     * that shows one never reaches the model.
      */
-    scrub: (familiar: FamiliarId, text: string) =>
-      [
-        ...new Set([
-          ...Object.values(fileOf(familiar).value).map(
-            ({ password }) => password,
-          ),
-          ...(known.get(familiar) ?? []),
-        ]),
-      ]
-        .filter(Boolean)
-        .sort((a, b) => b.length - a.length)
-        .reduce(
-          (scrubbed, password) =>
-            scrubbed.replaceAll(password, '[saved password]'),
-          text,
-        ),
+    scrub: (familiar: FamiliarId, text: string) => {
+      rememberSaved(familiar, fileOf(familiar).value)
+      return redact(text, known.get(familiar) ?? [])
+    },
   }
 }
 
 export type ComputerLogins = ReturnType<typeof computerLogins>
+
+const REDACTED = '[saved password]'
+
+/** The shortest piece of a password `redact` removes from an edge. */
+const MIN_PIECE = 4
+
+/**
+ * `text` with each of `passwords` replaced, longest first so one inside
+ * another goes whole. Then, since the computer cuts long results at their
+ * start or end, perhaps through a password, a piece of one left at an edge
+ * goes too: a start that ends a password, or an end that begins one.
+ */
+export function redact(text: string, passwords: Iterable<string>) {
+  const sorted = [...passwords]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+  let redacted = sorted.reduce(
+    (scrubbed, password) => scrubbed.replaceAll(password, REDACTED),
+    text,
+  )
+  for (const password of sorted) {
+    for (let length = password.length - 1; length >= MIN_PIECE; length--) {
+      if (redacted.startsWith(password.slice(-length))) {
+        redacted = REDACTED + redacted.slice(length)
+        break
+      }
+    }
+    for (let length = password.length - 1; length >= MIN_PIECE; length--) {
+      if (redacted.endsWith(password.slice(0, length))) {
+        redacted = redacted.slice(0, -length) + REDACTED
+        break
+      }
+    }
+  }
+  return redacted
+}

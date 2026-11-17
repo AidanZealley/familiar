@@ -1,4 +1,4 @@
-import type { BrowserContext, Locator, Page } from 'playwright'
+import type { Page } from 'playwright'
 
 export type SignInLogin = { origin: string; username: string; password: string }
 
@@ -11,108 +11,155 @@ export type SignInLogin = { origin: string; username: string; password: string }
 export type SignInOutcome =
   'signed in' | 'submitted' | 'unknown' | 'no form' | { refused: string }
 
-// What `fill` uses of the page's own globals, which Node's types don't describe.
-type Field = {
-  type: string
-  form: (Container & { requestSubmit(): void }) | null
-  ownerDocument: unknown
-  parentElement: Container | null
-  checkVisibility(): boolean
-  dispatchEvent(event: Event): boolean
-}
-type Container = {
-  parentElement: Container | null
-  querySelector(selector: 'button'): { click(): void } | null
-  querySelectorAll(selector: 'input'): Iterable<Field>
-}
-declare const window: { origin: string; __familiarOrigin?: string }
-declare const document: Container
-declare const HTMLInputElement: { prototype: object }
+type Want = 'password' | 'username'
 
-const PASSWORD = 'input[type=password]:visible'
-const USERNAME = [
-  'input[autocomplete~=username]',
-  'input[type=email]',
-  'input[name*=user i]',
-  'input[name*=email i]',
-  'input[id*=user i]',
-  'input[id*=email i]',
-]
-  .map((selector) => `${selector}:visible`)
-  .join(', ')
+/** Runs `expression` in one frame's isolated world, giving its value. */
+type World = (expression: string) => Promise<unknown>
+
 const SETTLE_MS = 10_000
 
 /**
- * Records each document's real origin as `window.__familiarOrigin`, which
- * `fill` checks, before any of the document's own scripts run, in a property
- * they can't redefine. Neither `location.origin`, which is the address's
- * origin and so also a sandboxed frame's, nor `window.origin`, which a
- * page's script can redefine, says it reliably. A sandboxed frame's origin
- * is `"null"`.
- */
-export const recordOrigins = (context: BrowserContext) =>
-  context.addInitScript(() =>
-    Object.defineProperty(window, '__familiarOrigin', { value: window.origin }),
-  )
-
-/**
  * Signs in on `page` with `login`, once, never retrying. Each step runs as
- * one synchronous script in the field's own frame (`fill`): it checks that
- * frame's real origin (see `recordOrigins`), then fills and submits, so the page can't change
- * between the check and the fill. A form that asks for the username first
- * gets it, then the password once that field appears.
+ * one synchronous script (`inFrame`) in an isolated world of the field's
+ * frame, which the page's own scripts can't reach or alter: it reads the
+ * frame's real origin, then fills and submits only if it's the login's, so
+ * the page can't forge the check or change between it and the fill. A form
+ * that asks for the username first gets it, then the password once that
+ * field appears.
  */
 export async function signIn(
   page: Page,
   login: SignInLogin,
 ): Promise<SignInOutcome> {
-  let field: Locator | undefined = await fieldOn(page, PASSWORD, login.origin)
-  if (!field) {
-    const user = await fieldOn(page, USERNAME, login.origin)
-    if (!user) {
-      return 'no form'
-    }
-    const filled = await fillIn(user, login)
+  let filled = await fillIn(page, 'password', login)
+  if (filled === 'no form') {
+    filled = await fillIn(page, 'username', login)
     if (filled !== 'submitted') {
       return filled
     }
-    field = await until(() => fieldOn(page, PASSWORD, login.origin))
-    if (!field) {
+    const next = await until(async () => {
+      const outcome = await fillIn(page, 'password', login)
+      return outcome === 'no form' ? undefined : outcome
+    })
+    if (!next) {
       return 'submitted'
     }
+    filled = next
   }
-  const filled = await fillIn(field, login)
   if (filled !== 'submitted') {
     return filled
   }
-  const gone = await until(async () => !(await fieldOn(page, PASSWORD)))
+  const gone = await until(async () => !(await passwordShowing(page)))
   return gone ? 'signed in' : 'submitted'
 }
 
-/** Runs `fill` on `field`; `unknown` if it may have run but didn't say. */
-const fillIn = (field: Locator, login: SignInLogin) =>
-  field
-    .evaluate(fill, login, { timeout: 5_000 })
-    .catch((): SignInOutcome => 'unknown')
-
 /**
- * The first visible field matching `selector` in any of `page`'s frames,
- * preferring one whose frame is at `origin`. Where it really is, `fill`
- * checks.
+ * Fills the `want` field in a frame at the login's origin. Each frame is
+ * first asked only its origin, so the password goes to no other.
  */
-async function fieldOn(page: Page, selector: string, origin?: string) {
-  const found: Locator[] = []
-  for (const frame of page.frames()) {
-    const field = frame.locator(selector).first()
-    if (await field.count().catch(() => 0)) {
-      if (origin && URL.parse(frame.url())?.origin === origin) {
-        return field
-      }
-      found.push(field)
+const fillIn = (page: Page, want: Want, login: SignInLogin) =>
+  inWorlds(page, async (worlds): Promise<SignInOutcome> => {
+    const found = await withField(worlds, want)
+    const at = found.find(({ origin }) => origin === login.origin) ?? found[0]
+    if (!at) {
+      return 'no form'
+    }
+    if (at.origin !== login.origin) {
+      return refused(at.origin)
+    }
+    const outcome = await at
+      .world(call(inFrame, want, login))
+      .catch(() => 'unknown')
+    return outcome as SignInOutcome
+  })
+
+const passwordShowing = (page: Page) =>
+  inWorlds(
+    page,
+    async (worlds) => (await withField(worlds, 'password')).length > 0,
+  )
+
+/** Each world with a visible `want` field, and its frame's real origin. */
+async function withField(worlds: World[], want: Want) {
+  const found: { world: World; origin: string }[] = []
+  for (const world of worlds) {
+    const origin = await world(call(inFrame, want)).catch(() => undefined)
+    if (typeof origin === 'string') {
+      found.push({ world, origin })
     }
   }
-  return found[0]
+  return found
 }
+
+const refused = (origin: string) => ({
+  refused:
+    origin === 'null'
+      ? 'a page with no origin of its own, such as a sandboxed frame'
+      : origin,
+})
+
+/**
+ * Gives `use` a fresh isolated world in each of `page`'s frames, through
+ * the DevTools protocol. Frames in another process (other sites, sandboxed
+ * frames) have a session of their own; the rest are in their parent's.
+ */
+async function inWorlds<T>(page: Page, use: (worlds: World[]) => Promise<T>) {
+  const sessions = (
+    await Promise.all(
+      page.frames().map((frame) =>
+        page
+          .context()
+          .newCDPSession(frame === page.mainFrame() ? page : frame)
+          .catch(() => undefined),
+      ),
+    )
+  ).filter((session) => session !== undefined)
+  try {
+    const worlds: World[] = []
+    for (const session of sessions) {
+      const { frameTree } = await session.send('Page.getFrameTree')
+      type Tree = typeof frameTree
+      const ids = (tree: Tree): string[] => [
+        tree.frame.id,
+        ...(tree.childFrames ?? []).flatMap(ids),
+      ]
+      for (const frameId of ids(frameTree)) {
+        const world = await session
+          .send('Page.createIsolatedWorld', {
+            frameId,
+            worldName: 'familiar-sign-in',
+          })
+          .catch(() => undefined)
+        if (world) {
+          worlds.push(async (expression) => {
+            const { result, exceptionDetails } = await session.send(
+              'Runtime.evaluate',
+              {
+                contextId: world.executionContextId,
+                expression,
+                returnByValue: true,
+                timeout: 5_000,
+              },
+            )
+            if (exceptionDetails) {
+              throw new Error('The sign-in script failed.')
+            }
+            return result.value
+          })
+        }
+      }
+    }
+    return await use(worlds)
+  } finally {
+    await Promise.all(
+      sessions.map((session) => session.detach().catch(() => {})),
+    )
+  }
+}
+
+/** `fn` called with `args`, as an expression; JSON keeps them data. */
+const call = (fn: (...args: never[]) => unknown, ...args: unknown[]) =>
+  `(${fn})(...${JSON.stringify(args)})`
 
 /** Polls `check` until it gives something truthy, or `SETTLE_MS` passes. */
 async function until<T>(check: () => Promise<T>) {
@@ -126,35 +173,62 @@ async function until<T>(check: () => Promise<T>) {
   }
 }
 
+// What `inFrame` uses of the frame's globals, which Node's types don't describe.
+type Field = {
+  type: string
+  value: string
+  form: (Container & { requestSubmit(): void }) | null
+  parentElement: Container | null
+  checkVisibility(): boolean
+  dispatchEvent(event: Event): boolean
+}
+type Container = {
+  parentElement: Container | null
+  querySelector(selector: 'button'): { click(): void } | null
+  querySelectorAll(selector: string): Iterable<Field>
+}
+declare const self: { origin: string }
+declare const document: Container
+
 /**
- * Runs in the page, in the field's own frame, in one go. Fills `field`
- * (a password field with the password and the username field before it,
- * else a username field) and submits its form, only if the frame's real
+ * Runs in an isolated world of one frame, in one go, using only that
+ * world's own untouched globals. Finds the first visible `want` field.
+ * Without `login`, gives the frame's real origin (`self.origin`, `"null"`
+ * for a sandboxed frame), or null if there's no such field. With it, fills
+ * the field (a password field with the password and the username field
+ * before it, else a username field) and submits its form, only if that
  * origin is the login's.
  */
-function fill(
-  field: Field,
-  { origin, username, password }: SignInLogin,
-): SignInOutcome {
-  const real = window.__familiarOrigin
-  if (real !== origin || field.ownerDocument !== document) {
-    return {
-      refused:
-        real && real !== 'null'
-          ? real
-          : 'a page with no origin of its own, such as a sandboxed frame',
-    }
+function inFrame(
+  want: Want,
+  login?: SignInLogin,
+): string | null | SignInOutcome {
+  const visible = (selector: string) =>
+    [...document.querySelectorAll(selector)].filter((input) =>
+      input.checkVisibility(),
+    )
+  const [field] = visible(
+    want === 'password'
+      ? 'input[type=password]'
+      : 'input[autocomplete~=username], input[type=email], input[name*=user i], input[name*=email i], input[id*=user i], input[id*=email i]',
+  )
+  if (!field) {
+    return login ? 'no form' : null
   }
+  if (!login) {
+    return self.origin
+  }
+  if (self.origin !== login.origin) {
+    return { refused: self.origin }
+  }
+  // Set in this world, so a framework's value tracking in the page's sees
+  // the change, as it would a person's typing.
   const set = (input: Field, value: string) => {
-    // The native setter, so frameworks that track the value see the change.
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      'value',
-    )!.set!.call(input, value)
+    input.value = value
     input.dispatchEvent(new Event('input', { bubbles: true }))
     input.dispatchEvent(new Event('change', { bubbles: true }))
   }
-  if (field.type === 'password') {
+  if (want === 'password') {
     const inputs = [...(field.form ?? document).querySelectorAll('input')]
     const user = inputs
       .slice(0, inputs.indexOf(field))
@@ -164,11 +238,11 @@ function fill(
           /^(text|email|tel)$/.test(input.type) && input.checkVisibility(),
       )
     if (user) {
-      set(user, username)
+      set(user, login.username)
     }
-    set(field, password)
+    set(field, login.password)
   } else {
-    set(field, username)
+    set(field, login.username)
   }
   if (field.form) {
     field.form.requestSubmit()

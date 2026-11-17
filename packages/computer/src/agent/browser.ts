@@ -2,7 +2,6 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium, type BrowserContext, type Page } from 'playwright'
 import { KEEP_TEXT } from '../shorten.ts'
-import { recordOrigins } from './sign-in.ts'
 
 /**
  * The computer's browser: full Chromium in Chrome's newer headless mode
@@ -24,7 +23,6 @@ export function openBrowser(profileDir: string) {
       headless: true,
       ...(proxy && { proxy: { server: proxy } }),
     })
-    await recordOrigins(context)
     context.on('close', () => {
       running = undefined
     })

@@ -5,12 +5,15 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import type { FamiliarId } from '@familiar-ai/core'
 import type { Context } from '@familiar-ai/core/models'
 import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
 import { chromium } from 'playwright'
 import { expect, onTestFinished, test, vi } from 'vitest'
 import { startAgent } from './agent/index.ts'
+import { computerLogins, redact } from './host/logins.ts'
 import { openComputers } from './index.ts'
+import { KEEP_TEXT, shorten } from './shorten.ts'
 import {
   call,
   lastResult,
@@ -34,11 +37,25 @@ class WatchedStorage extends ReopenableStorage {
   }
 }
 
+const FORM = `<!doctype html><title>Sign in</title><form method="post" action="/session">
+<label>Email <input type="email" name="user"></label>
+<label>Password <input type="password" name="pass"></label>
+<button>Sign in</button></form>`
+
+/** The form, with a script claiming `origin` every way the page can. */
+const forged = (origin: string) =>
+  `<script>
+for (const name of ['origin', '__familiarOrigin']) {
+  Object.defineProperty(window, name, { get: () => '${origin}' })
+}
+</script>${FORM}`.replaceAll('"', '&quot;')
+
 /**
  * A site on 127.0.0.1 whose sign-in echoes the password back, a page
  * framing the same form from localhost, another origin, and one framing it
  * in a sandbox, which gives the frame no origin of its own though its
- * address is the site's.
+ * address is the site's, and one framing it in a sandbox from a script
+ * that claims the site's origin.
  */
 async function serveSite() {
   const posted: string[] = []
@@ -62,10 +79,9 @@ async function serveSite() {
         ? `<!doctype html><title>Framed</title><iframe src="http://localhost:${port}/login"></iframe>`
         : request.url === '/sandboxed'
           ? `<!doctype html><title>Sandboxed</title><iframe sandbox="allow-forms allow-scripts" src="/login"></iframe>`
-          : `<!doctype html><title>Sign in</title><form method="post" action="/session">
-<label>Email <input type="email" name="user"></label>
-<label>Password <input type="password" name="pass"></label>
-<button>Sign in</button></form>`,
+          : request.url === '/scripted'
+            ? `<!doctype html><title>Scripted</title><iframe sandbox="allow-forms allow-scripts" srcdoc="${forged(`http://127.0.0.1:${port}`)}"></iframe>`
+            : FORM,
     )
   }).listen(0, '127.0.0.1')
   await once(site, 'listening')
@@ -121,6 +137,8 @@ test.skipIf(!existsSync(chromium.executablePath()))(
       then(call('sign_in', { site: origin })),
       then(call('browser_navigate', { url: `${origin}/sandboxed` })),
       then(call('sign_in', { site: origin })),
+      then(call('browser_navigate', { url: `${origin}/scripted` })),
+      then(call('sign_in', { site: origin })),
       then(call('browser_navigate', { url: `${origin}/login` })),
       then(call('sign_in', { site: origin })),
       then(fauxAssistantMessage('Signed in.')),
@@ -138,16 +156,19 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     // The form named the exact site.
     expect(question).toMatchObject({ kind: 'private' })
     expect(JSON.stringify(question)).toContain(origin)
-    const [saved, , refused, , sandboxed, , signedIn] = results
+    const [saved, , refused, , sandboxed, , scripted, , signedIn] = results
     expect(saved).toContain(`saved a login for ${origin}`)
     // The form framed from localhost is another origin: nothing was filled.
     expect(refused).toMatch(
       /^Refused: the sign-in form is on http:\/\/localhost:/,
     )
-    // Nor in a sandboxed frame at the site's own address.
-    expect(sandboxed).toMatch(
-      /^Refused: the sign-in form is on a page with no origin of its own/,
-    )
+    // Nor in a sandboxed frame at the site's own address, nor in one whose
+    // script claims the site's origin.
+    for (const result of [sandboxed, scripted]) {
+      expect(result).toMatch(
+        /^Refused: the sign-in form is on a page with no origin of its own/,
+      )
+    }
     // Filled and submitted on the site itself, once.
     expect(posted).toEqual([`user=sam%40example.com&pass=${PASSWORD}`])
     expect(signedIn).toMatch(/^Signed in to http:\/\/127\.0\.0\.1:/)
@@ -182,3 +203,52 @@ test.skipIf(!existsSync(chromium.executablePath()))(
   },
   60_000,
 )
+
+test('a password the computer cut through leaves no piece at either edge, even once redaction shortens the result', () => {
+  // Long, so replacing each copy brings the result under the limit.
+  const password = Array.from({ length: 10 }, (_, i) => `piece${i}`).join('-')
+  const echoed = `${password} `.repeat(KEEP_TEXT)
+  // Cut as a page is (its start kept) and as command output is (its end),
+  // each through a password.
+  const page = echoed.slice(0, KEEP_TEXT)
+  const output = echoed.slice(-KEEP_TEXT)
+  const [cutEnd, cutStart] = [page.split(' ').at(-1)!, output.split(' ')[0]!]
+  expect([cutEnd, cutStart]).not.toContain(password)
+  expect(password.startsWith(cutEnd) && password.endsWith(cutStart)).toBe(true)
+  for (const [text, keep] of [
+    [page, 'start'],
+    [output, 'end'],
+  ] as const) {
+    const shown = shorten(redact(text, [password]), keep)
+    expect(shown).toBe(redact(text, [password]))
+    expect(shown).not.toMatch(/piec|iece|ece\d|-pie|\d-p/)
+  }
+  // Ordinary text at an edge, even a piece of a password too short to tell, stays.
+  expect(redact('piece of text, iec', [password])).toBe('piece of text, iec')
+})
+
+test("a saved login's password is still removed after the host restarts and it's replaced or deleted", async () => {
+  const dir = await mkdtemp(resolve(tmpdir(), 'familiar-logins-'))
+  onTestFinished(() => rm(dir, { recursive: true, force: true }))
+  const familiar = 1 as FamiliarId
+  const open = () => computerLogins(resolve(dir, 'logins'), resolve(dir, 'key'))
+  const first = open()
+  first.set(familiar, 'https://a.example', {
+    username: 'sam',
+    password: 'first-pass-1',
+  })
+  first.set(familiar, 'https://b.example', {
+    username: 'sam',
+    password: 'second-pass-2',
+  })
+
+  const restarted = open()
+  restarted.set(familiar, 'https://a.example', {
+    username: 'sam',
+    password: 'new-pass-3',
+  })
+  restarted.delete(familiar, 'https://b.example')
+  expect(
+    restarted.scrub(familiar, 'first-pass-1 second-pass-2 new-pass-3'),
+  ).toBe('[saved password] [saved password] [saved password]')
+})
