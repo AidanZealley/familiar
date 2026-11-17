@@ -5,10 +5,12 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import type { EntryId, WatchHandle } from '@earendil-works/pi-durable'
+import { Hono } from 'hono'
 import { testClient } from 'hono/testing'
 import { expect, test, vi } from 'vitest'
 import type { Author } from '../conversation/message.ts'
 import {
+  definePlugin,
   defineTool,
   MESSAGE_LIMITS,
   type RoomActivity,
@@ -16,6 +18,7 @@ import {
   schema,
 } from '../index.ts'
 import { storageWith } from '../memory/testing.ts'
+import type { PluginEnv } from '../plugins/index.ts'
 import { testHost } from '../testing.ts'
 import {
   createHttpApi,
@@ -429,6 +432,42 @@ test('familiar routes reach that Familiar, and a missing one is 404', async () =
   expect(await missing.json()).toEqual({ error: 'No note n9.' })
   expect((await app.request('/familiars/999/memory/pages/s1')).status).toBe(404)
   expect((await app.request('/familiars/999/events')).status).toBe(404)
+})
+
+test("a plugin's routes are about one Familiar, behind authenticate and allow", async () => {
+  const routes = new Hono<PluginEnv>().get('/status', (c) =>
+    c.json({ familiar: c.get('familiar'), asker: c.get('author').id }),
+  )
+  const host = await testHost({
+    person: sam,
+    plugins: [
+      definePlugin({ name: 'computer', title: 'Computer', tools: [], routes }),
+    ],
+  })
+  const id = host.familiar().id
+  const allow = vi.fn<Allow>(() => true)
+  const app = api(host.workspace(), {
+    authenticate: (request) =>
+      request.headers.get('x-person') === 'sam' ? sam : undefined,
+    allow,
+  })
+  const status = (familiar: number | string) =>
+    app.request(`/plugins/computer/familiars/${familiar}/status`, {
+      headers: { 'x-person': 'sam' },
+    })
+
+  expect(
+    (await app.request(`/plugins/computer/familiars/${id}/status`)).status,
+  ).toBe(401)
+  const ok = await status(id)
+  expect(await ok.json()).toEqual({ familiar: id, asker: 'sam' })
+  expect(allow).toHaveBeenLastCalledWith(sam, 'plugins.computer', {
+    familiar: id,
+  })
+  expect((await status(999)).status).toBe(404)
+  allow.mockReturnValue(false)
+  expect((await status(id)).status).toBe(403)
+  expect((await status(999)).status).toBe(403)
 })
 
 test('each stream sends what it is allowed whole first, and 403 when nothing is', async () => {

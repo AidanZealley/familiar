@@ -43,7 +43,11 @@ import { createMemory, type MemoryApi } from '../memory/index.ts'
 import type { Notify } from '../notify.ts'
 import { createPersona } from '../persona.ts'
 import { createQuestions, type QuestionsApi } from '../questions/index.ts'
-import { createPlugins, type FamiliarPlugin } from '../plugins/index.ts'
+import {
+  createPlugins,
+  openPlugins,
+  type FamiliarPlugin,
+} from '../plugins/index.ts'
 import { checkMaxHandoffs, createRooms, type RoomsApi } from '../rooms/index.ts'
 import { Shown } from '../rooms/log.ts'
 import { Rooms, Turns } from '../rooms/rooms.ts'
@@ -361,6 +365,8 @@ export type Workspace = {
   mcp: McpApi
   /** Questions for the person while Familiars work, which the chat shows. */
   questions: Pick<QuestionsApi, 'answer'>
+  /** The plugins it was opened with, whose routes `createHttpApi` mounts. */
+  plugins: readonly FamiliarPlugin[]
   usage(): Promise<UsageState>
   /**
    * When the workspace next needs a running process: `active` while work can
@@ -516,6 +522,10 @@ export async function openWorkspace(
     }
 
     const opened = new Map<FamiliarId, WorkspaceFamiliar>()
+    // Fires when who uses a plugin may have changed, for plugins' watches.
+    const pluginUsers = new EventTarget()
+    const pluginUsersChanged = () =>
+      pluginUsers.dispatchEvent(new Event('change'))
     const open = async (id: FamiliarId) => {
       // Core as installed now, and what it chose.
       await harness.commit((tx) => reselect(tx, id, available()), context)
@@ -537,11 +547,13 @@ export async function openWorkspace(
             await harness.snapshot(AgentDoc, id, context),
             available(),
           ),
-        setCapabilities: (change) =>
-          harness.commit(
+        setCapabilities: async (change) => {
+          await harness.commit(
             (tx) => setCapabilities(tx, id, available(), change),
             context,
-          ),
+          )
+          pluginUsersChanged()
+        },
       }
       opened.set(id, familiar)
       return familiar
@@ -589,7 +601,25 @@ export async function openWorkspace(
     // finish whatever the last process left unfinished
     harness.resume()
 
-    return {
+    const close = async () => {
+      account?.close()
+      try {
+        await harness.close(context)
+      } finally {
+        await mcp.close()
+      }
+    }
+
+    // Plugins close however the workspace closes: dismissed, or its storage
+    // failed. `opening` is set below, before this can run.
+    // eslint-disable-next-line prefer-const -- assigned once the workspace exists
+    let opening!: Promise<() => Promise<void>>
+    const pluginsClosed = harness.closed.then(async () => {
+      const closePlugins = await opening.catch(() => undefined)
+      await closePlugins?.()
+    })
+
+    const workspace: Workspace = {
       familiars: {
         list,
         watch: async () =>
@@ -601,18 +631,21 @@ export async function openWorkspace(
               settings.check(model)
             }
           }
-          return open(
+          const familiar = await open(
             await harness.commit(async (tx) => {
               const id = await createFamiliar(tx, identity)
               await giveCapabilities(tx, id, available(), capabilities)
               return id
             }, context),
           )
+          pluginUsersChanged()
+          return familiar
         },
         update,
         remove: async (id) => {
           await removeFamiliar(harness, id, context)
           opened.delete(id)
+          pluginUsersChanged()
         },
       },
       people: {
@@ -648,19 +681,44 @@ export async function openWorkspace(
         harness,
       ),
       questions: { answer: questions.answer },
+      plugins: options.plugins ?? [],
       usage: () => harness.usage(context),
-      closed: harness.closed,
+      // Settles once plugins have closed too, so hosts never cut their
+      // clean-up short. A failed clean-up is reported by `dismiss()`.
+      closed: harness.closed.then(async (end) => {
+        await pluginsClosed.catch(() => {})
+        return end
+      }),
       wake: () => harness.wake(),
       resume: () => harness.resume(),
       dismiss: async () => {
-        account?.close()
         try {
-          await harness.close(context)
+          await close()
         } finally {
-          await mcp.close()
+          await pluginsClosed
         }
       },
     }
+
+    opening = openPlugins(workspace.plugins, {
+      workspace,
+      usersOf: async (plugin) => {
+        const users: FamiliarId[] = []
+        for (const { id } of await list()) {
+          const agent = await harness.snapshot(AgentDoc, id, context)
+          if (capabilitiesOf(agent, available()).plugins.includes(plugin)) {
+            users.push(id)
+          }
+        }
+        return users
+      },
+      changes: pluginUsers,
+    }).catch(async (error: unknown) => {
+      await close()
+      throw error
+    })
+    await opening
+    return workspace
   } catch (error) {
     account?.close()
     throw error

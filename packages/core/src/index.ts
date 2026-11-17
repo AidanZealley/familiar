@@ -91,6 +91,9 @@ export {
   definePlugin,
   type FamiliarPlugin,
   type FamiliarTool,
+  type PluginClose,
+  type PluginContext,
+  type PluginEnv,
 } from './plugins/index.ts'
 export {
   ConnectionError,

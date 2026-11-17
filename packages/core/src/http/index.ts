@@ -3,6 +3,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { accountRoutes } from '../account/http.ts'
 import type { Author } from '../conversation/message.ts'
 import { mcpRoutes } from '../mcp/http.ts'
+import { pluginRoutes } from '../plugins/http.ts'
 import { connectionRoutes } from '../connections/http.ts'
 import { roomRoutes } from '../rooms/http.ts'
 import { defaultRoutes, familiarRoutes, meRoutes } from '../workspace/http.ts'
@@ -17,6 +18,7 @@ export type {
   Allow,
   FamiliarOperation,
   Operation,
+  PluginOperation,
   Resource,
   RoomOperation,
   WorkspaceOperation,
@@ -151,5 +153,6 @@ export function createHttpApi(
       await next()
     })
     .use(bodyLimit({ maxSize: options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE }))
+    .route('/plugins', pluginRoutes(workspace))
     .route('/', routes(workspace, options.push))
 }

@@ -9,14 +9,40 @@ Declarations live in [`plugins`](https://github.com/AidanZealley/familiar/tree/m
 
 ```ts
 type FamiliarPlugin = {
-  name: string // keys its secrets, so keep it stable
+  name: string // keys its secrets and routes, so keep it stable
   title: string // shown on the Connections page
   secrets?: PluginSecret[]
   tools: FamiliarTool[] // Pi Durable tools, with optional annotations
+  open?(context: PluginContext): PluginClose | Promise<PluginClose>
+  routes?: Hono<PluginEnv> // routes about one Familiar
 }
 ```
 
 `definePlugin` returns the object you pass it. It's there so TypeScript checks the plugin where you write it.
+
+### open(context)
+
+For a plugin with background state or clean-up. `openWorkspace` calls it once the workspace is open and has resumed its work, and waits for it, so start slow work without awaiting it. It may return a function, which is called when the workspace closes, by `dismiss()` or a storage failure.
+
+```ts
+type PluginContext = {
+  workspace: Workspace
+  watchFamiliars(listener: (familiars: FamiliarId[]) => void): void
+}
+```
+
+`watchFamiliars` calls `listener` with the Familiars that use the plugin, those that have it turned on, then again when that changes: one turns it on or off, or is created with it or removed. Changes close together may come as one call; the last call is always who uses it now. A promise `listener` returns isn't awaited, so handle its errors.
+
+### routes
+
+A [Hono](https://hono.dev) app about one Familiar, which `createHttpApi` mounts at `/plugins/<name>/familiars/:familiar`. Each request is authenticated as core's are, then `allow` is asked for `plugins.<name>` with that Familiar's ID, then a Familiar that doesn't exist is 404. The routes read who is asking with `c.get('author')` and the Familiar with `c.get('familiar')`.
+
+```ts
+const routes = new Hono<PluginEnv>().get('/status', async (c) =>
+  c.json(await host.status(c.get('familiar'))),
+)
+// GET /plugins/computer/familiars/1/status
+```
 
 ## checkPlugins(plugins)
 
@@ -50,6 +76,7 @@ What Familiar gives each call, read from the call's context. It throws if the to
 | Member                                  | Meaning                                                                                                                                                                                                                |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `author()`                              | The person the call runs for, as described under [Tool author](/familiar/reference/core/#tool-author). Resolved from storage when you call it, so tools that don't need it pay nothing                                 |
+| `familiarId()`                          | The Familiar making the call. Resolved from storage when you call it, never from the tool's arguments. Throws in a conversation no Familiar owns                                                                       |
 | `fetch(input, init?)`                   | The host's network access. On Node, the default refuses every address that isn't public                                                                                                                                |
 | `authorizedFetch(secret, input, init?)` | `fetch`, with the named secret attached, if the request matches the plugin's declaration. Otherwise throws without sending. Throws a "not connected" message when the secret isn't set. Redirects come back unfollowed |
 | `notify(notification)`                  | Send a notification through the host. It never carries a schedule's context                                                                                                                                            |
