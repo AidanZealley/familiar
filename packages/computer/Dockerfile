@@ -4,7 +4,8 @@
 # runs the host's egress proxy (`docker/proxy-main.js`), which listens on a
 # socket in /run/familiar-proxy, a volume shared with every computer.
 #
-# Build from the repository root: pnpm image
+# Build from the repository root, for this machine's platform: pnpm image.
+# Releases publish it for linux/amd64 and linux/arm64 as one image.
 
 FROM node:24-bookworm-slim AS build
 RUN corepack enable
