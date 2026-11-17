@@ -4,6 +4,7 @@ import {
   createWorkspaceStore,
   type FamiliarState,
   type FamiliarStore,
+  type FamiliarSummary,
   type WorkspaceState,
 } from '@familiar-ai/client'
 import { MutationCache, QueryClient } from '@tanstack/react-query'
@@ -65,3 +66,7 @@ export const queryClient = new QueryClient({
       client.invalidateQueries({ queryKey: mutation.options.mutationKey }),
   }),
 })
+
+/** A Familiar's capabilities query; what depends on them goes under it. */
+export const capabilitiesKey = (familiar: FamiliarSummary['id']) =>
+  ['capabilities', familiar] as const

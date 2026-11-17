@@ -23,6 +23,7 @@ test('settings are defaults, then saved choices, then environment overrides', ()
     name: 'Familiar',
     owner: 'owner',
     port: 4317,
+    maxComputers: 10,
   })
   writeFileSync(
     join(path, 'settings.json'),

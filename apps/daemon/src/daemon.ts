@@ -4,6 +4,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import { computer } from '@familiar-ai/computer'
 import { dockerHost } from '@familiar-ai/computer/docker'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
+import { settingsComputerLimit } from './computer-limit.ts'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
 import { ensureDataDir } from './paths.ts'
@@ -66,6 +67,7 @@ export async function serve() {
     label: config.name,
     push: push.host,
     models,
+    computerLimit: settingsComputerLimit(config.dataDir),
   })
 }
 

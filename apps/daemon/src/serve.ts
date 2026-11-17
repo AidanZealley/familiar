@@ -8,6 +8,7 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { csrf } from 'hono/csrf'
 import type { Models } from '@earendil-works/pi-ai'
 import { avatarRoutes } from './avatars.ts'
+import { computerLimitRoutes, type ComputerLimit } from './computer-limit.ts'
 import { providerRoutes } from './providers.ts'
 
 export type ServeOptions = {
@@ -26,6 +27,8 @@ export type ServeOptions = {
   push?: PushHost
   /** Where model providers' API keys are saved, from the web UI's settings. */
   models?: Models
+  /** How many computers Familiars may have, from the web UI's settings. */
+  computerLimit?: ComputerLimit
 }
 
 /**
@@ -101,22 +104,27 @@ export function daemonApp(
   workspace: Workspace,
   options: Pick<
     ServeOptions,
-    'owner' | 'webDir' | 'avatarsDir' | 'push' | 'models'
+    'owner' | 'webDir' | 'avatarsDir' | 'push' | 'models' | 'computerLimit'
   >,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin())
   if (options.avatarsDir) {
     app.route('/api/avatars', avatarRoutes(options.avatarsDir))
   }
+  // Outside the workspace's API, so checked as its `authenticate` is.
+  const ownersOnly: MiddlewareHandler = async (c, next) => {
+    if (!isAllowedHost(c.req.header('host') ?? null)) {
+      return c.json({ error: 'unauthorized' }, 401)
+    }
+    await next()
+  }
   if (options.models) {
-    // Outside the workspace's API, so checked as its `authenticate` is.
-    app.use('/api/providers/*', async (c, next) => {
-      if (!isAllowedHost(c.req.header('host') ?? null)) {
-        return c.json({ error: 'unauthorized' }, 401)
-      }
-      await next()
-    })
+    app.use('/api/providers/*', ownersOnly)
     app.route('/api/providers', providerRoutes(options.models))
+  }
+  if (options.computerLimit) {
+    app.use('/api/computer-limit', ownersOnly)
+    app.route('/api/computer-limit', computerLimitRoutes(options.computerLimit))
   }
   app.route(
     '/api',

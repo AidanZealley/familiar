@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MemoryStorage } from '@earendil-works/pi-durable'
@@ -7,11 +13,15 @@ import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
 import { expect, onTestFinished, test, vi } from 'vitest'
+import { settingsComputerLimit } from './computer-limit.ts'
 import { daemonApp, OWNER_ID, type ServeOptions } from './serve.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
 async function daemon(
-  options: Pick<ServeOptions, 'webDir' | 'avatarsDir' | 'models'> = {},
+  options: Pick<
+    ServeOptions,
+    'webDir' | 'avatarsDir' | 'models' | 'computerLimit'
+  > = {},
 ) {
   const models = createModels()
   models.setProvider(fauxProvider().provider)
@@ -180,4 +190,33 @@ test("provider keys are saved write-only, only by the owner's network", async ()
   expect(await listed()).toEqual([
     { id: 'anthropic', name: 'Anthropic', set: false },
   ])
+})
+
+test("the computer limit is saved in settings.json, only by the owner's network", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'familiar-limit-'))
+  onTestFinished(() => rmSync(dataDir, { recursive: true }))
+  const settings = join(dataDir, 'settings.json')
+  writeFileSync(settings, JSON.stringify({ name: 'Cat' }))
+  const { app } = await daemon({
+    computerLimit: settingsComputerLimit(dataDir),
+  })
+  const send = (method: string, host = local, body?: object) =>
+    app.request('/api/computer-limit', {
+      method,
+      headers: { host, 'content-type': 'application/json' },
+      body: body && JSON.stringify(body),
+    })
+
+  expect(await (await send('GET')).json()).toEqual({ maxComputers: 10 })
+  expect((await send('PUT', 'evil.example', { maxComputers: 3 })).status).toBe(
+    401,
+  )
+  expect((await send('PUT', local, { maxComputers: -1 })).status).toBe(400)
+  expect((await send('PUT', local, { maxComputers: 3 })).status).toBe(204)
+  expect(await (await send('GET')).json()).toEqual({ maxComputers: 3 })
+  // The installation's other choices stay.
+  expect(JSON.parse(readFileSync(settings, 'utf8'))).toEqual({
+    name: 'Cat',
+    maxComputers: 3,
+  })
 })

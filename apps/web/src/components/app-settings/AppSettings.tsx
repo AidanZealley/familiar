@@ -2,18 +2,22 @@ import {
   GearSixIcon,
   BellIcon,
   CpuIcon,
+  DesktopTowerIcon,
   KeyIcon,
   PaletteIcon,
   PlugIcon,
   SparkleIcon,
   UserIcon,
 } from '@phosphor-icons/react'
+import { useQuery } from '@tanstack/react-query'
 import { Connections, useNeedsAttention } from '@/components/connections'
 import { NotificationSetting } from '@/components/notification-setting'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Badge } from '@/components/ui/badge'
+import { computerLimitQuery } from '@/lib/computers'
 import { useWorkspace } from '@/lib/familiar'
 import { AppearanceSettings } from './components/appearance-settings'
+import { ComputerLimit } from './components/computer-limit'
 import { DefaultTools } from './components/default-tools'
 import { ModelDefaults } from './components/model-defaults'
 import { Providers } from './components/providers'
@@ -23,6 +27,8 @@ import { YourProfile } from './components/your-profile'
 export const AppSettings = () => {
   const needsYou = useNeedsAttention()
   const me = useWorkspace((state) => state.me)
+  // Only where the daemon keeps the limit.
+  const { data: maxComputers } = useQuery(computerLimitQuery)
 
   return (
     <SettingsDialog
@@ -112,6 +118,25 @@ export const AppSettings = () => {
                 "Where Familiars' models come from. A provider's models are offered once it has a key, after Familiar restarts.",
               content: <Providers />,
             },
+            ...(maxComputers != null
+              ? [
+                  {
+                    id: 'computers',
+                    label: 'Computers',
+                    icon: DesktopTowerIcon,
+                    keywords: 'computer limit docker browser shell',
+                    description:
+                      "How many computers Familiars may have. Each Familiar's own is in its settings' Computer.",
+                    // Keyed by the limit, so a change from elsewhere reseeds it.
+                    content: (
+                      <ComputerLimit
+                        key={maxComputers}
+                        maxComputers={maxComputers}
+                      />
+                    ),
+                  },
+                ]
+              : []),
           ],
         },
       ]}
