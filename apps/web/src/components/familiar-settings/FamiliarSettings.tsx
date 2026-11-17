@@ -2,6 +2,7 @@ import {
   AlarmIcon,
   BrainIcon,
   CpuIcon,
+  DesktopTowerIcon,
   TrashIcon,
   UserIcon,
   WrenchIcon,
@@ -12,6 +13,7 @@ import { SettingsDialog } from '@/components/settings-dialog'
 import { FamiliarContext, familiarStreams } from '@/lib/familiar'
 import { useStream } from '@/lib/streams'
 import { useFamiliarSummary } from '@/lib/workspace'
+import { ComputerSettings } from './components/computer-settings'
 import { MemorySettings } from './components/memory-settings'
 import { ModelsSettings } from './components/models-settings'
 import { ProfileSettings } from './components/profile-settings'
@@ -60,6 +62,14 @@ export const FamiliarSettings = ({ id }: FamiliarSettingsProps) => {
                 keywords: 'plugins connections mcp capabilities',
                 description: `Which plugins and MCP servers ${name} uses. Add servers in Settings › Connections.`,
                 content: <ToolsSettings familiar={familiar} />,
+              },
+              {
+                id: 'computer',
+                label: 'Computer',
+                icon: DesktopTowerIcon,
+                keywords: 'browser shell docker machine pair remote',
+                description: `A browser and shell ${name} works with, beyond what plugins reach.`,
+                content: <ComputerSettings familiar={familiar} />,
               },
               {
                 id: 'memory',

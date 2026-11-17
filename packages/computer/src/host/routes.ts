@@ -23,8 +23,10 @@ const idOf = (c: Context) => Number(c.req.param('familiar')) as FamiliarId
  *   provider runs instead, and answers `{ status }`.
  * - `DELETE /:familiar` removes its computer, with the disk of one the
  *   provider ran.
- * - `GET /:familiar` answers `{ status }`: `none`, `asleep`, `offline` or
- *   `online`.
+ * - `GET /:familiar` answers `{ status, provided, provider }`: `status` is
+ *   `none`, `asleep`, `offline` or `online`; `provided` is whether the
+ *   provider runs the computer, not a paired machine; `provider` is whether
+ *   this host has a provider to give one.
  * - `GET /connect` is the agent's WebSocket, with its token as a bearer.
  */
 export function computerRoutes(
@@ -62,7 +64,11 @@ export function computerRoutes(
       }),
     )
     .get('/:familiar', async (c) =>
-      c.json({ status: await computers.status(idOf(c)) }),
+      c.json({
+        status: await computers.status(idOf(c)),
+        provided: computers.isProvided(idOf(c)),
+        provider: computers.provides,
+      }),
     )
     .delete('/:familiar', async (c) => {
       await computers.remove(idOf(c))
