@@ -3,7 +3,6 @@ import {
   BellIcon,
   CpuIcon,
   KeyIcon,
-  LockKeyIcon,
   PaletteIcon,
   PlugIcon,
   SparkleIcon,
@@ -16,9 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { useWorkspace } from '@/lib/familiar'
 import { AppearanceSettings } from './components/appearance-settings'
 import { DefaultTools } from './components/default-tools'
-import { ModelAccount } from './components/model-account'
 import { ModelDefaults } from './components/model-defaults'
-import { ProviderKeys } from './components/provider-keys'
+import { Providers } from './components/providers'
 import { YourProfile } from './components/your-profile'
 
 /** The one Settings: you and this device, then the workspace. */
@@ -105,22 +103,14 @@ export const AppSettings = () => {
               content: <ModelDefaults />,
             },
             {
-              id: 'account',
-              label: 'Model account',
+              id: 'providers',
+              label: 'Providers',
               icon: KeyIcon,
-              keywords: 'chatgpt sign in sign out provider',
-              description: 'Every Familiar answers through this sign-in.',
-              content: <ModelAccount />,
-            },
-            {
-              id: 'api-keys',
-              label: 'API keys',
-              icon: LockKeyIcon,
               keywords:
-                'provider anthropic claude google gemini openrouter xai grok',
+                'api keys chatgpt sign in sign out openai anthropic claude google gemini xai grok openrouter',
               description:
-                "Model providers' keys. Each provider's models are offered once it has one, after Familiar restarts.",
-              content: <ProviderKeys />,
+                "Where Familiars' models come from. A provider's models are offered once it has a key, after Familiar restarts.",
+              content: <Providers />,
             },
           ],
         },
