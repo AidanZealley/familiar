@@ -610,16 +610,27 @@ export async function openWorkspace(
       }
     }
 
-    // Plugins close however the workspace closes: dismissed, or its storage
-    // failed. `opening` is set below, before this can run.
-    // eslint-disable-next-line prefer-const -- assigned once the workspace exists
-    let opening!: Promise<() => Promise<void>>
-    const pluginsClosed = harness.closed.then(async () => {
-      const closePlugins = await opening.catch(() => undefined)
-      await closePlugins?.()
+    const closePlugins = await openPlugins(options.plugins ?? [], {
+      usersOf: async (plugin) => {
+        const users: FamiliarId[] = []
+        for (const { id } of await list()) {
+          const agent = await harness.snapshot(AgentDoc, id, context)
+          if (capabilitiesOf(agent, available()).plugins.includes(plugin)) {
+            users.push(id)
+          }
+        }
+        return users
+      },
+      changes: pluginUsers,
+    }).catch(async (error: unknown) => {
+      await close()
+      throw error
     })
+    // Plugins close however the workspace closes: dismissed, or its storage
+    // failed, even while they were opening.
+    const pluginsClosed = harness.closed.then(closePlugins)
 
-    const workspace: Workspace = {
+    return {
       familiars: {
         list,
         watch: async () =>
@@ -699,26 +710,6 @@ export async function openWorkspace(
         }
       },
     }
-
-    opening = openPlugins(workspace.plugins, {
-      workspace,
-      usersOf: async (plugin) => {
-        const users: FamiliarId[] = []
-        for (const { id } of await list()) {
-          const agent = await harness.snapshot(AgentDoc, id, context)
-          if (capabilitiesOf(agent, available()).plugins.includes(plugin)) {
-            users.push(id)
-          }
-        }
-        return users
-      },
-      changes: pluginUsers,
-    }).catch(async (error: unknown) => {
-      await close()
-      throw error
-    })
-    await opening
-    return workspace
   } catch (error) {
     account?.close()
     throw error
