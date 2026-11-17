@@ -84,3 +84,28 @@ export const annotationsOf = (tool: ComputerTool) =>
     : tool.harmless
       ? { destructiveHint: false }
       : undefined
+
+/**
+ * The agent's hidden tool for a person looking at the computer: its open
+ * tabs and system, as JSON text (`ComputerInfo`). It's on the agent's MCP
+ * server but not in `computerTools`, so no Familiar is ever offered it.
+ */
+export const INFO_TOOL = 'computer_info'
+
+export type ComputerInfo = {
+  tabs?: { title: string; url: string }[]
+  system?: { os?: string; architecture?: string }
+}
+
+const TARGET_MAX = 80
+
+/** What a call acts on, shortened for a glance: its URL, command or path. */
+export const targetOf = (args: Record<string, unknown>) => {
+  const target = [args.url, args.command, args.path].find(
+    (value) => typeof value === 'string',
+  ) as string | undefined
+  const line = target?.replace(/\s+/g, ' ').trim()
+  return line && line.length > TARGET_MAX
+    ? `${line.slice(0, TARGET_MAX - 1)}…`
+    : line || undefined
+}

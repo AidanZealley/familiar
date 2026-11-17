@@ -27,6 +27,11 @@ export async function serve() {
 
   const models = openModels()
   const computerLimit = settingsComputerLimit(config.dataDir)
+  // Computers for the Familiars given one, where Docker is installed.
+  const computers = dockerHost({
+    hostId: computerHostId(),
+    maxComputers: computerLimit.get,
+  })
   const { modelChoices, chatModel } = await offeredModels(models)
   const { workspace } = await openDaemonWorkspace(
     {
@@ -45,13 +50,7 @@ export async function serve() {
       notify: push.notify,
       plugins: await loadPlugins(config.pluginsDir, [
         webPlugin,
-        // Computers for the Familiars given one, where Docker is installed.
-        computer({
-          host: dockerHost({
-            hostId: computerHostId(),
-            maxComputers: computerLimit.get,
-          }),
-        }),
+        computer({ host: computers }),
       ]),
       // What Familiars call the owner, until they choose another name.
       people: [{ id: OWNER_ID, name: config.owner }],
@@ -74,6 +73,7 @@ export async function serve() {
     push: push.host,
     models,
     computerLimit,
+    computers,
   })
 }
 

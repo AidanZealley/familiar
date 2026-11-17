@@ -1,10 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { machine } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { McpServer, type CallToolResult } from '@modelcontextprotocol/server'
-import type { z } from 'zod'
+import { z } from 'zod'
 import {
   annotationsOf,
   computerTools,
+  INFO_TOOL,
+  type ComputerInfo,
   type ComputerToolName,
 } from '../tools.ts'
 import { KEEP_TEXT } from '../shorten.ts'
@@ -123,5 +126,27 @@ export function computerServer(browser: Browser, home: string) {
       },
     )
   }
+  server.registerTool(
+    INFO_TOOL,
+    {
+      description:
+        'For the host, never a model: the open tabs and the system, as JSON.',
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      const info: ComputerInfo = {
+        tabs: await browser.tabs(),
+        system: { os: await osName(), architecture: machine() },
+      }
+      return text(JSON.stringify(info))
+    },
+  )
   return server
 }
+
+/** The distribution's name, such as "Debian GNU/Linux 12 (bookworm)". */
+const osName = async () =>
+  (await readFile('/etc/os-release', 'utf8').catch(() => '')).match(
+    /^PRETTY_NAME="?([^"\n]*)"?$/m,
+  )?.[1]

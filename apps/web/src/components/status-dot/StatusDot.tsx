@@ -10,8 +10,11 @@ const colours = {
 }
 
 /** Decorative: the status label beside it says the same in words. */
-export const StatusDot = ({ tone }: StatusDotProps) => (
-  <span aria-hidden className="grid size-4 shrink-0 place-items-center">
+export const StatusDot = ({ tone, className }: StatusDotProps) => (
+  <span
+    aria-hidden
+    className={cn('grid size-4 shrink-0 place-items-center', className)}
+  >
     {tone === 'busy' ? (
       <HourglassSpinner className="text-muted-foreground" />
     ) : (

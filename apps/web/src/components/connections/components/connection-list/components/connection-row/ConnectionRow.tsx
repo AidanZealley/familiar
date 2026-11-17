@@ -1,6 +1,6 @@
 import { cn } from 'cn'
 import { statusOf, whereOf } from '../../../../status'
-import { StatusDot } from '../../../status-dot'
+import { StatusDot } from '@/components/status-dot'
 import type { ConnectionRowProps } from './types'
 
 export const ConnectionRow = ({

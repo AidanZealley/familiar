@@ -13,7 +13,7 @@ import { OWN_ADDRESSES, PROXY_SOCKET } from './proxy.ts'
  */
 export const DOCKER_CWD = homedir()
 /** Where a computer's home is: its disk, kept while it sleeps. */
-const HOME = '/home/computer'
+export const HOME = '/home/computer'
 const HOST_LABEL = 'familiar-ai.host'
 const FAMILIAR_LABEL = 'familiar-ai.familiar'
 

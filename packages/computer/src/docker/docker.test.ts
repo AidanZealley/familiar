@@ -189,6 +189,22 @@ test.skipIf(!hasImage)(
       url: 'https://example.com/',
     })
     expect(JSON.stringify(page.content)).toContain('Example Domain')
+
+    // A look at it shows the call in flight and the open tab.
+    const sleeping = run('sleep 8')
+    await vi.waitFor(
+      async () =>
+        expect(await host.inspect(ada.id)).toMatchObject({
+          status: { state: 'running' },
+          doing: [{ tool: 'run_command', target: 'sleep 8' }],
+          tabs: expect.arrayContaining([
+            { title: 'Example Domain', url: 'https://example.com/' },
+          ]),
+          memory: { used: expect.any(Number), limit: 4 * 2 ** 30 },
+        }),
+      { timeout: 8000, interval: 100 },
+    )
+    await sleeping
     expect(
       await run('curl -sS -o /dev/null -w "%{http_code}" https://example.com/'),
     ).toMatch(/^200/)
@@ -229,6 +245,9 @@ test.skipIf(!hasImage)(
         interval: 500,
       },
     )
+    // A look at a sleeping computer leaves it asleep.
+    expect((await host.inspect(ada.id)).status).toEqual({ state: 'asleep' })
+    expect(await status()).toEqual({ state: 'asleep' })
     const woken = await run('cat marker.txt')
     expect(woken).toMatch(/was asleep/)
     expect(woken).toMatch(/kept/)
