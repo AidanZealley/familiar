@@ -1,7 +1,12 @@
 // Scripted model, in-memory storage and a pretend login, so nothing here
 // reads the installation's config or data.
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { definePlugin, memorySecrets, type Notify } from '@familiar-ai/core'
+import {
+  definePlugin,
+  memorySecrets,
+  type Notify,
+  type FamiliarPlugin,
+} from '@familiar-ai/core'
 import { WEB_RENDERING } from '../rendering.ts'
 import { OWNER_ID } from '../serve.ts'
 import { openDaemonWorkspace } from '../workspace.ts'
@@ -26,8 +31,12 @@ const demoPlugin = definePlugin({
 /**
  * The demo's workspace: Rowan's household, a few days in. The clock starts
  * back when its story does, and catches up to real time as the seed plays it.
+ * `plugins` join the demo's own, such as ones that reach this machine.
  */
-export async function openDemo(notify?: Notify) {
+export async function openDemo(
+  notify?: Notify,
+  plugins: FamiliarPlugin[] = [],
+) {
   const story = household(Date.now())
   const clock = demoClock(startOf(story))
   const models = createDemoModels(scriptOf(story), clock)
@@ -48,7 +57,7 @@ export async function openDemo(notify?: Notify) {
       // The owner signs in and out from the web UI, as on a real daemon.
       account: {},
       notify,
-      plugins: [demoPlugin, workshopPlugin],
+      plugins: [demoPlugin, workshopPlugin, ...plugins],
       people: [{ id: OWNER_ID, name: 'demo' }],
       secrets: memorySecrets(),
       fetch: demoFetch,

@@ -5,6 +5,7 @@ import { z } from 'zod'
 const nonEmpty = 'must be a non-empty string'
 const text = z.string(nonEmpty).trim().min(1, nonEmpty).optional()
 const port = 'must be an integer between 1 and 65535'
+const count = 'must be a whole number, 0 or more'
 
 /** What `settings.json` may hold. Anything left out follows the release's default. */
 const Settings = z.object(
@@ -18,6 +19,11 @@ const Settings = z.object(
     /** The OpenAI model to start on, when it's offered; else the first offered. */
     model: text,
     port: z.int(port).min(1, port).max(65535, port).optional(),
+    /**
+     * How many computers Familiars may have. Lowering it removes none; it
+     * only stops new ones.
+     */
+    maxComputers: z.int(count).min(0, count).optional(),
   },
   { error: 'must be a JSON object' },
 )
@@ -64,6 +70,7 @@ export function readSettings(
     name: explicit.name ?? 'Familiar',
     owner: explicit.owner ?? 'owner',
     port: explicit.port ?? 4317,
+    maxComputers: explicit.maxComputers ?? 10,
   }
 }
 
@@ -74,7 +81,9 @@ export function saveSettings(dataDir: string, settings: Settings) {
   if (existsSync(path) && readFileSync(path, 'utf8') === content) {
     return false
   }
-  writeFileSync(`${path}.tmp`, content, { mode: 0o600 })
-  renameSync(`${path}.tmp`, path)
+  // Per process, so two processes saving at once never share a file.
+  const temporary = `${path}.${process.pid}.tmp`
+  writeFileSync(temporary, content, { mode: 0o600 })
+  renameSync(temporary, path)
   return true
 }
