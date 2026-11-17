@@ -6,7 +6,9 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono, type MiddlewareHandler } from 'hono'
 import { csrf } from 'hono/csrf'
+import type { Models } from '@earendil-works/pi-ai'
 import { avatarRoutes } from './avatars.ts'
+import { providerRoutes } from './providers.ts'
 
 export type ServeOptions = {
   host: string
@@ -22,6 +24,8 @@ export type ServeOptions = {
   avatarsDir?: string
   label: string
   push?: PushHost
+  /** Where model providers' API keys are saved, from the web UI's settings. */
+  models?: Models
 }
 
 /**
@@ -95,11 +99,24 @@ export const OWNER_ID = 'owner'
  */
 export function daemonApp(
   workspace: Workspace,
-  options: Pick<ServeOptions, 'owner' | 'webDir' | 'avatarsDir' | 'push'>,
+  options: Pick<
+    ServeOptions,
+    'owner' | 'webDir' | 'avatarsDir' | 'push' | 'models'
+  >,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin())
   if (options.avatarsDir) {
     app.route('/api/avatars', avatarRoutes(options.avatarsDir))
+  }
+  if (options.models) {
+    // Outside the workspace's API, so checked as its `authenticate` is.
+    app.use('/api/providers/*', async (c, next) => {
+      if (!isAllowedHost(c.req.header('host') ?? null)) {
+        return c.json({ error: 'unauthorized' }, 401)
+      }
+      await next()
+    })
+    app.route('/api/providers', providerRoutes(options.models))
   }
   app.route(
     '/api',

@@ -95,6 +95,7 @@ export {
 export {
   ConnectionError,
   memorySecrets,
+  secretValue,
   type Connection,
   type ConnectionInfo,
   type ConnectionsApi,
