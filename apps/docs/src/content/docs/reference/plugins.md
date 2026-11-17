@@ -26,7 +26,6 @@ For a plugin with background state or clean-up. `openWorkspace` calls it once th
 
 ```ts
 type PluginContext = {
-  workspace: Workspace
   watchFamiliars(listener: (familiars: FamiliarId[]) => void): void
 }
 ```

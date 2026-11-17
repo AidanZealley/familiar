@@ -12,7 +12,7 @@ import { connectionsQuery } from '@/components/connections'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { ScheduleList } from '@/components/schedule-list'
 import { SettingsDialog } from '@/components/settings-dialog'
-import { computerPlugin } from '@/lib/computers'
+import { isComputer } from '@/lib/computers'
 import { FamiliarContext, familiarStreams } from '@/lib/familiar'
 import { useStream } from '@/lib/streams'
 import { useFamiliarSummary } from '@/lib/workspace'
@@ -30,10 +30,7 @@ export const FamiliarSettings = ({ id }: FamiliarSettingsProps) => {
   const store = useStream(familiarStreams, familiar && id)
   // Only where the workspace has the computer plugin.
   const { data: connections } = useQuery(connectionsQuery)
-  const computers = connections?.some(
-    ({ kind, name }) =>
-      kind === computerPlugin.kind && name === computerPlugin.name,
-  )
+  const computers = connections?.some(isComputer)
 
   if (!familiar || !store) {
     return null
