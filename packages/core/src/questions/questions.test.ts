@@ -242,7 +242,23 @@ test("a private question's values reach only its plugin: never storage, the chat
     }
   }
   const received: FormContent[] = []
+  let save!: () => void
+  const saving = new Promise<void>((resolve) => {
+    save = resolve
+  })
   const callers: number[] = []
+  const request = {
+    message: 'Your login for example.com',
+    form: [
+      { name: 'username', type: 'string' as const, required: true },
+      {
+        name: 'password',
+        type: 'string' as const,
+        format: 'password' as const,
+        required: true,
+      },
+    ],
+  }
   const host = await testHost({
     storage: new WatchedStorage(),
     plugins: [
@@ -257,26 +273,20 @@ test("a private question's values reach only its plugin: never storage, the chat
             execute: async (_args, _api, context) => {
               const services = familiar(context)
               callers.push(await services.familiarId())
-              const result = await services.askPrivately(
-                {
-                  message: 'Your login for example.com',
-                  form: [
-                    { name: 'username', type: 'string', required: true },
-                    {
-                      name: 'password',
-                      type: 'string',
-                      format: 'password',
-                      required: true,
-                    },
-                  ],
-                },
-                async (values) => {
+              const results = [
+                await services.askPrivately(request, async () => {
+                  throw new Error('A decline never reaches the plugin.')
+                }),
+                await services.askPrivately(request, async (values) => {
                   if (received.push(values) === 1) {
                     throw new QuestionError('Try again.')
                   }
-                },
-              )
-              return { output: [{ type: 'text' as const, text: result }] }
+                  await saving
+                }),
+              ]
+              return {
+                output: [{ type: 'text' as const, text: results.join(' ') }],
+              }
             },
           }),
         ],
@@ -292,28 +302,50 @@ test("a private question's values reach only its plugin: never storage, the chat
       seen.push(JSON.stringify(context.messages))
       return fauxAssistantMessage('Saved.')
     },
+    fauxAssistantMessage('Noted.'),
   ])
-  const entry = await host.dm().post({
-    author: { id: 'aidan', name: 'aidan' },
-    text: 'Sign in',
-    requestId: 'sign-in',
-  })
+  const author = { id: 'aidan', name: 'aidan' }
+  const entry = await host
+    .dm()
+    .post({ author, text: 'Sign in', requestId: 'sign-in' })
   // What the chat streams.
   const watch = await host.dm().watchTurns()
   const streamed: string[] = []
   watch.start(async () => void streamed.push(JSON.stringify(watch.value)))
-  const [question] = await asked(host.dm())
-  expect(question).toMatchObject({ kind: 'private', plugin: 'logins' })
-
-  const answer = (password: string) =>
-    host.workspace().questions.answer(question!.familiar, question!.id, {
-      action: 'accept',
+  const answer = (id: string, action: 'accept' | 'decline', password: string) =>
+    host.workspace().questions.answer(host.familiar().id, id, {
+      action,
       content: { username: 'sam', password },
     })
+
+  // A decline is stored as its action alone, whatever it carries.
+  const [declined] = await asked(host.dm())
+  expect(declined).toMatchObject({ kind: 'private', plugin: 'Logins' })
+  await answer(declined!.id, 'decline', `${secret}-declined`)
+
+  let question = declined
+  await vi.waitFor(async () => {
+    ;[question] = await asked(host.dm())
+    expect(question!.id).not.toBe(declined!.id)
+  })
   // The plugin refusing them leaves the person asked.
-  await expect(answer(`${secret}-first`)).rejects.toThrow('Try again.')
-  await answer(secret)
+  await expect(
+    answer(question!.id, 'accept', `${secret}-first`),
+  ).rejects.toThrow('Try again.')
+  const accepted = answer(question!.id, 'accept', secret)
+  await vi.waitFor(() => expect(received).toHaveLength(2))
+  // While they're saved, it takes no other answer, and a new message
+  // waits for the save, which counts.
+  await expect(
+    answer(question!.id, 'decline', `${secret}-meanwhile`),
+  ).rejects.toThrow('already being answered')
+  const next = await host
+    .dm()
+    .post({ author, text: 'Never mind', requestId: 'never' })
+  save()
+  await accepted
   const reply = JSON.stringify(await replyTo(host.dm(), entry))
+  await replyTo(host.dm(), next)
   await watch.stop()
 
   expect(received.map((values) => values.password)).toEqual([
@@ -321,7 +353,7 @@ test("a private question's values reach only its plugin: never storage, the chat
     secret,
   ])
   expect(callers).toEqual([host.familiar().id])
-  expect(seen[0]).toContain('provided')
+  expect(seen[0]).toContain('declined provided')
   for (const text of [...written, ...streamed, ...seen, reply]) {
     expect(text).not.toContain(secret)
   }

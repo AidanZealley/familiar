@@ -134,7 +134,7 @@ export function createPlugins(options: PluginsOptions) {
             // A nested call shows under the call the model made.
             callId: api.callId.split('/')[0]!,
             tool,
-            plugin: plugin.name,
+            plugin: plugin.title || plugin.name,
             message,
             form,
           },
