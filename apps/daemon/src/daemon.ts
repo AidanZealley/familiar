@@ -1,5 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
+import { computer } from '@familiar-ai/computer'
+import { dockerHost } from '@familiar-ai/computer/docker'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -38,7 +40,13 @@ export async function serve() {
         account: { login: { getDeviceId: deviceId, agentName: config.name } },
       }),
       notify: push.notify,
-      plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
+      plugins: await loadPlugins(config.pluginsDir, [
+        webPlugin,
+        // Computers for the Familiars given one, where Docker is installed.
+        // The ID is this installation's, so another sharing the engine, such
+        // as a development daemon, leaves its computers alone.
+        computer({ host: dockerHost({ hostId: deviceId().slice(0, 8) }) }),
+      ]),
       // What Familiars call the owner, until they choose another name.
       people: [{ id: OWNER_ID, name: config.owner }],
       // Web search and pages are useful to any Familiar; others opt in.

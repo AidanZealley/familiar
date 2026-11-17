@@ -20,6 +20,7 @@
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
+    "@familiar-ai/computer": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "@hono/node-server": "2.1.5",
     "@mdream/js": "2.0.3",
