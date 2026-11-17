@@ -214,6 +214,23 @@ test.skipIf(!hasImage)(
       { timeout: 30_000, interval: 500 },
     )
     expect(await status()).toEqual({ state: 'none' })
+
+    // A resource named as Bo's disk would be, that this host didn't make,
+    // is neither used nor removed.
+    const bo = await workspace.familiars.create({
+      name: 'Bo',
+      capabilities: { plugins: [] },
+    })
+    const theirs = `familiar-${hostId}-${bo.id}-home`
+    docker('volume', 'create', theirs)
+    onTestFinished(() => void docker('volume', 'rm', theirs))
+    expect(await run('true', bo.id)).toMatch(
+      /couldn't start.*volume called .*-home that this Familiar host didn't make/s,
+    )
+    await host.sync([])
+    expect(docker('volume', 'ls', '-q', '--filter', `name=^${theirs}$`)).toBe(
+      theirs,
+    )
   },
   240_000,
 )

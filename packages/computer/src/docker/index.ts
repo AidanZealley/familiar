@@ -1,11 +1,12 @@
 import { execFile } from 'node:child_process'
+import { networkInterfaces } from 'node:os'
 import { promisify } from 'node:util'
 import type { FamiliarId } from '@familiar-ai/core'
 import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { AGENT_SOCKET } from '../agent/socket.ts'
 import type { ComputerHost, ComputerStatus } from '../host.ts'
-import { PROXY_PORT } from './proxy.ts'
+import { OWN_ADDRESSES, PROXY_PORT } from './proxy.ts'
 
 export type DockerHostOptions = {
   /**
@@ -38,6 +39,22 @@ const RETRY_IMAGE_MS = 60_000
 
 const WOKE =
   'Your computer was asleep, so it has just started: its files are as they were, but programs that were running have stopped.'
+
+/** The kinds of Docker resource a computer host makes. */
+type Kind = 'container' | 'volume' | 'network'
+
+/** A resource this host made: its Familiar's, unless shared; a container's state. */
+type Owned = { kind: Kind; name: string; familiar?: FamiliarId; state?: string }
+
+/**
+ * This machine's addresses, which the proxy refuses even when they're
+ * public. Read when the proxy is made, once per process; with `DOCKER_HOST`
+ * on another machine, they are this one's, not the engine's.
+ */
+const ownAddresses = () =>
+  Object.values(networkInterfaces()).flatMap((addresses) =>
+    (addresses ?? []).map(({ address }) => address),
+  )
 
 /** Runs the Docker CLI, which honours `DOCKER_HOST` (such as `ssh://…`) and Docker contexts. */
 const docker = async (...args: string[]) =>
@@ -133,94 +150,156 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     return run
   }
 
-  /** `familiar`'s container's state, such as `running` or `exited`; empty for none. */
-  const stateOf = (familiar: FamiliarId) =>
-    docker(
-      'ps',
-      '--all',
-      '--filter',
-      `name=^${container(familiar)}$`,
-      '--format',
-      '{{.State}}',
-    )
-
-  /** The Familiars this host has any of `kind` for: `container`, `volume` or `network`. */
-  const owners = async (kind: string) =>
+  /**
+   * What this host has made of `kinds`, found only by its labels (and
+   * `familiar`'s, if given), never by name, so nothing another host or
+   * person made is used or removed. A computer's resources carry its
+   * Familiar; the proxy and its network carry none.
+   */
+  const owned = async (
+    kinds: readonly Kind[],
+    familiar?: FamiliarId,
+  ): Promise<Owned[]> =>
     (
-      await docker(
-        kind,
-        'ls',
-        ...(kind === 'container' ? ['--all'] : []),
-        '--filter',
-        `label=${HOST_LABEL}=${hostId}`,
-        '--filter',
-        `label=${FAMILIAR_LABEL}`,
-        '--format',
-        `{{.Label "${FAMILIAR_LABEL}"}}`,
+      await Promise.all(
+        kinds.map(async (kind) =>
+          (
+            await docker(
+              kind,
+              'ls',
+              ...(kind === 'container' ? ['--all'] : []),
+              '--filter',
+              `label=${HOST_LABEL}=${hostId}`,
+              ...(familiar === undefined
+                ? []
+                : ['--filter', `label=${FAMILIAR_LABEL}=${familiar}`]),
+              '--format',
+              kind === 'container'
+                ? `{{.Names}}\t{{.Label "${FAMILIAR_LABEL}"}}\t{{.State}}`
+                : `{{.Name}}\t{{.Label "${FAMILIAR_LABEL}"}}`,
+            )
+          )
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+              const [name, familiar, state] = line.split('\t')
+              return {
+                kind,
+                name: name!,
+                ...(familiar && { familiar: Number(familiar) as FamiliarId }),
+                ...(state && { state }),
+              }
+            }),
+        ),
       )
-    )
-      .split('\n')
-      .filter(Boolean)
-      .map((familiar) => Number(familiar) as FamiliarId)
+    ).flat()
+
+  /**
+   * Makes the `kind` called `name` unless `have` (this host's) has it. One
+   * by that name that isn't this host's fails instead of being used, as
+   * Docker would quietly use a volume.
+   */
+  const ensure = async (
+    kind: Kind,
+    name: string,
+    have: readonly Owned[],
+    make: () => Promise<unknown>,
+  ) => {
+    if (have.some((owned) => owned.kind === kind && owned.name === name)) {
+      return
+    }
+    if (
+      await docker(kind, 'inspect', name).then(
+        () => true,
+        () => false,
+      )
+    ) {
+      throw new Error(
+        `Docker already has a ${kind} called ${name} that this Familiar host didn't make, so it won't use or remove it. Rename or remove it, or give this host another hostId.`,
+      )
+    }
+    await make()
+  }
+
+  /**
+   * Removes `resources`, which `owned` found: containers first, then
+   * networks, each disconnected from `proxies` first, then volumes. Each
+   * step succeeds when what it removes is already gone.
+   */
+  const removeAll = async (
+    resources: readonly Owned[],
+    proxies: readonly Owned[] = [],
+  ) => {
+    const named = (kind: Kind) =>
+      resources.filter((owned) => owned.kind === kind).map(({ name }) => name)
+    for (const name of named('container')) {
+      await docker('rm', '--force', name)
+    }
+    for (const name of named('network')) {
+      for (const proxy of proxies) {
+        await docker('network', 'disconnect', '--force', name, proxy.name)
+          // Not connected, or either is gone.
+          .catch(() => {})
+      }
+      await docker('network', 'rm', '--force', name)
+    }
+    for (const name of named('volume')) {
+      await docker('volume', 'rm', '--force', name)
+    }
+  }
 
   /**
    * The proxy's way out and the proxy, joined to every computer's network.
    * Made again the first time this process needs it, so the proxy runs this
-   * host's image.
+   * host's image and knows its current addresses.
    */
   let prepared: Promise<void> | undefined
   const prepare = () =>
     (prepared ??= (async () => {
-      if (
-        !(await docker('network', 'ls', '-q', '--filter', `name=^${outside}$`))
-      ) {
-        await docker('network', 'create', ...ours, outside)
-      }
-      await docker('rm', '--force', proxy)
-      const networks = await docker(
-        'network',
-        'ls',
-        '--filter',
-        `label=${HOST_LABEL}=${hostId}`,
-        '--filter',
-        `label=${FAMILIAR_LABEL}`,
-        '--format',
-        '{{.Name}}',
+      const all = await owned(['container', 'network'])
+      const shared = all.filter((owned) => owned.familiar === undefined)
+      await ensure('network', outside, shared, () =>
+        docker('network', 'create', ...ours, outside),
       )
-      await docker(
-        'run',
-        '--detach',
-        '--name',
-        proxy,
-        ...ours,
-        '--restart',
-        'unless-stopped',
-        '--init',
-        // Its route out, then each computer's network.
-        '--network',
-        outside,
-        ...networks
-          .split('\n')
-          .filter(Boolean)
-          .flatMap((name) => ['--network', name]),
-        '--entrypoint',
-        'node',
-        image,
-        '/agent/dist/docker/proxy-main.js',
+      await removeAll(shared.filter((owned) => owned.kind === 'container'))
+      await ensure('container', proxy, [], () =>
+        docker(
+          'run',
+          '--detach',
+          '--name',
+          proxy,
+          ...ours,
+          '--restart',
+          'unless-stopped',
+          '--init',
+          // Its route out, then each computer's network.
+          '--network',
+          outside,
+          ...all
+            .filter((owned) => owned.kind === 'network' && owned.familiar)
+            .flatMap(({ name }) => ['--network', name]),
+          '--env',
+          `${OWN_ADDRESSES}=${ownAddresses().join(',')}`,
+          '--entrypoint',
+          'node',
+          image,
+          '/agent/dist/docker/proxy-main.js',
+        ),
       )
     })().catch((error) => {
       prepared = undefined
       throw error
     }))
 
-  /** Makes `familiar`'s container, on its disk and network if they survived. */
-  const create = async (familiar: FamiliarId) => {
+  /** Makes `familiar`'s container, on the disk and network it has (`have`), if any. */
+  const create = async (familiar: FamiliarId, have: readonly Owned[]) => {
     await prepare()
-    // Making a volume that exists keeps it as it is.
-    await docker('volume', 'create', ...theirs(familiar), disk(familiar))
     const name = network(familiar)
-    if (!(await docker('network', 'ls', '-q', '--filter', `name=^${name}$`))) {
-      await docker(
+    await ensure('volume', disk(familiar), have, () =>
+      docker('volume', 'create', ...theirs(familiar), disk(familiar)),
+    )
+    await ensure('network', name, have, () =>
+      docker(
         'network',
         'create',
         '--internal',
@@ -231,8 +310,8 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         'com.docker.network.bridge.gateway_mode_ipv6=isolated',
         ...theirs(familiar),
         name,
-      )
-    }
+      ),
+    )
     // Checked apart from making the network, in case joining failed before.
     const joined = await docker(
       'inspect',
@@ -244,60 +323,64 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       await docker('network', 'connect', name, proxy)
     }
     const proxyUrl = `http://${proxy}:${PROXY_PORT}`
-    await docker(
-      'create',
-      '--name',
-      container(familiar),
-      '--hostname',
-      `familiar-${familiar}`,
-      ...theirs(familiar),
-      '--network',
-      name,
-      '--init',
-      // So one Familiar can't starve the machine or the others.
-      '--memory',
-      '4g',
-      '--cpus',
-      '2',
-      '--pids-limit',
-      '512',
-      // Chromium's shared memory; Docker's default 64 MB crashes big pages.
-      '--shm-size',
-      '1g',
-      '--volume',
-      `${disk(familiar)}:${HOME}`,
-      ...['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'].flatMap(
-        (name) => ['--env', `${name}=${proxyUrl}`],
+    await ensure('container', container(familiar), have, () =>
+      docker(
+        'create',
+        '--name',
+        container(familiar),
+        '--hostname',
+        `familiar-${familiar}`,
+        ...theirs(familiar),
+        '--network',
+        name,
+        '--init',
+        // So one Familiar can't starve the machine or the others.
+        '--memory',
+        '4g',
+        '--cpus',
+        '2',
+        '--pids-limit',
+        '512',
+        // Chromium's shared memory; Docker's default 64 MB crashes big pages.
+        '--shm-size',
+        '1g',
+        '--volume',
+        `${disk(familiar)}:${HOME}`,
+        ...['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'].flatMap(
+          (name) => ['--env', `${name}=${proxyUrl}`],
+        ),
+        image,
       ),
-      image,
     )
+    return container(familiar)
   }
 
-  /** Removes `familiar`'s computer and disk. Each step succeeds when what it removes is gone. */
-  const remove = async (familiar: FamiliarId) => {
+  /** Forgets `familiar`'s computer here and removes what `owned` found of it. */
+  const remove = async (
+    familiar: FamiliarId,
+    resources: readonly Owned[],
+    proxies: readonly Owned[],
+  ) => {
     clearTimeout(awake.get(familiar)?.timer)
     awake.delete(familiar)
     forget(familiar)
-    await docker('rm', '--force', container(familiar))
-    await docker('volume', 'rm', '--force', disk(familiar))
-    await docker('network', 'disconnect', '--force', network(familiar), proxy)
-      // Not connected, or either is gone.
-      .catch(() => {})
-    await docker('network', 'rm', '--force', network(familiar))
+    await removeAll(resources, proxies)
   }
 
-  /** Starts `familiar`'s computer, making it first if it has none: whether it was asleep. */
+  /**
+   * Starts `familiar`'s computer, making it first if it has none: its
+   * container's name, and whether it was asleep.
+   */
   const wake = (familiar: FamiliarId) =>
     change(async () => {
-      const state = await stateOf(familiar)
-      if (!state) {
-        await create(familiar)
+      const have = await owned(['container', 'volume', 'network'], familiar)
+      const found = have.find((owned) => owned.kind === 'container')
+      const name = found?.name ?? (await create(familiar, have))
+      if (found?.state === 'running') {
+        return { name, woke: false }
       }
-      if (state === 'running') {
-        return false
-      }
-      await docker('start', container(familiar))
-      return true
+      await docker('start', name)
+      return { name, woke: true }
     })
 
   /**
@@ -327,7 +410,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
           }
           awake.delete(familiar)
           forget(familiar)
-          await docker('stop', container(familiar))
+          for (const { name } of await owned(['container'], familiar)) {
+            await docker('stop', name)
+          }
         }).catch(() => {}),
       idleMs,
     ).unref()
@@ -341,7 +426,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
    * opens its socket.
    */
   const clients = new Map<FamiliarId, Promise<Client>>()
-  const connect = (familiar: FamiliarId) => {
+  const connect = (familiar: FamiliarId, name: string) => {
     const client = new Client({ name: 'familiar', version: '1.0.0' })
     const connected = client
       .connect(
@@ -350,7 +435,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
           args: [
             'exec',
             '--interactive',
-            container(familiar),
+            name,
             'socat',
             '-',
             `UNIX-CONNECT:${AGENT_SOCKET},retry=600,interval=0.1`,
@@ -394,8 +479,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         let woke = false
         if (!client) {
           try {
-            woke = await wake(familiar)
-            client = clients.get(familiar) ?? connect(familiar)
+            const started = await wake(familiar)
+            woke = started.woke
+            client = clients.get(familiar) ?? connect(familiar, started.name)
             await client
           } catch (error) {
             return failed(
@@ -423,33 +509,34 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     sync: (familiars) =>
       change(async () => {
         const wanted = new Set(familiars)
-        const found = new Set(
-          (
-            await Promise.all(['container', 'volume', 'network'].map(owners))
-          ).flat(),
-        )
-        for (const familiar of found) {
+        const all = await owned(['container', 'volume', 'network'])
+        const of = (familiar?: FamiliarId) =>
+          all.filter((owned) => owned.familiar === familiar)
+        const shared = of(undefined)
+        const proxies = shared.filter((owned) => owned.kind === 'container')
+        for (const familiar of new Set(
+          all.flatMap((owned) => owned.familiar ?? []),
+        )) {
           if (!wanted.has(familiar)) {
-            await remove(familiar)
+            await remove(familiar, of(familiar), proxies)
           }
         }
         if (!wanted.size) {
           // Nothing left for the proxy to serve.
           prepared = undefined
-          await docker('rm', '--force', proxy)
-          await docker('network', 'rm', '--force', outside)
+          await removeAll(shared)
           return
         }
         if (setup.state === 'setting-up') {
           await setup.done
         }
         for (const familiar of wanted) {
-          const state = await stateOf(familiar)
-          if (!state) {
-            await create(familiar)
+          const found = of(familiar).find((owned) => owned.kind === 'container')
+          if (!found) {
+            await create(familiar, of(familiar))
           }
           // Left running by an earlier process, so sleeps when idle.
-          if (state === 'running' && !awake.has(familiar)) {
+          if (found?.state === 'running' && !awake.has(familiar)) {
             begin(familiar)
             end(familiar)
           }
@@ -459,9 +546,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       }),
 
     status: async (familiar): Promise<ComputerStatus> => {
-      let state: string
+      let found: Owned | undefined
       try {
-        state = await stateOf(familiar)
+        ;[found] = await owned(['container'], familiar)
       } catch (error) {
         return { state: 'unavailable', reason: reasonOf(error) }
       }
@@ -469,7 +556,8 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         return setup.state === 'setting-up' ? { state: 'setting-up' } : setup
       }
       return {
-        state: state === 'running' ? 'running' : state ? 'asleep' : 'none',
+        state:
+          found?.state === 'running' ? 'running' : found ? 'asleep' : 'none',
       }
     },
   }
