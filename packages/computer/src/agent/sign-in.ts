@@ -1,4 +1,4 @@
-import type { Locator, Page } from 'playwright'
+import type { BrowserContext, Locator, Page } from 'playwright'
 
 export type SignInLogin = { origin: string; username: string; password: string }
 
@@ -25,7 +25,7 @@ type Container = {
   querySelector(selector: 'button'): { click(): void } | null
   querySelectorAll(selector: 'input'): Iterable<Field>
 }
-declare const location: { origin: string }
+declare const window: { origin: string; __familiarOrigin?: string }
 declare const document: Container
 declare const HTMLInputElement: { prototype: object }
 
@@ -43,9 +43,22 @@ const USERNAME = [
 const SETTLE_MS = 10_000
 
 /**
+ * Records each document's real origin as `window.__familiarOrigin`, which
+ * `fill` checks, before any of the document's own scripts run, in a property
+ * they can't redefine. Neither `location.origin`, which is the address's
+ * origin and so also a sandboxed frame's, nor `window.origin`, which a
+ * page's script can redefine, says it reliably. A sandboxed frame's origin
+ * is `"null"`.
+ */
+export const recordOrigins = (context: BrowserContext) =>
+  context.addInitScript(() =>
+    Object.defineProperty(window, '__familiarOrigin', { value: window.origin }),
+  )
+
+/**
  * Signs in on `page` with `login`, once, never retrying. Each step runs as
  * one synchronous script in the field's own frame (`fill`): it checks that
- * frame's real origin, then fills and submits, so the page can't change
+ * frame's real origin (see `recordOrigins`), then fills and submits, so the page can't change
  * between the check and the fill. A form that asks for the username first
  * gets it, then the password once that field appears.
  */
@@ -116,15 +129,21 @@ async function until<T>(check: () => Promise<T>) {
 /**
  * Runs in the page, in the field's own frame, in one go. Fills `field`
  * (a password field with the password and the username field before it,
- * else a username field) and submits its form, only if the frame's origin,
- * which `location` gives and the page can't redefine, is the login's.
+ * else a username field) and submits its form, only if the frame's real
+ * origin is the login's.
  */
 function fill(
   field: Field,
   { origin, username, password }: SignInLogin,
 ): SignInOutcome {
-  if (location.origin !== origin || field.ownerDocument !== document) {
-    return { refused: location.origin }
+  const real = window.__familiarOrigin
+  if (real !== origin || field.ownerDocument !== document) {
+    return {
+      refused:
+        real && real !== 'null'
+          ? real
+          : 'a page with no origin of its own, such as a sandboxed frame',
+    }
   }
   const set = (input: Field, value: string) => {
     // The native setter, so frameworks that track the value see the change.

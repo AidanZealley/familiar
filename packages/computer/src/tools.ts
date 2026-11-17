@@ -13,6 +13,8 @@ export type ComputerTool = {
   reads?: true
   /** For an action that is safe to approve once for all, such as opening a page. */
   harmless?: true
+  /** Its result's end matters most, as a command's output does: a long one keeps that. */
+  keepsEnd?: true
 }
 
 const ref = z
@@ -58,6 +60,7 @@ export const computerTools = {
       command: z.string(),
       timeout_seconds: z.number().int().min(1).max(600).optional(),
     }),
+    keepsEnd: true,
   },
   read_file: {
     description:

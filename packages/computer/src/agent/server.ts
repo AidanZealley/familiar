@@ -9,9 +9,9 @@ import {
   signInTool,
   type ComputerToolName,
 } from '../tools.ts'
+import { KEEP_TEXT } from '../shorten.ts'
 import type { Browser } from './browser.ts'
 import { runCommand } from './shell.ts'
-import { shorten } from './shorten.ts'
 import { signIn, type SignInOutcome } from './sign-in.ts'
 
 type Args<Name extends ComputerToolName> = z.infer<
@@ -115,10 +115,11 @@ export function computerServer(browser: Browser, home: string) {
       const status = timedOut
         ? `Stopped after ${timeout_seconds} seconds.`
         : `Exit code ${code}.`
-      return text(`${status}\n${output}`, code !== 0)
+      // The status last, as the host keeps the end of long output.
+      return text(`${output}\n${status}`, code !== 0)
     },
     read_file: async ({ path }) =>
-      text(shorten(await readFile(resolve(home, path), 'utf8'))),
+      text((await readFile(resolve(home, path), 'utf8')).slice(0, KEEP_TEXT)),
     write_file: async ({ path, content }) => {
       const file = resolve(home, path)
       await mkdir(dirname(file), { recursive: true })

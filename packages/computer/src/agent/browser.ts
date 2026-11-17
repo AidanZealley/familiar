@@ -1,7 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium, type BrowserContext, type Page } from 'playwright'
-import { shorten } from './shorten.ts'
+import { KEEP_TEXT } from '../shorten.ts'
+import { recordOrigins } from './sign-in.ts'
 
 /**
  * The computer's browser: full Chromium in Chrome's newer headless mode
@@ -23,6 +24,7 @@ export function openBrowser(profileDir: string) {
       headless: true,
       ...(proxy && { proxy: { server: proxy } }),
     })
+    await recordOrigins(context)
     context.on('close', () => {
       running = undefined
     })
@@ -48,10 +50,11 @@ export function openBrowser(profileDir: string) {
 
   return {
     page,
-    /** The page as text, with a ref for each element, shortened if long. */
+    /** The page as text, with a ref for each element, up to `KEEP_TEXT`. */
     snapshot: async (page: Page) =>
-      shorten(
-        `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`,
+      `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`.slice(
+        0,
+        KEEP_TEXT,
       ),
     /** An element by the ref a snapshot gave it. */
     element: (page: Page, ref: string) => page.locator(`aria-ref=${ref}`),

@@ -11,6 +11,7 @@ import type {
   TextContent,
 } from '@familiar-ai/core/extensions'
 import { z } from 'zod'
+import { shorten } from '../shorten.ts'
 import { annotationsOf, computerTools, SIGN_IN } from '../tools.ts'
 import type { Computers } from './computers.ts'
 import { originOf } from './logins.ts'
@@ -39,8 +40,9 @@ const site = z
 
 /**
  * The computer's tools for Familiars: each call goes to the calling
- * Familiar's own computer, never another's, and every saved password is
- * removed from what comes back before the model sees it.
+ * Familiar's own computer, never another's, and every password the
+ * computer was given is removed from what comes back before it's shortened
+ * for the model.
  */
 export function computerPlugin(computers: Computers) {
   /** Calls `name` on `familiar`'s computer, saying why when it can't. */
@@ -90,11 +92,21 @@ export function computerPlugin(computers: Computers) {
     }
   }
 
-  /** `output` without any of `familiar`'s saved passwords. */
-  const scrubbed = (familiar: FamiliarId, { output, isError }: Output) => ({
+  /**
+   * `output` without any of `familiar`'s passwords, then shortened, keeping
+   * the start of each text unless `keep` says the end.
+   */
+  const scrubbed = (
+    familiar: FamiliarId,
+    { output, isError }: Output,
+    keep: 'start' | 'end' = 'start',
+  ) => ({
     output: output.map((block) =>
       block.type === 'text'
-        ? { ...block, text: computers.logins.scrub(familiar, block.text) }
+        ? {
+            ...block,
+            text: shorten(computers.logins.scrub(familiar, block.text), keep),
+          }
         : block,
     ),
     isError,
@@ -208,6 +220,7 @@ export function computerPlugin(computers: Computers) {
             return scrubbed(
               id,
               await forward(id, name, args as Record<string, unknown>, context),
+              'keepsEnd' in tool ? 'end' : 'start',
             )
           },
         }),

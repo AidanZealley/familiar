@@ -36,6 +36,17 @@ export function originOf(site: string) {
  * another's. Kept by `Computers`, which deletes them with the computer.
  */
 export function computerLogins(dir: string, keyPath: string) {
+  /**
+   * Every password each computer has been given or had saved while the host
+   * runs, kept only in memory, so one replaced or deleted is still removed
+   * from what a sign-in under way or a page that echoed it shows later.
+   */
+  const known = new Map<FamiliarId, Set<string>>()
+  const remember = (familiar: FamiliarId, password: string) => {
+    const passwords = known.get(familiar) ?? new Set()
+    known.set(familiar, passwords.add(password))
+  }
+
   const fileOf = (familiar: FamiliarId) =>
     encryptedJsonFile<Saved>(
       resolve(dir, `${familiar}.json`),
@@ -51,13 +62,20 @@ export function computerLogins(dir: string, keyPath: string) {
         site,
         username,
       })),
-    get: (familiar: FamiliarId, site: string): Login | undefined =>
-      fileOf(familiar).value[site],
+    /** `site`'s login, to give the computer. */
+    get: (familiar: FamiliarId, site: string): Login | undefined => {
+      const login = fileOf(familiar).value[site]
+      if (login) {
+        remember(familiar, login.password)
+      }
+      return login
+    },
     /** Saves `login` for `site`, an exact origin, in place of any before. */
     set: (familiar: FamiliarId, site: string, login: Login) => {
       mkdirSync(dir, { recursive: true, mode: 0o700 })
       const file = fileOf(familiar)
       file.save({ ...file.value, [site]: login })
+      remember(familiar, login.password)
     },
     delete: (familiar: FamiliarId, site: string) => {
       const file = fileOf(familiar)
@@ -67,20 +85,32 @@ export function computerLogins(dir: string, keyPath: string) {
       }
     },
     /** Deletes them all, as the computer goes. */
-    remove: (familiar: FamiliarId) =>
-      rmSync(resolve(dir, `${familiar}.json`), { force: true }),
+    remove: (familiar: FamiliarId) => {
+      rmSync(resolve(dir, `${familiar}.json`), { force: true })
+      known.delete(familiar)
+    },
     /**
-     * `text` with every saved password of `familiar`'s computer replaced, so
-     * a page or command that shows one never reaches the model.
+     * `text` with every password `familiar`'s computer has (or has had,
+     * while the host runs) replaced, so a page or command that shows one
+     * never reaches the model. Longest first, so one inside another goes
+     * whole.
      */
     scrub: (familiar: FamiliarId, text: string) =>
-      Object.values(fileOf(familiar).value).reduce(
-        (scrubbed, { password }) =>
-          password
-            ? scrubbed.replaceAll(password, '[saved password]')
-            : scrubbed,
-        text,
-      ),
+      [
+        ...new Set([
+          ...Object.values(fileOf(familiar).value).map(
+            ({ password }) => password,
+          ),
+          ...(known.get(familiar) ?? []),
+        ]),
+      ]
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)
+        .reduce(
+          (scrubbed, password) =>
+            scrubbed.replaceAll(password, '[saved password]'),
+          text,
+        ),
   }
 }
 

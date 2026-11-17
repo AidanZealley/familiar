@@ -162,15 +162,15 @@ export function openComputers(options: ComputersOptions) {
   }
 
   /**
-   * Within `serially`: deletes the provider's computer, then forgets
-   * `familiar`'s. If deleting fails, the computer is kept, so it's never
+   * Within `serially`: deletes the provider's computer and its logins, then
+   * forgets `familiar`'s. If deleting fails, the computer is kept, so it's never
    * given a new token while the old container remains; the caller sees the
    * error and the check tries again.
    */
   const removeComputer = async (familiar: FamiliarId) => {
     const saved = file.value[familiar]
     if (!saved) {
-      // Any left by a removal cut short, before a new computer is given.
+      // Any saved as the computer was removed, before a new one is given.
       logins.remove(familiar)
       return
     }
@@ -181,8 +181,9 @@ export function openComputers(options: ComputersOptions) {
       // Without a provider now, its check sweeps the container up later.
       await provider?.remove(familiar)
     }
-    save((all) => delete all[familiar])
+    // Before forgetting the computer, so a failure leaves it to remove again.
     logins.remove(familiar)
+    save((all) => delete all[familiar])
   }
 
   /**

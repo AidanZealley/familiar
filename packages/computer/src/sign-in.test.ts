@@ -35,8 +35,10 @@ class WatchedStorage extends ReopenableStorage {
 }
 
 /**
- * A site on 127.0.0.1 whose sign-in echoes the password back, and a page
- * framing the same form from localhost, another origin.
+ * A site on 127.0.0.1 whose sign-in echoes the password back, a page
+ * framing the same form from localhost, another origin, and one framing it
+ * in a sandbox, which gives the frame no origin of its own though its
+ * address is the site's.
  */
 async function serveSite() {
   const posted: string[] = []
@@ -58,7 +60,9 @@ async function serveSite() {
     response.end(
       request.url === '/framed'
         ? `<!doctype html><title>Framed</title><iframe src="http://localhost:${port}/login"></iframe>`
-        : `<!doctype html><title>Sign in</title><form method="post" action="/session">
+        : request.url === '/sandboxed'
+          ? `<!doctype html><title>Sandboxed</title><iframe sandbox="allow-forms allow-scripts" src="/login"></iframe>`
+          : `<!doctype html><title>Sign in</title><form method="post" action="/session">
 <label>Email <input type="email" name="user"></label>
 <label>Password <input type="password" name="pass"></label>
 <button>Sign in</button></form>`,
@@ -115,9 +119,14 @@ test.skipIf(!existsSync(chromium.executablePath()))(
       call('request_login', { site: `${origin}/login` }),
       then(call('browser_navigate', { url: `${origin}/framed` })),
       then(call('sign_in', { site: origin })),
+      then(call('browser_navigate', { url: `${origin}/sandboxed` })),
+      then(call('sign_in', { site: origin })),
       then(call('browser_navigate', { url: `${origin}/login` })),
       then(call('sign_in', { site: origin })),
       then(fauxAssistantMessage('Signed in.')),
+      // After the person deletes the login.
+      call('browser_snapshot', {}),
+      then(fauxAssistantMessage('Looked.')),
     ])
     const entry = await host.ask('Sign in to the site')
     const question = await host.answer({
@@ -129,11 +138,15 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     // The form named the exact site.
     expect(question).toMatchObject({ kind: 'private' })
     expect(JSON.stringify(question)).toContain(origin)
-    const [saved, , refused, , signedIn] = results
+    const [saved, , refused, , sandboxed, , signedIn] = results
     expect(saved).toContain(`saved a login for ${origin}`)
     // The form framed from localhost is another origin: nothing was filled.
     expect(refused).toMatch(
       /^Refused: the sign-in form is on http:\/\/localhost:/,
+    )
+    // Nor in a sandboxed frame at the site's own address.
+    expect(sandboxed).toMatch(
+      /^Refused: the sign-in form is on a page with no origin of its own/,
     )
     // Filled and submitted on the site itself, once.
     expect(posted).toEqual([`user=sam%40example.com&pass=${PASSWORD}`])
@@ -154,6 +167,14 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     expect(readFileSync(resolve(dir, 'logins', file!), 'utf8')).not.toContain(
       PASSWORD,
     )
+
+    // A deleted login's password is still removed from the page echoing it.
+    await host.api(`/logins?site=${encodeURIComponent(origin)}`, {
+      method: 'DELETE',
+    })
+    await host.reply(await host.ask('Look at the page'))
+    expect(results.at(-1)).toContain('You signed in with [saved password]')
+    expect(results.join('\n')).not.toContain(PASSWORD)
 
     // Its logins go with the computer.
     await host.api('', { method: 'DELETE' })
