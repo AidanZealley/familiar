@@ -51,13 +51,25 @@ export const ComputerSettings = ({ familiar }: ComputerSettingsProps) => {
   }
   if (computer.status === 'none') {
     return (
-      <GiveComputer
-        familiar={familiar}
-        provider={computer.provider}
-        pending={lifecycle.isPending}
-        error={lifecycle.error?.message}
-        onGive={(action) => lifecycle.mutate(action)}
-      />
+      <div className="flex flex-col items-start gap-6">
+        {isRefetchError && (
+          <p className="text-sm text-destructive">
+            Couldn't refresh this: {error?.message}
+          </p>
+        )}
+        {/* Paired, though the status hasn't caught up yet. */}
+        {lifecycle.data ? (
+          <PairingLink link={lifecycle.data} />
+        ) : (
+          <GiveComputer
+            familiar={familiar}
+            provider={computer.provider}
+            pending={lifecycle.isPending}
+            error={lifecycle.error?.message}
+            onGive={(action) => lifecycle.mutate(action)}
+          />
+        )}
+      </div>
     )
   }
 
