@@ -30,6 +30,7 @@ jobs:
           node-version: '24.19.0'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run apps/daemon
+      # The eval runner has nothing platform-specific; it runs in ci.yml.
+      - run: pnpm exec vitest run apps/daemon --exclude 'apps/daemon/src/memory-eval/**'
       - run: pnpm bundle
       - run: pnpm test:release
