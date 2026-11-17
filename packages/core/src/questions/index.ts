@@ -22,11 +22,15 @@ import {
 } from '../workspace/familiars.ts'
 import { formProblem, type Form, type FormContent } from './form.ts'
 
+/** Takes a private question's values; see `ToolServices.askPrivately`. */
+type Receive = (values: FormContent) => Promise<void>
+
 /**
  * Questions for the person while a Familiar works: Familiar asking before a
- * connection's tool runs, and an MCP server asking mid-call (elicitation).
- * Both wait here, the one owner of what's pending, until the person answers
- * in the chat, the call is stopped, or the workspace closes.
+ * connection's tool runs, an MCP server asking mid-call (elicitation), and a
+ * plugin asking privately for values only it gets. All wait here, the one
+ * owner of what's pending, until the person answers in the chat, the call is
+ * stopped, or the workspace closes.
  *
  * They're kept in a document so clients see them through the same streams
  * as the rest of a turn, but a question lives only as long as what's
@@ -62,6 +66,17 @@ export type Question = {
       message: string
       /** Undefined for a form Familiar can't show, which can only be declined. */
       form?: Form
+    }
+  | {
+      /**
+       * A plugin asking for values only it gets, such as a password. They go
+       * straight to it, so the question's answer never holds them.
+       */
+      kind: 'private'
+      /** The plugin's title, else its name: for the person. */
+      plugin: string
+      message: string
+      form: Form
     }
 )
 
@@ -168,6 +183,16 @@ export function createQuestions(
   },
 ) {
   const context = BACKGROUND_CONTEXT
+  // Who takes each private question's values: in memory only, like the wait.
+  const receivers = new Map<string, Receive>()
+  // Each question takes one answer at a time. While one is in flight, other
+  // answers are refused, and anything that ends the wait meanwhile (a new
+  // message, a stop) waits for it to settle. A failed receiver leaves the
+  // question open for another try.
+  const answering = new Map<string, Promise<unknown>>()
+  // Private questions whose receiver took the values: accepted, whatever
+  // happens to the question's document after.
+  const received = new Set<string>()
 
   /** Tells the person, through the host, where to answer. */
   const announce = async (question: Question) => {
@@ -193,9 +218,14 @@ export function createQuestions(
   /**
    * Asks the person and waits for their answer. Cancelling `context` stops
    * waiting and withdraws the question. A gated call asked again after a
-   * restart reuses its question.
+   * restart reuses its question. A private question's values go to
+   * `receive`, never into its answer.
    */
-  const ask = async (draft: QuestionDraft, waiting: Context) => {
+  const ask = async (
+    draft: QuestionDraft,
+    waiting: Context,
+    receive?: Receive,
+  ) => {
     waiting.abortSignal?.throwIfAborted()
     const { question, asked } = await harness.commit(async (tx) => {
       const questions = await tx.doc(Questions)
@@ -217,12 +247,15 @@ export function createQuestions(
       questions[question.id] = question
       return { question, asked: true }
     }, context)
+    if (receive) {
+      receivers.set(question.id, receive)
+    }
     if (asked) {
       void announce(question).catch(() => {})
     }
     const watch = (await harness.watchDoc(Questions, context))!
     try {
-      return await new Promise<Outcome>((resolve, reject) => {
+      const ended = await new Promise<Outcome>((resolve, reject) => {
         const check = (state: Readonly<Record<string, Pending>> | null) => {
           const current = state?.[question.id]
           if (current?.answer) {
@@ -241,8 +274,24 @@ export function createQuestions(
         // Each call delivers the newest value, which `value` then holds.
         watch.start(async () => check(watch.value))
         check(watch.value)
-      })
+      }).then(
+        (outcome) => ({ outcome }),
+        (error: unknown) => ({ error }),
+      )
+      // In the same tick: an answer in flight now has the receiver, and a
+      // later one finds none.
+      receivers.delete(question.id)
+      await answering.get(question.id)
+      if (received.has(question.id)) {
+        return { action: 'accept' } as Outcome
+      }
+      if ('error' in ended) {
+        throw ended.error
+      }
+      return ended.outcome
     } finally {
+      receivers.delete(question.id)
+      received.delete(question.id)
       await watch.stop()
       await harness
         .commit(async (tx) => {
@@ -252,16 +301,43 @@ export function createQuestions(
     }
   }
 
+  /** `familiar`'s question `id`; throws QuestionGone unless it's waiting. */
+  const waitingIn = async (tx: Tx, familiar: FamiliarId, id: string) => {
+    const question = (await tx.doc(Questions))[id]
+    if (!question || question.familiar !== familiar || question.answer) {
+      throw new QuestionGone('That question is no longer waiting.')
+    }
+    return question
+  }
+
   /**
    * Gives `familiar`'s question `id` its answer. Throws QuestionGone when
-   * it isn't waiting, and a QuestionError when the answer doesn't fit it.
+   * it isn't waiting, and a QuestionError when the answer doesn't fit it or
+   * another is in flight. Accepting a private question gives its values to
+   * its receiver first, then stores the answer without them; whatever the
+   * receiver throws leaves it waiting. A private answer is stored as its
+   * action alone.
    */
-  const answer = (familiar: FamiliarId, id: string, answer: Answer) =>
-    harness.commit(async (tx) => {
-      const question = (await tx.doc(Questions))[id]
-      if (!question || question.familiar !== familiar || question.answer) {
-        throw new QuestionGone('That question is no longer waiting.')
-      }
+  const answer = async (familiar: FamiliarId, id: string, answer: Answer) => {
+    if (answering.has(id)) {
+      throw new QuestionError('That question is already being answered.')
+    }
+    const submitted = submit(familiar, id, answer)
+    answering.set(
+      id,
+      submitted.catch(() => {}),
+    )
+    try {
+      await submitted
+    } finally {
+      answering.delete(id)
+    }
+  }
+
+  /** Answers it, giving a private question's values to its receiver. */
+  const submit = async (familiar: FamiliarId, id: string, answer: Answer) => {
+    const values = await harness.commit(async (tx) => {
+      const question = await waitingIn(tx, familiar, id)
       if (answer.action === 'accept') {
         const problem =
           question.kind === 'tool'
@@ -274,9 +350,33 @@ export function createQuestions(
         if (problem) {
           throw new QuestionError(problem)
         }
+        if (question.kind === 'private') {
+          return answer.content ?? {}
+        }
       }
-      question.answer = answer
+      question.answer =
+        question.kind === 'private' ? { action: answer.action } : answer
+      return undefined
     }, context)
+    if (!values) {
+      return
+    }
+    const receive = receivers.get(id)
+    if (!receive) {
+      throw new QuestionGone('That question is no longer waiting.')
+    }
+    await receive(values)
+    // Provided now, even if storing the answer fails; a retry can't send them twice.
+    receivers.delete(id)
+    received.add(id)
+    // Its wait may have ended meanwhile; then it's already accepted.
+    await harness.commit(async (tx) => {
+      const question = (await tx.doc(Questions))[id]
+      if (question && !question.answer) {
+        question.answer = { action: 'accept' }
+      }
+    }, context)
+  }
 
   /** Before any connection's tool runs, applies the owner's policy for it. */
   const extension = defineExtension({

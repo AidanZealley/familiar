@@ -50,12 +50,32 @@ What Familiar gives each call, read from the call's context. It throws if the to
 | Member                                  | Meaning                                                                                                                                                                                                                |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `author()`                              | The person the call runs for, as described under [Tool author](/familiar/reference/core/#tool-author). Resolved from storage when you call it, so tools that don't need it pay nothing                                 |
+| `familiarId()`                          | The Familiar making the call. Resolved from storage when you call it, never from the tool's arguments. Throws in a conversation no Familiar owns                                                                       |
+| `askPrivately(request, receive)`        | Asks the person in the call's chat for values only the plugin gets, such as a password. See [Private questions](#private-questions)                                                                                    |
 | `fetch(input, init?)`                   | The host's network access. On Node, the default refuses every address that isn't public                                                                                                                                |
 | `authorizedFetch(secret, input, init?)` | `fetch`, with the named secret attached, if the request matches the plugin's declaration. Otherwise throws without sending. Throws a "not connected" message when the secret isn't set. Redirects come back unfollowed |
 | `notify(notification)`                  | Send a notification through the host. It never carries a schedule's context                                                                                                                                            |
 | `timeZone`                              | The owner's IANA zone. Format times with `localMinute`                                                                                                                                                                 |
 
-Familiar puts these on every tool it runs, core's and plugins'. Only a plugin's tools can send secrets, and only their own plugin's.
+Familiar puts these on every tool it runs, core's and plugins'. Only a plugin's tools can send secrets, and only their own plugin's, or ask privately.
+
+### Private questions
+
+```ts
+const result = await familiar(context).askPrivately(
+  {
+    message: 'Your login for example.com',
+    form: [
+      { name: 'username', type: 'string', required: true },
+      { name: 'password', type: 'string', format: 'password', required: true },
+    ],
+  },
+  async (values) => logins.save('example.com', values),
+)
+// 'provided' or 'declined'
+```
+
+The question shows in the chat like a server's form, with `format: 'password'` fields hidden as they're typed. When the person submits, `receive` gets the values before the question is answered, and they're never stored with the question, sent to the chat's clients or shown to the model. Return only `result` to the model. If `receive` throws, the person stays asked and sees why when it's a `QuestionError`. While `receive` runs, the question takes no other answer, and a new message or a stopped call waits for it: saved values count as `provided`. So make `receive` a quick local save that always settles, such as writing an encrypted file, never a network call. Otherwise a new message instead of an answer, or a stopped call, ends as `declined`.
 
 The context key is a global symbol, so a plugin bundled with its own copy of `@familiar-ai/core` still finds the services.
 
@@ -91,12 +111,13 @@ type SecretStore = {
 
 `@familiar-ai/core/node` has what a Node host needs beyond core. The daemon and the [Node server example](/familiar/examples/node-server/) both use it.
 
-| Export                               | What it does                                                                                                                        |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `fileSecretStore(path, keyPath)`     | A `SecretStore` in one encrypted JSON file                                                                                          |
-| `fileCredentialStore(path, keyPath)` | Model credentials, such as a ChatGPT login, in one encrypted JSON file. Refreshed tokens are saved before they're used              |
-| `lockDataDir(path)`                  | Claims a data directory for this process through a lock file. Throws while another process holds it, and takes over a crashed one's |
-| `jsonFile(path, initial)`            | A private JSON file, rewritten whole and atomically by `save()`, for a host's own state                                             |
+| Export                                               | What it does                                                                                                                                          |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fileSecretStore(path, keyPath)`                     | A `SecretStore` in one encrypted JSON file                                                                                                            |
+| `fileCredentialStore(path, keyPath)`                 | Model credentials, such as a ChatGPT login, in one encrypted JSON file. Refreshed tokens are saved before they're used                                |
+| `lockDataDir(path)`                                  | Claims a data directory for this process through a lock file. Throws while another process holds it, and takes over a crashed one's                   |
+| `jsonFile(path, initial)`                            | A private JSON file, rewritten whole and atomically by `save()`, for a host's own state                                                               |
+| `encryptedJsonFile(path, keyPath, purpose, initial)` | `jsonFile`, encrypted as the stores below are, for a plugin's own secrets. Its `purpose` binds the file to its use, so one can't stand in for another |
 
 Both credential stores encrypt their file with AES-256-GCM under the 32-byte key
 at `keyPath`, which they create on the first save. The two can share a key. Any

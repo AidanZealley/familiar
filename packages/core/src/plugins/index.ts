@@ -7,7 +7,9 @@ import {
   type PluginFetch,
   type SecretStore,
 } from '../connections/index.ts'
-import { withServices, type ToolServices } from '../tools.ts'
+import type { QuestionsApi } from '../questions/index.ts'
+import { familiarFor } from '../workspace/familiars.ts'
+import { withServices, type ToolCall, type ToolServices } from '../tools.ts'
 import { createConnections } from './connections.ts'
 import type { FamiliarPlugin } from './types.ts'
 
@@ -79,6 +81,8 @@ export type PluginsOptions = {
   secrets?: SecretStore
   fetch?: PluginFetch
   notify?: Notify
+  /** Where a plugin's private questions go; without it, they can't ask. */
+  questions?: Pick<QuestionsApi, 'ask'>
   timeZone: string
 }
 
@@ -91,25 +95,55 @@ export function createPlugins(options: PluginsOptions) {
   const fetch = options.fetch ?? defaultFetch
   const connections = createConnections(options.plugins, options.secrets)
 
-  const services = (plugin?: FamiliarPlugin): Omit<ToolServices, 'author'> => ({
-    timeZone: options.timeZone,
-    // Without a schedule's context: tools can't claim one.
-    notify: async (notification) => options.notify?.(notification),
-    fetch,
-    authorizedFetch: async (name, input, init) => {
-      if (!plugin) {
-        throw new Error(`Only a plugin's tools can send its secrets.`)
-      }
-      const connection = { kind: 'plugin' as const, name: plugin.name }
-      return authorizedFetch(
-        fetch,
-        connections.declaration(connection, name),
-        () => connections.value(connection, name),
-        input,
-        init,
-      )
-    },
-  })
+  const services =
+    (plugin?: FamiliarPlugin) =>
+    ({
+      tool,
+      api,
+      context,
+    }: ToolCall): Omit<ToolServices, 'author' | 'familiarId'> => ({
+      timeZone: options.timeZone,
+      // Without a schedule's context: tools can't claim one.
+      notify: async (notification) => options.notify?.(notification),
+      fetch,
+      authorizedFetch: async (name, input, init) => {
+        if (!plugin) {
+          throw new Error(`Only a plugin's tools can send its secrets.`)
+        }
+        const connection = { kind: 'plugin' as const, name: plugin.name }
+        return authorizedFetch(
+          fetch,
+          connections.declaration(connection, name),
+          () => connections.value(connection, name),
+          input,
+          init,
+        )
+      },
+      askPrivately: async ({ message, form }, receive) => {
+        if (!plugin || !options.questions) {
+          throw new Error(`Only a plugin's tools can ask privately.`)
+        }
+        const familiar = await api.commit(
+          (tx) => familiarFor(tx, api.conversationId),
+          context,
+        )
+        const outcome = await options.questions.ask(
+          {
+            kind: 'private',
+            familiar,
+            // A nested call shows under the call the model made.
+            callId: api.callId.split('/')[0]!,
+            tool,
+            plugin: plugin.title || plugin.name,
+            message,
+            form,
+          },
+          context,
+          receive,
+        )
+        return outcome.action === 'accept' ? 'provided' : 'declined'
+      },
+    })
 
   const provide = (extension: Extension, plugin?: FamiliarPlugin) => {
     const provided = services(plugin)
