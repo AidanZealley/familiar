@@ -8,7 +8,8 @@ import { shorten } from './shorten.ts'
  * (`channel: 'chromium'`), not Playwright's stripped-down headless shell, so
  * sites see a real browser and a visible one can later use the same build
  * and profile. Its profile is kept in `profileDir`, with password saving off:
- * passwords stay on the host. It starts on first use and again after it
+ * passwords stay on the host. It uses the proxy in `HTTPS_PROXY`, if any,
+ * as a provider's computer must. It starts on first use and again after it
  * closes or crashes.
  */
 export function openBrowser(profileDir: string) {
@@ -16,9 +17,11 @@ export function openBrowser(profileDir: string) {
 
   const launch = async () => {
     turnOffPasswordSaving(profileDir)
+    const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy
     const context = await chromium.launchPersistentContext(profileDir, {
       channel: 'chromium',
       headless: true,
+      ...(proxy && { proxy: { server: proxy } }),
     })
     context.on('close', () => {
       running = undefined

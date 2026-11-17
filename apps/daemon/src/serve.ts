@@ -123,10 +123,14 @@ export function daemonApp(
     app.route('/api/providers', providerRoutes(options.models))
   }
   if (options.computers) {
-    // Outside the workspace's API too. A computer connects by an address
-    // the owner uses, with its pairing token.
+    // Outside the workspace's API too. A computer connects with its pairing
+    // token, which a page in a browser can't send, by whatever address
+    // reaches the daemon from it, such as a Docker provider's proxy.
     app.use('/api/computers/*', async (c, next) => {
-      if (!isAllowedHost(c.req.header('host') ?? null)) {
+      if (
+        c.req.path !== '/api/computers/connect' &&
+        !isAllowedHost(c.req.header('host') ?? null)
+      ) {
         return c.json({ error: 'unauthorized' }, 401)
       }
       await next()

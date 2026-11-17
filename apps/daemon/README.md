@@ -14,6 +14,8 @@ The owner's plugins are `.ts` and `.js` files in `plugins/` in the data director
 
 Settings live in `settings.json` in the data directory (`~/.local/share/familiar` on Linux, `~/Library/Application Support/Familiar` on macOS, `%LOCALAPPDATA%\Familiar` on Windows). `FAMILIAR_NAME`, `FAMILIAR_OWNER`, `FAMILIAR_PORT`, `FAMILIAR_MODEL`, `FAMILIAR_HOST` and `FAMILIAR_DATA_DIR` override them. Model choices live in [src/config.ts](src/config.ts).
 
+Familiars can be given Docker computers when `FAMILIAR_DOCKER_COMPUTERS` names the address containers reach the daemon by, as `host:port` from the Docker host, such as `host.docker.internal:4317` with `FAMILIAR_HOST` set to an address containers can reach, not only `127.0.0.1`. Docker is the local engine, or another over SSH with `DOCKER_HOST=ssh://…`. Build the computers' image first with `pnpm --filter @familiar-ai/computer image`, on the Docker host's engine.
+
 ## Development
 
 From the repository root:

@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { computerPlugin, openComputers } from '@familiar-ai/computer'
+import { dockerProvider } from '@familiar-ai/computer/docker'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -25,6 +26,12 @@ export async function serve() {
   const computers = openComputers({
     path: dataPath('computers.json'),
     keyPath: dataPath('vault.key'),
+    ...(config.dockerComputers && {
+      provider: dockerProvider({
+        hostId: deviceId().slice(0, 8),
+        hostAddress: config.dockerComputers,
+      }),
+    }),
   })
 
   const models = openModels()
@@ -58,6 +65,8 @@ export async function serve() {
     },
     config.name,
   )
+
+  await computers.follow(workspace)
 
   serveWorkspace(workspace, {
     host: config.host,

@@ -10,7 +10,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./agent": "./src/agent/index.ts"
+    "./agent": "./src/agent/index.ts",
+    "./docker": "./src/docker/index.ts"
   },
   "files": [
     "dist"
@@ -22,13 +23,15 @@
     },
     "exports": {
       ".": "./dist/index.js",
-      "./agent": "./dist/agent/index.js"
+      "./agent": "./dist/agent/index.js",
+      "./docker": "./dist/docker/index.js"
     }
   },
   "scripts": {
     "typecheck": "tsc",
     "build": "tsc -p tsconfig.build.json",
-    "agent": "node src/agent/main.ts"
+    "agent": "node src/agent/main.ts",
+    "image": "docker build -t familiar-computer -f Dockerfile ../.."
   },
   "peerDependencies": {
     "@familiar-ai/core": "workspace:*",
