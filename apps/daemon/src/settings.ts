@@ -7,6 +7,12 @@ const text = z.string(nonEmpty).trim().min(1, nonEmpty).optional()
 const port = 'must be an integer between 1 and 65535'
 const count = 'must be a whole number, 0 or more'
 
+/**
+ * How many computers Familiars may have. Lowering it removes none; it only
+ * stops new ones.
+ */
+export const MaxComputers = z.int(count).min(0, count)
+
 /** What `settings.json` may hold. Anything left out follows the release's default. */
 const Settings = z.object(
   {
@@ -19,11 +25,7 @@ const Settings = z.object(
     /** The OpenAI model to start on, when it's offered; else the first offered. */
     model: text,
     port: z.int(port).min(1, port).max(65535, port).optional(),
-    /**
-     * How many computers Familiars may have. Lowering it removes none; it
-     * only stops new ones.
-     */
-    maxComputers: z.int(count).min(0, count).optional(),
+    maxComputers: MaxComputers.optional(),
   },
   { error: 'must be a JSON object' },
 )

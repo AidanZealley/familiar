@@ -3,7 +3,6 @@ import type { PluginSecret } from '../connections/index.ts'
 import type { Author } from '../conversation/message.ts'
 import type { FamiliarTool } from '../tools.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
-import type { Workspace } from '../workspace/index.ts'
 
 export type { FamiliarTool } from '../tools.ts'
 
@@ -38,7 +37,6 @@ export type PluginClose = void | (() => void | Promise<void>)
 
 /** What a plugin is given when its workspace opens. */
 export type PluginContext = {
-  workspace: Workspace
   /**
    * Calls `listener` with the Familiars that use this plugin, those that
    * have it turned on, then again when that changes: one turns it on or

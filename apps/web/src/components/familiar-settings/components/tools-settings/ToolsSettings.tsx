@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CapabilitySwitch } from '@/components/capability-switch'
 import { ConnectionToggles } from '@/components/connection-toggles'
 import { connectionsQuery } from '@/components/connections'
-import { computerPlugin } from '@/lib/computers'
+import { isComputer } from '@/lib/computers'
 import { useCapabilitySource } from '../../useCapabilitySource'
 import { RemoveComputerDialog } from '../remove-computer-dialog'
 import type { ToolsSettingsProps } from './types'
@@ -24,8 +24,7 @@ export const ToolsSettings = ({ familiar }: ToolsSettingsProps) => {
           source={source}
           label={`${familiar.name} uses ${connection.title}`}
           confirmOff={
-            connection.kind === computerPlugin.kind &&
-            connection.name === computerPlugin.name
+            isComputer(connection)
               ? (dialog) => (
                   <RemoveComputerDialog familiar={familiar} {...dialog} />
                 )

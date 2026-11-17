@@ -1,9 +1,7 @@
 import type { FamiliarId } from '../workspace/familiars.ts'
-import type { Workspace } from '../workspace/index.ts'
 import type { FamiliarPlugin } from './types.ts'
 
 export type OpenPluginsOptions = {
-  workspace: Workspace
   /** The Familiars that use a plugin now, read from storage. */
   usersOf: (plugin: string) => Promise<FamiliarId[]>
   /** Fires `change` whenever who uses a plugin may have changed. */
@@ -17,7 +15,7 @@ export type OpenPluginsOptions = {
  */
 export async function openPlugins(
   plugins: readonly FamiliarPlugin[],
-  { workspace, usersOf, changes }: OpenPluginsOptions,
+  { usersOf, changes }: OpenPluginsOptions,
 ) {
   const watching = new AbortController()
   const closes: (() => void | Promise<void>)[] = []
@@ -41,7 +39,6 @@ export async function openPlugins(
   try {
     for (const plugin of plugins) {
       const closePlugin = await plugin.open?.({
-        workspace,
         watchFamiliars: (listener) => {
           let told: string | undefined
           let reading = Promise.resolve()

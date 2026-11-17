@@ -1,10 +1,17 @@
-import type { FamiliarSummary } from '@familiar-ai/client'
+import type { ConnectionInfo, FamiliarSummary } from '@familiar-ai/client'
 import { queryOptions } from '@tanstack/react-query'
 import { capabilitiesKey } from './familiar'
 import { check } from './http'
 
 /** The computer plugin, which a Familiar's `computer` capability turns on. */
 export const computerPlugin = { kind: 'plugin', name: 'computer' } as const
+
+/** Whether a connection is the computer plugin. */
+export const isComputer = ({
+  kind,
+  name,
+}: Pick<ConnectionInfo, 'kind' | 'name'>) =>
+  kind === computerPlugin.kind && name === computerPlugin.name
 
 /** A Familiar's computer, as the plugin's host reports it. */
 export type ComputerStatus =
