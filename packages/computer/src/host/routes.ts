@@ -3,6 +3,7 @@ import { Hono, type Context } from 'hono'
 import type { UpgradeWebSocket } from 'hono/ws'
 import { socketTransport, type SocketTransport } from '../transport.ts'
 import type { Computers } from './computers.ts'
+import { originOf } from './logins.ts'
 import { COMPUTER_PLUGIN } from './plugin.ts'
 
 export type ComputerRoutesOptions = {
@@ -27,6 +28,11 @@ const idOf = (c: Context) => Number(c.req.param('familiar')) as FamiliarId
  *   `none`, `asleep`, `offline` or `online`; `provided` is whether the
  *   provider runs the computer, not a paired machine; `provider` is whether
  *   this host has a provider to give one.
+ * - `GET /:familiar/logins` answers its computer's logins as
+ *   `[{ site, username }]`, never their passwords.
+ * - `PUT /:familiar/logins` saves `{ site, username, password }` in place of
+ *   any login for that site, answering `{ site }`, the exact origin it's for.
+ * - `DELETE /:familiar/logins?site=…` deletes the login for that site.
  * - `GET /connect` is the agent's WebSocket, with its token as a bearer.
  */
 export function computerRoutes(
@@ -63,6 +69,34 @@ export function computerRoutes(
         }
       }),
     )
+    .get('/:familiar/logins', (c) => c.json(computers.logins.list(idOf(c))))
+    .put('/:familiar/logins', async (c) => {
+      const { site, username, password } = (await c.req
+        .json()
+        .catch(() => ({}))) as Record<string, unknown>
+      if (
+        typeof site !== 'string' ||
+        typeof username !== 'string' ||
+        typeof password !== 'string' ||
+        !password
+      ) {
+        return c.json(
+          { error: 'A login needs a site, username and password.' },
+          400,
+        )
+      }
+      try {
+        const origin = originOf(site)
+        computers.logins.set(idOf(c), origin, { username, password })
+        return c.json({ site: origin })
+      } catch (error) {
+        return c.json({ error: (error as Error).message }, 400)
+      }
+    })
+    .delete('/:familiar/logins', (c) => {
+      computers.logins.delete(idOf(c), c.req.query('site') ?? '')
+      return c.json({})
+    })
     .get('/:familiar', async (c) =>
       c.json({
         status: await computers.status(idOf(c)),

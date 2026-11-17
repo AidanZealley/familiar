@@ -5,11 +5,14 @@ import type { z } from 'zod'
 import {
   annotationsOf,
   computerTools,
+  SIGN_IN,
+  signInTool,
   type ComputerToolName,
 } from '../tools.ts'
+import { KEEP_TEXT } from '../shorten.ts'
 import type { Browser } from './browser.ts'
 import { runCommand } from './shell.ts'
-import { shorten } from './shorten.ts'
+import { signIn, type SignInOutcome } from './sign-in.ts'
 
 type Args<Name extends ComputerToolName> = z.infer<
   (typeof computerTools)[Name]['input']
@@ -26,6 +29,33 @@ const text = (text: string, isError = false): CallToolResult => ({
   content: [{ type: 'text', text }],
   isError,
 })
+
+/** What the model is told of a sign-in to `origin`, and whether it's an error. */
+const signedIn = (outcome: SignInOutcome, origin: string): [string, boolean] =>
+  outcome === 'signed in'
+    ? [
+        `Signed in to ${origin}: the sign-in form has gone. Look at the page to check.`,
+        false,
+      ]
+    : outcome === 'submitted'
+      ? [
+          `Submitted the login to ${origin}, but a sign-in form is still showing: the login may be wrong, or the site wants more, such as a code. Look at the page before signing in again.`,
+          false,
+        ]
+      : outcome === 'unknown'
+        ? [
+            `Whether the login was submitted to ${origin} is unknown. Look at the page; don't sign in again until you have.`,
+            true,
+          ]
+        : outcome === 'no form'
+          ? [
+              `Nothing was filled in: the open page has no sign-in form. Open ${origin}'s sign-in page first.`,
+              true,
+            ]
+          : [
+              `Refused: the sign-in form is on ${outcome.refused}, not ${origin}, and a login is only filled in on its own site exactly. Nothing was filled in.`,
+              true,
+            ]
 
 const STARTED =
   'The browser has just started, so any pages opened before are gone.\n\n'
@@ -85,10 +115,11 @@ export function computerServer(browser: Browser, home: string) {
       const status = timedOut
         ? `Stopped after ${timeout_seconds} seconds.`
         : `Exit code ${code}.`
-      return text(`${status}\n${output}`, code !== 0)
+      // The status last, as the host keeps the end of long output.
+      return text(`${output}\n${status}`, code !== 0)
     },
     read_file: async ({ path }) =>
-      text(shorten(await readFile(resolve(home, path), 'utf8'))),
+      text((await readFile(resolve(home, path), 'utf8')).slice(0, KEEP_TEXT)),
     write_file: async ({ path, content }) => {
       const file = resolve(home, path)
       await mkdir(dirname(file), { recursive: true })
@@ -98,6 +129,25 @@ export function computerServer(browser: Browser, home: string) {
   }
 
   const server = new McpServer({ name: 'familiar-computer', version: '1.0.0' })
+  server.registerTool(
+    SIGN_IN,
+    { description: signInTool.description, inputSchema: signInTool.input },
+    async (login) => {
+      try {
+        const { page } = await browser.page()
+        const [said, isError] = signedIn(
+          await signIn(page, login),
+          login.origin,
+        )
+        return text(`${said}\n\n${await browser.snapshot(page)}`, isError)
+      } catch (error) {
+        return text(
+          `Whether the login was submitted is unknown (${error instanceof Error ? error.message : String(error)}). Look at the page; don't sign in again until you have.`,
+          true,
+        )
+      }
+    },
+  )
   for (const [name, tool] of Object.entries(computerTools)) {
     const handle = handlers[name as ComputerToolName] as (
       args: unknown,

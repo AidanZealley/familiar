@@ -25,6 +25,7 @@ export async function serve() {
 
   const computers = openComputers({
     path: dataPath('computers.json'),
+    loginsDir: dataPath('computer-logins'),
     keyPath: dataPath('vault.key'),
     ...(config.dockerComputers && {
       provider: dockerProvider({

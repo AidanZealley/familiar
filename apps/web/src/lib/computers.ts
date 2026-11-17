@@ -30,6 +30,47 @@ export const computerQuery = (familiar: number) =>
     refetchInterval: 5_000,
   })
 
+/** A login on a Familiar's computer: never its password. */
+export type ComputerLogin = { site: string; username: string }
+
+/** The logins on the Familiar's computer. */
+export const loginsQuery = (familiar: number) =>
+  queryOptions({
+    queryKey: ['computer', familiar, 'logins'],
+    queryFn: async () => {
+      const response = await fetch(`/api/computers/${familiar}/logins`)
+      await check(response)
+      return (await response.json()) as ComputerLogin[]
+    },
+  })
+
+/**
+ * Saves a login on the Familiar's computer in place of any for its site,
+ * straight to the host, never through chat.
+ */
+export async function saveLogin(
+  familiar: number,
+  login: ComputerLogin & { password: string },
+) {
+  await check(
+    await fetch(`/api/computers/${familiar}/logins`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(login),
+    }),
+  )
+}
+
+/** Deletes the login for `site` from the Familiar's computer. */
+export async function deleteLogin(familiar: number, site: string) {
+  await check(
+    await fetch(
+      `/api/computers/${familiar}/logins?${new URLSearchParams({ site })}`,
+      { method: 'DELETE' },
+    ),
+  )
+}
+
 /** Gives the Familiar a computer the host's provider runs. */
 export async function provideComputer(familiar: number) {
   await post(familiar, { provider: true })

@@ -13,6 +13,8 @@ export type ComputerTool = {
   reads?: true
   /** For an action that is safe to approve once for all, such as opening a page. */
   harmless?: true
+  /** Its result's end matters most, as a command's output does: a long one keeps that. */
+  keepsEnd?: true
 }
 
 const ref = z
@@ -58,6 +60,7 @@ export const computerTools = {
       command: z.string(),
       timeout_seconds: z.number().int().min(1).max(600).optional(),
     }),
+    keepsEnd: true,
   },
   read_file: {
     description:
@@ -81,3 +84,19 @@ export const annotationsOf = (tool: ComputerTool) =>
     : tool.harmless
       ? { destructiveHint: false }
       : undefined
+
+/**
+ * The agent's sign-in helper, which only the host calls, with a login it
+ * saved: never offered to Familiars, who sign in by site.
+ */
+export const signInTool = {
+  description:
+    "Fills a login into the open page's sign-in form and submits it, only if the form is at `origin` exactly, then shows the page as browser_snapshot does.",
+  input: z.object({
+    origin: z.string(),
+    username: z.string(),
+    password: z.string(),
+  }),
+} satisfies ComputerTool
+
+export const SIGN_IN = 'sign_in'
