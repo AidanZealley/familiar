@@ -107,8 +107,12 @@ export default defineConfig([
     },
   },
   {
-    // Node-only: core's Node helpers.
-    files: ['packages/core/src/node/**/*.ts'],
+    // Node-only: core's Node helpers, and the computer agent and Docker host.
+    files: [
+      'packages/core/src/node/**/*.ts',
+      'packages/computer/src/agent/**/*.ts',
+      'packages/computer/src/docker/**/*.ts',
+    ],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

@@ -1,5 +1,8 @@
-import { mkdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, realpathSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
+import { computer } from '@familiar-ai/computer'
+import { dockerHost } from '@familiar-ai/computer/docker'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
@@ -38,7 +41,11 @@ export async function serve() {
         account: { login: { getDeviceId: deviceId, agentName: config.name } },
       }),
       notify: push.notify,
-      plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
+      plugins: await loadPlugins(config.pluginsDir, [
+        webPlugin,
+        // Computers for the Familiars given one, where Docker is installed.
+        computer({ host: dockerHost({ hostId: computerHostId() }) }),
+      ]),
       // What Familiars call the owner, until they choose another name.
       people: [{ id: OWNER_ID, name: config.owner }],
       // Web search and pages are useful to any Familiar; others opt in.
@@ -60,4 +67,21 @@ export async function serve() {
     push: push.host,
     models,
   })
+}
+
+/**
+ * This installation's ID on a Docker engine, which removes any computer
+ * under it that its Familiars don't have. It comes from the data
+ * directory's device ID and real path, so neither a copy of the directory
+ * (a development daemon's, say) nor another machine's installation at the
+ * same path on a shared engine gets the same one. The trade-off: moving
+ * the data directory changes it, so its Familiars start on new, empty
+ * computers, and the old ones and their disks stay on the engine under the
+ * old ID until removed with `docker`.
+ */
+function computerHostId() {
+  return createHash('sha256')
+    .update(`${deviceId()}\0${realpathSync(config.dataDir)}`)
+    .digest('hex')
+    .slice(0, 12)
 }
