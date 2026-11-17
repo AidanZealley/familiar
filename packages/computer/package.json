@@ -10,7 +10,6 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./agent": "./src/agent/index.ts",
     "./docker": "./src/docker/index.ts"
   },
   "files": [
@@ -18,12 +17,8 @@
   ],
   "publishConfig": {
     "access": "public",
-    "bin": {
-      "familiar-computer": "./dist/agent/main.js"
-    },
     "exports": {
       ".": "./dist/index.js",
-      "./agent": "./dist/agent/index.js",
       "./docker": "./dist/docker/index.js"
     }
   },
