@@ -2,8 +2,6 @@ import type { CredentialStore, Models } from '@earendil-works/pi-ai'
 import { registerBunOAuthFlows } from '@earendil-works/pi-ai/bun-oauth'
 import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic'
 import { googleProvider } from '@earendil-works/pi-ai/providers/google'
-import { groqProvider } from '@earendil-works/pi-ai/providers/groq'
-import { mistralProvider } from '@earendil-works/pi-ai/providers/mistral'
 import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
 import { openrouterProvider } from '@earendil-works/pi-ai/providers/openrouter'
 import { xaiProvider } from '@earendil-works/pi-ai/providers/xai'
@@ -27,10 +25,8 @@ export function providerModels(credentials?: CredentialStore) {
     openaiProvider(),
     anthropicProvider(),
     googleProvider(),
-    openrouterProvider(),
     xaiProvider(),
-    groqProvider(),
-    mistralProvider(),
+    openrouterProvider(),
   ]) {
     models.setProvider(provider)
   }
