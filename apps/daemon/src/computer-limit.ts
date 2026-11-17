@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
-import { readSettings, saveSettings } from './settings.ts'
+import { MaxComputers, readSettings, saveSettings } from './settings.ts'
 
 /**
  * How many computers Familiars may have, read live wherever it's kept, so a
@@ -28,11 +28,11 @@ export const computerLimitRoutes = (limit: ComputerLimit) =>
     .put(
       '/',
       validator('json', (body, c) => {
-        const maxComputers: unknown = body?.maxComputers
-        return Number.isInteger(maxComputers) && (maxComputers as number) >= 0
-          ? { maxComputers: maxComputers as number }
+        const parsed = MaxComputers.safeParse(body?.maxComputers)
+        return parsed.success
+          ? { maxComputers: parsed.data }
           : c.json(
-              { error: 'maxComputers must be a whole number, 0 or more' },
+              { error: `maxComputers ${parsed.error.issues[0]!.message}` },
               400,
             )
       }),
