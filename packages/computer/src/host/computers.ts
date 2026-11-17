@@ -157,20 +157,25 @@ export function openComputers(options: ComputersOptions) {
     return online.get(familiar)
   }
 
-  /** Within `serially`: forgets `familiar`'s computer and deletes the provider's. */
+  /**
+   * Within `serially`: deletes the provider's computer, then forgets
+   * `familiar`'s. If deleting fails, the computer is kept, so it's never
+   * given a new token while the old container remains; the caller sees the
+   * error and the check tries again.
+   */
   const removeComputer = async (familiar: FamiliarId) => {
     const saved = file.value[familiar]
     if (!saved) {
       return
     }
-    save((all) => delete all[familiar])
     clearTimeout(idle.get(familiar))
     idle.delete(familiar)
     await disconnect(familiar)
-    // If this fails, the check removes it later.
-    await provider
-      ?.remove(familiar)
-      .catch((error) => log(`Couldn't remove a computer: ${error}`))
+    if (saved.provided) {
+      // Without a provider now, its check sweeps the container up later.
+      await provider?.remove(familiar)
+    }
+    save((all) => delete all[familiar])
   }
 
   /**
@@ -187,6 +192,7 @@ export function openComputers(options: ComputersOptions) {
       ...existing.keys(),
     ])
     for (const familiar of ids) {
+      // One computer failing doesn't stop the check of the others.
       await serially(familiar, async () => {
         if (!familiars.has(familiar) && file.value[familiar]) {
           return removeComputer(familiar)
@@ -207,7 +213,9 @@ export function openComputers(options: ComputersOptions) {
         } else if (found !== 'stopped') {
           await provider.create(familiar, saved.token)
         }
-      })
+      }).catch((error) =>
+        log(`Couldn't check computer for Familiar ${familiar}: ${error}`),
+      )
     }
   }
 

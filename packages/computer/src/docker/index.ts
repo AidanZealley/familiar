@@ -153,6 +153,15 @@ export function dockerProvider(options: DockerOptions): ComputerProvider {
         ...theirs(familiar),
         name,
       )
+    }
+    // Checked apart from making the network, in case joining failed before.
+    const joined = await docker(
+      'inspect',
+      '--format',
+      '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}',
+      proxy,
+    )
+    if (!joined.split(' ').includes(name)) {
       await docker('network', 'connect', name, proxy)
     }
     const proxyUrl = `http://${proxy}:${PROXY_PORT}`
