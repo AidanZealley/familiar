@@ -1,7 +1,8 @@
 # A Familiar's computer, for `dockerHost`: Chromium and the agent, run as an
 # unprivileged user whose home is the computer's disk. The agent listens on
 # a Unix socket the host reaches with `docker exec … socat`. The same image
-# runs the host's egress proxy (`docker/proxy-main.js`).
+# runs the host's egress proxy (`docker/proxy-main.js`), which listens on a
+# socket in /run/familiar-proxy, a volume shared with every computer.
 #
 # Build from the repository root: pnpm image
 
@@ -22,7 +23,7 @@ RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell ch
   && apt-get install -y --no-install-recommends socat curl ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash computer \
-  && install -d -o computer -g computer /run/familiar
+  && install -d -o computer -g computer /run/familiar /run/familiar-proxy
 USER computer
 WORKDIR /home/computer
 ENTRYPOINT ["node", "/agent/dist/agent/main.js"]

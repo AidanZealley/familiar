@@ -30,7 +30,8 @@ export type ComputerHost = {
 /**
  * A Familiar's computer: running, asleep (stopped, its disk kept), being set
  * up (its image downloading), none, or unavailable on this host and why,
- * such as Docker not being installed.
+ * such as Docker not being installed or the host having as many computers
+ * as it allows.
  */
 export type ComputerStatus =
   | { state: 'running' | 'asleep' | 'setting-up' | 'none' }

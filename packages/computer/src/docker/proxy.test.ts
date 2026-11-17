@@ -52,7 +52,7 @@ const send = (port: number, request: string) =>
 // One proxy serves every computer, so no request may bring it down.
 test('the proxy refuses requests it can’t use and keeps serving', async () => {
   const proxyPort = await freePort()
-  const proxy = startProxy({ port: proxyPort, own })
+  const proxy = startProxy({ listen: proxyPort, own })
   onTestFinished(() => void proxy.close())
   const close = 'Host: x\r\nConnection: close\r\n\r\n'
   expect(await send(proxyPort, `GET http://[ HTTP/1.1\r\n${close}`)).toMatch(
