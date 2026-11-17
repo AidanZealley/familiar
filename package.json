@@ -12,6 +12,7 @@
     "build": "pnpm --filter @familiar-ai/web build",
     "build:packages": "pnpm --filter \"./packages/*\" build",
     "build:docs": "pnpm --filter @familiar-ai/docs build",
+    "image": "pnpm --filter @familiar-ai/computer image",
     "start": "pnpm --filter @familiar-ai/daemon start",
     "sign-in": "pnpm --filter @familiar-ai/daemon sign-in",
     "eval:recall": "pnpm --filter @familiar-ai/daemon eval:recall",
