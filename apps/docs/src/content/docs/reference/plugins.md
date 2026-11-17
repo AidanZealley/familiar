@@ -75,7 +75,7 @@ const result = await familiar(context).askPrivately(
 // 'provided' or 'declined'
 ```
 
-The question shows in the chat like a server's form, with `format: 'password'` fields hidden as they're typed. When the person submits, `receive` gets the values before the question is answered, and they're never stored with the question, sent to the chat's clients or shown to the model. Return only `result` to the model. If `receive` throws, the person stays asked and sees why when it's a `QuestionError`. While `receive` runs, the question takes no other answer, and a new message or a stopped call waits for it: saved values count as `provided`. Otherwise a new message instead of an answer, or a stopped call, ends as `declined`.
+The question shows in the chat like a server's form, with `format: 'password'` fields hidden as they're typed. When the person submits, `receive` gets the values before the question is answered, and they're never stored with the question, sent to the chat's clients or shown to the model. Return only `result` to the model. If `receive` throws, the person stays asked and sees why when it's a `QuestionError`. While `receive` runs, the question takes no other answer, and a new message or a stopped call waits for it: saved values count as `provided`. So make `receive` a quick local save that always settles, such as writing an encrypted file, never a network call. Otherwise a new message instead of an answer, or a stopped call, ends as `declined`.
 
 The context key is a global symbol, so a plugin bundled with its own copy of `@familiar-ai/core` still finds the services.
 

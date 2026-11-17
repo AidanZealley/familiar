@@ -95,7 +95,9 @@ export type ToolServices = {
    * the question, shown to the model or kept in the chat. Resolves
    * `provided` once `receive` returns, else `declined`, which is all the
    * model should learn. If `receive` throws, the person stays asked; throw a
-   * QuestionError to tell them why. Only a plugin's tools can ask.
+   * QuestionError to tell them why. Make `receive` a quick local save that
+   * always settles: a new message or a stopped call waits for it. Only a
+   * plugin's tools can ask.
    */
   askPrivately(
     request: PrivateRequest,

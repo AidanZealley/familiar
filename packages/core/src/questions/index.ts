@@ -187,10 +187,12 @@ export function createQuestions(
   const receivers = new Map<string, Receive>()
   // Each question takes one answer at a time. While one is in flight, other
   // answers are refused, and anything that ends the wait meanwhile (a new
-  // message, a stop) waits for it: values its receiver saved count as
-  // accepted. Resolves whether they were saved; a failed receiver leaves the
+  // message, a stop) waits for it to settle. A failed receiver leaves the
   // question open for another try.
-  const answering = new Map<string, Promise<boolean>>()
+  const answering = new Map<string, Promise<unknown>>()
+  // Private questions whose receiver took the values: accepted, whatever
+  // happens to the question's document after.
+  const received = new Set<string>()
 
   /** Tells the person, through the host, where to answer. */
   const announce = async (question: Question) => {
@@ -279,12 +281,8 @@ export function createQuestions(
       // In the same tick: an answer in flight now has the receiver, and a
       // later one finds none.
       receivers.delete(question.id)
-      const inFlight = answering.get(question.id)
-      if (
-        !('outcome' in ended && ended.outcome.action === 'accept') &&
-        inFlight &&
-        (await inFlight)
-      ) {
+      await answering.get(question.id)
+      if (received.has(question.id)) {
         return { action: 'accept' } as Outcome
       }
       if ('error' in ended) {
@@ -293,6 +291,7 @@ export function createQuestions(
       return ended.outcome
     } finally {
       receivers.delete(question.id)
+      received.delete(question.id)
       await watch.stop()
       await harness
         .commit(async (tx) => {
@@ -326,10 +325,7 @@ export function createQuestions(
     const submitted = submit(familiar, id, answer)
     answering.set(
       id,
-      submitted.then(
-        (saved) => saved,
-        () => false,
-      ),
+      submitted.catch(() => {}),
     )
     try {
       await submitted
@@ -338,7 +334,7 @@ export function createQuestions(
     }
   }
 
-  /** Answers it; resolves whether a private question's values were saved. */
+  /** Answers it, giving a private question's values to its receiver. */
   const submit = async (familiar: FamiliarId, id: string, answer: Answer) => {
     const values = await harness.commit(async (tx) => {
       const question = await waitingIn(tx, familiar, id)
@@ -363,13 +359,16 @@ export function createQuestions(
       return undefined
     }, context)
     if (!values) {
-      return false
+      return
     }
     const receive = receivers.get(id)
     if (!receive) {
       throw new QuestionGone('That question is no longer waiting.')
     }
     await receive(values)
+    // Provided now, even if storing the answer fails; a retry can't send them twice.
+    receivers.delete(id)
+    received.add(id)
     // Its wait may have ended meanwhile; then it's already accepted.
     await harness.commit(async (tx) => {
       const question = (await tx.doc(Questions))[id]
@@ -377,7 +376,6 @@ export function createQuestions(
         question.answer = { action: 'accept' }
       }
     }, context)
-    return true
   }
 
   /** Before any connection's tool runs, applies the owner's policy for it. */
