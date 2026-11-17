@@ -116,4 +116,4 @@ Allow `plugins.computer` in your `allow` for whoever may see it. See [routes](/f
 - Docker only. Workspaces on Cloudflare and in a browser can't have computers yet.
 - Disk use isn't capped. Each computer's home directory is a Docker volume that grows as the Familiar uses it.
 - Verified with Docker Engine on Linux. Docker Desktop on macOS and Windows hasn't been verified.
-- The image is published for `linux/amd64` only.
+- The image is published for `linux/amd64` and `linux/arm64` only. Docker pulls the one for its machine.
