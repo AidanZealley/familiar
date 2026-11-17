@@ -13,7 +13,8 @@ import { useWorkspace, workspace } from '@/lib/familiar'
 
 /**
  * The workspace's model sign-in: signed in with Sign out, or the same
- * sign-in the composer offers. Hosts that manage credentials send none.
+ * sign-in the composer offers. Hosts that reach their models another way
+ * send none.
  */
 export const ModelAccount = () => {
   const account = useWorkspace((state) => state.account)
@@ -24,7 +25,8 @@ export const ModelAccount = () => {
   if (account === null) {
     return (
       <p className="text-sm text-muted-foreground">
-        This host manages the model's credentials itself.
+        Familiars here reach their models without a ChatGPT sign-in: through an
+        API key, or credentials the host manages itself.
       </p>
     )
   }

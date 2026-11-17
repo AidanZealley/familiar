@@ -15,7 +15,7 @@ const Settings = z.object(
      * web app; read on the first start only.
      */
     owner: text,
-    /** The OpenAI model to start on; the first chat model when unset. */
+    /** The OpenAI model to start on, when it's offered; else the first offered. */
     model: text,
     port: z.int(port).min(1, port).max(65535, port).optional(),
   },
