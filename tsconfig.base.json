@@ -5,6 +5,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,

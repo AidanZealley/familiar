@@ -15,6 +15,8 @@ RUN pnpm install --frozen-lockfile --filter @familiar-ai/computer... \
   && pnpm --filter @familiar-ai/computer deploy --legacy --prod /agent
 
 FROM node:24-bookworm-slim
+# Links the image published on ghcr.io to its repository.
+LABEL org.opencontainers.image.source=https://github.com/AidanZealley/familiar
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 COPY --from=build /agent /agent
 # Chromium as the agent's own Playwright version expects it, with its

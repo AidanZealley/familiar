@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: write
+  # Publishes the computers' image to ghcr.io.
+  packages: write
   # npm trusted publishing exchanges the workflow's OIDC token for a
   # short-lived publish token, so the repo stores no npm secret.
   id-token: write
@@ -23,19 +25,43 @@ jobs:
       - run: pnpm typecheck && pnpm lint && pnpm test && pnpm exec prettier --check .
       - run: pnpm test:cloudflare
       - run: pnpm --filter @familiar-example/cloudflare-worker build
+      # The libraries share the release's version, set here so the checkout
+      # never carries one. Before bundling, because the daemon's computers use
+      # the image tagged with the computer package's version.
+      - run: pnpm --filter './packages/*' exec npm pkg set version="${RELEASE_VERSION#v}"
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
       - run: pnpm bundle
         env:
           RELEASE_VERSION: ${{ github.ref_name }}
       - run: pnpm test:release
-      # The libraries share the release's version, set here so the checkout
-      # never carries one.
-      - run: pnpm --filter './packages/*' exec npm pkg set version="${RELEASE_VERSION#v}"
-        env:
-          RELEASE_VERSION: ${{ github.ref_name }}
       - run: pnpm test:packages
       - run: pnpm --filter './packages/*' pack --pack-destination npm-packages
       # Each publish step skips what an earlier attempt finished, so a failed
       # run can be rerun.
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # The computers' image, tagged with the version `pnpm image` reads from
+      # the computer package, before the release that pulls it. Pushing it
+      # again is harmless.
+      - name: Publish computer image
+        run: |
+          pnpm image
+          docker push "ghcr.io/aidanzealley/familiar-computer:${RELEASE_VERSION#v}"
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+      # Hosts pull the image without signing in, and a new ghcr.io package is
+      # private until made public in its settings, so the release stops here
+      # until anyone can read it.
+      - name: Check the computer image is public
+        run: |
+          docker logout ghcr.io
+          docker manifest inspect "ghcr.io/aidanzealley/familiar-computer:${RELEASE_VERSION#v}" > /dev/null
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
       - name: Publish release package
         run: |
           if gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
