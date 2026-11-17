@@ -13,8 +13,8 @@ import {
  * so one can't stand in for another.
  *
  * The key is created on the first write, never while an encrypted file needs
- * it. A plaintext file from before encryption is read once and re-saved
- * encrypted. Like `jsonFile`, it assumes one writer: lock the directory first.
+ * it. A plaintext file is encrypted as soon as it's opened. Like `jsonFile`,
+ * it assumes one writer: lock the directory first.
  */
 export function encryptedJsonFile<T>(
   path: string,
@@ -49,7 +49,7 @@ export function encryptedJsonFile<T>(
     if (typeof stored === 'object' && stored !== null && 'sealed' in stored) {
       file.value = unseal(stored)
     } else {
-      // Plaintext from before encryption.
+      // Plaintext: encrypt it now.
       file.save(stored as T)
     }
   }

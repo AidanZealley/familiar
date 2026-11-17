@@ -99,8 +99,8 @@ type SecretStore = {
 | `jsonFile(path, initial)`            | A private JSON file, rewritten whole and atomically by `save()`, for a host's own state                                             |
 
 Both credential stores encrypt their file with AES-256-GCM under the 32-byte key
-at `keyPath`, which they create on the first save. The two can share a key. A
-plaintext file from an earlier version is encrypted the first time it's opened.
+at `keyPath`, which they create on the first save. The two can share a key. Any
+plaintext file is encrypted the next time it's opened.
 A missing or wrong key, or a damaged file, stops the store opening and changes
 nothing.
 

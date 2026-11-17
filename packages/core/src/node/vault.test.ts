@@ -54,7 +54,7 @@ test('secrets are encrypted and private on disk, and survive reopening', async (
   ).toBeUndefined()
 })
 
-test('plaintext files from before encryption are encrypted in place', async () => {
+test('plaintext files are encrypted in place', async () => {
   const dir = dataDir()
   writeFileSync(
     dir.secrets,

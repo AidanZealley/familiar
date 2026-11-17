@@ -51,8 +51,7 @@ It holds the conversation, memory, your ChatGPT login, connection keys, notifica
 
 Familiar encrypts connection keys in `secrets.json` and your ChatGPT login in
 `auth.json`, under a `vault.key` it creates in the data directory. There's
-nothing to set up. Files from before encryption are encrypted the first time
-Familiar starts, so delete any older backups that hold them unencrypted.
+nothing to set up.
 
 Stop Familiar before backing up or restoring the data directory, and keep
 `vault.key` with the files in every backup. Without it they can't be read: if
