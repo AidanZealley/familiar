@@ -11,7 +11,14 @@ import { withServices, type ToolServices } from '../tools.ts'
 import { createConnections } from './connections.ts'
 import type { FamiliarPlugin } from './types.ts'
 
-export type { FamiliarPlugin, FamiliarTool } from './types.ts'
+export { openPlugins } from './open.ts'
+export type {
+  FamiliarPlugin,
+  FamiliarTool,
+  PluginClose,
+  PluginContext,
+  PluginEnv,
+} from './types.ts'
 
 /** The extension a plugin's tools are installed as, once for every Familiar. */
 export const pluginExtensionName = (plugin: string) =>
@@ -91,7 +98,9 @@ export function createPlugins(options: PluginsOptions) {
   const fetch = options.fetch ?? defaultFetch
   const connections = createConnections(options.plugins, options.secrets)
 
-  const services = (plugin?: FamiliarPlugin): Omit<ToolServices, 'author'> => ({
+  const services = (
+    plugin?: FamiliarPlugin,
+  ): Omit<ToolServices, 'author' | 'familiarId'> => ({
     timeZone: options.timeZone,
     // Without a schedule's context: tools can't claim one.
     notify: async (notification) => options.notify?.(notification),

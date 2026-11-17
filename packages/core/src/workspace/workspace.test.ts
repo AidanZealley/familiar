@@ -279,3 +279,59 @@ test("a person's host name fills in on the first open only; the name they choose
     '[Message from {\\"id\\":\\"aidan\\",\\"name\\":\\"Aidan\\"}]',
   )
 })
+
+test('a plugin opens with the Familiars that use it, hears each change, and closes with the workspace', async () => {
+  const storage = new ReopenableStorage()
+  const heard: number[][] = []
+  let closed = 0
+  const options = {
+    storage,
+    models: scriptedModels(() => fauxAssistantMessage('Hello.')),
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    plugins: [
+      definePlugin({
+        name: 'computer',
+        title: 'Computer',
+        tools: [],
+        open: ({ watchFamiliars }) => {
+          watchFamiliars((familiars) => heard.push(familiars))
+          return () => {
+            closed++
+          }
+        },
+      }),
+    ],
+  }
+  const workspace = await openWorkspace(options)
+  // What it was last told, once each change has been heard.
+  const told = (familiars: number[]) =>
+    expect.poll(() => heard.at(-1)).toEqual(familiars)
+  await told([])
+
+  const ada = await workspace.familiars.create({
+    name: 'Ada',
+    capabilities: { plugins: ['computer'] },
+  })
+  await told([ada.id])
+  const bo = await workspace.familiars.create({ name: 'Bo' })
+  await bo.setCapabilities({ plugins: ['computer'] })
+  await told([ada.id, bo.id])
+  await ada.setCapabilities({ plugins: [] })
+  await told([bo.id])
+  await workspace.familiars.remove(bo.id)
+  await told([])
+  await ada.setCapabilities({ plugins: ['computer'] })
+  await told([ada.id])
+  // Only when who uses it changed.
+  expect(heard).toEqual([[], [ada.id], [ada.id, bo.id], [bo.id], [], [ada.id]])
+
+  await workspace.dismiss()
+  expect(closed).toBe(1)
+
+  // Opening again reads who uses it from storage.
+  heard.length = 0
+  const reopened = await openWorkspace(options)
+  onTestFinished(() => reopened.dismiss())
+  await expect.poll(() => heard).toEqual([[ada.id]])
+})

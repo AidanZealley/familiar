@@ -1,0 +1,67 @@
+import type { FamiliarId } from '../workspace/familiars.ts'
+import type { Workspace } from '../workspace/index.ts'
+import type { FamiliarPlugin } from './types.ts'
+
+export type OpenPluginsOptions = {
+  workspace: Workspace
+  /** The Familiars that use a plugin now, read from storage. */
+  usersOf: (plugin: string) => Promise<FamiliarId[]>
+  /** Fires `change` whenever who uses a plugin may have changed. */
+  changes: EventTarget
+}
+
+/**
+ * Opens each plugin that has `open`, in order, and returns what closes them
+ * all. Storage owns who uses each plugin: a watch rereads it on each
+ * `change` and tells its listener only when it differs.
+ */
+export async function openPlugins(
+  plugins: readonly FamiliarPlugin[],
+  { workspace, usersOf, changes }: OpenPluginsOptions,
+) {
+  const watching = new AbortController()
+  const closes: (() => void | Promise<void>)[] = []
+
+  const close = async () => {
+    watching.abort()
+    for (const close of closes.splice(0).reverse()) {
+      await close()
+    }
+  }
+
+  try {
+    for (const plugin of plugins) {
+      const closePlugin = await plugin.open?.({
+        workspace,
+        watchFamiliars: (listener) => {
+          let told: string | undefined
+          let reading = Promise.resolve()
+          const update = () => {
+            reading = reading
+              .then(async () => {
+                const familiars = await usersOf(plugin.name)
+                if (!watching.signal.aborted && String(familiars) !== told) {
+                  told = String(familiars)
+                  listener(familiars)
+                }
+              })
+              // Closed storage has nothing more to tell, and the listener
+              // handles its own errors.
+              .catch(() => {})
+          }
+          changes.addEventListener('change', update, {
+            signal: watching.signal,
+          })
+          update()
+        },
+      })
+      if (closePlugin) {
+        closes.push(closePlugin)
+      }
+    }
+  } catch (error) {
+    await close()
+    throw error
+  }
+  return close
+}

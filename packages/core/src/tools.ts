@@ -23,6 +23,7 @@ import {
 } from './conversation/message.ts'
 import type { Notification } from './notify.ts'
 import { entriesOf } from './pi/entries.ts'
+import { familiarFor, type FamiliarId } from './workspace/familiars.ts'
 
 /**
  * Familiar's tools are plain Pi tools. What Familiar adds reaches each call
@@ -81,6 +82,11 @@ export type ToolServices = {
    * tool that narrows what someone may do checks it against this.
    */
   author(): Promise<Author | undefined>
+  /**
+   * The Familiar making this call, read from storage, never from the tool's
+   * arguments. Throws in a conversation no Familiar owns.
+   */
+  familiarId(): Promise<FamiliarId>
 }
 
 // A global symbol, so a plugin's own copy of core finds the same services.
@@ -97,10 +103,10 @@ export function familiar(context: Context): ToolServices {
   return services
 }
 
-/** `tool`, given `services` and its call's author whenever it runs. */
+/** `tool`, given `services`, with its call's author and Familiar, whenever it runs. */
 export function withServices<P extends object, D extends JsonValue>(
   tool: ToolRegistration<P, D>,
-  services: Omit<ToolServices, 'author'>,
+  services: Omit<ToolServices, 'author' | 'familiarId'>,
 ): ToolRegistration<P, D> {
   return {
     ...tool,
@@ -114,6 +120,8 @@ export function withServices<P extends object, D extends JsonValue>(
             ...services,
             author: () =>
               api.commit((tx) => toolAuthor(tx, api.taskId), context),
+            familiarId: () =>
+              api.commit((tx) => familiarFor(tx, api.conversationId), context),
           },
           context,
         ),

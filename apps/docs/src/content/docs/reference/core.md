@@ -160,7 +160,8 @@ Forgetting removes a note and clears its page's profile until the night's work r
 | `usage()`            | Pi's usage totals for the workspace                                           |
 | `wake()`, `resume()` | For hosts that pass `onWake`                                                  |
 | `closed`             | Settles on dismissal or a storage failure. A failed instance must be reopened |
-| `dismiss()`          | Close the workspace, its account and its MCP connections                      |
+| `dismiss()`          | Close the workspace, its account, its MCP connections and its plugins         |
+| `plugins`            | The plugins it was opened with, whose routes `createHttpApi` mounts           |
 
 ## Types
 

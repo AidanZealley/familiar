@@ -100,6 +100,8 @@ A paused schedule doesn't run until resumed, and keeps showing its `next` time: 
 | `mcp.remove`               | `DELETE /mcp/:name`                               |             | 204                    | 404                         |
 | `mcp.reconnect`            | `POST /mcp/:name/reconnect`                       |             | 202                    | 404                         |
 
+A plugin's own routes are under `/plugins/<name>/familiars/:familiar`, all asked of `allow` as `plugins.<name>` with that Familiar's ID, then 404 for a Familiar that doesn't exist. See [routes](/familiar/reference/plugins/#routes).
+
 `:kind` is `plugin` or `mcp`. Secret values must be visible ASCII. No route returns a secret's value. Each connection lists its `tools` with the `description` the model is given; an MCP server's tool has one only if the server gives it.
 
 `POST /mcp` answers 400, saving nothing, for a server of the wrong shape. Any other server is saved and tried through the host's transport; one that can't connect shows as `failed` in `GET /connections`.
