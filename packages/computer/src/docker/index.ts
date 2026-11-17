@@ -250,8 +250,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
   /**
    * The proxy's way out and the proxy, joined to every computer's network.
-   * Made again the first time this process needs it, so the proxy runs this
-   * host's image and knows its current addresses.
+   * Made again the first time this process wakes or syncs a computer, even
+   * one that already exists, so the proxy runs this host's image and knows
+   * its current addresses.
    */
   let prepared: Promise<void> | undefined
   const prepare = () =>
@@ -293,7 +294,6 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
   /** Makes `familiar`'s container, on the disk and network it has (`have`), if any. */
   const create = async (familiar: FamiliarId, have: readonly Owned[]) => {
-    await prepare()
     const name = network(familiar)
     await ensure('volume', disk(familiar), have, () =>
       docker('volume', 'create', ...theirs(familiar), disk(familiar)),
@@ -373,6 +373,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
    */
   const wake = (familiar: FamiliarId) =>
     change(async () => {
+      await prepare()
       const have = await owned(['container', 'volume', 'network'], familiar)
       const found = have.find((owned) => owned.kind === 'container')
       const name = found?.name ?? (await create(familiar, have))
@@ -530,6 +531,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         if (setup.state === 'setting-up') {
           await setup.done
         }
+        await prepare()
         for (const familiar of wanted) {
           const found = of(familiar).find((owned) => owned.kind === 'container')
           if (!found) {
