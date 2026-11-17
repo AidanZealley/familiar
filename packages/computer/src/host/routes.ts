@@ -17,9 +17,14 @@ const idOf = (c: Context) => Number(c.req.param('familiar')) as FamiliarId
  * Pairing for the owner, and where computers connect. Mount it where only
  * the owner reaches the pairing routes; `/connect` checks its own token.
  *
- * - `POST /:familiar` gives the Familiar a computer, or pairs it afresh, and
- *   answers `{ link }`, the pairing link to run the agent with.
- * - `GET /:familiar` answers `{ status }`: `none`, `offline` or `online`.
+ * - `POST /:familiar` gives the Familiar a machine to pair, or pairs it
+ *   afresh, and answers `{ link }`, the pairing link to run the agent with.
+ *   With `{ "provider": true }` it gives the Familiar a computer the host's
+ *   provider runs instead, and answers `{ status }`.
+ * - `DELETE /:familiar` removes its computer, with the disk of one the
+ *   provider ran.
+ * - `GET /:familiar` answers `{ status }`: `none`, `asleep`, `offline` or
+ *   `online`.
  * - `GET /connect` is the agent's WebSocket, with its token as a bearer.
  */
 export function computerRoutes(
@@ -56,20 +61,38 @@ export function computerRoutes(
         }
       }),
     )
-    .get('/:familiar', (c) => c.json({ status: computers.status(idOf(c)) }))
+    .get('/:familiar', async (c) =>
+      c.json({ status: await computers.status(idOf(c)) }),
+    )
+    .delete('/:familiar', async (c) => {
+      await computers.remove(idOf(c))
+      return c.json({ status: await computers.status(idOf(c)) })
+    })
     .post('/:familiar', async (c) => {
       const id = idOf(c)
       const familiar = workspace.familiars.get(id)
       if (!familiar) {
         return c.json({ error: 'not-found' }, 404)
       }
-      const token = computers.pair(id)
+      const { provider } = (await c.req.json().catch(() => ({}))) as {
+        provider?: boolean
+      }
+      if (provider && !computers.provides) {
+        return c.json({ error: 'no-provider' }, 400)
+      }
+      if (provider) {
+        await computers.provide(id)
+      }
+      const token = provider ? undefined : await computers.pair(id)
       // A Familiar with a computer uses its tools.
       const { plugins } = await familiar.capabilities()
       if (!plugins.includes(COMPUTER_PLUGIN)) {
         await familiar.setCapabilities({
           plugins: [...plugins, COMPUTER_PLUGIN],
         })
+      }
+      if (!token) {
+        return c.json({ status: await computers.status(id) })
       }
       // Beside this route, wherever the host mounted it.
       const link = new URL('connect', c.req.url)

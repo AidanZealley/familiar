@@ -57,6 +57,13 @@ export const config = {
   ...settings,
   host: process.env.FAMILIAR_HOST ?? '127.0.0.1',
   modelChoices,
+  /**
+   * Where Docker computers reach this daemon, as `host:port` from the Docker
+   * host (`DOCKER_HOST`, else this machine): such as
+   * `host.docker.internal:4317` with the daemon listening beyond 127.0.0.1.
+   * Setting it lets the owner give Familiars Docker computers.
+   */
+  dockerComputers: process.env.FAMILIAR_DOCKER_COMPUTERS,
   /** Sent to push services so they can contact the installation's owner. */
   pushContact:
     process.env.FAMILIAR_PUSH_CONTACT ?? 'mailto:familiar@example.com',
