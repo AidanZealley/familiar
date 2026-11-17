@@ -335,3 +335,29 @@ test('a plugin opens with the Familiars that use it, hears each change, and clos
   onTestFinished(() => reopened.dismiss())
   await expect.poll(() => heard).toEqual([[ada.id]])
 })
+
+test('every plugin closes even when one fails, before the workspace counts as closed', async () => {
+  const order: string[] = []
+  const plugin = (name: string, close: () => Promise<void>) =>
+    definePlugin({ name, title: name, tools: [], open: () => close })
+  const workspace = await openWorkspace({
+    storage: new ReopenableStorage(),
+    models: scriptedModels(() => fauxAssistantMessage('Hello.')),
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    plugins: [
+      plugin('first', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        order.push('first closed')
+      }),
+      plugin('second', async () => {
+        throw new Error('second failed')
+      }),
+    ],
+  })
+  void workspace.closed.then(() => order.push('workspace closed'))
+
+  await expect(workspace.dismiss()).rejects.toThrow(AggregateError)
+  await workspace.closed
+  expect(order).toEqual(['first closed', 'workspace closed'])
+})

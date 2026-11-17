@@ -610,6 +610,15 @@ export async function openWorkspace(
       }
     }
 
+    // Plugins close however the workspace closes: dismissed, or its storage
+    // failed. `opening` is set below, before this can run.
+    // eslint-disable-next-line prefer-const -- assigned once the workspace exists
+    let opening!: Promise<() => Promise<void>>
+    const pluginsClosed = harness.closed.then(async () => {
+      const closePlugins = await opening.catch(() => undefined)
+      await closePlugins?.()
+    })
+
     const workspace: Workspace = {
       familiars: {
         list,
@@ -674,7 +683,12 @@ export async function openWorkspace(
       questions: { answer: questions.answer },
       plugins: options.plugins ?? [],
       usage: () => harness.usage(context),
-      closed: harness.closed,
+      // Settles once plugins have closed too, so hosts never cut their
+      // clean-up short. A failed clean-up is reported by `dismiss()`.
+      closed: harness.closed.then(async (end) => {
+        await pluginsClosed.catch(() => {})
+        return end
+      }),
       wake: () => harness.wake(),
       resume: () => harness.resume(),
       dismiss: async () => {
@@ -686,7 +700,7 @@ export async function openWorkspace(
       },
     }
 
-    const closePlugins = await openPlugins(workspace.plugins, {
+    opening = openPlugins(workspace.plugins, {
       workspace,
       usersOf: async (plugin) => {
         const users: FamiliarId[] = []
@@ -703,8 +717,7 @@ export async function openWorkspace(
       await close()
       throw error
     })
-    // However it closes: dismissed, or its storage failed.
-    const pluginsClosed = harness.closed.then(closePlugins)
+    await opening
     return workspace
   } catch (error) {
     account?.close()

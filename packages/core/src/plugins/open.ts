@@ -22,10 +22,19 @@ export async function openPlugins(
   const watching = new AbortController()
   const closes: (() => void | Promise<void>)[] = []
 
+  /** Closes every plugin, latest first, even if some fail. */
   const close = async () => {
     watching.abort()
+    const failures: unknown[] = []
     for (const close of closes.splice(0).reverse()) {
-      await close()
+      try {
+        await close()
+      } catch (error) {
+        failures.push(error)
+      }
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'Plugins failed to close')
     }
   }
 
@@ -60,7 +69,7 @@ export async function openPlugins(
       }
     }
   } catch (error) {
-    await close()
+    await close().catch(() => {})
     throw error
   }
   return close
