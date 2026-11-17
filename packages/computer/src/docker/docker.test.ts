@@ -153,7 +153,13 @@ test.skipIf(!hasImage)(
     // No network, only the proxy: the public internet, for the browser and
     // the shell, but nothing on the Docker host's addresses (its LAN,
     // tailnet and Docker's bridges), through the proxy or around it.
-    expect(await run('ls /sys/class/net')).toMatch(/^lo\s+Exit code 0/)
+    // No interface up but loopback. Some kernels (Docker Desktop's) add idle
+    // tunnel devices to every namespace; down, they route nothing.
+    expect(
+      await run(
+        'for i in /sys/class/net/*; do [ $(($(cat $i/flags) & 1)) = 1 ] && basename $i; done; true',
+      ),
+    ).toMatch(/^lo\s+Exit code 0/)
     const page = await host.call(ada.id, 'browser_navigate', {
       url: 'https://example.com/',
     })
