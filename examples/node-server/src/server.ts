@@ -1,6 +1,8 @@
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
+import { computer } from '@familiar-ai/computer'
+import { dockerHost } from '@familiar-ai/computer/docker'
 import { openWorkspace } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { createModels } from '@familiar-ai/core/models'
@@ -31,7 +33,8 @@ const workspace = await openWorkspace({
   chatModel: model,
   modelChoices: [{ model, thinkingLevel: 'medium' }],
   timeZone: config.timeZone,
-  plugins: [github],
+  // A computer of its own in Docker, for each Familiar that turns it on.
+  plugins: [github, computer({ host: dockerHost() })],
   secrets: fileSecretStore(data('secrets.json'), data('vault.key')),
   // No `fetch`: on Node, tools get one that refuses private addresses.
   notify: async (notification) => console.log('Notification:', notification),
@@ -41,8 +44,16 @@ if (!(await workspace.familiars.list()).length) {
   await workspace.familiars.create({
     name: config.name,
     // Each Familiar opts in to the plugins it uses.
-    capabilities: { plugins: [github.name] },
+    capabilities: { plugins: [github.name, 'computer'] },
   })
+  // This UI can't answer approvals, so the computer's tools run unattended:
+  // its browser and shell can submit forms, post, upload and download on
+  // public sites without asking. Isolation only protects this machine.
+  await workspace.connections.setPolicy(
+    { kind: 'plugin', name: 'computer' },
+    undefined,
+    'allow',
+  )
 }
 
 const app = new Hono()

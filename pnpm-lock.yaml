@@ -353,6 +353,9 @@ importers:
       '@familiar-ai/client':
         specifier: workspace:*
         version: link:../../packages/client
+      '@familiar-ai/computer':
+        specifier: workspace:*
+        version: link:../../packages/computer
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core

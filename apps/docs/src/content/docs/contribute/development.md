@@ -34,6 +34,7 @@ The demo opens on Rowan's household, a few days in: four Familiars with their ow
 | `packages/core`                | The assistant. Portable: no Node-only or Workers-only code     |
 | `packages/client`              | Browser store and React bindings. Imports only types from core |
 | `packages/cloudflare`          | Durable Object adapter. The only Workers-specific package      |
+| `packages/computer`            | Familiars' computers, their agent and the Docker host          |
 | `apps/daemon`                  | The installed Node host, CLI and demo                          |
 | `apps/web`                     | The web UI                                                     |
 | `apps/docs`                    | This site                                                      |
@@ -59,6 +60,8 @@ Also run:
 
 CI runs the main checks and `pnpm test:packages` on every pull request. The workerd tests, the CLI on macOS, Linux and Windows, and the docs build run when a pull request changes their files.
 
+Computers need the computers' image. `pnpm image` builds it from your checkout, tagged with the version a checkout's hosts use, and the Docker test is skipped until it's built.
+
 Use the faux provider, or `scriptedModels` for a script that answers every request, to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model. `pnpm eval:memory-scenarios` and `pnpm eval:longmem` run memory on real models, through an eval-only sign-in.
 
 ## The docs site
@@ -73,4 +76,4 @@ Pushes to `main` that change the docs or packages deploy the site to GitHub Page
 
 ## Releases
 
-Pushing a `v*` tag runs the [release workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/release.yml). It publishes the npm packages and the installable assistant. `pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.
+Pushing a `v*` tag runs the [release workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/release.yml). It publishes the npm packages, the installable assistant and the computers' image, `ghcr.io/aidanzealley/familiar-computer:<version>`, which hosts of that version pull. `pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.

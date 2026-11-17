@@ -7,6 +7,7 @@ import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { AGENT_SOCKET, PROXY_PORT } from '../agent/socket.ts'
 import type { ComputerHost, ComputerStatus } from '../host.ts'
+import manifest from '../../package.json' with { type: 'json' }
 import { OWN_ADDRESSES, PROXY_SOCKET } from './proxy.ts'
 
 export type DockerHostOptions = {
@@ -29,11 +30,11 @@ export type DockerHostOptions = {
 }
 
 /**
- * The computers' image, which `pnpm image` builds from a checkout. Until
- * releases publish it, its tag is `dev`, so a checkout's host finds the one
- * it built.
+ * The computers' image, tagged with this package's version: each release
+ * publishes its own, so a host runs the agent it was released with. A
+ * checkout's version is `0.0.0`, the tag `pnpm image` builds.
  */
-export const COMPUTER_IMAGE = 'ghcr.io/aidanzealley/familiar-computer:dev'
+export const COMPUTER_IMAGE = `ghcr.io/aidanzealley/familiar-computer:${manifest.version}`
 
 const exec = promisify(execFile)
 /**

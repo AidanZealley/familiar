@@ -12,6 +12,7 @@
   "dependencies": {
     "@earendil-works/pi-durable": "catalog:",
     "@familiar-ai/client": "workspace:*",
+    "@familiar-ai/computer": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "catalog:"
