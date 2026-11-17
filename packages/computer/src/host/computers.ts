@@ -235,6 +235,10 @@ export function openComputers(options: ComputersOptions) {
       return found && found !== 'running' ? 'asleep' : 'offline'
     },
 
+    /** Whether `familiar`'s computer is one the provider runs, not a paired machine. */
+    isProvided: (familiar: FamiliarId) =>
+      file.value[familiar]?.provided === true,
+
     /**
      * Gives `familiar` a machine to pair, or pairs its machine afresh,
      * returning the new pairing token. A machine paired with an earlier
