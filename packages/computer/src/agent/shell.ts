@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process'
+import { MAX_TEXT, shortenedNote } from './shorten.ts'
 
 /**
  * Runs `command` with `/bin/sh` in `cwd`, stdout and stderr together. It
  * runs in its own process group, so stopping it (timeout or `signal`) also
- * stops whatever it started.
+ * stops whatever it started. Only the end of the output is kept as it runs,
+ * so a command that prints without end can't use up memory.
  */
 export function runCommand(
   command: string,
@@ -20,9 +22,13 @@ export function runCommand(
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''
-    const collect = (chunk: Buffer) => {
-      output += chunk.toString('utf8')
+    let total = 0
+    const collect = (chunk: string) => {
+      total += chunk.length
+      output = (output + chunk).slice(-MAX_TEXT)
     }
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
     child.stdout.on('data', collect)
     child.stderr.on('data', collect)
 
@@ -44,7 +50,12 @@ export function runCommand(
     child.on('close', (code) => {
       clearTimeout(timer)
       options.signal.removeEventListener('abort', stop)
-      resolve({ code, output, timedOut })
+      resolve({
+        code,
+        output:
+          total > MAX_TEXT ? `${shortenedNote(total)}\n${output}` : output,
+        timedOut,
+      })
     })
   })
 }

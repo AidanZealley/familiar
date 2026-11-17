@@ -85,10 +85,10 @@ export function computerServer(browser: Browser, home: string) {
       const status = timedOut
         ? `Stopped after ${timeout_seconds} seconds.`
         : `Exit code ${code}.`
-      return text(`${status}\n${shorten(output, 'end')}`, code !== 0)
+      return text(`${status}\n${output}`, code !== 0)
     },
     read_file: async ({ path }) =>
-      text(shorten(await readFile(resolve(home, path), 'utf8'), 'start')),
+      text(shorten(await readFile(resolve(home, path), 'utf8'))),
     write_file: async ({ path, content }) => {
       const file = resolve(home, path)
       await mkdir(dirname(file), { recursive: true })

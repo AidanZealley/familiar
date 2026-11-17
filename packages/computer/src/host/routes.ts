@@ -26,7 +26,7 @@ export function computerRoutes(
   computers: Computers,
   { workspace, upgradeWebSocket }: ComputerRoutesOptions,
 ) {
-  return new Hono<{ Variables: { familiar: FamiliarId } }>()
+  return new Hono<{ Variables: { familiar: FamiliarId; token: string } }>()
     .get(
       '/connect',
       async (c, next) => {
@@ -36,6 +36,7 @@ export function computerRoutes(
           return c.json({ error: 'unpaired' }, 401)
         }
         c.set('familiar', familiar)
+        c.set('token', token)
         await next()
       },
       upgradeWebSocket((c) => {
@@ -47,7 +48,7 @@ export function computerRoutes(
               close: () => socket.close(),
             })
             computers
-              .connect(c.get('familiar'), transport)
+              .connect(c.get('familiar'), c.get('token'), transport)
               .catch(() => socket.close())
           },
           onMessage: (event) => transport?.receive(String(event.data)),

@@ -49,7 +49,6 @@ export function openBrowser(profileDir: string) {
     snapshot: async (page: Page) =>
       shorten(
         `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`,
-        'start',
       ),
     /** An element by the ref a snapshot gave it. */
     element: (page: Page, ref: string) => page.locator(`aria-ref=${ref}`),

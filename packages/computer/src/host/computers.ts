@@ -71,12 +71,21 @@ export function openComputers(options: ComputersOptions) {
     },
 
     /**
-     * Uses the agent at the other end of `transport` as `familiar`'s
-     * computer, in place of any connected before.
+     * Uses the agent at the other end of `transport`, which connected with
+     * `token`, as `familiar`'s computer in place of any connected before.
      */
-    connect: async (familiar: FamiliarId, transport: Transport) => {
+    connect: async (
+      familiar: FamiliarId,
+      token: string,
+      transport: Transport,
+    ) => {
       const client = new Client({ name: 'familiar', version: '1.0.0' })
       await client.connect(transport, { timeout: 15_000 })
+      // The computer may have been paired afresh while this one connected.
+      if (file.value[familiar]?.token !== token) {
+        await client.close()
+        throw new Error('This pairing token has been replaced.')
+      }
       const previous = online.get(familiar)
       online.set(familiar, client)
       client.onclose = () => {
