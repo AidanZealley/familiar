@@ -299,7 +299,7 @@ export type AccessOptions = {
  * anything reaches the network: the sign-in exists and each model is one the
  * provider lists.
  */
-export function evalAccess(
+export async function evalAccess(
   {
     model = REPLY_MODEL,
     memoryModel = MEMORY_MODEL,
@@ -307,22 +307,17 @@ export function evalAccess(
   }: AccessOptions = {},
   env = process.env,
   home = homedir(),
-): EvalAccess {
-  const file = authFile(home)
-  let signedIn = false
-  try {
-    signedIn = 'openai' in JSON.parse(readFileSync(file, 'utf8'))
-  } catch {
-    // Missing or unreadable reads as not signed in.
-  }
-  if (!signedIn) {
+): Promise<EvalAccess> {
+  // Shared across stages: they must queue their token refreshes together.
+  const chatgpt = fileCredentialStore(
+    authFile(home),
+    join(evalDirectory(home), 'vault.key'),
+  )
+  if (!(await chatgpt.read('openai'))) {
     throw new Error(
       `The eval has no ChatGPT sign-in. Run FAMILIAR_DATA_DIR=${evalDirectory(home)} pnpm sign-in.`,
     )
   }
-  // Shared across stages: it rewrites its file as tokens refresh, so each
-  // must not hold its own copy.
-  const chatgpt = fileCredentialStore(file)
   const signIn = (meter: Meter) => {
     const models = createModels({ credentials: chatgpt })
     models.setProvider(meter.wrap(openaiProvider()))

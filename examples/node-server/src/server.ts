@@ -32,7 +32,7 @@ const workspace = await openWorkspace({
   modelChoices: [{ model, thinkingLevel: 'medium' }],
   timeZone: config.timeZone,
   plugins: [github],
-  secrets: fileSecretStore(data('secrets.json')),
+  secrets: fileSecretStore(data('secrets.json'), data('vault.key')),
   // No `fetch`: on Node, tools get one that refuses private addresses.
   notify: async (notification) => console.log('Notification:', notification),
 })

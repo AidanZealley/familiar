@@ -12,7 +12,10 @@ registerBunOAuthFlows()
 /** Model access through your ChatGPT subscription; `pnpm sign-in` signs in. */
 export function openModels() {
   const models = createModels({
-    credentials: fileCredentialStore(dataPath('auth.json')),
+    credentials: fileCredentialStore(
+      dataPath('auth.json'),
+      dataPath('vault.key'),
+    ),
   })
   models.setProvider(openaiProvider())
   return models

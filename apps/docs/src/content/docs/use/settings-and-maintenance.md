@@ -47,6 +47,22 @@ The **Settings** menu in the web app switches between light, dark and system app
 
 It holds the conversation, memory, your ChatGPT login, connection keys, notification subscriptions, [your own plugins](/familiar/use/extend/) and your Familiars' portraits. Keep it private.
 
+### Stored credentials
+
+Familiar encrypts connection keys in `secrets.json` and your ChatGPT login in
+`auth.json`, under a `vault.key` it creates in the data directory. There's
+nothing to set up.
+
+Stop Familiar before backing up or restoring the data directory, and keep
+`vault.key` with the files in every backup. Without it they can't be read: if
+it's lost, Familiar says so and leaves them alone. Delete them, then sign in
+and enter your connection keys again.
+
+Keep the machine and its backups private. Encryption protects copied credential
+files when the key is absent. The running daemon can decrypt them, and someone
+with control of its machine can too. Conversation history and other data are
+not encrypted by this credential store.
+
 ### Portraits
 
 Each Familiar starts with its own pixel character, generated from its ID, which looks around and blinks. In the web UI, its settings' Profile changes it to its initial on a colour, another character's shape or colour, or one of your own images.
