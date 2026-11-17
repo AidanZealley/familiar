@@ -44,4 +44,5 @@ Familiar bounds what it admits: request bodies, message and schedule sizes, how 
 3. [Serve the API](/familiar/build/serve-the-api/) puts it behind HTTP with your own auth.
 4. [Connect a frontend](/familiar/build/connect-a-frontend/) renders it in a browser.
 5. [Customise your assistant](/familiar/build/customise/) adds a persona, plugins and tools.
-6. The [Node server example](/familiar/examples/node-server/) puts all of it together in one runnable app.
+6. [Give Familiars computers](/familiar/build/computers/) adds a browser and a shell in Docker.
+7. The [Node server example](/familiar/examples/node-server/) puts all of it together in one runnable app.

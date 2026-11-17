@@ -9,7 +9,7 @@ import auth from '../../../../../../examples/node-server/src/auth.ts?raw'
 import access from '../../../../../../examples/node-server/src/access.ts?raw'
 import github from '../../../../../../examples/node-server/src/plugins/github.ts?raw'
 
-This is Familiar from scratch on Node: a server you own, a password sign-in, a small UI and one plugin that uses a secret. The installable daemon is built from the same pieces, plus its own opinions: web tools, its UI, network-as-auth and an installer.
+This is Familiar from scratch on Node: a server you own, a password sign-in, a small UI, one plugin that uses a secret and a computer in Docker. The installable daemon is built from the same pieces, plus its own opinions: web tools, its UI, network-as-auth and an installer.
 
 <LinkButton
   href="https://github.com/AidanZealley/familiar/tree/main/examples/node-server"
@@ -39,6 +39,7 @@ pnpm --filter @familiar-example/node-server dev:web   # the UI
 - **The Familiar** lives in the workspace's storage, so the server creates it on the first run. The owner talks to it in their DM, which the UI opens with `familiars.dm`.
 - **Secrets** the owner sets go in an encrypted file through `fileSecretStore`, under a key it creates beside them. Plugins never read them.
 - **The network.** There's no `fetch` option. On Node, Familiar's default refuses every address that isn't public, so the model can't steer a tool to your router.
+- **A computer.** `computer({ host: dockerHost() })` gives the Familiar a browser and a shell in a Docker container, turned on by its `computer` capability. Without Docker, its computer tools say Docker isn't installed. See [Give Familiars computers](/familiar/build/computers/).
 - **CSRF.** The session is a cookie, and a browser sends cookies with requests from any site. `csrf()` refuses cross-site requests before anything reads them. A host that signs requests with a bearer token instead doesn't need it.
 
 ## Signing in

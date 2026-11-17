@@ -11,7 +11,7 @@ pnpm --filter @familiar-example/node-server dev:web   # the UI, on Vite's port
 
 For production, `pnpm build` writes the UI to `dist/web`, and `pnpm start` serves it with the API.
 
-It needs an [OpenRouter](https://openrouter.ai) API key for the model. To try the GitHub tool, paste a fine-grained GitHub token under Connections, then ask Familiar what's assigned to you.
+It needs an [OpenRouter](https://openrouter.ai) API key for the model. To try the GitHub tool, paste a fine-grained GitHub token under Connections, then ask Familiar what's assigned to you. With Docker installed, Familiar also has a computer: ask it to look something up in its browser. From a checkout, build the computer's image first with `pnpm image`.
 
 ## How it fits together
 
@@ -19,6 +19,7 @@ It needs an [OpenRouter](https://openrouter.ai) API key for the model. To try th
 - `src/auth.ts` signs one owner in with a password and keeps them signed in with a signed, HTTP-only cookie. A browser sends that cookie with requests from any site, so `server.ts` puts Hono's `csrf()` in front of everything.
 - `src/access.ts` lists the API operations the owner may use. Anything Familiar adds later is refused until it's added there.
 - `src/plugins/github.ts` is a plugin: one plain Pi tool and a declared GitHub token. Familiar sends the token only with `GET https://api.github.com/issues`. The tool never sees it.
+- `computer({ host: dockerHost() })` in `src/server.ts` gives the Familiar a computer in Docker: a browser and a shell with no network but a proxy to the public internet. See [Give Familiars computers](https://aidanzealley.github.io/familiar/build/computers/).
 - `src/config.ts` reads `.env` and refuses to start without what it needs. Set `FAMILIAR_ORIGIN` to the `https://` address people use, so session cookies are only sent over HTTPS even when a proxy forwards plain HTTP.
 - `web/` is a small UI on `@familiar-ai/client`: sign in, chat in your DM with the Familiar and set the plugin's token.
 

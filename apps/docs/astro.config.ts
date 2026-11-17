@@ -70,6 +70,7 @@ export default defineConfig({
             'build/serve-the-api',
             'build/connect-a-frontend',
             'build/customise',
+            'build/computers',
             'build/cloudflare',
           ],
         },

@@ -30,7 +30,7 @@
   "scripts": {
     "typecheck": "tsc",
     "build": "tsc -p tsconfig.build.json",
-    "image": "docker build -t ghcr.io/aidanzealley/familiar-computer:dev -f Dockerfile ../.."
+    "image": "docker build -t ghcr.io/aidanzealley/familiar-computer:$npm_package_version -f Dockerfile ../.."
   },
   "peerDependencies": {
     "@familiar-ai/core": "workspace:*",
