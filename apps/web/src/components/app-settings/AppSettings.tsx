@@ -3,6 +3,7 @@ import {
   BellIcon,
   CpuIcon,
   KeyIcon,
+  LockKeyIcon,
   PaletteIcon,
   PlugIcon,
   SparkleIcon,
@@ -17,6 +18,7 @@ import { AppearanceSettings } from './components/appearance-settings'
 import { DefaultTools } from './components/default-tools'
 import { ModelAccount } from './components/model-account'
 import { ModelDefaults } from './components/model-defaults'
+import { ProviderKeys } from './components/provider-keys'
 import { YourProfile } from './components/your-profile'
 
 /** The one Settings: you and this device, then the workspace. */
@@ -109,6 +111,16 @@ export const AppSettings = () => {
               keywords: 'chatgpt sign in sign out provider',
               description: 'Every Familiar answers through this sign-in.',
               content: <ModelAccount />,
+            },
+            {
+              id: 'api-keys',
+              label: 'API keys',
+              icon: LockKeyIcon,
+              keywords:
+                'provider anthropic claude google gemini openrouter xai grok groq mistral',
+              description:
+                "Model providers' keys. Each provider's models are offered once it has one, after Familiar restarts.",
+              content: <ProviderKeys />,
             },
           ],
         },

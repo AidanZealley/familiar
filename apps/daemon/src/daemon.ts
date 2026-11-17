@@ -4,7 +4,7 @@ import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
 import { config, dataPath, deviceId } from './config.ts'
 import { stdioTransport } from './mcp-stdio.ts'
 import { ensureDataDir } from './paths.ts'
-import { openModels } from './models.ts'
+import { offeredModels, openModels } from './models.ts'
 import { WEB_RENDERING } from './rendering.ts'
 import { loadPlugins } from './plugins.ts'
 import { openPush } from './push.ts'
@@ -22,17 +22,21 @@ export async function serve() {
   const push = openPush({ path: dataPath, contact: config.pushContact })
 
   const models = openModels()
+  const { modelChoices, chatModel } = await offeredModels(models)
   const { workspace } = await openDaemonWorkspace(
     {
       storage: await openNodeSqliteStorage(dataPath('familiar.sqlite')),
       models,
-      chatModel: config.chatModel,
-      modelChoices: config.modelChoices,
+      chatModel,
+      modelChoices,
       // The machine's zone, so the owner's calendar is the one their clock shows.
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       hostInstructions: WEB_RENDERING,
-      // Owners sign in to ChatGPT from the web UI, through the Models requests use.
-      account: { login: { getDeviceId: deviceId, agentName: config.name } },
+      // Owners sign in to ChatGPT from the web UI, through the Models requests
+      // use, while it's the default; a key provider needs no sign-in.
+      ...(chatModel.provider === 'openai' && {
+        account: { login: { getDeviceId: deviceId, agentName: config.name } },
+      }),
       notify: push.notify,
       plugins: await loadPlugins(config.pluginsDir, [webPlugin]),
       // What Familiars call the owner, until they choose another name.
@@ -54,5 +58,6 @@ export async function serve() {
     avatarsDir: config.avatarsDir,
     label: config.name,
     push: push.host,
+    models,
   })
 }
