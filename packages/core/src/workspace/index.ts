@@ -444,6 +444,7 @@ export async function openWorkspace(
       secrets: options.secrets,
       fetch: options.fetch,
       notify: options.notify,
+      questions,
       timeZone: options.timeZone,
     })
 

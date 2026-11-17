@@ -6,6 +6,7 @@ import type {
   EntryId,
   EntryRecord,
   TaskId,
+  ToolExecutionApi,
   ToolExecutionResult,
   ToolRegistration,
   ToolTaskInput,
@@ -23,6 +24,8 @@ import {
 } from './conversation/message.ts'
 import type { Notification } from './notify.ts'
 import { entriesOf } from './pi/entries.ts'
+import type { Form, FormContent } from './questions/form.ts'
+import { familiarFor, type FamiliarId } from './workspace/familiars.ts'
 
 /**
  * Familiar's tools are plain Pi tools. What Familiar adds reaches each call
@@ -81,6 +84,38 @@ export type ToolServices = {
    * tool that narrows what someone may do checks it against this.
    */
   author(): Promise<Author | undefined>
+  /**
+   * The Familiar making this call, read from storage, never from the tool's
+   * arguments. Throws in a conversation no Familiar owns.
+   */
+  familiarId(): Promise<FamiliarId>
+  /**
+   * Asks the person, in this call's chat, for values only the plugin gets,
+   * such as a password: `receive` is given them. They're never stored with
+   * the question, shown to the model or kept in the chat. Resolves
+   * `provided` once `receive` returns, else `declined`, which is all the
+   * model should learn. If `receive` throws, the person stays asked; throw a
+   * QuestionError to tell them why. Only a plugin's tools can ask.
+   */
+  askPrivately(
+    request: PrivateRequest,
+    receive: (values: FormContent) => Promise<void>,
+  ): Promise<'provided' | 'declined'>
+}
+
+/** What a private question shows the person. */
+export type PrivateRequest = {
+  message: string
+  /** Give a secret's string field `format: 'password'`. */
+  form: Form
+}
+
+/** The call a tool's services are made for. */
+export type ToolCall = {
+  /** Its name, as the model called it. */
+  tool: string
+  api: ToolExecutionApi
+  context: Context
 }
 
 // A global symbol, so a plugin's own copy of core finds the same services.
@@ -97,10 +132,13 @@ export function familiar(context: Context): ToolServices {
   return services
 }
 
-/** `tool`, given `services` and its call's author whenever it runs. */
+/**
+ * `tool`, given `services` for each call, with the call's author and
+ * Familiar, whenever it runs.
+ */
 export function withServices<P extends object, D extends JsonValue>(
   tool: ToolRegistration<P, D>,
-  services: Omit<ToolServices, 'author'>,
+  services: (call: ToolCall) => Omit<ToolServices, 'author' | 'familiarId'>,
 ): ToolRegistration<P, D> {
   return {
     ...tool,
@@ -111,9 +149,11 @@ export function withServices<P extends object, D extends JsonValue>(
         withContextValue(
           servicesKey,
           {
-            ...services,
+            ...services({ tool: tool.name, api, context }),
             author: () =>
               api.commit((tx) => toolAuthor(tx, api.taskId), context),
+            familiarId: () =>
+              api.commit((tx) => familiarFor(tx, api.conversationId), context),
           },
           context,
         ),

@@ -15,6 +15,7 @@ const INPUT_TYPES = {
   uri: 'url',
   date: 'date',
   'date-time': 'datetime-local',
+  password: 'password',
 } as const
 
 /** A server's form: the fields core can show, each as the person fills it in. */

@@ -81,6 +81,7 @@ export * as schema from '@earendil-works/pi-schema'
 export {
   defineTool,
   familiar,
+  type PrivateRequest,
   type ToolContext,
   type ToolResult,
   type ToolDetails,
@@ -110,6 +111,7 @@ export {
   QuestionGone,
   type Answer,
   type Form,
+  type FormContent,
   type FormField,
   type Question,
 } from './questions/index.ts'

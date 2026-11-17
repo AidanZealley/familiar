@@ -30,7 +30,7 @@ Import `defineTool` and `schema` from `@familiar-ai/core` rather than installing
 
 Inside `execute`:
 
-- `familiar(context)` gives the call what Familiar provides: `fetch`, `authorizedFetch`, `notify`, `timeZone` and `author()`.
+- `familiar(context)` gives the call what Familiar provides: `fetch`, `authorizedFetch`, `notify`, `timeZone`, `author()`, `familiarId()` and `askPrivately()`.
 - `await familiar(context).author()` is the person whose message started this run, or the creator of a scheduled run, followed back through any handoffs between Familiars. Background work, such as memory filing, has no author. Familiar reads it from the stored message, never from the tool's arguments.
 - Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against the author, or the app API's behind it.
 - `context.abortSignal` is set when the call can be cancelled. Pass it to anything you can cancel.

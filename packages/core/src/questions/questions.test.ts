@@ -3,9 +3,15 @@ import {
   fauxToolCall,
 } from '@earendil-works/pi-ai/providers/faux'
 import { expect, test, vi } from 'vitest'
-import { schema, type FamiliarPlugin, type RoomApi } from '../index.ts'
-import { replyTo, testHost } from '../testing.ts'
-import { defineTool } from '../tools.ts'
+import {
+  QuestionError,
+  schema,
+  type FamiliarPlugin,
+  type FormContent,
+  type RoomApi,
+} from '../index.ts'
+import { ReopenableStorage, replyTo, testHost } from '../testing.ts'
+import { defineTool, familiar } from '../tools.ts'
 
 // The gate before a connection's tools: what asks, what doesn't, and that
 // a question outlives neither its call nor a restart's rerun of it.
@@ -219,4 +225,105 @@ test('a new message instead of an answer declines the question, and the Familiar
   expect(seen[0]).toContain('sent a new message instead of answering')
   expect(await resultOf(host, second)).toContain('Sure, what instead?')
   expect(host.ran).toEqual([])
+})
+
+test("a private question's values reach only its plugin: never storage, the chat's stream or the model", async () => {
+  const secret = 'hunter2-never-stored'
+  // Everything Familiar ever writes, which includes what clients stream.
+  const written: string[] = []
+  class WatchedStorage extends ReopenableStorage {
+    override commit(...args: Parameters<ReopenableStorage['commit']>) {
+      written.push(
+        JSON.stringify(args[0], (_key, value: unknown) =>
+          typeof value === 'bigint' ? String(value) : value,
+        ),
+      )
+      return super.commit(...args)
+    }
+  }
+  const received: FormContent[] = []
+  const callers: number[] = []
+  const host = await testHost({
+    storage: new WatchedStorage(),
+    plugins: [
+      {
+        name: 'logins',
+        title: 'Logins',
+        tools: [
+          defineTool({
+            name: 'request_login',
+            description: 'Ask for a login',
+            parameters: schema.obj({}),
+            execute: async (_args, _api, context) => {
+              const services = familiar(context)
+              callers.push(await services.familiarId())
+              const result = await services.askPrivately(
+                {
+                  message: 'Your login for example.com',
+                  form: [
+                    { name: 'username', type: 'string', required: true },
+                    {
+                      name: 'password',
+                      type: 'string',
+                      format: 'password',
+                      required: true,
+                    },
+                  ],
+                },
+                async (values) => {
+                  if (received.push(values) === 1) {
+                    throw new QuestionError('Try again.')
+                  }
+                },
+              )
+              return { output: [{ type: 'text' as const, text: result }] }
+            },
+          }),
+        ],
+      },
+    ],
+  })
+  const seen: string[] = []
+  host.faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('request_login', {}), {
+      stopReason: 'toolUse',
+    }),
+    (context) => {
+      seen.push(JSON.stringify(context.messages))
+      return fauxAssistantMessage('Saved.')
+    },
+  ])
+  const entry = await host.dm().post({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Sign in',
+    requestId: 'sign-in',
+  })
+  // What the chat streams.
+  const watch = await host.dm().watchTurns()
+  const streamed: string[] = []
+  watch.start(async () => void streamed.push(JSON.stringify(watch.value)))
+  const [question] = await asked(host.dm())
+  expect(question).toMatchObject({ kind: 'private', plugin: 'logins' })
+
+  const answer = (password: string) =>
+    host.workspace().questions.answer(question!.familiar, question!.id, {
+      action: 'accept',
+      content: { username: 'sam', password },
+    })
+  // The plugin refusing them leaves the person asked.
+  await expect(answer(`${secret}-first`)).rejects.toThrow('Try again.')
+  await answer(secret)
+  const reply = JSON.stringify(await replyTo(host.dm(), entry))
+  await watch.stop()
+
+  expect(received.map((values) => values.password)).toEqual([
+    `${secret}-first`,
+    secret,
+  ])
+  expect(callers).toEqual([host.familiar().id])
+  expect(seen[0]).toContain('provided')
+  for (const text of [...written, ...streamed, ...seen, reply]) {
+    expect(text).not.toContain(secret)
+  }
+  expect(written.join('')).toContain('Your login for example.com')
 })

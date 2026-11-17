@@ -16,8 +16,9 @@ import type { QuestionProps } from './types'
 
 /**
  * What a reply is waiting for the person to answer: whether to run a call,
- * or a server's question. Approving or submitting lets the reply go on;
- * declining tells the Familiar no. Sending a new message instead declines it.
+ * a server's question, or a plugin's private one. Approving or submitting
+ * lets the reply go on; declining tells the Familiar no. Sending a new
+ * message instead declines it.
  */
 export const Question = ({ question }: QuestionProps) => {
   const store = useRoomStore()
@@ -74,8 +75,14 @@ export const Question = ({ question }: QuestionProps) => {
         {shape.type === 'approval' && actions}
       </div>
       <div className="ml-6 flex flex-col gap-3 border-l pl-3">
-        {question.kind === 'elicitation' && (
+        {question.kind !== 'tool' && (
           <p className="text-muted-foreground">{question.message}</p>
+        )}
+        {question.kind === 'private' && (
+          <p className="text-muted-foreground">
+            What you enter goes only to {question.plugin}, never to the Familiar
+            or this chat.
+          </p>
         )}
         {question.kind === 'tool' && (
           <pre className="font-mono text-xs whitespace-pre-wrap text-muted-foreground">
