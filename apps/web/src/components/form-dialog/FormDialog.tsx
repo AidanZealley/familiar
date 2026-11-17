@@ -20,13 +20,14 @@ import { useIsPhone } from '@/lib/media'
 import type { FormDialogProps } from './types'
 
 /**
- * A short form that makes something, open while it's mounted: a centred dialog, or on
+ * A short form that makes or saves something, open while it's mounted: a centred dialog, or on
  * a phone a drawer from the bottom, within reach of a thumb.
  */
 export const FormDialog = ({
   title,
   description,
   canSubmit,
+  submitLabel = 'Create',
   onSubmit,
   onClose,
   children,
@@ -43,7 +44,7 @@ export const FormDialog = ({
   )
   const create = (
     <Button type="submit" disabled={!canSubmit}>
-      Create
+      {submitLabel}
     </Button>
   )
 

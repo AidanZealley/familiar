@@ -8,6 +8,7 @@ import {
   removeComputer,
 } from '@/lib/computers'
 import { queryClient } from '@/lib/familiar'
+import { ComputerLogins } from './components/computer-logins'
 import { ComputerStatus } from './components/computer-status'
 import { GiveComputer } from './components/give-computer'
 import { PairingLink } from './components/pairing-link'
@@ -15,8 +16,8 @@ import { RemoveComputer } from './components/remove-computer'
 import type { ComputerSettingsProps } from './types'
 
 /**
- * A Familiar's computer: the offer to give it one, or how it is and how to
- * remove it. Giving, pairing and removing run here, one at a time, so the
+ * A Familiar's computer: the offer to give it one, or how it is, its logins
+ * and how to remove it. Giving, pairing and removing run here, one at a time, so the
  * controls stay put and disabled until the request finishes, however the
  * polled status changes meanwhile. The pairing link is the result of the last
  * pairing, shown until the machine connects.
@@ -82,6 +83,7 @@ export const ComputerSettings = ({ familiar }: ComputerSettingsProps) => {
         refreshError={isRefetchError ? error : null}
       />
       {pairedOffline && lifecycle.data && <PairingLink link={lifecycle.data} />}
+      <ComputerLogins familiar={familiar} />
       <div className="flex gap-2">
         {pairedOffline && (
           <Button

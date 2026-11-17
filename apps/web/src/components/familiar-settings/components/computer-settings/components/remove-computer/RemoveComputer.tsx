@@ -32,8 +32,8 @@ export const RemoveComputer = ({
         <AlertDialogTitle>Remove {familiar.name}'s computer?</AlertDialogTitle>
         <AlertDialogDescription>
           {provided
-            ? `Everything on its disk is deleted: files, downloads and anything installed. ${familiar.name} can be given a new computer, but not this one back. This can't be undone.`
-            : `${familiar.name} stops using this machine and the agent on it disconnects. Nothing on the machine is deleted, and you can pair it again later.`}
+            ? `Everything on its disk is deleted: files, downloads and anything installed, and so are its saved logins. ${familiar.name} can be given a new computer, but not this one back. This can't be undone.`
+            : `${familiar.name} stops using this machine and the agent on it disconnects. Its saved logins are deleted; nothing on the machine is, and you can pair it again later.`}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
