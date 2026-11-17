@@ -1,0 +1,16 @@
+# For the computers' image (packages/computer/Dockerfile), the one image
+# built from the repository root: the workspace's manifests, which pnpm reads
+# to install, and the sources the computer package builds from. At the root
+# rather than beside the Dockerfile, as Wrangler sends the Dockerfile on
+# stdin, where Docker looks for no Dockerfile-specific ignore file.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!tsconfig.build.json
+!*/*/package.json
+!packages/computer
+!packages/core
+**/node_modules
+**/dist

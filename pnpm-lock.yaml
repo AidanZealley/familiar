@@ -258,6 +258,9 @@ importers:
       '@familiar-ai/cloudflare':
         specifier: workspace:*
         version: link:../../packages/cloudflare
+      '@familiar-ai/computer':
+        specifier: workspace:*
+        version: link:../../packages/computer
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -480,6 +483,9 @@ importers:
 
   packages/computer:
     dependencies:
+      '@hono/node-server':
+        specifier: 2.1.5
+        version: 2.1.5(hono@4.13.13)
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
         version: 2.4.0
@@ -493,6 +499,9 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 5.20261023.1
+        version: 5.20261023.1
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../core

@@ -11,6 +11,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./agent": "./src/agent/index.ts",
+    "./cloudflare": "./src/cloudflare/index.ts",
     "./docker": "./src/docker/index.ts"
   },
   "files": [
@@ -24,6 +25,7 @@
     "exports": {
       ".": "./dist/index.js",
       "./agent": "./dist/agent/index.js",
+      "./cloudflare": "./dist/cloudflare/index.js",
       "./docker": "./dist/docker/index.js"
     }
   },
@@ -37,12 +39,14 @@
     "hono": "catalog:"
   },
   "dependencies": {
+    "@hono/node-server": "2.1.5",
     "@modelcontextprotocol/client": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
     "playwright": "1.65.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261023.1",
     "@familiar-ai/core": "workspace:*",
     "hono": "catalog:"
   }

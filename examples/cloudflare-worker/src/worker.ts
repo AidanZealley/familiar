@@ -6,6 +6,7 @@ import type { Env } from './env.ts'
 type App = { Bindings: Env }
 
 export { Bot } from './bot.ts'
+export { Computer } from '@familiar-ai/computer/cloudflare'
 
 /**
  * `/bots/<name>/api/*` is Familiar's HTTP API for the bot of that name, each

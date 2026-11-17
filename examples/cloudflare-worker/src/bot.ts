@@ -1,12 +1,15 @@
 import { DurableObject } from 'cloudflare:workers'
 import { DurableWorkspace, WorkspaceTerminated } from '@familiar-ai/cloudflare'
+import { computer } from '@familiar-ai/computer'
+import { cloudflareContainers } from '@familiar-ai/computer/cloudflare'
 import { createHttpApi } from '@familiar-ai/core/http'
 import type { Env } from './env.ts'
 import { ECHO_MODEL, echoModels } from './model.ts'
 
 /**
  * One workspace per name, each in its own Durable Object and storage, with
- * one Familiar the owner talks to in their DM.
+ * one Familiar the owner talks to in their DM. A Familiar with the
+ * `computer` plugin turned on has a computer, a container of its own.
  */
 export class Bot extends DurableObject<Env> {
   readonly workspace = new DurableWorkspace(this.ctx, {
@@ -16,6 +19,13 @@ export class Bot extends DurableObject<Env> {
       chatModel: ECHO_MODEL.model,
       modelChoices: [ECHO_MODEL],
       timeZone: this.env.TIME_ZONE,
+      plugins: [
+        computer({
+          host: cloudflareContainers(this.env.COMPUTERS, {
+            workspace: this.ctx.id.toString(),
+          }),
+        }),
+      ],
       // A real host delivers these, such as by Web Push or email.
       notify: async (notification) => console.log(notification),
     }),

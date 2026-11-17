@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "build": "wrangler deploy --dry-run --outdir dist",
+    "build": "wrangler deploy --dry-run --outdir dist --containers-rollout=none",
     "typecheck": "tsc"
   },
   "dependencies": {
     "@familiar-ai/cloudflare": "workspace:*",
+    "@familiar-ai/computer": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "hono": "catalog:"
   },

@@ -3,10 +3,28 @@
   "name": "familiar-cloudflare-worker",
   "main": "src/worker.ts",
   "compatibility_date": "2026-10-23",
+  // So a stopped computer tool call is passed on to its computer.
+  "compatibility_flags": ["enable_request_signal"],
   "durable_objects": {
-    "bindings": [{ "name": "BOTS", "class_name": "Bot" }],
+    "bindings": [
+      { "name": "BOTS", "class_name": "Bot" },
+      { "name": "COMPUTERS", "class_name": "Computer" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Bot"] }],
+  // Familiars' computers: Chromium wants a whole vCPU and a few GiB.
+  "containers": [
+    {
+      "class_name": "Computer",
+      "image": "../../packages/computer/Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "standard-2",
+      "max_instances": 10,
+    },
+  ],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Bot"] },
+    { "tag": "v2", "new_sqlite_classes": ["Computer"] },
+  ],
   "vars": { "TIME_ZONE": "Europe/London" },
   // Set with `wrangler secret put`, or in .dev.vars for `wrangler dev`.
   "secrets": { "required": ["FAMILIAR_TOKEN"] },

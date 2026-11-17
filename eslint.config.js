@@ -23,7 +23,7 @@ const nodeOnly = [
 ]
 
 // Workers-only code belongs in packages/cloudflare, the one package that
-// targets a single runtime.
+// targets a single runtime, or the computer package's Cloudflare host.
 const workersOnly = [
   {
     group: ['cloudflare:*', '@familiar-ai/cloudflare'],
@@ -98,7 +98,11 @@ export default defineConfig([
     },
   },
   {
-    files: ['packages/cloudflare/**/*.ts'],
+    // Workers-only: the Cloudflare package, and the computers' Cloudflare host.
+    files: [
+      'packages/cloudflare/**/*.ts',
+      'packages/computer/src/cloudflare/**/*.ts',
+    ],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

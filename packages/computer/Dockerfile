@@ -1,8 +1,9 @@
-# A Familiar's computer, for `dockerHost`: Chromium and the agent, run as an
-# unprivileged user whose home is the computer's disk. The agent listens on
-# a Unix socket the host reaches with `docker exec … socat`. The same image
+# A Familiar's computer: Chromium and the agent, run as an unprivileged user
+# whose home is the computer's disk. For `dockerHost`, the agent listens on a
+# Unix socket the host reaches with `docker exec … socat`, and the same image
 # runs the host's egress proxy (`docker/proxy-main.js`), which listens on a
-# socket in /run/familiar-proxy, a volume shared with every computer.
+# socket in /run/familiar-proxy, a volume shared with every computer. For
+# `cloudflareContainers`, the Container starts the agent on a port instead.
 #
 # Build from the repository root: pnpm image
 

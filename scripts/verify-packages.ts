@@ -81,8 +81,8 @@ try {
   ).map(({ name }: { name: string }) => name)
   assert.deepEqual(pi, [...new Set(pi)], 'Pi packages are installed twice')
 
-  // Node can't load Workers-only modules, so the Cloudflare package is only
-  // type-checked.
+  // Node can't load Workers-only modules, so the Cloudflare package and the
+  // computer's Cloudflare host are only type-checked.
   const load = async (file: string, names: string[]) => {
     await writeFile(
       resolve(consumer, file),
@@ -91,9 +91,10 @@ try {
     run('node', [file])
   }
   const react = '@familiar-ai/client/react'
+  const workersOnly = '@familiar-ai/computer/cloudflare'
   await load(
     'runtime.js',
-    entries.filter((name) => name !== react),
+    entries.filter((name) => name !== react && name !== workersOnly),
   )
 
   // A packed workspace runs a turn in a DM end to end.
@@ -285,9 +286,12 @@ useRoom(1)
     ['ES2023'],
     ['@cloudflare/workers-types'],
     `import { DurableWorkspace } from '@familiar-ai/cloudflare'
+import { cloudflareContainers } from '@familiar-ai/computer/cloudflare'
 declare const ok: never
 // @ts-expect-error
 new DurableWorkspace(1, ok)
+// @ts-expect-error
+cloudflareContainers(ok, { workspace: 1 })
 `,
   )
 
