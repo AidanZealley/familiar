@@ -77,21 +77,17 @@ test.skipIf(!hasImage)(
       if (left) {
         docker('rm', '-f', ...left.split('\n'))
       }
-      docker(
-        'network',
-        'rm',
-        `familiar-${hostId}-computers`,
-        `familiar-${hostId}-outside`,
-      )
-      const volumes = docker(
-        'volume',
-        'ls',
-        '-q',
-        '--filter',
-        `name=familiar-${hostId}`,
-      )
-      if (volumes) {
-        docker('volume', 'rm', ...volumes.split('\n'))
+      for (const kind of ['network', 'volume']) {
+        const left = docker(
+          kind,
+          'ls',
+          '-q',
+          '--filter',
+          `label=familiar-ai.host=${hostId}`,
+        )
+        if (left) {
+          docker(kind, 'rm', ...left.split('\n'))
+        }
       }
       await rm(dir, { recursive: true, force: true })
     })
@@ -131,11 +127,21 @@ test.skipIf(!hasImage)(
     expect(final).toContain('Hello, Ada')
 
     // The public internet, through the proxy, but not the host or its LAN,
-    // by the proxy or around it.
+    // by the proxy or around it: through Docker's bridges, the computer's
+    // own network's gateway among them, or the LAN.
     expect(
       await run('curl -sS -o /dev/null -w "%{http_code}" https://example.com/'),
     ).toMatch(/200/)
-    for (const address of ['172.17.0.1', lanAddress].filter(Boolean)) {
+    const subnet = docker(
+      'network',
+      'inspect',
+      `${container}-network`,
+      '--format',
+      '{{(index .IPAM.Config 0).Subnet}}',
+    )
+    const gateway = subnet.replace(/\.0\/\d+$/, '.1')
+    expect(gateway).toMatch(/^\d+\.\d+\.\d+\.1$/)
+    for (const address of ['172.17.0.1', gateway, lanAddress].filter(Boolean)) {
       const url = `http://${address}:${host.port}/api/computers/${host.familiar}`
       expect(await run(`curl -fsS -m 5 ${url}`)).toMatch(/Exit code [1-9]/)
       expect(await run(`curl -fsS -m 5 --noproxy '*' ${url}`)).toMatch(
@@ -157,12 +163,21 @@ test.skipIf(!hasImage)(
     })
     expect(await run('cat marker.txt')).toMatch(/kept/)
 
-    // The check deletes a computer whose Familiar has none, and makes a
-    // missing one again on its disk. Adding a Familiar runs it.
+    // The check deletes a computer, or a disk left behind, whose Familiar
+    // has none, and makes a missing one again on its disk. Adding a Familiar
+    // runs it.
+    const label = ['--label', `familiar-ai.host=${hostId}`]
+    docker(
+      'volume',
+      'create',
+      ...label,
+      '--label',
+      'familiar-ai.familiar=998',
+      `familiar-${hostId}-998-home`,
+    )
     docker(
       'create',
-      '--label',
-      `familiar-ai.host=${hostId}`,
+      ...label,
       '--label',
       'familiar-ai.familiar=999',
       '--name',
@@ -183,6 +198,15 @@ test.skipIf(!hasImage)(
         ).split('\n')
         expect(names).toContain(container)
         expect(names).not.toContain(`familiar-${hostId}-999`)
+        expect(
+          docker(
+            'volume',
+            'ls',
+            '-q',
+            '--filter',
+            `name=^familiar-${hostId}-998`,
+          ),
+        ).toBe('')
       },
       { timeout: 30_000, interval: 500 },
     )
@@ -194,6 +218,9 @@ test.skipIf(!hasImage)(
     expect(docker('ps', '-aq', '--filter', `name=^${container}$`)).toBe('')
     expect(
       docker('volume', 'ls', '-q', '--filter', `name=^${container}-home$`),
+    ).toBe('')
+    expect(
+      docker('network', 'ls', '-q', '--filter', `name=^${container}-network$`),
     ).toBe('')
   },
   240_000,

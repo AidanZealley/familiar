@@ -13,21 +13,27 @@ type Saved = Record<string, { token: string; provided?: true }>
 export type ComputerStatus = 'none' | 'asleep' | 'offline' | 'online'
 
 /**
+ * A provider's computer: running, stopped (asleep), or only its remains,
+ * such as its disk, left after it was deleted or half made.
+ */
+export type ProvidedComputer = 'running' | 'stopped' | 'remains'
+
+/**
  * Something that runs computers for the host, such as Docker
  * (`@familiar-ai/computer/docker`). It alone knows whether each is running.
  * A computer it runs connects to the host with its pairing token, as any
  * paired machine does.
  */
 export type ComputerProvider = {
-  /** The Familiars it has computers for, and whether each is running. */
-  list(): Promise<Map<FamiliarId, { running: boolean }>>
-  /** Makes `familiar`'s computer, stopped, unless it has one. */
+  /** The Familiars it has anything for, and what. */
+  list(): Promise<Map<FamiliarId, ProvidedComputer>>
+  /** Makes `familiar`'s computer, stopped, unless it has one, on any disk that remains. */
   create(familiar: FamiliarId, token: string): Promise<void>
   /** Starts `familiar`'s computer, making it first if it's missing. */
   wake(familiar: FamiliarId, token: string): Promise<void>
   /** Stops it, keeping its disk. */
   sleep(familiar: FamiliarId): Promise<void>
-  /** Deletes it and its disk, if it has one. */
+  /** Deletes whatever it has for `familiar`, its disk too. */
   remove(familiar: FamiliarId): Promise<void>
 }
 
@@ -79,9 +85,29 @@ export function openComputers(options: ComputersOptions) {
   const idleMs = options.idleMs ?? 15 * 60_000
   /** Calls under way on each computer. */
   const calls = new Map<FamiliarId, number>()
-  /** Each idle provider computer's timer to sleep, and its sleep once under way. */
+  /** Each idle provider computer's timer to sleep. */
   const idle = new Map<FamiliarId, NodeJS.Timeout>()
-  const sleeping = new Map<FamiliarId, Promise<void>>()
+  /** Each Familiar's last lifecycle operation, which the next waits for. */
+  const lifecycles = new Map<FamiliarId, Promise<unknown>>()
+
+  /**
+   * Runs `operation` once `familiar`'s earlier ones have finished, so
+   * pairing, giving, removing, waking, sleeping and the check never overlap
+   * on one computer. Each reads the saved state as it starts.
+   */
+  const serially = <T>(familiar: FamiliarId, operation: () => Promise<T>) => {
+    const result = (lifecycles.get(familiar) ?? Promise.resolve()).then(
+      operation,
+    )
+    const settled = result.catch(() => {})
+    lifecycles.set(familiar, settled)
+    void settled.then(() => {
+      if (lifecycles.get(familiar) === settled) {
+        lifecycles.delete(familiar)
+      }
+    })
+    return result
+  }
 
   const disconnect = async (familiar: FamiliarId) => {
     const client = online.get(familiar)
@@ -102,11 +128,14 @@ export function openComputers(options: ComputersOptions) {
       familiar,
       setTimeout(() => {
         idle.delete(familiar)
-        const sleep = disconnect(familiar)
-          .then(() => provider!.sleep(familiar))
-          .catch((error) => log(`Couldn't put a computer to sleep: ${error}`))
-          .finally(() => sleeping.delete(familiar))
-        sleeping.set(familiar, sleep)
+        serially(familiar, async () => {
+          // A call may have started, or the computer gone, meanwhile.
+          if (calls.get(familiar) || !file.value[familiar]?.provided) {
+            return
+          }
+          await disconnect(familiar)
+          await provider!.sleep(familiar)
+        }).catch((error) => log(`Couldn't put a computer to sleep: ${error}`))
       }, idleMs).unref(),
     )
   }
@@ -128,6 +157,7 @@ export function openComputers(options: ComputersOptions) {
     return online.get(familiar)
   }
 
+  /** Within `serially`: forgets `familiar`'s computer and deletes the provider's. */
   const removeComputer = async (familiar: FamiliarId) => {
     const saved = file.value[familiar]
     if (!saved) {
@@ -145,32 +175,39 @@ export function openComputers(options: ComputersOptions) {
 
   /**
    * Makes the provider's computers match: deletes a computer whose Familiar
-   * or computer is gone, makes a missing one again (on its disk, if that
-   * survived), and puts a running one nobody uses to sleep, as after the
-   * host restarted.
+   * or computer is gone, or what remains of one, makes a missing one again
+   * (on its disk, if that survived), and puts a running one nobody uses to
+   * sleep, as after the host restarted. `existing` may be stale by the time
+   * a Familiar's turn comes, which every step allows for.
    */
   const check = async (familiars: Set<FamiliarId>) => {
-    for (const id of Object.keys(file.value)) {
-      if (!familiars.has(Number(id) as FamiliarId)) {
-        await removeComputer(Number(id) as FamiliarId)
-      }
-    }
-    if (!provider) {
-      return
-    }
-    const existing = await provider.list()
-    for (const [familiar, { running }] of existing) {
-      if (!file.value[familiar]?.provided) {
-        await provider.remove(familiar)
-      } else if (running && !calls.get(familiar) && !idle.has(familiar)) {
-        sleepWhenIdle(familiar)
-      }
-    }
-    for (const [id, saved] of Object.entries(file.value)) {
-      const familiar = Number(id) as FamiliarId
-      if (saved.provided && !existing.has(familiar)) {
-        await provider.create(familiar, saved.token)
-      }
+    const existing = (await provider?.list()) ?? new Map()
+    const ids = new Set<FamiliarId>([
+      ...Object.keys(file.value).map((id) => Number(id) as FamiliarId),
+      ...existing.keys(),
+    ])
+    for (const familiar of ids) {
+      await serially(familiar, async () => {
+        if (!familiars.has(familiar) && file.value[familiar]) {
+          return removeComputer(familiar)
+        }
+        if (!provider) {
+          return
+        }
+        const saved = file.value[familiar]
+        const found = existing.get(familiar)
+        if (!saved?.provided) {
+          if (found) {
+            await provider.remove(familiar)
+          }
+        } else if (found === 'running') {
+          if (!calls.get(familiar) && !idle.has(familiar)) {
+            sleepWhenIdle(familiar)
+          }
+        } else if (found !== 'stopped') {
+          await provider.create(familiar, saved.token)
+        }
+      })
     }
   }
 
@@ -186,8 +223,8 @@ export function openComputers(options: ComputersOptions) {
       if (online.has(familiar)) {
         return 'online'
       }
-      const existing = saved.provided && (await provider?.list())?.get(familiar)
-      return existing && !existing.running ? 'asleep' : 'offline'
+      const found = saved.provided && (await provider?.list())?.get(familiar)
+      return found && found !== 'running' ? 'asleep' : 'offline'
     },
 
     /**
@@ -196,35 +233,38 @@ export function openComputers(options: ComputersOptions) {
      * token is disconnected and can't connect again; a computer the
      * provider ran is removed with its disk.
      */
-    pair: async (familiar: FamiliarId) => {
-      await removeComputer(familiar)
-      const token = newToken()
-      save((all) => (all[familiar] = { token }))
-      return token
-    },
+    pair: (familiar: FamiliarId) =>
+      serially(familiar, async () => {
+        await removeComputer(familiar)
+        const token = newToken()
+        save((all) => (all[familiar] = { token }))
+        return token
+      }),
 
     /**
      * Gives `familiar` a computer the provider runs, asleep until a call
      * needs it, unless it has one. A machine paired before is unpaired.
      */
-    provide: async (familiar: FamiliarId) => {
-      if (!provider) {
-        throw new Error('This host has no computer provider.')
-      }
-      if (file.value[familiar]?.provided) {
-        return
-      }
-      await removeComputer(familiar)
-      const token = newToken()
-      save((all) => (all[familiar] = { token, provided: true }))
-      await provider.create(familiar, token)
-    },
+    provide: (familiar: FamiliarId) =>
+      serially(familiar, async () => {
+        if (!provider) {
+          throw new Error('This host has no computer provider.')
+        }
+        if (file.value[familiar]?.provided) {
+          return
+        }
+        await removeComputer(familiar)
+        const token = newToken()
+        save((all) => (all[familiar] = { token, provided: true }))
+        await provider.create(familiar, token)
+      }),
 
     /**
      * Removes `familiar`'s computer: unpairs a machine, or deletes the
      * provider's computer with its disk.
      */
-    remove: removeComputer,
+    remove: (familiar: FamiliarId) =>
+      serially(familiar, () => removeComputer(familiar)),
 
     /** The Familiar whose computer `token` pairs, if any. */
     familiarFor: (token: string) => {
@@ -280,13 +320,18 @@ export function openComputers(options: ComputersOptions) {
       clearTimeout(idle.get(familiar))
       idle.delete(familiar)
       try {
-        await sleeping.get(familiar)
-        if (saved.provided && !online.has(familiar)) {
+        if (saved.provided) {
           try {
-            if (!provider) {
-              throw new Error('This host has no computer provider.')
-            }
-            await provider.wake(familiar, saved.token)
+            await serially(familiar, async () => {
+              const now = file.value[familiar]
+              if (!now?.provided || online.has(familiar)) {
+                return
+              }
+              if (!provider) {
+                throw new Error('This host has no computer provider.')
+              }
+              await provider.wake(familiar, now.token)
+            })
           } catch (error) {
             log(`Couldn't wake a computer: ${error}`)
             return 'offline'

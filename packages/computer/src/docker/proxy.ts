@@ -81,14 +81,23 @@ const publicLookup: LookupFunction = (hostname, options, done) =>
     done(null, addresses[0]!.address, addresses[0]!.family)
   })
 
+/** A connection that fails with `error` as soon as it's listened to. */
+function failed(error: Error) {
+  const socket = new Socket()
+  process.nextTick(() => socket.destroy(error))
+  return socket
+}
+
 /** A connection to `host:port` on the public internet only. */
 function connectPublic(host: string, port: number) {
   const name = host.replace(/^\[|\]$/g, '')
+  // `connect` throws on a port it can't use.
+  if (!(port > 0 && port < 65536)) {
+    return failed(new Error(`${port} isn't a port.`))
+  }
   // `connect` looks up names only, so an address is checked here.
   if (isIP(name) && !isPublic(name)) {
-    const socket = new Socket()
-    process.nextTick(() => socket.destroy(notPublicError(host)))
-    return socket
+    return failed(notPublicError(host))
   }
   return connect({ host: name, port, lookup: publicLookup })
 }
@@ -126,9 +135,7 @@ export function startProxy(options: ProxyOptions) {
 
   const proxy = createServer((incoming, outgoing) => {
     // A plain-HTTP request names its whole URL.
-    const url = URL.canParse(incoming.url ?? '')
-      ? new URL(incoming.url!)
-      : undefined
+    const url = URL.parse(incoming.url ?? '')
     if (url?.protocol !== 'http:') {
       outgoing.writeHead(400).end()
       return
@@ -142,7 +149,15 @@ export function startProxy(options: ProxyOptions) {
           connectPublic(url.hostname, Number(url.port || 80)),
       },
       (response) => {
-        outgoing.writeHead(response.statusCode ?? 502, response.headers)
+        const status = response.statusCode ?? 0
+        // `writeHead` throws on a status outside these.
+        if (status < 100 || status > 599) {
+          response.destroy()
+          outgoing.writeHead(502).end()
+          return
+        }
+        response.on('error', () => outgoing.destroy())
+        outgoing.writeHead(status, response.headers)
         response.pipe(outgoing)
       },
     )
@@ -155,9 +170,9 @@ export function startProxy(options: ProxyOptions) {
     incoming.pipe(onward)
   })
   proxy.on('connect', (incoming: IncomingMessage, socket: Duplex, head) => {
-    const target = URL.canParse(`http://${incoming.url}`)
-      ? new URL(`http://${incoming.url}`)
-      : undefined
+    // Node leaves a socket it hands over without an error listener.
+    socket.on('error', () => socket.destroy())
+    const target = URL.parse(`http://${incoming.url}`)
     if (!target?.port) {
       return refuse(socket, '400 Bad Request')
     }
@@ -168,14 +183,15 @@ export function startProxy(options: ProxyOptions) {
       join(socket, onward)
     })
     onward.once('error', () => refuse(socket, '403 Forbidden'))
-    socket.on('error', () => onward.destroy())
+    socket.on('close', () => onward.destroy())
   })
 
   const forward = createServer((_incoming, outgoing) =>
     outgoing.writeHead(404).end(),
   )
   forward.on('upgrade', (incoming: IncomingMessage, socket: Duplex, head) => {
-    if (new URL(incoming.url ?? '/', 'http://x').pathname !== CONNECT_PATH) {
+    socket.on('error', () => socket.destroy())
+    if (URL.parse(incoming.url ?? '', 'http://x')?.pathname !== CONNECT_PATH) {
       return refuse(socket, '404 Not Found')
     }
     const onward = connect({ host: hostName, port: hostPort })
@@ -196,7 +212,7 @@ export function startProxy(options: ProxyOptions) {
       join(socket, onward)
     })
     onward.once('error', () => refuse(socket, '502 Bad Gateway'))
-    socket.on('error', () => onward.destroy())
+    socket.on('close', () => onward.destroy())
   })
 
   proxy.listen(options.proxyPort ?? PROXY_PORT)
