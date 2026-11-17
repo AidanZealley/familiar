@@ -4,6 +4,10 @@ export type GiveComputerProps = {
   familiar: FamiliarSummary
   /** Whether the host can run a computer for it. */
   provider: boolean
-  /** Called with the pairing link when a machine is paired instead. */
-  onPaired: (link: string) => void
+  /** Whether a request to give or remove a computer is still running. */
+  pending: boolean
+  /** Why the last request failed. */
+  error?: string
+  /** Gives it a computer the host runs, or a machine to pair. */
+  onGive: (action: 'provide' | 'pair') => void
 }

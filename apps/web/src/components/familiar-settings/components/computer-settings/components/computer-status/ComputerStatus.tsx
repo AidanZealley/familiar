@@ -5,14 +5,23 @@ import type { ComputerStatusProps } from './types'
 const LABELS = { online: 'Online', asleep: 'Asleep', offline: 'Offline' }
 
 /** Whether the computer is running, and whose network it uses. */
-export const ComputerStatus = ({ familiar, computer }: ComputerStatusProps) => {
+export const ComputerStatus = ({
+  familiar,
+  computer,
+  refreshError,
+}: ComputerStatusProps) => {
   const { name } = familiar
   const { status, provided } = computer
   return (
     <Field>
       <FieldTitle>
         Computer
-        <Badge variant={status === 'online' ? 'secondary' : 'outline'}>
+        <Badge
+          variant={
+            status === 'online' && !refreshError ? 'secondary' : 'outline'
+          }
+        >
+          {refreshError ? 'Last known: ' : ''}
           {LABELS[status as keyof typeof LABELS]}
         </Badge>
       </FieldTitle>
@@ -28,6 +37,11 @@ export const ComputerStatus = ({ familiar, computer }: ComputerStatusProps) => {
           ? `It runs on this host's Docker and reaches the public internet only, never this host or your network.`
           : `It's a machine you paired, so it uses that machine's network and can reach whatever that machine can.`}
       </FieldDescription>
+      {refreshError && (
+        <FieldDescription className="text-destructive">
+          Couldn't refresh this: {refreshError.message}
+        </FieldDescription>
+      )}
     </Field>
   )
 }
