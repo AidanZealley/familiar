@@ -1,12 +1,14 @@
 import { existsSync } from 'node:fs'
 import { isIP } from 'node:net'
+import { computerRoutes, type Computers } from '@familiar-ai/computer'
 import type { Workspace } from '@familiar-ai/core'
 import { createHttpApi, type PushHost } from '@familiar-ai/core/http'
-import { serve } from '@hono/node-server'
+import { serve, upgradeWebSocket } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono, type MiddlewareHandler } from 'hono'
 import { csrf } from 'hono/csrf'
 import type { Models } from '@earendil-works/pi-ai'
+import { WebSocketServer } from 'ws'
 import { avatarRoutes } from './avatars.ts'
 import { providerRoutes } from './providers.ts'
 
@@ -26,6 +28,8 @@ export type ServeOptions = {
   push?: PushHost
   /** Where model providers' API keys are saved, from the web UI's settings. */
   models?: Models
+  /** Familiars' computers, paired and connecting under `/api/computers`. */
+  computers?: Computers
 }
 
 /**
@@ -101,7 +105,7 @@ export function daemonApp(
   workspace: Workspace,
   options: Pick<
     ServeOptions,
-    'owner' | 'webDir' | 'avatarsDir' | 'push' | 'models'
+    'owner' | 'webDir' | 'avatarsDir' | 'push' | 'models' | 'computers'
   >,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin())
@@ -117,6 +121,20 @@ export function daemonApp(
       await next()
     })
     app.route('/api/providers', providerRoutes(options.models))
+  }
+  if (options.computers) {
+    // Outside the workspace's API too. A computer connects by an address
+    // the owner uses, with its pairing token.
+    app.use('/api/computers/*', async (c, next) => {
+      if (!isAllowedHost(c.req.header('host') ?? null)) {
+        return c.json({ error: 'unauthorized' }, 401)
+      }
+      await next()
+    })
+    app.route(
+      '/api/computers',
+      computerRoutes(options.computers, { workspace, upgradeWebSocket }),
+    )
   }
   app.route(
     '/api',
@@ -145,7 +163,13 @@ export function serveWorkspace(workspace: Workspace, options: ServeOptions) {
   const app = daemonApp(workspace, options)
 
   const server = serve(
-    { fetch: app.fetch, hostname: options.host, port: options.port },
+    {
+      fetch: app.fetch,
+      hostname: options.host,
+      port: options.port,
+      // Computers' agents connect over WebSockets.
+      websocket: { server: new WebSocketServer({ noServer: true }) },
+    },
     () =>
       console.log(`${options.label} on http://${options.host}:${options.port}`),
   )
