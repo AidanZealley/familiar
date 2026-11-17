@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest'
-import { offeredModels } from './models.ts'
+import { offeredModels, providerModels } from './models.ts'
 
 vi.mock('./config.ts', () => ({ config: { explicit: {} } }))
 
@@ -29,4 +29,16 @@ test('offers the providers with credentials, else ChatGPT to sign in to', async 
   )
   expect(both.modelChoices).toEqual(choices)
   expect(both.chatModel).toEqual(choices[1].model)
+})
+
+// A typo or an unsupported level only shows when someone picks the model.
+test('every model choice is in its provider catalogue at a level it supports', async () => {
+  const { config } =
+    await vi.importActual<typeof import('./config.ts')>('./config.ts')
+  const models = providerModels()
+  for (const { model, thinkingLevel } of config.modelChoices) {
+    const found = models.getModel(model.provider, model.modelId)
+    expect(found, `${model.provider}/${model.modelId}`).toBeDefined()
+    expect(found?.thinkingLevelMap?.[thinkingLevel]).not.toBeNull()
+  }
 })

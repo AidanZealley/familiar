@@ -117,7 +117,7 @@ export const AppSettings = () => {
               label: 'API keys',
               icon: LockKeyIcon,
               keywords:
-                'provider anthropic claude google gemini openrouter xai grok groq mistral',
+                'provider anthropic claude google gemini openrouter xai grok',
               description:
                 "Model providers' keys. Each provider's models are offered once it has one, after Familiar restarts.",
               content: <ProviderKeys />,
