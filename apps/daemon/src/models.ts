@@ -1,3 +1,4 @@
+import { vaultKey } from './vault.ts'
 import { registerBunOAuthFlows } from '@earendil-works/pi-ai/bun-oauth'
 import { createModels } from '@familiar-ai/core/models'
 import { openaiProvider } from '@familiar-ai/core/models/openai'
@@ -12,7 +13,7 @@ registerBunOAuthFlows()
 /** Model access through your ChatGPT subscription; `pnpm sign-in` signs in. */
 export function openModels() {
   const models = createModels({
-    credentials: fileCredentialStore(dataPath('auth.json')),
+    credentials: fileCredentialStore(dataPath('auth.json'), vaultKey()),
   })
   models.setProvider(openaiProvider())
   return models

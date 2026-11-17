@@ -9,7 +9,7 @@ import type {
 import type { ModelChoice } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { openaiProvider } from '@familiar-ai/core/models/openai'
-import { fileCredentialStore } from '@familiar-ai/core/node'
+import { fileCredentialStore, fileVaultKey } from '@familiar-ai/core/node'
 import { evalDirectory } from './longmem-data.ts'
 
 /**
@@ -309,20 +309,16 @@ export function evalAccess(
   home = homedir(),
 ): EvalAccess {
   const file = authFile(home)
-  let signedIn = false
-  try {
-    signedIn = 'openai' in JSON.parse(readFileSync(file, 'utf8'))
-  } catch {
-    // Missing or unreadable reads as not signed in.
-  }
-  if (!signedIn) {
+  if (!existsSync(file)) {
     throw new Error(
       `The eval has no ChatGPT sign-in. Run FAMILIAR_DATA_DIR=${evalDirectory(home)} pnpm sign-in.`,
     )
   }
-  // Shared across stages: it rewrites its file as tokens refresh, so each
-  // must not hold its own copy.
-  const chatgpt = fileCredentialStore(file)
+  // Shared across stages, including serialized OAuth refreshes.
+  const chatgpt = fileCredentialStore(
+    file,
+    fileVaultKey(join(evalDirectory(home), 'vault.key'), [file]),
+  )
   const signIn = (meter: Meter) => {
     const models = createModels({ credentials: chatgpt })
     models.setProvider(meter.wrap(openaiProvider()))

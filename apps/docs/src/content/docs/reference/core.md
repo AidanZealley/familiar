@@ -7,19 +7,19 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 
 ## Entry points
 
-| Import                                | Contents                                                                                                                                                       |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `schema`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                        |
-| `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                                                                                                |
-| `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                                                               |
-| `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                                                               |
-| `@familiar-ai/core/models/openrouter` | `openrouterProvider`                                                                                                                                           |
-| `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                                                                                        |
-| `@familiar-ai/core/models/scripted`   | `scriptedModels`: faux models that answer each request with a script, read as a message, tool result, schedule or background work                              |
-| `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                                                                                                |
-| `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                                                       |
-| `@familiar-ai/core/node`              | Node building blocks: `fileSecretStore`, `fileCredentialStore`, `lockDataDir`, `jsonFile`. See [Plugin API](/familiar/reference/plugins/#node-building-blocks) |
-| `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                                                          |
+| Import                                | Contents                                                                                                                                                                                            |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `schema`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                                                             |
+| `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                                                                                                                                     |
+| `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                                                                                                    |
+| `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                                                                                                    |
+| `@familiar-ai/core/models/openrouter` | `openrouterProvider`                                                                                                                                                                                |
+| `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                                                                                                                             |
+| `@familiar-ai/core/models/scripted`   | `scriptedModels`: faux models that answer each request with a script, read as a message, tool result, schedule or background work                                                                   |
+| `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                                                                                                                                     |
+| `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                                                                                            |
+| `@familiar-ai/core/node`              | Node building blocks: `fileSecretStore`, `fileCredentialStore`, `fileVaultKey`, `encryptedJsonFile`, `lockDataDir`, `jsonFile`. See [Plugin API](/familiar/reference/plugins/#node-building-blocks) |
+| `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                                                                                               |
 
 The model and extension entries re-export Pi at the exact version core depends on.
 

@@ -5,7 +5,11 @@ import { openWorkspace } from '@familiar-ai/core'
 import { createHttpApi } from '@familiar-ai/core/http'
 import { createModels } from '@familiar-ai/core/models'
 import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
-import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
+import {
+  fileSecretStore,
+  fileVaultKey,
+  lockDataDir,
+} from '@familiar-ai/core/node'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -32,7 +36,10 @@ const workspace = await openWorkspace({
   modelChoices: [{ model, thinkingLevel: 'medium' }],
   timeZone: config.timeZone,
   plugins: [github],
-  secrets: fileSecretStore(data('secrets.json')),
+  secrets: fileSecretStore(
+    data('secrets.json'),
+    fileVaultKey(data('vault.key'), [data('secrets.json')]),
+  ),
   // No `fetch`: on Node, tools get one that refuses private addresses.
   notify: async (notification) => console.log('Notification:', notification),
 })

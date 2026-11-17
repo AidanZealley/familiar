@@ -1,3 +1,4 @@
+import { vaultKey } from './vault.ts'
 import { mkdirSync } from 'node:fs'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
@@ -39,7 +40,7 @@ export async function serve() {
       people: [{ id: OWNER_ID, name: config.owner }],
       // Web search and pages are useful to any Familiar; others opt in.
       defaultCapabilities: { plugins: [webPlugin.name] },
-      secrets: fileSecretStore(dataPath('secrets.json')),
+      secrets: fileSecretStore(dataPath('secrets.json'), vaultKey()),
       mcpFetch: fetch,
       mcpStdio: stdioTransport,
     },
