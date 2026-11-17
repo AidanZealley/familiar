@@ -35,6 +35,7 @@ async function setup() {
       computers: openComputers({
         path: resolve(dir, 'computers.json'),
         keyPath: resolve(dir, 'vault.key'),
+        loginsDir: resolve(dir, 'logins'),
         waitMs,
       }),
       models,

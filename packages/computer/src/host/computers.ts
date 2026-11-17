@@ -3,6 +3,7 @@ import { EventEmitter, once } from 'node:events'
 import type { FamiliarId, Workspace } from '@familiar-ai/core'
 import { encryptedJsonFile } from '@familiar-ai/core/node'
 import { Client, type Transport } from '@modelcontextprotocol/client'
+import { computerLogins, type Login } from './logins.ts'
 
 /**
  * Each Familiar's computer, by FamiliarId: its pairing token, and whether
@@ -40,6 +41,8 @@ export type ComputerProvider = {
 export type ComputersOptions = {
   /** The encrypted file computers are kept in. */
   path: string
+  /** The folder each computer's encrypted logins are kept in. */
+  loginsDir: string
   /** The host's vault key, shared with its other encrypted files. */
   keyPath: string
   /**
@@ -64,8 +67,8 @@ const CHECK_EVERY_MS = 10 * 60_000
 
 /**
  * The one owner of which Familiars have a computer and how each pairs,
- * saved under the host's key, of the computers connected now, and of the
- * calls each is serving. A computer is whatever runs the agent with its
+ * saved under the host's key, with each computer's logins, of the computers
+ * connected now, and of the calls each is serving. A computer is whatever runs the agent with its
  * pairing token: it connects in, and the host is the MCP client of the
  * agent's server. A provider's computer sleeps once no call has used it
  * for `idleMs`, and wakes for the next.
@@ -78,6 +81,7 @@ export function openComputers(options: ComputersOptions) {
     () => ({}),
   )
   const { provider } = options
+  const logins = computerLogins(options.loginsDir, options.keyPath)
   const log = options.log ?? console.error
   const online = new Map<FamiliarId, Client>()
   const arrivals = new EventEmitter()
@@ -166,6 +170,8 @@ export function openComputers(options: ComputersOptions) {
   const removeComputer = async (familiar: FamiliarId) => {
     const saved = file.value[familiar]
     if (!saved) {
+      // Any left by a removal cut short, before a new computer is given.
+      logins.remove(familiar)
       return
     }
     clearTimeout(idle.get(familiar))
@@ -176,6 +182,7 @@ export function openComputers(options: ComputersOptions) {
       await provider?.remove(familiar)
     }
     save((all) => delete all[familiar])
+    logins.remove(familiar)
   }
 
   /**
@@ -392,6 +399,26 @@ export function openComputers(options: ComputersOptions) {
         await watch.stop()
         await queue
       }
+    },
+
+    /**
+     * `familiar`'s computer's logins, by site. Only the person adds or
+     * changes one; the computer is given one only to sign in. Saving needs
+     * a computer, and its logins go with it.
+     */
+    logins: {
+      list: (familiar: FamiliarId) => logins.list(familiar),
+      get: (familiar: FamiliarId, site: string) => logins.get(familiar, site),
+      set: (familiar: FamiliarId, site: string, login: Login) => {
+        if (!file.value[familiar]) {
+          throw new Error('This Familiar has no computer to keep logins on.')
+        }
+        logins.set(familiar, site, login)
+      },
+      delete: (familiar: FamiliarId, site: string) =>
+        logins.delete(familiar, site),
+      scrub: (familiar: FamiliarId, text: string) =>
+        logins.scrub(familiar, text),
     },
 
     /** Disconnects every computer, as the host stops. Running ones keep running. */

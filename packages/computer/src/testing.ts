@@ -13,6 +13,7 @@ import {
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { serve, upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
+import { expect, vi } from 'vitest'
 import { WebSocketServer } from 'ws'
 import type { Computers } from './host/computers.ts'
 import { computerPlugin, computerRoutes } from './index.ts'
@@ -103,6 +104,27 @@ export async function serveHost(options: {
     /** Posts `text` to Ada; `reply` waits for her answer to it. */
     ask: (text: string) => dm.post({ author: owner, text, requestId: text }),
     reply: (entry: Awaited<ReturnType<typeof dm.post>>) => replyTo(dm, entry),
+    /** Waits for Ada's next question, and answers it with `content`. */
+    answer: async (content: Record<string, string>) => {
+      const watch = await dm.watchTurns()
+      watch.start(async () => {})
+      try {
+        const question = await vi.waitFor(() => {
+          const asked = Object.values(watch.value).flatMap((turn) =>
+            'questions' in turn ? (turn.questions ?? []) : [],
+          )
+          expect(asked).not.toEqual([])
+          return asked[0]!
+        }, 10_000)
+        await workspace.questions.answer(familiar, question.id, {
+          action: 'accept',
+          content,
+        })
+        return question
+      } finally {
+        await watch.stop()
+      }
+    },
     close: async () => {
       await workspace.dismiss()
       sockets.clients.forEach((socket) => socket.terminate())

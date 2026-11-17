@@ -51,6 +51,7 @@ test.skipIf(!hasImage)(
     const computers = openComputers({
       path: resolve(dir, 'computers.json'),
       keyPath: resolve(dir, 'vault.key'),
+      loginsDir: resolve(dir, 'logins'),
       provider: dockerProvider({
         hostId,
         // Set once the host has its port: the proxy starts on first use.
