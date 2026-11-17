@@ -149,28 +149,6 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       : undefined
   }
 
-  /**
-   * Starts `familiar`'s computer, making it first if it has none and this
-   * host has room: whether it was asleep.
-   */
-  const wake = (familiar: FamiliarId) =>
-    change(async () => {
-      await makeProxy()
-      const [found] = await resources.containers(familiar)
-      if (found?.running) {
-        return false
-      }
-      if (!found) {
-        const reason = await full()
-        if (reason) {
-          throw new Error(reason)
-        }
-        await resources.createComputer(familiar)
-      }
-      await docker('start', resources.container(familiar))
-      return true
-    })
-
   const sessions = new Map<FamiliarId, Session>()
   const sessionOf = (familiar: FamiliarId) =>
     sessions.get(familiar) ??
@@ -187,8 +165,8 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     const timer = setTimeout(
       () =>
         void change(async () => {
-          // A call has come since.
-          if (session.timer !== timer) {
+          // A call has come since, or `sync` removed it.
+          if (session.timer !== timer || sessions.get(familiar) !== session) {
             return
           }
           drop(familiar)
@@ -198,6 +176,34 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     ).unref()
     session.timer = timer
   }
+  /**
+   * Starts `familiar`'s computer, making it first if it has none and this
+   * host has room, and connects `session` to it: its client, and whether it
+   * was asleep. One change, so `sync` can't remove the computer meanwhile.
+   */
+  const wake = (familiar: FamiliarId, session: Session) =>
+    change(async () => {
+      if (sessions.get(familiar) !== session) {
+        throw new Error('it was removed')
+      }
+      if (session.client) {
+        return { client: session.client, woke: false }
+      }
+      await makeProxy()
+      const [found] = await resources.containers(familiar)
+      if (!found) {
+        const reason = await full()
+        if (reason) {
+          throw new Error(reason)
+        }
+        await resources.createComputer(familiar)
+      }
+      if (!found?.running) {
+        await docker('start', resources.container(familiar))
+      }
+      session.client = connect(familiar, session)
+      return { client: session.client, woke: !found?.running }
+    })
   /** Connects `session`'s client, which it forgets once the exec ends. */
   const connect = (familiar: FamiliarId, session: Session) => {
     const client = new Client({ name: 'familiar', version: '1.0.0' })
@@ -240,12 +246,11 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         let woke = false
         let client
         try {
-          if (!session.client) {
-            woke = await wake(familiar)
-            // Unless another call connected while this one waited.
-            session.client ??= connect(familiar, session)
-          }
-          client = await session.client
+          const started = session.client
+            ? { client: session.client, woke: false }
+            : await wake(familiar, session)
+          woke = started.woke
+          client = await started.client
         } catch (error) {
           return failed(
             `Your computer couldn't start, so nothing ran: ${reasonOf(error)}`,
