@@ -37,8 +37,9 @@ const call = (name: string) =>
 
 const output = { output: [{ type: 'text' as const, text: 'Done' }] }
 
-test('tools and nested calls retain their author across rounds while another author is queued', async () => {
+test('tools and nested calls retain their author and Familiar across rounds while another author is queued', async () => {
   const seen: (Author | undefined)[] = []
+  const familiars: number[] = []
   let release!: () => void
   const held = new Promise<void>((resolve) => {
     release = resolve
@@ -68,6 +69,7 @@ test('tools and nested calls retain their author across rounds while another aut
         parameters: schema.obj({}),
         execute: async (_args, _api, context) => {
           seen.push(await services(context).author())
+          familiars.push(await services(context).familiarId())
           return output
         },
       }),
@@ -101,6 +103,7 @@ test('tools and nested calls retain their author across rounds while another aut
   await replyTo(dm(), one)
   await replyTo(dm(), two)
   expect(seen).toEqual([first, first, first, second])
+  expect(familiars).toEqual([familiar.id, familiar.id, familiar.id])
 })
 
 test('a replay-safe interrupted tool resolves the same author after reopening', async () => {

@@ -54,6 +54,12 @@ export type FamiliarOperation =
   | 'events.memory'
   | 'events.schedules'
 
+/**
+ * A plugin's routes, all named by the plugin, as `plugins.<name>`, and
+ * asked with the Familiar in their path.
+ */
+export type PluginOperation = `plugins.${string}`
+
 /** What it can do in one room, asked with that room's ID. */
 export type RoomOperation =
   | 'rooms.update'
@@ -67,7 +73,8 @@ export type RoomOperation =
   | 'events.room'
 
 /** Everything the HTTP API can do, each named for `allow`. */
-export type Operation = WorkspaceOperation | FamiliarOperation | RoomOperation
+export type Operation =
+  WorkspaceOperation | FamiliarOperation | PluginOperation | RoomOperation
 
 /**
  * What an operation is about, beyond the workspace: the Familiar or the room
