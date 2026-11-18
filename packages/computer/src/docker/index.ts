@@ -18,8 +18,14 @@ export type DockerHostOptions = {
    * Default `default`.
    */
   hostId?: string
-  /** The computers' image, built from this package's Dockerfile. Default `COMPUTER_IMAGE`. */
-  image?: string
+  /**
+   * The repository of the computers' image, built from this package's
+   * Dockerfile. Its other tags are removed once no container uses them, so
+   * keep it for these images only. Default `COMPUTER_REPOSITORY`.
+   */
+  repository?: string
+  /** The image's tag. Default this package's version. */
+  tag?: string
   /** How long a computer runs without a call before it sleeps. Default 15 minutes. */
   idleMs?: number
   /**
@@ -31,11 +37,17 @@ export type DockerHostOptions = {
 }
 
 /**
+ * Where the computers' image is published, named once in this package's
+ * `config.image`, which `pnpm image` and the release read too.
+ */
+export const COMPUTER_REPOSITORY = manifest.config.image
+
+/**
  * The computers' image, tagged with this package's version: each release
  * publishes its own, so a host runs the agent it was released with. A
  * checkout's version is `0.0.0`, the tag `pnpm image` builds.
  */
-export const COMPUTER_IMAGE = `ghcr.io/aidanzealley/familiar-computer:${manifest.version}`
+export const COMPUTER_IMAGE = `${COMPUTER_REPOSITORY}:${manifest.version}`
 
 /** Longer than any tool's own limit: the agent stops its own calls first. */
 const CALL_MAX_MS = 15 * 60_000
@@ -83,11 +95,13 @@ type Session = {
 export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   const {
     hostId = 'default',
-    image = COMPUTER_IMAGE,
+    repository = COMPUTER_REPOSITORY,
+    tag = manifest.version,
     idleMs = 15 * 60_000,
     maxComputers = 10,
   } = options
-  const resources = dockerResources(hostId, image)
+  const image = `${repository}:${tag}`
+  const resources = dockerResources(hostId, { repository, tag })
 
   /**
    * The image: fetched in the background from the start, unless it's here

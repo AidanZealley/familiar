@@ -83,7 +83,8 @@ test.skipIf(!hasImage)(
     let maxComputers = 1
     const host = dockerHost({
       hostId,
-      image,
+      repository,
+      tag: 'v1',
       idleMs: 3000,
       maxComputers: () => maxComputers,
     })
@@ -294,7 +295,7 @@ test.skipIf(!hasImage)(
     )
     imageCopy(`${repository}:unused`)
     const v2 = imageCopy(`${repository}:v2`)
-    const updated = dockerHost({ hostId, image: `${repository}:v2` })
+    const updated = dockerHost({ hostId, repository, tag: 'v2' })
     await vi.waitFor(() => expect(tags()).toEqual(['v1', 'v2']), {
       timeout: 30_000,
       interval: 500,

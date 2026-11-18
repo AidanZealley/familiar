@@ -36,22 +36,6 @@ export function reasonOf(error: unknown) {
   )
 }
 
-/**
- * `image`'s repository and tag as `docker image ls` shows them, with
- * Docker's implicit `latest`. A tag's colon comes after the last `/`, so a
- * registry's port isn't one. Undefined for a reference by digest, whose
- * tags can't be told apart, so nothing is removed for it.
- */
-export function imageRepository(image: string) {
-  if (image.includes('@')) {
-    return undefined
-  }
-  const colon = image.lastIndexOf(':')
-  return colon > image.lastIndexOf('/')
-    ? { repository: image.slice(0, colon), tag: image.slice(colon + 1) }
-    : { repository: image, tag: 'latest' }
-}
-
 /** A container or volume this host made: its Familiar's, unless shared. */
 export type Owned = { name: string; familiar?: FamiliarId; running?: boolean }
 
@@ -62,7 +46,11 @@ export type Owned = { name: string; familiar?: FamiliarId; running?: boolean }
  * found only by its labels, never by name, so nothing another host or
  * person made is used or removed. It keeps no state: Docker is the record.
  */
-export function dockerResources(hostId: string, image: string) {
+export function dockerResources(
+  hostId: string,
+  { repository, tag }: { repository: string; tag: string },
+) {
+  const image = `${repository}:${tag}`
   const prefix = `familiar-${hostId}`
   const proxy = `${prefix}-proxy`
   /** The volume that holds the proxy's socket. */
@@ -228,18 +216,12 @@ export function dockerResources(hostId: string, image: string) {
     },
 
     /**
-     * Removes the other tags of `image`'s repository, such as earlier
-     * releases' images, each unless a container uses it, whichever host's:
-     * those stay until a later try. Docker alone would refuse only an
-     * image's last tag, so it's checked here.
+     * Removes the other tags of `repository`, such as earlier releases'
+     * images, each unless a container uses it, whichever host's: those stay
+     * until a later try. Docker alone would refuse only an image's last
+     * tag, so it's checked here.
      */
     removeOldImages: async () => {
-      const reference = imageRepository(image)
-      if (!reference) {
-        return
-      }
-      const { repository } = reference
-      const current = `${repository}:${reference.tag}`
       const tags = await docker(
         'image',
         'ls',
@@ -250,7 +232,7 @@ export function dockerResources(hostId: string, image: string) {
       for (const tag of tags.split('\n')) {
         if (
           tag &&
-          tag !== current &&
+          tag !== image &&
           !tag.endsWith(':<none>') &&
           !(await docker(
             'container',
