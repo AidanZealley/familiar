@@ -26,46 +26,46 @@
         <Width>2</Width>
         <Height>30</Height>
         <Corner>5</Corner>
-        <Foreground>#dfdbea</Foreground>
-        <Background>#292638</Background>
-        <Outline>#514b61</Outline>
+        <Foreground>#daddec</Foreground>
+        <Background>#252739</Background>
+        <Outline>#4a4d63</Outline>
         <Active>
             <Foreground>#ffffff</Foreground>
-            <Background>#39305c</Background>
-            <Outline>#9a87fb</Outline>
+            <Background>#2f335f</Background>
+            <Outline>#7c86ff</Outline>
         </Active>
     </WindowStyle>
     <TrayStyle decorations="flat">
         <Font>Geist-12</Font>
-        <Background>#1b1927</Background>
-        <Foreground>#f4f1ff</Foreground>
+        <Background>#181a28</Background>
+        <Foreground>#f0f3ff</Foreground>
     </TrayStyle>
     <TrayButtonStyle>
         <Font>JetBrains Mono-11</Font>
-        <Foreground>#e5dcff</Foreground>
-        <Background>#302747</Background>
+        <Foreground>#dae0ff</Foreground>
+        <Background>#262a4a</Background>
     </TrayButtonStyle>
     <TaskListStyle list="all" group="false">
         <Font>Geist-12</Font>
-        <Foreground>#e2dded</Foreground>
-        <Background>#1b1927</Background>
+        <Foreground>#dcdfef</Foreground>
+        <Background>#181a28</Background>
         <Active>
             <Foreground>#ffffff</Foreground>
-            <Background>#39305c</Background>
+            <Background>#2f335f</Background>
         </Active>
     </TaskListStyle>
     <MenuStyle decorations="flat">
         <Font>Geist-12</Font>
-        <Foreground>#f4f1ff</Foreground>
-        <Background>#292638</Background>
+        <Foreground>#f0f3ff</Foreground>
+        <Background>#252739</Background>
         <Active>
             <Foreground>#ffffff</Foreground>
-            <Background>#493586</Background>
+            <Background>#372aac</Background>
         </Active>
     </MenuStyle>
     <ClockStyle>
         <Font>JetBrains Mono-11</Font>
-        <Foreground>#e2dded</Foreground>
+        <Foreground>#dcdfef</Foreground>
     </ClockStyle>
 
     <FocusModel>click</FocusModel>
