@@ -598,9 +598,6 @@ export async function openWorkspace(
       await open(id)
     }
 
-    // finish whatever the last process left unfinished
-    harness.resume()
-
     const close = async () => {
       account?.close()
       try {
@@ -629,6 +626,10 @@ export async function openWorkspace(
     // Plugins close however the workspace closes: dismissed, or its storage
     // failed, even while they were opening.
     const pluginsClosed = harness.closed.then(closePlugins)
+
+    // Finish whatever the last process left unfinished, once plugins know
+    // the workspace: a resumed tool call may reach one.
+    harness.resume()
 
     return {
       familiars: {

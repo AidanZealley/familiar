@@ -11,7 +11,10 @@ export type OpenPluginsOptions = {
 /**
  * Opens each plugin that has `open`, in order, and returns what closes them
  * all. Storage owns who uses each plugin: a watch rereads it on each
- * `change` and tells its listener only when it differs.
+ * `change` and tells its listener only when it differs. Each plugin's open
+ * settles only once every watch it began has told its listener who uses it
+ * now, so a workspace that resumes work afterwards never reaches a plugin
+ * that hasn't heard.
  */
 export async function openPlugins(
   plugins: readonly FamiliarPlugin[],
@@ -38,6 +41,8 @@ export async function openPlugins(
 
   try {
     for (const plugin of plugins) {
+      /** Each watch's first telling, begun while the plugin opens. */
+      const firsts: Promise<void>[] = []
       const closePlugin = await plugin.open?.({
         watchFamiliars: (listener) => {
           let told: string | undefined
@@ -59,11 +64,13 @@ export async function openPlugins(
             signal: watching.signal,
           })
           update()
+          firsts.push(reading)
         },
       })
       if (closePlugin) {
         closes.push(closePlugin)
       }
+      await Promise.all(firsts)
     }
   } catch (error) {
     await close().catch(() => {})
