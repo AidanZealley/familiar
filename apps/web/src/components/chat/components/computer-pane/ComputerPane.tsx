@@ -7,7 +7,7 @@ import type { ComputerPaneProps } from './types'
  * shows on the screen itself, as the cover a sleeping one wears.
  */
 export const ComputerPane = ({ familiar }: ComputerPaneProps) => (
-  <div className="grid shrink-0 place-items-center bg-black docked:[container-type:size] docked:min-w-0 docked:flex-1 docked:p-4 stacked:pt-(--status-bar)">
+  <div className="grid shrink-0 place-items-center bg-black docked:[container-type:size] docked:min-w-0 docked:flex-1 docked:p-4">
     <ComputerScreen
       familiar={familiar}
       size="large"
