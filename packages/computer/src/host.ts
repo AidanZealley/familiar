@@ -27,6 +27,17 @@ export type ComputerHost = {
    * list wins.
    */
   sync(familiars: readonly FamiliarId[]): Promise<void>
+  /**
+   * The Familiar's screen as it is now, for a person watching: the display's
+   * VNC (RFB) bytes both ways, which a viewer such as noVNC speaks, or
+   * undefined if the computer isn't running. Never wakes the computer or
+   * keeps it awake. Ends when the computer stops, the host closes or
+   * `signal` aborts; each call is its own stream.
+   */
+  screen(
+    familiar: FamiliarId,
+    signal: AbortSignal,
+  ): Promise<ByteStream | undefined>
   /** Cheap enough to poll. */
   status(familiar: FamiliarId): Promise<ComputerStatus>
   /**
@@ -53,6 +64,12 @@ export type ComputerHost = {
 export type ComputerStatus =
   | { state: 'running' | 'asleep' | 'setting-up' | 'none' }
   | { state: 'unavailable'; reason: string }
+
+/** Bytes both ways, such as a computer's screen. */
+export type ByteStream = {
+  readable: ReadableStream<Uint8Array<ArrayBuffer>>
+  writable: WritableStream<Uint8Array<ArrayBuffer>>
+}
 
 /** Some amount in use against its limit, such as memory in bytes. */
 export type Usage = { used: number; limit?: number }

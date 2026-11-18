@@ -141,6 +141,12 @@ test.skipIf(!hasImage)(
       },
     )
 
+    // Watching a sleeping computer finds no screen, and leaves it asleep.
+    expect(await host.screen(ada.id, new AbortController().signal)).toBe(
+      undefined,
+    )
+    expect(await status()).toEqual({ state: 'asleep' })
+
     // A browser task, through the workspace, wakes it.
     let final = ''
     faux.setResponses([
@@ -199,6 +205,35 @@ test.skipIf(!hasImage)(
     await screen('screen_type', { text: 'echo typed café > typed.txt' })
     await screen('screen_key', { keys: 'Return' })
     expect(await run('cat typed.txt')).toMatch(/^typed café/)
+
+    // A viewer gets the display's VNC; leaving ends its exec.
+    const container = `familiar-${hostId}-${ada.id}`
+    const viewers = () =>
+      docker('top', container)
+        .split('\n')
+        .filter((line) => /socat .*display\.sock/.test(line)).length
+    const watch = async () => {
+      const leave = new AbortController()
+      const reader = (await host.screen(
+        ada.id,
+        leave.signal,
+      ))!.readable.getReader()
+      const { value } = await reader.read()
+      expect(Buffer.from(value!).toString()).toMatch(/^RFB 003\.008\n/)
+      /** Resolves once the stream has ended. */
+      const ended = (async () => {
+        while (!(await reader.read().catch(() => ({ done: true }))).done) {}
+      })()
+      return { leave: () => leave.abort(), ended }
+    }
+    const left = await watch()
+    expect(viewers()).toBe(1)
+    left.leave()
+    await left.ended
+    await vi.waitFor(() => expect(viewers()).toBe(0), {
+      timeout: 5000,
+      interval: 100,
+    })
 
     // The browser tools act on the tab the screen shows, which the person
     // or the screen tools may have switched to: here an untitled one, with
@@ -280,8 +315,10 @@ test.skipIf(!hasImage)(
     ])
     expect(await run('cat marker.txt')).toMatch(/kept\s+Exit code 0/)
 
-    // Idle, it sleeps, however often it's looked at; the next call wakes
-    // it, saying so, its disk as it was.
+    // Idle, it sleeps, however often it's looked at and while someone
+    // watches it, whose stream then ends; the next call wakes it, saying
+    // so, its disk as it was.
+    const watching = await watch()
     await vi.waitFor(
       async () =>
         expect((await host.inspect(ada.id)).status).toEqual({
@@ -289,6 +326,7 @@ test.skipIf(!hasImage)(
         }),
       { timeout: 30_000, interval: 200 },
     )
+    await watching.ended
     // A look at a sleeping computer leaves it asleep.
     expect((await host.inspect(ada.id)).status).toEqual({ state: 'asleep' })
     expect(await status()).toEqual({ state: 'asleep' })

@@ -1,7 +1,14 @@
+import { spawn } from 'node:child_process'
+import { Readable, Writable } from 'node:stream'
 import type { FamiliarId } from '@familiar-ai/core'
 import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
-import type { ComputerDetail, ComputerHost, ComputerStatus } from '../host.ts'
+import type {
+  ByteStream,
+  ComputerDetail,
+  ComputerHost,
+  ComputerStatus,
+} from '../host.ts'
 import { ASLEEP } from '../tools.ts'
 import manifest from '../../package.json' with { type: 'json' }
 import { coalesce } from './coalesce.ts'
@@ -383,6 +390,28 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
             content: [{ type: 'text', text: WOKE }, ...result.content],
           }
         : result
+    },
+
+    screen: async (familiar, signal) => {
+      const [found] = await resources.containers(familiar)
+      if (!found?.running || life.signal.aborted || signal.aborted) {
+        return undefined
+      }
+      // Killed when the viewer goes or the host closes; ends by itself
+      // when the computer stops, since Docker ends an exec with it.
+      const exec = spawn('docker', resources.screenCommand(familiar), {
+        cwd: DOCKER_CWD,
+        stdio: ['pipe', 'pipe', 'ignore'],
+        signal: AbortSignal.any([signal, life.signal]),
+      })
+      // The abort's, or Docker missing: either way the stream just ends.
+      exec.on('error', () => {})
+      return {
+        readable: Readable.toWeb(exec.stdout) as ReadableStream<
+          Uint8Array<ArrayBuffer>
+        >,
+        writable: Writable.toWeb(exec.stdin),
+      } satisfies ByteStream
     },
 
     sync: async (familiars) => {
