@@ -15,17 +15,19 @@ import type { ComputerScreenProps } from './types'
 const RETRY_MS = 2000
 
 /**
- * Each Familiar's last frame, as each viewer's connection ended, kept while
- * the app is open so a sleeping computer still shows what it last showed.
+ * Each Familiar's last frame, as each viewer's connection that drew one
+ * ended, kept while the app is open so a sleeping computer still shows what
+ * it last showed.
  */
 const lastFrames = new Map<number, string>()
 
 /**
  * A Familiar's screen, live and fitted, for watching only: nothing typed or
  * clicked here reaches it. Each one shown has its own connection, open
- * while its computer runs; watching never wakes it or keeps it awake. A
- * screen that closes while the computer still seems to run is watched
- * again shortly. Asleep, the last frame seen, dimmed.
+ * while its last status said it runs; watching never wakes it or keeps it
+ * awake. A screen that closes while the computer still seems to run is
+ * watched again shortly; while its status can't be read, it isn't. Asleep,
+ * the last frame seen, dimmed.
  */
 export const ComputerScreen = ({
   familiar,
@@ -33,9 +35,12 @@ export const ComputerScreen = ({
   className,
 }: ComputerScreenProps) => {
   const queryClient = useQueryClient()
-  const { data: status } = useQuery(computerQuery(familiar.id))
+  const { data: status, isError: unreachable } = useQuery(
+    computerQuery(familiar.id),
+  )
   const { data: detail } = useQuery(computerDetailQuery(familiar.id))
-  const running = status?.state === 'running'
+  // A failed poll keeps the last answer, which may be stale.
+  const running = status?.state === 'running' && !unreachable
   const target = useRef<HTMLDivElement>(null)
   const [live, setLive] = useState(false)
   // Bumped to watch again after the screen closed by itself.
@@ -45,22 +50,28 @@ export const ComputerScreen = ({
     if (!running) {
       return
     }
-    const rfb = new RFB(target.current!, screenUrl(familiar.id), {
-      shared: true,
-    })
+    // Ours, so it can tell when the screen has drawn something: noVNC
+    // handles each message before this hears it, and after the handshake
+    // (`connect`), each one is an update to the screen.
+    const socket = new WebSocket(screenUrl(familiar.id))
+    const rfb = new RFB(target.current!, socket, { shared: true })
     rfb.viewOnly = true
     rfb.scaleViewport = true
     rfb.focusOnClick = false
     rfb.background = 'transparent'
     let connected = false
+    let drawn = false
     let left = false
     let retry: ReturnType<typeof setTimeout> | undefined
+    socket.addEventListener('message', () => {
+      drawn ||= connected
+    })
     rfb.addEventListener('connect', () => {
       connected = true
       setLive(true)
     })
     rfb.addEventListener('disconnect', () => {
-      if (connected) {
+      if (drawn) {
         lastFrames.set(familiar.id, rfb.toDataURL('image/jpeg', 0.85))
       }
       if (left) {
@@ -97,7 +108,7 @@ export const ComputerScreen = ({
             .filter(Boolean)
             .join(' · '),
         ]
-      : running
+      : running || unreachable
         ? ['Connecting…']
         : status && [computerStates[status.state].label]
 
