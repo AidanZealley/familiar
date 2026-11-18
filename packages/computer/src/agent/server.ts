@@ -6,6 +6,7 @@ import {
   type CallToolResult,
   type ServerContext,
 } from '@modelcontextprotocol/server'
+import type { Page } from 'playwright'
 import { z } from 'zod'
 import {
   annotationsOf,
@@ -29,10 +30,15 @@ type Args<Name extends ComputerToolName> = z.infer<
   (typeof computerTools)[Name]['input']
 >
 
+/**
+ * Each tool's handler. `using`: a person has control, so a read may run but
+ * must not change the display, such as by starting the browser.
+ */
 type Handlers = {
   [Name in ComputerToolName]: (
     args: Args<Name>,
     signal: AbortSignal,
+    using: boolean,
   ) => Promise<CallToolResult>
 }
 
@@ -52,6 +58,9 @@ const onScreen =
   <A>(act: (args: A, signal: AbortSignal) => Promise<unknown>) =>
   async (args: A, signal: AbortSignal) =>
     png(await screen.act(() => act(args, signal), signal))
+
+const NO_PAGE =
+  "The browser has no page open, and a person is using the computer, so it wasn't opened. Look again once they hand it back."
 
 const STARTED =
   'The browser has just started, so any pages opened before are gone.\n\n'
@@ -109,24 +118,24 @@ export function computerServer(
 ) {
   /** Runs `act` on the open page and answers with its snapshot after. */
   const onPage =
-    <A>(
-      act: (
-        page: Awaited<ReturnType<Browser['page']>>['page'],
-        args: A,
-        signal: AbortSignal,
-      ) => Promise<unknown>,
-    ) =>
-    async (args: A, signal: AbortSignal) => {
-      const { page, started } = await browser.page()
+    <A>(act: (page: Page, args: A, signal: AbortSignal) => Promise<unknown>) =>
+    async (args: A, signal: AbortSignal, using: boolean) => {
+      const shown = await browser.page({ open: !using })
+      if (!shown) {
+        return text(NO_PAGE, true)
+      }
+      const { page, started } = shown
       await act(page, args, signal)
       return text((started ? STARTED : '') + (await browser.snapshot(page)))
     }
 
   const handlers: Handlers = {
     browser_snapshot: onPage(async () => {}),
-    browser_screenshot: async () => {
-      const { page } = await browser.page()
-      return png(await page.screenshot({ type: 'png' }))
+    browser_screenshot: async (_args, _signal, using) => {
+      const shown = await browser.page({ open: !using })
+      return shown
+        ? png(await shown.page.screenshot({ type: 'png' }))
+        : text(NO_PAGE, true)
     },
     browser_navigate: onPage((page, { url }) => page.goto(url)),
     browser_click: onPage((page, { ref }, signal) =>
@@ -179,6 +188,7 @@ export function computerServer(
     const handle = handlers[name as ComputerToolName] as (
       args: unknown,
       signal: AbortSignal,
+      using: boolean,
     ) => Promise<CallToolResult>
     server.registerTool(
       name,
@@ -198,8 +208,8 @@ export function computerServer(
               signal,
               () => (stopWaiting = progress(ctx, WAITING)),
               // Its own failure is its result, so a note still goes with it.
-              () =>
-                handle(args, signal).catch((error: unknown) =>
+              (using) =>
+                handle(args, signal, using).catch((error: unknown) =>
                   text(
                     error instanceof Error ? error.message : String(error),
                     true,

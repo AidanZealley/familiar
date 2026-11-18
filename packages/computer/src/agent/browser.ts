@@ -45,9 +45,19 @@ export function openBrowser(profileDir: string) {
   /**
    * The page the browser shows: its active tab, which the person may have
    * switched to. And whether the browser has just started, so earlier pages
-   * are gone.
+   * are gone. It starts the browser, or opens a tab, if needed; with `open`
+   * false it never does (a person is using the display), and there may be
+   * no page.
    */
-  const page = async (): Promise<{ page: Page; started: boolean }> => {
+  async function page(): Promise<{ page: Page; started: boolean }>
+  async function page(options: {
+    open: boolean
+  }): Promise<{ page: Page; started: boolean } | undefined>
+  async function page({ open = true } = {}) {
+    if (!open) {
+      const shownNow = running && (await shown(await running))
+      return shownNow ? { page: shownNow, started: false } : undefined
+    }
     const started = !running
     running ??= launch().catch((error) => {
       running = undefined

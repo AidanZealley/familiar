@@ -188,9 +188,13 @@ export function computer({ host }: ComputerOptions) {
             person.abort()
           }
           /** Ends control and closes the socket with why; set once open. */
-          let end = (_code: number, _reason: string) => stop()
+          let end: (code: number, reason: string) => void = stop
           /** Anything from the browser puts off the silence deadline. */
           const heard = () => {
+            // Nothing re-arms it once control has ended.
+            if (person.signal.aborted) {
+              return
+            }
             clearTimeout(silence)
             silence = setTimeout(
               () => end(4001, 'The connection was lost.'),

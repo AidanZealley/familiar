@@ -83,14 +83,15 @@ export function computerControl() {
     /**
      * Runs the Familiar's `call` with `act`, if it may run now. An action
      * while a person has control waits (`onWait` when it starts to) and then
-     * never runs; reads never wait. Throws if `signal` aborts while waiting.
+     * never runs; reads never wait, and `act` hears whether a person is
+     * using the computer as they run. Throws if `signal` aborts while waiting.
      */
     run: async <T>(
       call: ComputerCall,
       kind: CallKind,
       signal: AbortSignal,
       onWait: () => void,
-      act: () => Promise<T>,
+      act: (using: boolean) => Promise<T>,
     ): Promise<Outcome<T>> => {
       let note: string | undefined
       if (state === 'returned') {
@@ -120,7 +121,7 @@ export function computerControl() {
       }
       // Admitted in the same turn as the checks above, so a take-over
       // either came first and stopped it, or waits for it.
-      const running = act()
+      const running = act(note === USING)
       if (kind === 'display') {
         displaying.add(running)
         const done = () => displaying.delete(running)
