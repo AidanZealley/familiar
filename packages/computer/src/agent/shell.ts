@@ -4,9 +4,11 @@ import { KEEP_TEXT } from '../shorten.ts'
 /**
  * Runs `command` with `/bin/sh` in `cwd`, stdout and stderr together. It
  * runs in its own process group, so stopping it (timeout or `signal`) also
- * stops whatever it started. Only the output's last `KEEP_TEXT` characters
- * are kept as it runs, so a command that prints without end can't use up
- * memory.
+ * stops whatever it started. It ends when the shell does: a program it left
+ * running in the background, such as an app with a window, keeps running,
+ * but what it prints after isn't returned. Only the output's last
+ * `KEEP_TEXT` characters are kept as it runs, so a command that prints
+ * without end can't use up memory.
  */
 export function runCommand(
   command: string,
@@ -46,10 +48,15 @@ export function runCommand(
     options.signal.addEventListener('abort', stop, { once: true })
 
     child.on('error', reject)
-    child.on('close', (code) => {
+    // Usually the output closes with the shell. A program left running in
+    // the background keeps it open, so once the shell ends, the time limit
+    // and `signal` no longer stop anything, and the command ends a moment
+    // later. The output is still read, so the program can go on writing.
+    child.on('exit', (code) => {
       clearTimeout(timer)
       options.signal.removeEventListener('abort', stop)
-      resolve({ code, output, timedOut })
+      setTimeout(() => resolve({ code, output, timedOut }), 100)
     })
+    child.on('close', (code) => resolve({ code, output, timedOut }))
   })
 }

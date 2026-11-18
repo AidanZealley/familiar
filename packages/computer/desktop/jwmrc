@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!--
+  The computer's desktop, in Familiar's colours and fonts: one workspace, a
+  taskbar with the Familiar launcher, the open windows and a clock. Nothing
+  here logs out or powers off: the agent owns the display, and ends if it
+  goes. Its files are in /usr/share/familiar-desktop (see the Dockerfile).
+-->
+<JWM>
+    <RootMenu onroot="123" height="32">
+        <Program icon="/usr/share/familiar-desktop/cat.png" label="Terminal">/usr/share/familiar-desktop/terminal</Program>
+    </RootMenu>
+
+    <Desktops width="1" height="1">
+        <Background type="image">/usr/share/familiar-desktop/wallpaper.png</Background>
+    </Desktops>
+
+    <Tray x="0" y="-1" height="44" autohide="off">
+        <TrayButton icon="/usr/share/familiar-desktop/cat.png" label="familiar">root:1</TrayButton>
+        <Spacer width="12"/>
+        <TaskList maxwidth="225"/>
+        <Clock format="%H:%M"/>
+    </Tray>
+
+    <WindowStyle decorations="flat">
+        <Font>Geist-12</Font>
+        <Width>2</Width>
+        <Height>30</Height>
+        <Corner>5</Corner>
+        <Foreground>#dfdbea</Foreground>
+        <Background>#292638</Background>
+        <Outline>#514b61</Outline>
+        <Active>
+            <Foreground>#ffffff</Foreground>
+            <Background>#39305c</Background>
+            <Outline>#9a87fb</Outline>
+        </Active>
+    </WindowStyle>
+    <TrayStyle decorations="flat">
+        <Font>Geist-12</Font>
+        <Background>#1b1927</Background>
+        <Foreground>#f4f1ff</Foreground>
+    </TrayStyle>
+    <TrayButtonStyle>
+        <Font>JetBrains Mono-11</Font>
+        <Foreground>#e5dcff</Foreground>
+        <Background>#302747</Background>
+    </TrayButtonStyle>
+    <TaskListStyle list="all" group="false">
+        <Font>Geist-12</Font>
+        <Foreground>#e2dded</Foreground>
+        <Background>#1b1927</Background>
+        <Active>
+            <Foreground>#ffffff</Foreground>
+            <Background>#39305c</Background>
+        </Active>
+    </TaskListStyle>
+    <MenuStyle decorations="flat">
+        <Font>Geist-12</Font>
+        <Foreground>#f4f1ff</Foreground>
+        <Background>#292638</Background>
+        <Active>
+            <Foreground>#ffffff</Foreground>
+            <Background>#493586</Background>
+        </Active>
+    </MenuStyle>
+    <ClockStyle>
+        <Font>JetBrains Mono-11</Font>
+        <Foreground>#e2dded</Foreground>
+    </ClockStyle>
+
+    <FocusModel>click</FocusModel>
+    <SnapMode distance="10">border</SnapMode>
+    <MoveMode>opaque</MoveMode>
+    <ResizeMode>opaque</ResizeMode>
+
+    <Key mask="A" key="Tab">nextstacked</Key>
+    <Key mask="A" key="F4">close</Key>
+    <Key mask="A" key="F2">window</Key>
+    <Key mask="A" key="F10">maximize</Key>
+    <Key key="Up">up</Key>
+    <Key key="Down">down</Key>
+    <Key key="Left">left</Key>
+    <Key key="Right">right</Key>
+    <Key key="Return">select</Key>
+    <Key key="Escape">escape</Key>
+</JWM>

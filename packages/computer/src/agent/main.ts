@@ -12,6 +12,7 @@ import { parseArgs } from 'node:util'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 import { activity } from './activity.ts'
 import { openBrowser } from './browser.ts'
+import { startDisplay } from './display.ts'
 import { computerServer } from './server.ts'
 import { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
 
@@ -20,6 +21,10 @@ import { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
 // JSON-RPC (MCP's stdio framing). It only listens: `dockerHost` reaches in
 // with `docker exec` running `socat`. The browser outlives connections, so a
 // new connection finds its pages as they were.
+//
+// It owns the display: it starts it before it listens, and ends if it goes,
+// so the computer is never running without one; the next call starts it
+// again.
 //
 // With --idle-ms, it ends itself once that long passes with no call (a look
 // at it doesn't count), which stops its container: the computer sleeps.
@@ -52,6 +57,12 @@ const proxy =
 if (proxy) {
   await listen(proxy, { port: PROXY_PORT, host: '127.0.0.1' })
 }
+
+// Without its display, the browser has gone too: nothing is left to close.
+await startDisplay((reason) => {
+  console.error(`${reason} Stopping.`)
+  process.exit(1)
+})
 
 const home = homedir()
 const browser = openBrowser(resolve(home, '.familiar-computer', 'browser'))

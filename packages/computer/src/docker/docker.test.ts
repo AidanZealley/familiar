@@ -20,14 +20,15 @@ import { computer } from '../index.ts'
 import { COMPUTER_IMAGE, dockerHost } from './index.ts'
 
 // Familiars' Docker computers end to end, on this machine's Docker with the
-// image built (`pnpm image`). Skipped without them. It reaches the public
-// internet.
+// image built (`pnpm image`), or the one `COMPUTER_TEST_IMAGE` names.
+// Skipped without them. It reaches the public internet.
 
+const BASE_IMAGE = process.env.COMPUTER_TEST_IMAGE ?? COMPUTER_IMAGE
 const docker = (...args: string[]) =>
   execFileSync('docker', args, { encoding: 'utf8' }).trim()
 const hasImage = (() => {
   try {
-    docker('image', 'inspect', COMPUTER_IMAGE)
+    docker('image', 'inspect', BASE_IMAGE)
     return true
   } catch {
     return false
@@ -42,7 +43,7 @@ const owner = { id: 'owner', name: 'Owner' }
  */
 const imageCopy = (tag: string) =>
   execFileSync('docker', ['build', '--quiet', '--tag', tag, '-'], {
-    input: `FROM ${COMPUTER_IMAGE}\nLABEL familiar-ai.test=${tag}\n`,
+    input: `FROM ${BASE_IMAGE}\nLABEL familiar-ai.test=${tag}\n`,
     encoding: 'utf8',
   }).trim()
 
@@ -97,8 +98,12 @@ test.skipIf(!hasImage)(
         '--filter',
         `label=familiar-ai.host=${hostId}`,
       )
+    // Cleans up with a host of its own: the workspace has closed this one
+    // by then.
     onTestFinished(async () => {
-      await host.sync([])
+      const cleaner = dockerHost({ hostId, repository, tag: 'v1' })
+      await cleaner.sync([])
+      await cleaner.close()
       for (const kind of ['container', 'volume']) {
         expect(labelled(kind)).toBe('')
       }
@@ -174,6 +179,43 @@ test.skipIf(!hasImage)(
         .flatMap((block) => (block.type === 'text' ? [block.text] : []))
         .join('\n')
     }
+
+    // An app with a window, started from a command, is used with the screen
+    // tools, each answering with the whole screen. The display serves VNC on
+    // its socket.
+    expect(
+      await run(
+        'urxvt -geometry 60x10+100+100 & sleep 2; test -S /run/familiar/display.sock',
+      ),
+    ).toMatch(/Exit code 0/)
+    const screen = async (tool: string, args: JsonObject) => {
+      const [image] = (await host.call(ada.id, tool, args)).content
+      expect(image).toMatchObject({ type: 'image', mimeType: 'image/png' })
+      // A PNG's size is in its header.
+      const png = Buffer.from((image as { data: string }).data, 'base64')
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1280, 800])
+    }
+    await screen('screen_click', { x: 200, y: 150 })
+    await screen('screen_type', { text: 'echo typed café > typed.txt' })
+    await screen('screen_key', { keys: 'Return' })
+    expect(await run('cat typed.txt')).toMatch(/^typed café/)
+
+    // The browser tools act on the tab the screen shows, which the person
+    // or the screen tools may have switched to: here an untitled one, with
+    // a newer titled one behind it.
+    const texts = async (tool: string, args: JsonObject = {}) =>
+      JSON.stringify((await host.call(ada.id, tool, args)).content)
+    await screen('screen_key', { keys: 'alt+F4' })
+    await texts('browser_navigate', { url: 'data:text/html,<p>first</p>' })
+    await screen('screen_key', { keys: 'ctrl+t' })
+    await screen('screen_type', {
+      text: 'data:text/html,<title>Second</title><p>second</p>',
+    })
+    await screen('screen_key', { keys: 'Return' })
+    await screen('screen_key', { keys: 'ctrl+1' })
+    expect(await texts('browser_snapshot')).toContain('first')
+    await screen('screen_key', { keys: 'ctrl+2' })
+    expect(await texts('browser_snapshot')).toContain('second')
 
     // No network, only the proxy: the public internet, for the browser and
     // the shell, but nothing on the Docker host's addresses (its LAN,

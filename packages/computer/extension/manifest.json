@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Familiar computer",
+  "description": "Tells the computer's agent which tab is shown.",
+  "version": "1",
+  "permissions": ["tabs", "debugger"],
+  "background": { "service_worker": "worker.js" }
+}

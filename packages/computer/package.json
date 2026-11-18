@@ -16,7 +16,8 @@
     "./docker": "./src/docker/index.ts"
   },
   "files": [
-    "dist"
+    "dist",
+    "extension"
   ],
   "publishConfig": {
     "access": "public",

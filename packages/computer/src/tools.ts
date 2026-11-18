@@ -22,6 +22,24 @@ const ref = z
   .string()
   .describe('The [ref=…] of the element, from the latest snapshot.')
 
+/** The computer's display, in pixels: its size never changes. */
+export const SCREEN = { width: 1280, height: 800 }
+
+const point = {
+  x: z
+    .number()
+    .int()
+    .min(0)
+    .max(SCREEN.width - 1)
+    .describe('Pixels from the left of the screen, as in screen_screenshot.'),
+  y: z
+    .number()
+    .int()
+    .min(0)
+    .max(SCREEN.height - 1)
+    .describe('Pixels from the top of the screen, as in screen_screenshot.'),
+}
+
 export const computerTools = {
   browser_snapshot: {
     description:
@@ -54,9 +72,48 @@ export const computerTools = {
       submit: z.boolean().optional().describe('Press Enter after typing.'),
     }),
   },
+  screen_screenshot: {
+    description: `A picture of the computer's whole screen, ${SCREEN.width}×${SCREEN.height} pixels: its desktop, taskbar and open windows, the browser's included. Use the screen tools for apps other than the browser, or what the browser tools can't reach.`,
+    input: z.object({}),
+    reads: true,
+  },
+  screen_click: {
+    description:
+      'Clicks at a point on the screen, then shows the screen as screen_screenshot does.',
+    input: z.object({
+      ...point,
+      button: z.enum(['left', 'right', 'middle']).optional(),
+      double: z.boolean().optional().describe('Double-click.'),
+    }),
+  },
+  screen_type: {
+    description:
+      'Types text with the keyboard into whatever has focus on the screen, then shows the screen as screen_screenshot does.',
+    input: z.object({ text: z.string() }),
+  },
+  screen_key: {
+    description:
+      'Presses a key or key combination, then shows the screen as screen_screenshot does. Keys are X key names joined with +, such as Return, Escape, Tab, BackSpace, ctrl+l or alt+Tab; separate several with spaces to press them in turn.',
+    input: z.object({ keys: z.string() }),
+  },
+  screen_scroll: {
+    description:
+      'Scrolls with the mouse wheel at a point on the screen, then shows the screen as screen_screenshot does.',
+    input: z.object({
+      ...point,
+      direction: z.enum(['up', 'down', 'left', 'right']),
+      amount: z
+        .number()
+        .int()
+        .min(1)
+        .max(30)
+        .optional()
+        .describe('Turns of the wheel. Default 3.'),
+    }),
+  },
   run_command: {
     description:
-      'Runs a shell command on the computer, in its home directory, and returns its exit code and output. Times out after 60 seconds unless given longer, up to 10 minutes.',
+      'Runs a shell command on the computer, in its home directory, and returns its exit code and output. Times out after 60 seconds unless given longer, up to 10 minutes. Programs with windows show on the screen: start one in the background (ending the command with &) so the command returns.',
     input: z.object({
       command: z.string(),
       timeout_seconds: z.number().int().min(1).max(600).optional(),
@@ -107,9 +164,9 @@ export const ASLEEP = 'familiar-ai/asleep'
 
 const TARGET_MAX = 80
 
-/** What a call acts on, shortened for a glance: its URL, command or path. */
+/** What a call acts on, shortened for a glance: its URL, command, path or keys. */
 export const targetOf = (args: Record<string, unknown>) => {
-  const target = [args.url, args.command, args.path].find(
+  const target = [args.url, args.command, args.path, args.keys].find(
     (value) => typeof value === 'string',
   ) as string | undefined
   const line = target?.replace(/\s+/g, ' ').trim()

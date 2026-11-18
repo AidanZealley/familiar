@@ -14,6 +14,7 @@ import {
 import { KEEP_TEXT } from '../shorten.ts'
 import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
+import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
 
 type Args<Name extends ComputerToolName> = z.infer<
@@ -31,6 +32,18 @@ const text = (text: string, isError = false): CallToolResult => ({
   content: [{ type: 'text', text }],
   isError,
 })
+
+const png = (data: Buffer): CallToolResult => ({
+  content: [
+    { type: 'image', data: data.toString('base64'), mimeType: 'image/png' },
+  ],
+})
+
+/** Does `act` on the screen and answers with a screenshot after. */
+const onScreen =
+  <A>(act: (args: A, signal: AbortSignal) => Promise<unknown>) =>
+  async (args: A, signal: AbortSignal) =>
+    png(await screen.act(() => act(args, signal), signal))
 
 const STARTED =
   'The browser has just started, so any pages opened before are gone.\n\n'
@@ -70,15 +83,7 @@ export function computerServer(
     browser_snapshot: onPage(async () => {}),
     browser_screenshot: async () => {
       const { page } = await browser.page()
-      return {
-        content: [
-          {
-            type: 'image',
-            data: (await page.screenshot({ type: 'png' })).toString('base64'),
-            mimeType: 'image/png',
-          },
-        ],
-      }
+      return png(await page.screenshot({ type: 'png' }))
     },
     browser_navigate: onPage((page, { url }) => page.goto(url)),
     browser_click: onPage((page, { ref }, signal) =>
@@ -91,6 +96,19 @@ export function computerServer(
         await field.press('Enter', { signal })
       }
     }),
+    screen_screenshot: async (_args, signal) =>
+      png(await screen.screenshot(signal)),
+    screen_click: onScreen(
+      ({ x, y, button = 'left', double = false }, signal) =>
+        screen.click(x, y, button, double, signal),
+    ),
+    screen_type: onScreen(({ text }, signal) => screen.type(text, signal)),
+    screen_key: onScreen(({ keys }, signal) =>
+      screen.key(keys.split(/\s+/).filter(Boolean), signal),
+    ),
+    screen_scroll: onScreen(({ x, y, direction, amount = 3 }, signal) =>
+      screen.scroll(x, y, direction, amount, signal),
+    ),
     run_command: async ({ command, timeout_seconds = 60 }, signal) => {
       const { code, output, timedOut } = await runCommand(command, {
         cwd: home,

@@ -1,13 +1,22 @@
-import { chromium, type BrowserContext, type Page } from 'playwright'
+import {
+  chromium,
+  type BrowserContext,
+  type Page,
+  type Worker,
+} from 'playwright'
+import { fileURLToPath } from 'node:url'
 import { KEEP_TEXT } from '../shorten.ts'
 
+/** Ours, for Chrome's own record of the shown tab (see `shown`). */
+const EXTENSION = fileURLToPath(new URL('../../extension', import.meta.url))
+
 /**
- * The computer's browser: full Chromium in Chrome's newer headless mode
- * (`channel: 'chromium'`), not Playwright's stripped-down headless shell, so
- * sites see a real browser and a visible one can later use the same build
- * and profile. Its profile is kept in `profileDir`. It uses the proxy in
- * `HTTPS_PROXY`, if any, as a Docker computer must. It starts on first use
- * and again after it closes or crashes.
+ * The computer's browser: full Chromium (`channel: 'chromium'`), visible on
+ * the display in a maximised window sized by the window manager, so a person
+ * watching sees it and the screen tools can use it. Its profile is kept in
+ * `profileDir`. It uses the proxy in `HTTPS_PROXY`, if any, as a Docker
+ * computer must. It starts on first use and again after it closes or
+ * crashes.
  */
 export function openBrowser(profileDir: string) {
   let running: Promise<BrowserContext> | undefined
@@ -16,7 +25,15 @@ export function openBrowser(profileDir: string) {
     const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy
     const context = await chromium.launchPersistentContext(profileDir, {
       channel: 'chromium',
-      headless: true,
+      headless: false,
+      // Pages are the window's size, not one Playwright picks.
+      viewport: null,
+      args: [
+        '--start-maximized',
+        `--disable-extensions-except=${EXTENSION}`,
+        `--load-extension=${EXTENSION}`,
+      ],
+      ignoreDefaultArgs: ['--disable-extensions'],
       ...(proxy && { proxy: { server: proxy } }),
     })
     context.on('close', () => {
@@ -26,8 +43,9 @@ export function openBrowser(profileDir: string) {
   }
 
   /**
-   * The page the browser shows, the newest one if a link opened another,
-   * and whether the browser has just started, so earlier pages are gone.
+   * The page the browser shows: its active tab, which the person may have
+   * switched to. And whether the browser has just started, so earlier pages
+   * are gone.
    */
   const page = async (): Promise<{ page: Page; started: boolean }> => {
     const started = !running
@@ -37,7 +55,7 @@ export function openBrowser(profileDir: string) {
     })
     const context = await running
     return {
-      page: context.pages().at(-1) ?? (await context.newPage()),
+      page: (await shown(context)) ?? (await context.newPage()),
       started,
     }
   }
@@ -56,10 +74,7 @@ export function openBrowser(profileDir: string) {
       return Promise.all(
         (context?.pages() ?? []).map(async (page) => ({
           // A page mid-navigation can't say until it lands.
-          title: await Promise.race([
-            page.title(),
-            new Promise<string>((done) => setTimeout(done, 500, '')),
-          ]),
+          title: await within(page.title(), ''),
           url: page.url(),
         })),
       )
@@ -74,3 +89,53 @@ export function openBrowser(profileDir: string) {
 }
 
 export type Browser = ReturnType<typeof openBrowser>
+
+/** Settles with `fallback` if `promise` takes longer than 500 ms. */
+const within = <T>(promise: Promise<T>, fallback: T) =>
+  Promise.race([
+    promise,
+    new Promise<T>((done) => setTimeout(done, 500, fallback)),
+  ])
+
+/**
+ * The tab the person sees, of the browser's pages, or none if it has none.
+ * Pages can't say, as Playwright has every page act shown and focused, so
+ * Chrome is asked, in our extension's service worker: the active tab of its
+ * last focused window, as a DevTools target, which names one page.
+ */
+async function shown(context: BrowserContext) {
+  const pages = context.pages()
+  if (pages.length < 2) {
+    return pages[0]
+  }
+  const ours = (worker: Worker) =>
+    worker.url().startsWith('chrome-extension://')
+  const extension =
+    context.serviceWorkers().find(ours) ??
+    (await context.waitForEvent('serviceworker', { predicate: ours }))
+  const [active, targets] = await Promise.all([
+    extension.evaluate<string | undefined>(ACTIVE_TARGET),
+    Promise.all(
+      pages.map(async (page) => {
+        const session = await context.newCDPSession(page)
+        try {
+          return (await session.send('Target.getTargetInfo')).targetInfo
+            .targetId
+        } finally {
+          await session.detach()
+        }
+      }),
+    ),
+  ])
+  const page = pages[targets.indexOf(active!)]
+  if (!page) {
+    throw new Error("The browser couldn't say which tab is shown. Try again.")
+  }
+  return page
+}
+
+/** In the extension's worker: the DevTools target of the active tab. */
+const ACTIVE_TARGET = `(async () => {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+  return (await chrome.debugger.getTargets()).find((target) => target.tabId === tab?.id)?.id
+})()`
