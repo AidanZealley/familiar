@@ -257,9 +257,11 @@ export function dockerResources(
 
     /**
      * The command whose stdio is `familiar`'s display, as the image's user,
-     * who owns its socket. `socat` retries for up to 10 seconds while a
-     * computer that has just started opens it. Like any exec, it never
-     * starts a stopped computer, and ends when its computer stops.
+     * who owns its socket. Like any exec, it never starts a stopped
+     * computer, and ends when its computer stops. It never retries: a
+     * `socat` still connecting doesn't notice its stdin closing, so it would
+     * outlive a viewer who left. A computer that's still starting simply
+     * has no screen yet, and its viewer asks again.
      */
     screenCommand: (familiar: FamiliarId) => [
       'exec',
@@ -269,7 +271,7 @@ export function dockerResources(
       container(familiar),
       'socat',
       '-',
-      `UNIX-CONNECT:${DISPLAY_SOCKET},retry=100,interval=0.1`,
+      `UNIX-CONNECT:${DISPLAY_SOCKET}`,
     ],
   }
 }
