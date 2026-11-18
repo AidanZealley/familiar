@@ -188,6 +188,23 @@ test.skipIf(!hasImage)(
         .join('\n')
     }
 
+    // Package installation works through apt's explicit proxy config even
+    // with no proxy environment. The agent and installed apps stay unprivileged.
+    expect(await run('id -un')).toMatch(/^computer\s+Exit code 0/)
+    expect(await run('sudo -n id -u')).toMatch(/^0\s+Exit code 0/)
+    const installed = await host.call(ada.id, 'run_command', {
+      command:
+        "env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy sudo -n sh -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends x11-apps'",
+      timeout_seconds: 120,
+    })
+    expect(JSON.stringify(installed.content)).toContain('Exit code 0')
+    expect(
+      await run(
+        'xclock & app=$!; sleep 2; xdotool search --onlyvisible --class XClock; found=$?; kill "$app"; wait "$app"; exit "$found"',
+      ),
+    ).toMatch(/Exit code 0/)
+    expect(await run('id -un')).toMatch(/^computer\s+Exit code 0/)
+
     // An app with a window, started from a command, is used with the screen
     // tools, each answering with the whole screen. The display serves VNC on
     // its socket.
@@ -309,6 +326,12 @@ test.skipIf(!hasImage)(
       expect(await run(`curl -sS -m 5 --noproxy '*' ${url}`)).not.toContain(
         'reached',
       )
+      expect(
+        await run(`sudo -n curl -sS -m 5 -x http://127.0.0.1:3128 ${url}`),
+      ).not.toContain('reached')
+      expect(
+        await run(`sudo -n curl -sS -m 5 --noproxy '*' ${url}`),
+      ).not.toContain('reached')
     }
 
     // A restart ends the exec the host talks through; the next call

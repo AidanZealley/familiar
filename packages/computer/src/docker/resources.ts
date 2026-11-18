@@ -185,6 +185,9 @@ export function dockerResources(
         container(familiar),
         '--hostname',
         `familiar-${familiar}`,
+        // With no network Docker omits this entry; sudo resolves its hostname.
+        '--add-host',
+        `familiar-${familiar}:127.0.0.1`,
         ...labelled(familiar),
         '--network',
         'none',
