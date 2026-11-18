@@ -94,6 +94,7 @@ export {
   type PluginClose,
   type PluginContext,
   type PluginEnv,
+  upgradeWebSocket,
 } from './plugins/index.ts'
 export {
   ConnectionError,

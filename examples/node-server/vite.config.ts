@@ -7,7 +7,7 @@ export default defineConfig({
   build: { outDir: '../dist/web', emptyOutDir: true },
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:4320',
+      '/api': { target: 'http://127.0.0.1:4320', ws: true },
       '/auth': 'http://127.0.0.1:4320',
     },
   },

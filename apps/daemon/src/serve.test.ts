@@ -5,16 +5,25 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { once } from 'node:events'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MemoryStorage } from '@earendil-works/pi-durable'
 import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic'
 import { openaiProvider } from '@earendil-works/pi-ai/providers/openai'
+import {
+  definePlugin,
+  upgradeWebSocket,
+  type PluginEnv,
+} from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
+import { Hono } from 'hono'
 import { expect, onTestFinished, test, vi } from 'vitest'
+import { WebSocket } from 'ws'
 import { settingsComputerLimit } from './computer-limit.ts'
-import { daemonApp, OWNER_ID, type ServeOptions } from './serve.ts'
+import { daemonApp, listen, OWNER_ID, type ServeOptions } from './serve.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
 async function daemon(
@@ -219,4 +228,55 @@ test("the computer limit is saved in settings.json, only by the owner's network"
     name: 'Cat',
     maxComputers: 3,
   })
+})
+
+test("plugins' WebSocket routes echo, behind the owner's network and same origin", async () => {
+  const routes = new Hono<PluginEnv>().get(
+    '/echo',
+    upgradeWebSocket(() => ({
+      onMessage: (event, ws) => ws.send(event.data as string),
+    })),
+  )
+  const models = createModels()
+  models.setProvider(fauxProvider().provider)
+  const { workspace, familiar } = await openDaemonWorkspace(
+    {
+      storage: new MemoryStorage(),
+      models,
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      plugins: [
+        definePlugin({ name: 'echo', title: 'Echo', tools: [], routes }),
+      ],
+    },
+    'Familiar',
+  )
+  onTestFinished(() => workspace.dismiss())
+  const server = listen(daemonApp(workspace, { owner: 'Aidan' }), {
+    host: '127.0.0.1',
+    port: 0,
+  })
+  onTestFinished(() => void server.close())
+  await once(server, 'listening')
+  const { port } = server.address() as AddressInfo
+  const url = `ws://127.0.0.1:${port}/api/plugins/echo/familiars/${familiar}/echo`
+
+  /** The status the upgrade was refused with, or the echo if it opened. */
+  const open = (headers: Record<string, string>) =>
+    new Promise<number | string>((resolve) => {
+      const socket = new WebSocket(url, { headers })
+      socket.on('unexpected-response', (_, response) =>
+        resolve(response.statusCode!),
+      )
+      socket.on('open', () => socket.send('hello'))
+      socket.on('message', (data) => {
+        resolve(String(data))
+        socket.close()
+      })
+    })
+
+  expect(await open({ origin: `http://127.0.0.1:${port}` })).toBe('hello')
+  expect(await open({})).toBe('hello')
+  expect(await open({ origin: 'https://evil.example' })).toBe(403)
+  expect(await open({ host: 'evil.example' })).toBe(401)
 })

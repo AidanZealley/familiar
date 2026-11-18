@@ -1,18 +1,27 @@
 import { Hono } from 'hono'
+import type { UpgradeWebSocket } from 'hono/ws'
 import { can, type AccessEnv } from '../access.ts'
 import { found } from '../http/found.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import type { Workspace } from '../workspace/index.ts'
 import type { PluginEnv } from './types.ts'
+import { RUNTIME_UPGRADE } from './websocket.ts'
 
-type Env = { Variables: AccessEnv['Variables'] & PluginEnv['Variables'] }
+type Env = {
+  Variables: AccessEnv['Variables'] &
+    PluginEnv['Variables'] & { [RUNTIME_UPGRADE]?: UpgradeWebSocket }
+}
 
 /**
  * Each plugin's routes, at `/<name>/familiars/:familiar`: asked of `allow`
  * as `plugins.<name>` with the Familiar's ID, then 404 for no such
- * Familiar, then the plugin's, given the Familiar.
+ * Familiar, then the plugin's, given the Familiar and, for core's
+ * `upgradeWebSocket`, the host's.
  */
-export function pluginRoutes(workspace: Workspace) {
+export function pluginRoutes(
+  workspace: Workspace,
+  upgradeWebSocket: UpgradeWebSocket | undefined,
+) {
   const routes = new Hono<Env>()
   for (const plugin of workspace.plugins) {
     if (plugin.routes) {
@@ -23,6 +32,7 @@ export function pluginRoutes(workspace: Workspace) {
           .use(async (c, next) => {
             const id = Number(c.req.param('familiar')) as FamiliarId
             c.set('familiar', found(workspace.familiars.get(id), 'Familiar').id)
+            c.set(RUNTIME_UPGRADE, upgradeWebSocket)
             await next()
           })
           .route('/', plugin.routes),

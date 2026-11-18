@@ -14,10 +14,12 @@
     "@familiar-ai/client": "workspace:*",
     "@familiar-ai/computer": "workspace:*",
     "@familiar-ai/core": "workspace:*",
-    "@hono/node-server": "2.1.5",
-    "hono": "catalog:"
+    "@hono/node-server": "2.1.8",
+    "hono": "catalog:",
+    "ws": "8.21.0"
   },
   "devDependencies": {
+    "@types/ws": "8.18.2",
     "vite": "^8"
   }
 }

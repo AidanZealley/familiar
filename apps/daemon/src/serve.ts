@@ -3,11 +3,12 @@ import { isIP } from 'node:net'
 import type { ComputerHost } from '@familiar-ai/computer'
 import type { Workspace } from '@familiar-ai/core'
 import { createHttpApi, type PushHost } from '@familiar-ai/core/http'
-import { serve } from '@hono/node-server'
+import { serve, upgradeWebSocket } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono, type MiddlewareHandler } from 'hono'
 import { csrf } from 'hono/csrf'
 import type { Models } from '@earendil-works/pi-ai'
+import { WebSocketServer } from 'ws'
 import { avatarRoutes } from './avatars.ts'
 import { computerLimitRoutes, type ComputerLimit } from './computer-limit.ts'
 import { providerRoutes } from './providers.ts'
@@ -161,6 +162,7 @@ export function daemonApp(
       // Everyone who can reach the daemon is its owner.
       allow: () => true,
       push: options.push,
+      upgradeWebSocket,
     }),
   )
 
@@ -173,14 +175,26 @@ export function daemonApp(
   return app
 }
 
+/** Serve the daemon's routes over HTTP, with WebSockets for plugins. */
+export const listen = (
+  app: Hono,
+  { host, port }: Pick<ServeOptions, 'host' | 'port'>,
+  listening?: () => void,
+) =>
+  serve(
+    {
+      fetch: app.fetch,
+      hostname: host,
+      port,
+      websocket: { server: new WebSocketServer({ noServer: true }) },
+    },
+    listening,
+  )
+
 /** Serve a workspace over HTTP until SIGINT or SIGTERM, then close it. */
 export function serveWorkspace(workspace: Workspace, options: ServeOptions) {
-  const app = daemonApp(workspace, options)
-
-  const server = serve(
-    { fetch: app.fetch, hostname: options.host, port: options.port },
-    () =>
-      console.log(`${options.label} on http://${options.host}:${options.port}`),
+  const server = listen(daemonApp(workspace, options), options, () =>
+    console.log(`${options.label} on http://${options.host}:${options.port}`),
   )
 
   const shutdown = () => {
