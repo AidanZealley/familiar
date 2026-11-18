@@ -1,13 +1,15 @@
 import { ArrowsOutIcon, XIcon } from '@phosphor-icons/react'
 import { ComputerActivity } from '@/components/computer-activity'
 import { ComputerScreen } from '@/components/computer-screen'
+import { TakeOverButton } from '@/components/take-over-button'
 import { Button } from '@/components/ui/button'
 import { useComputerView } from '@/lib/computer-view'
 import type { ComputerPopoutProps } from './types'
 
 /**
  * The Familiar's screen in a small window over the chat, which stays while
- * the person chats, under a bar with what it's doing, full screen and close.
+ * the person chats, under a bar with what it's doing, take over (or hand
+ * back), full screen and close.
  */
 export const ComputerPopout = ({ familiar }: ComputerPopoutProps) => {
   const { show } = useComputerView()
@@ -18,6 +20,7 @@ export const ComputerPopout = ({ familiar }: ComputerPopoutProps) => {
           bottom of the screen, never these. */}
       <div className="flex h-8 items-center gap-1 pr-0.5 pl-1.5 text-[11px]">
         <ComputerActivity familiar={familiar} className="flex-1" />
+        <TakeOverButton familiar={familiar} iconOnly />
         <Button
           variant="ghost"
           size="icon-sm"

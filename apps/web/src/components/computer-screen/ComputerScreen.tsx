@@ -2,6 +2,8 @@ import RFB from '@novnc/novnc'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from 'cn'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { useComputerControl } from '@/lib/computer-control'
 import {
   computerDetailQuery,
   computerQuery,
@@ -10,6 +12,7 @@ import {
 } from '@/lib/computers'
 import { StatusDot } from '@/components/status-dot'
 import { formatAgo } from '@/lib/format'
+import { ScreenControls, type SendKey } from './components/screen-controls'
 import type { ComputerScreenProps } from './types'
 
 /** How long to wait before watching again after the screen closed. */
@@ -39,17 +42,56 @@ const fullyDrawn = (canvas: HTMLCanvasElement) => {
   return data.every((value, index) => index % 4 !== 3 || value === 255)
 }
 
+/** RFB's cursor pseudo-encodings: noVNC's own (-239) and VMware's. */
+const CURSOR_ENCODINGS = new Set([-239, 0x574d5664])
+
 /**
- * A Familiar's screen, live and fitted, for watching only: nothing typed or
- * clicked here reaches it. Each one shown has its own connection, open
- * while its last status said it runs; watching never wakes it or keeps it
- * awake. A screen that closes while the computer still seems to run is
- * watched again shortly; while its status can't be read, it isn't. Asleep,
- * the last frame seen, dimmed.
+ * A socket to the screen on which noVNC's SetEncodings message leaves out
+ * the cursor, so the display draws its own pointer into the picture: the
+ * Familiar's, where it really is. Otherwise the display sends the pointer's
+ * image apart, for noVNC to draw where the person's mouse is.
+ */
+const withoutCursor = (url: string) => {
+  const socket = new WebSocket(url)
+  const send = socket.send.bind(socket)
+  socket.send = (data) => {
+    // SetEncodings: type 2, padding, a count, then that many 32-bit
+    // encodings. noVNC sends it alone; anything else goes as it is.
+    if (data instanceof Uint8Array && data[0] === 2) {
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+      const count = view.getUint16(2)
+      if (data.byteLength === 4 + 4 * count) {
+        const kept = Array.from({ length: count }, (_, i) =>
+          view.getInt32(4 + 4 * i),
+        ).filter((encoding) => !CURSOR_ENCODINGS.has(encoding))
+        const message = new DataView(new ArrayBuffer(4 + 4 * kept.length))
+        message.setUint8(0, 2)
+        message.setUint16(2, kept.length)
+        kept.forEach((encoding, i) => message.setInt32(4 + 4 * i, encoding))
+        return send(message.buffer)
+      }
+    }
+    send(data)
+  }
+  return socket
+}
+
+/**
+ * A Familiar's screen, live and fitted. While watching, nothing typed or
+ * clicked here reaches it, and its pointer is drawn where the Familiar's
+ * is. While this tab has control (`computer-control`), the screen takes
+ * the mouse, keys and touches, ringed, and the pointer follows the
+ * person's. Each one shown has its own connection, open while its last
+ * status said it runs (or while it's held); watching never wakes it or
+ * keeps it awake. A screen that closes while the computer still seems to
+ * run is watched again shortly; while its status can't be read, it isn't.
+ * Asleep, the last frame seen, dimmed. Full screen (`large`) has Take over
+ * over its corner, which a click on the watched screen points to.
  */
 export const ComputerScreen = ({
   familiar,
   size = 'small',
+  input = true,
   className,
 }: ComputerScreenProps) => {
   const queryClient = useQueryClient()
@@ -57,9 +99,15 @@ export const ComputerScreen = ({
     computerQuery(familiar.id),
   )
   const { data: detail } = useQuery(computerDetailQuery(familiar.id))
-  // A failed poll keeps the last answer, which may be stale.
-  const running = status?.state === 'running' && !unreachable
+  const held = useComputerControl(familiar.id) === 'held'
+  /** Whether this view takes the person's input. */
+  const controlling = held && input
+  // A failed poll keeps the last answer, which may be stale. Held, it runs.
+  const running = (status?.state === 'running' || held) && !unreachable
   const target = useRef<HTMLDivElement>(null)
+  const rfbRef = useRef<RFB>(undefined)
+  // Bumped by a click on a watched full screen, to point to Take over.
+  const [attention, setAttention] = useState(0)
   const [live, setLive] = useState(false)
   // Bumped to watch again after the screen closed by itself.
   const [attempt, setAttempt] = useState(0)
@@ -68,12 +116,19 @@ export const ComputerScreen = ({
     if (!running) {
       return
     }
-    const rfb = new RFB(target.current!, screenUrl(familiar.id), {
-      shared: true,
-    })
-    rfb.viewOnly = true
+    // Controlling, noVNC's own cursor follows the mouse, to show input reaches it.
+    const url = screenUrl(familiar.id)
+    const rfb = new RFB(
+      target.current!,
+      controlling ? url : withoutCursor(url),
+      {
+        shared: true,
+      },
+    )
+    rfb.viewOnly = !controlling
     rfb.scaleViewport = true
-    rfb.focusOnClick = false
+    rfb.focusOnClick = controlling
+    rfbRef.current = rfb
     rfb.background = 'transparent'
     /** The screen as shown, which noVNC detaches as it disconnects. */
     let canvas: HTMLCanvasElement | null = null
@@ -112,9 +167,13 @@ export const ComputerScreen = ({
       clearTimeout(retry)
       keepFrame()
       rfb.disconnect()
+      rfbRef.current = undefined
       setLive(false)
     }
-  }, [familiar.id, running, attempt, queryClient])
+  }, [familiar.id, running, controlling, attempt, queryClient])
+
+  const sendKey: SendKey = (keysym, code, down) =>
+    rfbRef.current?.sendKey(keysym, code, down)
 
   const asleep = status?.state === 'asleep'
   const frame = live ? undefined : lastFrames.get(familiar.id)
@@ -147,6 +206,14 @@ export const ComputerScreen = ({
         'relative aspect-[16/10] overflow-hidden bg-black',
         className,
       )}
+      onClick={
+        size === 'large' && !controlling
+          ? () => {
+              toast('Take over to use it')
+              setAttention((count) => count + 1)
+            }
+          : undefined
+      }
     >
       {frame && (
         <img
@@ -158,10 +225,19 @@ export const ComputerScreen = ({
           )}
         />
       )}
-      {/* noVNC's own: React never renders into it. Watching only, so
-          touches and the pointer pass through, to scroll what's behind and
-          keep the person's own cursor. */}
-      <div ref={target} className="pointer-events-none absolute inset-0" />
+      {/* noVNC's own: React never renders into it. Watching, touches and
+          the pointer pass through, to scroll what's behind and keep the
+          person's own cursor. */}
+      <div
+        ref={target}
+        className={cn(
+          'absolute inset-0',
+          !controlling && 'pointer-events-none',
+        )}
+      />
+      {controlling && (
+        <div className="pointer-events-none absolute inset-0 ring-2 ring-primary ring-inset" />
+      )}
       {note && (
         <div
           className={cn(
@@ -179,6 +255,14 @@ export const ComputerScreen = ({
             {note[1] && <div className="text-white/60">{note[1]}</div>}
           </div>
         </div>
+      )}
+      {size === 'large' && (
+        <ScreenControls
+          familiar={familiar}
+          controlling={controlling}
+          sendKey={sendKey}
+          attention={attention}
+        />
       )}
     </div>
   )

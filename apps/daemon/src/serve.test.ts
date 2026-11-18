@@ -367,11 +367,12 @@ test("a computer's screen streams over its socket, which owns it", async () => {
 test("a person's control lasts as long as their socket", async () => {
   /** Each take-over's signal, and how to end it from the computer's side. */
   const holds: { signal: AbortSignal; end: () => void }[] = []
-  let refuse: string | undefined
+  /** Why the computer refuses a take-over, once it does. */
+  const refusal: { reason?: string } = {}
   const host: ComputerHost = {
     control: async (_familiar, signal) => {
-      if (refuse) {
-        throw new Error(refuse)
+      if (refusal.reason) {
+        throw new Error(refusal.reason)
       }
       let end!: () => void
       const ended = new Promise<void>((resolve) => {
@@ -436,6 +437,6 @@ test("a person's control lasts as long as their socket", async () => {
   expect(await second.closed).toEqual([1000, 'Control ended.'])
 
   // Refused: closed with why.
-  refuse = 'Someone else is using this computer.'
-  expect(await takeOver().closed).toEqual([4000, refuse])
+  refusal.reason = 'Someone else is using this computer.'
+  expect(await takeOver().closed).toEqual([4000, refusal.reason])
 })

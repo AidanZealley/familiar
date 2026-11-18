@@ -1,12 +1,24 @@
 import { WrenchIcon } from '@phosphor-icons/react'
 import { Activity } from '../activity'
 import { toolLabel } from './label'
+
+/** A computer call waiting for the person to hand the computer back. */
+const waitsForPerson = ({ status, details }: ToolCallProps['call']) =>
+  status === 'running' &&
+  typeof details === 'object' &&
+  details !== null &&
+  'waiting' in details &&
+  details.waiting === true
 import type { ToolCallProps } from './types'
 
 export const ToolCall = ({ call }: ToolCallProps) => (
   <Activity
     icon={<WrenchIcon />}
-    label={toolLabel(call.name, call.status)}
+    label={
+      waitsForPerson(call)
+        ? 'Waiting for you to hand back the computer'
+        : toolLabel(call.name, call.status)
+    }
     active={call.status === 'running'}
     failed={call.status === 'error'}
   >

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { cn } from 'cn'
 import { StatusDot } from '@/components/status-dot'
+import { useComputerControl } from '@/lib/computer-control'
 import {
   computerDetailQuery,
   computerQuery,
@@ -22,6 +23,7 @@ export const ComputerActivity = ({
     computerQuery(familiar.id),
   )
   const { data: detail } = useQuery(computerDetailQuery(familiar.id))
+  const controlling = useComputerControl(familiar.id) === 'held'
   // A failed poll keeps the last answer, which may be stale.
   const state = unreachable
     ? { label: 'Not connected', tone: 'off' as const }
@@ -40,9 +42,22 @@ export const ComputerActivity = ({
         className,
       )}
     >
-      {state && <StatusDot tone={state.tone} />}
-      <span className={cn('truncate', call && 'shimmer')}>
-        {call ? describeCall(call) : state?.label}
+      {controlling ? (
+        <span className="size-2 shrink-0 bg-primary" />
+      ) : (
+        state && <StatusDot tone={state.tone} />
+      )}
+      <span
+        className={cn(
+          'truncate',
+          controlling ? 'text-foreground' : call && 'shimmer',
+        )}
+      >
+        {controlling
+          ? 'You have control'
+          : call
+            ? describeCall(call)
+            : state?.label}
       </span>
     </span>
   )

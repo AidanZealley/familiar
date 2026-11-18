@@ -81,8 +81,11 @@ export const screenUrl = (familiar: FamiliarSummary['id']) => {
 /** Some amount in use against its limit, such as memory in bytes. */
 export type Usage = { used: number; limit?: number }
 
-/** A call running on a computer: its tool and a short target, such as the URL or command. */
-export type ComputerCall = { tool: string; target?: string }
+/**
+ * A call running on a computer: its tool and a short target, such as the
+ * URL or command, and whether it waits for a person to hand back.
+ */
+export type ComputerCall = { tool: string; target?: string; waiting?: true }
 
 /**
  * A Familiar's computer in detail, as its host reports it (the computer
@@ -203,8 +206,10 @@ const calls: Record<string, (target?: string) => string> = {
 }
 
 /** What a call is doing, in words: `Opening example.com`. */
-export const describeCall = ({ tool, target }: ComputerCall) =>
-  calls[tool]?.(target) ?? (target ? `${tool}: ${target}` : tool)
+export const describeCall = ({ tool, target, waiting }: ComputerCall) =>
+  waiting
+    ? 'Waiting for you to hand back the computer'
+    : (calls[tool]?.(target) ?? (target ? `${tool}: ${target}` : tool))
 
 /**
  * Programs by executable, such as Chromium's many processes as one `chrome`,
