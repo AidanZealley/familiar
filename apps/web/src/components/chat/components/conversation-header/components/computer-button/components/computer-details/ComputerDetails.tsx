@@ -76,10 +76,18 @@ export const ComputerDetails = ({ familiar, status }: ComputerDetailsProps) => {
         )}
       </div>
       <Collapsible>
-        <CollapsibleTrigger className="group/details flex w-full items-center gap-1 text-left text-muted-foreground hover:text-foreground">
-          <CaretRightIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]/details:rotate-90" />
+        {/* Opens once there's something to show: until then, the hourglass
+            in the caret's place and a faded label. */}
+        <CollapsibleTrigger
+          disabled={isPending}
+          className="group/details flex w-full items-center gap-1 text-left text-muted-foreground not-disabled:hover:text-foreground disabled:text-muted-foreground/50"
+        >
+          {isPending ? (
+            <HourglassSpinner />
+          ) : (
+            <CaretRightIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]/details:rotate-90" />
+          )}
           System details
-          {isPending && <HourglassSpinner className="ml-auto" />}
         </CollapsibleTrigger>
         <CollapsibleContent className="flex flex-col gap-3 pt-3">
           {detail?.doing?.map((call, index) => (
