@@ -268,3 +268,23 @@ test('a failing Docker command answers every waiting call, and later ones still 
   const later = await host.call(ada, 'ping', {})
   expect(later.content).toContainEqual({ type: 'text', text: 'pong' })
 })
+
+test('once closed, a host wakes and connects to nothing, even for a call already under way', async () => {
+  const host = dockerHost()
+  await host.sync([ada])
+  engine.state.log = []
+
+  // A call is waiting on the pass starting Ada's computer when the host
+  // closes. Its connection then fails, so it would try a restart.
+  engine.state.reachable = [false]
+  const starting = holding('start 1')
+  const call = host.call(ada, 'ping', {})
+  await starting.started
+  const closed = host.close()
+  starting.release()
+  await closed
+
+  expect(JSON.stringify(await call)).toMatch(/couldn't start.*closed/)
+  expect(engine.state.log).toEqual(['start 1'])
+  expect(engine.state.connections).toBe(1)
+})

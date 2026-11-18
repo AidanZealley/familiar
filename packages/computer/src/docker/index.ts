@@ -115,6 +115,14 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   )
   /** Each computer a call is waiting to run: whether to restart it. */
   let awake = new Map<FamiliarId, boolean>()
+  /**
+   * The host's lifetime, which only `close` ends. A pass after it changes
+   * nothing, so no call, or retry of one, wakes or connects to a computer.
+   */
+  const life = new AbortController()
+  const closing = new Promise<undefined>((resolve) =>
+    life.signal.addEventListener('abort', () => resolve(undefined)),
+  )
 
   const maxNow = () =>
     typeof maxComputers === 'function' ? maxComputers() : maxComputers
@@ -141,10 +149,17 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     const wantedNow = wanted
     const waiting = awake
     awake = new Map()
-    // Before the first sync, the list it will give: never "nobody".
-    const want = await wantedNow
-    const ready = image.state.state === 'ready'
     const answers = new Map<FamiliarId, boolean | string>()
+    // Before the first sync, the list it will give: never "nobody". Once
+    // the host has closed, nothing.
+    const want = await Promise.race([wantedNow, closing])
+    if (!want || life.signal.aborted) {
+      for (const familiar of waiting.keys()) {
+        answers.set(familiar, 'This computer host has closed.')
+      }
+      return { answers, failed: undefined }
+    }
+    const ready = image.state.state === 'ready'
     let failed: unknown
 
     /**
@@ -431,11 +446,14 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     },
 
     close: async () => {
+      life.abort()
       image.close()
       for (const entry of clients.values()) {
         // Once it's connected, if it's still connecting.
         void entry.then(({ client }) => client.close()).catch(() => {})
       }
+      // Once the pass under way, if any, has finished; none after it acts.
+      await reconcile()
     },
   }
 }

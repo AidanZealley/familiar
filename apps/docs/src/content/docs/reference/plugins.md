@@ -30,7 +30,7 @@ type PluginContext = {
 }
 ```
 
-`watchFamiliars` calls `listener` with the Familiars that use the plugin, those that have it turned on, then again when that changes: one turns it on or off, or is created with it or removed. Called from `open`, its first call comes before the workspace resumes any work, so a plugin knows who uses it before a resumed call arrives; later calls come asynchronously. Changes close together may come as one call; the last call is always who uses it now. A promise `listener` returns isn't awaited, so handle its errors.
+`watchFamiliars` calls `listener` with the Familiars that use the plugin, those that have it turned on, then again when that changes: one turns it on or off, or is created with it or removed. Called from `open`, its first call comes before the workspace resumes any work, so a plugin knows who uses it before a resumed call arrives; later calls come asynchronously. If storage can't be read, as when it fails, there's no first call and opening goes on without one, so a plugin that acts on the list should do nothing until it has one. Changes close together may come as one call; the last call is always who uses it now. A promise `listener` returns isn't awaited, so handle its errors.
 
 ### routes
 
