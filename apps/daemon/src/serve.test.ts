@@ -19,6 +19,7 @@ import {
 } from '@familiar-ai/core'
 import { createModels } from '@familiar-ai/core/models'
 import { fauxProvider } from '@familiar-ai/core/models/faux'
+import { computer, type ComputerHost } from '@familiar-ai/computer'
 import { Hono } from 'hono'
 import { expect, onTestFinished, test, vi } from 'vitest'
 import { WebSocket } from 'ws'
@@ -279,4 +280,83 @@ test("plugins' WebSocket routes echo, behind the owner's network and same origin
   expect(await open({})).toBe('hello')
   expect(await open({ origin: 'https://evil.example' })).toBe(403)
   expect(await open({ host: 'evil.example' })).toBe(401)
+})
+
+test("a computer's screen streams over its socket, which owns it", async () => {
+  /** Each viewer's stream: an echo, opened with a banner, and its signal. */
+  const viewers: { signal: AbortSignal; end: () => void }[] = []
+  let running = true
+  const host: ComputerHost = {
+    screen: async (_familiar, signal) => {
+      if (!running) {
+        return undefined
+      }
+      let screen!: ReadableStreamDefaultController<Uint8Array<ArrayBuffer>>
+      const readable = new ReadableStream<Uint8Array<ArrayBuffer>>({
+        start: (controller) => {
+          screen = controller
+          controller.enqueue(new TextEncoder().encode('RFB'))
+        },
+      })
+      const writable = new WritableStream<Uint8Array<ArrayBuffer>>({
+        write: (bytes) => screen.enqueue(bytes),
+      })
+      viewers.push({ signal, end: () => screen.close() })
+      return { readable, writable }
+    },
+    call: async () => ({ content: [] }),
+    sync: async () => {},
+    status: async () => ({ state: 'running' }),
+    inspect: async () => ({}),
+    summary: async () => ({ computers: [] }),
+    close: async () => {},
+  }
+  const models = createModels()
+  models.setProvider(fauxProvider().provider)
+  const { workspace, familiar } = await openDaemonWorkspace(
+    {
+      storage: new MemoryStorage(),
+      models,
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      plugins: [computer({ host })],
+      defaultCapabilities: { plugins: ['computer'] },
+    },
+    'Familiar',
+  )
+  onTestFinished(() => workspace.dismiss())
+  const server = listen(daemonApp(workspace, { owner: 'Aidan' }), {
+    host: '127.0.0.1',
+    port: 0,
+  })
+  onTestFinished(() => void server.close())
+  await once(server, 'listening')
+  const { port } = server.address() as AddressInfo
+  const watch = () => {
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/plugins/computer/familiars/${familiar}/screen`,
+    )
+    const received: string[] = []
+    socket.on('message', (data) => received.push(String(data)))
+    const closed = once(socket, 'close').then(([code]) => code as number)
+    return { socket, received, closed }
+  }
+
+  // Bytes go both ways; closing the socket ends the stream.
+  const first = watch()
+  await vi.waitFor(() => expect(first.received).toEqual(['RFB']))
+  first.socket.send(Buffer.from('hi'))
+  await vi.waitFor(() => expect(first.received).toEqual(['RFB', 'hi']))
+  first.socket.close()
+  await vi.waitFor(() => expect(viewers[0]!.signal.aborted).toBe(true))
+
+  // The stream ending, as the computer stops, closes the socket.
+  const second = watch()
+  await vi.waitFor(() => expect(second.received).toEqual(['RFB']))
+  viewers[1]!.end()
+  expect(await second.closed).toBe(1000)
+
+  // A computer that isn't running closes it at once.
+  running = false
+  expect(await watch().closed).toBe(1000)
 })
