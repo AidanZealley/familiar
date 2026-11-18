@@ -1,59 +1,72 @@
 <?xml version="1.0"?>
 <!--
-  The computer's desktop: one workspace, a taskbar with a launcher menu, the
-  open windows and a clock. Nothing here logs out or powers off: the agent
-  owns the display, and ends if it goes.
+  The computer's desktop, in Familiar's colours and fonts: one workspace, a
+  taskbar with the Familiar launcher, the open windows and a clock. Nothing
+  here logs out or powers off: the agent owns the display, and ends if it
+  goes. Its files are in /usr/share/familiar-desktop (see the Dockerfile).
 -->
 <JWM>
-    <RootMenu onroot="123">
-        <Program icon="utilities-terminal" label="Terminal">urxvt</Program>
+    <RootMenu onroot="123" height="32">
+        <Program icon="/usr/share/familiar-desktop/cat.png" label="Terminal">/usr/share/familiar-desktop/terminal</Program>
     </RootMenu>
 
     <Desktops width="1" height="1">
-        <Background type="solid">#2E3440</Background>
+        <Background type="image">/usr/share/familiar-desktop/wallpaper.png</Background>
     </Desktops>
 
-    <Tray x="0" y="-1" height="28" autohide="off">
-        <TrayButton label="Menu">root:1</TrayButton>
-        <Spacer width="2"/>
-        <TaskList maxwidth="256"/>
-        <Dock/>
+    <Tray x="0" y="-1" height="44" autohide="off">
+        <TrayButton icon="/usr/share/familiar-desktop/cat.png" label="familiar">root:1</TrayButton>
+        <Spacer width="12"/>
+        <TaskList maxwidth="225"/>
         <Clock format="%H:%M"/>
     </Tray>
 
     <WindowStyle decorations="flat">
-        <Font>Sans-11:bold</Font>
-        <Width>3</Width>
-        <Foreground>#FFFFFF</Foreground>
-        <Background>#555555</Background>
+        <Font>Geist-12</Font>
+        <Width>2</Width>
+        <Height>30</Height>
+        <Corner>5</Corner>
+        <Foreground>#dfdbea</Foreground>
+        <Background>#292638</Background>
+        <Outline>#514b61</Outline>
         <Active>
-            <Foreground>#FFFFFF</Foreground>
-            <Background>#0077CC</Background>
+            <Foreground>#ffffff</Foreground>
+            <Background>#39305c</Background>
+            <Outline>#9a87fb</Outline>
         </Active>
     </WindowStyle>
     <TrayStyle decorations="flat">
-        <Font>Sans-11</Font>
-        <Background>#333333</Background>
-        <Foreground>#FFFFFF</Foreground>
+        <Font>Geist-12</Font>
+        <Background>#1b1927</Background>
+        <Foreground>#f4f1ff</Foreground>
     </TrayStyle>
+    <TrayButtonStyle>
+        <Font>JetBrains Mono-11</Font>
+        <Foreground>#e5dcff</Foreground>
+        <Background>#302747</Background>
+    </TrayButtonStyle>
     <TaskListStyle list="all" group="false">
-        <Font>Sans-11</Font>
+        <Font>Geist-12</Font>
+        <Foreground>#e2dded</Foreground>
+        <Background>#1b1927</Background>
         <Active>
-            <Foreground>#FFFFFF</Foreground>
-            <Background>#555555</Background>
+            <Foreground>#ffffff</Foreground>
+            <Background>#39305c</Background>
         </Active>
-        <Foreground>#FFFFFF</Foreground>
-        <Background>#333333</Background>
     </TaskListStyle>
     <MenuStyle decorations="flat">
-        <Font>Sans-11</Font>
-        <Foreground>#FFFFFF</Foreground>
-        <Background>#333333</Background>
+        <Font>Geist-12</Font>
+        <Foreground>#f4f1ff</Foreground>
+        <Background>#292638</Background>
         <Active>
-            <Foreground>#FFFFFF</Foreground>
-            <Background>#0077CC</Background>
+            <Foreground>#ffffff</Foreground>
+            <Background>#493586</Background>
         </Active>
     </MenuStyle>
+    <ClockStyle>
+        <Font>JetBrains Mono-11</Font>
+        <Foreground>#e2dded</Foreground>
+    </ClockStyle>
 
     <FocusModel>click</FocusModel>
     <SnapMode distance="10">border</SnapMode>

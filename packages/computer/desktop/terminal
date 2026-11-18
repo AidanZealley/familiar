@@ -1,0 +1,4 @@
+#!/bin/sh
+# The desktop's terminal, in Familiar's colours.
+exec urxvt -title Terminal +sb -fn 'xft:JetBrains Mono:pixelsize=15' \
+  -bg '#111019' -fg '#f2effc' -cr '#a99aff' -b 12 -geometry 100x28 "$@"

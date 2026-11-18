@@ -33,10 +33,15 @@ RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell ch
   && useradd --create-home --shell /bin/bash computer \
   && install -d -o computer -g computer /run/familiar /run/familiar-proxy \
   && install -d -m 1777 /tmp/.X11-unix
-COPY packages/computer/desktop/jwmrc /etc/jwm/system.jwmrc
-# No incognito windows: the agent finds the shown tab through its own
-# extension, which can't see them.
-COPY packages/computer/desktop/chrome-policy.json /etc/opt/chrome_for_testing/policies/managed/familiar.json
+# The desktop's look (JWM's config, Familiar's fonts, wallpaper, launcher
+# icon and terminal), and Chrome's policy: no incognito windows, as the
+# agent finds the shown tab through its own extension, which can't see them.
+COPY packages/computer/desktop /usr/share/familiar-desktop
+RUN install -D -m 644 -t /usr/local/share/fonts/familiar /usr/share/familiar-desktop/fonts/* \
+  && fc-cache -f \
+  && ln -sf /usr/share/familiar-desktop/jwmrc /etc/jwm/system.jwmrc \
+  && install -D -m 644 /usr/share/familiar-desktop/chrome-policy.json \
+    /etc/opt/chrome_for_testing/policies/managed/familiar.json
 USER computer
 WORKDIR /home/computer
 ENTRYPOINT ["node", "/agent/dist/agent/main.js"]
