@@ -78,7 +78,7 @@ export const ComputerDetails = ({ familiar, status }: ComputerDetailsProps) => {
       <Collapsible>
         <CollapsibleTrigger className="group/details flex w-full items-center gap-1 text-left text-muted-foreground hover:text-foreground">
           <CaretRightIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]/details:rotate-90" />
-          Details
+          System details
           {isPending && <HourglassSpinner className="ml-auto" />}
         </CollapsibleTrigger>
         <CollapsibleContent className="flex flex-col gap-3 pt-3">
