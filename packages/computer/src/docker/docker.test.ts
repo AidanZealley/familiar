@@ -222,7 +222,10 @@ test.skipIf(!hasImage)(
       expect(Buffer.from(value!).toString()).toMatch(/^RFB 003\.008\n/)
       /** Resolves once the stream has ended. */
       const ended = (async () => {
-        while (!(await reader.read().catch(() => ({ done: true }))).done) {}
+        let done = false
+        while (!done) {
+          ;({ done } = await reader.read().catch(() => ({ done: true })))
+        }
       })()
       return { leave: () => leave.abort(), ended }
     }

@@ -65,6 +65,19 @@ export const computerQuery = (familiar: FamiliarSummary['id']) =>
       query.state.data?.state === 'setting-up' ? 1000 : 5000,
   })
 
+/**
+ * Where a Familiar's screen streams: a WebSocket of its display's VNC, for
+ * noVNC, on this page's own origin.
+ */
+export const screenUrl = (familiar: FamiliarSummary['id']) => {
+  const url = new URL(
+    `/api/plugins/computer/familiars/${familiar}/screen`,
+    window.location.href,
+  )
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  return url.href
+}
+
 /** Some amount in use against its limit, such as memory in bytes. */
 export type Usage = { used: number; limit?: number }
 
@@ -178,6 +191,11 @@ const calls: Record<string, (target?: string) => string> = {
   browser_screenshot: () => 'Looking at the page',
   browser_click: () => 'Clicking on the page',
   browser_type: () => 'Typing on the page',
+  screen_screenshot: () => 'Looking at the screen',
+  screen_click: () => 'Clicking on the screen',
+  screen_type: () => 'Typing on the screen',
+  screen_key: (keys) => (keys ? `Pressing ${keys}` : 'Pressing keys'),
+  screen_scroll: () => 'Scrolling the screen',
   run_command: (command) =>
     command ? `Running ${command}` : 'Running a command',
   read_file: (path) => (path ? `Reading ${path}` : 'Reading a file'),

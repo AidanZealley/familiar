@@ -1,9 +1,14 @@
 import { Link } from '@tanstack/react-router'
-import { CaretLeftIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react'
+import {
+  ArrowsInIcon,
+  CaretLeftIcon,
+  DotsThreeVerticalIcon,
+} from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
+import { useComputerView } from '@/lib/computer-view'
 import { useDialogs, type DialogRef } from '@/lib/dialogs'
 import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
 import { ComputerButton } from './components/computer-button'
@@ -14,7 +19,8 @@ import type { ConversationHeaderProps } from './types'
  * Glass over the conversation, `--chrome` tall: the room's face, name and
  * what's happening in it, which open its settings, as does the ⋮
  * button. In a DM, the Familiar's computer, if it has one, beside that.
- * On a phone, Back returns to the list of conversations.
+ * On a phone, Back returns to the list of conversations. Docked beside
+ * the Familiar's full-screen computer, just the chat's name and a way back.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
@@ -27,6 +33,26 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
       : { kind: 'room', id: room.id }
   const title = titleOf(room, familiars)
   const dm = room.kind === 'dm' && familiars.find((f) => f.id === room.familiar)
+  const { view, show } = useComputerView()
+
+  if (dm && view === 'full') {
+    return (
+      <header className="absolute inset-x-0 top-0 z-30 flex h-(--chrome) items-center border-b border-border/60 bg-background/80 pt-(--status-bar) pr-2 pl-4 backdrop-blur-md">
+        <h2 className="truncate font-heading text-sm font-medium">
+          Chat with {dm.name}
+        </h2>
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          className="ml-auto"
+          aria-label="Leave full screen"
+          onClick={() => show(undefined)}
+        >
+          <ArrowsInIcon />
+        </Button>
+      </header>
+    )
+  }
 
   return (
     <header className="absolute inset-x-0 top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md">

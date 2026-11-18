@@ -1,4 +1,5 @@
 import { useRoom } from '@familiar-ai/client/react'
+import { cn } from 'cn'
 import { useCallback, useMemo, useState } from 'react'
 import { PaneLoader } from '@/components/pane-loader'
 import { Problem } from '@/components/problem'
@@ -10,8 +11,12 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
+import { useComputerView } from '@/lib/computer-view'
 import { connectionProblems } from '@/lib/connection-problems'
+import { useFamiliars } from '@/lib/workspace'
 import { Composer } from './components/composer'
+import { ComputerPane } from './components/computer-pane'
+import { ComputerPopout } from './components/computer-popout'
 import { ConversationHeader } from './components/conversation-header'
 import { OlderMessages } from './components/older-messages'
 import { SignIn } from './components/sign-in'
@@ -21,7 +26,9 @@ import type { ChatProps } from './types'
 
 /**
  * The open room: its header, its transcript and the composer, marked read
- * while it's on screen. Until the room's first view arrives, its header
+ * while it's on screen. In a DM, the Familiar's screen can pop out over
+ * it, or go full screen with the chat docked beside it (below, on a
+ * phone), the same chat throughout so nothing in it is lost. Until the room's first view arrives, its header
  * over a loader; the view then stays through any reconnect, which the
  * header reports.
  */
@@ -48,6 +55,13 @@ export const Chat = ({ room }: ChatProps) => {
     return () => observer.disconnect()
   }, [])
   useReadWhileOpen(room)
+  const familiars = useFamiliars()
+  const { view } = useComputerView()
+  const dm =
+    room.kind === 'dm'
+      ? familiars.find((familiar) => familiar.id === room.familiar)
+      : undefined
+  const computer = dm && view
   const transcript = useRoom((state) => state.transcript)
   const startup = useRoom((state) =>
     state.view === undefined ? state.connection : 'ready',
@@ -89,32 +103,48 @@ export const Chat = ({ room }: ChatProps) => {
       {/* The scroller runs behind the glass header, where content padding
           keeps the first message clear of it, and ends in the composer,
           which sticks to its foot so the transcript scrolls behind it. */}
-      <div className="flex h-full flex-col">
-        <ConversationHeader room={room} />
-        <MessageScroller className="flex-1">
-          {/* The shared scroller hides its thumb while it scrolls itself, which
+      <div
+        className={cn(
+          'flex h-full flex-col',
+          computer === 'full' && 'fixed inset-0 z-40 bg-background md:flex-row',
+        )}
+      >
+        {computer === 'full' && <ComputerPane familiar={dm!} />}
+        <div
+          className={cn(
+            'relative flex min-h-0 flex-1 flex-col',
+            // Docked: no longer under the phone's status bar.
+            computer === 'full' &&
+              'max-md:[--chrome:3.5rem] max-md:[--status-bar:0px] md:w-96 md:flex-none md:border-l md:border-border',
+          )}
+        >
+          <ConversationHeader room={room} />
+          <MessageScroller className="flex-1">
+            {/* The shared scroller hides its thumb while it scrolls itself, which
               flashes on every streamed update, so keep one colour throughout. */}
-          <MessageScrollerViewport className="flex scroll-pt-(--chrome) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
-            <MessageScrollerContent
-              ref={measureScrollMargin}
-              aria-busy={transcript?.busy}
-              className="mx-auto min-h-0 w-full max-w-(--page-width) shrink-0 grow gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
-            >
-              <TranscriptItems
-                items={transcript?.items ?? []}
-                dm={room.kind === 'dm'}
-                lead={room.kind === 'room' ? room.lead : undefined}
-              />
-            </MessageScrollerContent>
-            {/* Lined up with the conversation. */}
-            <div className="sticky bottom-0 z-30 mx-auto w-full max-w-(--page-width)">
-              <MessageScrollerButton className="data-[direction=end]:bottom-[calc(100%+1rem)]" />
-              <SignIn />
-              <Composer room={room} busy={transcript?.busy ?? false} />
-            </div>
-          </MessageScrollerViewport>
-          <OlderMessages firstItemIds={firstItemIds} />
-        </MessageScroller>
+            <MessageScrollerViewport className="flex scroll-pt-(--chrome) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
+              <MessageScrollerContent
+                ref={measureScrollMargin}
+                aria-busy={transcript?.busy}
+                className="mx-auto min-h-0 w-full max-w-(--page-width) shrink-0 grow gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
+              >
+                <TranscriptItems
+                  items={transcript?.items ?? []}
+                  dm={room.kind === 'dm'}
+                  lead={room.kind === 'room' ? room.lead : undefined}
+                />
+              </MessageScrollerContent>
+              {/* Lined up with the conversation. */}
+              <div className="sticky bottom-0 z-30 mx-auto w-full max-w-(--page-width)">
+                <MessageScrollerButton className="data-[direction=end]:bottom-[calc(100%+1rem)]" />
+                <SignIn />
+                <Composer room={room} busy={transcript?.busy ?? false} />
+              </div>
+            </MessageScrollerViewport>
+            <OlderMessages firstItemIds={firstItemIds} />
+          </MessageScroller>
+          {computer === 'pop' && <ComputerPopout familiar={dm!} />}
+        </div>
       </div>
     </MessageScrollerProvider>
   )

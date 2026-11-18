@@ -11,6 +11,7 @@ import type { Script } from './household/script.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
 import { ask } from './scenarios/ask.ts'
 import { compact } from './scenarios/compaction.ts'
+import { computer } from './scenarios/computer.ts'
 import { key } from './scenarios/connections.ts'
 import { mcp } from './scenarios/mcp.ts'
 import { memory } from './scenarios/memory.ts'
@@ -26,6 +27,7 @@ const scenarios = {
   ask,
   slow,
   compact,
+  computer,
   error,
 }
 const replies: NonNullable<Scenario['replies']> = Object.assign(

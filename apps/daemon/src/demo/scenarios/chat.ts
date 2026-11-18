@@ -58,7 +58,7 @@ flowchart LR
 
 ![Familiar's icon](/icon-192.png)
 
-> Say **tool**, **memory**, **remind**, **key**, **mcp**, **ask**, **slow**, **compact** or **error** to see the other scenarios.`
+> Say **tool**, **memory**, **remind**, **key**, **mcp**, **ask**, **slow**, **compact**, **computer** or **error** to see the other scenarios.`
 
 const slowReply = Array.from(
   { length: 30 },
