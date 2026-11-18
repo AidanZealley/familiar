@@ -305,6 +305,9 @@ test("a computer's screen streams over its socket, which owns it", async () => {
       return { readable, writable }
     },
     call: async () => ({ content: [] }),
+    control: async () => {
+      throw new Error('Not here.')
+    },
     sync: async () => {},
     status: async () => ({ state: 'running' }),
     inspect: async () => ({}),
@@ -359,4 +362,80 @@ test("a computer's screen streams over its socket, which owns it", async () => {
   // A computer that isn't running closes it at once.
   running = false
   expect(await watch().closed).toBe(1000)
+})
+
+test("a person's control lasts as long as their socket", async () => {
+  /** Each take-over's signal, and how to end it from the computer's side. */
+  const holds: { signal: AbortSignal; end: () => void }[] = []
+  let refuse: string | undefined
+  const host: ComputerHost = {
+    control: async (_familiar, signal) => {
+      if (refuse) {
+        throw new Error(refuse)
+      }
+      let end!: () => void
+      const ended = new Promise<void>((resolve) => {
+        end = resolve
+        signal.addEventListener('abort', () => resolve())
+      })
+      holds.push({ signal, end })
+      return { ended }
+    },
+    screen: async () => undefined,
+    call: async () => ({ content: [] }),
+    sync: async () => {},
+    status: async () => ({ state: 'running' }),
+    inspect: async () => ({}),
+    summary: async () => ({ computers: [] }),
+    close: async () => {},
+  }
+  const models = createModels()
+  models.setProvider(fauxProvider().provider)
+  const { workspace, familiar } = await openDaemonWorkspace(
+    {
+      storage: new MemoryStorage(),
+      models,
+      chatModel: { provider: 'faux', modelId: 'faux-1' },
+      timeZone: 'UTC',
+      plugins: [computer({ host })],
+      defaultCapabilities: { plugins: ['computer'] },
+    },
+    'Familiar',
+  )
+  onTestFinished(() => workspace.dismiss())
+  const server = listen(daemonApp(workspace, { owner: 'Aidan' }), {
+    host: '127.0.0.1',
+    port: 0,
+  })
+  onTestFinished(() => void server.close())
+  await once(server, 'listening')
+  const { port } = server.address() as AddressInfo
+  const takeOver = () => {
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/plugins/computer/familiars/${familiar}/control`,
+    )
+    const received: string[] = []
+    socket.on('message', (data) => received.push(String(data)))
+    const closed = once(socket, 'close').then(([code, reason]) => [
+      code as number,
+      String(reason),
+    ])
+    return { socket, received, closed }
+  }
+
+  // Held, then handed back by closing the socket.
+  const first = takeOver()
+  await vi.waitFor(() => expect(first.received).toEqual(['held']))
+  first.socket.close()
+  await vi.waitFor(() => expect(holds[0]!.signal.aborted).toBe(true))
+
+  // Control ending on the computer's side closes the socket.
+  const second = takeOver()
+  await vi.waitFor(() => expect(second.received).toEqual(['held']))
+  holds[1]!.end()
+  expect(await second.closed).toEqual([1000, 'Control ended.'])
+
+  // Refused: closed with why.
+  refuse = 'Someone else is using this computer.'
+  expect(await takeOver().closed).toEqual([4000, refuse])
 })

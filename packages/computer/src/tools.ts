@@ -157,6 +157,23 @@ export type ComputerInfo = Pick<
 >
 
 /**
+ * The agent's hidden tool for a person taking over the computer. Like
+ * `INFO_TOOL`, no Familiar is ever offered it. It lasts as long as the
+ * person has control: it sends progress once they have it (or answers why
+ * not, as an error), then every `PROGRESS_MS` until the call is cancelled,
+ * which hands the computer back. It keeps the computer awake.
+ */
+export const CONTROL_TOOL = 'computer_control'
+
+/**
+ * How often the agent sends progress on a call that's waiting for a person
+ * to hand back, and on the control call. The host's time limits restart on
+ * each, so they don't run while waiting, and a control call stops getting
+ * them only if the agent has stopped answering.
+ */
+export const PROGRESS_MS = 30_000
+
+/**
  * In a result's `_meta`, set by an agent going to sleep: it ran nothing, so
  * the call is safe to send again once the computer has woken.
  */

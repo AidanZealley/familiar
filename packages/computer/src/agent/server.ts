@@ -1,19 +1,26 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { machine } from 'node:os'
 import { dirname, resolve } from 'node:path'
-import { McpServer, type CallToolResult } from '@modelcontextprotocol/server'
+import {
+  McpServer,
+  type CallToolResult,
+  type ServerContext,
+} from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import {
   annotationsOf,
   ASLEEP,
   computerTools,
+  CONTROL_TOOL,
   INFO_TOOL,
+  PROGRESS_MS,
   type ComputerInfo,
   type ComputerToolName,
 } from '../tools.ts'
 import { KEEP_TEXT } from '../shorten.ts'
 import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
+import type { ComputerControl } from './control.ts'
 import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
 
@@ -55,14 +62,41 @@ const ASLEEP_RESULT: CallToolResult = {
 }
 
 /**
+ * Sends progress on the call `ctx` belongs to now and every `PROGRESS_MS`,
+ * until the returned function stops it. Nothing if the caller asked for none.
+ */
+const progress = (ctx: ServerContext, message: string) => {
+  const token = ctx.mcpReq._meta?.progressToken
+  if (token === undefined) {
+    return () => {}
+  }
+  let count = 0
+  const send = () =>
+    void ctx.mcpReq
+      .notify({
+        method: 'notifications/progress',
+        params: { progressToken: token, progress: ++count, message },
+      })
+      .catch(() => {})
+  send()
+  const timer = setInterval(send, PROGRESS_MS)
+  return () => clearInterval(timer)
+}
+
+const WAITING = 'Waiting for the person to hand back the computer.'
+
+/**
  * The computer's MCP server, one per connection, over the machine's one
- * browser, file system and `activity`, which counts every call but a look
- * (the info tool). `home` is where commands run and relative paths start.
+ * browser, file system, `activity`, which counts every call but a look
+ * (the info tool), and `control`, which says whether a call may run while
+ * a person takes over. `home` is where commands run and relative paths
+ * start.
  */
 export function computerServer(
   browser: Browser,
   home: string,
   activity: Activity,
+  control: ComputerControl,
 ) {
   /** Runs `act` on the open page and answers with its snapshot after. */
   const onPage =
@@ -145,18 +179,67 @@ export function computerServer(
         annotations: annotationsOf(tool),
       },
       async (args, ctx) =>
-        (await activity.run(name, args, async () => {
+        (await activity.run(name, args, async (call) => {
+          const { signal } = ctx.mcpReq
+          let stopWaiting = () => {}
+          /** What to tell the Familiar first, if a person has used it. */
+          let note: string | undefined
+          let result: CallToolResult
           try {
-            return await handle(args, ctx.mcpReq.signal)
+            const turn = await control.turn(
+              call,
+              'reads' in tool,
+              signal,
+              () => (stopWaiting = progress(ctx, WAITING)),
+            )
+            stopWaiting()
+            note = turn.note
+            if (!turn.run) {
+              return text(note!, true)
+            }
+            result = await handle(args, signal)
           } catch (error) {
-            return text(
+            result = text(
               error instanceof Error ? error.message : String(error),
               true,
             )
+          } finally {
+            stopWaiting()
           }
+          return note
+            ? {
+                ...result,
+                content: [{ type: 'text', text: note }, ...result.content],
+              }
+            : result
         })) ?? ASLEEP_RESULT,
     )
   }
+  server.registerTool(
+    CONTROL_TOOL,
+    {
+      description:
+        'For the host, never a model: a person has control of the computer until this call is cancelled.',
+      inputSchema: z.object({}),
+    },
+    async (_args, ctx) =>
+      (await activity.run(
+        CONTROL_TOOL,
+        {},
+        async () => {
+          let stop = () => {}
+          try {
+            const refused = await control.hold(ctx.mcpReq.signal, () => {
+              stop = progress(ctx, 'The person has control.')
+            })
+            return refused ? text(refused, true) : text('Handed back.')
+          } finally {
+            stop()
+          }
+        },
+        { unlisted: true },
+      )) ?? ASLEEP_RESULT,
+  )
   server.registerTool(
     INFO_TOOL,
     {
@@ -166,8 +249,12 @@ export function computerServer(
       annotations: { readOnlyHint: true },
     },
     async () => {
+      const { doing, lastUsed } = activity.now()
       const info: ComputerInfo = {
-        ...activity.now(),
+        lastUsed,
+        doing: doing?.map((call) =>
+          control.waits(call) ? { ...call, waiting: true as const } : call,
+        ),
         tabs: await browser.tabs(),
         system: { os: await osName(), architecture: machine() },
       }
