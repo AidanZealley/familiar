@@ -65,23 +65,24 @@ export const screen = {
 
   /**
    * Types `text`. Keys xdotool makes up for characters outside ASCII never
-   * reach Chromium, so those are pasted instead: put in the desktop's
-   * clipboard and primary selection (which Xvnc never sends to a viewer),
-   * then pasted with shift+Insert, which browsers and terminals both take.
+   * reach Chromium, so text with any is pasted instead, whole, in one go:
+   * put in the desktop's clipboard and primary selection (which Xvnc never
+   * sends to a viewer), then pasted with shift+Insert, which browsers and
+   * terminals both take. An app reads a paste when it gets to the key, so
+   * one paste per action, with the queue (`act`) holding the next action
+   * back until this one's screenshot, keeps pastes from replacing each
+   * other.
    */
   type: async (text: string, signal: AbortSignal) => {
-    for (const [part] of text.matchAll(/[\0-\x7f]+|[^\0-\x7f]+/g)) {
-      if (/^[\0-\x7f]/.test(part)) {
-        await xdotool(signal, 'type', '--delay', '10', '--', part)
-      } else {
-        await Promise.all(
-          ['clipboard', 'primary'].map((selection) =>
-            select(selection, part, signal),
-          ),
-        )
-        await xdotool(signal, 'key', '--clearmodifiers', 'shift+Insert')
-      }
+    if (/^[\0-\x7f]*$/.test(text)) {
+      return xdotool(signal, 'type', '--delay', '10', '--', text)
     }
+    await Promise.all(
+      ['clipboard', 'primary'].map((selection) =>
+        select(selection, text, signal),
+      ),
+    )
+    await xdotool(signal, 'key', '--clearmodifiers', 'shift+Insert')
   },
 
   /** Presses each of `keys` in turn, such as `ctrl+l` or `Return`. */
