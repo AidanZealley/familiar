@@ -1,6 +1,7 @@
 import type { ConnectionInfo } from '@familiar-ai/client'
+import type { Tone } from '@/components/status-dot'
 
-export type Tone = 'ok' | 'busy' | 'warn' | 'bad' | 'off'
+export type { Tone }
 
 /**
  * How a connection reads to the owner, and what they can do about it, if

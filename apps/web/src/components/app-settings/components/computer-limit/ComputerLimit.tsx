@@ -9,7 +9,11 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { computerLimitQuery, setComputerLimit } from '@/lib/computers'
+import {
+  computerLimitQuery,
+  computersQuery,
+  setComputerLimit,
+} from '@/lib/computers'
 import { queryClient } from '@/lib/familiar'
 import type { ComputerLimitProps } from './types'
 
@@ -19,8 +23,13 @@ export const ComputerLimit = ({ maxComputers }: ComputerLimitProps) => {
   const [draft, setDraft] = useState(String(maxComputers))
   const save = useMutation({
     mutationFn: () => setComputerLimit(Number(draft)),
+    // The overview counts against it too.
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: computerLimitQuery.queryKey }),
+      Promise.all(
+        [computerLimitQuery, computersQuery].map(({ queryKey }) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
   })
   const valid = /^\d+$/.test(draft)
   const changed = valid && Number(draft) !== maxComputers

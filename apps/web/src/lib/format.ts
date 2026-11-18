@@ -115,3 +115,39 @@ export const formatRepeat = (cron: string) => {
   }
   return 'Repeats'
 }
+
+const relativeFormat = new Intl.RelativeTimeFormat(undefined, {
+  numeric: 'auto',
+})
+const relativeUnits = [
+  ['day', 86_400],
+  ['hour', 3600],
+  ['minute', 60],
+] as const
+
+/** When something happened, from now: `just now`, `5 minutes ago`, `yesterday`. */
+export const formatAgo = (ms: number) => {
+  const seconds = (ms - Date.now()) / 1000
+  for (const [unit, size] of relativeUnits) {
+    if (Math.abs(seconds) >= size) {
+      return relativeFormat.format(Math.round(seconds / size), unit)
+    }
+  }
+  return 'just now'
+}
+
+const byteUnits = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte']
+
+/** A size, such as memory or disk: `512 MB`, `1.5 GB`, in units of 1024. */
+export const formatBytes = (bytes: number) => {
+  const power = Math.min(
+    Math.max(Math.floor(Math.log(bytes) / Math.log(1024)), 0),
+    byteUnits.length - 1,
+  )
+  return new Intl.NumberFormat(undefined, {
+    style: 'unit',
+    unit: byteUnits[power],
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(bytes / 1024 ** power)
+}

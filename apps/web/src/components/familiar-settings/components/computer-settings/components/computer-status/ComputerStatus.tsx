@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Field, FieldDescription, FieldTitle } from '@/components/ui/field'
-import type { ComputerStatus as Status } from '@/lib/computers'
+import { computerStates, type ComputerStatus as Status } from '@/lib/computers'
 import type { ComputerStatusProps } from './types'
 
 /** How the Familiar's computer is: running, asleep, being set up, or unavailable and why. */
@@ -9,21 +9,19 @@ export const ComputerStatus = ({
   status,
   error,
 }: ComputerStatusProps) => {
-  const shown = status && describe(status, familiar.name)
+  const description = status && describe(status, familiar.name)
 
   return (
     <Field>
       <FieldTitle>
         Computer
-        {shown && (
+        {status && (
           <Badge variant={status.state === 'running' ? 'secondary' : 'outline'}>
-            {shown.label}
+            {computerStates[status.state].label}
           </Badge>
         )}
       </FieldTitle>
-      <FieldDescription>
-        {shown?.description ?? 'Checking on it…'}
-      </FieldDescription>
+      <FieldDescription>{description ?? 'Checking on it…'}</FieldDescription>
       {error && (
         <FieldDescription className="text-destructive">
           Couldn't check on it: {error.message}
@@ -39,23 +37,14 @@ const SAFE =
 function describe(status: Status, name: string) {
   switch (status.state) {
     case 'running':
-      return {
-        label: 'Running',
-        description: `${name} is using it; it sleeps once idle. ${SAFE}`,
-      }
+      return `${name} is using it; it sleeps once idle. ${SAFE}`
     case 'asleep':
-      return {
-        label: 'Asleep',
-        description: `It wakes when ${name} needs it. ${SAFE}`,
-      }
+      return `It wakes when ${name} needs it. ${SAFE}`
     // None yet: its host hasn't made it since the capability came on.
     case 'setting-up':
     case 'none':
-      return {
-        label: 'Setting up',
-        description: `It can take a few minutes the first time, while its software downloads. ${SAFE}`,
-      }
+      return `It can take a few minutes the first time, while its software downloads. ${SAFE}`
     case 'unavailable':
-      return { label: 'Unavailable', description: status.reason }
+      return status.reason
   }
 }

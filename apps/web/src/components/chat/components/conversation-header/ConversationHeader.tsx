@@ -6,14 +6,15 @@ import { RoomAvatar } from '@/components/room-avatar'
 import { Button } from '@/components/ui/button'
 import { useDialogs, type DialogRef } from '@/lib/dialogs'
 import { liveOf, titleOf, useFamiliars } from '@/lib/workspace'
+import { ComputerButton } from './components/computer-button'
 import { ConversationStatus } from './components/conversation-status'
 import type { ConversationHeaderProps } from './types'
 
 /**
  * Glass over the conversation, `--chrome` tall: the room's face, name and
  * what's happening in it, which open its settings, as does the ⋮
- * button. On a phone,
- * Back returns to the list of conversations.
+ * button. In a DM, the Familiar's computer, if it has one, beside that.
+ * On a phone, Back returns to the list of conversations.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
@@ -61,15 +62,17 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
             <ConversationStatus room={room} live={live} />
           </span>
         </button>
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          className="ml-auto"
-          aria-label={`${title} settings`}
-          onClick={() => openDialog(settings)}
-        >
-          <DotsThreeVerticalIcon />
-        </Button>
+        <div className="ml-auto flex items-center">
+          {dm && <ComputerButton familiar={dm} />}
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            aria-label={`${title} settings`}
+            onClick={() => openDialog(settings)}
+          >
+            <DotsThreeVerticalIcon />
+          </Button>
+        </div>
       </div>
     </header>
   )

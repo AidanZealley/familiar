@@ -50,6 +50,20 @@ export function openBrowser(profileDir: string) {
         0,
         KEEP_TEXT,
       ),
+    /** Its open pages, without starting it: none while it isn't running. */
+    tabs: async () => {
+      const context = await running?.catch(() => undefined)
+      return Promise.all(
+        (context?.pages() ?? []).map(async (page) => ({
+          // A page mid-navigation can't say until it lands.
+          title: await Promise.race([
+            page.title(),
+            new Promise<string>((done) => setTimeout(done, 500, '')),
+          ]),
+          url: page.url(),
+        })),
+      )
+    },
     /** An element by the ref a snapshot gave it. */
     element: (page: Page, ref: string) => page.locator(`aria-ref=${ref}`),
     close: async () => {

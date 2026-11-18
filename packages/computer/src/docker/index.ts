@@ -1,8 +1,15 @@
 import type { FamiliarId } from '@familiar-ai/core'
 import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
-import type { ComputerHost, ComputerStatus } from '../host.ts'
+import type {
+  ComputerCall,
+  ComputerDetail,
+  ComputerHost,
+  ComputerStatus,
+} from '../host.ts'
+import { INFO_TOOL, targetOf, type ComputerInfo } from '../tools.ts'
 import manifest from '../../package.json' with { type: 'json' }
+import { dockerDetail, inspectContainers, sinceOf } from './inspect.ts'
 import {
   docker,
   DOCKER_CWD,
@@ -52,6 +59,8 @@ export const COMPUTER_IMAGE = `${COMPUTER_REPOSITORY}:${manifest.version}`
 /** Longer than any tool's own limit: the agent stops its own calls first. */
 const CALL_MAX_MS = 15 * 60_000
 const RETRY_IMAGE_MS = 60_000
+/** How long a look at a computer waits for its agent's tabs and system. */
+const INFO_MAX_MS = 2000
 
 const WOKE =
   'Your computer was asleep, so it has just started: its files are as they were, but programs that were running have stopped.'
@@ -68,8 +77,10 @@ type Session = {
    * the exec ends, as it does when the container stops.
    */
   client?: Promise<Client>
-  /** Calls in flight; it sleeps only once there are none. */
-  calls: number
+  /** Calls in flight, oldest first; it sleeps only once there are none. */
+  calls: Set<ComputerCall>
+  /** When its last call ended. */
+  lastUsed?: Date
   /** Once it has no calls, what puts it to sleep. */
   timer?: NodeJS.Timeout
 }
@@ -153,10 +164,12 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       throw error
     }))
 
-  /** Why this host can't make another computer, if `maxComputers`, read now, says it's full. */
+  /** `maxComputers`, read now. */
+  const maxNow = () =>
+    typeof maxComputers === 'function' ? maxComputers() : maxComputers
+  /** Why this host can't make another computer, if it's full. */
   const full = async () => {
-    const max =
-      typeof maxComputers === 'function' ? maxComputers() : maxComputers
+    const max = maxNow()
     const count = (await resources.containers()).filter(
       (owned) => owned.familiar !== undefined,
     ).length
@@ -168,7 +181,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   const sessions = new Map<FamiliarId, Session>()
   const sessionOf = (familiar: FamiliarId) =>
     sessions.get(familiar) ??
-    sessions.set(familiar, { calls: 0 }).get(familiar)!
+    sessions.set(familiar, { calls: new Set() }).get(familiar)!
   /** Forgets `familiar`'s session, closing its client. */
   const drop = (familiar: FamiliarId) => {
     const session = sessions.get(familiar)
@@ -251,6 +264,56 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     return connected
   }
 
+  /** What a session tells of its computer: what it's doing, or when it was last used. */
+  const activityOf = (familiar: FamiliarId) => {
+    const session = sessions.get(familiar)
+    return session?.calls.size
+      ? { doing: [...session.calls] }
+      : { lastUsed: session?.lastUsed?.toISOString() }
+  }
+
+  /**
+   * The agent's tabs and system, only over a connection this host already
+   * has: a look never wakes a computer or keeps it awake. An agent too old
+   * to have the tool tells nothing.
+   */
+  const agentInfo = async (familiar: FamiliarId): Promise<ComputerInfo> => {
+    const client = sessions.get(familiar)?.client
+    if (!client) {
+      return {}
+    }
+    try {
+      const result = (await (
+        await client
+      ).callTool(
+        { name: INFO_TOOL, arguments: {} },
+        { timeout: INFO_MAX_MS },
+      )) as CallToolResult
+      const [block] = result.content
+      return !result.isError && block?.type === 'text'
+        ? (JSON.parse(block.text) as ComputerInfo)
+        : {}
+    } catch {
+      return {}
+    }
+  }
+
+  const status = async (familiar: FamiliarId): Promise<ComputerStatus> => {
+    if (setup.state !== 'ready') {
+      return setup.state === 'setting-up' ? { state: 'setting-up' } : setup
+    }
+    try {
+      const [found] = await resources.containers(familiar)
+      if (found) {
+        return { state: found.running ? 'running' : 'asleep' }
+      }
+      const reason = await full()
+      return reason ? { state: 'unavailable', reason } : { state: 'none' }
+    } catch (error) {
+      return { state: 'unavailable', reason: reasonOf(error) }
+    }
+  }
+
   return {
     call: async (familiar, tool, args, signal) => {
       if (setup.state === 'setting-up') {
@@ -264,7 +327,8 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       const session = sessionOf(familiar)
       clearTimeout(session.timer)
       session.timer = undefined
-      session.calls++
+      const running = { tool, target: targetOf(args) }
+      session.calls.add(running)
       try {
         let woke = false
         let client
@@ -290,9 +354,13 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
             }
           : result
       } finally {
-        // Unless `sync` removed it meanwhile.
-        if (--session.calls === 0 && sessions.get(familiar) === session) {
-          idle(familiar, session)
+        session.calls.delete(running)
+        if (!session.calls.size) {
+          session.lastUsed = new Date()
+          // Unless `sync` removed it meanwhile.
+          if (sessions.get(familiar) === session) {
+            idle(familiar, session)
+          }
         }
       }
     },
@@ -339,19 +407,47 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         throw new Error(reasonOf(error), { cause: error })
       }),
 
-    status: async (familiar): Promise<ComputerStatus> => {
-      if (setup.state !== 'ready') {
-        return setup.state === 'setting-up' ? { state: 'setting-up' } : setup
+    status,
+
+    inspect: async (familiar) => {
+      const current = await status(familiar)
+      if (current.state !== 'running' && current.state !== 'asleep') {
+        return { status: current }
       }
+      const name = resources.container(familiar)
+      const [docker, info] = await Promise.all([
+        dockerDetail(name).catch((): ComputerDetail => ({})),
+        current.state === 'running' ? agentInfo(familiar) : {},
+      ])
+      return {
+        status: current,
+        ...docker,
+        ...activityOf(familiar),
+        ...info,
+      }
+    },
+
+    summary: async () => {
+      let owned, inspected
       try {
-        const [found] = await resources.containers(familiar)
-        if (found) {
-          return { state: found.running ? 'running' : 'asleep' }
-        }
-        const reason = await full()
-        return reason ? { state: 'unavailable', reason } : { state: 'none' }
+        owned = (await resources.containers()).filter(
+          (container) => container.familiar !== undefined,
+        )
+        inspected = await inspectContainers(owned.map(({ name }) => name))
       } catch (error) {
-        return { state: 'unavailable', reason: reasonOf(error) }
+        throw new Error(reasonOf(error), { cause: error })
+      }
+      return {
+        max: maxNow(),
+        computers: owned.map(({ name, familiar, running }) => {
+          const container = inspected.find((found) => found.Name === `/${name}`)
+          return {
+            familiar: familiar!,
+            state: running ? 'running' : 'asleep',
+            since: container && sinceOf(container),
+            ...activityOf(familiar!),
+          }
+        }),
       }
     },
   }

@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { isIP } from 'node:net'
+import type { ComputerHost } from '@familiar-ai/computer'
 import type { Workspace } from '@familiar-ai/core'
 import { createHttpApi, type PushHost } from '@familiar-ai/core/http'
 import { serve } from '@hono/node-server'
@@ -29,6 +30,8 @@ export type ServeOptions = {
   models?: Models
   /** How many computers Familiars may have, from the web UI's settings. */
   computerLimit?: ComputerLimit
+  /** Where Familiars' computers run, for the web UI's overview of them. */
+  computers?: Pick<ComputerHost, 'summary'>
 }
 
 /**
@@ -104,7 +107,13 @@ export function daemonApp(
   workspace: Workspace,
   options: Pick<
     ServeOptions,
-    'owner' | 'webDir' | 'avatarsDir' | 'push' | 'models' | 'computerLimit'
+    | 'owner'
+    | 'webDir'
+    | 'avatarsDir'
+    | 'push'
+    | 'models'
+    | 'computerLimit'
+    | 'computers'
   >,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin())
@@ -125,6 +134,22 @@ export function daemonApp(
   if (options.computerLimit) {
     app.use('/api/computer-limit', ownersOnly)
     app.route('/api/computer-limit', computerLimitRoutes(options.computerLimit))
+  }
+  // Every Familiar's computer at once, which the plugin's routes, each
+  // Familiar's own, can't give.
+  const { computers } = options
+  if (computers) {
+    app.use('/api/computers', ownersOnly)
+    app.get('/api/computers', async (c) => {
+      try {
+        return c.json(await computers.summary())
+      } catch (error) {
+        return c.json(
+          { error: error instanceof Error ? error.message : String(error) },
+          503,
+        )
+      }
+    })
   }
   app.route(
     '/api',

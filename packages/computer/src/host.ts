@@ -24,7 +24,15 @@ export type ComputerHost = {
    * any other's, disk included. Idempotent; calls run one at a time.
    */
   sync(familiars: readonly FamiliarId[]): Promise<void>
+  /** Cheap enough to poll. */
   status(familiar: FamiliarId): Promise<ComputerStatus>
+  /**
+   * The Familiar's computer in detail, read now, for a person looking at
+   * it. A host fills in what it can tell; it never wakes a sleeping one.
+   */
+  inspect(familiar: FamiliarId): Promise<ComputerDetail>
+  /** Every computer on this host, for an overview. */
+  summary(): Promise<ComputersSummary>
 }
 
 /**
@@ -36,3 +44,46 @@ export type ComputerHost = {
 export type ComputerStatus =
   | { state: 'running' | 'asleep' | 'setting-up' | 'none' }
   | { state: 'unavailable'; reason: string }
+
+/** Some amount in use against its limit, such as memory in bytes. */
+export type Usage = { used: number; limit?: number }
+
+/** A call running on a computer: its tool and a short target, such as the URL or command. */
+export type ComputerCall = { tool: string; target?: string }
+
+/**
+ * A Familiar's computer in detail. Every field is optional: each host fills
+ * in what it can tell, and the rest is left out rather than guessed.
+ * Times are ISO 8601.
+ */
+export type ComputerDetail = {
+  status?: ComputerStatus
+  /** The calls running on it now, oldest first. */
+  doing?: ComputerCall[]
+  /** When it last started, or while asleep, when it went to sleep. */
+  since?: string
+  /** When its last call ended, if none is running. */
+  lastUsed?: string
+  /** CPUs, such as 0.25 of 2. */
+  cpu?: Usage
+  /** Bytes. */
+  memory?: Usage
+  /** Processes and threads. */
+  processes?: Usage
+  /** Bytes its disk (its home) holds. */
+  disk?: Usage
+  /** The programs running, the most memory (bytes) first. */
+  programs?: { command: string; memory?: number }[]
+  /** The browser's open tabs. */
+  tabs?: { title: string; url: string }[]
+  system?: { os?: string; architecture?: string }
+}
+
+/** One Familiar's computer in a host's overview. */
+export type ComputerSummary = Pick<
+  ComputerDetail,
+  'doing' | 'since' | 'lastUsed'
+> & { familiar: FamiliarId; state: 'running' | 'asleep' }
+
+/** A host's computers: how many it allows, and each one it has. */
+export type ComputersSummary = { max?: number; computers: ComputerSummary[] }
