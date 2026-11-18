@@ -13,7 +13,6 @@ import type { TakeOverButtonProps } from './types'
  */
 export const TakeOverButton = ({
   familiar,
-  iconOnly = false,
   attention = 0,
   className,
 }: TakeOverButtonProps) => {
@@ -34,9 +33,7 @@ export const TakeOverButton = ({
       // A new key replays the animation.
       key={attention}
       variant={control === 'held' ? 'outline' : 'default'}
-      size={iconOnly ? 'icon-sm' : 'sm'}
-      aria-label={iconOnly ? label : undefined}
-      title={iconOnly ? label : undefined}
+      size="sm"
       disabled={control === 'off' && !usable}
       onClick={() =>
         control === 'off' ? takeOver(familiar) : handBack(familiar.id)
@@ -50,7 +47,7 @@ export const TakeOverButton = ({
       ) : (
         <HandGrabbingIcon />
       )}
-      {!iconOnly && label}
+      {label}
     </Button>
   )
 }
