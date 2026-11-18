@@ -134,6 +134,7 @@ export function computerControl() {
       }
       return { ran: true, value: await running, note }
     },
+    current: () => state,
     /** Whether `call` is waiting for the person to hand back. */
     waits: (call: ComputerCall) => waiting.has(call),
   }

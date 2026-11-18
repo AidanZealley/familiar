@@ -93,6 +93,7 @@ export type ComputerCall = { tool: string; target?: string; waiting?: true }
  * what it can tell. Times are ISO 8601.
  */
 export type ComputerDetail = {
+  control?: 'familiar' | 'person' | 'returned'
   status?: ComputerStatus
   doing?: ComputerCall[]
   /** When it last started, or while asleep, when it went to sleep. */
@@ -208,7 +209,7 @@ const calls: Record<string, (target?: string) => string> = {
 /** What a call is doing, in words: `Opening example.com`. */
 export const describeCall = ({ tool, target, waiting }: ComputerCall) =>
   waiting
-    ? 'Waiting for you to hand back the computer'
+    ? 'Waiting for the computer to be handed back'
     : (calls[tool]?.(target) ?? (target ? `${tool}: ${target}` : tool))
 
 /**

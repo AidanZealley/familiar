@@ -17,6 +17,7 @@ import {
   INFO_TOOL,
   PROGRESS_MS,
   type ComputerInfo,
+  PERSON_USED,
   type ComputerToolName,
 } from '../tools.ts'
 import { KEEP_TEXT } from '../shorten.ts'
@@ -219,12 +220,16 @@ export function computerServer(
                 ),
             )
             if (!outcome.ran) {
-              return text(outcome.note, true)
+              return {
+                ...text(outcome.note, true),
+                _meta: { [PERSON_USED]: true },
+              }
             }
             const { value: result, note } = outcome
             return note
               ? {
                   ...result,
+                  _meta: { ...result._meta, [PERSON_USED]: true },
                   content: [{ type: 'text', text: note }, ...result.content],
                 }
               : result
@@ -276,6 +281,7 @@ export function computerServer(
       const { doing, lastUsed } = activity.now()
       const info: ComputerInfo = {
         lastUsed,
+        control: control.current(),
         doing: doing?.map((call) =>
           control.waits(call) ? { ...call, waiting: true as const } : call,
         ),

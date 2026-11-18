@@ -103,6 +103,7 @@ export type ComputerCall = { tool: string; target?: string; waiting?: true }
  * Times are ISO 8601.
  */
 export type ComputerDetail = {
+  control?: 'familiar' | 'person' | 'returned'
   status?: ComputerStatus
   /** The calls running on it now, oldest first. */
   doing?: ComputerCall[]

@@ -4,7 +4,7 @@ import { cn } from 'cn'
 import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { Button } from '@/components/ui/button'
 import { handBack, takeOver, useComputerControl } from '@/lib/computer-control'
-import { computerQuery } from '@/lib/computers'
+import { computerQuery, computerDetailQuery } from '@/lib/computers'
 import type { TakeOverButtonProps } from './types'
 
 /**
@@ -18,15 +18,19 @@ export const TakeOverButton = ({
 }: TakeOverButtonProps) => {
   const control = useComputerControl(familiar.id)
   const { data: status } = useQuery(computerQuery(familiar.id))
+  const { data: detail } = useQuery(computerDetailQuery(familiar.id))
+  const elsewhere = control === 'off' && detail?.control === 'person'
   const usable = status?.state === 'running' || status?.state === 'asleep'
   const label =
     control === 'held'
       ? 'Hand back'
       : control === 'taking'
         ? 'Taking over…'
-        : status?.state === 'asleep'
-          ? 'Wake and take over'
-          : 'Take over'
+        : elsewhere
+          ? 'In use on another device'
+          : status?.state === 'asleep'
+            ? 'Wake and take over'
+            : 'Take over'
 
   return (
     <Button
@@ -34,7 +38,7 @@ export const TakeOverButton = ({
       key={attention}
       variant={control === 'held' ? 'outline' : 'default'}
       size="sm"
-      disabled={control === 'off' && !usable}
+      disabled={control === 'off' && (!usable || elsewhere)}
       onClick={() =>
         control === 'off' ? takeOver(familiar) : handBack(familiar.id)
       }

@@ -9,7 +9,7 @@ import type {
   ComputerHost,
   ComputerStatus,
 } from '../host.ts'
-import { ASLEEP, CONTROL_TOOL, PROGRESS_MS } from '../tools.ts'
+import { ASLEEP, CONTROL_TOOL, PERSON_USED, PROGRESS_MS } from '../tools.ts'
 import manifest from '../../package.json' with { type: 'json' }
 import { coalesce } from './coalesce.ts'
 import { computerImage } from './image.ts'
@@ -439,7 +439,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         return answer.failed
       }
       const { result, woke } = answer
-      return woke
+      return woke && !result._meta?.[PERSON_USED]
         ? {
             ...result,
             content: [{ type: 'text', text: WOKE }, ...result.content],

@@ -116,11 +116,14 @@ if (typeof window !== 'undefined') {
 }
 
 /** Whether this tab has `familiar`'s computer. */
-export const useComputerControl = (familiar: FamiliarSummary['id']) =>
+export const useComputerControl = (
+  familiar: FamiliarSummary['id'] | undefined,
+) =>
   useSyncExternalStore(
     (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    (): ControlState => controls.get(familiar)?.state ?? 'off',
+    (): ControlState =>
+      familiar === undefined ? 'off' : (controls.get(familiar)?.state ?? 'off'),
   )
