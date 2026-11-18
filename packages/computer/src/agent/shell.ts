@@ -48,16 +48,15 @@ export function runCommand(
     options.signal.addEventListener('abort', stop, { once: true })
 
     child.on('error', reject)
-    const end = (code: number | null) => {
+    // Usually the output closes with the shell. A program left running in
+    // the background keeps it open, so once the shell ends, the time limit
+    // and `signal` no longer stop anything, and the command ends a moment
+    // later. The output is still read, so the program can go on writing.
+    child.on('exit', (code) => {
       clearTimeout(timer)
       options.signal.removeEventListener('abort', stop)
-      resolve({ code, output, timedOut })
-    }
-    // Usually the output closes with the shell. A program left running in
-    // the background keeps it open, so the command also ends a moment after
-    // the shell does. The output is still read, so the program can go on
-    // writing to it, and is no longer stopped by the time limit.
-    child.on('close', end)
-    child.on('exit', (code) => setTimeout(end, 100, code))
+      setTimeout(() => resolve({ code, output, timedOut }), 100)
+    })
+    child.on('close', (code) => resolve({ code, output, timedOut }))
   })
 }

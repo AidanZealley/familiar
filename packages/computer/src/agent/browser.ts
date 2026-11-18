@@ -12,6 +12,11 @@ import { screen } from './screen.ts'
  */
 export function openBrowser(profileDir: string) {
   let running: Promise<BrowserContext> | undefined
+  /**
+   * The latest lookup of the shown tab. Each waits for the one before, as
+   * two at once would mark the same titles.
+   */
+  let lookup: Promise<unknown> = Promise.resolve()
 
   const launch = async () => {
     const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy
@@ -41,10 +46,9 @@ export function openBrowser(profileDir: string) {
       throw error
     })
     const context = await running
-    return {
-      page: (await focused(context.pages())) ?? (await context.newPage()),
-      started,
-    }
+    const found = lookup.then(() => shown(context.pages()))
+    lookup = found.catch(() => {})
+    return { page: (await found) ?? (await context.newPage()), started }
   }
 
   return {
@@ -84,45 +88,23 @@ const within = <T>(promise: Promise<T>, fallback: T) =>
     new Promise<T>((done) => setTimeout(done, 500, fallback)),
   ])
 
-/**
- * The tab the person sees. Pages can't tell, as Playwright has every page
- * act shown and focused, so it's read from the display: a browser window's
- * name starts with its shown tab's title. The focused window's shown tab,
- * or any window's, or failing those, the newest page. Of tabs whose titles
- * fit, the longest title; of tabs with that same title, `shownOf` says.
- */
-async function focused(pages: Page[]) {
-  const titles = await Promise.all(
-    pages.map((page) => within(page.title(), '')),
-  )
-  for (const name of await screen.windowNames('chromium')) {
-    const fit = titles.filter(
-      (title) => title && name.startsWith(`${title} - `),
-    )
-    const longest = Math.max(0, ...fit.map((title) => title.length))
-    const shown = pages.filter(
-      (_, index) =>
-        fit.includes(titles[index]!) && titles[index]!.length === longest,
-    )
-    if (shown.length) {
-      return shown.length === 1
-        ? shown[0]
-        : ((await shownOf(shown)) ?? shown.at(-1))
-    }
-  }
-  return pages.at(-1)
-}
-
 /** Invisible, so marking a title shows nothing to a person. */
 const MARK = '\u2063'
+/** A browser window's name: its shown tab's title, then the browser's name. */
+const MARKED_NAME = new RegExp(`(${MARK}+) - [^${MARK}]*$`)
 
 /**
- * Which of `pages`, which share a title, is shown: each title is marked for
- * a moment with its own count of `MARK`s, and the window's name then shows
- * the shown one's. Each title is put back unless the page has changed it
- * meanwhile. Undefined if no window shows a mark within half a second.
+ * The tab the person sees, of `pages`, or the newest if it can't tell, or
+ * none if there are none. Pages can't say, as Playwright has every page act
+ * shown and focused, so it's read from the display. Each page's title is
+ * marked for a moment with its own count of `MARK`s, and the name of the
+ * window with focus, or else any browser window, then ends with the shown
+ * tab's. Each title is put back unless the page has changed it meanwhile.
  */
-async function shownOf(pages: Page[]) {
+async function shown(pages: Page[]) {
+  if (pages.length < 2) {
+    return pages[0]
+  }
   const marks = pages.map((_, index) => MARK.repeat(index + 1))
   const run = (page: Page, script: string) =>
     within(
@@ -135,23 +117,24 @@ async function shownOf(pages: Page[]) {
     ),
   )
   try {
+    // The window's name changes a moment after the title.
     for (let tries = 0; tries < 10; tries++) {
       for (const name of await screen.windowNames('chromium')) {
-        const count = name.match(new RegExp(`(${MARK}+) - `))?.[1]?.length
+        const count = name.match(MARKED_NAME)?.[1]?.length
         if (count && count <= pages.length) {
           return pages[count - 1]
         }
       }
       await new Promise((done) => setTimeout(done, 50))
     }
-    return undefined
+    return pages.at(-1)
   } finally {
     await Promise.all(
       pages.map((page, index) => {
-        const marked = JSON.stringify(marks[index])
+        const mark = JSON.stringify(marks[index])
         return run(
           page,
-          `if (document.title.endsWith(${marked})) document.title = document.title.slice(0, -${marks[index]!.length})`,
+          `if (document.title.endsWith(${mark})) document.title = document.title.slice(0, -${marks[index]!.length})`,
         )
       }),
     )

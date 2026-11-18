@@ -62,6 +62,10 @@ const GREETER = `data:text/html,${encodeURIComponent(`<!doctype html><title>Gree
 <button onclick="document.querySelector('p').textContent = 'Hello, ' + document.querySelector('input').value">Greet</button>
 <p></p>`)}`
 
+/** An untitled page that opens a titled one in a new tab. */
+const TABS = `data:text/html,${encodeURIComponent(`<p>first</p>
+<button onclick="open('').document.write('<title>Second</title><p>second</p>')">Open</button>`)}`
+
 /** The element named `name` in the latest snapshot the model was given. */
 const ref = (context: Context, name: RegExp) =>
   lastResult(context).match(name)?.[1] ?? 'missing'
@@ -199,6 +203,20 @@ test.skipIf(!hasImage)(
     await screen('screen_type', { text: 'echo typed > typed.txt' })
     await screen('screen_key', { keys: 'Return' })
     expect(await run('cat typed.txt')).toMatch(/^typed/)
+
+    // The browser tools act on the tab the screen shows, which the person
+    // or the screen tools may have switched to: here an untitled one, with
+    // a newer titled one behind it.
+    const texts = async (tool: string, args: JsonObject = {}) =>
+      JSON.stringify((await host.call(ada.id, tool, args)).content)
+    const opener = await texts('browser_navigate', { url: TABS })
+    await texts('browser_click', {
+      ref: opener.match(/button "Open" \[ref=(\w+)\]/)?.[1] ?? 'missing',
+    })
+    await screen('screen_key', { keys: 'ctrl+1' })
+    expect(await texts('browser_snapshot')).toContain('first')
+    await screen('screen_key', { keys: 'ctrl+2' })
+    expect(await texts('browser_snapshot')).toContain('second')
 
     // No network, only the proxy: the public internet, for the browser and
     // the shell, but nothing on the Docker host's addresses (its LAN,
