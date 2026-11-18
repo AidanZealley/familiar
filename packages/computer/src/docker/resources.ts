@@ -199,6 +199,15 @@ export function dockerResources(
       )
     },
 
+    /** Starts `familiar`'s computer. */
+    start: (familiar: FamiliarId) => docker('start', container(familiar)),
+    /** Stops `familiar`'s computer, killing it if it takes over 5 seconds. */
+    stop: (familiar: FamiliarId) =>
+      docker('stop', '--time', '5', container(familiar)),
+    /** Removes a container or volume, even a running or used one. */
+    remove: (kind: 'container' | 'volume', name: string) =>
+      docker(kind, 'rm', '--force', name),
+
     /**
      * Whether `familiar`'s container was made from another image than the
      * one `image` names now, compared by ID, so a moved tag counts too.
