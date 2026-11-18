@@ -88,27 +88,72 @@ const within = <T>(promise: Promise<T>, fallback: T) =>
  * The tab the person sees. Pages can't tell, as Playwright has every page
  * act shown and focused, so it's read from the display: a browser window's
  * name starts with its shown tab's title. The focused window's shown tab,
- * or any window's, or failing those, the newest page. Of tabs with titles
- * that fit, the longest title, then the newest.
+ * or any window's, or failing those, the newest page. Of tabs whose titles
+ * fit, the longest title; of tabs with that same title, `shownOf` says.
  */
 async function focused(pages: Page[]) {
   const titles = await Promise.all(
     pages.map((page) => within(page.title(), '')),
   )
   for (const name of await screen.windowNames('chromium')) {
-    let best = -1
-    titles.forEach((title, index) => {
-      if (
-        title &&
-        name.startsWith(`${title} - `) &&
-        title.length >= (titles[best]?.length ?? 0)
-      ) {
-        best = index
-      }
-    })
-    if (best >= 0) {
-      return pages[best]
+    const fit = titles.filter(
+      (title) => title && name.startsWith(`${title} - `),
+    )
+    const longest = Math.max(0, ...fit.map((title) => title.length))
+    const shown = pages.filter(
+      (_, index) =>
+        fit.includes(titles[index]!) && titles[index]!.length === longest,
+    )
+    if (shown.length) {
+      return shown.length === 1
+        ? shown[0]
+        : ((await shownOf(shown)) ?? shown.at(-1))
     }
   }
   return pages.at(-1)
+}
+
+/** Invisible, so marking a title shows nothing to a person. */
+const MARK = '\u2063'
+
+/**
+ * Which of `pages`, which share a title, is shown: each title is marked for
+ * a moment with its own count of `MARK`s, and the window's name then shows
+ * the shown one's. Each title is put back unless the page has changed it
+ * meanwhile. Undefined if no window shows a mark within half a second.
+ */
+async function shownOf(pages: Page[]) {
+  const marks = pages.map((_, index) => MARK.repeat(index + 1))
+  const run = (page: Page, script: string) =>
+    within(
+      page.evaluate(script).catch(() => {}),
+      undefined,
+    )
+  await Promise.all(
+    pages.map((page, index) =>
+      run(page, `document.title += ${JSON.stringify(marks[index])}`),
+    ),
+  )
+  try {
+    for (let tries = 0; tries < 10; tries++) {
+      for (const name of await screen.windowNames('chromium')) {
+        const count = name.match(new RegExp(`(${MARK}+) - `))?.[1]?.length
+        if (count && count <= pages.length) {
+          return pages[count - 1]
+        }
+      }
+      await new Promise((done) => setTimeout(done, 50))
+    }
+    return undefined
+  } finally {
+    await Promise.all(
+      pages.map((page, index) => {
+        const marked = JSON.stringify(marks[index])
+        return run(
+          page,
+          `if (document.title.endsWith(${marked})) document.title = document.title.slice(0, -${marks[index]!.length})`,
+        )
+      }),
+    )
+  }
 }

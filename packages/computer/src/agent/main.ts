@@ -58,9 +58,10 @@ if (proxy) {
   await listen(proxy, { port: PROXY_PORT, host: '127.0.0.1' })
 }
 
+// Without its display, the browser has gone too: nothing is left to close.
 await startDisplay((reason) => {
   console.error(`${reason} Stopping.`)
-  void stop(1)
+  process.exit(1)
 })
 
 const home = homedir()
@@ -83,11 +84,11 @@ const calls = activity(
 )
 console.log(`Listening on ${AGENT_SOCKET}.`)
 
-async function stop(code = 0) {
+async function stop() {
   server.close()
   proxy?.close()
   await browser.close()
-  process.exit(code)
+  process.exit(0)
 }
 process.on('SIGINT', () => void stop())
 process.on('SIGTERM', () => void stop())

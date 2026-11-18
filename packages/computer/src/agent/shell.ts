@@ -6,7 +6,7 @@ import { KEEP_TEXT } from '../shorten.ts'
  * runs in its own process group, so stopping it (timeout or `signal`) also
  * stops whatever it started. It ends when the shell does: a program it left
  * running in the background, such as an app with a window, keeps running,
- * but what it prints after isn't collected. Only the output's last
+ * but what it prints after isn't returned. Only the output's last
  * `KEEP_TEXT` characters are kept as it runs, so a command that prints
  * without end can't use up memory.
  */
@@ -48,18 +48,16 @@ export function runCommand(
     options.signal.addEventListener('abort', stop, { once: true })
 
     child.on('error', reject)
-    // A background program holds the output open; the command is done once
-    // the shell is, after a moment for the output already sent to arrive.
-    child.on('exit', () =>
-      setTimeout(() => {
-        child.stdout.destroy()
-        child.stderr.destroy()
-      }, 100),
-    )
-    child.on('close', (code) => {
+    const end = (code: number | null) => {
       clearTimeout(timer)
       options.signal.removeEventListener('abort', stop)
       resolve({ code, output, timedOut })
-    })
+    }
+    // Usually the output closes with the shell. A program left running in
+    // the background keeps it open, so the command also ends a moment after
+    // the shell does. The output is still read, so the program can go on
+    // writing to it, and is no longer stopped by the time limit.
+    child.on('close', end)
+    child.on('exit', (code) => setTimeout(end, 100, code))
   })
 }

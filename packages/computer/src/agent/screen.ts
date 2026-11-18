@@ -85,12 +85,9 @@ export const screen = {
   settle: (signal: AbortSignal) => wait(SETTLE_MS, undefined, { signal }),
 }
 
-const moveTo = (x: number, y: number) => [
-  'mousemove',
-  '--sync',
-  String(x),
-  String(y),
-]
+// Without `--sync`, which waits for a move forever when the pointer is
+// already there.
+const moveTo = (x: number, y: number) => ['mousemove', String(x), String(y)]
 
 /** Runs xdotool; one that can't do what it's asked fails with its message. */
 const xdotool = async (signal: AbortSignal, ...args: string[]) => {

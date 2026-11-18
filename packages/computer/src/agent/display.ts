@@ -45,8 +45,11 @@ export async function startDisplay(lost: (reason: string) => void) {
       'tcp',
       // Every viewer shares the one screen.
       '-AlwaysShared',
-      // A fixed size. Besides, TigerVNC 1.12 crashes on some resize requests.
+      // A fixed size: no viewer or app can change it. Besides, TigerVNC 1.12
+      // crashes on some viewers' resize requests.
       '-AcceptSetDesktopSize=0',
+      '-extension',
+      'RANDR',
       '-AcceptCutText=0',
       '-SendCutText=0',
       '-SetPrimary=0',
