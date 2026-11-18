@@ -1,4 +1,4 @@
-import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
+import { useMatch, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 /**
@@ -27,15 +27,17 @@ export const computerViewSearch = (
 
 /**
  * The DM's view of its Familiar's computer, which lives in the URL's search
- * (`?computer=full`), as dialogs do. Going full screen pushes a history
+ * (`?computer=full`), as dialogs do: only a DM's, so the parameter means
+ * nothing anywhere else. Going full screen pushes a history
  * entry, so a phone's Back leaves it; every other change replaces the URL.
  */
 export const useComputerView = () => {
   const router = useRouter()
   const navigate = useNavigate()
-  const view = useSearch({
-    strict: false,
-    select: (search) => (search as { computer?: ComputerView }).computer,
+  const view = useMatch({
+    from: '/dm/$familiar',
+    shouldThrow: false,
+    select: (match) => match.search.computer,
   })
 
   const show = useMemo(() => {

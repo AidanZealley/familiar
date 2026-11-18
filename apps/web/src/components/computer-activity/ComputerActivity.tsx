@@ -11,7 +11,8 @@ import type { ComputerActivityProps } from './types'
 
 /**
  * What a Familiar's computer is doing, in a line under its screen: its
- * latest call while one runs, or its state.
+ * latest call while one runs, or its state. The state is the status poll's,
+ * as the screen's is; a look in detail adds the call only while it agrees.
  */
 export const ComputerActivity = ({
   familiar,
@@ -19,9 +20,11 @@ export const ComputerActivity = ({
 }: ComputerActivityProps) => {
   const { data: status } = useQuery(computerQuery(familiar.id))
   const { data: detail } = useQuery(computerDetailQuery(familiar.id))
-  const current = detail?.status ?? status
-  const state = current && computerStates[current.state]
-  const call = current?.state === 'running' ? detail?.doing?.at(-1) : undefined
+  const state = status && computerStates[status.state]
+  const call =
+    status?.state === 'running' && detail?.status?.state === 'running'
+      ? detail.doing?.at(-1)
+      : undefined
 
   return (
     <span
