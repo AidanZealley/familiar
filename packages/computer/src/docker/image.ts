@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from 'node:timers/promises'
 import { docker, reasonOf } from './resources.ts'
 
 const RETRY_MS = 60_000
@@ -11,9 +12,9 @@ export type ImageState =
 /**
  * The computers' image, `repository:tag`, on this machine: fetched in the
  * background from the start, unless it's here already, and again each
- * minute while that fails, such as before Docker is installed. Once it's
- * here, its other versions that no container uses are removed, so the
- * machine keeps one.
+ * minute while that fails, such as before Docker is installed, until
+ * `close`. Once it's here, its other versions that no container uses are
+ * removed, so the machine keeps one.
  */
 export function computerImage(repository: string, tag: string) {
   const image = `${repository}:${tag}`
@@ -54,23 +55,29 @@ export function computerImage(repository: string, tag: string) {
     }
   }
 
-  const fetch = () => {
-    state = { state: 'setting-up' }
-    docker('image', 'inspect', image)
-      .catch(() => docker('pull', image))
-      .then(
-        () => {
-          state = { state: 'ready' }
-          resolve()
-          void removeOld()
-        },
-        (error) => {
-          state = { state: 'unavailable', reason: reasonOf(error) }
-          setTimeout(fetch, RETRY_MS).unref()
-        },
-      )
+  const closing = new AbortController()
+  const fetch = async () => {
+    for (;;) {
+      state = { state: 'setting-up' }
+      try {
+        await docker('image', 'inspect', image).catch(() =>
+          docker('pull', image),
+        )
+        state = { state: 'ready' }
+        resolve()
+        void removeOld()
+        return
+      } catch (error) {
+        state = { state: 'unavailable', reason: reasonOf(error) }
+      }
+      try {
+        await sleep(RETRY_MS, undefined, { signal: closing.signal, ref: false })
+      } catch {
+        return
+      }
+    }
   }
-  fetch()
+  void fetch()
 
   return {
     get state() {
@@ -80,5 +87,7 @@ export function computerImage(repository: string, tag: string) {
     ready,
     /** Removes the image's other versions no container uses; never fails. */
     removeOld,
+    /** Stops trying again; a fetch already running finishes. */
+    close: () => closing.abort(),
   }
 }

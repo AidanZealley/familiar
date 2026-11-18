@@ -101,6 +101,7 @@ vi.mock('./image.ts', () => ({
     state: { state: 'ready' },
     ready: Promise.resolve(),
     removeOld: async () => {},
+    close: () => {},
   }),
 }))
 vi.mock('@modelcontextprotocol/client/stdio', () => ({
@@ -188,6 +189,30 @@ test('the latest sync wins, and no two Docker changes ever run at once', async (
   expect(JSON.stringify(await call)).toMatch(/couldn't start.*turned off/)
 })
 
+test('before the first sync, a call waits and nothing is removed', async () => {
+  // Ada's and Bo's computers and disks, left by the last process.
+  for (const familiar of [ada, bo]) {
+    const name = `computer-${familiar}`
+    engine.state.containers.set(name, { name, familiar, running: false })
+    engine.state.volumes.set(`${name}-home`, { name: `${name}-home`, familiar })
+  }
+  const host = dockerHost()
+
+  // A call resumed after a restart, before the plugin has said who has one.
+  const call = host.call(ada, 'ping', {})
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  expect(engine.state.log).toEqual([])
+
+  await host.sync([ada, bo])
+  expect((await call).content).toContainEqual({ type: 'text', text: 'pong' })
+  expect(engine.state.log).toEqual(['proxy', 'start 1'])
+  expect([...engine.state.volumes.keys()].sort()).toEqual([
+    'computer-1-home',
+    'computer-2-home',
+    'socket',
+  ])
+})
+
 test('callers that meet a dead connection share one restart', async () => {
   const host = dockerHost()
   await host.sync([ada])
@@ -242,4 +267,24 @@ test('a failing Docker command answers every waiting call, and later ones still 
   engine.state.fail = undefined
   const later = await host.call(ada, 'ping', {})
   expect(later.content).toContainEqual({ type: 'text', text: 'pong' })
+})
+
+test('once closed, a host wakes and connects to nothing, even for a call already under way', async () => {
+  const host = dockerHost()
+  await host.sync([ada])
+  engine.state.log = []
+
+  // A call is waiting on the pass starting Ada's computer when the host
+  // closes. Its connection then fails, so it would try a restart.
+  engine.state.reachable = [false]
+  const starting = holding('start 1')
+  const call = host.call(ada, 'ping', {})
+  await starting.started
+  const closed = host.close()
+  starting.release()
+  await closed
+
+  expect(JSON.stringify(await call)).toMatch(/couldn't start.*closed/)
+  expect(engine.state.log).toEqual(['start 1'])
+  expect(engine.state.connections).toBe(1)
 })

@@ -100,7 +100,8 @@ jobs:
       - name: Publish computer image
         working-directory: digests
         run: |
-          printf '%s@sha256:%s\n' "$COMPUTER_IMAGE" * \
+          # One `<image>@sha256:<digest>` per platform's digest file.
+          for digest in *; do echo "$COMPUTER_IMAGE@sha256:$digest"; done \
             | xargs docker buildx imagetools create --tag "$COMPUTER_IMAGE:${RELEASE_VERSION#v}"
         env:
           RELEASE_VERSION: ${{ github.ref_name }}

@@ -4,7 +4,9 @@ import type { CallToolResult } from '@modelcontextprotocol/client'
 /**
  * Where Familiars' computers run, such as `dockerHost()`. It owns
  * everything that runs: whether each computer exists, is running or asleep,
- * and when it sleeps. The plugin only tells it who should have one.
+ * and when it sleeps. The plugin only tells it who should have one. A host
+ * belongs to one `computer` plugin in one workspace, which closes it when
+ * the workspace closes.
  */
 export type ComputerHost = {
   /**
@@ -34,6 +36,12 @@ export type ComputerHost = {
   inspect(familiar: FamiliarId): Promise<ComputerDetail>
   /** Every computer on this host, for an overview. */
   summary(): Promise<ComputersSummary>
+  /**
+   * Stops its background work and closes its connections to computers.
+   * Never removes a computer or its disk: they're there when a host opens
+   * again. Safe to call twice; make no more calls after it.
+   */
+  close(): Promise<void>
 }
 
 /**

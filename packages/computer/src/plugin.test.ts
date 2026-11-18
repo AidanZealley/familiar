@@ -64,6 +64,7 @@ function fakeHost(answer: (signal?: AbortSignal) => Promise<string>) {
     status: async () => ({ state: 'running' }),
     inspect: async (familiar) => ({ doing: [{ tool: `${familiar}'s` }] }),
     summary: async () => ({ computers: [] }),
+    close: async () => {},
   }
   return { host, calls }
 }
