@@ -10,6 +10,10 @@
 @source '../node_modules/@streamdown/code/dist/*.js';
 
 @custom-variant dark (&:is(.dark *));
+/* A computer's full screen: beside the chat where there's width to spare
+   (a desktop, or a phone on its side), otherwise above it. Complements. */
+@custom-variant docked (@media (width >= 48rem) or (orientation: landscape));
+@custom-variant stacked (@media (width < 48rem) and (orientation: portrait));
 
 :root {
   --background: oklch(1 0 0);

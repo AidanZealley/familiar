@@ -107,7 +107,7 @@ export const Chat = ({ room }: ChatProps) => {
         className={cn(
           'flex h-full flex-col',
           // The shell hides the sidebar meanwhile, so this is the window.
-          computer === 'full' && 'md:flex-row',
+          computer === 'full' && 'docked:flex-row',
         )}
       >
         {computer === 'full' && <ComputerPane familiar={dm!} />}
@@ -116,7 +116,7 @@ export const Chat = ({ room }: ChatProps) => {
             'relative flex min-h-0 flex-1 flex-col',
             // Docked: no longer under the phone's status bar.
             computer === 'full' &&
-              'max-md:[--chrome:3.5rem] max-md:[--status-bar:0px] md:w-96 md:flex-none md:border-l md:border-border',
+              'docked:w-[min(24rem,40vw)] docked:flex-none docked:border-l docked:border-border stacked:[--chrome:3.5rem] stacked:[--status-bar:0px]',
           )}
         >
           <ConversationHeader room={room} />

@@ -157,8 +157,10 @@ export const ComputerScreen = ({
           )}
         />
       )}
-      {/* noVNC's own: React never renders into it. */}
-      <div ref={target} className="absolute inset-0" />
+      {/* noVNC's own: React never renders into it. Watching only, so
+          touches and the pointer pass through, to scroll what's behind and
+          keep the person's own cursor. */}
+      <div ref={target} className="pointer-events-none absolute inset-0" />
       {note && (
         <div
           className={cn(
