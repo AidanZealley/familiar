@@ -47,14 +47,21 @@ if (!(await workspace.familiars.list()).length) {
     // Each Familiar opts in to the plugins it uses.
     capabilities: { plugins: [github.name, 'computer'] },
   })
-  // This UI can't answer approvals, so the computer's tools run unattended:
-  // its browser and shell can submit forms, post, upload and download on
-  // public sites without asking. Isolation only protects this machine.
-  await workspace.connections.setPolicy(
-    { kind: 'plugin', name: 'computer' },
-    undefined,
-    'allow',
-  )
+}
+
+// This UI can't answer approvals, so the computer's tools run unattended:
+// its browser and shell can submit forms, post, upload and download on
+// public sites without asking. Isolation only protects this machine.
+const connection = { kind: 'plugin', name: 'computer' } as const
+const info = (await workspace.connections.list()).find(
+  (item) => item.kind === connection.kind && item.name === connection.name,
+)
+for (const tool of info?.tools ?? []) {
+  if (tool.askBeforeRunning) {
+    await workspace.connections.updateToolSettings(connection, tool.name, {
+      askBeforeRunning: false,
+    })
+  }
 }
 
 const app = new Hono()

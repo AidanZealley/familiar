@@ -63,15 +63,7 @@ The computer has a desktop, 1280×800 pixels, with a taskbar and a launcher. The
 
 The four tools that only look (`browser_snapshot`, `browser_screenshot`, `screen_screenshot` and `read_file`) and `browser_navigate` run at once. The others ask the person first, as any tool that might change something does. Keep that default where your UI can answer approvals.
 
-The Node server example's UI can't, so it chooses to let every computer tool run unattended:
-
-```ts
-await workspace.connections.setPolicy(
-  { kind: 'plugin', name: 'computer' },
-  undefined,
-  'allow',
-)
-```
+The Node server example's UI can't answer approvals, so it clears **Ask first** on the computer tools that require it by calling `workspace.connections.updateToolSettings` for each one.
 
 Then nobody approves what the Familiar does with its browser and shell. It can submit forms, post, buy, upload its files and download whatever it's led to on any public site. Isolation protects your machine, not the services the computer can reach.
 
