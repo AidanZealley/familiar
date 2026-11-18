@@ -46,20 +46,22 @@ Turning it on makes the Familiar's computer once the image is ready. Turning it 
 
 ## The tools
 
-A Familiar with a computer has eight tools. Each call goes to that Familiar's own computer, never another's.
+A Familiar with a computer has thirteen tools. Each call goes to that Familiar's own computer, never another's.
 
 - `browser_snapshot`: the open page as text, with a ref for each element.
 - `browser_screenshot`: a picture of the open page.
 - `browser_navigate`: opens an address.
 - `browser_click`: clicks an element by its ref.
 - `browser_type`: fills in a field, optionally pressing Enter.
+- `screen_screenshot`: a picture of the whole screen.
+- `screen_click`, `screen_type`, `screen_key` and `screen_scroll`: use the mouse and keyboard on any app, then show the screen.
 - `run_command`: runs a shell command in its home directory, for up to 10 minutes.
 - `read_file`: reads a text file.
 - `write_file`: writes a text file.
 
-The browser is Chromium, run headless. Long results are shortened. For commands, the end of the output is kept.
+The computer has a desktop, 1280×800 pixels, with a taskbar and a launcher. The browser is Chromium, shown on it, and the browser tools act on its shown tab. Screen tools use display pixels, so they work in any app, such as one the Familiar installed and started with `run_command`. Long results are shortened. For commands, the end of the output is kept.
 
-The three tools that only look (`browser_snapshot`, `browser_screenshot` and `read_file`) and `browser_navigate` run at once. The others ask the person first, as any tool that might change something does. Keep that default where your UI can answer approvals.
+The four tools that only look (`browser_snapshot`, `browser_screenshot`, `screen_screenshot` and `read_file`) and `browser_navigate` run at once. The others ask the person first, as any tool that might change something does. Keep that default where your UI can answer approvals.
 
 The Node server example's UI can't, so it chooses to let every computer tool run unattended:
 
@@ -73,7 +75,7 @@ await workspace.connections.setPolicy(
 
 Then nobody approves what the Familiar does with its browser and shell. It can submit forms, post, buy, upload its files and download whatever it's led to on any public site. Isolation protects your machine, not the services the computer can reach.
 
-The three that only look are also safe to run again after a restart. Familiar reports any other call that a restart interrupted, so the model looks before trying again.
+The four that only look are also safe to run again after a restart. Familiar reports any other call that a restart interrupted, so the model looks before trying again.
 
 ## Sleep and wake
 
