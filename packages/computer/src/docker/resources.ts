@@ -19,11 +19,21 @@ const FAMILIAR_LABEL = 'familiar-ai.familiar'
 
 const exec = promisify(execFile)
 
-/** Runs the Docker CLI, which honours `DOCKER_HOST` (such as `ssh://…`) and Docker contexts. */
-export const docker = async (...args: string[]) =>
+/**
+ * Runs the Docker CLI, which honours `DOCKER_HOST` (such as `ssh://…`) and
+ * Docker contexts, killed if `signal` aborts.
+ */
+const dockerUntil = async (signal: AbortSignal | undefined, args: string[]) =>
   (
-    await exec('docker', args, { cwd: DOCKER_CWD, maxBuffer: 16 * 1024 * 1024 })
+    await exec('docker', args, {
+      cwd: DOCKER_CWD,
+      maxBuffer: 16 * 1024 * 1024,
+      signal,
+    })
   ).stdout.trim()
+
+/** Runs the Docker CLI, which honours `DOCKER_HOST` (such as `ssh://…`) and Docker contexts. */
+export const docker = (...args: string[]) => dockerUntil(undefined, args)
 
 /** Why Docker couldn't do something, for the person or the model. */
 export function reasonOf(error: unknown) {
@@ -68,9 +78,10 @@ export function dockerResources(
   const list = async (
     kind: 'container' | 'volume',
     familiar?: FamiliarId,
+    signal?: AbortSignal,
   ): Promise<Owned[]> =>
     (
-      await docker(
+      await dockerUntil(signal, [
         kind,
         'ls',
         ...(kind === 'container' ? ['--all'] : []),
@@ -79,7 +90,7 @@ export function dockerResources(
         kind === 'container'
           ? `{{.Names}}\t{{.Label "${FAMILIAR_LABEL}"}}\t{{.State}}`
           : `{{.Name}}\t{{.Label "${FAMILIAR_LABEL}"}}`,
-      )
+      ])
     )
       .split('\n')
       .filter(Boolean)
@@ -116,8 +127,12 @@ export function dockerResources(
 
   return {
     container,
-    /** This host's containers, and only `familiar`'s, if given. */
-    containers: (familiar?: FamiliarId) => list('container', familiar),
+    /**
+     * This host's containers, and only `familiar`'s, if given. Rejects if
+     * `signal` aborts.
+     */
+    containers: (familiar?: FamiliarId, signal?: AbortSignal) =>
+      list('container', familiar, signal),
     volumes: () => list('volume'),
 
     /**

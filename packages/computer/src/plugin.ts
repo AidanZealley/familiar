@@ -117,11 +117,12 @@ export function computer({ host }: ComputerOptions) {
             WritableStreamDefaultWriter<Uint8Array<ArrayBuffer>> | undefined
           return {
             onOpen: async (_event, ws) => {
+              // Not running, or no telling (Docker failing, the socket gone).
               const screen = await host
                 .screen(id, viewer.signal)
                 .catch(() => undefined)
               if (!screen) {
-                return ws.close(1000, 'The computer is asleep.')
+                return ws.close(1000, "The computer isn't running.")
               }
               // The viewer speaks only after the display has, so nothing it
               // sends arrives before this.

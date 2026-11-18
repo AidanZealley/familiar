@@ -393,16 +393,18 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     },
 
     screen: async (familiar, signal) => {
-      const [found] = await resources.containers(familiar)
-      if (!found?.running || life.signal.aborted || signal.aborted) {
+      // The viewer going or the host closing kills its Docker processes;
+      // the exec also ends by itself when the computer stops, since Docker
+      // ends an exec with its container.
+      const watching = AbortSignal.any([signal, life.signal])
+      const [found] = await resources.containers(familiar, watching)
+      if (!found?.running || watching.aborted) {
         return undefined
       }
-      // Killed when the viewer goes or the host closes; ends by itself
-      // when the computer stops, since Docker ends an exec with it.
       const exec = spawn('docker', resources.screenCommand(familiar), {
         cwd: DOCKER_CWD,
         stdio: ['pipe', 'pipe', 'ignore'],
-        signal: AbortSignal.any([signal, life.signal]),
+        signal: watching,
       })
       // The abort's, or Docker missing: either way the stream just ends.
       exec.on('error', () => {})

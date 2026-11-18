@@ -13,7 +13,9 @@ export const ComputerPane = ({ familiar }: ComputerPaneProps) => (
       <ComputerScreen
         familiar={familiar}
         size="large"
-        className="w-full md:max-w-[calc(100cqh*1.6)]"
+        // Above the chat on a phone, at most 40% of the window's height, so the chat
+        // keeps room in landscape.
+        className="w-full max-w-[calc(40dvh*1.6)] md:max-w-[calc(100cqh*1.6)]"
       />
     </div>
     <div className="flex h-12 shrink-0 items-center gap-2 border-t border-border/60 bg-popover px-3 text-xs">
