@@ -22,7 +22,7 @@ import type { ConversationHeaderProps } from './types'
  * button. In a DM, the Familiar's computer, if it has one, beside that.
  * On a phone, Back returns to the list of conversations. Docked beside
  * the Familiar's full-screen computer, a Leave full screen button takes
- * the computer button's place, and moves to the end beside the screen.
+ * the computer button's place.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
@@ -81,13 +81,11 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
         </button>
         <div className="ml-auto flex items-center">
           {dm && !full && <ComputerButton familiar={dm} />}
-          {/* In the computer button's place; beside the screen, last, where
-              a close button goes. */}
+          {/* In the computer button's place. */}
           {full && (
             <Button
               variant="ghost"
               size="icon-lg"
-              className="docked:order-last"
               aria-label="Leave full screen"
               onClick={() => show(undefined)}
             >
