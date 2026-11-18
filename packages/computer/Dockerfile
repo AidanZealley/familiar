@@ -34,6 +34,9 @@ RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell ch
   && install -d -o computer -g computer /run/familiar /run/familiar-proxy \
   && install -d -m 1777 /tmp/.X11-unix
 COPY packages/computer/desktop/jwmrc /etc/jwm/system.jwmrc
+# No incognito windows: the agent finds the shown tab through its own
+# extension, which can't see them.
+COPY packages/computer/desktop/chrome-policy.json /etc/opt/chrome_for_testing/policies/managed/familiar.json
 USER computer
 WORKDIR /home/computer
 ENTRYPOINT ["node", "/agent/dist/agent/main.js"]
