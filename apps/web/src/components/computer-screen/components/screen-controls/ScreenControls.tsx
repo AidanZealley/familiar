@@ -5,6 +5,9 @@ import { TakeOverButton } from '@/components/take-over-button'
 import { Button } from '@/components/ui/button'
 import type { ScreenControlsProps } from './types'
 
+/** On a phone held upright, where the screen is small: one short row. */
+const COMPACT = 'stacked:h-6 stacked:px-1.5 stacked:text-[11px]'
+
 /** X keysyms for the keys a phone's keyboard lacks. */
 const KEYS = [
   { label: 'Esc', name: 'Escape', keysym: 0xff1b, code: 'Escape' },
@@ -99,7 +102,7 @@ export const ScreenControls = ({
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.preventDefault()}
       // Only the controls take clicks; the screen around them still does.
-      className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex flex-wrap items-center justify-center gap-1 *:pointer-events-auto docked:justify-end"
+      className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex flex-wrap items-center justify-center gap-1 *:pointer-events-auto docked:justify-end stacked:bottom-1 stacked:flex-nowrap"
     >
       {controlling && (
         <>
@@ -130,6 +133,7 @@ export const ScreenControls = ({
             size="icon-sm"
             aria-label="Keyboard"
             title="Keyboard"
+            className="stacked:size-6"
             onClick={() => input.current!.focus()}
           >
             <KeyboardIcon />
@@ -144,6 +148,7 @@ export const ScreenControls = ({
                 aria-pressed={latched.has(key.keysym)}
                 className={cn(
                   'font-mono',
+                  COMPACT,
                   latched.has(key.keysym) &&
                     'bg-primary text-primary-foreground hover:bg-primary/80',
                 )}
@@ -157,7 +162,7 @@ export const ScreenControls = ({
                 variant="outline"
                 size="sm"
                 aria-label={key.name}
-                className="font-mono"
+                className={cn('font-mono', COMPACT)}
                 onClick={() => press(key.keysym, key.code)}
               >
                 {key.label}
@@ -169,7 +174,7 @@ export const ScreenControls = ({
       <TakeOverButton
         familiar={familiar}
         attention={attention}
-        className="shadow-lg"
+        className={cn('shadow-lg', controlling && COMPACT)}
       />
     </div>
   )
