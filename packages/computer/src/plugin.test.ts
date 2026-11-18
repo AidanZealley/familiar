@@ -60,6 +60,7 @@ function fakeHost(answer: (signal?: AbortSignal) => Promise<string>) {
       calls.push({ familiar, tool })
       return { content: [{ type: 'text', text: await answer(signal) }] }
     },
+    screen: async () => undefined,
     sync: async () => {},
     status: async () => ({ state: 'running' }),
     inspect: async (familiar) => ({ doing: [{ tool: `${familiar}'s` }] }),

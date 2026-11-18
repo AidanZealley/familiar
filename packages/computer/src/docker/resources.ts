@@ -3,7 +3,7 @@ import { homedir, networkInterfaces } from 'node:os'
 import { dirname } from 'node:path'
 import { promisify } from 'node:util'
 import type { FamiliarId } from '@familiar-ai/core'
-import { AGENT_SOCKET, PROXY_PORT } from '../agent/socket.ts'
+import { AGENT_SOCKET, DISPLAY_SOCKET, PROXY_PORT } from '../agent/socket.ts'
 import { OWN_ADDRESSES, PROXY_SOCKET } from './proxy.ts'
 
 /**
@@ -238,6 +238,23 @@ export function dockerResources(
       'socat',
       '-',
       `UNIX-CONNECT:${AGENT_SOCKET},retry=600,interval=0.1`,
+    ],
+
+    /**
+     * The command whose stdio is `familiar`'s display, as the image's user,
+     * who owns its socket. `socat` retries for up to 10 seconds while a
+     * computer that has just started opens it. Like any exec, it never
+     * starts a stopped computer, and ends when its computer stops.
+     */
+    screenCommand: (familiar: FamiliarId) => [
+      'exec',
+      '--interactive',
+      '--user',
+      'computer',
+      container(familiar),
+      'socat',
+      '-',
+      `UNIX-CONNECT:${DISPLAY_SOCKET},retry=100,interval=0.1`,
     ],
   }
 }

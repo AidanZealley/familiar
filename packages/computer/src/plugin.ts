@@ -2,6 +2,7 @@ import {
   definePlugin,
   defineTool,
   familiar,
+  upgradeWebSocket,
   type PluginEnv,
 } from '@familiar-ai/core'
 import type { ImageContent, TextContent } from '@familiar-ai/core/extensions'
@@ -26,7 +27,9 @@ export type ComputerOptions = {
  * hears who has one when the workspace opens and whenever that changes,
  * and removes the rest, disk included. On the plugin's routes, `GET /status`
  * is a Familiar's `ComputerStatus`, cheap to poll, and `GET /inspect` its
- * `ComputerDetail`, for a person looking at it.
+ * `ComputerDetail`, for a person looking at it. `GET /screen` is a
+ * WebSocket of its screen's VNC (RFB) bytes, for a viewer such as noVNC:
+ * closed at once if the computer isn't running, and when it stops.
  */
 export function computer({ host }: ComputerOptions) {
   return definePlugin({
@@ -103,6 +106,44 @@ export function computer({ host }: ComputerOptions) {
       .get('/status', async (c) => c.json(await host.status(c.get('familiar'))))
       .get('/inspect', async (c) =>
         c.json(await host.inspect(c.get('familiar'))),
+      )
+      .get(
+        '/screen',
+        upgradeWebSocket((c) => {
+          const id = c.get('familiar')
+          // The socket owns the stream: it ends when the socket closes.
+          const viewer = new AbortController()
+          let writer:
+            WritableStreamDefaultWriter<Uint8Array<ArrayBuffer>> | undefined
+          return {
+            onOpen: async (_event, ws) => {
+              const screen = await host
+                .screen(id, viewer.signal)
+                .catch(() => undefined)
+              if (!screen) {
+                return ws.close(1000, 'The computer is asleep.')
+              }
+              // The viewer speaks only after the display has, so nothing it
+              // sends arrives before this.
+              writer = screen.writable.getWriter()
+              writer.closed.catch(() => {})
+              try {
+                for await (const bytes of screen.readable) {
+                  ws.send(bytes)
+                }
+              } catch {
+                // The exec failed: the screen has gone, as below.
+              }
+              ws.close(1000, 'The computer stopped.')
+            },
+            onMessage: (event) => {
+              if (event.data instanceof ArrayBuffer) {
+                writer?.write(new Uint8Array(event.data)).catch(() => {})
+              }
+            },
+            onClose: () => viewer.abort(),
+          }
+        }),
       ),
   })
 }
