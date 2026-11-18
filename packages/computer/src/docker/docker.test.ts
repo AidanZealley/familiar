@@ -62,10 +62,6 @@ const GREETER = `data:text/html,${encodeURIComponent(`<!doctype html><title>Gree
 <button onclick="document.querySelector('p').textContent = 'Hello, ' + document.querySelector('input').value">Greet</button>
 <p></p>`)}`
 
-/** An untitled page that opens a titled one in a new tab. */
-const TABS = `data:text/html,${encodeURIComponent(`<p>first</p>
-<button onclick="open('').document.write('<title>Second</title><p>second</p>')">Open</button>`)}`
-
 /** The element named `name` in the latest snapshot the model was given. */
 const ref = (context: Context, name: RegExp) =>
   lastResult(context).match(name)?.[1] ?? 'missing'
@@ -209,10 +205,13 @@ test.skipIf(!hasImage)(
     // a newer titled one behind it.
     const texts = async (tool: string, args: JsonObject = {}) =>
       JSON.stringify((await host.call(ada.id, tool, args)).content)
-    const opener = await texts('browser_navigate', { url: TABS })
-    await texts('browser_click', {
-      ref: opener.match(/button "Open" \[ref=(\w+)\]/)?.[1] ?? 'missing',
+    await screen('screen_key', { keys: 'alt+F4' })
+    await texts('browser_navigate', { url: 'data:text/html,<p>first</p>' })
+    await screen('screen_key', { keys: 'ctrl+t' })
+    await screen('screen_type', {
+      text: 'data:text/html,<title>Second</title><p>second</p>',
     })
+    await screen('screen_key', { keys: 'Return' })
     await screen('screen_key', { keys: 'ctrl+1' })
     expect(await texts('browser_snapshot')).toContain('first')
     await screen('screen_key', { keys: 'ctrl+2' })
