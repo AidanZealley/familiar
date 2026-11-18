@@ -8,6 +8,7 @@ import {
   computerStates,
   screenUrl,
 } from '@/lib/computers'
+import { StatusDot } from '@/components/status-dot'
 import { formatAgo } from '@/lib/format'
 import type { ComputerScreenProps } from './types'
 
@@ -169,7 +170,12 @@ export const ComputerScreen = ({
           )}
         >
           <div>
-            <div className="font-mono font-medium">{note[0]}</div>
+            <div className="flex items-center justify-center gap-1 font-mono font-medium">
+              {asleep && !unreachable && (
+                <StatusDot tone={computerStates.asleep.tone} />
+              )}
+              {note[0]}
+            </div>
             {note[1] && <div className="text-white/60">{note[1]}</div>}
           </div>
         </div>

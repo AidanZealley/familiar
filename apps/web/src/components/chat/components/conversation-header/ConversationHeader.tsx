@@ -21,8 +21,8 @@ import type { ConversationHeaderProps } from './types'
  * what's happening in it, which open its settings, as does the ⋮
  * button. In a DM, the Familiar's computer, if it has one, beside that.
  * On a phone, Back returns to the list of conversations. Docked beside
- * the Familiar's full-screen computer, the computer button leaves full
- * screen instead, and there's no Back.
+ * the Familiar's full-screen computer, a Leave full screen button at the
+ * end takes the computer button's place, and there's no Back.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
@@ -74,18 +74,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           </span>
         </button>
         <div className="ml-auto flex items-center">
-          {full ? (
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              aria-label="Leave full screen"
-              onClick={() => show(undefined)}
-            >
-              <ArrowsInIcon />
-            </Button>
-          ) : (
-            dm && <ComputerButton familiar={dm} />
-          )}
+          {dm && !full && <ComputerButton familiar={dm} />}
           <Button
             variant="ghost"
             size="icon-lg"
@@ -94,6 +83,17 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           >
             <DotsThreeVerticalIcon />
           </Button>
+          {/* Last, where a close button goes. */}
+          {full && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Leave full screen"
+              onClick={() => show(undefined)}
+            >
+              <ArrowsInIcon />
+            </Button>
+          )}
         </div>
       </div>
     </header>
