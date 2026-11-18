@@ -33,13 +33,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      # The image's name, kept once in the computer package's config.
+      - run: echo "COMPUTER_IMAGE=$(jq -r .config.image packages/computer/package.json)" >> "$GITHUB_ENV"
       - id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: packages/computer/Dockerfile
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/aidanzealley/familiar-computer,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.COMPUTER_IMAGE }},push-by-digest=true,name-canonical=true,push=true
       - name: Save the digest
         run: |
           mkdir digests
@@ -93,11 +95,13 @@ jobs:
       # computers use (the computer package's, set above), before the release
       # that pulls it. Docker picks the host's platform from it. Tagging it
       # again is harmless.
+      # The image's name, kept once in the computer package's config.
+      - run: echo "COMPUTER_IMAGE=$(jq -r .config.image packages/computer/package.json)" >> "$GITHUB_ENV"
       - name: Publish computer image
         working-directory: digests
         run: |
-          printf 'ghcr.io/aidanzealley/familiar-computer@sha256:%s\n' * \
-            | xargs docker buildx imagetools create --tag "ghcr.io/aidanzealley/familiar-computer:${RELEASE_VERSION#v}"
+          printf '%s@sha256:%s\n' "$COMPUTER_IMAGE" * \
+            | xargs docker buildx imagetools create --tag "$COMPUTER_IMAGE:${RELEASE_VERSION#v}"
         env:
           RELEASE_VERSION: ${{ github.ref_name }}
       # Hosts pull the image without signing in, and a new ghcr.io package is
@@ -106,7 +110,7 @@ jobs:
       - name: Check the computer image is public
         run: |
           docker logout ghcr.io
-          docker manifest inspect "ghcr.io/aidanzealley/familiar-computer:${RELEASE_VERSION#v}" \
+          docker manifest inspect "$COMPUTER_IMAGE:${RELEASE_VERSION#v}" \
             | jq -e '[.manifests[].platform | "\(.os)/\(.architecture)"] | index("linux/amd64") and index("linux/arm64")'
         env:
           RELEASE_VERSION: ${{ github.ref_name }}

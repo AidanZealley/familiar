@@ -1,6 +1,9 @@
 {
   "name": "@familiar-ai/computer",
   "version": "0.0.0",
+  "config": {
+    "image": "ghcr.io/aidanzealley/familiar-computer"
+  },
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -25,7 +28,7 @@
   "scripts": {
     "typecheck": "tsc",
     "build": "tsc -p tsconfig.build.json",
-    "image": "docker build -t ghcr.io/aidanzealley/familiar-computer:$npm_package_version -f Dockerfile ../.."
+    "image": "docker build -t $npm_package_config_image:$npm_package_version -f Dockerfile ../.."
   },
   "peerDependencies": {
     "@familiar-ai/core": "workspace:*",
