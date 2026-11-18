@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { cn } from 'cn'
 import {
   ArrowsInIcon,
   CaretLeftIcon,
@@ -20,7 +21,8 @@ import type { ConversationHeaderProps } from './types'
  * what's happening in it, which open its settings, as does the ⋮
  * button. In a DM, the Familiar's computer, if it has one, beside that.
  * On a phone, Back returns to the list of conversations. Docked beside
- * the Familiar's full-screen computer, just the chat's name and a way back.
+ * the Familiar's full-screen computer, the computer button leaves full
+ * screen instead, and there's no Back.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
@@ -35,24 +37,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const dm = room.kind === 'dm' && familiars.find((f) => f.id === room.familiar)
   const { view, show } = useComputerView()
 
-  if (dm && view === 'full') {
-    return (
-      <header className="absolute inset-x-0 top-0 z-30 flex h-(--chrome) items-center border-b border-border/60 bg-background/80 pt-(--status-bar) pr-2 pl-4 backdrop-blur-md">
-        <h2 className="truncate font-heading text-sm font-medium">
-          Chat with {dm.name}
-        </h2>
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          className="ml-auto"
-          aria-label="Leave full screen"
-          onClick={() => show(undefined)}
-        >
-          <ArrowsInIcon />
-        </Button>
-      </header>
-    )
-  }
+  const full = dm && view === 'full'
 
   return (
     <header className="absolute inset-x-0 top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md">
@@ -63,7 +48,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
         <Button
           variant="ghost"
           size="icon-lg"
-          className="md:hidden"
+          className={cn('md:hidden', full && 'hidden')}
           aria-label="All conversations"
           nativeButton={false}
           render={<Link to="/" />}
@@ -89,7 +74,18 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           </span>
         </button>
         <div className="ml-auto flex items-center">
-          {dm && <ComputerButton familiar={dm} />}
+          {full ? (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Leave full screen"
+              onClick={() => show(undefined)}
+            >
+              <ArrowsInIcon />
+            </Button>
+          ) : (
+            dm && <ComputerButton familiar={dm} />
+          )}
           <Button
             variant="ghost"
             size="icon-lg"

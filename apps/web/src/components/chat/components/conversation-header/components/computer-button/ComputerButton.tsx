@@ -65,26 +65,31 @@ export const ComputerButton = ({ familiar }: ComputerButtonProps) => {
         align="end"
         className="max-h-(--available-height) w-[min(24rem,calc(100vw-1rem))] gap-3 overflow-y-auto p-3"
       >
+        {/* The whole preview opens full screen; nothing on it reaches the
+            computer. */}
         <div className="relative">
-          <ComputerScreen familiar={familiar} />
-          <div className="absolute top-1.5 right-1.5 flex gap-1">
-            <Button
-              size="icon-sm"
-              className="bg-black/60 text-white hover:bg-black/80"
-              aria-label="Pop out over the chat"
-              onClick={() => showView('pop')}
+          <button
+            type="button"
+            aria-label="Full screen"
+            onClick={() => showView('full')}
+            className="group/preview relative block w-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ComputerScreen familiar={familiar} />
+            <span
+              aria-hidden
+              className="absolute top-1.5 right-1.5 grid size-7 place-items-center bg-black/60 text-white group-hover/preview:bg-black/80"
             >
-              <PictureInPictureIcon />
-            </Button>
-            <Button
-              size="icon-sm"
-              className="bg-black/60 text-white hover:bg-black/80"
-              aria-label="Full screen"
-              onClick={() => showView('full')}
-            >
-              <ArrowsOutIcon />
-            </Button>
-          </div>
+              <ArrowsOutIcon className="size-4" />
+            </span>
+          </button>
+          <Button
+            size="icon-sm"
+            className="absolute top-1.5 right-10 bg-black/60 text-white hover:bg-black/80"
+            aria-label="Pop out over the chat"
+            onClick={() => showView('pop')}
+          >
+            <PictureInPictureIcon />
+          </Button>
         </div>
         <ComputerDetails familiar={familiar} status={status} />
       </PopoverContent>

@@ -3,9 +3,10 @@ import { ComputerScreen } from '@/components/computer-screen'
 import type { ComputerPaneProps } from './types'
 
 /**
- * The Familiar's screen full screen, always fitted, over a bar saying what
- * it's doing. On a phone held upright, a band across the top; otherwise
- * the space beside the docked chat.
+ * The Familiar's screen full screen, always fitted, with a bar saying what
+ * it's doing. Beside the docked chat, the bar sits on top, level with the
+ * chat's header; on a phone held upright, the screen is a band across the
+ * top with the bar under it.
  */
 export const ComputerPane = ({ familiar }: ComputerPaneProps) => (
   <div className="flex shrink-0 flex-col bg-black docked:min-w-0 docked:flex-1 stacked:pt-(--status-bar)">
@@ -18,7 +19,8 @@ export const ComputerPane = ({ familiar }: ComputerPaneProps) => (
         className="w-full docked:max-w-[calc(100cqh*1.6)] stacked:max-w-[calc(40dvh*1.6)]"
       />
     </div>
-    <div className="flex h-12 shrink-0 items-center gap-2 border-t border-border/60 bg-popover px-3 text-xs">
+    {/* Beside the chat, lined up with its header; under the screen above it. */}
+    <div className="flex h-12 shrink-0 items-center gap-2 border-border/60 bg-background px-3 text-xs docked:order-first docked:h-(--chrome) docked:border-b docked:px-4 docked:pt-(--status-bar) stacked:border-t">
       <ComputerActivity familiar={familiar} className="flex-1" />
     </div>
   </div>

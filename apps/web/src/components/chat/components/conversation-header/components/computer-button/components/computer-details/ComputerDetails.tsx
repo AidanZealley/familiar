@@ -1,5 +1,12 @@
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { StatusDot } from '@/components/status-dot'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { PopoverDescription, PopoverTitle } from '@/components/ui/popover'
 import {
   computerDetailQuery,
@@ -22,18 +29,22 @@ const amount = (
 ) => (limit ? `${format(used)} of ${format(limit)}` : format(used))
 
 /**
- * The Familiar's computer in detail, read only while this is shown. Only
- * what its host reported appears: a host that can't tell something, or a
- * sleeping computer, simply shows less.
+ * The Familiar's computer: its name and state, then its details, read only
+ * while this is shown, folded away so the popover keeps its height as they
+ * arrive. Only what its host reported appears: a host that can't tell
+ * something, or a sleeping computer, simply shows less.
  */
 export const ComputerDetails = ({ familiar, status }: ComputerDetailsProps) => {
-  const { data: detail, error } = useQuery(computerDetailQuery(familiar.id))
+  const {
+    data: detail,
+    error,
+    isPending,
+  } = useQuery(computerDetailQuery(familiar.id))
   const current = detail?.status ?? status
-  const state = current && computerStates[current.state]
+  const state = status && computerStates[status.state]
   const programs =
     detail?.programs && programsByName(detail.programs).slice(0, PROGRAMS_SHOWN)
   const when = [
-    current?.state === 'unavailable' && current.reason,
     detail?.since &&
       `${current?.state === 'asleep' ? 'Went to sleep' : 'Started'} ${formatAgo(Date.parse(detail.since))}`,
     detail?.lastUsed && `last used ${formatAgo(Date.parse(detail.lastUsed))}`,
@@ -58,96 +69,111 @@ export const ComputerDetails = ({ familiar, status }: ComputerDetailsProps) => {
             </span>
           )}
         </div>
-        {detail?.doing?.map((call, index) => (
-          <p key={index} className="shimmer truncate">
-            {describeCall(call)}
-          </p>
-        ))}
-        {when && (
+        {status?.state === 'unavailable' && (
           <PopoverDescription className="text-muted-foreground">
-            {when}
+            {status.reason}
           </PopoverDescription>
         )}
       </div>
-      {(detail?.cpu || detail?.memory || detail?.processes || detail?.disk) && (
-        <div className="flex flex-col gap-2">
-          {detail.cpu && (
-            <UsageMeter
-              label="CPU"
-              usage={detail.cpu}
-              value={
-                detail.cpu.limit
-                  ? `${Math.round((detail.cpu.used / detail.cpu.limit) * 100)}% of ${detail.cpu.limit} CPUs`
-                  : `${Math.round(detail.cpu.used * 100)}%`
-              }
-            />
-          )}
-          {detail.memory && (
-            <UsageMeter
-              label="Memory"
-              usage={detail.memory}
-              value={amount(detail.memory, formatBytes)}
-            />
-          )}
-          {detail.processes && (
-            <UsageMeter
-              label="Processes"
-              usage={detail.processes}
-              value={amount(detail.processes)}
-            />
-          )}
-          {detail.disk && (
-            <UsageMeter
-              label="Disk"
-              usage={detail.disk}
-              value={amount(detail.disk, formatBytes)}
-            />
-          )}
-        </div>
-      )}
-      {!!detail?.tabs?.length && (
-        <DetailSection title="Tabs">
-          {detail.tabs.map((tab, index) => (
-            <li key={index} className="flex min-w-0 flex-col">
-              <span className="truncate">{tab.title || tab.url}</span>
-              {tab.title && (
-                <span className="truncate text-muted-foreground">
-                  {tab.url}
-                </span>
-              )}
-            </li>
+      <Collapsible>
+        <CollapsibleTrigger className="group/details flex w-full items-center gap-1 text-left text-muted-foreground hover:text-foreground">
+          <CaretRightIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]/details:rotate-90" />
+          Details
+          {isPending && <HourglassSpinner className="ml-auto" />}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="flex flex-col gap-3 pt-3">
+          {detail?.doing?.map((call, index) => (
+            <p key={index} className="shimmer truncate">
+              {describeCall(call)}
+            </p>
           ))}
-        </DetailSection>
-      )}
-      {!!programs?.length && (
-        <DetailSection title="Programs">
-          {programs.map((program) => (
-            <li
-              key={program.name}
-              className="flex min-w-0 justify-between gap-2"
-            >
-              <span className="truncate font-mono">
-                {program.name}
-                {program.count > 1 && (
-                  <span className="text-muted-foreground">
-                    {' '}
-                    ×{program.count}
+          {when && <p className="text-muted-foreground">{when}</p>}
+          {(detail?.cpu ||
+            detail?.memory ||
+            detail?.processes ||
+            detail?.disk) && (
+            <div className="flex flex-col gap-2">
+              {detail.cpu && (
+                <UsageMeter
+                  label="CPU"
+                  usage={detail.cpu}
+                  value={
+                    detail.cpu.limit
+                      ? `${Math.round((detail.cpu.used / detail.cpu.limit) * 100)}% of ${detail.cpu.limit} CPUs`
+                      : `${Math.round(detail.cpu.used * 100)}%`
+                  }
+                />
+              )}
+              {detail.memory && (
+                <UsageMeter
+                  label="Memory"
+                  usage={detail.memory}
+                  value={amount(detail.memory, formatBytes)}
+                />
+              )}
+              {detail.processes && (
+                <UsageMeter
+                  label="Processes"
+                  usage={detail.processes}
+                  value={amount(detail.processes)}
+                />
+              )}
+              {detail.disk && (
+                <UsageMeter
+                  label="Disk"
+                  usage={detail.disk}
+                  value={amount(detail.disk, formatBytes)}
+                />
+              )}
+            </div>
+          )}
+          {!!detail?.tabs?.length && (
+            <DetailSection title="Tabs">
+              {detail.tabs.map((tab, index) => (
+                <li key={index} className="flex min-w-0 flex-col">
+                  <span className="truncate">{tab.title || tab.url}</span>
+                  {tab.title && (
+                    <span className="truncate text-muted-foreground">
+                      {tab.url}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </DetailSection>
+          )}
+          {!!programs?.length && (
+            <DetailSection title="Programs">
+              {programs.map((program) => (
+                <li
+                  key={program.name}
+                  className="flex min-w-0 justify-between gap-2"
+                >
+                  <span className="truncate font-mono">
+                    {program.name}
+                    {program.count > 1 && (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        ×{program.count}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-              {program.memory !== undefined && (
-                <span className="shrink-0 text-muted-foreground tabular-nums">
-                  {formatBytes(program.memory)}
-                </span>
-              )}
-            </li>
-          ))}
-        </DetailSection>
-      )}
-      {system && <p className="text-muted-foreground">{system}</p>}
-      {error && (
-        <p className="text-destructive">Couldn't look at it: {error.message}</p>
-      )}
+                  {program.memory !== undefined && (
+                    <span className="shrink-0 text-muted-foreground tabular-nums">
+                      {formatBytes(program.memory)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </DetailSection>
+          )}
+          {system && <p className="text-muted-foreground">{system}</p>}
+          {error && (
+            <p className="text-destructive">
+              Couldn't look at it: {error.message}
+            </p>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
     </>
   )
 }

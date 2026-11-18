@@ -6,7 +6,8 @@ const colours = {
   ok: 'bg-emerald-500',
   warn: 'bg-amber-500',
   bad: 'bg-destructive',
-  off: 'bg-muted-foreground/50',
+  // Opaque, so whatever it sits on, such as an icon, never shows through.
+  off: 'bg-[color-mix(in_oklab,var(--muted-foreground)_50%,var(--background))]',
 }
 
 /** Decorative: the status label beside it says the same in words. */
