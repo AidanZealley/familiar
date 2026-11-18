@@ -5,6 +5,7 @@ import { AppLoader } from '@/components/app-loader'
 import { Dialogs } from '@/components/dialogs'
 import { Sidebar } from '@/components/sidebar'
 import { Toaster } from '@/components/ui/sonner'
+import { useComputerView } from '@/lib/computer-view'
 import { connectionProblems } from '@/lib/connection-problems'
 import { dialogSearch } from '@/lib/dialogs'
 import { useWorkspace } from '@/lib/familiar'
@@ -16,16 +17,22 @@ const toastOffset = { top: 'calc(var(--chrome) + 0.5rem)' }
 /**
  * The sidebar beside the open conversation, and any dialog over them. On a
  * phone, one at a time: the sidebar is home, and a conversation takes the
- * whole screen.
+ * whole screen, as a DM does everywhere while its Familiar's computer is
+ * full screen.
  */
 const Shell = () => {
   const { theme } = useTheme()
   const home = useMatch({ from: '/', shouldThrow: false }) !== undefined
+  const fullScreen = useComputerView().view === 'full'
 
   return (
     <div className="flex h-(--app-height) overflow-hidden">
       <Sidebar
-        className={cn('w-full md:w-72 md:border-r', !home && 'max-md:hidden')}
+        className={cn(
+          'w-full md:w-72 md:border-r',
+          !home && 'max-md:hidden',
+          fullScreen && 'hidden',
+        )}
       />
       <main
         className={cn(
