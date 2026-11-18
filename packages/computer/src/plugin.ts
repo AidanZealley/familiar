@@ -21,8 +21,9 @@ export type ComputerOptions = {
  * `computer` capability) has one, and one without has none. Each tool call
  * goes to the calling Familiar's own computer, never another's. The host
  * hears who has one when the workspace opens and whenever that changes,
- * and removes the rest, disk included. `GET /status` on the plugin's routes
- * is a Familiar's `ComputerStatus`.
+ * and removes the rest, disk included. On the plugin's routes, `GET /status`
+ * is a Familiar's `ComputerStatus`, cheap to poll, and `GET /inspect` its
+ * `ComputerDetail`, for a person looking at it.
  */
 export function computer({ host }: ComputerOptions) {
   return definePlugin({
@@ -94,8 +95,10 @@ export function computer({ host }: ComputerOptions) {
         }),
       )
     },
-    routes: new Hono<PluginEnv>().get('/status', async (c) =>
-      c.json(await host.status(c.get('familiar'))),
-    ),
+    routes: new Hono<PluginEnv>()
+      .get('/status', async (c) => c.json(await host.status(c.get('familiar'))))
+      .get('/inspect', async (c) =>
+        c.json(await host.inspect(c.get('familiar'))),
+      ),
   })
 }

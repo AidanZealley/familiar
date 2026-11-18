@@ -7,6 +7,7 @@ import {
   fauxProvider,
   fauxToolCall,
 } from '@familiar-ai/core/models/faux'
+import { createHttpApi } from '@familiar-ai/core/http'
 import { MemoryStorage } from '@familiar-ai/core/storage/memory'
 import { expect, onTestFinished, test } from 'vitest'
 import { computer, type ComputerHost } from './index.ts'
@@ -61,6 +62,8 @@ function fakeHost(answer: (signal?: AbortSignal) => Promise<string>) {
     },
     sync: async () => {},
     status: async () => ({ state: 'running' }),
+    inspect: async (familiar) => ({ doing: [{ tool: `${familiar}'s` }] }),
+    summary: async () => ({ computers: [] }),
   }
   return { host, calls }
 }
@@ -118,4 +121,19 @@ test('an action a restart interrupts is reported, not run again', async () => {
   await replyTo(await reopened.dm(ada.id), entry)
   expect(calls).toHaveLength(1)
   expect(result).toMatch(/interrupted/i)
+})
+
+test("a Familiar's computer in detail is its host's, on the plugin's routes", async () => {
+  const { host } = fakeHost(async () => '')
+  const { workspace } = await open(host)
+  onTestFinished(() => workspace.dismiss())
+  const ada = await workspace.familiars.create({ name: 'Ada' })
+  const app = createHttpApi(workspace, {
+    authenticate: () => owner,
+    allow: () => true,
+  })
+  const response = await app.request(
+    `/plugins/computer/familiars/${ada.id}/inspect`,
+  )
+  expect(await response.json()).toEqual({ doing: [{ tool: `${ada.id}'s` }] })
 })

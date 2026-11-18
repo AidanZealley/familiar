@@ -15,19 +15,19 @@ const computerLimit = {
     maxComputers = value
   },
 }
+// Real computers where Docker is installed, under their own host ID so the
+// installation's are left alone. No Familiar has one when the demo starts,
+// so starting it removes any an earlier run left.
+const computers = dockerHost({
+  hostId: 'demo',
+  maxComputers: computerLimit.get,
+})
 const workspace = await openDemo(
   async (notification) => {
     console.log('Notification:', JSON.stringify(notification))
     await push.notify(notification)
   },
-  // Real computers where Docker is installed, under their own host ID so
-  // the installation's are left alone. No Familiar has one when the demo
-  // starts, so starting it removes any an earlier run left.
-  [
-    computer({
-      host: dockerHost({ hostId: 'demo', maxComputers: computerLimit.get }),
-    }),
-  ],
+  [computer({ host: computers })],
 )
 serveWorkspace(workspace, {
   host: '127.0.0.1',
@@ -38,4 +38,5 @@ serveWorkspace(workspace, {
   avatarsDir: resolvePaths().avatarsDir,
   push: push.host,
   computerLimit,
+  computers,
 })

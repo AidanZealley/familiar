@@ -18,6 +18,7 @@ import { computerLimitQuery } from '@/lib/computers'
 import { useWorkspace } from '@/lib/familiar'
 import { AppearanceSettings } from './components/appearance-settings'
 import { ComputerLimit } from './components/computer-limit'
+import { ComputersOverview } from './components/computers-overview'
 import { DefaultTools } from './components/default-tools'
 import { ModelDefaults } from './components/model-defaults'
 import { Providers } from './components/providers'
@@ -126,13 +127,16 @@ export const AppSettings = () => {
                     icon: DesktopTowerIcon,
                     keywords: 'computer limit docker browser shell',
                     description:
-                      "How many computers Familiars may have. Each Familiar's own is in its settings' Computer.",
-                    // Keyed by the limit, so a change from elsewhere reseeds it.
+                      "Familiars' computers, and how many they may have. Each Familiar's own is in its settings' Computer.",
                     content: (
-                      <ComputerLimit
-                        key={maxComputers}
-                        maxComputers={maxComputers}
-                      />
+                      <div className="flex flex-1 flex-col gap-8">
+                        <ComputersOverview />
+                        {/* Keyed by the limit, so a change from elsewhere reseeds it. */}
+                        <ComputerLimit
+                          key={maxComputers}
+                          maxComputers={maxComputers}
+                        />
+                      </div>
                     ),
                   },
                 ]
