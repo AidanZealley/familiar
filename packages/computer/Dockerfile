@@ -20,15 +20,15 @@ RUN pnpm install --frozen-lockfile --filter @familiar-ai/computer... \
 FROM node:24-bookworm-slim
 # Links the image published on ghcr.io to its repository.
 LABEL org.opencontainers.image.source=https://github.com/AidanZealley/familiar
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright LANG=C.UTF-8
 COPY --from=build /agent /agent
 # Chromium as the agent's own Playwright version expects it, with its
 # system libraries; socat for the host's connection; curl for the shell;
 # the display and window manager (whose launcher's terminal is urxvt, a
-# dependency); xdotool and maim for the screen tools.
+# dependency); xdotool, xclip and maim for the screen tools.
 RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell chromium \
   && apt-get install -y --no-install-recommends socat curl ca-certificates \
-    tigervnc-standalone-server jwm xdotool maim \
+    tigervnc-standalone-server jwm xdotool xclip maim \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash computer \
   && install -d -o computer -g computer /run/familiar /run/familiar-proxy \

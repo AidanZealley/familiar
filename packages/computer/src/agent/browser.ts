@@ -1,4 +1,9 @@
-import { chromium, type BrowserContext, type Page } from 'playwright'
+import {
+  chromium,
+  type BrowserContext,
+  type Page,
+  type Worker,
+} from 'playwright'
 import { fileURLToPath } from 'node:url'
 import { KEEP_TEXT } from '../shorten.ts'
 
@@ -103,8 +108,11 @@ async function shown(context: BrowserContext) {
   if (pages.length < 2) {
     return pages[0]
   }
+  const ours = (worker: Worker) =>
+    worker.url().startsWith('chrome-extension://')
   const extension =
-    context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'))
+    context.serviceWorkers().find(ours) ??
+    (await context.waitForEvent('serviceworker', { predicate: ours }))
   const [active, targets] = await Promise.all([
     extension.evaluate<string | undefined>(ACTIVE_TARGET),
     Promise.all(

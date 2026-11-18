@@ -1,4 +1,5 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { setTimeout as wait } from 'node:timers/promises'
 import { promisify } from 'node:util'
 
@@ -40,8 +41,26 @@ export const screen = {
       BUTTONS[button],
     ),
 
-  type: (text: string, signal: AbortSignal) =>
-    xdotool(signal, 'type', '--delay', '10', '--', text),
+  /**
+   * Types `text`. Keys xdotool makes up for characters outside ASCII never
+   * reach Chromium, so those are pasted instead: put in the desktop's
+   * clipboard and primary selection (which Xvnc never sends to a viewer),
+   * then pasted with shift+Insert, which browsers and terminals both take.
+   */
+  type: async (text: string, signal: AbortSignal) => {
+    for (const [part] of text.matchAll(/[\0-\x7f]+|[^\0-\x7f]+/g)) {
+      if (/^[\0-\x7f]/.test(part)) {
+        await xdotool(signal, 'type', '--delay', '10', '--', part)
+      } else {
+        await Promise.all(
+          ['clipboard', 'primary'].map((selection) =>
+            select(selection, part, signal),
+          ),
+        )
+        await xdotool(signal, 'key', '--clearmodifiers', 'shift+Insert')
+      }
+    }
+  },
 
   /** Presses each of `keys` in turn, such as `ctrl+l` or `Return`. */
   key: (keys: string[], signal: AbortSignal) =>
@@ -70,6 +89,22 @@ export const screen = {
 // Without `--sync`, which waits for a move forever when the pointer is
 // already there.
 const moveTo = (x: number, y: number) => ['mousemove', String(x), String(y)]
+
+/**
+ * Puts `text` in an X selection. xclip stays behind to serve it, holding
+ * nothing open of ours, so this ends as soon as it's set.
+ */
+const select = async (selection: string, text: string, signal: AbortSignal) => {
+  const xclip = spawn('xclip', ['-selection', selection, '-in'], {
+    stdio: ['pipe', 'ignore', 'ignore'],
+    signal,
+  })
+  xclip.stdin.end(text)
+  const [code] = await once(xclip, 'exit')
+  if (code !== 0) {
+    throw new Error(`Couldn't paste the text (xclip exit code ${code}).`)
+  }
+}
 
 /** Runs xdotool; one that can't do what it's asked fails with its message. */
 const xdotool = async (signal: AbortSignal, ...args: string[]) => {

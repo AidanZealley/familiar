@@ -196,9 +196,9 @@ test.skipIf(!hasImage)(
       expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1280, 800])
     }
     await screen('screen_click', { x: 200, y: 150 })
-    await screen('screen_type', { text: 'echo typed > typed.txt' })
+    await screen('screen_type', { text: 'echo typed café > typed.txt' })
     await screen('screen_key', { keys: 'Return' })
-    expect(await run('cat typed.txt')).toMatch(/^typed/)
+    expect(await run('cat typed.txt')).toMatch(/^typed café/)
 
     // The browser tools act on the tab the screen shows, which the person
     // or the screen tools may have switched to: here an untitled one, with
