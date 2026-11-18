@@ -185,9 +185,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
   /**
    * Each awake computer's MCP client, over a `docker exec` into its agent's
-   * socket. An entry goes once it can't connect or its exec ends, as when
-   * the computer sleeps or is removed, and only then: so only its own end
-   * ever removes it.
+   * socket. An entry goes once it can't connect, before anyone awaiting it
+   * hears why, or once its exec ends, as when the computer sleeps or is
+   * removed; and only then, so only its own end ever removes it.
    */
   const clients = new Map<FamiliarId, Promise<Client>>()
   /** `familiar`'s client, starting its computer first if needed, and whether that woke it. */
@@ -198,14 +198,18 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     }
     const woke = start(familiar)
     const connection = woke.then(() => connect(familiar))
-    const client = connection.then(({ client }) => client)
+    const client = connection.then(
+      ({ client }) => client,
+      (error: unknown) => {
+        clients.delete(familiar)
+        throw error
+      },
+    )
     clients.set(familiar, client)
-    void connection
-      .then(
-        ({ closed }) => closed,
-        () => {},
-      )
-      .finally(() => clients.delete(familiar))
+    void connection.then(
+      ({ closed }) => closed.then(() => clients.delete(familiar)),
+      () => {},
+    )
     return { client, woke }
   }
   const connect = async (familiar: FamiliarId) => {
@@ -226,6 +230,36 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       throw error
     }
     return { client, closed }
+  }
+
+  /**
+   * One try at running `tool` on `familiar`'s computer: its result, or why
+   * it never reached the agent (it couldn't connect, or the agent was going
+   * to sleep), which is safe to try again. A call that may have started
+   * isn't: its failure is thrown, as an action may not be safe to repeat.
+   */
+  const attempt = async (
+    familiar: FamiliarId,
+    tool: string,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<{ result: CallToolResult; woke: boolean } | { retry: string }> => {
+    const opened = open(familiar)
+    const client = await opened.client.catch((error: unknown) =>
+      reasonOf(error),
+    )
+    if (typeof client === 'string') {
+      return { retry: client }
+    }
+    const result = (await client.callTool(
+      { name: tool, arguments: args },
+      { signal, timeout: CALL_MAX_MS },
+    )) as CallToolResult
+    if (result._meta?.[ASLEEP]) {
+      await client.close()
+      return { retry: 'it went to sleep as it woke' }
+    }
+    return { result, woke: await opened.woke }
   }
 
   const status = async (familiar: FamiliarId): Promise<ComputerStatus> => {
@@ -256,73 +290,65 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       if (state.state === 'unavailable') {
         return failed(`Computers aren't available here: ${state.reason}`)
       }
-      // Tried again once if it never reached the agent: it couldn't
-      // connect, or its agent was going to sleep. Never once it may have
-      // started, as an action may not be safe to repeat.
-      let woke = false
-      for (const last of [false, true]) {
-        let client
-        try {
-          const opened = open(familiar)
-          client = await opened.client
-          woke ||= await opened.woke
-        } catch (error) {
-          if (last) {
-            return failed(
-              `Your computer couldn't start, so nothing ran: ${reasonOf(error)}`,
-            )
-          }
-          continue
-        }
-        const result = (await client.callTool(
-          { name: tool, arguments: args },
-          { signal, timeout: CALL_MAX_MS },
-        )) as CallToolResult
-        if (!result._meta?.[ASLEEP]) {
-          return woke
-            ? {
-                ...result,
-                content: [{ type: 'text', text: WOKE }, ...result.content],
-              }
-            : result
-        }
-        // Once it's asleep, and this client forgotten, wake it.
-        await client.close()
-        await docker('wait', resources.container(familiar)).catch(() => {})
+      // A first try that never reached the agent is tried once more, after
+      // stopping the computer, so the second starts it afresh rather than
+      // reaching an agent on its way out. Stopping is bounded, so it can't
+      // hang on a computer that never sleeps itself.
+      const first = await attempt(familiar, tool, args, signal)
+      if ('retry' in first) {
+        await docker(
+          'stop',
+          '--time',
+          '5',
+          resources.container(familiar),
+        ).catch(() => {})
       }
-      return failed(
-        "Your computer couldn't start, so nothing ran: it went to sleep as it woke.",
-      )
+      const answer =
+        'retry' in first ? await attempt(familiar, tool, args, signal) : first
+      if ('retry' in answer) {
+        return failed(
+          `Your computer couldn't start, so nothing ran: ${answer.retry}`,
+        )
+      }
+      const { result, woke } = answer
+      return woke
+        ? {
+            ...result,
+            content: [{ type: 'text', text: WOKE }, ...result.content],
+          }
+        : result
     },
 
     sync: async (familiars) => {
       wanted = new Set(familiars)
       try {
         // Every other Familiar's computer and disk, and with none wanted,
-        // the proxy: containers first, as volumes in use can't go. Read
-        // `wanted` as each is removed, so a later `sync` wins.
+        // the proxy: containers first, as volumes in use can't go. Each is
+        // checked against `wanted` just before it goes, so a later `sync`
+        // that wants it again, arriving meanwhile, wins.
         const unwanted = ({ familiar }: Owned) =>
           familiar === undefined ? !wanted.size : !wanted.has(familiar)
-        const have = await resources.containers()
-        for (const { name } of have.filter(unwanted)) {
-          await docker('rm', '--force', name)
+        for (const container of await resources.containers()) {
+          if (unwanted(container)) {
+            await docker('rm', '--force', container.name)
+          }
         }
-        for (const { name } of (await resources.volumes()).filter(unwanted)) {
-          await docker('volume', 'rm', '--force', name)
+        for (const volume of await resources.volumes()) {
+          if (unwanted(volume)) {
+            await docker('volume', 'rm', '--force', volume.name)
+          }
         }
         if (!wanted.size) {
           proxy = undefined
           return
         }
         // The proxy first, as making a computer would make its socket's
-        // volume unlabelled. Past the limit, a computer's status says why
-        // until there's room.
+        // volume unlabelled. `create` makes only a computer that's missing
+        // and still wanted; past the limit, its status says why.
         await image.ready
         await ensureProxy()
         for (const familiar of wanted) {
-          if (!have.some((owned) => owned.familiar === familiar)) {
-            await create(familiar)
-          }
+          await create(familiar)
         }
       } catch (error) {
         throw new Error(reasonOf(error), { cause: error })
