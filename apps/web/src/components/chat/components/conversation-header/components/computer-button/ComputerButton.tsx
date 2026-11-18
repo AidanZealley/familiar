@@ -63,7 +63,7 @@ export const ComputerButton = ({ familiar }: ComputerButtonProps) => {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-[min(24rem,calc(100vw-1rem))] gap-3 p-3"
+        className="max-h-(--available-height) w-[min(24rem,calc(100vw-1rem))] gap-3 overflow-y-auto p-3"
       >
         <div className="relative">
           <ComputerScreen familiar={familiar} />

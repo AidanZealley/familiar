@@ -115,7 +115,9 @@ export const ComputerScreen = ({
       ? [
           'Asleep',
           [
-            detail?.since &&
+            // Only from a look that saw it asleep too, or it's when it started.
+            detail?.status?.state === 'asleep' &&
+              detail.since &&
               `Went to sleep ${formatAgo(Date.parse(detail.since))}`,
             size === 'large' && `it wakes when ${familiar.name} needs it`,
           ]
