@@ -18,11 +18,18 @@ export const ComputerActivity = ({
   familiar,
   className,
 }: ComputerActivityProps) => {
-  const { data: status } = useQuery(computerQuery(familiar.id))
+  const { data: status, isError: unreachable } = useQuery(
+    computerQuery(familiar.id),
+  )
   const { data: detail } = useQuery(computerDetailQuery(familiar.id))
-  const state = status && computerStates[status.state]
+  // A failed poll keeps the last answer, which may be stale.
+  const state = unreachable
+    ? { label: 'Not connected', tone: 'off' as const }
+    : status && computerStates[status.state]
   const call =
-    status?.state === 'running' && detail?.status?.state === 'running'
+    !unreachable &&
+    status?.state === 'running' &&
+    detail?.status?.state === 'running'
       ? detail.doing?.at(-1)
       : undefined
 

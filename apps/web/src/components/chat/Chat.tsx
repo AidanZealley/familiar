@@ -124,6 +124,13 @@ export const Chat = ({ room }: ChatProps) => {
             {/* The shared scroller hides its thumb while it scrolls itself, which
               flashes on every streamed update, so keep one colour throughout. */}
             <MessageScrollerViewport className="flex scroll-pt-(--chrome) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
+              {/* Pinned to the top as the transcript scrolls, and under the
+                  composer, which a long draft grows into it. */}
+              {computer === 'pop' && (
+                <div className="sticky top-0 z-20 h-0">
+                  <ComputerPopout familiar={dm!} />
+                </div>
+              )}
               <MessageScrollerContent
                 ref={measureScrollMargin}
                 aria-busy={transcript?.busy}
@@ -144,7 +151,6 @@ export const Chat = ({ room }: ChatProps) => {
             </MessageScrollerViewport>
             <OlderMessages firstItemIds={firstItemIds} />
           </MessageScroller>
-          {computer === 'pop' && <ComputerPopout familiar={dm!} />}
         </div>
       </div>
     </MessageScrollerProvider>

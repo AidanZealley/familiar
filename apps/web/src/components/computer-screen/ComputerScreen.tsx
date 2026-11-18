@@ -78,19 +78,26 @@ export const ComputerScreen = ({
     let canvas: HTMLCanvasElement | null = null
     let left = false
     let retry: ReturnType<typeof setTimeout> | undefined
+    /**
+     * Keeps the frame shown, before anything renders without it: only a
+     * whole one, so a connection that ended before its first full update
+     * never replaces the last good frame.
+     */
+    const keepFrame = () => {
+      if (canvas && fullyDrawn(canvas)) {
+        lastFrames.set(familiar.id, canvas.toDataURL('image/jpeg', 0.85))
+      }
+    }
     rfb.addEventListener('connect', () => {
       canvas = target.current!.querySelector('canvas')
       setLive(true)
     })
+    // The screen closed by itself; leaving is handled below.
     rfb.addEventListener('disconnect', () => {
-      // Only a whole frame: one that ended before its first full update
-      // never replaces the last good one.
-      if (canvas && fullyDrawn(canvas)) {
-        lastFrames.set(familiar.id, canvas.toDataURL('image/jpeg', 0.85))
-      }
       if (left) {
         return
       }
+      keepFrame()
       setLive(false)
       // It may have gone to sleep: ask now, and watch again if not.
       void queryClient.invalidateQueries({
@@ -102,6 +109,7 @@ export const ComputerScreen = ({
     return () => {
       left = true
       clearTimeout(retry)
+      keepFrame()
       rfb.disconnect()
       setLive(false)
     }
@@ -111,21 +119,21 @@ export const ComputerScreen = ({
   const frame = live ? undefined : lastFrames.get(familiar.id)
   const note = live
     ? undefined
-    : asleep
-      ? [
-          'Asleep',
-          [
-            // Only from a look that saw it asleep too, or it's when it started.
-            detail?.status?.state === 'asleep' &&
-              detail.since &&
-              `Went to sleep ${formatAgo(Date.parse(detail.since))}`,
-            size === 'large' && `it wakes when ${familiar.name} needs it`,
+    : unreachable
+      ? ['Not connected', "Familiar isn't answering right now"]
+      : asleep
+        ? [
+            'Asleep',
+            [
+              // Only from a look that saw it asleep too, or it's when it started.
+              detail?.status?.state === 'asleep' &&
+                detail.since &&
+                `Went to sleep ${formatAgo(Date.parse(detail.since))}`,
+              size === 'large' && `it wakes when ${familiar.name} needs it`,
+            ]
+              .filter(Boolean)
+              .join(' · '),
           ]
-            .filter(Boolean)
-            .join(' · '),
-        ]
-      : unreachable
-        ? ['Not connected', "Familiar isn't answering right now"]
         : running
           ? ['Connecting…']
           : status && [computerStates[status.state].label]
