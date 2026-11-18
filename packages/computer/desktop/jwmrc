@@ -9,7 +9,9 @@
         <Program icon="utilities-terminal" label="Terminal">urxvt</Program>
     </RootMenu>
 
-    <Desktops width="1" height="1"/>
+    <Desktops width="1" height="1">
+        <Background type="solid">#2E3440</Background>
+    </Desktops>
 
     <Tray x="0" y="-1" height="28" autohide="off">
         <TrayButton label="Menu">root:1</TrayButton>
@@ -53,7 +55,6 @@
         </Active>
     </MenuStyle>
 
-    <Background type="solid">#2E3440</Background>
     <FocusModel>click</FocusModel>
     <SnapMode distance="10">border</SnapMode>
     <MoveMode>opaque</MoveMode>
