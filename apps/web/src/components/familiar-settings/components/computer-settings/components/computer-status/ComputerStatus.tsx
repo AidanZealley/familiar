@@ -1,33 +1,57 @@
-import { Badge } from '@/components/ui/badge'
-import { Field, FieldDescription, FieldTitle } from '@/components/ui/field'
+import { useNavigate } from '@tanstack/react-router'
+import { ComputerScreen } from '@/components/computer-screen'
+import { StatusDot } from '@/components/status-dot'
 import { computerStates, type ComputerStatus as Status } from '@/lib/computers'
 import type { ComputerStatusProps } from './types'
 
-/** How the Familiar's computer is: running, asleep, being set up, or unavailable and why. */
+/**
+ * How the Familiar's computer is, in a line and a sentence: running,
+ * asleep, being set up, or unavailable and why. Beside it, its screen,
+ * which opens full screen.
+ */
 export const ComputerStatus = ({
   familiar,
   status,
   error,
 }: ComputerStatusProps) => {
-  const description = status && describe(status, familiar.name)
+  const navigate = useNavigate()
+  const state = status && computerStates[status.state]
 
   return (
-    <Field>
-      <FieldTitle>
-        Computer
+    <div className="flex items-start gap-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex items-center gap-2 font-medium">
+          {state && <StatusDot tone={state.tone} />}
+          {state?.label ?? 'Checking on it…'}
+        </span>
         {status && (
-          <Badge variant={status.state === 'running' ? 'secondary' : 'outline'}>
-            {computerStates[status.state].label}
-          </Badge>
+          <p className="text-muted-foreground">
+            {describe(status, familiar.name)}
+          </p>
         )}
-      </FieldTitle>
-      <FieldDescription>{description ?? 'Checking on it…'}</FieldDescription>
-      {error && (
-        <FieldDescription className="text-destructive">
-          Couldn't check on it: {error.message}
-        </FieldDescription>
+        {error && (
+          <p className="text-destructive">
+            Couldn't check on it: {error.message}
+          </p>
+        )}
+      </div>
+      {(status?.state === 'running' || status?.state === 'asleep') && (
+        <button
+          type="button"
+          aria-label="Open its screen full screen"
+          onClick={() =>
+            void navigate({
+              to: '/dm/$familiar',
+              params: { familiar: String(familiar.id) },
+              search: { computer: 'full' },
+            })
+          }
+          className="w-40 shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:w-28"
+        >
+          <ComputerScreen familiar={familiar} input={false} />
+        </button>
       )}
-    </Field>
+    </div>
   )
 }
 
