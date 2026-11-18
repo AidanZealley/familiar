@@ -27,10 +27,13 @@ COPY --from=build /agent /agent
 # the display and window manager (whose launcher's terminal is urxvt, a
 # dependency); xdotool, xclip and maim for the screen tools.
 RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell chromium \
-  && apt-get install -y --no-install-recommends socat curl ca-certificates \
+  && apt-get install -y --no-install-recommends sudo socat curl ca-certificates \
     tigervnc-standalone-server jwm xdotool xclip maim \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash computer \
+  && printf 'computer ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/computer \
+  && chmod 0440 /etc/sudoers.d/computer \
+  && visudo -cf /etc/sudoers.d/computer \
   && install -d -o computer -g computer /run/familiar /run/familiar-proxy \
   && install -d -m 1777 /tmp/.X11-unix
 # The desktop's look (JWM's config, Familiar's fonts, wallpaper, launcher
@@ -42,6 +45,10 @@ RUN install -D -m 644 -t /usr/local/share/fonts/familiar /usr/share/familiar-des
   && ln -sf /usr/share/familiar-desktop/jwmrc /etc/jwm/system.jwmrc \
   && install -D -m 644 /usr/share/familiar-desktop/chrome-policy.json \
     /etc/opt/chrome_for_testing/policies/managed/familiar.json
+# sudo clears proxy environment variables. Apt uses the agent's loopback
+# proxy explicitly, which still only reaches the public internet.
+RUN printf 'Acquire::http::Proxy "http://127.0.0.1:3128";\nAcquire::https::Proxy "http://127.0.0.1:3128";\n' \
+    > /etc/apt/apt.conf.d/80familiar-proxy
 USER computer
 WORKDIR /home/computer
 ENTRYPOINT ["node", "/agent/dist/agent/main.js"]
