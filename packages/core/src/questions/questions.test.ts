@@ -31,8 +31,8 @@ function plugin(ran: string[]): FamiliarPlugin {
     name: 'house',
     title: 'House',
     tools: [
-      tool('unlock'),
-      tool('look', { readOnlyHint: true }),
+      tool('unlock', { destructiveHint: true }),
+      tool('search'),
       tool('light', { destructiveHint: false }),
     ],
   }
@@ -59,7 +59,6 @@ async function setup() {
   const notified: string[] = []
   const host = await testHost({
     plugins: [plugin(ran)],
-    askFirst: true,
     notify: async ({ title }) => void notified.push(title),
   })
   return { ...host, ran, notified }
@@ -70,7 +69,7 @@ const resultOf = async (
   entry: number,
 ) => JSON.stringify(await replyTo(host.dm(), entry as never))
 
-test('an unannotated tool waits for approval; approving runs it once', async () => {
+test('a destructive tool waits for approval; approving runs it once', async () => {
   const host = await setup()
   host.faux.setResponses([call('unlock'), fauxAssistantMessage('Unlocked')])
   const entry = await host.dm().post({
@@ -99,16 +98,16 @@ test('an unannotated tool waits for approval; approving runs it once', async () 
   ).rejects.toThrow('no longer waiting')
 })
 
-test('declining tells the model; read-only and non-destructive tools never ask', async () => {
+test('declining tells the model; non-destructive and unannotated tools run by default', async () => {
   const host = await setup()
   const results: string[] = []
   host.faux.setResponses([
     call('unlock'),
     (context) => {
       results.push(JSON.stringify(context.messages.at(-1)))
-      return call('look')
+      return call('light')
     },
-    call('light'),
+    call('search'),
     fauxAssistantMessage('Done'),
   ])
   const entry = await host.dm().post({
@@ -122,25 +121,26 @@ test('declining tells the model; read-only and non-destructive tools never ask',
     .questions.answer(question!.familiar, question!.id, { action: 'decline' })
   await resultOf(host, entry)
   expect(results[0]).toContain('The person declined this call.')
-  expect(host.ran).toEqual(['look', 'light'])
+  expect(host.ran).toEqual(['light', 'search'])
 })
 
 test("the owner's policy wins: denied tools never run or ask", async () => {
   const host = await setup()
   const house = { kind: 'plugin' as const, name: 'house' }
-  await host.workspace().connections.setPolicy(house, undefined, 'allow')
-  await host.workspace().connections.setPolicy(house, 'unlock', 'deny')
+  await host
+    .workspace()
+    .connections.updateToolSettings(house, 'unlock', { enabled: false })
   const [info] = await host.workspace().connections.list()
   expect(
-    info!.tools.map(({ name, policy, default: fallback }) => [
+    info!.tools.map(({ name, enabled, askBeforeRunning }) => [
       name,
-      policy,
-      fallback,
+      enabled,
+      askBeforeRunning,
     ]),
   ).toEqual([
-    ['unlock', 'deny', 'allow'],
-    ['look', undefined, 'allow'],
-    ['light', undefined, 'allow'],
+    ['unlock', false, true],
+    ['search', true, false],
+    ['light', true, false],
   ])
   const results: string[] = []
   host.faux.setResponses([
@@ -219,4 +219,40 @@ test('a new message instead of an answer declines the question, and the Familiar
   expect(seen[0]).toContain('sent a new message instead of answering')
   expect(await resultOf(host, second)).toContain('Sure, what instead?')
   expect(host.ran).toEqual([])
+})
+
+test('disabling a tool preserves its approval setting when re-enabled', async () => {
+  const host = await setup()
+  const connections = host.workspace().connections
+  const house = { kind: 'plugin' as const, name: 'house' }
+  await connections.updateToolSettings(house, 'search', {
+    askBeforeRunning: true,
+  })
+  await connections.updateToolSettings(house, 'search', { enabled: false })
+
+  host.faux.setResponses([call('search'), fauxAssistantMessage('Done')])
+  await host.say('Search')
+  expect(host.ran).toEqual([])
+  expect(host.notified).toEqual([])
+  expect((await connections.list())[0]!.tools).toContainEqual(
+    expect.objectContaining({
+      name: 'search',
+      enabled: false,
+      askBeforeRunning: true,
+    }),
+  )
+
+  await connections.updateToolSettings(house, 'search', { enabled: true })
+  host.faux.setResponses([call('search'), fauxAssistantMessage('Done')])
+  const entry = await host.dm().post({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Search again',
+    requestId: 'search-again',
+  })
+  const [question] = await asked(host.dm())
+  await host.workspace().questions.answer(question!.familiar, question!.id, {
+    action: 'accept',
+  })
+  await resultOf(host, entry)
+  expect(host.ran).toEqual(['search'])
 })

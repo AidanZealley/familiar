@@ -9,7 +9,10 @@ import {
   type RegistrySnapshot,
   type Tx,
 } from '@earendil-works/pi-durable'
-import { policyOf, ToolPolicies } from '../connections/policy.ts'
+import {
+  toolSettingsOf,
+  ToolSettingsDocument,
+} from '../connections/tool-settings.ts'
 import type { Connection } from '../connections/index.ts'
 import { mcpExtensionName } from '../mcp/connection.ts'
 import type { Notify } from '../notify.ts'
@@ -278,7 +281,7 @@ export function createQuestions(
       question.answer = answer
     }, context)
 
-  /** Before any connection's tool runs, applies the owner's policy for it. */
+  /** Before any connection's tool runs, applies the owner's settings for it. */
   const extension = defineExtension({
     name: 'familiar.questions',
     hooks: [
@@ -288,19 +291,22 @@ export function createQuestions(
           if (!found) {
             return undefined
           }
-          const { policy } = policyOf(
-            (await api.snapshot(ToolPolicies, context)) ?? undefined,
-            found.connection,
-            found.tool,
-            found.annotations,
-          )
-          if (policy === 'allow') {
-            return undefined
+          const settings = async () =>
+            toolSettingsOf(
+              await api.snapshot(ToolSettingsDocument, context),
+              found.connection,
+              found.tool,
+              found.annotations,
+            )
+          const off = {
+            block: `The owner has turned ${call.name} off in Familiar.`,
           }
-          if (policy === 'deny') {
-            return {
-              block: `The owner has turned ${call.name} off in Familiar.`,
-            }
+          const { enabled, askBeforeRunning } = await settings()
+          if (!enabled) {
+            return off
+          }
+          if (!askBeforeRunning) {
+            return undefined
           }
           const familiars = await api.snapshot(Familiars, context)
           const reply = await ask(
@@ -316,14 +322,15 @@ export function createQuestions(
             },
             context,
           )
-          return reply.action === 'accept'
-            ? undefined
-            : {
-                block:
-                  reply.action === 'moved-on'
-                    ? "The person sent a new message instead of answering, so this call didn't run."
-                    : 'The person declined this call.',
-              }
+          if (reply.action === 'accept') {
+            return (await settings()).enabled ? undefined : off
+          }
+          return {
+            block:
+              reply.action === 'moved-on'
+                ? "The person sent a new message instead of answering, so this call didn't run."
+                : 'The person declined this call.',
+          }
         },
       }),
     ],

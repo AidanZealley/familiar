@@ -31,9 +31,8 @@ import { familiarFor, type FamiliarId } from './workspace/familiars.ts'
  */
 
 /**
- * A plain Pi tool that may say, as MCP tools do, whether it only reads or is
- * destructive. For a plugin's tool, that sets whether Familiar asks the
- * person before it runs; one that says neither asks.
+ * A plain Pi tool that can declare destructive actions. Familiar asks
+ * before those plugin tools run by default.
  */
 export type FamiliarTool<
   TParameters extends object = object,

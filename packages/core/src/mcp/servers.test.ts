@@ -180,8 +180,6 @@ async function connected(
   await use(host)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
-  // Calls here run at once: asking first is questions.test.ts's.
-  await familiar.connections.setPolicy(connection, undefined, 'allow')
   return host
 }
 
@@ -277,7 +275,12 @@ test('a connection waits for its token, persists, follows tool changes and is cl
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
   expect((await info(familiar)).tools).toEqual([
-    { name: 'echo', description: 'Echo a nested message.', default: 'ask' },
+    {
+      name: 'echo',
+      description: 'Echo a nested message.',
+      enabled: true,
+      askBeforeRunning: false,
+    },
   ])
   expect(
     server.state.requests.every(
@@ -493,7 +496,6 @@ test('parallel expired calls do not reconnect a replacement session', async () =
   await use(host)
   await familiar.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(familiar)).toBe('connected')
-  await familiar.connections.setPolicy(connection, undefined, 'allow')
 
   // Keep an owner edit pending so both expiry callbacks queue before reconnect starts.
   const blocked = deferred()

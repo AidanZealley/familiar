@@ -105,9 +105,9 @@ export {
   type ConnectionsApi,
   type PluginFetch,
   type PluginSecret,
-  type Policy,
   type SecretStore,
   type ToolAnnotations,
+  type ToolSettings,
   type ToolInfo,
 } from './connections/index.ts'
 export {

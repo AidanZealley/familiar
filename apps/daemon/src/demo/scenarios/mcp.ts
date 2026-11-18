@@ -23,31 +23,27 @@ const echo: Tool = {
     properties: { text: { type: 'string' } },
     required: ['text'],
   },
-  annotations: { readOnlyHint: true },
 }
 
 /** Tools that answer without doing anything, described as the real ones would be. */
-const pretend = (readOnly: boolean, tools: Record<string, string>): Tool[] =>
+const pretend = (tools: Record<string, string>): Tool[] =>
   Object.entries(tools).map(([name, description]) => ({
     name,
     description,
     inputSchema: { type: 'object' },
-    annotations: { readOnlyHint: readOnly },
   }))
 
 // Keyed by host. Any other host under demo.invalid, and any local command,
 // serves echo, so a server added from the page can be tried in chat.
 const services: Record<string, Tool[]> = {
   'home.demo.invalid': [
-    ...pretend(true, {
+    ...pretend({
       get_live_context: 'Gets the current state of every exposed device.',
       list_areas: 'Lists the areas of the home.',
       list_devices: 'Lists devices, optionally in one area.',
       get_history: 'Gets how a device’s state changed over a period.',
       get_logbook: 'Gets recent events, such as doors opening.',
       get_weather: 'Gets the forecast for the home’s location.',
-    }),
-    ...pretend(false, {
       turn_on: 'Turns a device or area on.',
       turn_off: 'Turns a device or area off.',
       toggle: 'Switches a device between on and off.',
@@ -66,22 +62,18 @@ const services: Record<string, Tool[]> = {
     }),
   ],
   'notes.demo.invalid': [
-    ...pretend(true, {
+    ...pretend({
       search_notes: 'Searches your notes by keyword.',
       read_note: 'Reads a note in full.',
       list_tags: 'Lists the tags your notes use.',
-    }),
-    ...pretend(false, {
       create_note: 'Creates a note with a title and text.',
       append_to_note: 'Adds text to the end of a note.',
     }),
   ],
   'printer.demo.invalid': [
-    ...pretend(true, {
+    ...pretend({
       printer_status: 'Gets the printer’s state, temperatures and progress.',
       list_files: 'Lists the files ready to print.',
-    }),
-    ...pretend(false, {
       start_print: 'Starts printing a file.',
       pause_print: 'Pauses the current print.',
       cancel_print: 'Cancels the current print.',
@@ -90,7 +82,7 @@ const services: Record<string, Tool[]> = {
   ],
   // Asks the person mid-call, as Topsail does before a print.
   'bench.demo.invalid': [
-    ...pretend(true, {
+    ...pretend({
       bench_status: 'Gets what the workbench’s printer is doing.',
     }),
     {
@@ -101,16 +93,16 @@ const services: Record<string, Tool[]> = {
         properties: { file: { type: 'string' } },
         required: ['file'],
       },
-      annotations: { readOnlyHint: false, destructiveHint: true },
+      annotations: { destructiveHint: true },
     },
     {
       name: 'log_spool',
       description: 'Logs a new filament spool, asking the person for details.',
       inputSchema: { type: 'object' },
-      annotations: { readOnlyHint: false, destructiveHint: false },
+      annotations: { destructiveHint: false },
     },
   ],
-  'mcp-server-time': pretend(true, {
+  'mcp-server-time': pretend({
     get_current_time: 'Gets the current time in a time zone.',
     convert_time: 'Converts a time between time zones.',
   }),
@@ -249,20 +241,12 @@ export async function seedMcp(workspace: Workspace) {
     'token',
     DEMO_TOKEN,
   )
-  // As an owner would: routine actions run, unlocking still asks.
-  for (const tool of ['lock', 'turn_off', 'turn_on']) {
-    await workspace.connections.setPolicy(
-      { kind: 'mcp', name: 'home-assistant' },
-      tool,
-      'allow',
-    )
-  }
-  await http('notes', 'https://notes.demo.invalid/mcp')
-  await workspace.connections.setPolicy(
-    { kind: 'mcp', name: 'notes' },
-    undefined,
-    'allow',
+  await workspace.connections.updateToolSettings(
+    { kind: 'mcp', name: 'home-assistant' },
+    'unlock',
+    { askBeforeRunning: true },
   )
+  await http('notes', 'https://notes.demo.invalid/mcp')
   await http('bench', 'http://bench.demo.invalid/mcp')
   await http('printer', 'http://printer.demo.invalid/mcp', true)
   await http('nas', 'http://nas.local:8080/mcp')

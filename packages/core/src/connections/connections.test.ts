@@ -186,7 +186,7 @@ test('a secret must declare an exact HTTPS origin', () => {
   }
 })
 
-test("plugin connections expose their tools' names, descriptions and policies", async () => {
+test("plugin connections expose their tools' names, descriptions and settings", async () => {
   const { api } = await setup()
   const response = await api.request('/connections')
   expect(response.status).toBe(200)
@@ -194,15 +194,33 @@ test("plugin connections expose their tools' names, descriptions and policies", 
     expect.objectContaining({
       kind: 'plugin',
       name: 'echo',
-      // The test host allows every plugin's tools.
-      policy: 'allow',
       tools: [
         {
           name: 'echo_key',
           description: 'Calls the echo service.',
-          default: 'allow',
+          enabled: true,
+          askBeforeRunning: false,
         },
       ],
     }),
   ])
+})
+
+test('patching tool settings updates only the supplied fields', async () => {
+  const { api } = await setup()
+  const patch = (change: object) =>
+    api.request('/connections/plugin/echo/tools/echo_key/settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(change),
+    })
+  expect((await patch({ askBeforeRunning: true })).status).toBe(204)
+  expect((await patch({ enabled: false })).status).toBe(204)
+
+  const response = await api.request('/connections')
+  const [connection] = await response.json()
+  expect(connection.tools[0]).toMatchObject({
+    enabled: false,
+    askBeforeRunning: true,
+  })
 })

@@ -43,7 +43,6 @@ export const boardPlugin = (board: Board) =>
     tools: [
       defineTool({
         name: 'list_tasks',
-        annotations: { readOnlyHint: true },
         description:
           'Lists the tasks on the board, optionally only those with one status.',
         parameters: schema.obj({ status: schema.opt(status) }),

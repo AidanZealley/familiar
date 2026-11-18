@@ -58,8 +58,8 @@ export type {
   Connection,
   ConnectionInfo,
   PluginSecret,
-  Policy,
   ToolAnnotations,
+  ToolSettings,
   ToolInfo,
 } from '../connections/index.ts'
 export type {

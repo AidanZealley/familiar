@@ -17,7 +17,7 @@ export type WorkspaceOperation =
   | 'connections.list'
   | 'connections.setSecret'
   | 'connections.deleteSecret'
-  | 'connections.setPolicy'
+  | 'connections.updateToolSettings'
   | 'mcp.add'
   | 'mcp.remove'
   | 'mcp.reconnect'

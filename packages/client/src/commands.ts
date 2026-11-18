@@ -18,7 +18,7 @@ import type {
   ModelDefaultsChange,
   ModelOption,
   ModelSetting,
-  Policy,
+  ToolSettings,
   Question,
   PageState,
   PushSubscriptionJson,
@@ -118,26 +118,16 @@ export const workspaceCommands = (api: Api) => ({
           param: { ...connection, secret },
         }),
       ),
-    /**
-     * Whether `tool` runs at once, asks first or never runs; without a
-     * tool, every tool of the connection without its own. `null` goes back
-     * to the default.
-     */
-    setPolicy: (
+    updateToolSettings: (
       connection: ConnectionKey,
-      tool: string | undefined,
-      policy: Policy | null,
+      tool: string,
+      change: Partial<ToolSettings>,
     ) =>
       succeed(
-        tool === undefined
-          ? api.connections[':kind'][':name'].policy.$put({
-              param: connection,
-              json: { policy },
-            })
-          : api.connections[':kind'][':name'].tools[':tool'].policy.$put({
-              param: { ...connection, tool },
-              json: { policy },
-            }),
+        api.connections[':kind'][':name'].tools[':tool'].settings.$patch({
+          param: { ...connection, tool },
+          json: change,
+        }),
       ),
   },
   mcp: {
