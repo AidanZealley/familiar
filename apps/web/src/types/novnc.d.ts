@@ -12,6 +12,5 @@ declare module '@novnc/novnc' {
     focusOnClick: boolean
     background: string
     disconnect(): void
-    toDataURL(type?: string, encoderOptions?: number): string
   }
 }

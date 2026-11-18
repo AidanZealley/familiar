@@ -15,11 +15,28 @@ import type { ComputerScreenProps } from './types'
 const RETRY_MS = 2000
 
 /**
- * Each Familiar's last frame, as each viewer's connection that drew one
- * ended, kept while the app is open so a sleeping computer still shows what
+ * Each Familiar's last whole frame, as each viewer's connection ended, kept while the app is open so a sleeping computer still shows what
  * it last showed.
  */
 const lastFrames = new Map<number, string>()
+
+/**
+ * Whether every pixel of `canvas` has been drawn. noVNC's canvas starts
+ * transparent and the screen's pixels are opaque, so a frame shrunk to a
+ * few pixels is fully opaque only if nothing in it was left undrawn.
+ */
+const fullyDrawn = (canvas: HTMLCanvasElement) => {
+  if (!canvas.width || !canvas.height) {
+    return false
+  }
+  const sample = document.createElement('canvas')
+  sample.width = 16
+  sample.height = 10
+  const context = sample.getContext('2d', { willReadFrequently: true })!
+  context.drawImage(canvas, 0, 0, sample.width, sample.height)
+  const { data } = context.getImageData(0, 0, sample.width, sample.height)
+  return data.every((value, index) => index % 4 !== 3 || value === 255)
+}
 
 /**
  * A Familiar's screen, live and fitted, for watching only: nothing typed or
@@ -50,29 +67,26 @@ export const ComputerScreen = ({
     if (!running) {
       return
     }
-    // Ours, so it can tell when the screen has drawn something: noVNC
-    // handles each message before this hears it, and after the handshake
-    // (`connect`), each one is an update to the screen.
-    const socket = new WebSocket(screenUrl(familiar.id))
-    const rfb = new RFB(target.current!, socket, { shared: true })
+    const rfb = new RFB(target.current!, screenUrl(familiar.id), {
+      shared: true,
+    })
     rfb.viewOnly = true
     rfb.scaleViewport = true
     rfb.focusOnClick = false
     rfb.background = 'transparent'
-    let connected = false
-    let drawn = false
+    /** The screen as shown, which noVNC detaches as it disconnects. */
+    let canvas: HTMLCanvasElement | null = null
     let left = false
     let retry: ReturnType<typeof setTimeout> | undefined
-    socket.addEventListener('message', () => {
-      drawn ||= connected
-    })
     rfb.addEventListener('connect', () => {
-      connected = true
+      canvas = target.current!.querySelector('canvas')
       setLive(true)
     })
     rfb.addEventListener('disconnect', () => {
-      if (drawn) {
-        lastFrames.set(familiar.id, rfb.toDataURL('image/jpeg', 0.85))
+      // Only a whole frame: one that ended before its first full update
+      // never replaces the last good one.
+      if (canvas && fullyDrawn(canvas)) {
+        lastFrames.set(familiar.id, canvas.toDataURL('image/jpeg', 0.85))
       }
       if (left) {
         return
@@ -108,9 +122,11 @@ export const ComputerScreen = ({
             .filter(Boolean)
             .join(' · '),
         ]
-      : running || unreachable
-        ? ['Connecting…']
-        : status && [computerStates[status.state].label]
+      : unreachable
+        ? ['Not connected', "Familiar isn't answering right now"]
+        : running
+          ? ['Connecting…']
+          : status && [computerStates[status.state].label]
 
   return (
     <div

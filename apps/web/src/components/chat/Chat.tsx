@@ -106,7 +106,8 @@ export const Chat = ({ room }: ChatProps) => {
       <div
         className={cn(
           'flex h-full flex-col',
-          computer === 'full' && 'fixed inset-0 z-40 bg-background md:flex-row',
+          // The shell hides the sidebar meanwhile, so this is the window.
+          computer === 'full' && 'md:flex-row',
         )}
       >
         {computer === 'full' && <ComputerPane familiar={dm!} />}
