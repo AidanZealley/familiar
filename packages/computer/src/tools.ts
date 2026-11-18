@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ComputerDetail } from './host.ts'
 
 /**
  * A computer tool as both sides see it: the agent serves it over MCP, and
@@ -86,16 +87,23 @@ export const annotationsOf = (tool: ComputerTool) =>
       : undefined
 
 /**
- * The agent's hidden tool for a person looking at the computer: its open
- * tabs and system, as JSON text (`ComputerInfo`). It's on the agent's MCP
- * server but not in `computerTools`, so no Familiar is ever offered it.
+ * The agent's hidden tool for a person looking at the computer: what it's
+ * doing, its open tabs and system, as JSON text (`ComputerInfo`). It's on
+ * the agent's MCP server but not in `computerTools`, so no Familiar is ever
+ * offered it, and it never keeps the computer awake.
  */
 export const INFO_TOOL = 'computer_info'
 
-export type ComputerInfo = {
-  tabs?: { title: string; url: string }[]
-  system?: { os?: string; architecture?: string }
-}
+export type ComputerInfo = Pick<
+  ComputerDetail,
+  'doing' | 'lastUsed' | 'tabs' | 'system'
+>
+
+/**
+ * In a result's `_meta`, set by an agent going to sleep: it ran nothing, so
+ * the call is safe to send again once the computer has woken.
+ */
+export const ASLEEP = 'familiar-ai/asleep'
 
 const TARGET_MAX = 80
 
