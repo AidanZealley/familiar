@@ -1,7 +1,7 @@
 import type { FamiliarId } from '@familiar-ai/core'
 import { InMemoryTransport } from '@modelcontextprotocol/client'
 import { McpServer } from '@modelcontextprotocol/server'
-import { expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 import { z } from 'zod'
 import { dockerHost } from './index.ts'
 
@@ -20,8 +20,12 @@ const engine = vi.hoisted(() => {
     /** Holds the next command named this until released. */
     hold: undefined as
       { command: string; held: () => void; release: Promise<void> } | undefined,
+    /** Throws from every command named this, until cleared. */
+    fail: undefined as string | undefined,
     /** Whether each new connection reaches its agent. */
     reachable: [] as boolean[],
+    /** How many connections have been made. */
+    connections: 0,
   }
   let busy = false
   /** One lifecycle command: never while another runs. */
@@ -39,6 +43,9 @@ const engine = vi.hoisted(() => {
         await release
       }
       await Promise.resolve()
+      if (state.fail === command) {
+        throw new Error(`${command} failed`)
+      }
       change()
     } finally {
       busy = false
@@ -97,10 +104,12 @@ vi.mock('./image.ts', () => ({
   }),
 }))
 vi.mock('@modelcontextprotocol/client/stdio', () => ({
-  // A connection to an agent in memory, or one that fails as a dead
-  // computer's `docker exec` would.
-  StdioClientTransport: function () {
-    if (engine.state.reachable.shift() === false) {
+  // A connection to an agent in memory, or one that fails as a stopped or
+  // dead computer's `docker exec` would.
+  StdioClientTransport: function ({ args }: { args: [string] }) {
+    engine.state.connections++
+    const { running } = engine.state.containers.get(`computer-${args[0]}`) ?? {}
+    if (engine.state.reachable.shift() === false || !running) {
       return {
         start: async () => {
           throw new Error('the agent is gone')
@@ -118,6 +127,19 @@ vi.mock('@modelcontextprotocol/client/stdio', () => ({
     return hostSide
   },
 }))
+
+// Each test starts with an empty engine.
+beforeEach(() => {
+  Object.assign(engine.state, {
+    log: [],
+    hold: undefined,
+    fail: undefined,
+    reachable: [],
+    connections: 0,
+  })
+  engine.state.containers.clear()
+  engine.state.volumes.clear()
+})
 
 const ada = 1 as FamiliarId
 const bo = 2 as FamiliarId
@@ -182,4 +204,42 @@ test('callers that meet a dead connection share one restart', async () => {
     expect(result.content).toContainEqual({ type: 'text', text: 'pong' })
   }
   expect(engine.state.log).toEqual(['stop 1', 'start 1'])
+  // The dead connection and the restart's, shared by both callers.
+  expect(engine.state.connections).toBe(2)
+})
+
+test('a call made while a pass runs is answered by the next pass', async () => {
+  const host = dockerHost()
+  await host.sync([ada, bo])
+
+  // The pass waking Ada's computer has taken what calls were waiting for.
+  const starting = holding('start 1')
+  const first = host.call(ada, 'ping', {})
+  await starting.started
+  const second = host.call(bo, 'ping', {})
+  starting.release()
+
+  for (const result of await Promise.all([first, second])) {
+    expect(result.content).toContainEqual({ type: 'text', text: 'pong' })
+  }
+  // Each connected first time: Bo's call didn't need its retry to run.
+  expect(engine.state.connections).toBe(2)
+})
+
+test('a failing Docker command answers every waiting call, and later ones still run', async () => {
+  const host = dockerHost()
+  await host.sync([ada])
+  engine.state.fail = 'start 1'
+
+  const results = await Promise.all([
+    host.call(ada, 'ping', {}),
+    host.call(ada, 'ping', {}),
+  ])
+  for (const result of results) {
+    expect(JSON.stringify(result)).toMatch(/couldn't start.*start 1 failed/)
+  }
+
+  engine.state.fail = undefined
+  const later = await host.call(ada, 'ping', {})
+  expect(later.content).toContainEqual({ type: 'text', text: 'pong' })
 })

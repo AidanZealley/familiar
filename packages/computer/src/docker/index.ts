@@ -4,6 +4,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import type { ComputerDetail, ComputerHost, ComputerStatus } from '../host.ts'
 import { ASLEEP } from '../tools.ts'
 import manifest from '../../package.json' with { type: 'json' }
+import { coalesce } from './coalesce.ts'
 import { computerImage } from './image.ts'
 import {
   agentInfo,
@@ -77,21 +78,15 @@ const failed = (text: string): CallToolResult => ({
  * stopping its container, whose disk is a volume (see `dockerResources`).
  *
  * Everything else this host changes in Docker, one `reconcile` pass does,
- * one pass at a time: it compares what's wanted with what Docker has and
- * puts it right. What's wanted is two values: `wanted`, the Familiars that
- * should have computers, which only `sync` sets, and `awake`, the computers
- * calls are waiting to run, which only `call` adds to. Nothing else makes,
- * starts, stops or removes anything, so no two changes ever cross.
+ * one pass at a time, making what's wanted true. What's wanted is two
+ * values: `wanted`, the Familiars that should have computers, which only
+ * `sync` sets, and `awake`, the computers calls are waiting to run, which
+ * only `call` adds to. Nothing else makes, starts, stops or removes
+ * anything, so no two changes ever cross.
  *
- * The host reaches each computer's agent with `docker exec` and `socat`,
- * speaking MCP over the exec's stdio, so a computer needs no port and never
- * connects out to the host.
- *
- * Computers have no network (`--network none`). Their only way out is a
- * proxy container listening on a Unix socket in a volume every computer
- * mounts read-only, which each computer's agent passes its local proxy port
- * on to: public internet only, never the Docker host, its LAN, a tailnet or
- * another computer.
+ * The host reaches each agent over a `docker exec` into its socket, so a
+ * computer needs no port. Computers have no network: their only way out is
+ * a proxy container, public internet only (see `dockerResources`).
  */
 export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   const {
@@ -107,15 +102,10 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     idleMs,
   })
 
-  /** The Familiars that should have computers: the latest `sync`'s. */
   let wanted = new Set<FamiliarId>()
-  /**
-   * The computers calls are waiting to run, each with whether a call asked
-   * for it to be restarted. `wake` adds to it; the next pass takes it whole.
-   */
+  /** Each computer a call is waiting to run: whether to restart it. */
   let awake = new Map<FamiliarId, boolean>()
 
-  /** `maxComputers`, read now. */
   const maxNow = () =>
     typeof maxComputers === 'function' ? maxComputers() : maxComputers
   /** Why this host can't make another computer, if it's full. */
@@ -129,19 +119,13 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       : undefined
   }
 
-  /**
-   * Whether this process has made the proxy, so it runs this host's image
-   * and knows this machine's addresses. Only a pass reads or sets it.
-   */
+  /** Whether this process made the proxy, so it runs this host's image. */
   let proxyMade = false
 
   /**
-   * One pass: what's wanted at its start, made true. It removes every other
-   * Familiar's computer and disk (and with none wanted, the proxy), then
-   * makes the proxy and each wanted computer that's missing, and runs each
-   * computer a call is waiting on. Its `answers` say, for each of those,
-   * whether it started it, or why it can't run; `failed`, what Docker
-   * failed to do, if anything.
+   * Makes what's wanted at its start true. `answers`, for each computer a
+   * call waits on: whether it started it, or why it can't run. `failed`:
+   * what Docker failed to do, if anything.
    */
   const pass = async () => {
     const want = wanted
@@ -152,10 +136,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     let failed: unknown
 
     /**
-     * Makes `familiar`'s computer if it's missing, and if a call is waiting
-     * (`restart` is set), runs it, restarted if asked: whether it started
-     * it, or why it can't run. One made from an earlier image, such as
-     * before an update, is made again on the same disk as it wakes.
+     * Makes `familiar`'s computer if it's missing and, if a call waits on it
+     * (`restart` is set), runs it. One from an earlier image is made again,
+     * on the same disk, as it wakes.
      */
     const converge = async (familiar: FamiliarId, restart?: boolean) => {
       if (!want.has(familiar)) {
@@ -204,8 +187,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       for (const volume of (await resources.volumes()).filter(unwanted)) {
         await resources.remove('volume', volume.name)
       }
-      // The proxy first, as making a computer would make its socket's
-      // volume unlabelled.
+      // Before any computer, which would make the socket volume unlabelled.
       const hasProxy = containers.some(({ familiar }) => familiar === undefined)
       if (ready && want.size && !(proxyMade && hasProxy)) {
         await resources.remakeProxy()
@@ -229,25 +211,16 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     return { answers, failed }
   }
 
-  /**
-   * The pass that will read what's wanted now: the next one, which starts
-   * once the one running ends. Asked again before it starts, it's the same
-   * pass, so any number of changes meanwhile make one more pass.
-   */
-  let settled: Promise<unknown> = Promise.resolve()
-  let next: ReturnType<typeof pass> | undefined
-  const reconcile = () =>
-    (next ??= settled.then(() => {
-      next = undefined
-      const running = pass()
-      settled = running
-      return running
-    }))
+  /** The pass that will read what's wanted now. */
+  const reconcile = coalesce(pass)
+  const checkedPass = async () => {
+    const { failed } = await reconcile()
+    if (failed) {
+      throw new Error(reasonOf(failed), { cause: failed })
+    }
+  }
 
-  /**
-   * Asks for `familiar`'s computer to run, restarted if `restart`, and
-   * waits for the pass that sees to it: whether it started it.
-   */
+  /** Waits for the pass that runs the computer: whether it started it. */
   const wake = async (familiar: FamiliarId, restart: boolean) => {
     awake.set(familiar, restart || (awake.get(familiar) ?? false))
     const answer = (await reconcile()).answers.get(familiar)!
@@ -259,12 +232,10 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
   type Connection = { client: Client; woke: boolean; gone: Promise<void> }
   /**
-   * Each awake computer's MCP connection, over a `docker exec` into its
-   * agent's socket. An entry goes once it can't connect, before anyone
-   * awaiting it hears why, or once its exec ends, before its `gone`
-   * settles, as when the computer sleeps or is removed; and only then, so
-   * only its own end ever removes it. While one is here, every call shares
-   * it, so a computer is woken or restarted once for all of them.
+   * Each awake computer's connection, shared by every call so a computer is
+   * woken or restarted once for all of them. Only an entry's own end
+   * removes it: failing to connect, before its awaiters hear why, or its
+   * exec ending, before its `gone` settles.
    */
   const clients = new Map<FamiliarId, Promise<Connection>>()
   const open = (familiar: FamiliarId, restart: boolean) => {
@@ -291,7 +262,6 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         new StdioClientTransport({
           command: 'docker',
           args: resources.agentCommand(familiar),
-          // The Docker CLI's own settings, such as DOCKER_HOST.
           env: process.env as Record<string, string>,
           cwd: DOCKER_CWD,
         }),
@@ -302,16 +272,15 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     }
     return { client, closed }
   }
-  /** The agent's client for looking at `familiar`'s computer, if it's connected. */
+  /** The client for looking at `familiar`'s computer, if it's connected. */
   const looking = (familiar: FamiliarId) =>
     clients.get(familiar)?.then(({ client }) => client)
 
   /**
-   * One try at running `tool` on `familiar`'s computer: its result, or why
-   * it never reached the agent (it couldn't connect, or the agent was going
-   * to sleep), which is safe to try again, restarting the computer. A call
-   * that may have started isn't: its failure is thrown, as an action may
-   * not be safe to repeat.
+   * One try at running `tool`: its result, or `retry` when it never reached
+   * the agent (it couldn't connect, or the agent was going to sleep). A
+   * call that may have started is never retried: its failure is thrown, as
+   * an action may not be safe to repeat.
    */
   const attempt = async (
     familiar: FamiliarId,
@@ -321,13 +290,14 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     signal?: AbortSignal,
   ): Promise<{ result: CallToolResult; woke: boolean } | { retry: string }> => {
     const cached = clients.get(familiar)
-    let connection
-    try {
-      connection = await (cached ?? open(familiar, restart))
-    } catch (error) {
-      return { retry: reasonOf(error) }
+    const connected = await (cached ?? open(familiar, restart)).then(
+      (connection) => ({ connection }),
+      (error: unknown) => ({ retry: reasonOf(error) }),
+    )
+    if ('retry' in connected) {
+      return connected
     }
-    const { client, woke, gone } = connection
+    const { client, woke, gone } = connected.connection
     const result = (await client.callTool(
       { name: tool, arguments: args },
       { signal, timeout: CALL_MAX_MS },
@@ -368,8 +338,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       if (state.state === 'unavailable') {
         return failed(`Computers aren't available here: ${state.reason}`)
       }
-      // A try that never reached the agent is made once more, on a
-      // restarted computer, unless another call has connected meanwhile.
+      // Once more on a restarted computer, unless another call connected.
       const first = await attempt(familiar, false, tool, args, signal)
       const answer =
         'retry' in first
@@ -391,14 +360,11 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
     sync: async (familiars) => {
       wanted = new Set(familiars)
-      let { failed } = await reconcile()
+      await checkedPass()
       // Computers are made once their image is here.
-      if (!failed && familiars.length && image.state.state !== 'ready') {
+      if (familiars.length && image.state.state !== 'ready') {
         await image.ready
-        ;({ failed } = await reconcile())
-      }
-      if (failed) {
-        throw new Error(reasonOf(failed), { cause: failed })
+        await checkedPass()
       }
     },
 
