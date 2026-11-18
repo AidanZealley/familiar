@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { PlusIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { PixelCat } from '@/components/pixel-cat'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { AddServerForm } from './components/add-server-form'
 import { ConnectionDetail } from './components/connection-detail'
 import { ConnectionDrawer } from './components/connection-drawer'
@@ -28,8 +28,12 @@ export const Connections = () => {
     return error ? (
       <ConnectionsError error={error} onRetry={() => void refetch()} />
     ) : (
-      <span role="status" aria-label="Loading">
-        <PixelCat animated className="size-8" />
+      <span
+        role="status"
+        className="flex items-center gap-2 text-sm text-muted-foreground"
+      >
+        <HourglassSpinner />
+        Loading connections…
       </span>
     )
   }

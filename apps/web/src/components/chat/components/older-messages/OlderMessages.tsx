@@ -1,5 +1,5 @@
 import { useRoom, useRoomStore } from '@familiar-ai/client/react'
-import { PixelCat } from '@/components/pixel-cat'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMessageScrollerVisibility } from '@/components/ui/message-scroller'
@@ -50,7 +50,7 @@ export const OlderMessages = ({ firstItemIds }: OlderMessagesProps) => {
           'flex items-center gap-1.5 border bg-background px-3 py-1 text-muted-foreground',
         )}
       >
-        <PixelCat animated className="size-4" />
+        <HourglassSpinner className="size-4" />
         Loading earlier messages
       </div>
     )

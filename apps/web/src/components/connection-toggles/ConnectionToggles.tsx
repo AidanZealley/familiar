@@ -10,7 +10,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item'
-import { PixelCat } from '@/components/pixel-cat'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { ToolSummary } from './components/tool-summary'
 import type { ConnectionTogglesProps } from './types'
 
@@ -21,8 +21,12 @@ export const ConnectionToggles = ({
 }: ConnectionTogglesProps) => {
   if (!connections) {
     return (
-      <span role="status" aria-label="Loading">
-        <PixelCat animated className="size-8" />
+      <span
+        role="status"
+        className="flex items-center gap-2 text-sm text-muted-foreground"
+      >
+        <HourglassSpinner />
+        Loading connections…
       </span>
     )
   }

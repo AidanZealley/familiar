@@ -1,6 +1,6 @@
 import { useMutationState } from '@tanstack/react-query'
 import { cn } from 'cn'
-import { PixelCat } from '@/components/pixel-cat'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { useWorkspace } from '@/lib/familiar'
 import { BrowserSignIn } from './components/browser-sign-in'
 import { CancelSignIn } from './components/cancel-sign-in'
@@ -36,8 +36,11 @@ export const SignIn = ({ className }: SignInProps) => {
         <BrowserSignIn url={account.url} paste={account.paste ?? false} />
       ) : (
         <>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <PixelCat animated className="size-4" />
+          <p
+            role="status"
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+          >
+            <HourglassSpinner className="size-4" />
             Starting sign-in…
           </p>
           <div>
