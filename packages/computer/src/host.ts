@@ -21,7 +21,8 @@ export type ComputerHost = {
   ): Promise<CallToolResult>
   /**
    * The Familiars that should have computers: makes any missing, and removes
-   * any other's, disk included. Idempotent; calls run one at a time.
+   * any other's, disk included. Idempotent; when calls overlap, the latest
+   * list wins.
    */
   sync(familiars: readonly FamiliarId[]): Promise<void>
   /** Cheap enough to poll. */

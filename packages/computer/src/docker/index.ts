@@ -1,17 +1,18 @@
 import type { FamiliarId } from '@familiar-ai/core'
 import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
-import type {
-  ComputerCall,
-  ComputerDetail,
-  ComputerHost,
-  ComputerStatus,
-} from '../host.ts'
-import { INFO_TOOL, targetOf, type ComputerInfo } from '../tools.ts'
+import type { ComputerDetail, ComputerHost, ComputerStatus } from '../host.ts'
+import { ASLEEP } from '../tools.ts'
 import manifest from '../../package.json' with { type: 'json' }
-import { dockerDetail, inspectContainers, sinceOf } from './inspect.ts'
+import { coalesce } from './coalesce.ts'
+import { computerImage } from './image.ts'
 import {
-  docker,
+  agentInfo,
+  dockerDetail,
+  inspectContainers,
+  sinceOf,
+} from './inspect.ts'
+import {
   DOCKER_CWD,
   dockerResources,
   reasonOf,
@@ -33,7 +34,10 @@ export type DockerHostOptions = {
   repository?: string
   /** The image's tag. Default this package's version. */
   tag?: string
-  /** How long a computer runs without a call before it sleeps. Default 15 minutes. */
+  /**
+   * How long a computer runs without a call before it sleeps, given to each
+   * computer as it's made. Default 15 minutes.
+   */
   idleMs?: number
   /**
    * How many computers this host may have, or a function read each time it
@@ -58,9 +62,6 @@ export const COMPUTER_IMAGE = `${COMPUTER_REPOSITORY}:${manifest.version}`
 
 /** Longer than any tool's own limit: the agent stops its own calls first. */
 const CALL_MAX_MS = 15 * 60_000
-const RETRY_IMAGE_MS = 60_000
-/** How long a look at a computer waits for its agent's tabs and system. */
-const INFO_MAX_MS = 2000
 
 const WOKE =
   'Your computer was asleep, so it has just started: its files are as they were, but programs that were running have stopped.'
@@ -70,38 +71,22 @@ const failed = (text: string): CallToolResult => ({
   isError: true,
 })
 
-/** A computer this process is using. */
-type Session = {
-  /**
-   * Its MCP client, over a `docker exec` into its agent's socket, kept until
-   * the exec ends, as it does when the container stops.
-   */
-  client?: Promise<Client>
-  /** Calls in flight, oldest first; it sleeps only once there are none. */
-  calls: Set<ComputerCall>
-  /** When its last call ended. */
-  lastUsed?: Date
-  /** Once it has no calls, what puts it to sleep. */
-  timer?: NodeJS.Timeout
-}
-
 /**
  * Familiars' computers as Docker containers on this machine's engine (or
- * `DOCKER_HOST`'s), one each, through the `docker` CLI. Docker owns whether
- * each exists and runs: a sleeping computer is a stopped container, and its
- * disk is a volume (see `dockerResources`). This process owns only whether
- * the image is ready and the computers it's using: their connections and
- * when they sleep.
+ * `DOCKER_HOST`'s), one each, through the `docker` CLI. Each computer's
+ * agent owns when it sleeps: it ends itself after `idleMs` without a call,
+ * stopping its container, whose disk is a volume (see `dockerResources`).
  *
- * The host reaches each computer's agent with `docker exec` and `socat`,
- * speaking MCP over the exec's stdio, so a computer needs no port and never
- * connects out to the host.
+ * Everything else this host changes in Docker, one `reconcile` pass does,
+ * one pass at a time, making what's wanted true. What's wanted is two
+ * values: `wanted`, the Familiars that should have computers, which only
+ * `sync` sets, and `awake`, the computers calls are waiting to run, which
+ * only `call` adds to. Nothing else makes, starts, stops or removes
+ * anything, so no two changes ever cross.
  *
- * Computers have no network (`--network none`). Their only way out is a
- * proxy container listening on a Unix socket in a volume every computer
- * mounts read-only, which each computer's agent passes its local proxy port
- * on to: public internet only, never the Docker host, its LAN, a tailnet or
- * another computer.
+ * The host reaches each agent over a `docker exec` into its socket, so a
+ * computer needs no port. Computers have no network: their only way out is
+ * a proxy container, public internet only (see `dockerResources`).
  */
 export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   const {
@@ -111,60 +96,16 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     idleMs = 15 * 60_000,
     maxComputers = 10,
   } = options
-  const image = `${repository}:${tag}`
-  const resources = dockerResources(hostId, { repository, tag })
+  const image = computerImage(repository, tag)
+  const resources = dockerResources(hostId, {
+    image: `${repository}:${tag}`,
+    idleMs,
+  })
 
-  /**
-   * The image: fetched in the background from the start, unless it's here
-   * already, and again each minute while that fails, such as before Docker
-   * is installed. Once it's here, its other versions that no container
-   * uses are removed, so the machine keeps one.
-   */
-  let setup:
-    | { state: 'setting-up'; done: Promise<void> }
-    | { state: 'ready' }
-    | { state: 'unavailable'; reason: string }
-  const fetchImage = () => {
-    const done = docker('image', 'inspect', image)
-      .catch(() => docker('pull', image))
-      .then(
-        () => {
-          setup = { state: 'ready' }
-          void resources.removeOldImages().catch(() => {})
-        },
-        (error) => {
-          setup = { state: 'unavailable', reason: reasonOf(error) }
-          setTimeout(fetchImage, RETRY_IMAGE_MS).unref()
-        },
-      )
-    setup = { state: 'setting-up', done }
-  }
-  fetchImage()
+  let wanted = new Set<FamiliarId>()
+  /** Each computer a call is waiting to run: whether to restart it. */
+  let awake = new Map<FamiliarId, boolean>()
 
-  /**
-   * Changes to computers (making, waking, sleeping, removing), one at a
-   * time, so `sync` and the idle timers never race each other or a wake.
-   */
-  let changing: Promise<unknown> = Promise.resolve()
-  const change = <T>(task: () => Promise<T>) => {
-    const run = changing.then(task)
-    changing = run.catch(() => {})
-    return run
-  }
-
-  /**
-   * The proxy, made again the first time this process wakes or syncs a
-   * computer, even one that already exists, then kept until no Familiar
-   * has a computer.
-   */
-  let proxyMade: Promise<void> | undefined
-  const makeProxy = () =>
-    (proxyMade ??= resources.remakeProxy().catch((error) => {
-      proxyMade = undefined
-      throw error
-    }))
-
-  /** `maxComputers`, read now. */
   const maxNow = () =>
     typeof maxComputers === 'function' ? maxComputers() : maxComputers
   /** Why this host can't make another computer, if it's full. */
@@ -178,129 +119,201 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       : undefined
   }
 
-  const sessions = new Map<FamiliarId, Session>()
-  const sessionOf = (familiar: FamiliarId) =>
-    sessions.get(familiar) ??
-    sessions.set(familiar, { calls: new Set() }).get(familiar)!
-  /** Forgets `familiar`'s session, closing its client. */
-  const drop = (familiar: FamiliarId) => {
-    const session = sessions.get(familiar)
-    sessions.delete(familiar)
-    clearTimeout(session?.timer)
-    void session?.client?.then((client) => client.close()).catch(() => {})
-  }
-  /** Puts `familiar`'s computer to sleep after `idleMs` unless a call comes. */
-  const idle = (familiar: FamiliarId, session: Session) => {
-    const timer = setTimeout(
-      () =>
-        void change(async () => {
-          // A call has come since, or `sync` removed it.
-          if (session.timer !== timer || sessions.get(familiar) !== session) {
-            return
-          }
-          drop(familiar)
-          await docker('stop', resources.container(familiar))
-        }).catch(() => {}),
-      idleMs,
-    ).unref()
-    session.timer = timer
-  }
+  /** Whether this process made the proxy, so it runs this host's image. */
+  let proxyMade = false
+
   /**
-   * Starts `familiar`'s computer, making it first if it has none and this
-   * host has room, and connects `session` to it: its client, and whether it
-   * was asleep. One change, so `sync` can't remove the computer meanwhile.
+   * Makes what's wanted at its start true. `answers`, for each computer a
+   * call waits on: whether it started it, or why it can't run. `failed`:
+   * what Docker failed to do, if anything.
    */
-  const wake = (familiar: FamiliarId, session: Session) =>
-    change(async () => {
-      if (sessions.get(familiar) !== session) {
-        throw new Error('it was removed')
+  const pass = async () => {
+    const want = wanted
+    const waiting = awake
+    awake = new Map()
+    const ready = image.state.state === 'ready'
+    const answers = new Map<FamiliarId, boolean | string>()
+    let failed: unknown
+
+    /**
+     * Makes `familiar`'s computer if it's missing and, if a call waits on it
+     * (`restart` is set), runs it. One from an earlier image is made again,
+     * on the same disk, as it wakes.
+     */
+    const converge = async (familiar: FamiliarId, restart?: boolean) => {
+      if (!want.has(familiar)) {
+        return "This Familiar's computer is turned off."
       }
-      if (session.client) {
-        return { client: session.client, woke: false }
+      if (!ready) {
+        return "This Familiar's computer is still being set up."
       }
-      await makeProxy()
-      const [found] = await resources.containers(familiar)
+      let found: Owned | undefined = (await resources.containers(familiar))[0]
+      const outdated =
+        restart !== undefined &&
+        found &&
+        !found.running &&
+        (await resources.outdated(familiar))
+      if (outdated) {
+        await resources.remove('container', found.name)
+        found = undefined
+      }
       if (!found) {
         const reason = await full()
         if (reason) {
-          throw new Error(reason)
+          return reason
         }
         await resources.createComputer(familiar)
       }
-      // Made from an earlier image, such as before an update: made again
-      // on this one, on the same disk.
-      if (found && !found.running && (await resources.outdated(familiar))) {
-        await docker('rm', found.name)
-        await resources.createComputer(familiar)
-        void resources.removeOldImages().catch(() => {})
+      if (restart === undefined || (found?.running && !restart)) {
+        return false
       }
-      if (!found?.running) {
-        await docker('start', resources.container(familiar))
+      if (found?.running) {
+        await resources.stop(familiar)
       }
-      session.client = connect(familiar, session)
-      return { client: session.client, woke: !found?.running }
+      await resources.start(familiar)
+      if (outdated) {
+        void image.removeOld()
+      }
+      return true
+    }
+
+    try {
+      const unwanted = ({ familiar }: Owned) =>
+        familiar === undefined ? !want.size : !want.has(familiar)
+      const containers = await resources.containers()
+      for (const container of containers.filter(unwanted)) {
+        await resources.remove('container', container.name)
+      }
+      for (const volume of (await resources.volumes()).filter(unwanted)) {
+        await resources.remove('volume', volume.name)
+      }
+      // Before any computer, which would make the socket volume unlabelled.
+      const hasProxy = containers.some(({ familiar }) => familiar === undefined)
+      if (ready && want.size && !(proxyMade && hasProxy)) {
+        await resources.remakeProxy()
+        proxyMade = true
+      }
+      for (const familiar of new Set([...want, ...waiting.keys()])) {
+        const answer = await converge(familiar, waiting.get(familiar)).catch(
+          (error: unknown) => {
+            failed ??= error
+            return reasonOf(error)
+          },
+        )
+        answers.set(familiar, answer)
+      }
+    } catch (error) {
+      failed = error
+      for (const familiar of waiting.keys()) {
+        answers.set(familiar, reasonOf(error))
+      }
+    }
+    return { answers, failed }
+  }
+
+  /** The pass that will read what's wanted now. */
+  const reconcile = coalesce(pass)
+  const checkedPass = async () => {
+    const { failed } = await reconcile()
+    if (failed) {
+      throw new Error(reasonOf(failed), { cause: failed })
+    }
+  }
+
+  /** Waits for the pass that runs the computer: whether it started it. */
+  const wake = async (familiar: FamiliarId, restart: boolean) => {
+    awake.set(familiar, restart || (awake.get(familiar) ?? false))
+    const answer = (await reconcile()).answers.get(familiar)!
+    if (typeof answer === 'string') {
+      throw new Error(answer)
+    }
+    return answer
+  }
+
+  type Connection = { client: Client; woke: boolean; gone: Promise<void> }
+  /**
+   * Each awake computer's connection, shared by every call so a computer is
+   * woken or restarted once for all of them. Only an entry's own end
+   * removes it: failing to connect, before its awaiters hear why, or its
+   * exec ending, before its `gone` settles.
+   */
+  const clients = new Map<FamiliarId, Promise<Connection>>()
+  const open = (familiar: FamiliarId, restart: boolean) => {
+    const connection = wake(familiar, restart).then(async (woke) => {
+      const { client, closed } = await connect(familiar)
+      return {
+        client,
+        woke,
+        gone: closed.then(() => void clients.delete(familiar)),
+      }
     })
-  /** Connects `session`'s client, which it forgets once the exec ends. */
-  const connect = (familiar: FamiliarId, session: Session) => {
+    const entry = connection.catch((error: unknown) => {
+      clients.delete(familiar)
+      throw error
+    })
+    clients.set(familiar, entry)
+    return entry
+  }
+  const connect = async (familiar: FamiliarId) => {
     const client = new Client({ name: 'familiar', version: '1.0.0' })
-    const connected = client
-      .connect(
+    const closed = new Promise<void>((resolve) => (client.onclose = resolve))
+    try {
+      await client.connect(
         new StdioClientTransport({
           command: 'docker',
           args: resources.agentCommand(familiar),
-          // The Docker CLI's own settings, such as DOCKER_HOST.
           env: process.env as Record<string, string>,
           cwd: DOCKER_CWD,
         }),
       )
-      .then(() => client)
-    const lost = () => {
-      if (session.client === connected) {
-        session.client = undefined
-      }
+    } catch (error) {
+      await client.close().catch(() => {})
+      throw error
     }
-    client.onclose = lost
-    connected.catch(lost)
-    return connected
+    return { client, closed }
   }
-
-  /** What a session tells of its computer: what it's doing, or when it was last used. */
-  const activityOf = (familiar: FamiliarId) => {
-    const session = sessions.get(familiar)
-    return session?.calls.size
-      ? { doing: [...session.calls] }
-      : { lastUsed: session?.lastUsed?.toISOString() }
-  }
+  /** The client for looking at `familiar`'s computer, if it's connected. */
+  const looking = (familiar: FamiliarId) =>
+    clients.get(familiar)?.then(({ client }) => client)
 
   /**
-   * The agent's tabs and system, only over a connection this host already
-   * has: a look never wakes a computer or keeps it awake. An agent too old
-   * to have the tool tells nothing.
+   * One try at running `tool`: its result, or `retry` when it never reached
+   * the agent (it couldn't connect, or the agent was going to sleep). A
+   * call that may have started is never retried: its failure is thrown, as
+   * an action may not be safe to repeat.
    */
-  const agentInfo = async (familiar: FamiliarId): Promise<ComputerInfo> => {
-    const client = sessions.get(familiar)?.client
-    if (!client) {
-      return {}
+  const attempt = async (
+    familiar: FamiliarId,
+    restart: boolean,
+    tool: string,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<{ result: CallToolResult; woke: boolean } | { retry: string }> => {
+    const cached = clients.get(familiar)
+    const connected = await (cached ?? open(familiar, restart)).then(
+      (connection) => ({ connection }),
+      (error: unknown) => ({ retry: reasonOf(error) }),
+    )
+    if ('retry' in connected) {
+      return connected
     }
-    try {
-      const result = (await (
-        await client
-      ).callTool(
-        { name: INFO_TOOL, arguments: {} },
-        { timeout: INFO_MAX_MS },
-      )) as CallToolResult
-      const [block] = result.content
-      return !result.isError && block?.type === 'text'
-        ? (JSON.parse(block.text) as ComputerInfo)
-        : {}
-    } catch {
-      return {}
+    const { client, woke, gone } = connected.connection
+    const result = (await client.callTool(
+      { name: tool, arguments: args },
+      { signal, timeout: CALL_MAX_MS },
+    )) as CallToolResult
+    if (result._meta?.[ASLEEP]) {
+      void client.close()
+      await gone
+      return { retry: 'it went to sleep as it woke' }
     }
+    return { result, woke: !cached && woke }
   }
 
   const status = async (familiar: FamiliarId): Promise<ComputerStatus> => {
-    if (setup.state !== 'ready') {
-      return setup.state === 'setting-up' ? { state: 'setting-up' } : setup
+    const { state } = image
+    if (state.state !== 'ready') {
+      return state
     }
     try {
       const [found] = await resources.containers(familiar)
@@ -316,96 +329,44 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
   return {
     call: async (familiar, tool, args, signal) => {
-      if (setup.state === 'setting-up') {
+      const { state } = image
+      if (state.state === 'setting-up') {
         return failed(
           'Your computer is still being set up: its software is downloading. Try again in a few minutes.',
         )
       }
-      if (setup.state === 'unavailable') {
-        return failed(`Computers aren't available here: ${setup.reason}`)
+      if (state.state === 'unavailable') {
+        return failed(`Computers aren't available here: ${state.reason}`)
       }
-      const session = sessionOf(familiar)
-      clearTimeout(session.timer)
-      session.timer = undefined
-      const running = { tool, target: targetOf(args) }
-      session.calls.add(running)
-      try {
-        let woke = false
-        let client
-        try {
-          const started = session.client
-            ? { client: session.client, woke: false }
-            : await wake(familiar, session)
-          woke = started.woke
-          client = await started.client
-        } catch (error) {
-          return failed(
-            `Your computer couldn't start, so nothing ran: ${reasonOf(error)}`,
-          )
-        }
-        const result = (await client.callTool(
-          { name: tool, arguments: args },
-          { signal, timeout: CALL_MAX_MS },
-        )) as CallToolResult
-        return woke
-          ? {
-              ...result,
-              content: [{ type: 'text', text: WOKE }, ...result.content],
-            }
-          : result
-      } finally {
-        session.calls.delete(running)
-        if (!session.calls.size) {
-          session.lastUsed = new Date()
-          // Unless `sync` removed it meanwhile.
-          if (sessions.get(familiar) === session) {
-            idle(familiar, session)
+      // Once more on a restarted computer, unless another call connected.
+      const first = await attempt(familiar, false, tool, args, signal)
+      const answer =
+        'retry' in first
+          ? await attempt(familiar, true, tool, args, signal)
+          : first
+      if ('retry' in answer) {
+        return failed(
+          `Your computer couldn't start, so nothing ran: ${answer.retry}`,
+        )
+      }
+      const { result, woke } = answer
+      return woke
+        ? {
+            ...result,
+            content: [{ type: 'text', text: WOKE }, ...result.content],
           }
-        }
-      }
+        : result
     },
 
-    sync: (familiars) =>
-      change(async () => {
-        const wanted = new Set(familiars)
-        for (const familiar of sessions.keys()) {
-          if (!wanted.has(familiar)) {
-            drop(familiar)
-          }
-        }
-        // Every other Familiar's computer and disk, and with none wanted,
-        // the proxy: containers first, as volumes in use can't go.
-        const unwanted = ({ familiar }: Owned) =>
-          familiar === undefined ? !wanted.size : !wanted.has(familiar)
-        const have = await resources.containers()
-        for (const { name } of have.filter(unwanted)) {
-          await docker('rm', '--force', name)
-        }
-        for (const { name } of (await resources.volumes()).filter(unwanted)) {
-          await docker('volume', 'rm', '--force', name)
-        }
-        if (!wanted.size) {
-          proxyMade = undefined
-          return
-        }
-        if (setup.state === 'setting-up') {
-          await setup.done
-        }
-        await makeProxy()
-        for (const familiar of wanted) {
-          const found = have.find((owned) => owned.familiar === familiar)
-          // Past the limit, its status says why until there's room.
-          if (!found && !(await full())) {
-            await resources.createComputer(familiar)
-          }
-          // Left running by an earlier process, so sleeps when idle.
-          if (found?.running && !sessions.has(familiar)) {
-            idle(familiar, sessionOf(familiar))
-          }
-        }
-      }).catch((error) => {
-        throw new Error(reasonOf(error), { cause: error })
-      }),
+    sync: async (familiars) => {
+      wanted = new Set(familiars)
+      await checkedPass()
+      // Computers are made once their image is here.
+      if (familiars.length && image.state.state !== 'ready') {
+        await image.ready
+        await checkedPass()
+      }
+    },
 
     status,
 
@@ -414,17 +375,13 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       if (current.state !== 'running' && current.state !== 'asleep') {
         return { status: current }
       }
-      const name = resources.container(familiar)
-      const [docker, info] = await Promise.all([
-        dockerDetail(name).catch((): ComputerDetail => ({})),
-        current.state === 'running' ? agentInfo(familiar) : {},
+      const [detail, info] = await Promise.all([
+        dockerDetail(resources.container(familiar)).catch(
+          (): ComputerDetail => ({}),
+        ),
+        current.state === 'running' ? agentInfo(looking(familiar)) : {},
       ])
-      return {
-        status: current,
-        ...docker,
-        ...activityOf(familiar),
-        ...info,
-      }
+      return { status: current, ...detail, ...info }
     },
 
     summary: async () => {
@@ -439,15 +396,23 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       }
       return {
         max: maxNow(),
-        computers: owned.map(({ name, familiar, running }) => {
-          const container = inspected.find((found) => found.Name === `/${name}`)
-          return {
-            familiar: familiar!,
-            state: running ? 'running' : 'asleep',
-            since: container && sinceOf(container),
-            ...activityOf(familiar!),
-          }
-        }),
+        computers: await Promise.all(
+          owned.map(async ({ name, familiar, running }) => {
+            const container = inspected.find(
+              (found) => found.Name === `/${name}`,
+            )
+            const { doing, lastUsed } = running
+              ? await agentInfo(looking(familiar!))
+              : {}
+            return {
+              familiar: familiar!,
+              state: running ? ('running' as const) : ('asleep' as const),
+              since: container && sinceOf(container),
+              doing,
+              lastUsed,
+            }
+          }),
+        ),
       }
     },
   }

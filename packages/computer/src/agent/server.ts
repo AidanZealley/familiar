@@ -5,12 +5,14 @@ import { McpServer, type CallToolResult } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import {
   annotationsOf,
+  ASLEEP,
   computerTools,
   INFO_TOOL,
   type ComputerInfo,
   type ComputerToolName,
 } from '../tools.ts'
 import { KEEP_TEXT } from '../shorten.ts'
+import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
 import { runCommand } from './shell.ts'
 
@@ -33,12 +35,22 @@ const text = (text: string, isError = false): CallToolResult => ({
 const STARTED =
   'The browser has just started, so any pages opened before are gone.\n\n'
 
+/** What a call gets once the agent is going to sleep: it ran nothing. */
+const ASLEEP_RESULT: CallToolResult = {
+  ...text('The computer is going to sleep, so nothing ran.', true),
+  _meta: { [ASLEEP]: true },
+}
+
 /**
  * The computer's MCP server, one per connection, over the machine's one
- * browser and file system. `home` is where commands run and
- * relative paths start.
+ * browser, file system and `activity`, which counts every call but a look
+ * (the info tool). `home` is where commands run and relative paths start.
  */
-export function computerServer(browser: Browser, home: string) {
+export function computerServer(
+  browser: Browser,
+  home: string,
+  activity: Activity,
+) {
   /** Runs `act` on the open page and answers with its snapshot after. */
   const onPage =
     <A>(
@@ -114,16 +126,17 @@ export function computerServer(browser: Browser, home: string) {
         inputSchema: tool.input as z.ZodObject,
         annotations: annotationsOf(tool),
       },
-      async (args, ctx) => {
-        try {
-          return await handle(args, ctx.mcpReq.signal)
-        } catch (error) {
-          return text(
-            error instanceof Error ? error.message : String(error),
-            true,
-          )
-        }
-      },
+      async (args, ctx) =>
+        (await activity.run(name, args, async () => {
+          try {
+            return await handle(args, ctx.mcpReq.signal)
+          } catch (error) {
+            return text(
+              error instanceof Error ? error.message : String(error),
+              true,
+            )
+          }
+        })) ?? ASLEEP_RESULT,
     )
   }
   server.registerTool(
@@ -136,6 +149,7 @@ export function computerServer(browser: Browser, home: string) {
     },
     async () => {
       const info: ComputerInfo = {
+        ...activity.now(),
         tabs: await browser.tabs(),
         system: { os: await osName(), architecture: machine() },
       }
