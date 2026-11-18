@@ -21,8 +21,8 @@ import type { ConversationHeaderProps } from './types'
  * what's happening in it, which open its settings, as does the ⋮
  * button. In a DM, the Familiar's computer, if it has one, beside that.
  * On a phone, Back returns to the list of conversations. Docked beside
- * the Familiar's full-screen computer, a Leave full screen button at the
- * end takes the computer button's place, and there's no Back.
+ * the Familiar's full-screen computer, a Leave full screen button takes
+ * the computer button's place, and moves to the end beside the screen.
  */
 export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const familiars = useFamiliars()
@@ -40,7 +40,13 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
   const full = dm && view === 'full'
 
   return (
-    <header className="absolute inset-x-0 top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md">
+    <header
+      className={cn(
+        'absolute inset-x-0 top-0 z-30 h-(--chrome) border-b border-border/60 bg-background/80 pt-(--status-bar) backdrop-blur-md',
+        // Above the full-screen computer on a phone held upright.
+        full && 'stacked:static stacked:order-first stacked:shrink-0',
+      )}
+    >
       {/* The title is inside the button that opens settings; this names
           the conversation for screen readers' heading navigation. */}
       <h2 className="sr-only">{title}</h2>
@@ -48,7 +54,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
         <Button
           variant="ghost"
           size="icon-lg"
-          className={cn('md:hidden', full && 'hidden')}
+          className="md:hidden"
           aria-label="All conversations"
           nativeButton={false}
           render={<Link to="/" />}
@@ -75,6 +81,19 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
         </button>
         <div className="ml-auto flex items-center">
           {dm && !full && <ComputerButton familiar={dm} />}
+          {/* In the computer button's place; beside the screen, last, where
+              a close button goes. */}
+          {full && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              className="docked:order-last"
+              aria-label="Leave full screen"
+              onClick={() => show(undefined)}
+            >
+              <ArrowsInIcon />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-lg"
@@ -83,17 +102,6 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           >
             <DotsThreeVerticalIcon />
           </Button>
-          {/* Last, where a close button goes. */}
-          {full && (
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              aria-label="Leave full screen"
-              onClick={() => show(undefined)}
-            >
-              <ArrowsInIcon />
-            </Button>
-          )}
         </div>
       </div>
     </header>

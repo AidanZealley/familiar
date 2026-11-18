@@ -114,16 +114,19 @@ export const Chat = ({ room }: ChatProps) => {
         <div
           className={cn(
             'relative flex min-h-0 flex-1 flex-col',
-            // Docked: no longer under the phone's status bar.
+            // Docked, a column beside the screen. Stacked, its header and
+            // transcript join the page's own column around the screen
+            // (the header orders itself first), so the transcript sits
+            // below the screen rather than under the header.
             computer === 'full' &&
-              'docked:w-[min(24rem,40vw)] docked:flex-none docked:border-l docked:border-border stacked:[--chrome:3.5rem] stacked:[--status-bar:0px]',
+              'docked:w-[min(24rem,40vw)] docked:flex-none docked:border-l docked:border-border stacked:contents stacked:[--header-overlap:0px]',
           )}
         >
           <ConversationHeader room={room} />
           <MessageScroller className="flex-1">
             {/* The shared scroller hides its thumb while it scrolls itself, which
               flashes on every streamed update, so keep one colour throughout. */}
-            <MessageScrollerViewport className="flex scroll-pt-(--chrome) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
+            <MessageScrollerViewport className="flex scroll-pt-(--header-overlap,var(--chrome)) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
               {/* Pinned to the top as the transcript scrolls, and under the
                   composer, which a long draft grows into it. */}
               {computer === 'pop' && (
@@ -134,7 +137,7 @@ export const Chat = ({ room }: ChatProps) => {
               <MessageScrollerContent
                 ref={measureScrollMargin}
                 aria-busy={transcript?.busy}
-                className="mx-auto min-h-0 w-full max-w-(--page-width) shrink-0 grow gap-5 p-4 pt-[calc(var(--chrome)+1rem)]"
+                className="mx-auto min-h-0 w-full max-w-(--page-width) shrink-0 grow gap-5 p-4 pt-[calc(var(--header-overlap,var(--chrome))+1rem)]"
               >
                 <TranscriptItems
                   items={transcript?.items ?? []}
