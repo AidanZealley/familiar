@@ -363,7 +363,6 @@ test('a plugin hears who uses it before resumed work reaches its tools', async (
             description: 'Looks',
             parameters: schema.obj({}),
             replay: 'safe',
-            annotations: { readOnlyHint: true },
             execute: async (_args, _api, context) => {
               heardAtCall.push([...heard])
               if (!interrupted) {

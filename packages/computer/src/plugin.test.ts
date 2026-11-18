@@ -42,10 +42,10 @@ async function open(host: ComputerHost, storage = new ReopenableStorage()) {
     plugins: [computer({ host })],
     defaultCapabilities: { plugins: ['computer'] },
   })
-  await workspace.connections.setPolicy(
+  await workspace.connections.updateToolSettings(
     { kind: 'plugin', name: 'computer' },
-    undefined,
-    'allow',
+    'run_command',
+    { askBeforeRunning: false },
   )
   const dm = async (familiar: FamiliarId) =>
     (await workspace.rooms.get(await workspace.rooms.dm(familiar, owner.id)))!

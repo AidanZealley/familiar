@@ -136,12 +136,9 @@ export const computerTools = {
 export type ComputerToolName = keyof typeof computerTools
 
 /** What a tool's annotations say, as MCP and Familiar's approval read them. */
-export const annotationsOf = (tool: ComputerTool) =>
-  tool.reads
-    ? { readOnlyHint: true }
-    : tool.harmless
-      ? { destructiveHint: false }
-      : undefined
+export const annotationsOf = (tool: ComputerTool) => ({
+  destructiveHint: !tool.reads && !tool.harmless,
+})
 
 /**
  * The agent's hidden tool for a person looking at the computer: what it's

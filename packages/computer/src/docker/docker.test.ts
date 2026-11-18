@@ -124,11 +124,13 @@ test.skipIf(!hasImage)(
       defaultCapabilities: { plugins: ['computer'] },
     })
     onTestFinished(() => workspace.dismiss())
-    await workspace.connections.setPolicy(
-      { kind: 'plugin', name: 'computer' },
-      undefined,
-      'allow',
-    )
+    for (const tool of ['browser_type', 'browser_click']) {
+      await workspace.connections.updateToolSettings(
+        { kind: 'plugin', name: 'computer' },
+        tool,
+        { askBeforeRunning: false },
+      )
+    }
 
     // Turning the capability on gives Ada a computer, asleep until used.
     const ada = await workspace.familiars.create({ name: 'Ada' })
