@@ -1,8 +1,7 @@
 import RFB from '@novnc/novnc'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from 'cn'
-import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useComputerControl } from '@/lib/computer-control'
 import {
   computerDetailQuery,
@@ -12,8 +11,7 @@ import {
 } from '@/lib/computers'
 import { StatusDot } from '@/components/status-dot'
 import { formatAgo } from '@/lib/format'
-import { ScreenControls, type SendKey } from './components/screen-controls'
-import type { ComputerScreenProps } from './types'
+import type { ComputerScreenProps, ScreenHandle } from './types'
 
 /** How long to wait before watching again after the screen closed. */
 const RETRY_MS = 2000
@@ -85,14 +83,15 @@ const withoutCursor = (url: string) => {
  * status said it runs (or while it's held); watching never wakes it or
  * keeps it awake. A screen that closes while the computer still seems to
  * run is watched again shortly; while its status can't be read, it isn't.
- * Asleep, the last frame seen, dimmed. Full screen (`large`) has Take over
- * over its corner, which a click on the watched screen points to.
+ * Asleep, the last frame seen, dimmed. Its `ref` sends keys to it, such as
+ * from keys shown beside it.
  */
 export const ComputerScreen = ({
   familiar,
   size = 'small',
   input = true,
   className,
+  ref,
 }: ComputerScreenProps) => {
   const queryClient = useQueryClient()
   const { data: status, isError: unreachable } = useQuery(
@@ -106,8 +105,6 @@ export const ComputerScreen = ({
   const running = (status?.state === 'running' || held) && !unreachable
   const target = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<RFB>(undefined)
-  // Bumped by a click on a watched full screen, to point to Take over.
-  const [attention, setAttention] = useState(0)
   const [live, setLive] = useState(false)
   // Bumped to watch again after the screen closed by itself.
   const [attempt, setAttempt] = useState(0)
@@ -172,8 +169,10 @@ export const ComputerScreen = ({
     }
   }, [familiar.id, running, controlling, attempt, queryClient])
 
-  const sendKey: SendKey = (keysym, code, down) =>
-    rfbRef.current?.sendKey(keysym, code, down)
+  useImperativeHandle(ref, (): ScreenHandle => ({
+    sendKey: (keysym, code, down) =>
+      rfbRef.current?.sendKey(keysym, code, down),
+  }))
 
   const asleep = status?.state === 'asleep'
   const frame = live ? undefined : lastFrames.get(familiar.id)
@@ -206,14 +205,6 @@ export const ComputerScreen = ({
         'relative aspect-[16/10] overflow-hidden bg-black',
         className,
       )}
-      onClick={
-        size === 'large' && !controlling
-          ? () => {
-              toast('Take over to use it')
-              setAttention((count) => count + 1)
-            }
-          : undefined
-      }
     >
       {frame && (
         <img
@@ -255,14 +246,6 @@ export const ComputerScreen = ({
             {note[1] && <div className="text-white/60">{note[1]}</div>}
           </div>
         </div>
-      )}
-      {size === 'large' && (
-        <ScreenControls
-          familiar={familiar}
-          controlling={controlling}
-          sendKey={sendKey}
-          attention={attention}
-        />
       )}
     </div>
   )

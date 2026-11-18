@@ -1,11 +1,5 @@
 import type { FamiliarSummary } from '@familiar-ai/client'
-
-/** Sends a key to the screen: pressed and released, or only `down` or up. */
-export type SendKey = (
-  keysym: number,
-  code: string | null,
-  down?: boolean,
-) => void
+import type { SendKey } from '@/components/computer-screen'
 
 export type ScreenControlsProps = {
   familiar: FamiliarSummary
