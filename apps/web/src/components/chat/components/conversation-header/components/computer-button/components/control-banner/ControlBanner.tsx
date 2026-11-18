@@ -16,9 +16,9 @@ export const ControlBanner = ({ familiar }: ControlBannerProps) => {
   const held = useComputerControl(familiar.id) === 'held'
   const { data: detail } = useQuery({
     ...computerDetailQuery(familiar.id),
-    enabled: held,
   })
-  if (!held) {
+  const elsewhere = !held && detail?.control === 'person'
+  if (!held && !elsewhere) {
     return null
   }
   const waiting = detail?.doing?.find((call) => call.waiting)
@@ -27,11 +27,15 @@ export const ControlBanner = ({ familiar }: ControlBannerProps) => {
     <div className="flex items-start gap-2 border border-primary/40 bg-primary/15 px-3 py-2 text-xs">
       <HandPointingIcon className="mt-px size-4 shrink-0 text-primary" />
       <span>
-        <b className="font-medium">You have control.</b>{' '}
+        <b className="font-medium">
+          {held ? 'You have control.' : 'Computer in use on another device.'}
+        </b>{' '}
         <span className="text-muted-foreground">
-          {waiting
-            ? `${familiar.name} paused while ${lowerFirst(describeCall({ ...waiting, waiting: undefined }))}, and will look again when you hand back.`
-            : `${familiar.name} will look again when you hand back.`}
+          {elsewhere
+            ? `${familiar.name} will look again when it is handed back.`
+            : waiting
+              ? `${familiar.name} paused while ${lowerFirst(describeCall({ ...waiting, waiting: undefined }))}, and will look again when you hand back.`
+              : `${familiar.name} will look again when you hand back.`}
         </span>
       </span>
     </div>

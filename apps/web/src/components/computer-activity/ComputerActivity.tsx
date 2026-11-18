@@ -24,6 +24,11 @@ export const ComputerActivity = ({
   )
   const { data: detail } = useQuery(computerDetailQuery(familiar.id))
   const controlling = useComputerControl(familiar.id) === 'held'
+  const elsewhere =
+    !controlling &&
+    !unreachable &&
+    status?.state === 'running' &&
+    detail?.control === 'person'
   // A failed poll keeps the last answer, which may be stale.
   const state = unreachable
     ? { label: 'Not connected', tone: 'off' as const }
@@ -55,9 +60,11 @@ export const ComputerActivity = ({
       >
         {controlling
           ? 'You have control'
-          : call
-            ? describeCall(call)
-            : state?.label}
+          : elsewhere
+            ? 'In use on another device'
+            : call
+              ? describeCall(call)
+              : state?.label}
       </span>
     </span>
   )

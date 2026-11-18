@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { setTimeout as wait } from 'node:timers/promises'
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client'
 import { expect, test } from 'vitest'
-import { ASLEEP, CONTROL_TOOL, INFO_TOOL } from '../tools.ts'
+import { ASLEEP, CONTROL_TOOL, INFO_TOOL, PERSON_USED } from '../tools.ts'
 import { activity } from './activity.ts'
 import { computerControl } from './control.ts'
 import type { Browser } from './browser.ts'
@@ -81,6 +81,9 @@ test('a person holds control as long as their call: actions wait and never run, 
 
   const first = takeOver()
   await first.holding
+  expect(
+    JSON.parse(text(await client.callTool({ name: INFO_TOOL, arguments: {} }))),
+  ).toMatchObject({ control: 'person' })
   // A second take-over is refused.
   expect(text(await takeOver().call)).toMatch(/someone else/i)
   // A read runs, with a note; an action waits.
@@ -97,6 +100,7 @@ test('a person holds control as long as their call: actions wait and never run, 
   first.person.abort()
   const result = await action
   expect(result.isError).toBe(true)
+  expect(result._meta?.[PERSON_USED]).toBe(true)
   expect(text(result)).toMatch(/didn't run/)
   expect(existsSync(join(home, 'during'))).toBe(false)
 
@@ -106,7 +110,15 @@ test('a person holds control as long as their call: actions wait and never run, 
   await second.holding
   second.person.abort()
   await wait(10)
-  expect(text(await write('after'))).toMatch(/used your computer/)
+  expect(
+    JSON.parse(text(await client.callTool({ name: INFO_TOOL, arguments: {} }))),
+  ).toMatchObject({ control: 'returned' })
+  const after = await write('after')
+  expect(text(after)).toMatch(/used your computer/)
+  expect(after._meta?.[PERSON_USED]).toBe(true)
+  expect(
+    JSON.parse(text(await client.callTool({ name: INFO_TOOL, arguments: {} }))),
+  ).toMatchObject({ control: 'familiar' })
   expect(existsSync(join(home, 'after'))).toBe(false)
   await write('after')
   expect(existsSync(join(home, 'after'))).toBe(true)

@@ -150,7 +150,7 @@ export const INFO_TOOL = 'computer_info'
 
 export type ComputerInfo = Pick<
   ComputerDetail,
-  'doing' | 'lastUsed' | 'tabs' | 'system'
+  'control' | 'doing' | 'lastUsed' | 'tabs' | 'system'
 >
 
 /**
@@ -188,3 +188,6 @@ export const targetOf = (args: Record<string, unknown>) => {
     ? `${line.slice(0, TARGET_MAX - 1)}…`
     : line || undefined
 }
+
+/** The result already tells the Familiar about a person using the computer. */
+export const PERSON_USED = 'familiar/person-used'

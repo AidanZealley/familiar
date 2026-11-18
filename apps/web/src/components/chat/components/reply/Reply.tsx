@@ -26,7 +26,7 @@ export const Reply = ({ reply }: ReplyProps) => {
           <Thinking text={reply.thinking} active={waiting} />
         )}
         {reply.toolCalls.map((call) => (
-          <ToolCall key={call.id} call={call} />
+          <ToolCall key={call.id} call={call} familiar={reply.familiar} />
         ))}
         {reply.questions?.map((question) => (
           <Question key={question.id} question={question} />
