@@ -47,9 +47,9 @@ export type PluginContext = {
    * call comes before `open`'s workspace resumes any work; later ones come
    * asynchronously. If storage can't be read, as when it fails, there is no
    * call until it can, and opening goes on without one. Changes close
-   * together may come as one; the last call
-   * is always who uses it now. In order, until the workspace closes. A
-   * promise it returns isn't awaited, so it handles its own errors.
+   * together may come as one; the last call is always who uses it now. In
+   * order, until the workspace closes. A promise it returns isn't awaited,
+   * so it handles its own errors.
    */
   watchFamiliars(listener: (familiars: FamiliarId[]) => void): void
 }
