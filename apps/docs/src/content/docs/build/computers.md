@@ -113,6 +113,14 @@ The plugin serves `GET /plugins/computer/familiars/:familiar/status`, which retu
 
 Allow `plugins.computer` in your `allow` for whoever may see it. See [routes](/familiar/reference/plugins/#routes).
 
+## Watch a computer's screen
+
+The plugin also serves `GET /plugins/computer/familiars/:familiar/screen`, a WebSocket of the computer's display as VNC (RFB) bytes, which a viewer such as [noVNC](https://novnc.com) speaks as it is. Give `createHttpApi` your runtime's Hono `upgradeWebSocket`, such as `@hono/node-server`'s, as the daemon does; without it, the route answers 501. The display is 1280×800 and shared by every viewer, with no password and no clipboard.
+
+Watching never wakes a computer or keeps it awake. A sleeping computer's socket closes at once, and an open one closes when the computer goes to sleep, so ask again once its status says `running`. Use the viewer's view-only mode: nothing you send coordinates with the Familiar yet.
+
+It needs the same `plugins.computer` permission as its status.
+
 ## Limits
 
 - Docker only. Workspaces on Cloudflare and in a browser can't have computers yet.
