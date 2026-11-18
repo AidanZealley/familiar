@@ -63,24 +63,6 @@ export const screen = {
       WHEEL[direction],
     ),
 
-  /**
-   * The names of `windowClass`'s shown windows, such as a browser window's
-   * name, which is its shown tab's title: the focused one first.
-   */
-  windowNames: async (windowClass: string) => {
-    const names = (...args: string[]) =>
-      run('xdotool', [...args, 'getwindowname', '%@']).then(
-        ({ stdout }) => stdout.split('\n').filter(Boolean),
-        // Nothing found, or no window has focus.
-        (): string[] => [],
-      )
-    const [focused, shown] = await Promise.all([
-      names('getactivewindow'),
-      names('search', '--onlyvisible', '--class', windowClass),
-    ])
-    return [...focused.filter((name) => shown.includes(name)), ...shown]
-  },
-
   /** Waits for an action's effects to show. */
   settle: (signal: AbortSignal) => wait(SETTLE_MS, undefined, { signal }),
 }

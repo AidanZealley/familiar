@@ -50,6 +50,9 @@ export async function startDisplay(lost: (reason: string) => void) {
       '-AcceptSetDesktopSize=0',
       '-extension',
       'RANDR',
+      // Nothing on the desktop, such as vncconfig, may change these.
+      '-AllowOverride',
+      '',
       '-AcceptCutText=0',
       '-SendCutText=0',
       '-SetPrimary=0',

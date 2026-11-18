@@ -1,6 +1,9 @@
 import { chromium, type BrowserContext, type Page } from 'playwright'
+import { fileURLToPath } from 'node:url'
 import { KEEP_TEXT } from '../shorten.ts'
-import { screen } from './screen.ts'
+
+/** Ours, for Chrome's own record of the shown tab (see `shown`). */
+const EXTENSION = fileURLToPath(new URL('../../extension', import.meta.url))
 
 /**
  * The computer's browser: full Chromium (`channel: 'chromium'`), visible on
@@ -12,11 +15,6 @@ import { screen } from './screen.ts'
  */
 export function openBrowser(profileDir: string) {
   let running: Promise<BrowserContext> | undefined
-  /**
-   * The latest lookup of the shown tab. Each waits for the one before, as
-   * two at once would mark the same titles.
-   */
-  let lookup: Promise<unknown> = Promise.resolve()
 
   const launch = async () => {
     const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy
@@ -25,7 +23,12 @@ export function openBrowser(profileDir: string) {
       headless: false,
       // Pages are the window's size, not one Playwright picks.
       viewport: null,
-      args: ['--start-maximized'],
+      args: [
+        '--start-maximized',
+        `--disable-extensions-except=${EXTENSION}`,
+        `--load-extension=${EXTENSION}`,
+      ],
+      ignoreDefaultArgs: ['--disable-extensions'],
       ...(proxy && { proxy: { server: proxy } }),
     })
     context.on('close', () => {
@@ -35,9 +38,9 @@ export function openBrowser(profileDir: string) {
   }
 
   /**
-   * The page the browser shows: its focused tab, which the person may have
-   * switched to, or the newest if it can't tell. And whether the browser has
-   * just started, so earlier pages are gone.
+   * The page the browser shows: its active tab, which the person may have
+   * switched to. And whether the browser has just started, so earlier pages
+   * are gone.
    */
   const page = async (): Promise<{ page: Page; started: boolean }> => {
     const started = !running
@@ -46,9 +49,10 @@ export function openBrowser(profileDir: string) {
       throw error
     })
     const context = await running
-    const found = lookup.then(() => shown(context.pages()))
-    lookup = found.catch(() => {})
-    return { page: (await found) ?? (await context.newPage()), started }
+    return {
+      page: (await shown(context)) ?? (await context.newPage()),
+      started,
+    }
   }
 
   return {
@@ -88,55 +92,42 @@ const within = <T>(promise: Promise<T>, fallback: T) =>
     new Promise<T>((done) => setTimeout(done, 500, fallback)),
   ])
 
-/** Invisible, so marking a title shows nothing to a person. */
-const MARK = '\u2063'
-/** A browser window's name: its shown tab's title, then the browser's name. */
-const MARKED_NAME = new RegExp(`(${MARK}+) - [^${MARK}]*$`)
-
 /**
- * The tab the person sees, of `pages`, or the newest if it can't tell, or
- * none if there are none. Pages can't say, as Playwright has every page act
- * shown and focused, so it's read from the display. Each page's title is
- * marked for a moment with its own count of `MARK`s, and the name of the
- * window with focus, or else any browser window, then ends with the shown
- * tab's. Each title is put back unless the page has changed it meanwhile.
+ * The tab the person sees, of the browser's pages, or none if it has none.
+ * Pages can't say, as Playwright has every page act shown and focused, so
+ * Chrome is asked, in our extension's service worker: the active tab of its
+ * last focused window, as a DevTools target, which names one page.
  */
-async function shown(pages: Page[]) {
+async function shown(context: BrowserContext) {
+  const pages = context.pages()
   if (pages.length < 2) {
     return pages[0]
   }
-  const marks = pages.map((_, index) => MARK.repeat(index + 1))
-  const run = (page: Page, script: string) =>
-    within(
-      page.evaluate(script).catch(() => {}),
-      undefined,
-    )
-  await Promise.all(
-    pages.map((page, index) =>
-      run(page, `document.title += ${JSON.stringify(marks[index])}`),
-    ),
-  )
-  try {
-    // The window's name changes a moment after the title.
-    for (let tries = 0; tries < 10; tries++) {
-      for (const name of await screen.windowNames('chromium')) {
-        const count = name.match(MARKED_NAME)?.[1]?.length
-        if (count && count <= pages.length) {
-          return pages[count - 1]
+  const extension =
+    context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'))
+  const [active, targets] = await Promise.all([
+    extension.evaluate<string | undefined>(ACTIVE_TARGET),
+    Promise.all(
+      pages.map(async (page) => {
+        const session = await context.newCDPSession(page)
+        try {
+          return (await session.send('Target.getTargetInfo')).targetInfo
+            .targetId
+        } finally {
+          await session.detach()
         }
-      }
-      await new Promise((done) => setTimeout(done, 50))
-    }
-    return pages.at(-1)
-  } finally {
-    await Promise.all(
-      pages.map((page, index) => {
-        const mark = JSON.stringify(marks[index])
-        return run(
-          page,
-          `if (document.title.endsWith(${mark})) document.title = document.title.slice(0, -${marks[index]!.length})`,
-        )
       }),
-    )
+    ),
+  ])
+  const page = pages[targets.indexOf(active!)]
+  if (!page) {
+    throw new Error("The browser couldn't say which tab is shown. Try again.")
   }
+  return page
 }
+
+/** In the extension's worker: the DevTools target of the active tab. */
+const ACTIVE_TARGET = `(async () => {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+  return (await chrome.debugger.getTargets()).find((target) => target.tabId === tab?.id)?.id
+})()`
