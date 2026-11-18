@@ -10,6 +10,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
+import { activity } from './activity.ts'
 import { openBrowser } from './browser.ts'
 import { computerServer } from './server.ts'
 import { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
@@ -20,12 +21,18 @@ import { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
 // with `docker exec` running `socat`. The browser outlives connections, so a
 // new connection finds its pages as they were.
 //
+// With --idle-ms, it ends itself once that long passes with no call (a look
+// at it doesn't count), which stops its container: the computer sleeps.
+//
 // With --proxy-socket, for a computer with no network of its own, it passes
 // each connection to 127.0.0.1:PROXY_PORT on to that proxy's Unix socket, so
 // HTTP_PROXY and HTTPS_PROXY can point there.
 
 const { values } = parseArgs({
-  options: { 'proxy-socket': { type: 'string' } },
+  options: {
+    'idle-ms': { type: 'string' },
+    'proxy-socket': { type: 'string' },
+  },
 })
 
 const listen = (server: Server, at: ListenOptions) =>
@@ -53,14 +60,20 @@ await rm(AGENT_SOCKET, { force: true })
 const server = createServer((socket) => {
   // A connection that drops ends its server, which stops its calls.
   socket.on('error', () => socket.destroy())
-  void computerServer(browser, home).connect(
+  void computerServer(browser, home, calls).connect(
     new StdioServerTransport(socket, socket),
   )
 })
 await listen(server, { path: AGENT_SOCKET })
+// Its idle time starts now, before any connection can come in.
+const idleMs = values['idle-ms']
+const calls = activity(
+  idleMs === undefined ? undefined : Number(idleMs),
+  () => void stop(),
+)
 console.log(`Listening on ${AGENT_SOCKET}.`)
 
-const stop = async () => {
+async function stop() {
   server.close()
   proxy?.close()
   await browser.close()

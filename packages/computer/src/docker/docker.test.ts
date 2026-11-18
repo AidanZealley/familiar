@@ -190,7 +190,8 @@ test.skipIf(!hasImage)(
     })
     expect(JSON.stringify(page.content)).toContain('Example Domain')
 
-    // A look at it shows the call in flight and the open tab.
+    // A look at it shows the call in flight and the open tab. A call longer
+    // than the idle time keeps it awake to the end.
     const sleeping = run('sleep 8')
     await vi.waitFor(
       async () =>
@@ -204,7 +205,7 @@ test.skipIf(!hasImage)(
         }),
       { timeout: 8000, interval: 100 },
     )
-    await sleeping
+    expect(await sleeping).toMatch(/^\s*Exit code 0/)
     expect(
       await run('curl -sS -o /dev/null -w "%{http_code}" https://example.com/'),
     ).toMatch(/^200/)
@@ -237,13 +238,14 @@ test.skipIf(!hasImage)(
     ])
     expect(await run('cat marker.txt')).toMatch(/kept\s+Exit code 0/)
 
-    // Idle, it sleeps; the next call wakes it, saying so, its disk as it was.
+    // Idle, it sleeps, however often it's looked at; the next call wakes
+    // it, saying so, its disk as it was.
     await vi.waitFor(
-      async () => expect(await status()).toEqual({ state: 'asleep' }),
-      {
-        timeout: 30_000,
-        interval: 500,
-      },
+      async () =>
+        expect((await host.inspect(ada.id)).status).toEqual({
+          state: 'asleep',
+        }),
+      { timeout: 30_000, interval: 200 },
     )
     // A look at a sleeping computer leaves it asleep.
     expect((await host.inspect(ada.id)).status).toEqual({ state: 'asleep' })
@@ -255,6 +257,7 @@ test.skipIf(!hasImage)(
     // Past the limit, another Familiar gets no computer and is told why,
     // until the limit, read live, is raised.
     const other = (ada.id + 1000) as FamiliarId
+    await host.sync([ada.id, other])
     expect(await host.status(other)).toEqual({
       state: 'unavailable',
       reason: expect.stringMatching(/allows 1 computer at most/),
@@ -288,15 +291,12 @@ test.skipIf(!hasImage)(
 
     // A resource named as Bo's disk would be, that this host didn't make,
     // is neither used nor removed.
-    const bo = await workspace.familiars.create({
-      name: 'Bo',
-      capabilities: { plugins: [] },
-    })
-    const theirs = `familiar-${hostId}-${bo.id}-home`
+    const bo = (ada.id + 3000) as FamiliarId
+    const theirs = `familiar-${hostId}-${bo}-home`
     docker('volume', 'create', theirs)
     onTestFinished(() => void docker('volume', 'rm', theirs))
-    expect(await run('true', bo.id)).toMatch(
-      /couldn't start.*volume called .*-home that this Familiar host didn't make/s,
+    await expect(host.sync([bo])).rejects.toThrow(
+      /volume called .*-home that this Familiar host didn't make/,
     )
     await host.sync([])
     expect(docker('volume', 'ls', '-q', '--filter', `name=^${theirs}$`)).toBe(
@@ -315,6 +315,7 @@ test.skipIf(!hasImage)(
     imageCopy(`${repository}:unused`)
     const v2 = imageCopy(`${repository}:v2`)
     const updated = dockerHost({ hostId, repository, tag: 'v2' })
+    await updated.sync([cy])
     await vi.waitFor(() => expect(tags()).toEqual(['v1', 'v2']), {
       timeout: 30_000,
       interval: 500,

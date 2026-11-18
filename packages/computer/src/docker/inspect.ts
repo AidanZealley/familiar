@@ -1,8 +1,12 @@
+import type { CallToolResult, Client } from '@modelcontextprotocol/client'
 import type { ComputerDetail } from '../host.ts'
+import { INFO_TOOL, type ComputerInfo } from '../tools.ts'
 import { docker, HOME } from './resources.ts'
 
 /** Longer and the disk is left out, so a big home never slows the popover. */
 const DISK_MAX_SECONDS = 1
+/** How long a look waits for an agent's activity, tabs and system. */
+const INFO_MAX_MS = 2000
 const PROGRAMS_MAX = 50
 const COMMAND_MAX = 120
 
@@ -132,4 +136,32 @@ function programsOf(top: string) {
     })
     .sort((a, b) => b.memory - a.memory)
     .slice(0, PROGRAMS_MAX)
+}
+
+/**
+ * What a computer's agent tells of it (what it's doing, its tabs and
+ * system), only over a connection the host already has: a look never wakes
+ * a computer, and the agent doesn't count it as use. An agent too old to
+ * have the tool, or not answering, tells nothing.
+ */
+export async function agentInfo(
+  client: Promise<Client> | undefined,
+): Promise<ComputerInfo> {
+  if (!client) {
+    return {}
+  }
+  try {
+    const result = (await (
+      await client
+    ).callTool(
+      { name: INFO_TOOL, arguments: {} },
+      { timeout: INFO_MAX_MS },
+    )) as CallToolResult
+    const [block] = result.content
+    return !result.isError && block?.type === 'text'
+      ? (JSON.parse(block.text) as ComputerInfo)
+      : {}
+  } catch {
+    return {}
+  }
 }
