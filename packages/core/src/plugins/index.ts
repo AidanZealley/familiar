@@ -12,6 +12,7 @@ import { createConnections } from './connections.ts'
 import type { FamiliarPlugin } from './types.ts'
 
 export { openPlugins } from './open.ts'
+export { upgradeWebSocket } from './websocket.ts'
 export type {
   FamiliarPlugin,
   FamiliarTool,

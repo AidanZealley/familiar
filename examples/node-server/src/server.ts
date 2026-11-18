@@ -8,10 +8,11 @@ import { createHttpApi } from '@familiar-ai/core/http'
 import { createModels } from '@familiar-ai/core/models'
 import { openrouterProvider } from '@familiar-ai/core/models/openrouter'
 import { fileSecretStore, lockDataDir } from '@familiar-ai/core/node'
-import { serve } from '@hono/node-server'
+import { serve, upgradeWebSocket } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { csrf } from 'hono/csrf'
+import { WebSocketServer } from 'ws'
 import { allow } from './access.ts'
 import { authenticate, authRoutes } from './auth.ts'
 import { config } from './config.ts'
@@ -61,12 +62,21 @@ const app = new Hono()
   // site, so refuse cross-site requests before anything reads them.
   .use(csrf())
   .route('/auth', authRoutes)
-  .route('/api', createHttpApi(workspace, { authenticate, allow }))
+  .route(
+    '/api',
+    createHttpApi(workspace, { authenticate, allow, upgradeWebSocket }),
+  )
   // The built UI; in development, Vite serves it instead.
   .use(serveStatic({ root: 'dist/web' }))
 
-const server = serve({ fetch: app.fetch, port: config.port }, () =>
-  console.log(`${config.name} on http://localhost:${config.port}`),
+const server = serve(
+  {
+    fetch: app.fetch,
+    port: config.port,
+    // For plugins' WebSocket routes, which `upgradeWebSocket` reaches.
+    websocket: { server: new WebSocketServer({ noServer: true }) },
+  },
+  () => console.log(`${config.name} on http://localhost:${config.port}`),
 )
 
 const shutdown = () => {

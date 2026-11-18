@@ -31,6 +31,8 @@ export default defineConfig({
       '/api': {
         target: process.env.FAMILIAR_API ?? 'http://127.0.0.1:4318',
         changeOrigin: false,
+        // Plugins' WebSocket routes, such as a computer's screen.
+        ws: true,
       },
     },
   },

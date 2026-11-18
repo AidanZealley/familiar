@@ -16,6 +16,7 @@ import {
   type RoomActivity,
   type Workspace,
   schema,
+  upgradeWebSocket,
 } from '../index.ts'
 import { storageWith } from '../memory/testing.ts'
 import type { PluginEnv } from '../plugins/index.ts'
@@ -468,6 +469,24 @@ test("a plugin's routes are about one Familiar, behind authenticate and allow", 
   allow.mockReturnValue(false)
   expect((await status(id)).status).toBe(403)
   expect((await status(999)).status).toBe(403)
+})
+
+test("a plugin's WebSocket route answers 501 when the host has no WebSockets", async () => {
+  const routes = new Hono<PluginEnv>().get(
+    '/echo',
+    upgradeWebSocket(() => ({})),
+  )
+  const host = await testHost({
+    person: sam,
+    plugins: [
+      definePlugin({ name: 'computer', title: 'Computer', tools: [], routes }),
+    ],
+  })
+  const response = await api(host.workspace()).request(
+    `/plugins/computer/familiars/${host.familiar().id}/echo`,
+    { headers: { upgrade: 'websocket' } },
+  )
+  expect(response.status).toBe(501)
 })
 
 test('each stream sends what it is allowed whole first, and 403 when nothing is', async () => {

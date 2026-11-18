@@ -1,9 +1,11 @@
-import { Hono } from 'hono'
+import { Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
+import type { UpgradeWebSocket } from 'hono/ws'
 import { accountRoutes } from '../account/http.ts'
 import type { Author } from '../conversation/message.ts'
 import { mcpRoutes } from '../mcp/http.ts'
 import { pluginRoutes } from '../plugins/http.ts'
+import { isWebSocketUpgrade } from '../plugins/websocket.ts'
 import { connectionRoutes } from '../connections/http.ts'
 import { roomRoutes } from '../rooms/http.ts'
 import { defaultRoutes, familiarRoutes, meRoutes } from '../workspace/http.ts'
@@ -53,6 +55,13 @@ export type HttpOptions = {
    * as `MESSAGE_LIMITS`, are enforced by Familiar itself for every caller.
    */
   maxBodySize?: number
+  /**
+   * The runtime's Hono `upgradeWebSocket`, such as `@hono/node-server`'s or
+   * `hono/cloudflare-workers`', for plugins' WebSocket routes; without it
+   * they answer 501. Upgrades are authenticated and allowed like any other
+   * request to the route, and refused from another origin.
+   */
+  upgradeWebSocket?: UpgradeWebSocket
 }
 
 /**
@@ -120,8 +129,29 @@ const routes = (workspace: Workspace, push: PushHost | undefined) =>
 export type HttpApi = ReturnType<typeof routes>
 
 /**
+ * Browsers apply no CORS to WebSockets, so any page the person has open
+ * could otherwise open a socket with their cookies or network. A browser
+ * always names the page's origin on an upgrade, so refuse one that names
+ * another host than the request's; anything else, like the CLI, sends none.
+ * Hosts only, as the daemon's CSRF guard compares, so a proxy that changes
+ * the scheme, such as Tailscale Serve's HTTPS, keeps its own page working.
+ */
+const sameOriginWebSockets: MiddlewareHandler = async (c, next) => {
+  const origin = c.req.header('origin')
+  if (
+    isWebSocketUpgrade(c) &&
+    origin !== undefined &&
+    !(URL.canParse(origin) && new URL(origin).host === new URL(c.req.url).host)
+  ) {
+    return c.json({ error: 'cross-origin WebSocket' }, 403)
+  }
+  await next()
+}
+
+/**
  * A workspace's HTTP API as a fetch handler: the workspace, its Familiars
- * and its rooms. Every request is authenticated first (401), then its body
+ * and its rooms. Every request is authenticated first (401), then a
+ * WebSocket upgrade from another origin is refused (403), then its body
  * is bounded (413), then `allow` is asked (403), all before the route reads
  * the body or changes anything; a missing Familiar or room is 404 after.
  * Mount it under any path.
@@ -152,7 +182,8 @@ export function createHttpApi(
       c.set('allow', options.allow)
       await next()
     })
+    .use(sameOriginWebSockets)
     .use(bodyLimit({ maxSize: options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE }))
-    .route('/plugins', pluginRoutes(workspace))
+    .route('/plugins', pluginRoutes(workspace, options.upgradeWebSocket))
     .route('/', routes(workspace, options.push))
 }

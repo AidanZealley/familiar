@@ -30,7 +30,8 @@ export type FamiliarPlugin = {
    * Routes about one Familiar, which `createHttpApi` mounts at
    * `/plugins/<name>/familiars/:familiar`, behind the host's `authenticate`
    * and `allow`, asked for `plugins.<name>` with that Familiar's ID. A
-   * Familiar that doesn't exist is 404 before they run.
+   * Familiar that doesn't exist is 404 before they run. WebSocket routes
+   * use core's `upgradeWebSocket`, which reaches the host's.
    */
   routes?: Hono<PluginEnv, Schema, string>
 }
