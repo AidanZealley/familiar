@@ -82,7 +82,12 @@ const failed = (text: string): CallToolResult => ({
  * values: `wanted`, the Familiars that should have computers, which only
  * `sync` sets, and `awake`, the computers calls are waiting to run, which
  * only `call` adds to. Nothing else makes, starts, stops or removes
- * anything, so no two changes ever cross.
+ * anything, so no two changes ever cross. Until the first `sync`, who
+ * should have a computer isn't known (not "nobody"), so the first pass
+ * waits for it: nothing is removed, made or woken before then.
+ *
+ * The host belongs to the one `computer` plugin it's given, in one
+ * workspace, which closes it as the workspace closes.
  *
  * The host reaches each agent over a `docker exec` into its socket, so a
  * computer needs no port. Computers have no network: their only way out is
@@ -102,7 +107,12 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     idleMs,
   })
 
-  let wanted = new Set<FamiliarId>()
+  /** Settles with the first `sync`'s list. */
+  let known!: (familiars: ReadonlySet<FamiliarId>) => void
+  /** Who should have computers, once the first `sync` has said. */
+  let wanted = new Promise<ReadonlySet<FamiliarId>>(
+    (resolve) => (known = resolve),
+  )
   /** Each computer a call is waiting to run: whether to restart it. */
   let awake = new Map<FamiliarId, boolean>()
 
@@ -123,14 +133,16 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   let proxyMade = false
 
   /**
-   * Makes what's wanted at its start true. `answers`, for each computer a
-   * call waits on: whether it started it, or why it can't run. `failed`:
-   * what Docker failed to do, if anything.
+   * Makes what's wanted at its start true, once it's known. `answers`, for
+   * each computer a call waits on: whether it started it, or why it can't
+   * run. `failed`: what Docker failed to do, if anything.
    */
   const pass = async () => {
-    const want = wanted
+    const wantedNow = wanted
     const waiting = awake
     awake = new Map()
+    // Before the first sync, the list it will give: never "nobody".
+    const want = await wantedNow
     const ready = image.state.state === 'ready'
     const answers = new Map<FamiliarId, boolean | string>()
     let failed: unknown
@@ -359,7 +371,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     },
 
     sync: async (familiars) => {
-      wanted = new Set(familiars)
+      const list = new Set(familiars)
+      wanted = Promise.resolve(list)
+      known(list)
       await checkedPass()
       // Computers are made once their image is here.
       if (familiars.length && image.state.state !== 'ready') {
@@ -413,6 +427,14 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
             }
           }),
         ),
+      }
+    },
+
+    close: async () => {
+      image.close()
+      for (const entry of clients.values()) {
+        // Once it's connected, if it's still connecting.
+        void entry.then(({ client }) => client.close()).catch(() => {})
       }
     },
   }

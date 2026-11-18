@@ -336,6 +336,83 @@ test('a plugin opens with the Familiars that use it, hears each change, and clos
   await expect.poll(() => heard).toEqual([[ada.id]])
 })
 
+test('a plugin hears who uses it before resumed work reaches its tools', async () => {
+  const storage = new ReopenableStorage()
+  // What the plugin had heard when each call to its tool began.
+  const heardAtCall: number[][][] = []
+  let heard: number[][] = []
+  let interrupted = false
+  const options = {
+    storage,
+    models: scriptedModels((request) =>
+      request.type === 'message'
+        ? fauxAssistantMessage(fauxToolCall('look', {}), {
+            stopReason: 'toolUse',
+          })
+        : fauxAssistantMessage('Looked.'),
+    ),
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    plugins: [
+      definePlugin({
+        name: 'computer',
+        title: 'Computer',
+        tools: [
+          defineTool({
+            name: 'look',
+            description: 'Looks',
+            parameters: schema.obj({}),
+            replay: 'safe',
+            annotations: { readOnlyHint: true },
+            execute: async (_args, _api, context) => {
+              heardAtCall.push([...heard])
+              if (!interrupted) {
+                // Runs until the workspace stops it, as a restart would.
+                const signal = context.abortSignal!
+                await new Promise((_resolve, reject) =>
+                  signal.addEventListener('abort', () => {
+                    interrupted = true
+                    reject(signal.reason)
+                  }),
+                )
+              }
+              return { output: [{ type: 'text' as const, text: 'Seen.' }] }
+            },
+          }),
+        ],
+        // Takes a while, as one that connects to something might.
+        open: async ({ watchFamiliars }) => {
+          heard = []
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          watchFamiliars((familiars) => heard.push(familiars))
+        },
+      }),
+    ],
+  }
+  const workspace = await openWorkspace(options)
+  // Told before opening finishes.
+  expect(heard).toEqual([[]])
+  const ada = await workspace.familiars.create({
+    name: 'Ada',
+    capabilities: { plugins: ['computer'] },
+  })
+  const room = await workspace.rooms.dm(ada.id, 'aidan')
+  const entry = await (await workspace.rooms.get(room))!.post({
+    author: { id: 'aidan', name: 'Aidan' },
+    text: 'Look',
+    requestId: 'look',
+  })
+  await expect.poll(() => heardAtCall.length).toBe(1)
+  await workspace.dismiss()
+
+  // The next process replays the call it interrupted.
+  const reopened = await openWorkspace(options)
+  onTestFinished(() => reopened.dismiss())
+  expect(heard).toEqual([[ada.id]])
+  await replyTo((await reopened.rooms.get(room))!, entry)
+  expect(heardAtCall).toEqual([[[], [ada.id]], [[ada.id]]])
+})
+
 test('every plugin closes even when one fails, before the workspace counts as closed', async () => {
   const order: string[] = []
   const plugin = (name: string, close: () => Promise<void>) =>

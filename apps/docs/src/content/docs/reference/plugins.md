@@ -22,7 +22,7 @@ type FamiliarPlugin = {
 
 ### open(context)
 
-For a plugin with background state or clean-up. `openWorkspace` calls it once the workspace is open and has resumed its work, and waits for it, so start slow work without awaiting it. It may return a function, which is called when the workspace closes, by `dismiss()` or a storage failure.
+For a plugin with background state or clean-up. `openWorkspace` calls it once the workspace is open, before it resumes the work the last process left unfinished, and waits for it, so start slow work without awaiting it. No resumed tool call reaches a plugin before its `open` has settled. It may return a function, which is called when the workspace closes, by `dismiss()` or a storage failure.
 
 ```ts
 type PluginContext = {
@@ -30,7 +30,7 @@ type PluginContext = {
 }
 ```
 
-`watchFamiliars` calls `listener` with the Familiars that use the plugin, those that have it turned on, then again when that changes: one turns it on or off, or is created with it or removed. Changes close together may come as one call; the last call is always who uses it now. A promise `listener` returns isn't awaited, so handle its errors.
+`watchFamiliars` calls `listener` with the Familiars that use the plugin, those that have it turned on, then again when that changes: one turns it on or off, or is created with it or removed. Called from `open`, its first call comes before the workspace resumes any work, so a plugin knows who uses it before a resumed call arrives; later calls come asynchronously. Changes close together may come as one call; the last call is always who uses it now. A promise `listener` returns isn't awaited, so handle its errors.
 
 ### routes
 

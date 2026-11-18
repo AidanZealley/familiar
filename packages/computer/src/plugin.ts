@@ -12,7 +12,10 @@ import { shorten } from './shorten.ts'
 import { annotationsOf, computerTools } from './tools.ts'
 
 export type ComputerOptions = {
-  /** Where the computers run, such as `dockerHost()`. */
+  /**
+   * Where the computers run, such as `dockerHost()`. The plugin owns it, so
+   * give each workspace its own: it's closed when the workspace closes.
+   */
   host: ComputerHost
 }
 
@@ -94,6 +97,7 @@ export function computer({ host }: ComputerOptions) {
           )
         }),
       )
+      return () => host.close()
     },
     routes: new Hono<PluginEnv>()
       .get('/status', async (c) => c.json(await host.status(c.get('familiar'))))

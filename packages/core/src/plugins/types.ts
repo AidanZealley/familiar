@@ -18,9 +18,12 @@ export type FamiliarPlugin = {
   secrets?: readonly PluginSecret[]
   tools: readonly FamiliarTool[]
   /**
-   * Called once the workspace is open and has resumed its work; opening
-   * waits for it, so start slow work without awaiting it. Returns what to
-   * call when the workspace closes, by `dismiss()` or a storage failure.
+   * Called once the workspace is open, before it resumes the work the last
+   * process left unfinished, so no resumed tool call reaches the plugin
+   * before it knows the workspace: opening waits for it, and for the first
+   * telling of each `watchFamiliars` it begins. Start slow work without
+   * awaiting it. Returns what to call when the workspace closes, by
+   * `dismiss()` or a storage failure.
    */
   open?(context: PluginContext): PluginClose | Promise<PluginClose>
   /**
@@ -40,10 +43,11 @@ export type PluginContext = {
   /**
    * Calls `listener` with the Familiars that use this plugin, those that
    * have it turned on, then again when that changes: one turns it on or
-   * off, or is created with it or removed. Changes close together may come
-   * as one; the last call is always who uses it now. In order, until the
-   * workspace closes. A promise it returns isn't awaited, so it handles its
-   * own errors.
+   * off, or is created with it or removed. Called from `open`, the first
+   * call comes before `open`'s workspace resumes any work; later ones come
+   * asynchronously. Changes close together may come as one; the last call
+   * is always who uses it now. In order, until the workspace closes. A
+   * promise it returns isn't awaited, so it handles its own errors.
    */
   watchFamiliars(listener: (familiars: FamiliarId[]) => void): void
 }
