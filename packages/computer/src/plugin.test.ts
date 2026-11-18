@@ -61,6 +61,9 @@ function fakeHost(answer: (signal?: AbortSignal) => Promise<string>) {
       return { content: [{ type: 'text', text: await answer(signal) }] }
     },
     screen: async () => undefined,
+    control: async () => {
+      throw new Error('Not here.')
+    },
     sync: async () => {},
     status: async () => ({ state: 'running' }),
     inspect: async (familiar) => ({ doing: [{ tool: `${familiar}'s` }] }),

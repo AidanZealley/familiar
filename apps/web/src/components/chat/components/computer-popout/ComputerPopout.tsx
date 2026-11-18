@@ -8,6 +8,8 @@ import type { ComputerPopoutProps } from './types'
 /**
  * The Familiar's screen in a small window over the chat, which stays while
  * the person chats, under a bar with what it's doing, full screen and close.
+ * It's for watching: the whole preview opens full screen, where the person
+ * can take over.
  */
 export const ComputerPopout = ({ familiar }: ComputerPopoutProps) => {
   const { show } = useComputerView()
@@ -35,7 +37,14 @@ export const ComputerPopout = ({ familiar }: ComputerPopoutProps) => {
           <XIcon />
         </Button>
       </div>
-      <ComputerScreen familiar={familiar} />
+      <button
+        type="button"
+        aria-label="Full screen"
+        onClick={() => show('full')}
+        className="block w-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ComputerScreen familiar={familiar} input={false} />
+      </button>
     </div>
   )
 }

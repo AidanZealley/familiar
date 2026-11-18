@@ -1,19 +1,28 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { machine } from 'node:os'
 import { dirname, resolve } from 'node:path'
-import { McpServer, type CallToolResult } from '@modelcontextprotocol/server'
+import {
+  McpServer,
+  type CallToolResult,
+  type ServerContext,
+} from '@modelcontextprotocol/server'
+import type { Page } from 'playwright'
 import { z } from 'zod'
 import {
   annotationsOf,
   ASLEEP,
   computerTools,
+  CONTROL_TOOL,
+  type ComputerTool,
   INFO_TOOL,
+  PROGRESS_MS,
   type ComputerInfo,
   type ComputerToolName,
 } from '../tools.ts'
 import { KEEP_TEXT } from '../shorten.ts'
 import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
+import type { CallKind, ComputerControl } from './control.ts'
 import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
 
@@ -21,10 +30,15 @@ type Args<Name extends ComputerToolName> = z.infer<
   (typeof computerTools)[Name]['input']
 >
 
+/**
+ * Each tool's handler. `using`: a person has control, so a read may run but
+ * must not change the display, such as by starting the browser.
+ */
 type Handlers = {
   [Name in ComputerToolName]: (
     args: Args<Name>,
     signal: AbortSignal,
+    using: boolean,
   ) => Promise<CallToolResult>
 }
 
@@ -45,6 +59,9 @@ const onScreen =
   async (args: A, signal: AbortSignal) =>
     png(await screen.act(() => act(args, signal), signal))
 
+const NO_PAGE =
+  "The browser has no page open, and a person is using the computer, so it wasn't opened. Look again once they hand it back."
+
 const STARTED =
   'The browser has just started, so any pages opened before are gone.\n\n'
 
@@ -55,35 +72,72 @@ const ASLEEP_RESULT: CallToolResult = {
 }
 
 /**
+ * Sends progress on the call `ctx` belongs to now and every `PROGRESS_MS`,
+ * until the returned function stops it. Nothing if the caller asked for none.
+ */
+const progress = (ctx: ServerContext, message: string) => {
+  const token = ctx.mcpReq._meta?.progressToken
+  if (token === undefined) {
+    return () => {}
+  }
+  let count = 0
+  const send = () =>
+    void ctx.mcpReq
+      .notify({
+        method: 'notifications/progress',
+        params: { progressToken: token, progress: ++count, message },
+      })
+      .catch(() => {})
+  send()
+  const timer = setInterval(send, PROGRESS_MS)
+  return () => clearInterval(timer)
+}
+
+const WAITING = 'Waiting for the person to hand back the computer.'
+
+/** What a tool does, for `control`: the browser and screen tools use the display. */
+const kindOf = (name: string, tool: ComputerTool): CallKind => ({
+  reads: tool.reads === true,
+  display: name.startsWith('browser_') || name.startsWith('screen_'),
+})
+
+/**
  * The computer's MCP server, one per connection, over the machine's one
- * browser, file system and `activity`, which counts every call but a look
- * (the info tool). `home` is where commands run and relative paths start.
+ * browser, file system, `activity`, which counts every call but a look
+ * (the info tool), and `control`, which says whether a call may run while
+ * a person takes over. `home` is where commands run and relative paths
+ * start.
  */
 export function computerServer(
   browser: Browser,
   home: string,
   activity: Activity,
+  control: ComputerControl,
 ) {
   /** Runs `act` on the open page and answers with its snapshot after. */
   const onPage =
-    <A>(
-      act: (
-        page: Awaited<ReturnType<Browser['page']>>['page'],
-        args: A,
-        signal: AbortSignal,
-      ) => Promise<unknown>,
-    ) =>
-    async (args: A, signal: AbortSignal) => {
-      const { page, started } = await browser.page()
+    <A>(act: (page: Page, args: A, signal: AbortSignal) => Promise<unknown>) =>
+    async (args: A, signal: AbortSignal, using: boolean) => {
+      const shown = await browser.page({ open: !using })
+      if (!shown) {
+        return text(NO_PAGE, true)
+      }
+      const { page, started } = shown
       await act(page, args, signal)
       return text((started ? STARTED : '') + (await browser.snapshot(page)))
     }
 
   const handlers: Handlers = {
     browser_snapshot: onPage(async () => {}),
-    browser_screenshot: async () => {
-      const { page } = await browser.page()
-      return png(await page.screenshot({ type: 'png' }))
+    browser_screenshot: async (_args, _signal, using) => {
+      const shown = await browser.page({ open: !using })
+      return shown
+        ? png(
+            // The caret as it is: by default Playwright hides it while it
+            // captures, under the hands of a person typing.
+            await shown.page.screenshot({ type: 'png', caret: 'initial' }),
+          )
+        : text(NO_PAGE, true)
     },
     browser_navigate: onPage((page, { url }) => page.goto(url)),
     browser_click: onPage((page, { ref }, signal) =>
@@ -136,6 +190,7 @@ export function computerServer(
     const handle = handlers[name as ComputerToolName] as (
       args: unknown,
       signal: AbortSignal,
+      using: boolean,
     ) => Promise<CallToolResult>
     server.registerTool(
       name,
@@ -145,18 +200,70 @@ export function computerServer(
         annotations: annotationsOf(tool),
       },
       async (args, ctx) =>
-        (await activity.run(name, args, async () => {
+        (await activity.run(name, args, async (call) => {
+          const { signal } = ctx.mcpReq
+          let stopWaiting = () => {}
           try {
-            return await handle(args, ctx.mcpReq.signal)
+            const outcome = await control.run(
+              call,
+              kindOf(name, tool),
+              signal,
+              () => (stopWaiting = progress(ctx, WAITING)),
+              // Its own failure is its result, so a note still goes with it.
+              (using) =>
+                handle(args, signal, using).catch((error: unknown) =>
+                  text(
+                    error instanceof Error ? error.message : String(error),
+                    true,
+                  ),
+                ),
+            )
+            if (!outcome.ran) {
+              return text(outcome.note, true)
+            }
+            const { value: result, note } = outcome
+            return note
+              ? {
+                  ...result,
+                  content: [{ type: 'text', text: note }, ...result.content],
+                }
+              : result
           } catch (error) {
             return text(
               error instanceof Error ? error.message : String(error),
               true,
             )
+          } finally {
+            stopWaiting()
           }
         })) ?? ASLEEP_RESULT,
     )
   }
+  server.registerTool(
+    CONTROL_TOOL,
+    {
+      description:
+        'For the host, never a model: a person has control of the computer until this call is cancelled.',
+      inputSchema: z.object({}),
+    },
+    async (_args, ctx) =>
+      (await activity.run(
+        CONTROL_TOOL,
+        {},
+        async () => {
+          let stop = () => {}
+          try {
+            const refused = await control.hold(ctx.mcpReq.signal, () => {
+              stop = progress(ctx, 'The person has control.')
+            })
+            return refused ? text(refused, true) : text('Handed back.')
+          } finally {
+            stop()
+          }
+        },
+        { unlisted: true },
+      )) ?? ASLEEP_RESULT,
+  )
   server.registerTool(
     INFO_TOOL,
     {
@@ -166,8 +273,12 @@ export function computerServer(
       annotations: { readOnlyHint: true },
     },
     async () => {
+      const { doing, lastUsed } = activity.now()
       const info: ComputerInfo = {
-        ...activity.now(),
+        lastUsed,
+        doing: doing?.map((call) =>
+          control.waits(call) ? { ...call, waiting: true as const } : call,
+        ),
         tabs: await browser.tabs(),
         system: { os: await osName(), architecture: machine() },
       }

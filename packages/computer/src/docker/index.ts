@@ -9,7 +9,7 @@ import type {
   ComputerHost,
   ComputerStatus,
 } from '../host.ts'
-import { ASLEEP } from '../tools.ts'
+import { ASLEEP, CONTROL_TOOL, PROGRESS_MS } from '../tools.ts'
 import manifest from '../../package.json' with { type: 'json' }
 import { coalesce } from './coalesce.ts'
 import { computerImage } from './image.ts'
@@ -67,8 +67,15 @@ export const COMPUTER_REPOSITORY = manifest.config.image
  */
 export const COMPUTER_IMAGE = `${COMPUTER_REPOSITORY}:${manifest.version}`
 
-/** Longer than any tool's own limit: the agent stops its own calls first. */
+/**
+ * Longer than any tool's own limit: the agent stops its own calls first.
+ * It restarts on each progress, so it doesn't run while a call waits for a
+ * person to hand back.
+ */
 const CALL_MAX_MS = 15 * 60_000
+
+/** A control call this long without progress has an agent that stopped answering. */
+const CONTROL_SILENCE_MS = 3 * PROGRESS_MS
 
 const WOKE =
   'Your computer was asleep, so it has just started: its files are as they were, but programs that were running have stopped.'
@@ -77,6 +84,12 @@ const failed = (text: string): CallToolResult => ({
   content: [{ type: 'text', text }],
   isError: true,
 })
+
+/** A result's text. */
+const textOf = ({ content }: CallToolResult) =>
+  content
+    .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+    .join('\n')
 
 /**
  * Familiars' computers as Docker containers on this machine's engine (or
@@ -310,6 +323,13 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   const looking = (familiar: FamiliarId) =>
     clients.get(familiar)?.then(({ client }) => client)
 
+  type CallOptions = {
+    signal?: AbortSignal
+    /** Without progress; each progress restarts it. */
+    timeout: number
+    onprogress?: () => void
+  }
+
   /**
    * One try at running `tool`: its result, or `retry` when it never reached
    * the agent (it couldn't connect, or the agent was going to sleep). A
@@ -321,7 +341,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     restart: boolean,
     tool: string,
     args: Record<string, unknown>,
-    signal?: AbortSignal,
+    options: CallOptions,
   ): Promise<{ result: CallToolResult; woke: boolean } | { retry: string }> => {
     const cached = clients.get(familiar)
     const connected = await (cached ?? open(familiar, restart)).then(
@@ -334,7 +354,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     const { client, woke, gone } = connected.connection
     const result = (await client.callTool(
       { name: tool, arguments: args },
-      { signal, timeout: CALL_MAX_MS },
+      { ...options, resetTimeoutOnProgress: true },
     )) as CallToolResult
     if (result._meta?.[ASLEEP]) {
       void client.close()
@@ -342,6 +362,46 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       return { retry: 'it went to sleep as it woke' }
     }
     return { result, woke: !cached && woke }
+  }
+
+  /**
+   * Runs `tool` on the familiar's computer, making or waking it first, or
+   * answers why it couldn't, having run nothing.
+   */
+  const run = async (
+    familiar: FamiliarId,
+    tool: string,
+    args: Record<string, unknown>,
+    options: CallOptions,
+  ): Promise<
+    { result: CallToolResult; woke: boolean } | { failed: CallToolResult }
+  > => {
+    const { state } = image
+    if (state.state === 'setting-up') {
+      return {
+        failed: failed(
+          'Your computer is still being set up: its software is downloading. Try again in a few minutes.',
+        ),
+      }
+    }
+    if (state.state === 'unavailable') {
+      return {
+        failed: failed(`Computers aren't available here: ${state.reason}`),
+      }
+    }
+    // Once more on a restarted computer, unless another call connected.
+    const first = await attempt(familiar, false, tool, args, options)
+    const answer =
+      'retry' in first
+        ? await attempt(familiar, true, tool, args, options)
+        : first
+    return 'retry' in answer
+      ? {
+          failed: failed(
+            `Your computer couldn't start, so nothing ran: ${answer.retry}`,
+          ),
+        }
+      : answer
   }
 
   const status = async (familiar: FamiliarId): Promise<ComputerStatus> => {
@@ -362,26 +422,21 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   }
 
   return {
-    call: async (familiar, tool, args, signal) => {
-      const { state } = image
-      if (state.state === 'setting-up') {
-        return failed(
-          'Your computer is still being set up: its software is downloading. Try again in a few minutes.',
-        )
-      }
-      if (state.state === 'unavailable') {
-        return failed(`Computers aren't available here: ${state.reason}`)
-      }
-      // Once more on a restarted computer, unless another call connected.
-      const first = await attempt(familiar, false, tool, args, signal)
-      const answer =
-        'retry' in first
-          ? await attempt(familiar, true, tool, args, signal)
-          : first
-      if ('retry' in answer) {
-        return failed(
-          `Your computer couldn't start, so nothing ran: ${answer.retry}`,
-        )
+    call: async (familiar, tool, args, signal, onWait) => {
+      let waiting = false
+      const answer = await run(familiar, tool, args, {
+        signal,
+        timeout: CALL_MAX_MS,
+        // Only a call waiting for a person to hand back gets progress.
+        onprogress: () => {
+          if (!waiting) {
+            waiting = true
+            onWait?.()
+          }
+        },
+      })
+      if ('failed' in answer) {
+        return answer.failed
       }
       const { result, woke } = answer
       return woke
@@ -390,6 +445,35 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
             content: [{ type: 'text', text: WOKE }, ...result.content],
           }
         : result
+    },
+
+    control: async (familiar, signal) => {
+      // The agent's first progress says the person has control; the call
+      // lasts until `signal` cancels it, or the connection ends.
+      let held!: () => void
+      const holding = new Promise<'held'>(
+        (resolve) => (held = () => resolve('held')),
+      )
+      const call = run(
+        familiar,
+        CONTROL_TOOL,
+        {},
+        {
+          signal,
+          timeout: CONTROL_SILENCE_MS,
+          onprogress: () => held(),
+        },
+      )
+      const first = await Promise.race([holding, call])
+      if (first !== 'held') {
+        throw new Error(textOf('failed' in first ? first.failed : first.result))
+      }
+      return {
+        ended: call.then(
+          () => {},
+          () => {},
+        ),
+      }
     },
 
     screen: async (familiar, signal) => {

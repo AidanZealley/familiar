@@ -12,6 +12,7 @@ import { parseArgs } from 'node:util'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 import { activity } from './activity.ts'
 import { openBrowser } from './browser.ts'
+import { computerControl } from './control.ts'
 import { startDisplay } from './display.ts'
 import { computerServer } from './server.ts'
 import { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
@@ -65,13 +66,14 @@ await startDisplay((reason) => {
 })
 
 const home = homedir()
+const control = computerControl()
 const browser = openBrowser(resolve(home, '.familiar-computer', 'browser'))
 // A socket left by an agent that stopped.
 await rm(AGENT_SOCKET, { force: true })
 const server = createServer((socket) => {
   // A connection that drops ends its server, which stops its calls.
   socket.on('error', () => socket.destroy())
-  void computerServer(browser, home, calls).connect(
+  void computerServer(browser, home, calls, control).connect(
     new StdioServerTransport(socket, socket),
   )
 })

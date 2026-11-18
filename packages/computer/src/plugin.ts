@@ -12,6 +12,28 @@ import type { ComputerHost } from './host.ts'
 import { shorten } from './shorten.ts'
 import { annotationsOf, computerTools } from './tools.ts'
 
+/**
+ * `GET /control`, a person taking over a Familiar's computer: it wakes the
+ * computer, and once they have control the server sends `held`. They have
+ * it until the socket closes, which hands it back at once. The server sends
+ * `ping` every `PING_MS`; any message back counts as alive, and a socket
+ * silent for `SILENT_MS` is taken as gone (a dropped phone, say) and hands
+ * back. Refused (someone else has control), couldn't start, or ended by the
+ * computer stopping: the server closes the socket with why.
+ */
+export const CONTROL_PROTOCOL = { held: 'held', ping: 'ping' } as const
+const PING_MS = 5000
+const SILENT_MS = 15_000
+/** `text` as a WebSocket close reason, which is at most 123 bytes. */
+const reasonFor = (text: string) => {
+  const bytes = new TextEncoder()
+  let reason = text
+  while (bytes.encode(reason).length > 123) {
+    reason = `${reason.slice(0, -2)}…`
+  }
+  return reason
+}
+
 export type ComputerOptions = {
   /**
    * Where the computers run, such as `dockerHost()`. The plugin owns it, so
@@ -30,6 +52,8 @@ export type ComputerOptions = {
  * `ComputerDetail`, for a person looking at it. `GET /screen` is a
  * WebSocket of its screen's VNC (RFB) bytes, for a viewer such as noVNC:
  * closed at once if the computer isn't running, and when it stops.
+ * `GET /control` is a WebSocket a person holds to take the computer over:
+ * see `CONTROL_PROTOCOL`.
  */
 export function computer({ host }: ComputerOptions) {
   return definePlugin({
@@ -44,7 +68,7 @@ export function computer({ host }: ComputerOptions) {
         // other call a restart interrupted, so the model looks before retrying.
         ...('reads' in tool && { replay: 'safe' as const }),
         annotations: annotationsOf(tool),
-        execute: async (args, _api, context) => {
+        execute: async (args, api, context) => {
           const id = await familiar(context).familiarId()
           let result
           try {
@@ -53,6 +77,9 @@ export function computer({ host }: ComputerOptions) {
               name,
               args as Record<string, unknown>,
               context.abortSignal,
+              // The chat shows it, as "Waiting for you to hand back".
+              () =>
+                void api.details({ waiting: true }, context).catch(() => {}),
             )
           } catch (error) {
             // Stopped, or the host is closing: Pi reports that itself.
@@ -143,6 +170,63 @@ export function computer({ host }: ComputerOptions) {
               }
             },
             onClose: () => viewer.abort(),
+          }
+        }),
+      )
+      .get(
+        '/control',
+        upgradeWebSocket((c) => {
+          const id = c.get('familiar')
+          // Control lasts as long as this: aborted, with the timers stopped,
+          // when the socket closes or goes silent, whichever is first.
+          const person = new AbortController()
+          let pings: ReturnType<typeof setInterval> | undefined
+          let silence: ReturnType<typeof setTimeout> | undefined
+          const stop = () => {
+            clearInterval(pings)
+            clearTimeout(silence)
+            person.abort()
+          }
+          /** Ends control and closes the socket with why; set once open. */
+          let end: (code: number, reason: string) => void = stop
+          /** Anything from the browser puts off the silence deadline. */
+          const heard = () => {
+            // Nothing re-arms it once control has ended.
+            if (person.signal.aborted) {
+              return
+            }
+            clearTimeout(silence)
+            silence = setTimeout(
+              () => end(4001, 'The connection was lost.'),
+              SILENT_MS,
+            )
+          }
+          return {
+            onOpen: async (_event, ws) => {
+              end = (code, reason) => {
+                stop()
+                ws.close(code, reasonFor(reason))
+              }
+              heard()
+              pings = setInterval(() => ws.send(CONTROL_PROTOCOL.ping), PING_MS)
+              let ended
+              try {
+                ;({ ended } = await host.control(id, person.signal))
+              } catch (error) {
+                return end(
+                  4000,
+                  error instanceof Error ? error.message : String(error),
+                )
+              }
+              if (person.signal.aborted) {
+                return
+              }
+              ws.send(CONTROL_PROTOCOL.held)
+              await ended
+              end(1000, 'Control ended.')
+            },
+            onMessage: heard,
+            onClose: stop,
           }
         }),
       ),

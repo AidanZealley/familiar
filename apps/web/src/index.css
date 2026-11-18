@@ -158,6 +158,32 @@
   }
 }
 
+/* Take over asks for attention once: a click on a watched screen. */
+@theme {
+  --animate-attention: attention 700ms ease-in-out;
+  @keyframes attention {
+    0%,
+    100% {
+      scale: 1;
+      rotate: 0deg;
+    }
+    20% {
+      scale: 1.12;
+      rotate: -4deg;
+    }
+    40% {
+      rotate: 4deg;
+    }
+    60% {
+      rotate: -3deg;
+    }
+    80% {
+      scale: 1.05;
+      rotate: 2deg;
+    }
+  }
+}
+
 @theme inline {
   --font-sans: 'Geist Variable', sans-serif;
   --font-heading: var(--font-mono);

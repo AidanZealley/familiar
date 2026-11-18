@@ -15,13 +15,15 @@ import {
 } from '@/components/ui/popover'
 import { useComputerView, type ComputerView } from '@/lib/computer-view'
 import { computerQuery, computerStates, useHasComputer } from '@/lib/computers'
+import { TakeOverButton } from '@/components/take-over-button'
 import { ComputerDetails } from './components/computer-details'
+import { ControlBanner } from './components/control-banner'
 import type { ComputerButtonProps } from './types'
 
 /**
  * The Familiar's computer at a glance: an icon with its state's dot, which
- * opens its live screen and details, from which the screen pops out over
- * the chat or goes full screen. Nothing while the Familiar has no computer.
+ * opens its live screen, take over and details, from which the screen pops
+ * out over the chat or goes full screen. Nothing while the Familiar has no computer.
  */
 export const ComputerButton = ({ familiar }: ComputerButtonProps) => {
   const hasComputer = useHasComputer(familiar.id)
@@ -74,7 +76,7 @@ export const ComputerButton = ({ familiar }: ComputerButtonProps) => {
             onClick={() => showView('full')}
             className="group/preview relative block w-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ComputerScreen familiar={familiar} />
+            <ComputerScreen familiar={familiar} input={false} />
             <span
               aria-hidden
               className="absolute top-1.5 right-1.5 grid size-7 place-items-center bg-black/60 text-white group-hover/preview:bg-black/80"
@@ -91,6 +93,8 @@ export const ComputerButton = ({ familiar }: ComputerButtonProps) => {
             <PictureInPictureIcon />
           </Button>
         </div>
+        <ControlBanner familiar={familiar} />
+        <TakeOverButton familiar={familiar} />
         <ComputerDetails familiar={familiar} status={status} />
       </PopoverContent>
     </Popover>

@@ -109,9 +109,21 @@ Allow `plugins.computer` in your `allow` for whoever may see it. See [routes](/f
 
 The plugin also serves `GET /plugins/computer/familiars/:familiar/screen`, a WebSocket of the computer's display as VNC (RFB) bytes, which a viewer such as [noVNC](https://novnc.com) speaks as it is. Give `createHttpApi` your runtime's Hono `upgradeWebSocket`, such as `@hono/node-server`'s, as the daemon does; without it, the route answers 501. The display is 1280×800 and shared by every viewer, with no password and no clipboard.
 
-Watching never wakes a computer or keeps it awake. A sleeping computer's socket closes at once, and an open one closes when the computer goes to sleep, so ask again once its status says `running`. Use the viewer's view-only mode: nothing you send coordinates with the Familiar yet.
+Watching never wakes a computer or keeps it awake. A sleeping computer's socket closes at once, and an open one closes when the computer goes to sleep, so ask again once its status says `running`. Use the viewer's view-only mode unless you hold control (below).
 
 It needs the same `plugins.computer` permission as its status.
+
+## Take over a computer
+
+To use the computer yourself, for a sign-in or a CAPTCHA, hold `GET /plugins/computer/familiars/:familiar/control`, a WebSocket. It wakes a sleeping computer, and the server sends `held` once you have control. You have it until the socket closes, which hands it back at once:
+
+- The server sends `ping` every 5 seconds. Answer each with any message: a socket silent for 15 seconds is taken as gone, such as a phone that lost its connection, and hands back.
+- Only one person has control at a time. A second take-over is closed with code 4000 and why; so is one whose computer can't start.
+- If the computer stops, or the daemon restarts, control ends and the socket closes.
+
+While you have control, the computer stays awake. The Familiar's reads still run, with a note that someone is using it. Its actions wait, without their time limit running, and the chat shows "Waiting for you to hand back the computer". An action that waited never runs: its result tells the Familiar to look again. The Familiar's first call after you hand back is told too, so a take-over between its calls isn't missed.
+
+Send input to the screen socket only while you hold control. This is coordination, not security: watching and taking over need the same permission.
 
 ## Limits
 

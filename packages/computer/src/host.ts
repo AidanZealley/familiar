@@ -13,14 +13,30 @@ export type ComputerHost = {
    * Runs a computer tool on the Familiar's computer, making or waking it
    * first. A result that couldn't run says why (no Docker, say), and one that
    * woke the computer says so. Throws if the computer stopped answering
-   * during the call, or when `signal` stops it.
+   * during the call, or when `signal` stops it. An action made while a
+   * person has control waits for them to hand back, without its time limit
+   * running, calling `onWait` once as it starts to wait; it then doesn't
+   * run, and its result says so.
    */
   call(
     familiar: FamiliarId,
     tool: string,
     args: Record<string, unknown>,
     signal?: AbortSignal,
+    onWait?: () => void,
   ): Promise<CallToolResult>
+  /**
+   * Gives a person control of the Familiar's computer, making or waking it
+   * first: resolves once they have it, with `ended`, which settles when
+   * control has ended. It ends when `signal` aborts, the computer stops or
+   * stops answering, or the host closes. While it lasts the computer stays
+   * awake and the Familiar's actions wait. Rejects, saying why, if someone
+   * else has control or the computer can't run.
+   */
+  control(
+    familiar: FamiliarId,
+    signal: AbortSignal,
+  ): Promise<{ ended: Promise<void> }>
   /**
    * The Familiars that should have computers: makes any missing, and removes
    * any other's, disk included. Idempotent; when calls overlap, the latest
@@ -74,8 +90,12 @@ export type ByteStream = {
 /** Some amount in use against its limit, such as memory in bytes. */
 export type Usage = { used: number; limit?: number }
 
-/** A call running on a computer: its tool and a short target, such as the URL or command. */
-export type ComputerCall = { tool: string; target?: string }
+/**
+ * A call running on a computer: its tool and a short target, such as the
+ * URL or command, and whether it's waiting for a person to hand the
+ * computer back.
+ */
+export type ComputerCall = { tool: string; target?: string; waiting?: true }
 
 /**
  * A Familiar's computer in detail. Every field is optional: each host fills
