@@ -21,7 +21,6 @@ server.setRequestHandler('tools/list', () => ({
         properties: { text: { type: 'string' } },
         required: ['text'],
       },
-      annotations: { readOnlyHint: true },
     },
   ],
 }))

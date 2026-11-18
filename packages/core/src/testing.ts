@@ -88,11 +88,6 @@ export type TestHostOptions = Partial<WorkspaceOptions> & {
   faux?: FauxModelDefinition[]
   /** Whose DM with Familiar #1 `dm` is. Default aidan. */
   person?: Author
-  /**
-   * Plugins' tools ask the person first, by their annotations, as
-   * Familiar's do; otherwise the owner has allowed them all.
-   */
-  askFirst?: boolean
 }
 
 /**
@@ -101,12 +96,7 @@ export type TestHostOptions = Partial<WorkspaceOptions> & {
  * unless a test says whose.
  */
 export async function testHost(options: TestHostOptions = {}) {
-  const {
-    faux: definitions,
-    person = AIDAN,
-    askFirst = false,
-    ...rest
-  } = options
+  const { faux: definitions, person = AIDAN, ...rest } = options
   const { faux, models } = fauxModels(definitions)
   let current: TestHostOptions & WorkspaceOptions = {
     models,
@@ -120,15 +110,6 @@ export async function testHost(options: TestHostOptions = {}) {
     const { name = 'Familiar', persona, ...workspaceOptions } = current
     const workspace = await openWorkspace(workspaceOptions)
     try {
-      if (!askFirst) {
-        for (const { name } of workspaceOptions.plugins ?? []) {
-          await workspace.connections.setPolicy(
-            { kind: 'plugin', name },
-            undefined,
-            'allow',
-          )
-        }
-      }
       const [first] = await workspace.familiars.list()
       if (first) {
         await workspace.familiars.update(first.id, {

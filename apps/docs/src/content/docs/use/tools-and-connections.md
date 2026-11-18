@@ -31,12 +31,12 @@ A local command runs with the same permissions as Familiar's own user account. O
 
 ## Asking before a tool runs
 
-A connection's tool can run as soon as a Familiar calls it, ask you first, or never run. By default, a tool asks unless it says it only reads, or that it changes nothing that matters. That's MCP's own rule for tools that don't say.
+A connection's tool can run as soon as a Familiar calls it, ask you first, or never run. By default, Familiar asks for tools that explicitly declare a destructive action. Tools without hints run by default. Check **Ask first** on any tool you want to approve manually.
 
 When a tool asks, the reply shows **Waiting for you** with **Approve** and **Decline**, and you get a notification if they're turned on. Declining tells the Familiar you said no. If you send the Familiar a new message instead, the question is declined and it reads your message.
 
 An MCP server can also ask you something itself while a tool runs, such as "Start printing benchy.gcode?" or a short form. Its question shows the same way. Familiar shows yes or no, text, number and single-choice questions; anything else can only be declined.
 
-On a connection's page, **Approval** sets every tool's choice at once, and each tool has its own, which wins. A server that asks before its risky actions, as many printer and home servers do, can be set to **Runs** so you're asked once, by the server.
+Use **Enabled** to turn a tool off temporarily. It keeps its **Ask first** setting while disabled. For a tool whose server already asks for approval, you can uncheck **Ask first** to rely on the server's question.
 
 To give Familiar tools of your own, written in TypeScript, see [Extend your Familiar](/familiar/use/extend/).

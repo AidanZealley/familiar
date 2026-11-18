@@ -3,9 +3,8 @@ import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
 import {
   ConnectionError,
-  POLICIES,
   secretValue,
-  type Policy,
+  type ToolSettings,
   type Connection,
   type ConnectionsApi,
 } from './index.ts'
@@ -28,19 +27,15 @@ const secretPath = validator('param', (params, c) => {
   }
 })
 
-const connectionPath = validator('param', (params, c) => {
+const toolPath = validator('param', (params, c) => {
   if (!KINDS.includes(params.kind)) {
     return c.json({ error: 'no such connection' }, 404)
   }
-  return { kind: params.kind as Connection['kind'], name: params.name }
-})
-
-const policyBody = validator('json', (body, c) => {
-  const policy = (body as { policy?: unknown } | null)?.policy
-  if (policy !== null && !POLICIES.includes(policy as Policy)) {
-    return c.json({ error: `policy is ${POLICIES.join(', ')} or null` }, 400)
+  return {
+    kind: params.kind as Connection['kind'],
+    name: params.name,
+    tool: params.tool,
   }
-  return { policy: policy as Policy | null }
 })
 
 /**
@@ -84,43 +79,35 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
         return c.body(null, 204)
       },
     )
-    // Whether all its tools without their own policy run, ask or never run.
-    .put(
-      '/:kind/:name/policy',
-      can('connections.setPolicy'),
-      connectionPath,
-      policyBody,
-      async (c) => {
-        const { kind, name } = c.req.valid('param')
-        await connections.setPolicy(
-          { kind, name },
-          undefined,
-          c.req.valid('json').policy,
-        )
-        return c.body(null, 204)
-      },
-    )
-    // Whether one of its tools runs, asks or never runs.
-    .put(
-      '/:kind/:name/tools/:tool/policy',
-      can('connections.setPolicy'),
-      validator('param', (params, c) => {
-        if (!KINDS.includes(params.kind)) {
-          return c.json({ error: 'no such connection' }, 404)
+    .patch(
+      '/:kind/:name/tools/:tool/settings',
+      can('connections.updateToolSettings'),
+      toolPath,
+      validator('json', (body, c) => {
+        const enabled: unknown = body?.enabled
+        const askBeforeRunning: unknown = body?.askBeforeRunning
+        if (
+          (enabled === undefined && askBeforeRunning === undefined) ||
+          (enabled !== undefined && typeof enabled !== 'boolean') ||
+          (askBeforeRunning !== undefined &&
+            typeof askBeforeRunning !== 'boolean')
+        ) {
+          return c.json(
+            { error: 'Supply enabled or askBeforeRunning as a boolean.' },
+            400,
+          )
         }
         return {
-          kind: params.kind as Connection['kind'],
-          name: params.name,
-          tool: params.tool,
-        }
+          ...(enabled !== undefined && { enabled }),
+          ...(askBeforeRunning !== undefined && { askBeforeRunning }),
+        } satisfies Partial<ToolSettings>
       }),
-      policyBody,
       async (c) => {
         const { kind, name, tool } = c.req.valid('param')
-        await connections.setPolicy(
+        await connections.updateToolSettings(
           { kind, name },
           tool,
-          c.req.valid('json').policy,
+          c.req.valid('json'),
         )
         return c.body(null, 204)
       },

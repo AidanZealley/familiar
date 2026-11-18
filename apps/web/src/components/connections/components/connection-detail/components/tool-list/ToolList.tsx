@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { PolicyMenu } from '../../../policy-menu'
+import { ToolRow } from './components/tool-row'
 import type { ToolListProps } from './types'
 
 const absent = {
@@ -50,35 +49,9 @@ export const ToolList = ({ connection }: ToolListProps) => {
           {absent[connection.status.type]}
         </p>
       ) : shown.length ? (
-        <ul className="flex flex-col divide-y border">
+        <ul className="flex flex-col gap-2">
           {shown.map((tool) => (
-            <li key={tool.name} className="flex flex-col gap-0.5 px-3 py-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-mono text-sm">
-                    {tool.name}
-                  </span>
-                  {tool.annotations?.readOnlyHint === true && (
-                    <Badge variant="secondary">Reads only</Badge>
-                  )}
-                  {tool.annotations?.readOnlyHint !== true &&
-                    tool.annotations?.destructiveHint !== false && (
-                      <Badge variant="outline">May change things</Badge>
-                    )}
-                </span>
-                <PolicyMenu
-                  connection={connection}
-                  tool={tool.name}
-                  policy={tool.policy}
-                  fallback={tool.default}
-                />
-              </div>
-              {tool.description && (
-                <p className="line-clamp-3 text-xs text-muted-foreground">
-                  {tool.description}
-                </p>
-              )}
-            </li>
+            <ToolRow key={tool.name} connection={connection} tool={tool} />
           ))}
         </ul>
       ) : (
@@ -94,9 +67,7 @@ export const ToolList = ({ connection }: ToolListProps) => {
           <span className="font-mono">
             mcp__{connection.name}__<em>tool</em>
           </span>
-          . "Reads only" is the server's own claim: tools that don't say they
-          only read, or that they're harmless, ask before they run until you
-          choose otherwise.
+          .
         </p>
       )}
     </section>

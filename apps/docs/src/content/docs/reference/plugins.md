@@ -58,11 +58,11 @@ A Pi Durable tool, at the version Familiar runs, with one optional field Familia
 | `execute(args, api, context)` | Runs the tool. Returns a `ToolResult`                                                              |
 | `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'`                              |
 | `structuredOutputSchema`      | Optional schema for output that other tools and code mode read                                     |
-| `annotations`                 | `{ readOnlyHint?, destructiveHint? }`, as MCP tools declare them                                   |
+| `annotations`                 | `{ destructiveHint? }`, as MCP tools declare them                                                  |
 
 Tool schemas use Pi's native builders. `schema.obj` rejects undeclared properties by default; use `schema.obj(properties, { open: true })` when a tool intentionally accepts them.
 
-A plugin's tool runs at once when it says `readOnlyHint: true` or `destructiveHint: false`. Otherwise it asks the person first, and a declined call returns `Tool call blocked: The person declined this call.` to the model. The owner's choice on the Connections page, per connection or per tool, overrides either. Core's own tools never ask.
+A plugin's tool asks the person first when it says `destructiveHint: true`. Other tools run by default. A declined call returns `Tool call blocked: The person declined this call.` to the model. The Connections page has separate controls for approval and availability on each tool. Core's own tools never ask.
 
 `api` is Pi's `ToolExecutionApi`. `context` is the call's context: `context.abortSignal` is set when the call can be cancelled.
 

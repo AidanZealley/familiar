@@ -1,5 +1,5 @@
 import type { McpConnectionInfo } from '../mcp/servers.ts'
-import type { Policy, ToolAnnotations } from './policy.ts'
+import type { ToolAnnotations, ToolSettings } from './tool-settings.ts'
 import type { Connection } from './secrets.ts'
 
 /**
@@ -33,19 +33,11 @@ export type PluginSecret = {
 }
 
 /** A connection's tool as the owner sees it. */
-export type ToolInfo = {
-  /** Its name in its connection, as `setPolicy` takes it. */
+export type ToolInfo = ToolSettings & {
   name: string
   /** What the model is given, if anything. */
   description?: string
   annotations?: ToolAnnotations
-  /**
-   * The owner's choice for it: whether it runs at once, asks first or
-   * never runs. Without one, it does as `default` says.
-   */
-  policy?: Policy
-  /** What it does without its own: its connection's choice, else its annotations'. */
-  default: Policy
 }
 
 /** A connection as the owner sees it: never a secret's value. */
@@ -54,8 +46,6 @@ export type PluginConnectionInfo = {
   name: string
   title: string
   tools: ToolInfo[]
-  /** The owner's choice for all its tools without their own. */
-  policy?: Policy
   secrets: {
     name: string
     label: string
@@ -68,22 +58,30 @@ export type PluginConnectionInfo = {
 
 export type ConnectionInfo = PluginConnectionInfo | McpConnectionInfo
 
-/** A connection as plugins or MCP list it, before the owner's policies apply. */
+/** A connection as plugins or MCP list it, before the owner's tool settings apply. */
 export type ListedConnection = ConnectionInfo extends infer C
   ? C extends ConnectionInfo
-    ? Omit<C, 'tools' | 'policy'> & {
-        tools: Omit<ToolInfo, 'policy' | 'default'>[]
+    ? Omit<C, 'tools'> & {
+        tools: Omit<ToolInfo, keyof ToolSettings>[]
       }
     : never
   : never
 
 /** Plugins' or MCP's half of the API. */
-export type ConnectionsSource = Omit<ConnectionsApi, 'list' | 'setPolicy'> & {
+export type ConnectionsSource = Omit<
+  ConnectionsApi,
+  'list' | 'updateToolSettings'
+> & {
   list(): Promise<ListedConnection[]>
 }
 
 export type ConnectionsApi = {
   list(): Promise<ConnectionInfo[]>
+  updateToolSettings(
+    connection: Connection,
+    tool: string,
+    change: Partial<ToolSettings>,
+  ): Promise<void>
   /**
    * Stores `secretValue(value)`. Rejects with a ConnectionError when the
    * connection has no such secret, and with an Error when the value can't be
@@ -96,15 +94,4 @@ export type ConnectionsApi = {
   ): Promise<void>
   /** Rejects with a ConnectionError when the connection has no such secret. */
   deleteSecret(connection: Connection, secret: string): Promise<void>
-  /**
-   * Sets whether `connection`'s `tool`, or without one all its tools
-   * without their own, runs, asks first or never runs; `null` goes back to
-   * the default. Rejects with a ConnectionError for a connection that
-   * isn't there; a tool may be one the server doesn't list right now.
-   */
-  setPolicy(
-    connection: Connection,
-    tool: string | undefined,
-    policy: Policy | null,
-  ): Promise<void>
 }

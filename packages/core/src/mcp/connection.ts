@@ -167,7 +167,13 @@ export function openConnection(
   // The server's tools as deferred Pi tools, found through tool_search,
   // which every server's extension carries. Pi offers one tool per name, so
   // a Familiar has tool search exactly when it uses an MCP connection.
-  const install = (tools: Tool[]) => {
+  const install = (listed: Tool[]) => {
+    const tools = listed.map(({ annotations, ...tool }) => ({
+      ...tool,
+      ...(annotations?.destructiveHint !== undefined && {
+        annotations: { destructiveHint: annotations.destructiveHint },
+      }),
+    }))
     const extension: Extension = {
       name: extensionName,
       tools: [
@@ -242,12 +248,7 @@ export function openConnection(
           ...(tool.description !== undefined && {
             description: tool.description,
           }),
-          ...(tool.annotations && {
-            annotations: {
-              readOnlyHint: tool.annotations.readOnlyHint,
-              destructiveHint: tool.annotations.destructiveHint,
-            },
-          }),
+          ...(tool.annotations && { annotations: tool.annotations }),
         })),
       )
     }

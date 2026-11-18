@@ -39,7 +39,6 @@ export type {
   ModelSetting,
   Note,
   PageState,
-  Policy,
   PushSubscriptionJson,
   Question,
   Room,
@@ -53,6 +52,7 @@ export type {
   SchedulesState,
   Subject,
   ToolAnnotations,
+  ToolSettings,
   ToolInfo,
   TurnActivity,
 } from '@familiar-ai/core/http'

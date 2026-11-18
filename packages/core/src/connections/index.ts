@@ -1,17 +1,12 @@
 import type { Harness } from '@earendil-works/pi-durable'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
-  connectionPolicy,
-  policyOf,
-  setPolicy,
-  ToolPolicies,
-} from './policy.ts'
+  toolSettingsOf,
+  ToolSettingsDocument,
+  updateToolSettings,
+} from './tool-settings.ts'
 import type { Connection, SecretStore } from './secrets.ts'
-import type {
-  ConnectionInfo,
-  ConnectionsApi,
-  ConnectionsSource,
-} from './types.ts'
+import type { ConnectionsApi, ConnectionsSource } from './types.ts'
 
 /**
  * Connections: what plugins and MCP servers need from outside Familiar, the
@@ -23,12 +18,7 @@ export { authorizedFetch, checkDeclaration } from './authorized-fetch.ts'
 export { memorySecrets } from './secrets.ts'
 export type * from './types.ts'
 export type { Connection, SecretStore } from './secrets.ts'
-export {
-  defaultPolicy,
-  POLICIES,
-  type Policy,
-  type ToolAnnotations,
-} from './policy.ts'
+export type { ToolAnnotations, ToolSettings } from './tool-settings.ts'
 
 export class ConnectionError extends Error {}
 
@@ -46,7 +36,7 @@ export function secretValue(value: string) {
 /**
  * Plugins' and MCP servers' connections as one API. Checks each secret once,
  * for both: it must be sendable, and the host must keep secrets at all.
- * Owns the owner's tool policies, the same for both.
+ * Owns the tool settings for both.
  */
 export function allConnections(
   plugins: ConnectionsSource,
@@ -59,34 +49,16 @@ export function allConnections(
   const context = BACKGROUND_CONTEXT
   return {
     list: async () => {
-      const policies =
-        (await harness.snapshot(ToolPolicies, context)) ?? undefined
-      return [...(await plugins.list()), ...(await mcp.list())].map(
-        (info) =>
-          ({
-            ...info,
-            ...(connectionPolicy(policies, info) && {
-              policy: connectionPolicy(policies, info),
-            }),
-            tools: info.tools.map((tool) => {
-              const { chosen, fallback } = policyOf(
-                policies,
-                info,
-                tool.name,
-                tool.annotations,
-              )
-              return {
-                ...tool,
-                ...(chosen && { policy: chosen }),
-                default: fallback,
-              }
-            }),
-          }) as ConnectionInfo,
-      )
+      const settings = await harness.snapshot(ToolSettingsDocument, context)
+      return [...(await plugins.list()), ...(await mcp.list())].map((info) => ({
+        ...info,
+        tools: info.tools.map((tool) => ({
+          ...tool,
+          ...toolSettingsOf(settings, info, tool.name, tool.annotations),
+        })),
+      }))
     },
-    setPolicy: async (connection, tool, policy) => {
-      // A tool is named, not checked: a server's tools come and go, and a
-      // choice for one waits for it while it's disconnected.
+    updateToolSettings: async (connection, tool, change) => {
       const exists = (await owner(connection).list()).some(
         (info) =>
           info.kind === connection.kind && info.name === connection.name,
@@ -97,7 +69,7 @@ export function allConnections(
         )
       }
       await harness.commit(
-        (tx) => setPolicy(tx, connection, tool, policy),
+        (tx) => updateToolSettings(tx, connection, tool, change),
         context,
       )
     },

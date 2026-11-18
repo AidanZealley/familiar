@@ -23,7 +23,6 @@ export const demoFetch: PluginFetch = async (input, init) => {
 
 export const checkDemoKey = defineTool({
   name: 'check_demo_key',
-  annotations: { readOnlyHint: true },
   description: 'Demo only: checks the demo key from the Connections page.',
   parameters: schema.obj({}),
   execute: async (_args, _api, context) => {

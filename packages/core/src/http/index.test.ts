@@ -171,7 +171,10 @@ const ROUTES = {
     'DELETE',
     '/connections/plugin/notes/secrets/token',
   ],
-  'connections.setPolicy': ['PUT', '/connections/plugin/notes/policy'],
+  'connections.updateToolSettings': [
+    'PATCH',
+    '/connections/plugin/notes/tools/search/settings',
+  ],
   'mcp.add': ['POST', '/mcp'],
   'mcp.remove': ['DELETE', '/mcp/notes'],
   'mcp.reconnect': ['POST', '/mcp/notes/reconnect'],

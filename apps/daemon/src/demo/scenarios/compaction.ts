@@ -9,7 +9,6 @@ import { textOf, type Scenario } from './scenario.ts'
 // first fills the context with a demo-only tool.
 export const fillContext = defineTool({
   name: 'fill_context',
-  annotations: { readOnlyHint: true },
   description: 'Demo only: pads the context so it can be compacted.',
   parameters: schema.obj({}),
   execute: async () => ({

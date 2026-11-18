@@ -900,7 +900,6 @@ test('a handoff turn acts for the person whose message started it', async () => 
         name: 'whoami',
         description: 'Who this turn is for',
         parameters: schema.obj({}),
-        annotations: { readOnlyHint: true },
         execute: async (_args, _api, context) => {
           seen.push((await services(context).author())?.name)
           return { output: [{ type: 'text', text: 'ok' }] }
