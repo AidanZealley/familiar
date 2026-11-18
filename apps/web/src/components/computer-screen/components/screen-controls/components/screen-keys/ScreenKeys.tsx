@@ -41,19 +41,25 @@ export const ScreenKeys = ({ sendKey }: ScreenKeysProps) => {
   const [latched, setLatched] = useState<ReadonlySet<number>>(new Set())
 
   /**
-   * Presses a key with any latched modifiers around it, then unlatches
-   * them. Latches are only ours until then: the screen never holds a key
-   * down, so a reconnect or a new take-over can't leave one stuck.
+   * Presses keys in turn, the first with any latched modifiers around it,
+   * then unlatches them. Latches are only ours until then: the screen never
+   * holds a key down, so a reconnect or a new take-over can't leave one
+   * stuck. One call per event, so the latches it reads are current.
    */
-  const press = (keysym: number, code: string | null) => {
+  const press = (
+    ...keys: (readonly [keysym: number, code: string | null])[]
+  ) => {
     const modifiers = KEYS.filter((key) => latched.has(key.keysym))
-    for (const key of modifiers) {
-      sendKey(key.keysym, key.code, true)
-    }
-    sendKey(keysym, code)
-    for (const key of modifiers.reverse()) {
-      sendKey(key.keysym, key.code, false)
-    }
+    keys.forEach(([keysym, code], index) => {
+      const held = index === 0 ? modifiers : []
+      for (const key of held) {
+        sendKey(key.keysym, key.code, true)
+      }
+      sendKey(keysym, code)
+      for (const key of held.toReversed()) {
+        sendKey(key.keysym, key.code, false)
+      }
+    })
     setLatched(new Set())
   }
   const toggle = (keysym: number) => {
@@ -81,16 +87,17 @@ export const ScreenKeys = ({ sendKey }: ScreenKeysProps) => {
     while (same < before.length && before[same] === after[same]) {
       same++
     }
-    for (let i = same; i < before.length; i++) {
-      press(BACKSPACE.keysym, BACKSPACE.code)
-    }
-    for (const character of after.slice(same)) {
-      if (character === '\n') {
-        press(ENTER.keysym, ENTER.code)
-      } else {
-        press(keysymOf(character), null)
-      }
-    }
+    press(
+      ...Array.from(
+        { length: before.length - same },
+        () => [BACKSPACE.keysym, BACKSPACE.code] as const,
+      ),
+      ...[...after.slice(same)].map((character) =>
+        character === '\n'
+          ? ([ENTER.keysym, ENTER.code] as const)
+          : ([keysymOf(character), null] as const),
+      ),
+    )
     typed.current = after
   }
 
@@ -118,9 +125,9 @@ export const ScreenKeys = ({ sendKey }: ScreenKeysProps) => {
           }
           if (event.key === 'Enter') {
             event.preventDefault()
-            press(ENTER.keysym, ENTER.code)
+            press([ENTER.keysym, ENTER.code])
           } else if (event.key === 'Backspace' && !input.current!.value) {
-            press(BACKSPACE.keysym, BACKSPACE.code)
+            press([BACKSPACE.keysym, BACKSPACE.code])
           }
         }}
         onBlur={() => {
@@ -163,7 +170,7 @@ export const ScreenKeys = ({ sendKey }: ScreenKeysProps) => {
             size="sm"
             aria-label={key.name}
             className={cn('font-mono', COMPACT)}
-            onClick={() => press(key.keysym, key.code)}
+            onClick={() => press([key.keysym, key.code])}
           >
             {key.label}
           </Button>

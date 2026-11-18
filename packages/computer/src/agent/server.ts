@@ -95,13 +95,11 @@ const progress = (ctx: ServerContext, message: string) => {
 
 const WAITING = 'Waiting for the person to hand back the computer.'
 
-/** What a tool does, for `control`: the browser and screen tools act on the display. */
-const kindOf = (name: string, tool: ComputerTool): CallKind =>
-  tool.reads
-    ? 'read'
-    : name.startsWith('browser_') || name.startsWith('screen_')
-      ? 'display'
-      : 'action'
+/** What a tool does, for `control`: the browser and screen tools use the display. */
+const kindOf = (name: string, tool: ComputerTool): CallKind => ({
+  reads: tool.reads === true,
+  display: name.startsWith('browser_') || name.startsWith('screen_'),
+})
 
 /**
  * The computer's MCP server, one per connection, over the machine's one
@@ -134,7 +132,11 @@ export function computerServer(
     browser_screenshot: async (_args, _signal, using) => {
       const shown = await browser.page({ open: !using })
       return shown
-        ? png(await shown.page.screenshot({ type: 'png' }))
+        ? png(
+            // The caret as it is: by default Playwright hides it while it
+            // captures, under the hands of a person typing.
+            await shown.page.screenshot({ type: 'png', caret: 'initial' }),
+          )
         : text(NO_PAGE, true)
     },
     browser_navigate: onPage((page, { url }) => page.goto(url)),

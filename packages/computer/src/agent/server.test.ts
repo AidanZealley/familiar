@@ -112,13 +112,14 @@ test('a person holds control as long as their call: actions wait and never run, 
   expect(existsSync(join(home, 'after'))).toBe(true)
 })
 
-test('a take-over waits for display actions already running, and none starts meanwhile', async () => {
+test('a take-over waits for calls on the display already running, and no action starts meanwhile', async () => {
   const control = computerControl()
   const never = new AbortController().signal
   let finish!: (value: string) => void
-  const clicking = control.run(
-    { tool: 'screen_click' },
-    'display',
+  // A look counts too: a browser read may be starting the browser.
+  const looking = control.run(
+    { tool: 'browser_snapshot' },
+    { reads: true, display: true },
     never,
     () => {},
     () => new Promise<string>((resolve) => (finish = resolve)),
@@ -132,14 +133,14 @@ test('a take-over waits for display actions already running, and none starts mea
   let waiting = false
   const typing = control.run(
     { tool: 'screen_type' },
-    'display',
+    { reads: false, display: true },
     never,
     () => (waiting = true),
     async () => 'typed',
   )
   expect(waiting).toBe(true)
-  finish('clicked')
-  expect(await clicking).toEqual({ ran: true, value: 'clicked' })
+  finish('page')
+  expect(await looking).toEqual({ ran: true, value: 'page' })
   await wait(0)
   expect(held).toBe(true)
   person.abort()

@@ -8,11 +8,12 @@ import type { ComputerCall } from '../host.ts'
 export type Control = 'familiar' | 'person' | 'returned'
 
 /**
- * What a Familiar's call does to the computer: only looks; acts on the
- * display (the browser and screen tools, which would fight a person's
- * mouse and keys); or acts elsewhere (commands, files).
+ * What a Familiar's call does to the computer: whether it only looks, and
+ * whether it uses the display (the browser and screen tools). An action on
+ * the display would fight a person's mouse and keys; even a look may change
+ * it, as a browser read starts the browser if it isn't running.
  */
-export type CallKind = 'read' | 'display' | 'action'
+export type CallKind = { reads: boolean; display: boolean }
 
 /** A call's outcome: it ran, or not, and what to tell the Familiar first. */
 export type Outcome<T> =
@@ -38,8 +39,9 @@ const aborted = (signal: AbortSignal) =>
  * The agent's `Control`, the one place it changes, and the one place that
  * admits the Familiar's calls. A person's hold lasts exactly as long as its
  * signal. From the moment they ask, the Familiar's actions wait and never
- * run, and its reads run with a note; they get control once the display
- * actions already running have finished, so none lands under their hands.
+ * run, and its reads run with a note; they get control once the calls on
+ * the display already running have finished, so none lands under their
+ * hands.
  * The first call after the hand back carries a note, so a take-over between
  * calls is reported too.
  */
@@ -49,7 +51,7 @@ export function computerControl() {
   let handedBack = Promise.resolve()
   /** The Familiar's actions waiting for the hand back. */
   const waiting = new Set<ComputerCall>()
-  /** The display actions running now. */
+  /** The calls on the display running now that may change it. */
   const displaying = new Set<Promise<unknown>>()
 
   return {
@@ -96,12 +98,12 @@ export function computerControl() {
       let note: string | undefined
       if (state === 'returned') {
         state = 'familiar'
-        if (kind !== 'read') {
+        if (!kind.reads) {
           return { ran: false, note: USED_NOT_RUN }
         }
         note = USED
       } else if (state === 'person') {
-        if (kind !== 'read') {
+        if (!kind.reads) {
           waiting.add(call)
           try {
             onWait()
@@ -122,7 +124,10 @@ export function computerControl() {
       // Admitted in the same turn as the checks above, so a take-over
       // either came first and stopped it, or waits for it.
       const running = act(note === USING)
-      if (kind === 'display') {
+      // Admitted while the Familiar has it, a call on the display may
+      // change it (even a look, starting the browser): a take-over waits for
+      // it. One admitted while a person has it is a look that changes nothing.
+      if (kind.display && note !== USING) {
         displaying.add(running)
         const done = () => displaying.delete(running)
         running.then(done, done)
