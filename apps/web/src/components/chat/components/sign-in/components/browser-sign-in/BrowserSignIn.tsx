@@ -3,7 +3,7 @@ import { ArrowLeftIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { useState, type FormEvent } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PixelCat } from '@/components/pixel-cat'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { workspace } from '@/lib/familiar'
 import { CancelSignIn } from '../cancel-sign-in'
 import type { BrowserSignInProps } from './types'
@@ -24,8 +24,11 @@ export const BrowserSignIn = ({ url, paste }: BrowserSignInProps) => {
   // Sent: the sign-in finishes, or fails, as the account's own state.
   if (answer.isPending || answer.isSuccess) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <PixelCat animated className="size-4" />
+      <p
+        role="status"
+        className="flex items-center gap-2 text-sm text-muted-foreground"
+      >
+        <HourglassSpinner className="size-4" />
         Finishing sign-in…
       </p>
     )
