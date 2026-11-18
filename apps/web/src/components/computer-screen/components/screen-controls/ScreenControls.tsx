@@ -116,6 +116,11 @@ export const ScreenControls = ({
             className="pointer-events-none! absolute size-px opacity-0"
             onInput={onInput}
             onKeyDown={(event) => {
+              // The keyboard's own while it composes, such as Enter picking
+              // a word: what it commits arrives as text.
+              if (event.nativeEvent.isComposing) {
+                return
+              }
               if (event.key === 'Enter') {
                 event.preventDefault()
                 press(ENTER.keysym, ENTER.code)

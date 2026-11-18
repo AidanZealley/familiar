@@ -12,6 +12,7 @@ import {
   ASLEEP,
   computerTools,
   CONTROL_TOOL,
+  type ComputerTool,
   INFO_TOOL,
   PROGRESS_MS,
   type ComputerInfo,
@@ -20,7 +21,7 @@ import {
 import { KEEP_TEXT } from '../shorten.ts'
 import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
-import type { ComputerControl } from './control.ts'
+import type { CallKind, ComputerControl } from './control.ts'
 import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
 
@@ -84,6 +85,14 @@ const progress = (ctx: ServerContext, message: string) => {
 }
 
 const WAITING = 'Waiting for the person to hand back the computer.'
+
+/** What a tool does, for `control`: the browser and screen tools act on the display. */
+const kindOf = (name: string, tool: ComputerTool): CallKind =>
+  tool.reads
+    ? 'read'
+    : name.startsWith('browser_') || name.startsWith('screen_')
+      ? 'display'
+      : 'action'
 
 /**
  * The computer's MCP server, one per connection, over the machine's one
@@ -182,36 +191,39 @@ export function computerServer(
         (await activity.run(name, args, async (call) => {
           const { signal } = ctx.mcpReq
           let stopWaiting = () => {}
-          /** What to tell the Familiar first, if a person has used it. */
-          let note: string | undefined
-          let result: CallToolResult
           try {
-            const turn = await control.turn(
+            const outcome = await control.run(
               call,
-              'reads' in tool,
+              kindOf(name, tool),
               signal,
               () => (stopWaiting = progress(ctx, WAITING)),
+              // Its own failure is its result, so a note still goes with it.
+              () =>
+                handle(args, signal).catch((error: unknown) =>
+                  text(
+                    error instanceof Error ? error.message : String(error),
+                    true,
+                  ),
+                ),
             )
-            stopWaiting()
-            note = turn.note
-            if (!turn.run) {
-              return text(note!, true)
+            if (!outcome.ran) {
+              return text(outcome.note, true)
             }
-            result = await handle(args, signal)
+            const { value: result, note } = outcome
+            return note
+              ? {
+                  ...result,
+                  content: [{ type: 'text', text: note }, ...result.content],
+                }
+              : result
           } catch (error) {
-            result = text(
+            return text(
               error instanceof Error ? error.message : String(error),
               true,
             )
           } finally {
             stopWaiting()
           }
-          return note
-            ? {
-                ...result,
-                content: [{ type: 'text', text: note }, ...result.content],
-              }
-            : result
         })) ?? ASLEEP_RESULT,
     )
   }

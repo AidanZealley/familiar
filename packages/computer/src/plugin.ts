@@ -177,24 +177,34 @@ export function computer({ host }: ComputerOptions) {
         '/control',
         upgradeWebSocket((c) => {
           const id = c.get('familiar')
-          // Control lasts as long as this: aborted when the socket closes or
-          // goes silent, whichever is first.
+          // Control lasts as long as this: aborted, with the timers stopped,
+          // when the socket closes or goes silent, whichever is first.
           const person = new AbortController()
-          let heard = Date.now()
           let pings: ReturnType<typeof setInterval> | undefined
+          let silence: ReturnType<typeof setTimeout> | undefined
+          const stop = () => {
+            clearInterval(pings)
+            clearTimeout(silence)
+            person.abort()
+          }
+          /** Ends control and closes the socket with why; set once open. */
+          let end = (_code: number, _reason: string) => stop()
+          /** Anything from the browser puts off the silence deadline. */
+          const heard = () => {
+            clearTimeout(silence)
+            silence = setTimeout(
+              () => end(4001, 'The connection was lost.'),
+              SILENT_MS,
+            )
+          }
           return {
             onOpen: async (_event, ws) => {
-              const end = (code: number, reason: string) => {
-                person.abort()
+              end = (code, reason) => {
+                stop()
                 ws.close(code, reasonFor(reason))
               }
-              pings = setInterval(() => {
-                if (Date.now() - heard > SILENT_MS) {
-                  end(4001, 'The connection was lost.')
-                } else {
-                  ws.send(CONTROL_PROTOCOL.ping)
-                }
-              }, PING_MS)
+              heard()
+              pings = setInterval(() => ws.send(CONTROL_PROTOCOL.ping), PING_MS)
               let ended
               try {
                 ;({ ended } = await host.control(id, person.signal))
@@ -211,13 +221,8 @@ export function computer({ host }: ComputerOptions) {
               await ended
               end(1000, 'Control ended.')
             },
-            onMessage: () => {
-              heard = Date.now()
-            },
-            onClose: () => {
-              clearInterval(pings)
-              person.abort()
-            },
+            onMessage: heard,
+            onClose: stop,
           }
         }),
       ),

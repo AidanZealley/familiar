@@ -1,14 +1,22 @@
 import type { ComputerCall } from '../host.ts'
 
 /**
- * Who has the computer: the Familiar, a person (who took it over), or the
- * Familiar again but not yet told (the person handed it back). Only this
- * module changes it.
+ * Who has the computer: the Familiar, a person (who took it over, or is
+ * taking it), or the Familiar again but not yet told (the person handed it
+ * back). Only this module changes it.
  */
 export type Control = 'familiar' | 'person' | 'returned'
 
-/** What a Familiar's call may do now: run, and what to tell the Familiar first. */
-export type Turn = { run: boolean; note?: string }
+/**
+ * What a Familiar's call does to the computer: only looks; acts on the
+ * display (the browser and screen tools, which would fight a person's
+ * mouse and keys); or acts elsewhere (commands, files).
+ */
+export type CallKind = 'read' | 'display' | 'action'
+
+/** A call's outcome: it ran, or not, and what to tell the Familiar first. */
+export type Outcome<T> =
+  { ran: true; value: T; note?: string } | { ran: false; note: string }
 
 const USING =
   'A person has taken over your computer and is using it now, so the screen may change under you.'
@@ -27,11 +35,13 @@ const aborted = (signal: AbortSignal) =>
   )
 
 /**
- * The agent's `Control`, the one place it changes. A person's hold lasts
- * exactly as long as its signal; while it lasts, the Familiar's actions
- * wait and never run, and its reads run with a note. The first call after
- * the hand back carries a note, so a take-over between calls is reported
- * too.
+ * The agent's `Control`, the one place it changes, and the one place that
+ * admits the Familiar's calls. A person's hold lasts exactly as long as its
+ * signal. From the moment they ask, the Familiar's actions wait and never
+ * run, and its reads run with a note; they get control once the display
+ * actions already running have finished, so none lands under their hands.
+ * The first call after the hand back carries a note, so a take-over between
+ * calls is reported too.
  */
 export function computerControl() {
   let state: Control = 'familiar'
@@ -39,6 +49,8 @@ export function computerControl() {
   let handedBack = Promise.resolve()
   /** The Familiar's actions waiting for the hand back. */
   const waiting = new Set<ComputerCall>()
+  /** The display actions running now. */
+  const displaying = new Set<Promise<unknown>>()
 
   return {
     /**
@@ -55,52 +67,66 @@ export function computerControl() {
       if (signal.aborted) {
         return undefined
       }
+      // No action starts from here on, and those on the display finish.
       state = 'person'
       let handBack!: () => void
       handedBack = new Promise((resolve) => (handBack = resolve))
-      onHeld()
-      await aborted(signal)
+      await Promise.race([Promise.allSettled([...displaying]), aborted(signal)])
+      if (!signal.aborted) {
+        onHeld()
+        await aborted(signal)
+      }
       state = 'returned'
       handBack()
       return undefined
     },
     /**
-     * Whether the Familiar's `call`, starting now, may run. An action while
-     * the person has control waits (`onWait` when it starts to) and then
+     * Runs the Familiar's `call` with `act`, if it may run now. An action
+     * while a person has control waits (`onWait` when it starts to) and then
      * never runs; reads never wait. Throws if `signal` aborts while waiting.
      */
-    turn: async (
+    run: async <T>(
       call: ComputerCall,
-      reads: boolean,
+      kind: CallKind,
       signal: AbortSignal,
       onWait: () => void,
-    ): Promise<Turn> => {
+      act: () => Promise<T>,
+    ): Promise<Outcome<T>> => {
+      let note: string | undefined
       if (state === 'returned') {
         state = 'familiar'
-        return reads
-          ? { run: true, note: USED }
-          : { run: false, note: USED_NOT_RUN }
+        if (kind !== 'read') {
+          return { ran: false, note: USED_NOT_RUN }
+        }
+        note = USED
+      } else if (state === 'person') {
+        if (kind !== 'read') {
+          waiting.add(call)
+          try {
+            onWait()
+            await Promise.race([handedBack, aborted(signal)])
+          } finally {
+            waiting.delete(call)
+          }
+          signal.throwIfAborted()
+          // Unless someone has taken over again already (`state` may have
+          // changed while waiting).
+          if ((state as Control) === 'returned') {
+            state = 'familiar'
+          }
+          return { ran: false, note: WAITED }
+        }
+        note = USING
       }
-      if (state === 'familiar') {
-        return { run: true }
+      // Admitted in the same turn as the checks above, so a take-over
+      // either came first and stopped it, or waits for it.
+      const running = act()
+      if (kind === 'display') {
+        displaying.add(running)
+        const done = () => displaying.delete(running)
+        running.then(done, done)
       }
-      if (reads) {
-        return { run: true, note: USING }
-      }
-      waiting.add(call)
-      try {
-        onWait()
-        await Promise.race([handedBack, aborted(signal)])
-      } finally {
-        waiting.delete(call)
-      }
-      signal.throwIfAborted()
-      // Unless someone has taken over again already (`state` may have
-      // changed while waiting).
-      if ((state as Control) === 'returned') {
-        state = 'familiar'
-      }
-      return { run: false, note: WAITED }
+      return { ran: true, value: await running, note }
     },
     /** Whether `call` is waiting for the person to hand back. */
     waits: (call: ComputerCall) => waiting.has(call),

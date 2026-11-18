@@ -12,10 +12,13 @@ export type ControlState = 'off' | 'taking' | 'held'
 const SILENT_MS = 15_000
 
 type Control = {
-  socket: WebSocket
   state: Exclude<ControlState, 'off'>
-  /** This tab handed back, so the close says nothing. */
-  handingBack: boolean
+  /**
+   * Ends it now, once: input stops at once, before the socket has finished
+   * closing. With why, it ended by itself and says so; without, this tab
+   * handed back.
+   */
+  end: (why?: string) => void
 }
 
 /**
@@ -46,41 +49,44 @@ export function takeOver(familiar: FamiliarSummary) {
     return
   }
   const socket = new WebSocket(controlUrl(familiar.id))
-  const control: Control = { socket, state: 'taking', handingBack: false }
+  let silence: ReturnType<typeof setTimeout> | undefined
+  const control: Control = {
+    state: 'taking',
+    end: (why) => {
+      if (controls.get(familiar.id) !== control) {
+        return
+      }
+      clearTimeout(silence)
+      controls.delete(familiar.id)
+      changed()
+      // A dead connection may take a while to close: it's over already.
+      socket.close()
+      if (why === undefined) {
+        return
+      }
+      if (control.state === 'taking') {
+        toast.error(`Couldn't take over ${familiar.name}'s computer.`, {
+          description: why,
+        })
+      } else {
+        toast(`${familiar.name} has the computer back.`, { description: why })
+      }
+    },
+  }
   controls.set(familiar.id, control)
   changed()
 
-  let silence: ReturnType<typeof setTimeout> | undefined
-  /** Control is over, said once: by the socket closing or going silent. */
-  const end = (why: string) => {
-    if (controls.get(familiar.id) !== control) {
-      return
-    }
-    clearTimeout(silence)
-    controls.delete(familiar.id)
-    changed()
-    if (control.handingBack) {
-      return
-    }
-    if (control.state === 'taking') {
-      toast.error(`Couldn't take over ${familiar.name}'s computer.`, {
-        description: why,
-      })
-    } else {
-      toast(`${familiar.name} has the computer back.`, { description: why })
-    }
-  }
   const lost = 'The connection was lost.'
   const heard = () => {
     clearTimeout(silence)
-    // A dead connection may take a while to close: it's over now.
-    silence = setTimeout(() => {
-      socket.close()
-      end(lost)
-    }, SILENT_MS)
+    silence = setTimeout(() => control.end(lost), SILENT_MS)
   }
   heard()
   socket.addEventListener('message', ({ data }) => {
+    // Nothing more once it's over, such as a `held` after cancelling.
+    if (controls.get(familiar.id) !== control) {
+      return
+    }
     heard()
     if (data === 'held') {
       control.state = 'held'
@@ -91,17 +97,13 @@ export function takeOver(familiar: FamiliarSummary) {
     }
   })
   socket.addEventListener('close', ({ code, reason }) =>
-    end(((code === 1000 || code >= 4000) && reason) || lost),
+    control.end(((code === 1000 || code >= 4000) && reason) || lost),
   )
 }
 
 /** Hands `familiar`'s computer back, if this tab has it or is taking it. */
 export function handBack(familiar: FamiliarSummary['id']) {
-  const control = controls.get(familiar)
-  if (control) {
-    control.handingBack = true
-    control.socket.close()
-  }
+  controls.get(familiar)?.end()
 }
 
 // Leaving the page hands back at once, rather than when the server notices.
