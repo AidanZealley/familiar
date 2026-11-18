@@ -1,5 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { setTimeout as wait } from 'node:timers/promises'
 import { promisify } from 'node:util'
 
@@ -11,11 +13,31 @@ const SETTLE_MS = 300
 const BUTTONS = { left: '1', middle: '2', right: '3' }
 const WHEEL = { up: '4', down: '5', left: '6', right: '7' }
 
+/** The latest action on the screen; each waits for the one before. */
+let acting: Promise<unknown> = Promise.resolve()
+
 /**
  * The display as the screen tools see and use it, through `maim` and
  * `xdotool` on `DISPLAY`, in display pixels from the top left.
  */
 export const screen = {
+  /**
+   * Runs `input`, such as `screen.click`, waits for its effects to show,
+   * and gives a screenshot after. One action at a time: the next waits until
+   * this one's screenshot is taken, so two never mix their keys, pastes or
+   * pictures.
+   */
+  act: (input: () => Promise<unknown>, signal: AbortSignal) => {
+    const run = async () => {
+      await input()
+      await wait(SETTLE_MS, undefined, { signal })
+      return screen.screenshot(signal)
+    }
+    const result = acting.then(run, run)
+    acting = result.catch(() => {})
+    return result
+  },
+
   /** The whole screen as a PNG. */
   screenshot: async (signal?: AbortSignal) =>
     (
@@ -81,9 +103,6 @@ export const screen = {
       String(amount),
       WHEEL[direction],
     ),
-
-  /** Waits for an action's effects to show. */
-  settle: (signal: AbortSignal) => wait(SETTLE_MS, undefined, { signal }),
 }
 
 // Without `--sync`, which waits for a move forever when the pointer is
@@ -99,8 +118,11 @@ const select = async (selection: string, text: string, signal: AbortSignal) => {
     stdio: ['pipe', 'ignore', 'ignore'],
     signal,
   })
-  xclip.stdin.end(text)
-  const [code] = await once(xclip, 'exit')
+  // Both, so a stopped call's broken pipe fails the call, not the agent.
+  const [, [code]] = await Promise.all([
+    pipeline(Readable.from([text]), xclip.stdin),
+    once(xclip, 'exit'),
+  ])
   if (code !== 0) {
     throw new Error(`Couldn't paste the text (xclip exit code ${code}).`)
   }

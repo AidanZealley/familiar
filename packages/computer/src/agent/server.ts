@@ -42,11 +42,8 @@ const png = (data: Buffer): CallToolResult => ({
 /** Does `act` on the screen and answers with a screenshot after. */
 const onScreen =
   <A>(act: (args: A, signal: AbortSignal) => Promise<unknown>) =>
-  async (args: A, signal: AbortSignal) => {
-    await act(args, signal)
-    await screen.settle(signal)
-    return png(await screen.screenshot(signal))
-  }
+  async (args: A, signal: AbortSignal) =>
+    png(await screen.act(() => act(args, signal), signal))
 
 const STARTED =
   'The browser has just started, so any pages opened before are gone.\n\n'
