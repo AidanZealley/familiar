@@ -46,7 +46,11 @@ export type Owned = { name: string; familiar?: FamiliarId; running?: boolean }
  * found only by its labels, never by name, so nothing another host or
  * person made is used or removed. It keeps no state: Docker is the record.
  */
-export function dockerResources(hostId: string, image: string) {
+export function dockerResources(
+  hostId: string,
+  { repository, tag }: { repository: string; tag: string },
+) {
+  const image = `${repository}:${tag}`
   const prefix = `familiar-${hostId}`
   const proxy = `${prefix}-proxy`
   /** The volume that holds the proxy's socket. */
@@ -191,6 +195,57 @@ export function dockerResources(hostId: string, image: string) {
         '--proxy-socket',
         PROXY_SOCKET,
       )
+    },
+
+    /**
+     * Whether `familiar`'s container was made from another image than the
+     * one `image` names now, compared by ID, so a moved tag counts too.
+     */
+    outdated: async (familiar: FamiliarId) => {
+      const [made, current] = await Promise.all([
+        docker(
+          'container',
+          'inspect',
+          '--format',
+          '{{.Image}}',
+          container(familiar),
+        ),
+        docker('image', 'inspect', '--format', '{{.Id}}', image),
+      ])
+      return made !== current
+    },
+
+    /**
+     * Removes the other tags of `repository`, such as earlier releases'
+     * images, each unless a container uses it, whichever host's: those stay
+     * until a later try. Docker alone would refuse only an image's last
+     * tag, so it's checked here.
+     */
+    removeOldImages: async () => {
+      const tags = await docker(
+        'image',
+        'ls',
+        '--format',
+        '{{.Repository}}:{{.Tag}}',
+        repository,
+      )
+      for (const tag of tags.split('\n')) {
+        if (
+          tag &&
+          tag !== image &&
+          !tag.endsWith(':<none>') &&
+          !(await docker(
+            'container',
+            'ls',
+            '--all',
+            '--quiet',
+            '--filter',
+            `ancestor=${tag}`,
+          ))
+        ) {
+          await docker('image', 'rm', tag).catch(() => {})
+        }
+      }
     },
 
     /**
