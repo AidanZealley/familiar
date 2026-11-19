@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DmFamiliarRouteImport } from './routes/dm.$familiar'
+import { Route as PrototypesNaturalRoomsRouteImport } from './routes/prototypes.natural-rooms'
 import { Route as RoomRoomRouteImport } from './routes/room.$room'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const DmFamiliarRoute = DmFamiliarRouteImport.update({
   path: '/dm/$familiar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypesNaturalRoomsRoute = PrototypesNaturalRoomsRouteImport.update({
+  id: '/prototypes/natural-rooms',
+  path: '/prototypes/natural-rooms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RoomRoomRoute = RoomRoomRouteImport.update({
   id: '/room/$room',
   path: '/room/$room',
@@ -32,30 +38,39 @@ const RoomRoomRoute = RoomRoomRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dm/$familiar': typeof DmFamiliarRoute
+  '/prototypes/natural-rooms': typeof PrototypesNaturalRoomsRoute
   '/room/$room': typeof RoomRoomRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dm/$familiar': typeof DmFamiliarRoute
+  '/prototypes/natural-rooms': typeof PrototypesNaturalRoomsRoute
   '/room/$room': typeof RoomRoomRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dm/$familiar': typeof DmFamiliarRoute
+  '/prototypes/natural-rooms': typeof PrototypesNaturalRoomsRoute
   '/room/$room': typeof RoomRoomRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dm/$familiar' | '/room/$room'
+  fullPaths: '/' | '/dm/$familiar' | '/prototypes/natural-rooms' | '/room/$room'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dm/$familiar' | '/room/$room'
-  id: '__root__' | '/' | '/dm/$familiar' | '/room/$room'
+  to: '/' | '/dm/$familiar' | '/prototypes/natural-rooms' | '/room/$room'
+  id:
+    | '__root__'
+    | '/'
+    | '/dm/$familiar'
+    | '/prototypes/natural-rooms'
+    | '/room/$room'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DmFamiliarRoute: typeof DmFamiliarRoute
+  PrototypesNaturalRoomsRoute: typeof PrototypesNaturalRoomsRoute
   RoomRoomRoute: typeof RoomRoomRoute
 }
 
@@ -75,6 +90,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DmFamiliarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototypes/natural-rooms': {
+      id: '/prototypes/natural-rooms'
+      path: '/prototypes/natural-rooms'
+      fullPath: '/prototypes/natural-rooms'
+      preLoaderRoute: typeof PrototypesNaturalRoomsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/room/$room': {
       id: '/room/$room'
       path: '/room/$room'
@@ -88,6 +110,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DmFamiliarRoute: DmFamiliarRoute,
+  PrototypesNaturalRoomsRoute: PrototypesNaturalRoomsRoute,
   RoomRoomRoute: RoomRoomRoute,
 }
 export const routeTree = rootRouteImport
