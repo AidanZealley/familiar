@@ -31,9 +31,8 @@ export type TurnActivity = {
 } & (
   | {
       /**
-       * Waiting for its Familiar: `queued` behind work in this room or a
-       * reply being posted; `elsewhere` while its Familiar works in another
-       * room, which isn't said.
+       * Queued in its Familiar's inbox. The status is 'elsewhere' while the
+       * Familiar is busy outside this room.
        */
       status: 'queued' | 'elsewhere'
     }

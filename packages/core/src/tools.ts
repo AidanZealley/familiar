@@ -79,8 +79,8 @@ export type ToolServices = {
   /**
    * The person this call runs for: the author of the message that started
    * it, or the creator of a scheduled run, followed back through any
-   * handoffs, read from storage, never from the tool's arguments. Undefined for other work, such as memory filing. A
-   * tool that narrows what someone may do checks it against this.
+   * chain of Familiar replies. It is read from storage, and is undefined
+   * for work such as memory filing. Tools can use it to check permissions.
    */
   author(): Promise<Author | undefined>
   /**
@@ -152,15 +152,8 @@ async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
 }
 
 /**
- * The input a tool call's run answers: a person's message, a scheduled
- * prompt or another Familiar's handoff, whose data says who it's for and
- * which room it came from (`InRoom`). Nested calls follow their parent. The
- * assistant entry bounds the search, so later queued or placed messages
- * cannot steal it. Undefined for any other input, such as memory filing.
- */
-/**
  * The person behind a room entry: a message's author, or a reminder's
- * creator, following handoffs back to whatever started them.
+ * creator, following the reply chain back to its source.
  */
 async function startedBy(
   tx: Tx,
@@ -181,6 +174,13 @@ async function startedBy(
   }
 }
 
+/**
+ * The input a tool call's run answers: a person's message, a scheduled
+ * prompt or another Familiar's reply, whose data says who it's for and
+ * which room it came from (`InRoom`). Nested calls follow their parent. The
+ * assistant entry bounds the search, so later queued or placed messages
+ * cannot steal it. Undefined for any other input, such as memory filing.
+ */
 export async function callInput(
   tx: Tx,
   taskId: TaskId,

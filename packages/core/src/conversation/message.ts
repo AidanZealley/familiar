@@ -24,10 +24,8 @@ export type Author = {
 export type MessageData = { author: Author; text: string } & InRoom
 
 /**
- * Why a Familiar has a turn in a room, decided by routing as the entry is
- * posted (see rooms/log.ts): its DM; a mention; as the room's lead; an open
- * room, where every Familiar gets a turn on what addresses no one; another
- * Familiar's handoff; or its own reminder.
+ * How a room input addresses this Familiar. An unaddressed message or
+ * reply uses 'lead' for the lead and 'open' for everyone else.
  */
 export type Addressed =
   'dm' | 'mention' | 'lead' | 'open' | 'handoff' | 'schedule'
@@ -214,8 +212,7 @@ export async function answeredInput(tx: Tx, taskId: TaskId) {
 }
 
 /**
- * The entry kind a Familiar's handoff to another is posted as in a room, and
- * placed as in the chat of the one it asks (see rooms/tools.ts).
+ * The entry kind for stored handoffs in room logs and Familiar chats.
  */
 export const HANDOFF_KIND = 'familiar.handoff'
 
@@ -253,8 +250,7 @@ export type ScheduledData = InRoom & {
 }
 
 /**
- * A handoff as placed in the chat of the Familiar it asks: who handed it
- * over, by ID and by name then, and what they asked (see rooms/turn.ts).
+ * A stored handoff names the Familiar who made it and what they asked.
  */
 export type HandedOnData = InRoom & {
   from: ConversationId

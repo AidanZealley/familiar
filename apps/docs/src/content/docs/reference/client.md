@@ -39,7 +39,7 @@ Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unautho
 | Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                                                           |
 | Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy, earlier }`                                                |
 | Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed                                          |
-| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Turns in progress, as streamed                                            |
+| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Activity keyed by Familiar ID                                             |
 
 Each document is `undefined` until it arrives and `null` when the stream sends none.
 
@@ -71,7 +71,7 @@ type RoomPreview = {
 )
 ```
 
-A reply that stayed quiet is never `last`. A `last` reply whose `outcome` is `failed` means the room's last turn failed. `turns` is empty when no one is working on the room; a Familiar `elsewhere` is busy in another room, which isn't said. `unread` counts from the person's marker, which their own messages move, and the room store's `read(entry)` moves; it's every entry if they've never read the room.
+Staying quiet adds no entry. A `last` reply whose `outcome` is `failed` means the room's last turn failed. `turns` is empty when no one is working on the room; a Familiar `elsewhere` is busy in another room, which isn't said. `unread` counts from the person's marker, which their own messages move, and the room store's `read(entry)` moves; it's every entry if they've never read the room.
 
 ## Commands
 
@@ -149,7 +149,7 @@ type ToolCall = {
 }
 ```
 
-Times are milliseconds since the epoch. Each turn in progress comes last, as its streaming reply or as `waiting`: `queued` behind work in this room, `elsewhere` while its Familiar works in another room, or `running` before anything shows. `retrying` is set while a turn waits to try the model again after a failed request. While a reply streams, only its current round shows; the whole reply, with every tool call, replaces it when the turn ends.
+Times are milliseconds since the epoch. Each active Familiar gets one item at the end of the transcript, as its streaming reply or as `waiting`: `queued` behind work in this room, `elsewhere` while its Familiar works in another room, or `running` before anything shows. `retrying` is set while a turn waits to try the model again after a failed request. While a reply streams, only its current round shows; the whole reply, with every tool call, replaces it when the turn ends.
 
 ## Helpers
 

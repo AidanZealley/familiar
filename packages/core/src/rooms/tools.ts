@@ -21,7 +21,7 @@ export function roomTools(): ToolRegistration[] {
       ),
     }),
     replay: 'safe',
-    // Ends the run, as the turn's quiet outcome records (see turn.ts).
+    // Ends the run without posting a room reply.
     execute: async () => ({
       ...text('You stayed quiet.'),
       control: { terminate: true },

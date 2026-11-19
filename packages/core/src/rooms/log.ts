@@ -110,10 +110,7 @@ export type ReplyData = {
   at: number
 }
 
-/**
- * A Familiar asking another in the same room to take a turn, with the
- * `hand_off` tool Familiars no longer have; old entries still render.
- */
+/** A stored request from one Familiar to another in the same room. */
 export type HandoffData = {
   from: FamiliarId
   to: FamiliarId
@@ -546,8 +543,7 @@ export async function post(
 
 /**
  * Posts each of `postings` to `room`'s log in order, as `post` does one, in
- * the one commit `tx`: how a turn files its reply and then the handoffs it
- * made, so each handoff follows the reply it came from.
+ * the same commit `tx`.
  */
 export async function postAll(
   tx: Tx,

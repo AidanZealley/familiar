@@ -38,9 +38,9 @@ The layers map closely onto the hierarchy Anthropic describes in [The components
 
 ### The transcript
 
-Every message, reply, scheduled run and handoff in the Familiar's conversation is stored as it happened. Memory never copies or rewrites it. When older messages are summarised for the model to save context, the stored messages stay whole, and search still reaches them.
+Every message, reply and scheduled run in the Familiar's conversation is stored as it happened. Memory never copies or rewrites it. When older messages are summarised for the model to save context, the stored messages stay whole, and search still reaches them.
 
-For search, the transcript is read as **exchanges**: one input (a person's message, a scheduled prompt or a handoff) together with the replies to it. That's the smallest piece worth finding again. LongMemEval found that retrieving whole rounds like this answers better than replacing them with extracted facts or summaries, which lose information ([Wu et al., 2025](https://arxiv.org/abs/2410.10813)).
+For search, the transcript is read as **exchanges**: one input (a person's message, a scheduled prompt or another Familiar's reply) together with the replies to it. That's the smallest piece worth finding again. LongMemEval found that retrieving whole rounds like this answers better than replacing them with extracted facts or summaries, which lose information ([Wu et al., 2025](https://arxiv.org/abs/2410.10813)).
 
 ### Pages and notes
 

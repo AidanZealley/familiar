@@ -86,8 +86,9 @@ export type RoomMessage = {
   requestId: string
   /**
    * Whom it addresses, as picked by its author; Familiars must be in the
-   * room. In a named room, mentioned Familiars answer, else the lead, else,
-   * in an open room, each Familiar in turn.
+   * room. In a named room, the message goes to the Familiars it mentions,
+   * or to all Familiars in the room if it mentions none. Each decides
+   * whether to reply.
    */
   mentions?: Mention[]
 }
