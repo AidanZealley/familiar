@@ -2,6 +2,7 @@ import { expect, test } from 'vitest'
 import { OWNER_ID } from '../serve.ts'
 import { openDemo } from './demo.ts'
 import { memories } from './household/memory.ts'
+import { SAFFRON } from './household/story.ts'
 
 test('the demo seeds its household without error', async () => {
   const workspace = await openDemo()
@@ -14,7 +15,23 @@ test('the demo seeds its household without error', async () => {
     for (const { id, name } of await workspace.familiars.list()) {
       const watch = await workspace.familiars.get(id)!.memory.watch()
       await watch.stop()
-      expect(watch.value?.subjects).toHaveLength(memories[name].pages.length)
+      expect(watch.value?.subjects).toEqual(
+        expect.arrayContaining(
+          memories[name].pages.map(({ name, kind }) =>
+            expect.objectContaining({ name, kind }),
+          ),
+        ),
+      )
+      if (name === 'Spool') {
+        // Allotment history introduces Saffron through normal memory filing.
+        expect(watch.value?.subjects).toContainEqual(
+          expect.objectContaining({
+            kind: 'person',
+            name: SAFFRON.name,
+            person: SAFFRON.id,
+          }),
+        )
+      }
     }
   } finally {
     await workspace.dismiss()

@@ -118,7 +118,7 @@ Each Familiar handles one input at a time across its rooms. Its input includes w
 
 A note is a `familiar.note` entry, `{ text, at }`: context for the room's Familiars, such as "Sam joined" or "the board was updated", that causes no turn, so no one replies to it. It reads in catch-up as `[Note]: …`, and takes the same text bounds as a message. It is for short passing context; a Familiar sees it once, and then it lives in that Familiar's working context only.
 
-A Familiar can call `stay_quiet` to end its run without posting. In a named room, a reply is delivered to the other Familiars it calls out with `@Name`, or to all the other Familiars if it mentions none. Answered replies record their `depth` in the chain since a person last spoke, and `mentions` when they name other Familiars. At depth 10, Familiar posts the reply in the room without delivering it to another Familiar.
+A Familiar can call `stay_quiet` to end its run without posting. In a named room, Familiars receive mention tokens such as `@[Mary Jane]` for the other members. A reply goes to the Familiars it mentions with those tokens, or to all the other Familiars if it mentions none. Answered replies record their `depth` in the chain since a person last spoke, and `mentions` when they name other Familiars. At depth 10, Familiar posts the reply in the room without delivering it to another Familiar.
 
 **Each Familiar**, a `WorkspaceFamiliar`
 

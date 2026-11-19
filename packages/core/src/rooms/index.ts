@@ -45,7 +45,7 @@ import {
 import { createAnswer } from './answer.ts'
 import { replyingIn } from './status.ts'
 import { roomTools } from './tools.ts'
-import { createTurnTask } from './turn.ts'
+import { canDeliver, createTurnTask } from './turn.ts'
 
 /** Pi's entry bounds and ordering, scoped to one room. */
 export type HistoryQuery = Pick<
@@ -172,8 +172,9 @@ export type RoomsApi = {
    */
   update(id: RoomId, change: RoomChange): Promise<void>
   /**
-   * Hides a named room and closes it to new messages, keeping its history,
-   * and stops its turns in progress and queued, so no reply lands in it.
+   * Hides a named room and closes it to new messages, keeping its history.
+   * Stops queued and running turns. An answer that already finished
+   * generating may still appear in the archive.
    */
   archive(id: RoomId): Promise<void>
   /** The DM between a Familiar and a person, by host author ID, created if new. */
@@ -264,7 +265,10 @@ export function createRooms(
       return posted.entry
     },
     retry: (reply) =>
-      harness.commit((tx) => retryTurn(tx, turn, id, reply), context),
+      harness.commit(
+        (tx) => retryTurn(tx, turn, id, reply, canDeliver),
+        context,
+      ),
     read: (person, entry) =>
       harness.commit((tx) => markRead(tx, id, person, entry), context),
     history: async (query, limit) =>

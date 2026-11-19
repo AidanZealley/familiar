@@ -139,8 +139,9 @@ test('one-at-a-time follow-ups keep every run in one room, including after termi
     [original, ...next].map((input) => input.wait(context)),
   )
   const answers = receipts.map((receipt) => {
-    if (receipt.type !== 'input' || receipt.status !== 'done')
-      {throw new Error('Missing answer')}
+    if (receipt.type !== 'input' || receipt.status !== 'done') {
+      throw new Error('Missing answer')
+    }
     return receipt.answer
   })
   expect(new Set(answers).size).toBe(4)
@@ -185,11 +186,13 @@ test('a run-end task posts one room entry when interrupted after posting and rer
           firstPost.resolve()
           // Close the host after the write is durable, before this task records completion.
           await new Promise<void>((resolve) => {
-            if (context.abortSignal?.aborted) {resolve()}
-            else
-              {context.abortSignal?.addEventListener('abort', () => resolve(), {
+            if (context.abortSignal?.aborted) {
+              resolve()
+            } else {
+              context.abortSignal?.addEventListener('abort', () => resolve(), {
                 once: true,
-              })}
+              })
+            }
           })
           return
         }

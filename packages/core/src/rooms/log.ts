@@ -96,7 +96,7 @@ export type ReplyData = {
    * person last spoke; on answered replies. One at `MAX_DEPTH` goes to no one.
    */
   depth?: number
-  /** The Familiars its text names with `@Name`, found as it's posted. */
+  /** The Familiars its text names with `@[Name]`, found as it's posted. */
   mentions?: Mention[]
   /**
    * Why a `failed` reply failed, as Pi settled its input: a reason such as
@@ -413,33 +413,41 @@ export function checkMentions(
   })
 }
 
-/**
- * Where each of `others`' names appears in `text` as `@Name`, any case, not
- * run on into a longer word: how a reply addresses Familiars.
- */
+/** The exact tokens that name one Familiar each, for prompts and replies. */
+export function mentionTokens(
+  others: readonly { id: FamiliarId; name: string }[],
+) {
+  const tokens = new Map<string, FamiliarId | null>()
+  for (const { id, name } of others) {
+    if (name.trim() && !/[[\]\r\n]/u.test(name)) {
+      const token = `@[${name}]`
+      tokens.set(token, tokens.has(token) ? null : id)
+    }
+  }
+  return tokens
+}
+
+/** Explicit mentions in a reply, with offsets into the original text. */
 export function mentionsIn(
   text: string,
   others: readonly { id: FamiliarId; name: string }[],
 ): Mention[] {
-  const lower = text.toLowerCase()
+  const tokens = mentionTokens(others)
   const found: Mention[] = []
-  for (const { id, name } of others) {
-    const needle = `@${name.trim().toLowerCase()}`
-    if (needle === '@') {
-      continue
-    }
-    for (
-      let start = lower.indexOf(needle);
-      start >= 0;
-      start = lower.indexOf(needle, start + 1)
-    ) {
-      const end = start + needle.length
-      if (!/[\p{L}\p{N}_]/u.test(lower[end] ?? '')) {
-        found.push({ kind: 'familiar', id: String(id), start, end })
-      }
+  for (const { 0: token, index: start } of text.matchAll(
+    /@\[[^[\]\r\n]+\]/gu,
+  )) {
+    const id = tokens.get(token)
+    if (id != null) {
+      found.push({
+        kind: 'familiar',
+        id: String(id),
+        start,
+        end: start + token.length,
+      })
     }
   }
-  return found.sort((a, b) => a.start - b.start)
+  return found
 }
 
 /**
@@ -517,7 +525,7 @@ export type TurnInput = {
  * A turn's result: the answer in its Familiar's chat, once its input is
  * answered; null if it wasn't. The room has the reply once the run ends.
  */
-export type TurnResult = { answer: EntryId | null }
+export type TurnResult = { answer: EntryId | null; input?: EntryId }
 
 /** An entry to post, with the request that caused it: a retry finds it by this. */
 export type Posting = { entry: RoomEntry; requestId: string }
@@ -640,6 +648,7 @@ export async function retryTurn(
   turn: TurnTask,
   room: RoomId,
   reply: EntryId,
+  canDeliver: (kind: string) => boolean,
 ) {
   // Reads before writes: a transaction cannot read tables after writing.
   const record = (await tx.doc(Rooms)).rooms[room]
@@ -663,10 +672,14 @@ export async function retryTurn(
   if (await answeredSince(tx, room, reply, familiar, cause)) {
     return
   }
-  const entry = (await tx.entry(cause)) as unknown as RoomEntry
+  const entry = await tx.entry(cause)
+  if (!entry || !canDeliver(entry.kind)) {
+    throw new RoomError('The original room entry can no longer be retried.')
+  }
   const addressed =
-    recipients(record, entry).find((each) => each.familiar === familiar)
-      ?.addressed ?? 'mention'
+    recipients(record, entry as unknown as RoomEntry).find(
+      (each) => each.familiar === familiar,
+    )?.addressed ?? 'mention'
   await startTurn(tx, turn, {
     room,
     familiar,

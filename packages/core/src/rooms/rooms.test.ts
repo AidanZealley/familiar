@@ -301,7 +301,7 @@ test('Familiars reply to each other, by mention or to everyone else, until a rep
   const { workspace, create, room } = await open((request) =>
     request.type === 'reply'
       ? fauxAssistantMessage(`Re: ${request.text}`)
-      : echo(request),
+      : fauxAssistantMessage('Re: @[Ada] hi'),
   )
   const [ada, bo] = [await create('Ada'), await create('Bo')]
   const kitchen = await room(
@@ -322,7 +322,7 @@ test('Familiars reply to each other, by mention or to everyone else, until a rep
   )
   // Bo's replies mention Ada, from the text it echoes: they go to Ada.
   expect(chain[1].mentions).toEqual([
-    { kind: 'familiar', id: String(ada), start: 8, end: 12 },
+    { kind: 'familiar', id: String(ada), start: 8, end: 14 },
   ])
   expect(chain.map((reply) => reply.familiar)).toEqual(
     Array.from({ length: MAX_DEPTH }, (_, index) => (index % 2 ? bo : ada)),
@@ -845,7 +845,7 @@ test("a Familiar's reply to another acts for the person whose message started it
     (request) => {
       switch (request.type) {
         case 'message':
-          return fauxAssistantMessage('@Bo who is this for?')
+          return fauxAssistantMessage('İ see. @[Bo Peep] who is this for?')
         case 'reply':
           return request.from === 'Ada'
             ? call('whoami', {})
@@ -856,11 +856,15 @@ test("a Familiar's reply to another acts for the person whose message started it
     },
     { plugins: [whoami] },
   )
-  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const [ada, bo, boPeep] = [
+    await create('Ada'),
+    await create('Bo'),
+    await create('Bo Peep'),
+  ]
   const kitchen = await room(
     await workspace.rooms.create({
       name: 'kitchen',
-      familiars: [ada, bo],
+      familiars: [ada, bo, boPeep],
     }),
   )
   await kitchen.post({
@@ -870,6 +874,9 @@ test("a Familiar's reply to another acts for the person whose message started it
     mentions: [mention(ada)],
   })
   await expect.poll(() => seen).toEqual(['Aidan'])
+  expect((await replies(kitchen))[0]).toMatchObject({
+    mentions: [{ id: String(boPeep), start: 7, end: 17 }],
+  })
 })
 
 test("removing a Familiar stops its turns and schedules, retires its memory, opens the room it led and closes its DM, leaving others' work running", async () => {

@@ -1,9 +1,8 @@
 import type { Context } from '@earendil-works/chord/context'
 import {
-  AssistantEntry,
   defineTask,
   type Cursor,
-  type EntryRecord,
+  type EntryId,
   type TaskId,
   type TaskRuntime,
   type Tx,
@@ -16,6 +15,7 @@ import {
   type ScheduledData,
 } from '../conversation/message.ts'
 import type { Notify } from '../notify.ts'
+import { entriesOf } from '../pi/entries.ts'
 import { localMinute } from '../time.ts'
 import { advance, dueAt, Schedules } from './schedules.ts'
 import {
@@ -87,6 +87,31 @@ export function scheduledInput(
 
 /** Roughly what a notification shows before the system cuts it off. */
 const BODY_LENGTH = 180
+
+/** The assistant text across all tool rounds of a scheduled reply. */
+async function scheduledReply(
+  tx: Tx,
+  familiar: FamiliarId,
+  answer: EntryId | null | undefined,
+  input: EntryId | undefined,
+) {
+  if (answer == null) {
+    return ''
+  }
+  const parts: string[] = []
+  for await (const entry of entriesOf(tx, {
+    conversationId: familiar,
+    minEntryId: input ?? answer,
+    maxEntryId: answer,
+    order: 'ascending',
+  })) {
+    const said = saidBy(entry)
+    if (said?.role === 'assistant') {
+      parts.push(said.text)
+    }
+  }
+  return parts.join('\n').trim()
+}
 
 /** A reply as a notification's body: plain text, cut at a word near the limit. */
 export function notificationBody(text: string) {
@@ -346,11 +371,14 @@ export function createScheduleTask(
         let reply = ''
         if (settled.status === 'done') {
           // A task commit returns its next state, not values, so read into this.
-          let answer: EntryRecord | undefined
           await runtime.commit(async (tx) => {
-            answer = await tx.entry(AssistantEntry, settled.answer!)
+            reply = await scheduledReply(
+              tx,
+              familiar,
+              settled.answer,
+              settled.entry,
+            )
           }, context)
-          reply = (answer && saidBy(answer)?.text.trim()) ?? ''
         }
         await notifyAndAdvance(
           task.input,
@@ -364,9 +392,7 @@ export function createScheduleTask(
 
       notify: async (task, runtime, context) => {
         const { turns, phase: _, ...delivery } = task.state.checkpoint
-        const answers = (await runtime.outcomes(turns, context)).flatMap(
-          (outcome) => outcome.result?.answer ?? [],
-        )
+        const outcomes = await runtime.outcomes(turns, context)
         // A task commit returns its next state, not values, so read into these.
         let name: string | undefined
         let reply = ''
@@ -378,10 +404,14 @@ export function createScheduleTask(
             return finished
           }
           name = (await familiarRecord(tx, familiar)).name
-          // Its Familiar's answer in its own chat; the room's reply says the same.
-          for (const id of answers) {
-            const answer = await tx.entry(AssistantEntry, id)
-            reply = (answer && saidBy(answer)?.text.trim()) || reply
+          for (const { result } of outcomes) {
+            reply =
+              (await scheduledReply(
+                tx,
+                familiar,
+                result?.answer,
+                result?.input,
+              )) || reply
           }
           return undefined
         }, context)

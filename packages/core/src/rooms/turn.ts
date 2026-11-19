@@ -24,6 +24,7 @@ import { Familiars, type FamiliarId } from '../workspace/familiars.ts'
 import { catchUp } from './catch-up.ts'
 import {
   formatRelay,
+  mentionTokens,
   post,
   REPLY_KIND,
   replyText,
@@ -33,7 +34,7 @@ import {
   type TurnInput,
   type TurnResult,
 } from './log.ts'
-import { membersOf, Rooms, type Room } from './rooms.ts'
+import { membersOf, RoomError, Rooms, type Room } from './rooms.ts'
 import { replyingIn } from './status.ts'
 
 /**
@@ -50,7 +51,13 @@ type TurnStep =
   /** Builds the input from the room log and moves the Familiar's cursor. */
   | { phase: 'prepare' }
   /** Built in `prepare`, so a rerun after a restart delivers the same input. */
-  | { phase: 'deliver'; name: string; input: string; entry: ChatInput }
+  | {
+      phase: 'deliver'
+      name: string
+      input: string
+      entry: ChatInput
+      mentionHint?: string
+    }
   /** Waits for the chat to settle it, then notes it if it went unanswered. */
   | { phase: 'answer'; name: string; submission: SubmissionId }
 
@@ -83,48 +90,69 @@ const inputRequest = ({ room, cause, familiar, retries }: TurnInput) =>
  * The room entry `cause` as its turn's input, with `where` it came from and
  * what it was shown first. `names` gives Familiars' names now.
  */
-function chatInput(
+type PrepareInput = (
   cause: EntryRecord,
   where: Required<InRoom>,
   names: (familiar: FamiliarId) => string,
   timeZone: string,
-): { input: string; entry: ChatInput } {
-  if (cause.kind === SCHEDULED_KIND) {
-    const { scheduleId, prompt, due, creator } = cause.data as RoomScheduledData
-    return {
-      input: scheduledInput(cause.data as RoomScheduledData, timeZone),
-      entry: {
-        kind: SCHEDULED_KIND,
-        data: {
-          scheduleId,
-          prompt,
-          due,
-          ...(creator && { creator }),
-          ...where,
+) => { input: string; entry: ChatInput }
+
+const deliveryHandlers = new Map<string, PrepareInput>([
+  [
+    SCHEDULED_KIND,
+    (cause, where, _names, timeZone) => {
+      const { scheduleId, prompt, due, creator } =
+        cause.data as RoomScheduledData
+      return {
+        input: scheduledInput(cause.data as RoomScheduledData, timeZone),
+        entry: {
+          kind: SCHEDULED_KIND,
+          data: {
+            scheduleId,
+            prompt,
+            due,
+            ...(creator && { creator }),
+            ...where,
+          },
         },
-      },
-    }
+      }
+    },
+  ],
+  [
+    REPLY_KIND,
+    (cause, where, names) => {
+      const reply = cause.data as unknown as ReplyData
+      const name = names(reply.familiar)
+      const text = replyText(reply)
+      return {
+        input: formatRelay(name, text),
+        entry: {
+          kind: RELAY_KIND,
+          data: { familiar: reply.familiar, name, text, ...where },
+        },
+      }
+    },
+  ],
+  [
+    MESSAGE_KIND,
+    (cause, where) => {
+      const { author, text } = cause.data as RoomMessageData
+      return {
+        input: formatMessage({ author, text }),
+        entry: { kind: MESSAGE_KIND, data: { author, text, ...where } },
+      }
+    },
+  ],
+])
+
+export const canDeliver = (kind: string) => deliveryHandlers.has(kind)
+
+const chatInput: PrepareInput = (cause, where, names, timeZone) => {
+  const prepare = deliveryHandlers.get(cause.kind)
+  if (!prepare) {
+    throw new RoomError(`A turn can't deliver a ${cause.kind} entry.`)
   }
-  if (cause.kind === REPLY_KIND) {
-    const reply = cause.data as unknown as ReplyData
-    const name = names(reply.familiar)
-    const text = replyText(reply)
-    return {
-      input: formatRelay(name, text),
-      entry: {
-        kind: RELAY_KIND,
-        data: { familiar: reply.familiar, name, text, ...where },
-      },
-    }
-  }
-  if (cause.kind !== MESSAGE_KIND) {
-    throw new Error(`A turn can't deliver a ${cause.kind} entry.`)
-  }
-  const { author, text } = cause.data as RoomMessageData
-  return {
-    input: formatMessage({ author, text }),
-    entry: { kind: MESSAGE_KIND, data: { author, text, ...where } },
-  }
+  return prepare(cause, where, names, timeZone)
 }
 
 /** Who a DM is with, by name, if `cause` comes from them. */
@@ -155,7 +183,10 @@ export function createTurnTask(harness: Harness, timeZone: string) {
     at: number,
   ): Promise<TurnResult> {
     if (settled?.status === 'done') {
-      return { answer: settled.answer ?? null }
+      return {
+        answer: settled.answer ?? null,
+        ...(settled.entry !== undefined && { input: settled.entry }),
+      }
     }
     const stopped = !settled || settled.reason === 'aborted'
     if (
@@ -253,11 +284,17 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             return removed
           }
           // Reads before writes: a transaction cannot read tables after writing.
+          const others = membersOf(record)
+            .filter((id) => id !== familiar && familiars[id])
+            .map((id) => ({ id, name: familiars[id].name }))
           const replying = await replyingIn(
             tx,
             room,
-            membersOf(record).filter((other) => other !== familiar),
+            others.map(({ id }) => id),
           )
+          const tokens = [...mentionTokens(others)]
+            .filter(([, id]) => id !== null)
+            .map(([token]) => token)
           const shown = await catchUp(
             tx,
             familiar,
@@ -274,6 +311,9 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             checkpoint: {
               phase: 'deliver',
               name,
+              ...(tokens.length && {
+                mentionHint: `To address another Familiar in your reply, use its exact mention: ${tokens.join(', ')}.`,
+              }),
               ...chatInput(
                 entry,
                 { room, entry: cause, context: shown, addressed },
@@ -286,7 +326,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
 
       deliver: async (task, runtime, context) => {
         const { familiar } = task.input
-        const { name, input, entry } = task.state.checkpoint
+        const { name, input, entry, mentionHint } = task.state.checkpoint
         const chat = await runtime.conversation(familiar, context)
         if (!chat) {
           throw new Error(`No chat for Familiar ${familiar}.`)
@@ -299,7 +339,12 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           {
             type: 'input',
             content: [
-              { type: 'text', text: entry.data.context },
+              {
+                type: 'text',
+                text: mentionHint
+                  ? `${entry.data.context}\n${mentionHint}`
+                  : entry.data.context,
+              },
               { type: 'text', text: input },
             ],
             requestId: inputRequest(task.input),
