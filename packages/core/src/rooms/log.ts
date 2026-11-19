@@ -451,14 +451,14 @@ export function mentionsIn(
 }
 
 /**
- * In a named room, the Familiars an entry from `from` (a person when
- * undefined) goes to: those it mentions, else everyone else in the room.
+ * Human messages reach the whole room, with a direct request for each mention.
+ * Familiar replies with mentions go to those recipients only.
  */
 function addressedIn(
   room: NamedRoom,
   mentions: readonly Mention[] | undefined,
   from?: FamiliarId,
-) {
+): { familiar: FamiliarId; addressed: Addressed }[] {
   const others = room.familiars.filter((familiar) => familiar !== from)
   const mentioned = new Set(
     (mentions ?? [])
@@ -466,23 +466,17 @@ function addressedIn(
       .map((mention) => Number(mention.id) as FamiliarId)
       .filter((familiar) => others.includes(familiar)),
   )
-  return mentioned.size
-    ? [...mentioned].map((familiar) => ({
-        familiar,
-        addressed: 'mention' as Addressed,
-      }))
-    : others.map((familiar) => ({
-        familiar,
-        addressed: 'open' as Addressed,
-      }))
+  const targets = from !== undefined && mentioned.size ? [...mentioned] : others
+  return targets.map((familiar) => ({
+    familiar,
+    addressed: mentioned.has(familiar) ? 'mention' : 'open',
+  }))
 }
 
 /**
  * Who `entry` is delivered to, and why, decided once, as it's posted: a
- * DM's Familiar; in a named room, the Familiars a message or an answered
- * reply mentions, else every other Familiar in it; a reminder's own
- * Familiar. Each decides for itself whether to reply. A reply at
- * `MAX_DEPTH`, notes, and old handoffs go to no one.
+ * DM's Familiar; in a named room, see addressedIn; a reminder's own
+ * Familiar. A reply at `MAX_DEPTH`, notes, and old handoffs go to no one.
  */
 function recipients(
   room: Room,
