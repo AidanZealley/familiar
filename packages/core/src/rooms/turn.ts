@@ -1,9 +1,7 @@
 import type { Context } from '@earendil-works/chord/context'
-import type { Message } from '@earendil-works/pi-ai'
 import {
   defineTask,
   LiveDoc,
-  type EntryId,
   type EntryRecord,
   type Harness,
   type InputEntry,
@@ -13,55 +11,53 @@ import {
 } from '@earendil-works/pi-durable'
 import {
   formatMessage,
-  HANDOFF_KIND,
   MESSAGE_KIND,
+  RELAY_KIND,
   SCHEDULED_KIND,
-  type HandedOnData,
   type InRoom,
   type MessageData,
+  type RelayData,
   type ScheduledData,
 } from '../conversation/message.ts'
 import { scheduledInput } from '../schedules/task.ts'
 import { Familiars, type FamiliarId } from '../workspace/familiars.ts'
 import { catchUp } from './catch-up.ts'
 import {
-  formatHandoff,
-  postAll,
+  formatRelay,
+  post,
   REPLY_KIND,
-  type Posting,
-  type HandoffData,
+  replyText,
   type ReplyData,
   type RoomMessageData,
   type RoomScheduledData,
   type TurnInput,
   type TurnResult,
 } from './log.ts'
-import { closedTo, Rooms, Turns, type Room } from './rooms.ts'
-import { handoffsIn, STAY_QUIET } from './tools.ts'
-import { entriesOf } from '../pi/entries.ts'
+import { membersOf, Rooms, Turns, type Room, type RoomId } from './rooms.ts'
 
 /**
- * A turn: one Familiar's handling of one room entry, as a task the room
- * owns. It fixes what the Familiar is shown, delivers that to its chat as a
- * follow-up, waits for the answer and copies the run into the room as a
- * reply. Each step finds what a rerun already did by its request ID.
+ * A turn: delivering one room entry to one Familiar, as a task the room
+ * owns. It fixes what the Familiar is shown, submits that to its chat as a
+ * follow-up and waits for it to settle. Pi takes one follow-up per run, so
+ * each run answers one room entry, and the run's answer is posted to the
+ * room when the run ends (see answer.ts). A turn posts only a note that its
+ * input was stopped or failed. Each step finds what a rerun already did by
+ * its request ID.
  */
 
 type TurnStep =
-  /** Waits for the turn before it in an open room to end. */
-  | { phase: 'wait' }
   /** Builds the input from the room log and moves the Familiar's cursor. */
   | { phase: 'prepare' }
   /** Built in `prepare`, so a rerun after a restart delivers the same input. */
-  | { phase: 'deliver'; input: string; entry: ChatInput }
-  /** Waits for the chat to answer it, then copies the run into the room. */
-  | { phase: 'answer'; submission: SubmissionId }
+  | { phase: 'deliver'; name: string; input: string; entry: ChatInput }
+  /** Waits for the chat to settle it, then notes it if it went unanswered. */
+  | { phase: 'answer'; name: string; submission: SubmissionId }
 
 /** The chat entry a turn's input is placed as: what it says, and where from. */
 type ChatInput =
   | { kind: typeof MESSAGE_KIND; data: Required<MessageData> }
   | { kind: typeof SCHEDULED_KIND; data: ScheduledData & Required<InRoom> }
-  | { kind: typeof HANDOFF_KIND; data: HandedOnData & Required<InRoom> }
+  | { kind: typeof RELAY_KIND; data: RelayData & Required<InRoom> }
 
 /** The turn task's name, by which removing a Familiar finds its turns. */
 export const TURN_TASK = 'familiar.turn'
@@ -69,7 +65,7 @@ export const TURN_TASK = 'familiar.turn'
 /** How a turn ends whose Familiar was removed after it was posted. */
 const removed = {
   status: 'terminal',
-  outcome: { status: 'completed', result: { reply: null } },
+  outcome: { status: 'completed', result: { answer: null } },
 } as const
 
 /** The entry kind of the write that lets a stopped run's queue move on. */
@@ -82,47 +78,33 @@ const WAKE_KIND = 'familiar.wake'
 const inputRequest = ({ room, cause, familiar, retries }: TurnInput) =>
   `turn:${room}:${cause}:${familiar}${retries === undefined ? '' : `:retry:${retries}`}`
 
-/** Whether an entry is an input that starts a run, rather than part of one. */
-const isInput = (entry: EntryRecord) =>
-  !entry.head && !!entry.model?.some((message) => message.role === 'user')
-
 /**
- * A settled input's run, as its assistant and tool-result messages: the
- * entries after its input, up to the next input. Not only to its answer: a
- * run a tool ended, as `stay_quiet` does, has that tool's result after it.
- * Other kinds, such as `pi.system`, can sit among them.
+ * Which of `familiars` are answering an input from `room` now, from their
+ * chats' live runs. A run that has answered and is only posting its reply
+ * has no inputs left, so it doesn't count.
  */
-async function runMessages(
+export async function replyingIn(
   tx: Tx,
-  chat: FamiliarId,
-  settled: SettledSubmissionRecord,
+  room: RoomId,
+  familiars: readonly FamiliarId[],
 ) {
-  const messages: Message[] = []
-  if (settled.entry === undefined) {
-    return messages
-  }
-  for await (const entry of entriesOf(tx, {
-    conversationId: chat,
-    minEntryId: (settled.entry + 1) as EntryId,
-    order: 'ascending',
-  })) {
-    if (isInput(entry)) {
-      break
+  const replying: FamiliarId[] = []
+  for (const familiar of familiars) {
+    const { run } = await tx.doc(LiveDoc, familiar)
+    for (const id of run?.inputs ?? []) {
+      const submission = await tx.submission(id)
+      const entry =
+        submission?.type === 'input' && submission.entry !== undefined
+          ? await tx.entry(submission.entry)
+          : undefined
+      if ((entry?.data as InRoom | undefined)?.room === room) {
+        replying.push(familiar)
+        break
+      }
     }
-    if (entry.kind === 'pi.assistant' || entry.kind === 'pi.tool-result') {
-      messages.push(...(entry.model ?? []))
-    }
   }
-  return messages
+  return replying
 }
-
-/** Whether a run ended with `stay_quiet`: its last request called it. */
-const quiet = (messages: Message[]) =>
-  messages
-    .findLast((message) => message.role === 'assistant')
-    ?.content.some(
-      (part) => part.type === 'toolCall' && part.name === STAY_QUIET,
-    )
 
 /**
  * The room entry `cause` as its turn's input, with `where` it came from and
@@ -150,13 +132,20 @@ function chatInput(
       },
     }
   }
-  if (cause.kind === HANDOFF_KIND) {
-    const { from, note } = cause.data as HandoffData
-    const name = names(from)
+  if (cause.kind === REPLY_KIND) {
+    const reply = cause.data as unknown as ReplyData
+    const name = names(reply.familiar)
+    const text = replyText(reply)
     return {
-      input: formatHandoff(name, note),
-      entry: { kind: HANDOFF_KIND, data: { from, name, note, ...where } },
+      input: formatRelay(name, text),
+      entry: {
+        kind: RELAY_KIND,
+        data: { familiar: reply.familiar, name, text, ...where },
+      },
     }
+  }
+  if (cause.kind !== MESSAGE_KIND) {
+    throw new Error(`A turn can't deliver a ${cause.kind} entry.`)
   }
   const { author, text } = cause.data as RoomMessageData
   return {
@@ -170,7 +159,9 @@ function dmPerson(room: Room, cause: EntryRecord) {
   const person =
     cause.kind === MESSAGE_KIND
       ? (cause.data as RoomMessageData).author
-      : (cause.data as RoomScheduledData).creator
+      : cause.kind === SCHEDULED_KIND
+        ? (cause.data as RoomScheduledData).creator
+        : undefined
   return room.kind === 'dm' && person?.id === room.person
     ? person.name
     : undefined
@@ -178,77 +169,65 @@ function dmPerson(room: Room, cause: EntryRecord) {
 
 export function createTurnTask(harness: Harness, timeZone: string) {
   /**
-   * Copies a settled input's run into the room as a reply at `at`, unless it
-   * was stopped before saying anything, then posts the handoffs the run made,
-   * unless it was stopped or the room has closed since, and ends the turn's
-   * record, in the commit `tx`. Returns the reply.
+   * Ends a turn whose input `settled`, in the commit `tx`: an answered one
+   * with its answer, as the run's end posts its reply; one that went
+   * unanswered with a note in the room that it was stopped or failed. An
+   * input withdrawn before it ran, or never delivered, notes nothing.
    */
   async function settle(
     tx: Tx,
     taskId: number,
-    { room, familiar, cause }: TurnInput,
+    input: TurnInput,
+    name: string | undefined,
     settled: SettledSubmissionRecord | undefined,
     at: number,
-  ) {
-    // Reads before writes: a transaction cannot read tables after writing.
-    const messages = settled ? await runMessages(tx, familiar, settled) : []
-    const turns = await tx.doc(Turns)
-    const outcome: ReplyData['outcome'] =
-      settled?.status === 'done'
-        ? quiet(messages)
-          ? 'quiet'
-          : 'answered'
-        : !settled || settled.reason === 'aborted'
-          ? 'stopped'
-          : 'failed'
-    const failure =
-      outcome === 'failed' && settled?.status === 'unanswered'
-        ? {
-            reason: settled.reason,
-            ...(typeof settled.detail === 'string' && {
-              detail: settled.detail,
-            }),
-          }
-        : undefined
-    // Recorded as it was prepared, so a turn whose Familiar was removed
-    // since can still file what it said. Without it, nothing was delivered.
-    const turn = turns[taskId]
-    let reply = null
-    if (turn && (outcome !== 'stopped' || messages.length)) {
-      const record = (await tx.doc(Rooms)).rooms[room]
-      const handOn =
-        outcome !== 'stopped' && record && !(await closedTo(tx, record))
-      const handoffs: Posting[] = (handOn ? handoffsIn(messages) : []).map(
-        ({ to, note, hops }, index) => ({
-          entry: {
-            kind: HANDOFF_KIND,
-            data: { from: familiar, to, note, hops, cause, at },
-          },
-          requestId: `handoff:${taskId}:${index}`,
-        }),
-      )
-      const [posted] = await postAll(tx, Turn, room, [
-        {
-          entry: {
-            kind: REPLY_KIND,
-            data: {
-              familiar,
-              name: turn.name,
-              cause,
-              outcome,
-              ...(failure && { failure }),
-              messages,
-              at,
-            },
-          },
-          requestId: `reply:${taskId}`,
-        },
-        ...handoffs,
-      ])
-      reply = posted.entry
+  ): Promise<TurnResult> {
+    const result = await noteUnanswered(tx, input, name, settled, at)
+    delete (await tx.doc(Turns))[taskId]
+    return result
+  }
+
+  async function noteUnanswered(
+    tx: Tx,
+    input: TurnInput,
+    name: string | undefined,
+    settled: SettledSubmissionRecord | undefined,
+    at: number,
+  ): Promise<TurnResult> {
+    if (settled?.status === 'done') {
+      return { answer: settled.answer ?? null }
     }
-    delete turns[taskId]
-    return { reply }
+    const stopped = !settled || settled.reason === 'aborted'
+    if (
+      name === undefined ||
+      !settled ||
+      (stopped && settled.entry === undefined)
+    ) {
+      return { answer: null }
+    }
+    const { room, familiar, cause } = input
+    const data: ReplyData = {
+      familiar,
+      name,
+      cause,
+      outcome: stopped ? 'stopped' : 'failed',
+      ...(!stopped && {
+        failure: {
+          reason: settled.reason,
+          ...(typeof settled.detail === 'string' && { detail: settled.detail }),
+        },
+      }),
+      messages: [],
+      at,
+    }
+    await post(
+      tx,
+      Turn,
+      room,
+      { kind: REPLY_KIND, data },
+      `note:${inputRequest(input)}`,
+    )
+    return { answer: null }
   }
 
   /**
@@ -297,32 +276,10 @@ export function createTurnTask(harness: Harness, timeZone: string) {
 
   const Turn = defineTask<TurnInput, TurnStep, TurnResult>({
     name: TURN_TASK,
-    version: 1,
-    initial: (input) =>
-      input.after === undefined ? { phase: 'prepare' } : { phase: 'wait' },
+    // 2: no `wait` phase, and a turn no longer posts its answer.
+    version: 2,
+    initial: () => ({ phase: 'prepare' }),
     phases: {
-      // Shown in the room from now, as waiting for its Familiar.
-      wait: (task, runtime, context) =>
-        runtime.commit(async (tx) => {
-          const { room, familiar, cause, after } = task.input
-          const record = (await tx.doc(Familiars)).familiars[familiar]
-          if (!record) {
-            return removed
-          }
-          ;(await tx.doc(Turns))[task.id] = {
-            room,
-            familiar,
-            name: record.name,
-            cause,
-          }
-          return {
-            status: 'waiting',
-            checkpoint: { phase: 'prepare' },
-            on: [after!],
-            policy: 'allSettled',
-          }
-        }, context),
-
       prepare: (task, runtime, context) =>
         runtime.commit(async (tx) => {
           const { room, familiar, cause, addressed } = task.input
@@ -333,9 +290,14 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           }
           const { familiars } = await tx.doc(Familiars)
           if (!familiars[familiar]) {
-            delete (await tx.doc(Turns))[task.id]
             return removed
           }
+          // Reads before writes: a transaction cannot read tables after writing.
+          const replying = await replyingIn(
+            tx,
+            room,
+            membersOf(record).filter((other) => other !== familiar),
+          )
           const shown = await catchUp(
             tx,
             familiar,
@@ -344,17 +306,15 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             cause,
             dmPerson(record, entry),
             addressed,
+            replying.map((other) => familiars[other].name),
           )
-          ;(await tx.doc(Turns))[task.id] = {
-            room,
-            familiar,
-            name: familiars[familiar].name,
-            cause,
-          }
+          const name = familiars[familiar].name
+          ;(await tx.doc(Turns))[task.id] = { room, familiar, name, cause }
           return {
             status: 'running',
             checkpoint: {
               phase: 'deliver',
+              name,
               ...chatInput(
                 entry,
                 { room, entry: cause, context: shown, addressed },
@@ -367,15 +327,15 @@ export function createTurnTask(harness: Harness, timeZone: string) {
 
       deliver: async (task, runtime, context) => {
         const { familiar } = task.input
-        const { input, entry } = task.state.checkpoint
+        const { name, input, entry } = task.state.checkpoint
         const chat = await runtime.conversation(familiar, context)
         if (!chat) {
           throw new Error(`No chat for Familiar ${familiar}.`)
         }
-        // A follow-up, never a steer: a steered input joins the running run
-        // and shares its answer, so this turn's reply couldn't be told apart
-        // from another room's. What it was shown comes first, so the input
-        // itself ends the message, as the model expects.
+        // A follow-up, never a steer: Pi places one follow-up per run, so
+        // each run answers one room entry and its reply has one room. What
+        // it was shown comes first, so the input itself ends the message,
+        // as the model expects.
         const submission = await chat.submit(
           {
             type: 'input',
@@ -395,16 +355,14 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           }
           return {
             status: 'running',
-            checkpoint: { phase: 'answer', submission: submission.id },
+            checkpoint: { phase: 'answer', name, submission: submission.id },
           }
         }, context)
       },
 
       answer: async (task, runtime, context) => {
-        const submission = await harness.submission(
-          task.state.checkpoint.submission,
-          context,
-        )
+        const { name, submission: id } = task.state.checkpoint
+        const submission = await harness.submission(id, context)
         const settled = await submission!.wait(context)
         await runtime.commit(
           async (tx) => ({
@@ -415,6 +373,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
                 tx,
                 task.id,
                 task.input,
+                name,
                 settled,
                 runtime.now(),
               ),
@@ -428,6 +387,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
     // request ID, as a crash can leave it delivered but unrecorded.
     abort: async (task, runtime, context) => {
       const settled = await stop(task.id, task.input, context)
+      const { checkpoint } = task.state
       await runtime.commit(
         async (tx) => ({
           status: 'terminal',
@@ -437,6 +397,10 @@ export function createTurnTask(harness: Harness, timeZone: string) {
               tx,
               task.id,
               task.input,
+              'name' in checkpoint
+                ? checkpoint.name
+                : (await tx.doc(Familiars)).familiars[task.input.familiar]
+                    ?.name,
               settled,
               runtime.now(),
             ),

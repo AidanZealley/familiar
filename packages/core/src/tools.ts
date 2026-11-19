@@ -15,6 +15,7 @@ import type { PluginFetch, ToolAnnotations } from './connections/index.ts'
 import {
   HANDOFF_KIND,
   MESSAGE_KIND,
+  RELAY_KIND,
   SCHEDULED_KIND,
   type Author,
   type InRoom,
@@ -23,6 +24,7 @@ import {
 } from './conversation/message.ts'
 import type { Notification } from './notify.ts'
 import { entriesOf } from './pi/entries.ts'
+import { REPLY_KIND } from './rooms/log.ts'
 import { familiarFor, type FamiliarId } from './workspace/familiars.ts'
 
 /**
@@ -131,14 +133,15 @@ export function withServices<P extends object, D extends JsonValue>(
 /**
  * The person a tool call runs for, resolved through its persisted call
  * ancestry, never from its arguments: a message's author, or the creator of
- * a scheduled run. Undefined for any other input, such as another
- * Familiar's handoff or memory filing.
+ * a scheduled run, or whoever started a chain of Familiars' replies.
+ * Undefined for any other input, such as memory filing.
  */
 async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
   const input = await callInput(tx, taskId)
-  // A handoff acts for whoever started its chain, as the Familiar that
-  // handed it on did: found from the room's record, never from a model.
-  if (input?.kind === HANDOFF_KIND) {
+  // Another Familiar's reply, or an old handoff, acts for whoever started
+  // its chain, as that Familiar did: found from the room's record, never
+  // from a model.
+  if (input?.kind === RELAY_KIND || input?.kind === HANDOFF_KIND) {
     return startedBy(tx, (input.data as InRoom).entry)
   }
   return input?.kind === MESSAGE_KIND
@@ -169,8 +172,9 @@ async function startedBy(
       return (record.data as MessageData).author
     case SCHEDULED_KIND:
       return (record.data as ScheduledData).creator
+    case REPLY_KIND:
     case HANDOFF_KIND:
-      // A handoff's cause is the room entry the handing-off turn answered.
+      // Each's cause is the room entry the Familiar's run answered.
       return startedBy(tx, (record.data as { cause: EntryId }).cause)
     default:
       return undefined
@@ -196,6 +200,7 @@ export async function callInput(
     if (
       entry.kind === MESSAGE_KIND ||
       entry.kind === SCHEDULED_KIND ||
+      entry.kind === RELAY_KIND ||
       entry.kind === HANDOFF_KIND
     ) {
       return entry

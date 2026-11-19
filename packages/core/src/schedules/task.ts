@@ -23,12 +23,7 @@ import {
   familiarRecord,
   type FamiliarId,
 } from '../workspace/familiars.ts'
-import {
-  replyText,
-  type ReplyData,
-  type RoomScheduledData,
-  type TurnResult,
-} from '../rooms/log.ts'
+import { type RoomScheduledData, type TurnResult } from '../rooms/log.ts'
 import { dmWith, membersOf, Rooms, type RoomId } from '../rooms/rooms.ts'
 
 type Delivery = {
@@ -369,8 +364,8 @@ export function createScheduleTask(
 
       notify: async (task, runtime, context) => {
         const { turns, phase: _, ...delivery } = task.state.checkpoint
-        const replies = (await runtime.outcomes(turns, context)).flatMap(
-          (outcome) => outcome.result?.reply ?? [],
+        const answers = (await runtime.outcomes(turns, context)).flatMap(
+          (outcome) => outcome.result?.answer ?? [],
         )
         // A task commit returns its next state, not values, so read into these.
         let name: string | undefined
@@ -383,11 +378,10 @@ export function createScheduleTask(
             return finished
           }
           name = (await familiarRecord(tx, familiar)).name
-          for (const id of replies) {
-            const data = (await tx.entry(id))?.data as ReplyData | undefined
-            if (data?.outcome === 'answered') {
-              reply = replyText(data).trim()
-            }
+          // Its Familiar's answer in its own chat; the room's reply says the same.
+          for (const id of answers) {
+            const answer = await tx.entry(AssistantEntry, id)
+            reply = (answer && saidBy(answer)?.text.trim()) || reply
           }
           return undefined
         }, context)

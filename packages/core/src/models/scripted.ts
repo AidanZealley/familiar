@@ -15,7 +15,7 @@ import {
   textOf,
   type MessageData,
 } from '../conversation/message.ts'
-import { readHandoff } from '../rooms/log.ts'
+import { readRelay } from '../rooms/log.ts'
 import { SCHEDULED_PREFIX } from '../schedules/task.ts'
 
 type Said = Pick<MessageData, 'author' | 'text'>
@@ -30,8 +30,8 @@ export type ScriptedRequest = { context: TranscriptContext } & (
   | { type: 'tool-result'; name: string; output: string; isError: boolean }
   /** A schedule's prompt has come due. */
   | { type: 'scheduled' }
-  /** Another Familiar handed this on, by name, with a note. */
-  | { type: 'handoff'; from: string; note: string }
+  /** Another Familiar's reply in a room, by name. */
+  | { type: 'reply'; from: string; text: string }
   /**
    * Memory's own call, which answers by calling `call`: filing what people
    * said (`file`) or tidying a page (`tidy`). `keepNothing` answers it.
@@ -105,9 +105,9 @@ function readRequest(context: TranscriptContext): ScriptedRequest {
     if (text.startsWith(SCHEDULED_PREFIX)) {
       return { type: 'scheduled', context }
     }
-    const handoff = readHandoff(text)
-    if (handoff) {
-      return { type: 'handoff', ...handoff, context }
+    const reply = readRelay(text)
+    if (reply) {
+      return { type: 'reply', ...reply, context }
     }
     const said = readMessage(text)
     if (said) {

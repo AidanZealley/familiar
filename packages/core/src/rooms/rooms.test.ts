@@ -7,7 +7,6 @@ import type { EntryRecord, Storage } from '@earendil-works/pi-durable'
 import { BACKGROUND_CONTEXT as context } from '@earendil-works/chord/context'
 import { expect, onTestFinished, test } from 'vitest'
 import {
-  HANDOFF_KIND,
   MESSAGE_KIND,
   MessageError,
   SCHEDULED_KIND,
@@ -35,7 +34,7 @@ import {
   type WorkspaceOptions,
 } from '../workspace/index.ts'
 import type { RoomApi } from './index.ts'
-import { REPLY_KIND, type ReplyData } from './log.ts'
+import { MAX_DEPTH, REPLY_KIND, type ReplyData } from './log.ts'
 
 // Rooms end to end through a workspace: posting, routing, catch-up, replies,
 // restarts, Stop and schedules.
@@ -47,11 +46,17 @@ type Respond = (
   signal?: AbortSignal,
 ) => AssistantMessage | Promise<AssistantMessage>
 
-/** Answers each message with its own words, and anything else with "Done." */
+/**
+ * Answers each message it leads, is mentioned in or is sent directly with
+ * its own words, stays quiet on the rest and on other Familiars' replies,
+ * and answers anything else with "Done."
+ */
 const echo: Respond = (request) =>
-  fauxAssistantMessage(
-    request.type === 'message' ? `Re: ${request.text}` : 'Done.',
-  )
+  request.type === 'reply' || shown(request).includes('where everyone hears it')
+    ? call('stay_quiet', {})
+    : fauxAssistantMessage(
+        request.type === 'message' ? `Re: ${request.text}` : 'Done.',
+      )
 
 /** A request that hangs until it's aborted, as a stopped run's does. */
 const hang = (signal?: AbortSignal) =>
@@ -200,8 +205,27 @@ test('a DM delivers a message to its Familiar once, and copies the answer back a
   ])
 })
 
-test('in a named room, mentioned Familiars answer, once each, and the lead answers the rest', async () => {
-  const { workspace, create, room } = await open(echo)
+test('a message that mentions no one reaches every Familiar in the room, who reply in parallel or stay quiet; a mention goes only to whom it names', async () => {
+  // Each answers "Dinner?" only once both are asked, so they must run at once.
+  let asked = 0
+  let bothAsked!: () => void
+  const both = new Promise<void>((resolve) => (bothAsked = resolve))
+  const { workspace, create, room } = await open(async (request) => {
+    if (request.type === 'reply') {
+      return call('stay_quiet', {})
+    }
+    if (request.type === 'message' && request.text === 'Dinner?') {
+      if (++asked === 2) {
+        bothAsked()
+      }
+      await both
+      // Ada leads, and answers; Bo lets it pass.
+      return shown(request).includes('which you lead')
+        ? echo(request)
+        : call('stay_quiet', { reason: 'Ada has it.' })
+    }
+    return echo(request)
+  })
   const [ada, bo, cy] = [
     await create('Ada'),
     await create('Bo'),
@@ -214,22 +238,48 @@ test('in a named room, mentioned Familiars answer, once each, and the lead answe
       lead: ada,
     }),
   )
+
+  await kitchen.post({ author: AIDAN, text: 'Dinner?', requestId: 'm1' })
+  // Ada's reply goes on to Bo, who stays quiet again: quiet posts nothing.
+  await expect.poll(async () => (await inputs(workspace, bo)).length).toBe(2)
+  await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
+  const [first] = await replies(kitchen)
+  expect([first.familiar, first.outcome, first.depth, said(first)]).toEqual([
+    ada,
+    'answered',
+    1,
+    'Re: Dinner?',
+  ])
+  const toBo = await inputs(workspace, bo)
+  expect(toBo[0]).toMatchObject({
+    addressed: 'open',
+    context: '[In #kitchen, where everyone hears it]',
+  })
+  expect(toBo[1]).toMatchObject({
+    familiar: ada,
+    name: 'Ada',
+    text: 'Re: Dinner?',
+    addressed: 'open',
+  })
+
+  // A mention goes to Bo alone; Bo's reply goes on to Ada.
   await kitchen.post({
     author: AIDAN,
-    text: "@Bo @Bo what's for dinner?",
-    requestId: 'm1',
-    mentions: [mention(bo, 0), mention(bo, 4)],
+    text: '@Bo pudding?',
+    requestId: 'm2',
+    mentions: [mention(bo)],
   })
-  await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
-  await kitchen.post({ author: AIDAN, text: 'Thanks!', requestId: 'm2' })
-  await expect.poll(async () => (await replies(kitchen)).length).toBe(2)
-
+  await expect.poll(async () => (await inputs(workspace, ada)).length).toBe(2)
   expect(
     (await replies(kitchen)).map((reply) => [reply.familiar, said(reply)]),
   ).toEqual([
-    [bo, "Re: @Bo @Bo what's for dinner?"],
-    [ada, 'Re: Thanks!'],
+    [ada, 'Re: Dinner?'],
+    [bo, 'Re: @Bo pudding?'],
   ])
+  expect((await inputs(workspace, bo))[2]).toMatchObject({
+    addressed: 'mention',
+    context: '[In #kitchen, where you were mentioned]',
+  })
 
   // A mention must span an @name, and name a Familiar in the room.
   for (const mentions of [[mention(bo, 1)], [mention(cy, 0)]]) {
@@ -242,195 +292,73 @@ test('in a named room, mentioned Familiars answer, once each, and the lead answe
       }),
     ).rejects.toThrow(MessageError)
   }
-  expect(await log(kitchen)).toHaveLength(4)
-
-  // Clearing the lead opens the room to both.
-  await workspace.rooms.update(kitchen.id, { lead: null })
-  await kitchen.post({ author: AIDAN, text: 'Anyone?', requestId: 'm4' })
-  await expect.poll(async () => (await replies(kitchen)).length).toBe(4)
-  expect(
-    (await replies(kitchen)).slice(2).map((reply) => reply.familiar),
-  ).toEqual([ada, bo])
 })
 
-test('in an open room, each Familiar takes a turn in order, shown the replies before it, and may stay quiet; a mention still goes only to whom it names', async () => {
+test('Familiars reply to each other, by mention or to everyone else, until a reply at MAX_DEPTH goes to no one', async () => {
   const { workspace, create, room } = await open((request) =>
-    request.type === 'message' &&
-    shown(request).includes("Said here since what you're answering:")
-      ? call('stay_quiet', { reason: 'Already answered.' })
+    request.type === 'reply'
+      ? fauxAssistantMessage(`Re: ${request.text}`)
       : echo(request),
   )
   const [ada, bo] = [await create('Ada'), await create('Bo')]
   const kitchen = await room(
     await workspace.rooms.create({ name: 'kitchen', familiars: [ada, bo] }),
   )
-
-  await kitchen.post({ author: AIDAN, text: 'Dinner?', requestId: 'm1' })
-  await expect.poll(async () => (await replies(kitchen)).length).toBe(2)
-  const [first, second] = await replies(kitchen)
-  expect([first.familiar, first.outcome, said(first)]).toEqual([
-    ada,
-    'answered',
-    'Re: Dinner?',
-  ])
-  // Bo was shown Ada's reply, and passed, saying nothing.
-  expect([second.familiar, second.outcome, said(second)]).toEqual([
-    bo,
-    'quiet',
-    '',
-  ])
-  expect(second.messages.map((message) => message.role)).toEqual([
-    'assistant',
-    'toolResult',
-  ])
-  expect((await inputs(workspace, bo))[0]).toEqual(
-    expect.objectContaining({
-      addressed: 'open',
-      context: [
-        '[In #kitchen, where everyone takes a turn]',
-        "Said here since what you're answering:",
-        '[Ada]: Re: Dinner?',
-      ].join('\n'),
-    }),
-  )
-
-  // A mention goes to Bo alone, and its catch-up shows no line for a quiet reply.
   await kitchen.post({
     author: AIDAN,
-    text: '@Bo pudding?',
-    requestId: 'm2',
-    mentions: [mention(bo)],
-  })
-  await expect.poll(async () => (await replies(kitchen)).length).toBe(3)
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  expect(
-    (await replies(kitchen)).map((reply) => [reply.familiar, said(reply)]),
-  ).toEqual([
-    [ada, 'Re: Dinner?'],
-    [bo, ''],
-    [bo, 'Re: @Bo pudding?'],
-  ])
-  expect((await inputs(workspace, bo))[1]).toMatchObject({
-    addressed: 'mention',
-    context: '[In #kitchen, where you were mentioned]',
-  })
-})
-
-test('a handoff gives the Familiar it names a turn on its note, after the reply it came from, and a chain past maxHandoffs is refused', async () => {
-  const { workspace, create, room } = await open(
-    (request) => {
-      switch (request.type) {
-        case 'message':
-          return call('hand_off', { to: 'Bo', note: 'Which paint?' })
-        case 'handoff':
-          return request.from === 'Ada'
-            ? call('hand_off', { to: 'ada', note: 'Which colour?' })
-            : call('hand_off', { to: 'Bo', note: 'Ask again.' })
-        case 'tool-result':
-          return fauxAssistantMessage(
-            request.isError ? `Refused: ${request.output}` : 'Handed on.',
-          )
-        default:
-          return echo(request)
-      }
-    },
-    { maxHandoffs: 2 },
-  )
-  const [ada, bo] = [await create('Ada'), await create('Bo')]
-  const kitchen = await room(
-    await workspace.rooms.create({
-      name: 'kitchen',
-      familiars: [ada, bo],
-      lead: ada,
-    }),
-  )
-  const message = await kitchen.post({
-    author: AIDAN,
-    text: 'Paint the fence.',
+    text: '@Ada hi',
     requestId: 'm1',
+    mentions: [mention(ada)],
   })
-  await expect.poll(async () => (await replies(kitchen)).length).toBe(3)
-
-  const entries = await log(kitchen)
-  // Each handoff follows the reply that made it, and comes before its answer.
-  expect(entries.map((entry) => entry.kind)).toEqual([
-    MESSAGE_KIND,
-    REPLY_KIND,
-    HANDOFF_KIND,
-    REPLY_KIND,
-    HANDOFF_KIND,
-    REPLY_KIND,
+  await expect.poll(async () => (await replies(kitchen)).length).toBe(MAX_DEPTH)
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  const chain = await replies(kitchen)
+  expect(chain).toHaveLength(MAX_DEPTH)
+  expect(chain.map((reply) => reply.depth)).toEqual(
+    Array.from({ length: MAX_DEPTH }, (_, index) => index + 1),
+  )
+  // Bo's replies mention Ada, from the text it echoes: they go to Ada.
+  expect(chain[1].mentions).toEqual([
+    { kind: 'familiar', id: String(ada), start: 8, end: 12 },
   ])
-  const handoffs = entries.filter((entry) => entry.kind === HANDOFF_KIND)
-  expect(handoffs.map((entry) => entry.data)).toEqual([
-    expect.objectContaining({
-      from: ada,
-      to: bo,
-      note: 'Which paint?',
-      hops: 1,
-      cause: message,
-    }),
-    expect.objectContaining({
-      from: bo,
-      to: ada,
-      note: 'Which colour?',
-      hops: 2,
-      cause: handoffs[0].id,
-    }),
-  ])
-  // Bo's input is the note, after what it missed, Ada's reply included.
-  const [toBo] = await inputs(workspace, bo)
-  expect(toBo).toMatchObject({
-    from: ada,
-    name: 'Ada',
-    note: 'Which paint?',
-    addressed: 'handoff',
-    context: [
-      '[In #kitchen, handed to you]',
-      'Said here before:',
-      '[Aidan]: Paint the fence.',
-      '[Ada]: Handed on.',
-    ].join('\n'),
-  })
-  // Ada is shown the handoff she made as a line, and a third is refused.
-  const [, toAda] = await inputs(workspace, ada)
-  expect(toAda.context).toContain('[Ada → Bo]: Which paint?')
-  const last = (await replies(kitchen)).find(
-    (reply) => reply.cause === handoffs[1].id,
-  )!
-  expect(said(last)).toMatch(/^Refused: [\s\S]*handed on 2 times/)
+  expect(chain.map((reply) => reply.familiar)).toEqual(
+    Array.from({ length: MAX_DEPTH }, (_, index) => (index % 2 ? bo : ada)),
+  )
 })
 
-test("stopping a room stops a handoff's turn too", async () => {
-  const held: string[] = []
-  const { workspace, create, room } = await open((request, signal) => {
+test('a message from another room, sent while its Familiar is busy, is answered in its own room after that run ends', async () => {
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const calls: string[] = []
+  const { workspace, create, room } = await open(async (request) => {
     if (request.type === 'message') {
-      return call('hand_off', { to: 'Bo', note: 'Take this one.' })
+      calls.push(request.text)
+      if (request.text === 'First') {
+        await held
+      }
     }
-    if (request.type === 'handoff') {
-      held.push(request.note)
-      return hang(signal)
-    }
-    return fauxAssistantMessage('Asked Bo.')
+    return echo(request)
   })
-  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const ada = await create('Ada')
+  const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
   const kitchen = await room(
     await workspace.rooms.create({
       name: 'kitchen',
-      familiars: [ada, bo],
+      familiars: [ada],
       lead: ada,
     }),
   )
-  await kitchen.post({ author: AIDAN, text: 'Help?', requestId: 'm1' })
-  await expect.poll(() => held).toEqual(['Take this one.'])
+  await dm.post({ author: AIDAN, text: 'First', requestId: 'm1' })
+  await expect.poll(() => calls).toEqual(['First'])
+  await kitchen.post({ author: AIDAN, text: 'Second', requestId: 'm2' })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  expect(calls).toEqual(['First'])
+  release()
 
-  await kitchen.stop()
-  expect(await read(() => kitchen.watchTurns())).toEqual({})
-  expect((await replies(kitchen)).map((reply) => reply.familiar)).toEqual([ada])
-  const live = (await read(() => workspace.familiars.get(bo)!.watch())).docs[
-    'pi.live'
-  ] as { run?: unknown }
-  expect(live.run).toBeUndefined()
+  await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
+  expect(calls).toEqual(['First', 'Second'])
+  expect((await replies(dm)).map(said)).toEqual(['Re: First'])
+  expect((await replies(kitchen)).map(said)).toEqual(['Re: Second'])
 })
 
 test('a Familiar coming back to a room is shown what it missed there, and the thread it left', async () => {
@@ -462,13 +390,7 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
   await say(kitchen, '@Bo buy the paint.', bo)
   await say(kitchen, 'Which colour?')
 
-  const contexts = (
-    await read(() => workspace.familiars.get(ada)!.watch())
-  ).entries.flatMap((entry) =>
-    entry.kind === MESSAGE_KIND
-      ? [(entry.data as { context: string }).context]
-      : [],
-  )
+  const contexts = (await inputs(workspace, ada)).map((input) => input.context)
   expect(contexts).toEqual([
     '[In #kitchen, which you lead]',
     '[In your DM with Aidan]',
@@ -479,8 +401,10 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
       '[Ada]: Re: Paint the fence blue.',
       'Said here since your last turn:',
       '[Aidan]: @Bo buy the paint.',
-      '[Bo]: Re: @Bo buy the paint.',
     ].join('\n'),
+    // Bo's reply, delivered to Ada; her answer to "Which colour?" then
+    // has nothing new to show.
+    '[In #kitchen, which you lead]',
   ])
 })
 
@@ -504,8 +428,8 @@ test("a host's note is shown to each Familiar on its next turn and causes no tur
     kitchen.note({ text: '  ', requestId: 'n2' }),
   ).rejects.toBeInstanceOf(MessageError)
 
-  // The message queues behind any turn the note caused: the first reply is
-  // to the message, and the lead's only input is the message.
+  // The note caused no turn: the first reply is to the message, and the
+  // lead's only input is the message.
   const message = await kitchen.post({
     author: AIDAN,
     text: 'Dinner?',
@@ -522,7 +446,11 @@ test("a host's note is shown to each Familiar on its next turn and causes no tur
       ].join('\n'),
     }),
   ])
-  expect(await inputs(workspace, bo)).toEqual([])
+  // Bo hears the message too, with the note, and lets it pass.
+  await expect.poll(async () => (await inputs(workspace, bo)).length).toBe(2)
+  expect((await inputs(workspace, bo))[0].context).toContain(
+    '[Note]: Sam joined.',
+  )
 })
 
 test('a restart mid-turn finishes the turn without a second message, input or reply', async () => {
@@ -604,7 +532,9 @@ test("stopping a room stops only its own turns: other rooms' work, in the same F
 
   // A running turn's run is stopped alone, and the DM's turn goes next.
   await busy.stop()
-  expect(await replies(busy)).toEqual([])
+  expect((await replies(busy)).map((reply) => reply.outcome)).toEqual([
+    'stopped',
+  ])
   await expect.poll(async () => (await replies(adaDm)).length).toBe(1)
   expect(said((await replies(adaDm))[0])).toBe('Re: queued in the DM')
 
@@ -640,7 +570,9 @@ test('archiving a room stops its turns in progress and queued, so no reply lands
   // Ada is free again, and answers elsewhere; nothing reached the archived room.
   await dm.post({ author: AIDAN, text: 'hi', requestId: '3' })
   await expect.poll(async () => (await replies(dm)).length).toBe(1)
-  expect(await replies(kitchen)).toEqual([])
+  expect((await replies(kitchen)).map((reply) => reply.outcome)).toEqual([
+    'stopped',
+  ])
 })
 
 test("the rooms list previews each room's newest entry, counts what each person hasn't read, and shows every room's turns and a failed last turn", async () => {
@@ -662,7 +594,11 @@ test("the rooms list previews each room's newest entry, counts what each person 
   })
   const ada = await create('Ada')
   const kitchen = await room(
-    await workspace.rooms.create({ name: 'kitchen', familiars: [ada] }),
+    await workspace.rooms.create({
+      name: 'kitchen',
+      familiars: [ada],
+      lead: ada,
+    }),
   )
   const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
   const post = (to: RoomApi, text: string) =>
@@ -890,7 +826,7 @@ test("a schedule whose room was archived runs in its Familiar's DM with whoever 
   expect(await replies(kitchen)).toHaveLength(1)
 })
 
-test('a handoff turn acts for the person whose message started it', async () => {
+test("a Familiar's reply to another acts for the person whose message started it", async () => {
   const seen: (string | undefined)[] = []
   const whoami = definePlugin({
     name: 'whoami',
@@ -911,9 +847,11 @@ test('a handoff turn acts for the person whose message started it', async () => 
     (request) => {
       switch (request.type) {
         case 'message':
-          return call('hand_off', { to: 'Bo', note: 'Who is this for?' })
-        case 'handoff':
-          return call('whoami', {})
+          return fauxAssistantMessage('@Bo who is this for?')
+        case 'reply':
+          return request.from === 'Ada'
+            ? call('whoami', {})
+            : call('stay_quiet', {})
         default:
           return fauxAssistantMessage('Done.')
       }
@@ -928,7 +866,12 @@ test('a handoff turn acts for the person whose message started it', async () => 
       lead: ada,
     }),
   )
-  await kitchen.post({ author: AIDAN, text: 'Ask Bo.', requestId: 'm1' })
+  await kitchen.post({
+    author: AIDAN,
+    text: '@Ada ask Bo.',
+    requestId: 'm1',
+    mentions: [mention(ada)],
+  })
   await expect.poll(() => seen).toEqual(['Aidan'])
 })
 
@@ -971,8 +914,8 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
   const post = (text: string, mentions?: ReturnType<typeof mention>[]) =>
     kitchen.post({ author: AIDAN, text, requestId: text, mentions })
   await post('@Bo hold on', [mention(bo)])
-  await post('hold the soup')
-  await post('queued for Ada')
+  await post('@Ada hold the soup', [mention(ada)])
+  await post('@Ada queued', [mention(ada)])
   await expect.poll(() => held.size).toBe(2)
   await expect
     .poll(
@@ -1003,8 +946,13 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
   ])
   held.get('@Bo hold on')!()
   await expect
-    .poll(async () => (await replies(kitchen)).map((reply) => reply.familiar))
-    .toEqual([bo])
+    .poll(async () =>
+      (await replies(kitchen)).map((reply) => [reply.familiar, reply.outcome]),
+    )
+    .toEqual([
+      [ada, 'stopped'],
+      [bo, 'answered'],
+    ])
   // Its DM keeps its history and takes nothing new.
   expect((await replies(adaDm)).map(said)).toEqual(['I will remind you.'])
   await expect(

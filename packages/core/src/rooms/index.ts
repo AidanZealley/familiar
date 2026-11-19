@@ -44,6 +44,7 @@ import {
   type RoomId,
   type RoomSetup,
 } from './rooms.ts'
+import { createAnswer } from './answer.ts'
 import { roomTools } from './tools.ts'
 import { createTurnTask } from './turn.ts'
 
@@ -63,11 +64,10 @@ export type {
   RoomPreview,
   RoomScheduledData,
 } from './log.ts'
-export { REPLY_KIND } from './log.ts'
+export { MAX_DEPTH, REPLY_KIND } from './log.ts'
 export { RoomError } from './rooms.ts'
 export type { Room, RoomChange, RoomId, RoomSetup } from './rooms.ts'
 export type { RoomListing, RoomsState, RoomTurn } from './listing.ts'
-export { checkMaxHandoffs, DEFAULT_MAX_HANDOFFS } from './tools.ts'
 export type { RoomActivity, TurnActivity } from './activity.ts'
 
 /** A person's message to a room. */
@@ -213,11 +213,10 @@ export function createRooms(
   options: {
     timeZone: string
     now: () => number
-    /** Checked by `checkMaxHandoffs`. */
-    maxHandoffs: number
   },
 ) {
   const turn = createTurnTask(harness, options.timeZone)
+  const answer = createAnswer(turn)
 
   const postScheduled: PostScheduled = async (tx, room, entry, requestId) =>
     (
@@ -315,8 +314,9 @@ export function createRooms(
   return {
     extension: defineExtension({
       name: 'familiar.rooms',
-      tasks: [turn],
-      tools: roomTools(options.maxHandoffs),
+      tasks: [turn, answer.task],
+      tools: roomTools(),
+      hooks: [answer.hook],
     }),
     postScheduled,
     api,

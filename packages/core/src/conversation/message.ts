@@ -220,6 +220,22 @@ export async function answeredInput(tx: Tx, taskId: TaskId) {
 export const HANDOFF_KIND = 'familiar.handoff'
 
 /**
+ * The entry kind another Familiar's reply in a room is placed as in the chat
+ * of a Familiar it's delivered to (see rooms/turn.ts).
+ */
+export const RELAY_KIND = 'familiar.relay'
+
+/**
+ * A Familiar's reply as placed in another's chat: who said it, by ID and by
+ * name then, and what it said.
+ */
+export type RelayData = InRoom & {
+  familiar: ConversationId
+  name: string
+  text: string
+}
+
+/**
  * The entry kind a host's note to a room is posted as: context for the
  * Familiars in it, which causes no turn (see rooms/log.ts).
  */
