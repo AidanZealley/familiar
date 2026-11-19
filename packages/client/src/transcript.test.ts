@@ -59,6 +59,38 @@ const viewOf = (...entries: EntryRecord[]) =>
     docs: {},
   }) as unknown as TranscriptView
 
+test('maps stored room mention spans to the assistant message that contains them', () => {
+  const token = '@[Bo Peep]'
+  const mention = { kind: 'familiar', id: '8' }
+  const prefix = 'Checking.\nHere it is\n'
+  const reply = entry(1, REPLY_KIND, {
+    familiar: 3,
+    outcome: 'answered',
+    messages: [
+      assistant([text('Checking.'), clock]),
+      toolResult('c1', 'Found it'),
+      assistant([]),
+      assistant([text('Here it is'), text(token)]),
+    ],
+    mentions: [
+      { ...mention, start: prefix.length, end: prefix.length + token.length },
+    ],
+  })
+
+  const { items } = toRoomTranscript(viewOf(reply))
+  expect(items[0]).not.toHaveProperty('mentions')
+  expect(items.at(-1)).toMatchObject({
+    text: 'Here it is\n' + token,
+    mentions: [
+      {
+        ...mention,
+        start: 'Here it is\n'.length,
+        end: 'Here it is\n'.length + token.length,
+      },
+    ],
+  })
+})
+
 test("people's messages and copied replies render in order, with each reply's tool calls settled", () => {
   const view = viewOf(
     said(1, 'Hello'),

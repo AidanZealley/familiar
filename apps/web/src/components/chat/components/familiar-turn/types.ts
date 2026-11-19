@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import type { RunHead } from '../transcript-items/layout'
 
 export type FamiliarTurnProps = {
   familiar: number
@@ -8,9 +7,9 @@ export type FamiliarTurnProps = {
   /** In a DM: no portrait or name, and the time under the run. */
   dm: boolean
   busy?: boolean
-  /** Set on a run's first item, which shows the portrait, name and time. */
-  run?: RunHead
-  /** Set on a run's last item, under which a DM shows the time. */
-  end?: RunHead
+  /** Show the portrait and name at the start of a room turn. */
+  showIdentity?: boolean
+  /** When the turn finished, if shown on this item. */
+  at?: number
   children: ReactNode
 }

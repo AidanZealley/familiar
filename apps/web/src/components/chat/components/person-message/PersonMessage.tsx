@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Message, MessageContent } from '@/components/ui/message'
 import { formatTime } from '@/lib/format'
+import { Mention } from '../mention'
 import type { PersonMessageProps } from './types'
 
 /** The message's text, with the spans it mentions someone in picked out. */
@@ -14,12 +15,9 @@ const withMentions = ({
   for (const mention of mentions.toSorted((a, b) => a.start - b.start)) {
     parts.push(
       text.slice(at, mention.start),
-      <span
-        key={mention.start}
-        className="bg-primary/25 box-decoration-clone px-0.5 font-medium dark:bg-primary/70"
-      >
+      <Mention key={mention.start}>
         {text.slice(mention.start, mention.end)}
-      </span>,
+      </Mention>,
     )
     at = mention.end
   }

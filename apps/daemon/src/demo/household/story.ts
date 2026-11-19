@@ -100,6 +100,8 @@ export function household(now: number): Story {
   // The schedule tool's `YYYY-MM-DD HH:MM`.
   const minute = (at: number) => localMinute(at, DEMO_TIME_ZONE)
 
+  const toolDemoPrompt =
+    'Could you both check the time in London, and Juniper, check the forecast too?'
   const pipReminder = 'Remind Rowan to give Pip his joint supplement'
   const allotmentCheck =
     'Check the Willow Bank forecast and tell Rowan what needs doing at plot 26B'
@@ -803,6 +805,49 @@ export function household(now: number): Story {
           {
             at: minutesAgo(70),
             note: 'Fenwick Gardens moved the site visit to 11:00.',
+          },
+        ],
+      },
+      {
+        name: 'Live tool calls',
+        familiars: ['Juniper', 'Quill'],
+        read: true,
+        history: [
+          {
+            at: minutesAgo(10),
+            say: toolDemoPrompt,
+            replies: {
+              Juniper: [
+                {
+                  ...use('current_time', { timeZone: 'Europe/London' }),
+                  pauseMs: 1000,
+                },
+                {
+                  ...use('demo_forecast', { city: 'London' }),
+                  pauseMs: 3000,
+                },
+                {
+                  ...say(
+                    '@[Quill], I checked the London clock too. The forecast says light rain and 9°C.',
+                  ),
+                  pauseMs: 6000,
+                },
+              ],
+              Quill: [
+                {
+                  ...use('current_time', { timeZone: 'Europe/London' }),
+                  pauseMs: 2000,
+                },
+                {
+                  ...say('@[Juniper], I used the London clock for my check.'),
+                  pauseMs: 6000,
+                },
+              ],
+            },
+          },
+          {
+            at: minutesAgo(9),
+            note: `To replay the tool calls, send “${toolDemoPrompt}” again.`,
           },
         ],
       },

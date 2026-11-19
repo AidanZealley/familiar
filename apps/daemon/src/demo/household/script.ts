@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises'
 import type { AssistantMessage, ToolCall } from '@familiar-ai/core/models'
 import {
   fauxAssistantMessage,
@@ -19,6 +20,8 @@ type Args = ToolCall['arguments']
 
 /** One model response in a reply: thinking, then text, then tool calls. */
 export type Step = {
+  /** Time to leave the previous activity visible during a live demo. */
+  pauseMs?: number
   think?: string
   text?: string
   tools?: { name: string; args: Args }[]
@@ -121,8 +124,15 @@ export function createScript(familiars: { name: string; persona: string }[]) {
     }
   }
 
-  const respond = (index: number, at: number): AssistantMessage => {
+  const respond = async (
+    index: number,
+    at: number,
+    live: boolean,
+  ): Promise<AssistantMessage> => {
     const step = replies[index][at]
+    if (live && step.pauseMs) {
+      await setTimeout(step.pauseMs)
+    }
     const tools = (step.tools ?? []).map(({ name, args }, call) =>
       fauxToolCall(name, args, { id: `script-${index}-${at}-${call}` }),
     )
@@ -139,7 +149,7 @@ export function createScript(familiars: { name: string; persona: string }[]) {
   }
 
   /** The reply's next step, or undefined for a request it doesn't script. */
-  const reply = (request: ScriptedRequest) => {
+  const reply = (request: ScriptedRequest, live: boolean) => {
     const { context } = request
     if (request.type === 'tool-result') {
       // Notes such as recall's can follow the results.
@@ -150,7 +160,7 @@ export function createScript(familiars: { name: string; persona: string }[]) {
       const [, index, at] = /^script-(\d+)-(\d+)-/.exec(id) ?? []
       const next = Number(at) + 1
       return index !== undefined && replies[Number(index)][next]
-        ? respond(Number(index), next)
+        ? respond(Number(index), next, live)
         : undefined
     }
     const prompt = context.messages
@@ -175,7 +185,7 @@ export function createScript(familiars: { name: string; persona: string }[]) {
     if (replies[index].some((step) => step.error)) {
       failed.add(key)
     }
-    return respond(index, 0)
+    return respond(index, 0, live)
   }
 
   return { add, reply }

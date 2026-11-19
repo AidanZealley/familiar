@@ -65,8 +65,8 @@ export const TranscriptItem = ({
           then={item.name}
           busy={busy}
           dm={dm}
-          run={run}
-          end={end}
+          showIdentity={run !== undefined}
+          at={dm ? end?.time : run?.time}
         >
           <Reply reply={item} />
         </FamiliarTurn>

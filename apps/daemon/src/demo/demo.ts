@@ -16,6 +16,7 @@ import { scriptOf, seedHousehold, startOf } from './household/seed.ts'
 import { household } from './household/story.ts'
 import { workshopPlugin } from './household/workshop.ts'
 import { createDemoModels, demoModelChoices } from './model.ts'
+import { demoForecast } from './scenarios/chat.ts'
 import { fillContext } from './scenarios/compaction.ts'
 import { checkDemoKey, demoFetch, demoSecret } from './scenarios/connections.ts'
 import { demoMcpFetch, demoMcpStdio } from './scenarios/mcp.ts'
@@ -25,7 +26,7 @@ const demoPlugin = definePlugin({
   name: 'demo',
   title: 'Demo',
   secrets: [demoSecret],
-  tools: [fillContext, seedMemory, checkDemoKey],
+  tools: [fillContext, seedMemory, checkDemoKey, demoForecast],
 })
 
 /**

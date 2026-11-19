@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { cn } from 'cn'
 import { Marker, MarkerContent } from '@/components/ui/marker'
 import {
   MessageScrollerItem,
@@ -47,7 +48,15 @@ export const TranscriptItems = ({ items, dm, turns }: TranscriptItemsProps) => {
       scrollAnchor={!scrolledUp && item.id === anchorId}
       // Lay out every message: deferred ones are estimated at 10rem, and the
       // page jumps as each grows to its real height.
-      className="flex flex-col gap-5 [content-visibility:visible]"
+      className={cn(
+        'flex flex-col gap-5 [content-visibility:visible]',
+        // Reduce the transcript's 20px gap to match the 8px within a reply.
+        item.type === 'reply' &&
+          !item.quiet &&
+          !runs.has(item.id) &&
+          !days.has(item.id) &&
+          '-mt-3',
+      )}
     >
       {/* Inside the item, so the scroller's anchors and history stay its own. */}
       {days.has(item.id) && (
