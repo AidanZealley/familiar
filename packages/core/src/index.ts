@@ -43,7 +43,7 @@ export {
 } from './conversation/models.ts'
 export type { MemoryApi } from './memory/index.ts'
 export {
-  DEFAULT_MAX_HANDOFFS,
+  MAX_DEPTH,
   REPLY_KIND,
   RoomError,
   type HandoffData,

@@ -25,12 +25,11 @@ import type {
   RoomSummary,
 } from '@familiar-ai/core/http'
 
-/** A named room's setup, by Familiar IDs; open without a `lead`. */
-export type RoomSetup = { name: string; familiars: number[]; lead?: number }
+/** A named room's setup, by Familiar IDs. */
+export type RoomSetup = { name: string; familiars: number[] }
 
-/** A change to a named room; a `null` lead opens it, and `archived: false` unarchives it. */
-export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
-  lead?: number | null
+/** A change to a named room; `archived: false` unarchives it. */
+export type RoomChange = Partial<RoomSetup> & {
   archived?: false
 }
 

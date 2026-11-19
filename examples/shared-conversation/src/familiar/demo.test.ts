@@ -33,7 +33,6 @@ const settle = async (client: Client, count: number) => {
     expect(transcript?.busy).toBe(false)
     expect(transcript?.items.at(-1)).toMatchObject({
       type: 'reply',
-      streaming: false,
     })
   })
 }

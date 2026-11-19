@@ -1,7 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
-  LiveDoc,
   type ConversationWatch,
   type ConversationWindow,
   type EntryQuery,
@@ -10,7 +9,6 @@ import {
   type Page,
   type EntryId,
   type Harness,
-  type Tx,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
 import { declineWaiting } from '../questions/index.ts'
@@ -37,15 +35,17 @@ import {
   createRoom,
   dmWith,
   Rooms,
+  membersOf,
   seenBy,
-  Turns,
   updateRoom,
   type RoomChange,
   type RoomId,
   type RoomSetup,
 } from './rooms.ts'
+import { createAnswer } from './answer.ts'
+import { replyingIn } from './status.ts'
 import { roomTools } from './tools.ts'
-import { createTurnTask } from './turn.ts'
+import { canDeliver, createTurnTask } from './turn.ts'
 
 /** Pi's entry bounds and ordering, scoped to one room. */
 export type HistoryQuery = Pick<
@@ -63,11 +63,10 @@ export type {
   RoomPreview,
   RoomScheduledData,
 } from './log.ts'
-export { REPLY_KIND } from './log.ts'
+export { MAX_DEPTH, REPLY_KIND } from './log.ts'
 export { RoomError } from './rooms.ts'
 export type { Room, RoomChange, RoomId, RoomSetup } from './rooms.ts'
 export type { RoomListing, RoomsState, RoomTurn } from './listing.ts'
-export { checkMaxHandoffs, DEFAULT_MAX_HANDOFFS } from './tools.ts'
 export type { RoomActivity, TurnActivity } from './activity.ts'
 
 /** A person's message to a room. */
@@ -87,8 +86,9 @@ export type RoomMessage = {
   requestId: string
   /**
    * Whom it addresses, as picked by its author; Familiars must be in the
-   * room. In a named room, mentioned Familiars answer, else the lead, else,
-   * in an open room, each Familiar in turn.
+   * room. In a named room, the message goes to the Familiars it mentions,
+   * or to all Familiars in the room if it mentions none. Each decides
+   * whether to reply.
    */
   mentions?: Mention[]
 }
@@ -127,9 +127,9 @@ export type RoomApi = {
    */
   watch(window?: ConversationWindow): Promise<ConversationWatch>
   /**
-   * The turns in progress here, by task ID: whether each is waiting for its
-   * Familiar or being answered, with the reply as it streams. Shows nothing
-   * of the Familiars' work in other rooms.
+   * Its Familiars' work here, by FamiliarId: whether each has something
+   * from here queued or is replying, with the reply as it streams. Shows
+   * nothing of their work in other rooms.
    */
   watchTurns(): Promise<WatchHandle<RoomActivity>>
   /**
@@ -162,19 +162,19 @@ export type RoomsApi = {
   /** The rooms as `list` shows them, by RoomId, then every change to that. */
   watch(person?: string): Promise<WatchHandle<RoomsState>>
   /**
-   * A named room, open unless it has a `lead`. Throws a RoomError for a
-   * blank name, no Familiars, or a lead not among them.
+   * A named room. Throws a RoomError for an invalid name or membership.
    */
   create(setup: RoomSetup): Promise<RoomId>
   /**
-   * Changes a named room; what's left out stays, a `null` lead opens it, and
+   * Changes a named room; what's left out stays, and
    * `archived: false` unarchives it, listed and open to messages again.
    * Throws a RoomError as `create`.
    */
   update(id: RoomId, change: RoomChange): Promise<void>
   /**
-   * Hides a named room and closes it to new messages, keeping its history,
-   * and stops its turns in progress and queued, so no reply lands in it.
+   * Hides a named room and closes it to new messages, keeping its history.
+   * Stops queued and running turns. An answer that already finished
+   * generating may still appear in the archive.
    */
   archive(id: RoomId): Promise<void>
   /** The DM between a Familiar and a person, by host author ID, created if new. */
@@ -193,31 +193,15 @@ const context = BACKGROUND_CONTEXT
  * Rooms: where people talk to Familiars. Install `extension` before the
  * Harness resumes; schedules post due reminders with `postScheduled`.
  */
-/** The Familiars whose current run answers one of `room`'s turns. */
-async function answeringIn(tx: Tx, room: RoomId) {
-  const familiars: FamiliarId[] = []
-  for (const turn of Object.values(await tx.doc(Turns))) {
-    if (String(turn.room) !== String(room) || turn.submission === undefined) {
-      continue
-    }
-    const live = await tx.doc(LiveDoc, turn.familiar)
-    if (live.run?.inputs.includes(turn.submission)) {
-      familiars.push(turn.familiar)
-    }
-  }
-  return familiars
-}
-
 export function createRooms(
   harness: Harness,
   options: {
     timeZone: string
     now: () => number
-    /** Checked by `checkMaxHandoffs`. */
-    maxHandoffs: number
   },
 ) {
   const turn = createTurnTask(harness, options.timeZone)
+  const answer = createAnswer(turn)
 
   const postScheduled: PostScheduled = async (tx, room, entry, requestId) =>
     (
@@ -242,7 +226,11 @@ export function createRooms(
       const { author, text, requestId } = admitMessage(message)
       const posted = await harness.commit(async (tx) => {
         // A Familiar waiting on the person here gets this instead.
-        await declineWaiting(tx, await answeringIn(tx, id))
+        const record = (await tx.doc(Rooms)).rooms[id]
+        await declineWaiting(
+          tx,
+          record ? await replyingIn(tx, id, membersOf(record)) : [],
+        )
         return post(
           tx,
           turn,
@@ -277,7 +265,10 @@ export function createRooms(
       return posted.entry
     },
     retry: (reply) =>
-      harness.commit((tx) => retryTurn(tx, turn, id, reply), context),
+      harness.commit(
+        (tx) => retryTurn(tx, turn, id, reply, canDeliver),
+        context,
+      ),
     read: (person, entry) =>
       harness.commit((tx) => markRead(tx, id, person, entry), context),
     history: async (query, limit) =>
@@ -315,8 +306,9 @@ export function createRooms(
   return {
     extension: defineExtension({
       name: 'familiar.rooms',
-      tasks: [turn],
-      tools: roomTools(options.maxHandoffs),
+      tasks: [turn, answer.task],
+      tools: roomTools(),
+      hooks: [answer.hook],
     }),
     postScheduled,
     api,

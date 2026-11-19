@@ -39,7 +39,7 @@ Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unautho
 | Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                                                           |
 | Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy, earlier }`                                                |
 | Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed                                          |
-| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Turns in progress, as streamed                                            |
+| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Activity keyed by Familiar ID                                             |
 
 Each document is `undefined` until it arrives and `null` when the stream sends none.
 
@@ -71,7 +71,7 @@ type RoomPreview = {
 )
 ```
 
-A reply that stayed quiet is never `last`. A `last` reply whose `outcome` is `failed` means the room's last turn failed. `turns` is empty when no one is working on the room; a Familiar `elsewhere` is busy in another room, which isn't said. `unread` counts from the person's marker, which their own messages move, and the room store's `read(entry)` moves; it's every entry if they've never read the room.
+Staying quiet adds no entry. A `last` reply whose `outcome` is `failed` means the room's last turn failed. `turns` is empty when no one is working on the room; a Familiar `elsewhere` is busy in another room, which isn't said. `unread` counts from the person's marker, which their own messages move, and the room store's `read(entry)` moves; it's every entry if they've never read the room.
 
 ## Commands
 
@@ -110,15 +110,13 @@ type TranscriptItem =
       type: 'reply'
       id: string
       familiar: number
-      name?: string // its name when it replied; absent while replying
+      name?: string // its name when it replied
       text: string
       thinking: string
       toolCalls: ToolCall[]
       at?: number
-      streaming: boolean
       stopped: boolean
       error?: string // why it failed, or the model's error
-      retrying?: Retrying
     }
   | {
       type: 'scheduled'
@@ -128,13 +126,14 @@ type TranscriptItem =
       creator?: Author
       due: number
     }
-  | {
-      type: 'waiting'
-      id: string
-      familiar: number
-      status: 'queued' | 'elsewhere' | 'running'
-      retrying?: Retrying
-    }
+// The union also includes historical handoffs and room notes.
+
+type ReplyingFamiliar = {
+  familiar: number
+  questions?: Question[]
+  retrying?: Retrying
+  tools?: ToolCall[]
+}
 
 // A model request that failed, tried again `at`.
 type Retrying = { at: number; error: string }
@@ -149,12 +148,14 @@ type ToolCall = {
 }
 ```
 
-Times are milliseconds since the epoch. Each turn in progress comes last, as its streaming reply or as `waiting`: `queued` behind work in this room, `elsewhere` while its Familiar works in another room, or `running` before anything shows. `retrying` is set while a turn waits to try the model again after a failed request. While a reply streams, only its current round shows; the whole reply, with every tool call, replaces it when the turn ends.
+Times are milliseconds since the epoch. `transcript.items` contains the room's history and gaps. A reply appears with its tool calls when it lands.
+
+`transcript.replying` lists the Familiars currently working on this room. Pending tool approvals and server questions are in `questions`. `retrying` gives the retry time and the failed model request's error. `tools` contains live calls for the current round, with their available arguments and output. `transcript.busy` covers both replying and queued work.
 
 ## Helpers
 
 - `ConversationTranscript` is re-exported from Pi for clients that assemble their own history. Its gap objects pass directly to `loadGap`.
-- `toRoomTranscript(view, turns?)` renders an assembled Pi `TranscriptView` as Familiar items. The room store already does this; use it for other clients.
+- `toRoomTranscript(view, turns?)` projects an assembled Pi `TranscriptView` and optional room activity into a Familiar transcript. The room store already does this; use it for other clients.
 - `composeMessage(parts)` turns a composer's text and picked names, `{ kind, id, name }`, into `{ text, mentions }`: each pick becomes `@Name` in the text with a mention spanning it. Pass both to `send`.
 
 ## React

@@ -1,8 +1,6 @@
 import {
   defineDoc,
   type ConversationId,
-  type EntryId,
-  type SubmissionId,
   type Tx,
 } from '@earendil-works/pi-durable'
 import { MESSAGE_LIMITS } from '../conversation/message.ts'
@@ -30,12 +28,6 @@ export type NamedRoom = {
   name: string
   /** In the room, in display order. */
   familiars: FamiliarId[]
-  /**
-   * Answers messages that address no one; one of `familiars`. Without one,
-   * the room is open: every Familiar in it takes a turn on such a message,
-   * one after another, in order.
-   */
-  lead?: FamiliarId
   /** Hidden and closed to new messages; its history is kept. */
   archived?: true
 }
@@ -56,33 +48,6 @@ export const Rooms = defineDoc<RoomRegistry>({
   checkpointWhen: () => true, // small: always store it whole
 })
 
-/** A turn a Familiar is taking in a room, by its task's ID (see turn.ts). */
-export type TurnRecord = {
-  room: RoomId
-  familiar: FamiliarId
-  /** Its name as the turn began, which its reply carries. */
-  name: string
-  /** The room entry it answers. */
-  cause: EntryId
-  /** Its input in the Familiar's chat, once delivered. */
-  submission?: SubmissionId
-}
-
-/**
- * The turns in progress in every room, by turn task ID. Written only by
- * turn tasks, in the commits that change their phase, so a room's stream can
- * show who is working on it and follow each one's input in its Familiar's
- * chat. One document for the workspace, so its stream follows every room's
- * turns with one watch.
- */
-export const Turns = defineDoc<Record<string, TurnRecord>>({
-  kind: 'familiar.turns',
-  version: 2,
-  scope: 'session',
-  initial: () => ({}),
-  checkpointWhen: () => true, // a handful of turns at most
-})
-
 /** A change to the rooms the rules refuse; nothing was changed. */
 export class RoomError extends TypeError {}
 
@@ -100,21 +65,20 @@ export const seenBy = (room: Room, person: string | undefined) =>
 export const membersOf = (room: Room) =>
   room.kind === 'dm' ? [room.familiar] : room.familiars
 
-/** What a named room is set up with; it's open without a `lead`. */
-export type RoomSetup = Pick<NamedRoom, 'name' | 'familiars' | 'lead'>
+/** What a named room is set up with. */
+export type RoomSetup = Pick<NamedRoom, 'name' | 'familiars'>
 
 /**
- * A change to a named room's setup; a `null` lead opens the room, and
- * `archived: false` unarchives it. Archiving has its own call, `archiveRoom`.
+ * A change to a named room's setup. `archived: false` unarchives it.
+ * Archiving has its own call, `archiveRoom`.
  */
-export type RoomChange = Partial<Omit<RoomSetup, 'lead'>> & {
-  lead?: FamiliarId | null
+export type RoomChange = Partial<RoomSetup> & {
   archived?: false
 }
 
 /** `setup`, checked against the Familiars that exist; throws a RoomError. */
 async function checkSetup(tx: Tx, setup: RoomSetup): Promise<RoomSetup> {
-  const { name, familiars, lead } = setup
+  const { name, familiars } = setup
   if (typeof name !== 'string' || !name.trim() || name.length > NAME_LENGTH) {
     throw new RoomError(
       `A room needs a name of at most ${NAME_LENGTH} characters.`,
@@ -129,13 +93,9 @@ async function checkSetup(tx: Tx, setup: RoomSetup): Promise<RoomSetup> {
   ) {
     throw new RoomError('A room needs one or more distinct Familiars.')
   }
-  if (lead !== undefined && !familiars.includes(lead)) {
-    throw new RoomError("A room's lead must be one of its Familiars.")
-  }
   return {
     name,
     familiars: [...familiars],
-    ...(lead !== undefined && { lead }),
   }
 }
 
@@ -169,13 +129,10 @@ export async function createRoom(tx: Tx, setup: RoomSetup) {
  */
 export async function updateRoom(tx: Tx, id: RoomId, change: RoomChange) {
   const room = await namedRoom(tx, id)
-  const lead = change.lead === null ? undefined : (change.lead ?? room.lead)
   const checked = await checkSetup(tx, {
     name: change.name ?? room.name,
     familiars: change.familiars ?? room.familiars,
-    ...(lead !== undefined && { lead }),
   })
-  delete room.lead
   Object.assign(room, checked)
   if (change.archived === false) {
     delete room.archived
@@ -187,10 +144,9 @@ export async function archiveRoom(tx: Tx, id: RoomId) {
 }
 
 /**
- * Takes a Familiar being removed out of every named room: a room it led
- * becomes open, and one it leaves without Familiars is archived. Its DMs
- * stay, closed to new messages once it's gone from the registry (see
- * `closedTo`).
+ * Takes a Familiar being removed out of every named room. A room it leaves
+ * without Familiars is archived. Its DMs stay and close to new messages
+ * once it's gone from the registry (see `closedTo`).
  */
 export async function leaveRooms(tx: Tx, familiar: FamiliarId) {
   for (const room of Object.values((await tx.doc(Rooms)).rooms)) {
@@ -198,9 +154,6 @@ export async function leaveRooms(tx: Tx, familiar: FamiliarId) {
       continue
     }
     room.familiars = room.familiars.filter((other) => other !== familiar)
-    if (room.lead === familiar) {
-      delete room.lead
-    }
     if (!room.familiars.length) {
       room.archived = true
     }

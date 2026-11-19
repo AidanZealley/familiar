@@ -49,6 +49,11 @@ export const AssistantPanel = () => {
                   <TranscriptItem item={item} />
                 </MessageScrollerItem>
               ))}
+              {!!transcript?.replying.length && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  Familiar is replying…
+                </p>
+              )}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton />

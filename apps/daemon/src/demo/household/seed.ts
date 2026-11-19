@@ -106,7 +106,6 @@ export async function seedHousehold(
         : await workspace.rooms.create({
             name: room.name,
             familiars: room.familiars.map((name) => familiars.get(name)!),
-            ...(room.lead && { lead: familiars.get(room.lead)! }),
           })
     rooms.set(room, await open(workspace, id))
   }

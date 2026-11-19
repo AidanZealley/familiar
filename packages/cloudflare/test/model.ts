@@ -34,8 +34,11 @@ function reply(request: ScriptedRequest) {
       return fauxAssistantMessage('Nothing to note.')
     case 'memory':
       return keepNothing(request.call)
-    case 'handoff':
-      return fauxAssistantMessage(`On it: ${request.note}`)
+    case 'reply':
+      // Other Familiars' replies pass, so a room's chain ends.
+      return fauxAssistantMessage(fauxToolCall('stay_quiet', {}), {
+        stopReason: 'toolUse',
+      })
     case 'message': {
       const remind = /^remind (\S+ \S+) (.+)$/.exec(request.text)
       if (remind) {

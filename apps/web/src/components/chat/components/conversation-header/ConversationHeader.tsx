@@ -68,7 +68,7 @@ export const ConversationHeader = ({ room }: ConversationHeaderProps) => {
           className="group/title flex min-w-0 items-center gap-2.5 py-1 text-left md:-ml-1 md:pl-1"
         >
           {dm ? (
-            <PixelAvatar familiar={dm} talking={live.running.includes(dm.id)} />
+            <PixelAvatar familiar={dm} />
           ) : room.kind === 'room' ? (
             <RoomAvatar room={room} />
           ) : null}

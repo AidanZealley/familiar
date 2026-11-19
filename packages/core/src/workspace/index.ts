@@ -48,9 +48,9 @@ import {
   openPlugins,
   type FamiliarPlugin,
 } from '../plugins/index.ts'
-import { checkMaxHandoffs, createRooms, type RoomsApi } from '../rooms/index.ts'
+import { createRooms, type RoomsApi } from '../rooms/index.ts'
 import { Shown } from '../rooms/log.ts'
-import { Rooms, Turns } from '../rooms/rooms.ts'
+import { Rooms } from '../rooms/rooms.ts'
 import {
   checkMaxSchedules,
   createSchedules,
@@ -200,12 +200,6 @@ export type WorkspaceOptions = {
    * `DEFAULT_MAX_SCHEDULES`, 50.
    */
   maxSchedules?: number
-  /**
-   * How many times in a row Familiars may hand a room's conversation on to
-   * one another; `hand_off` refuses more, so two can't loop forever. A
-   * positive whole number. Default `DEFAULT_MAX_HANDOFFS`, 3.
-   */
-  maxHandoffs?: number
   now?: HarnessOptions['now']
   setTimer?: HarnessOptions['setTimer']
   /**
@@ -402,7 +396,6 @@ export async function openWorkspace(
   settings.check(options.memoryModel ?? options.chatModel)
   // Checked before storage opens, like the zone.
   const maxSchedules = checkMaxSchedules(options.maxSchedules)
-  const maxHandoffs = checkMaxHandoffs(options.maxHandoffs)
   const account =
     options.account &&
     (await createAccount(
@@ -424,7 +417,6 @@ export async function openWorkspace(
     const rooms = createRooms(harness, {
       timeZone: options.timeZone,
       now: options.now ?? Date.now,
-      maxHandoffs,
     })
     const schedules = createSchedules({
       notify: options.notify,
@@ -493,7 +485,6 @@ export async function openWorkspace(
     await harness.commit(async (tx) => {
       await tx.doc(Familiars)
       await tx.doc(Rooms)
-      await tx.doc(Turns)
       await tx.doc(Shown)
       await questions.clear(tx)
     }, context)

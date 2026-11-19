@@ -43,7 +43,14 @@ const replied = (
   messages: object[],
   outcome = 'answered',
 ) =>
-  entry(id, REPLY_KIND, { familiar: 3, name: 'Ada', cause, outcome, messages })
+  entry(id, REPLY_KIND, {
+    familiar: 3,
+    name: 'Ada',
+    cause,
+    outcome,
+    messages,
+    at: id * 1000,
+  })
 
 const viewOf = (...entries: EntryRecord[]) =>
   ({
@@ -74,7 +81,6 @@ test("people's messages and copied replies render in order, with each reply's to
       name: 'Ada',
       text: 'Checking.',
       toolCalls: [expect.objectContaining({ status: 'done', output: '12:00' })],
-      streaming: false,
     }),
     expect.objectContaining({ type: 'reply', id: 'entry:3:2', text: 'Noon.' }),
   ])
@@ -93,6 +99,7 @@ test("people's messages and copied replies render in order, with each reply's to
         failure: { reason: 'turn_limit', detail: '40 turns' },
         messages: [assistant([text('Still working')])],
       }),
+      replied(7, 3, [], 'stopped'),
     ),
   ).items
   expect(stopped).toMatchObject([
@@ -103,6 +110,7 @@ test("people's messages and copied replies render in order, with each reply's to
       text: 'Still working',
       error: 'Stopped at its limit of 40 turns.',
     },
+    { type: 'reply', id: 'entry:7', text: '', stopped: true, at: 7000 },
   ])
 })
 
@@ -133,7 +141,7 @@ test("a failed reply can be tried again until its Familiar's next reply to the s
     false,
   ])
   const retrying = toRoomTranscript(viewOf(said(2, 'Hi'), failed), {
-    7: { familiar: 3, cause: 2, status: 'queued' },
+    3: { familiar: 3, cause: 2, status: 'queued' },
   } as unknown as RoomActivity).items
   expect(retrying[1]).not.toHaveProperty('retry')
 })
@@ -193,91 +201,39 @@ test("a host's note is an item of its own, with no author", () => {
   ])
 })
 
-test('each turn in progress shows what it waits for, then its reply as it streams', () => {
-  const view = viewOf(said(1, 'Hello'))
-  const items = (turns: RoomActivity) =>
-    toRoomTranscript(view, turns).items.slice(1)
-
-  expect(
-    items({
-      7: { familiar: 3, cause: 1, status: 'queued' },
-      8: { familiar: 4, cause: 1, status: 'elsewhere' },
-    } as unknown as RoomActivity),
-  ).toEqual([
-    { type: 'waiting', id: 'turn:7', familiar: 3, status: 'queued' },
-    { type: 'waiting', id: 'turn:8', familiar: 4, status: 'elsewhere' },
-  ])
-  // Running, before anything shows.
-  expect(
-    items({ 7: { familiar: 3, cause: 1, status: 'running' } } as never),
-  ).toEqual([{ type: 'waiting', id: 'turn:7', familiar: 3, status: 'running' }])
-  // Waiting to try the model again, with why.
-  const retrying = { at: 5000, error: 'Rate limited' }
-  expect(
-    items({
-      7: {
-        familiar: 3,
-        cause: 1,
-        status: 'running',
-        generation: { attempt: 1, retry: retrying },
-      },
-    } as never),
-  ).toEqual([
-    { type: 'waiting', id: 'turn:7', familiar: 3, status: 'running', retrying },
-  ])
-
-  // The reply so far keeps the turn's ID, as does a later round's tools.
-  const streaming = items({
-    7: {
-      familiar: 3,
-      cause: 1,
+test('running Familiars appear together without adding items to the transcript', () => {
+  const view = viewOf(said(1, 'Hello'), said(2, 'Anyone there?'))
+  const turns = {
+    3: { familiar: 3, cause: 1, status: 'queued' },
+    4: { familiar: 4, cause: 1, status: 'elsewhere' },
+    5: {
+      familiar: 5,
+      cause: 2,
       status: 'running',
-      generation: {
-        attempt: 0,
-        message: assistant([{ type: 'thinking', thinking: 'Hmm' }, clock]),
-      },
-      tools: [{ callId: 'c1', name: 'clock', status: 'running', output: '1' }],
+      generation: { attempt: 0, message: assistant([text('Partial')]) },
     },
-  } as unknown as RoomActivity)
-  expect(streaming).toEqual([
-    expect.objectContaining({
-      type: 'reply',
-      id: 'turn:7',
-      thinking: 'Hmm',
-      streaming: true,
-      toolCalls: [
-        expect.objectContaining({
-          name: 'clock',
-          status: 'running',
-          output: '1',
-        }),
-      ],
-    }),
+    6: { familiar: 6, cause: 2, status: 'running' },
+    7: { familiar: 7, cause: 100, status: 'queued' },
+  } as unknown as RoomActivity
+  const { items, replying, busy } = toRoomTranscript(view, turns)
+  expect(items).toMatchObject([
+    { type: 'message', id: 'entry:1' },
+    { type: 'message', id: 'entry:2' },
   ])
-  const tooling = items({
-    7: {
-      familiar: 3,
-      cause: 1,
-      status: 'running',
-      tools: [{ callId: 'c2', name: 'search', status: 'done', output: 'x' }],
-    },
-  } as unknown as RoomActivity)
-  expect(tooling).toEqual([
-    expect.objectContaining({
-      id: 'turn:7',
-      streaming: true,
-      toolCalls: [
-        {
-          id: 'c2',
-          name: 'search',
-          arguments: {},
-          status: 'done',
-          output: 'x',
-        },
-      ],
-    }),
-  ])
-  // A turn waiting on the person shows its question, even before its reply.
+  expect(replying).toEqual([{ familiar: 5 }, { familiar: 6 }])
+  expect(busy).toBe(true)
+
+  const pickedUp = toRoomTranscript(view, {
+    ...turns,
+    3: { ...turns[3]!, status: 'running' },
+  })
+  expect(pickedUp.items).toEqual(items)
+  expect(pickedUp.replying).toContainEqual({ familiar: 3 })
+
+  expect(toRoomTranscript(view, { 7: turns[7]! }).busy).toBe(true)
+})
+
+test('live tool output, questions and model retries stay with the replying Familiar', () => {
   const question = {
     id: 'q1',
     familiar: 3,
@@ -287,18 +243,43 @@ test('each turn in progress shows what it waits for, then its reply as it stream
     kind: 'tool',
     arguments: {},
   }
-  expect(
-    items({
-      7: { familiar: 3, cause: 1, status: 'running', questions: [question] },
-    } as unknown as RoomActivity),
-  ).toEqual([
-    expect.objectContaining({
-      type: 'reply',
-      id: 'turn:7',
+  const retrying = { at: 5000, error: 'Rate limited' }
+  const { items, replying } = toRoomTranscript(viewOf(said(1, 'Hello')), {
+    3: {
+      familiar: 3,
+      cause: 1,
+      status: 'running',
       questions: [question],
-    }),
+      generation: {
+        attempt: 0,
+        message: assistant([{ ...clock, arguments: { zone: 'UTC' } }]),
+      },
+      tools: [{ callId: 'c1', name: 'clock', status: 'done', output: '12:00' }],
+    },
+    4: {
+      familiar: 4,
+      cause: 1,
+      status: 'running',
+      generation: { attempt: 1, retry: retrying },
+    },
+  } as unknown as RoomActivity)
+  expect(items).toHaveLength(1)
+  expect(replying).toEqual([
+    {
+      familiar: 3,
+      questions: [question],
+      tools: [
+        {
+          id: 'c1',
+          name: 'clock',
+          arguments: { zone: 'UTC' },
+          status: 'done',
+          output: '12:00',
+        },
+      ],
+    },
+    { familiar: 4, retrying },
   ])
-  expect(toRoomTranscript(view, { 7: {} } as never).busy).toBe(true)
 })
 
 test('a message keeps the mentions its author picked', () => {

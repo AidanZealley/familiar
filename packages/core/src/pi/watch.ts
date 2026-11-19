@@ -51,6 +51,8 @@ export function derivedWatch<T extends JsonValue>(compute: () => T) {
       update()
       return true
     },
+    /** Computes the value again, for a source that isn't a watch. */
+    refresh: update,
     end: () => watch.end({ kind: 'aborted' }),
   }
 }

@@ -183,13 +183,13 @@ export function createScript(familiars: { name: string; persona: string }[]) {
 
 export type Script = ReturnType<typeof createScript>
 
-/** What a request answers: a message's text, a handoff's note or a schedule's prompt. */
+/** What a request answers: a message's text, another Familiar's reply or a schedule's prompt. */
 function inputOf(request: ScriptedRequest) {
   switch (request.type) {
     case 'message':
       return request.text
-    case 'handoff':
-      return request.note
+    case 'reply':
+      return request.text
     case 'scheduled': {
       // `[Scheduled for …] prompt`, the last part of its input; notes such
       // as recall's can follow it.

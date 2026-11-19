@@ -1,13 +1,10 @@
 import { cn } from 'cn'
-import { ClockIcon, MoonIcon } from '@phosphor-icons/react'
+import { MoonIcon } from '@phosphor-icons/react'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { FamiliarLink } from '@/components/familiar-link'
-import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { FamiliarTurn } from '../familiar-turn'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
-import { Retrying } from '../retrying'
-import { Thinking } from '../thinking'
 import { Handoff } from './components/handoff'
 import { TranscriptGap } from './components/transcript-gap'
 import { RoomNote } from './components/room-note'
@@ -23,7 +20,7 @@ import type { TranscriptItemProps } from './types'
 export const TranscriptItem = ({
   item,
   dm,
-  lead,
+  busy,
   run,
   end,
 }: TranscriptItemProps) => {
@@ -45,37 +42,6 @@ export const TranscriptItem = ({
       )
     case 'note':
       return <RoomNote note={item} />
-    case 'waiting':
-      return (
-        <FamiliarTurn
-          familiar={item.familiar}
-          dm={dm}
-          lead={item.familiar === lead}
-          run={run}
-          end={end}
-        >
-          {item.retrying ? (
-            <Retrying retrying={item.retrying} />
-          ) : item.status === 'running' ? (
-            <Thinking text="" active />
-          ) : (
-            <Marker role="status">
-              <MarkerIcon>
-                {item.status === 'queued' ? (
-                  <ClockIcon />
-                ) : (
-                  <HourglassSpinner className="size-full" />
-                )}
-              </MarkerIcon>
-              <MarkerContent>
-                {item.status === 'queued'
-                  ? 'Queued: answers once the turn ahead of it here finishes'
-                  : 'Busy in another room: answers here next'}
-              </MarkerContent>
-            </Marker>
-          )}
-        </FamiliarTurn>
-      )
     case 'reply':
       // Saying nothing is shown once, as a line of its own.
       if (item.quiet) {
@@ -97,8 +63,8 @@ export const TranscriptItem = ({
         <FamiliarTurn
           familiar={item.familiar}
           then={item.name}
+          busy={busy}
           dm={dm}
-          lead={item.familiar === lead}
           run={run}
           end={end}
         >

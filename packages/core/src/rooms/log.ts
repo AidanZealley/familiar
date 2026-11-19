@@ -30,7 +30,7 @@ import {
   membersOf,
   RoomError,
   Rooms,
-  Turns,
+  type NamedRoom,
   type Room,
   type RoomId,
 } from './rooms.ts'
@@ -69,15 +69,35 @@ export type RoomMessageData = {
 /** The entry kind a Familiar's reply is copied into a room as. */
 export const REPLY_KIND = 'familiar.reply'
 
-/** A Familiar's handling of one room entry, copied from its chat once over. */
+/**
+ * How many Familiar replies in a row a room delivers since a person last
+ * spoke: a reply this deep is posted but sent to no one.
+ */
+export const MAX_DEPTH = 10
+
+/**
+ * A Familiar's reply to one room entry: its run's answer, posted once the
+ * run ends (see answer.ts), or a note that its input was stopped or failed
+ * (see turn.ts).
+ */
 export type ReplyData = {
   familiar: FamiliarId
   /** Its name at the time. */
   name: string
   /** The room entry it answers. */
   cause: EntryId
-  /** `quiet` when it chose to say nothing, with `stay_quiet`. */
+  /**
+   * `quiet` only in replies posted before Familiars chose to stay quiet by
+   * posting nothing.
+   */
   outcome: 'answered' | 'quiet' | 'failed' | 'stopped'
+  /**
+   * How many Familiar replies in a row lead to it, itself included, since a
+   * person last spoke; on answered replies. One at `MAX_DEPTH` goes to no one.
+   */
+  depth?: number
+  /** The Familiars its text names with `@[Name]`, found as it's posted. */
+  mentions?: Mention[]
   /**
    * Why a `failed` reply failed, as Pi settled its input: a reason such as
    * `model_error`, `no_model`, `turn_limit` or `restart_limit`, and its
@@ -90,10 +110,7 @@ export type ReplyData = {
   at: number
 }
 
-/**
- * A Familiar asking another in the same room to take a turn, with
- * `hand_off`. The one it asks answers it as it would a message.
- */
+/** A stored request from one Familiar to another in the same room. */
 export type HandoffData = {
   from: FamiliarId
   to: FamiliarId
@@ -119,6 +136,21 @@ export const readHandoff = (text: string) => {
   const match = /^\[Handoff from (.*)\]\n([\s\S]*)$/.exec(text)
   return match
     ? { from: JSON.parse(match[1]) as string, note: match[2] }
+    : undefined
+}
+
+/** How another Familiar's reply starts, as the model reads it. */
+const RELAY_PREFIX = '[Reply from '
+
+/** Another Familiar's reply as the model reads it: who said it, then what. */
+export const formatRelay = (from: string, text: string) =>
+  `${RELAY_PREFIX}${formatAuthor(from)}]\n${text}`
+
+/** `formatRelay` read back, or undefined for text it didn't write. */
+export const readRelay = (text: string) => {
+  const match = /^\[Reply from (.*)\]\n([\s\S]*)$/.exec(text)
+  return match
+    ? { from: JSON.parse(match[1]) as string, text: match[2] }
     : undefined
 }
 
@@ -381,53 +413,107 @@ export function checkMentions(
   })
 }
 
+/** The exact tokens that name one Familiar each, for prompts and replies. */
+export function mentionTokens(
+  others: readonly { id: FamiliarId; name: string }[],
+) {
+  const tokens = new Map<string, FamiliarId | null>()
+  for (const { id, name } of others) {
+    if (name.trim() && !/[[\]\r\n]/u.test(name)) {
+      const token = `@[${name}]`
+      tokens.set(token, tokens.has(token) ? null : id)
+    }
+  }
+  return tokens
+}
+
+/** Explicit mentions in a reply, with offsets into the original text. */
+export function mentionsIn(
+  text: string,
+  others: readonly { id: FamiliarId; name: string }[],
+): Mention[] {
+  const tokens = mentionTokens(others)
+  const found: Mention[] = []
+  for (const { 0: token, index: start } of text.matchAll(
+    /@\[[^[\]\r\n]+\]/gu,
+  )) {
+    const id = tokens.get(token)
+    if (id != null) {
+      found.push({
+        kind: 'familiar',
+        id: String(id),
+        start,
+        end: start + token.length,
+      })
+    }
+  }
+  return found
+}
+
 /**
- * Who takes a turn for `entry`, and why, decided once, as it's posted: a
- * DM's Familiar; in a named room, each Familiar mentioned, once, in order,
- * else the lead, else, in an open room, every Familiar in it; a reminder's
- * own Familiar; the one a handoff asks. Replies and notes never cause turns.
+ * In a named room, the Familiars an entry from `from` (a person when
+ * undefined) goes to: those it mentions, else everyone else in the room.
+ */
+function addressedIn(
+  room: NamedRoom,
+  mentions: readonly Mention[] | undefined,
+  from?: FamiliarId,
+) {
+  const others = room.familiars.filter((familiar) => familiar !== from)
+  const mentioned = new Set(
+    (mentions ?? [])
+      .filter((mention) => mention.kind === 'familiar')
+      .map((mention) => Number(mention.id) as FamiliarId)
+      .filter((familiar) => others.includes(familiar)),
+  )
+  return mentioned.size
+    ? [...mentioned].map((familiar) => ({
+        familiar,
+        addressed: 'mention' as Addressed,
+      }))
+    : others.map((familiar) => ({
+        familiar,
+        addressed: 'open' as Addressed,
+      }))
+}
+
+/**
+ * Who `entry` is delivered to, and why, decided once, as it's posted: a
+ * DM's Familiar; in a named room, the Familiars a message or an answered
+ * reply mentions, else every other Familiar in it; a reminder's own
+ * Familiar. Each decides for itself whether to reply. A reply at
+ * `MAX_DEPTH`, notes, and old handoffs go to no one.
  */
 function recipients(
   room: Room,
   entry: RoomEntry,
 ): { familiar: FamiliarId; addressed: Addressed }[] {
-  const all = (familiars: FamiliarId[], addressed: Addressed) =>
-    familiars.map((familiar) => ({ familiar, addressed }))
   switch (entry.kind) {
-    case REPLY_KIND:
     case NOTE_KIND:
+    case HANDOFF_KIND:
       return []
     case SCHEDULED_KIND:
-      return all([entry.data.familiar], 'schedule')
-    case HANDOFF_KIND:
-      return all([entry.data.to], 'handoff')
+      return [{ familiar: entry.data.familiar, addressed: 'schedule' }]
+    case REPLY_KIND: {
+      const { familiar, outcome, depth = MAX_DEPTH, mentions } = entry.data
+      return room.kind === 'dm' || outcome !== 'answered' || depth >= MAX_DEPTH
+        ? []
+        : addressedIn(room, mentions, familiar)
+    }
   }
-  if (room.kind === 'dm') {
-    return all([room.familiar], 'dm')
-  }
-  const mentioned = new Set(
-    (entry.data.mentions ?? [])
-      .filter((mention) => mention.kind === 'familiar')
-      .map((mention) => Number(mention.id) as FamiliarId),
-  )
-  return mentioned.size
-    ? all([...mentioned], 'mention')
-    : room.lead !== undefined
-      ? all([room.lead], 'lead')
-      : all(room.familiars, 'open')
+  return room.kind === 'dm'
+    ? [{ familiar: room.familiar, addressed: 'dm' }]
+    : addressedIn(room, entry.data.mentions)
 }
 
 /**
- * What a turn task is given: whose turn, in which room, for which entry, and
- * why. An open room's turns go one after another: each but the first waits
- * for the turn `after` it to end, so it's shown that turn's reply.
+ * What a turn task is given: whom to deliver which room entry to, and why.
  */
 export type TurnInput = {
   room: RoomId
   familiar: FamiliarId
   cause: EntryId
   addressed: Addressed
-  after?: TaskId<TurnResult>
   /**
    * The failed reply this turn tries again, if it does (see `retryTurn`):
    * its input is a new one, as the failed turn's is settled.
@@ -435,8 +521,11 @@ export type TurnInput = {
   retries?: EntryId
 }
 
-/** A turn's result: the reply it posted, if any. */
-export type TurnResult = { reply: EntryId | null }
+/**
+ * A turn's result: the answer in its Familiar's chat, once its input is
+ * answered; null if it wasn't. The room has the reply once the run ends.
+ */
+export type TurnResult = { answer: EntryId | null; input?: EntryId }
 
 /** An entry to post, with the request that caused it: a retry finds it by this. */
 export type Posting = { entry: RoomEntry; requestId: string }
@@ -462,8 +551,7 @@ export async function post(
 
 /**
  * Posts each of `postings` to `room`'s log in order, as `post` does one, in
- * the one commit `tx`: how a turn files its reply and then the handoffs it
- * made, so each handoff follows the reply it came from.
+ * the same commit `tx`.
  */
 export async function postAll(
   tx: Tx,
@@ -484,11 +572,9 @@ export async function postAll(
   if (!record) {
     throw new RoomError(`No room ${room}.`)
   }
-  // A turn that was under way still files its reply.
-  const closed = fresh.every(({ entry }) => entry.kind === REPLY_KIND)
-    ? undefined
-    : await closedTo(tx, record)
-  if (closed) {
+  // A turn that was under way still files its reply, which goes no further.
+  const closed = await closedTo(tx, record)
+  if (closed && fresh.some(({ entry }) => entry.kind !== REPLY_KIND)) {
     throw new RoomError(closed)
   }
   for (const { entry } of fresh) {
@@ -524,15 +610,15 @@ export async function postAll(
     await noteShown(tx, room, appended.id, entry)
 
     const turns: TaskId<TurnResult>[] = []
-    for (const { familiar, addressed } of recipients(record, entry)) {
-      const after = addressed === 'open' ? turns.at(-1) : undefined
+    for (const { familiar, addressed } of closed
+      ? []
+      : recipients(record, entry)) {
       turns.push(
         await startTurn(tx, turn, {
           room,
           familiar,
           cause: appended.id,
           addressed,
-          ...(after !== undefined && { after }),
         }),
       )
     }
@@ -552,9 +638,9 @@ const startTurn = (tx: Tx, turn: TurnTask, input: TurnInput) =>
 /**
  * Starts a failed reply's turn again, in the commit `tx`: the same Familiar
  * answers the same entry, addressed as it would be now, and its new reply
- * follows in the log. Starts nothing while that Familiar has a turn for the
- * entry, or once a newer reply from it to the entry follows, so asking
- * twice starts one. Throws a RoomError for anything but a failed reply in
+ * follows in the log. Starts nothing once a newer reply from it to the
+ * entry follows; a second ask while the first runs delivers the same input,
+ * as both turns' requests are keyed by the failed reply. Throws a RoomError for anything but a failed reply in
  * `room`, for a Familiar no longer in it, and for a room `closedTo` closes.
  */
 export async function retryTurn(
@@ -562,6 +648,7 @@ export async function retryTurn(
   turn: TurnTask,
   room: RoomId,
   reply: EntryId,
+  canDeliver: (kind: string) => boolean,
 ) {
   // Reads before writes: a transaction cannot read tables after writing.
   const record = (await tx.doc(Rooms)).rooms[room]
@@ -582,27 +669,24 @@ export async function retryTurn(
   if (name === undefined || !membersOf(record).includes(familiar)) {
     throw new RoomError('That Familiar is no longer in this room.')
   }
-  const turns = await tx.doc(Turns)
-  const answering = Object.values(turns).some(
-    (each) =>
-      each.room === room && each.familiar === familiar && each.cause === cause,
-  )
-  if (answering || (await answeredSince(tx, room, reply, familiar, cause))) {
+  if (await answeredSince(tx, room, reply, familiar, cause)) {
     return
   }
-  const entry = (await tx.entry(cause)) as unknown as RoomEntry
+  const entry = await tx.entry(cause)
+  if (!entry || !canDeliver(entry.kind)) {
+    throw new RoomError('The original room entry can no longer be retried.')
+  }
   const addressed =
-    recipients(record, entry).find((each) => each.familiar === familiar)
-      ?.addressed ?? 'mention'
-  const task = await startTurn(tx, turn, {
+    recipients(record, entry as unknown as RoomEntry).find(
+      (each) => each.familiar === familiar,
+    )?.addressed ?? 'mention'
+  await startTurn(tx, turn, {
     room,
     familiar,
     cause,
     addressed,
     retries: reply,
   })
-  // Shown as waiting at once, and found by a second retry.
-  turns[task] = { room, familiar, name, cause }
 }
 
 /** Whether `familiar` has replied to `cause` in `room` after the entry `since`. */

@@ -145,8 +145,7 @@ const why: Record<Addressed, string> = {
   dm: '',
   schedule: '',
   mention: ', where you were mentioned',
-  lead: ', which you lead',
-  open: ', where everyone takes a turn',
+  open: ', where everyone hears it',
   handoff: ', handed to you',
 }
 
@@ -156,7 +155,7 @@ const why: Record<Addressed, string> = {
  */
 const where = (room: Room, person: string | undefined, addressed: Addressed) =>
   room.kind === 'room'
-    ? `[In #${room.name}${why[addressed]}]`
+    ? `[In #${room.name}${why[addressed] ?? why.open}]`
     : person === undefined
       ? '[In your DM]'
       : `[In your DM with ${person}]`
@@ -167,7 +166,8 @@ const where = (room: Room, person: string | undefined, addressed: Addressed) =>
  * an open room's earlier replies. Shown in the commit that moves its cursor
  * past all of it, so a rerun can't show it twice. `person` is the name of
  * who the DM is with, when the cause says. A cursor only moves forward, so a
- * turn prepared after a later one shows nothing again.
+ * turn prepared after a later one shows nothing again. `replying` names the
+ * other Familiars answering something here now, whose replies will come.
  */
 export async function catchUp(
   tx: Tx,
@@ -177,6 +177,7 @@ export async function catchUp(
   cause: EntryId,
   person: string | undefined,
   addressed: Addressed,
+  replying: readonly string[] = [],
 ) {
   // Reads before writes: a transaction cannot read tables after writing.
   const cursors = await familiarDoc(tx, RoomCursors, familiar)
@@ -232,6 +233,9 @@ export async function catchUp(
           "Said here since what you're answering:",
           ...since.map((line) => line.text),
         ]
+      : []),
+    ...(replying.length
+      ? [`Replying here now: ${replying.map((name) => `[${name}]`).join(', ')}`]
       : []),
   ].join('\n')
 }

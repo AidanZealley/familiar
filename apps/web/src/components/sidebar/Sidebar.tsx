@@ -110,14 +110,12 @@ export const Sidebar = ({ className }: SidebarProps) => {
               onAdd={() => openDialog({ kind: 'new-room' })}
             />
             {open.map((room) => (
-              <RoomRow key={room.id} room={room} familiars={familiars} />
+              <RoomRow key={room.id} room={room} />
             ))}
           </section>
         )}
 
-        {archived.length > 0 && (
-          <ArchivedRooms rooms={archived} familiars={familiars} />
-        )}
+        {archived.length > 0 && <ArchivedRooms rooms={archived} />}
 
         {query.trim() && !open.length && !archived.length && (
           <p className="px-2 py-4 text-xs text-muted-foreground">

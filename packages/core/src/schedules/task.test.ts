@@ -275,9 +275,13 @@ test('a one-off runs at its time for whoever asked, whatever request IDs people 
 
   f.answer(
     () =>
-      fauxAssistantMessage(fauxToolCall('identify', {}), {
-        stopReason: 'toolUse',
-      }),
+      fauxAssistantMessage(
+        [
+          { type: 'text', text: 'Your reminder is due.' },
+          fauxToolCall('identify', {}),
+        ],
+        { stopReason: 'toolUse' },
+      ),
     '**Time to call Mum!**',
   )
   await f.fireAt(at(21, 18), 'done')
@@ -288,7 +292,11 @@ test('a one-off runs at its time for whoever asked, whatever request IDs people 
   // The creator reaches tools and the host as attribution, not recipients.
   expect(seen).toEqual([sam])
   expect(f.notifications).toEqual([
-    { title: 'Familiar', body: 'Time to call Mum!', url: '/' },
+    {
+      title: 'Familiar',
+      body: 'Your reminder is due. Time to call Mum!',
+      url: '/',
+    },
   ])
   expect(f.contexts).toEqual([{ scheduleId: id, creator: sam }])
   expect(await f.schedules()).toEqual({})

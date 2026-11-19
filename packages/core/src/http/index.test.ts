@@ -365,7 +365,6 @@ test("the DM endpoint gets or creates the asking person's DM with a Familiar", a
   const kitchen = await host.workspace().rooms.create({
     name: 'Kitchen',
     familiars: [host.familiar().id],
-    lead: host.familiar().id,
   })
   const listed = await (await as(sam).rooms.$get()).json()
   expect(listed.map((room) => room.id).sort()).toEqual([sams, kitchen].sort())
@@ -580,7 +579,6 @@ test("a room's stream shows its own turn's reply as it runs, and only that a Fam
   const kitchen = await workspace.rooms.create({
     name: 'Kitchen',
     familiars: [id],
-    lead: id,
   })
   const app = api(workspace)
   const watch = async (room: number) =>
@@ -767,26 +765,23 @@ test('familiars, rooms and the person asking are created and changed over HTTP',
   ).toBe(204)
 
   const refused = await client.rooms.$post({
-    json: { name: 'Shed', familiars: [bo.id], lead: 999 },
+    json: { name: 'Shed', familiars: [999] },
   })
   expect(refused.status).toBe(400)
   const room = await client.rooms.$post({
-    json: { name: 'Shed', familiars: [bo.id], lead: bo.id },
+    json: { name: 'Shed', familiars: [bo.id] },
   })
   expect(room.status).toBe(201)
   const { id } = (await room.json()) as { id: number }
-  // A null lead opens the room.
-  expect(
-    (
-      await client.rooms[':room'].$patch({
-        param: { room: String(id) },
-        json: { lead: null },
-      })
-    ).status,
-  ).toBe(204)
+  const members = [bo.id, host.familiar().id]
+  const updated = await client.rooms[':room'].$patch({
+    param: { room: String(id) },
+    json: { familiars: members },
+  })
+  expect(updated.status).toBe(204)
   expect(
     (await host.workspace().rooms.list()).find((room) => room.id === id),
-  ).not.toHaveProperty('lead')
+  ).toMatchObject({ familiars: members })
   expect(
     (await client.rooms[':room'].$delete({ param: { room: String(id) } }))
       .status,

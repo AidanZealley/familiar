@@ -83,7 +83,6 @@ const familiar = await workspace.familiars.create({
 const room = await workspace.rooms.create({
   name: 'Board',
   familiars: [familiar.id],
-  lead: familiar.id,
 })
 
 const CHAT = new Set<Operation>([

@@ -1,4 +1,4 @@
-import { LeadBadge } from '@/components/lead-badge'
+import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { PixelAvatar } from '@/components/pixel-avatar'
 import { formatTime } from '@/lib/format'
 import { asId, useFamiliarSummary } from '@/lib/workspace'
@@ -10,13 +10,13 @@ import type { FamiliarTurnProps } from './types'
  * column: the run's first item shows the portrait, its name and when the run
  * finished; the rest line up under it. In a DM, whose header already shows
  * the Familiar, it takes the full width, with the time under the run's last
- * item, as under the person's messages. The room's lead wears a crown.
+ * item.
  */
 export const FamiliarTurn = ({
   familiar,
   then,
   dm,
-  lead = false,
+  busy,
   run,
   end,
   children,
@@ -45,10 +45,18 @@ export const FamiliarTurn = ({
       {run ? (
         <FamiliarLink id={familiar} then={then} className="relative self-start">
           <PixelAvatar
+            className={busy ? 'opacity-50 grayscale' : undefined}
             familiar={summary ?? { id: asId(familiar), name: then ?? '?' }}
-            talking={run.live}
           />
-          {lead && <LeadBadge />}
+          {busy && (
+            <span
+              className="absolute -right-1 -bottom-1 grid size-3.5 place-items-center border border-background bg-muted text-muted-foreground"
+              title="Busy"
+            >
+              <HourglassSpinner className="size-2.5" />
+              <span className="sr-only">Busy</span>
+            </span>
+          )}
         </FamiliarLink>
       ) : (
         <span className="w-8 shrink-0" />

@@ -24,13 +24,9 @@ export type Author = {
 export type MessageData = { author: Author; text: string } & InRoom
 
 /**
- * Why a Familiar has a turn in a room, decided by routing as the entry is
- * posted (see rooms/log.ts): its DM; a mention; as the room's lead; an open
- * room, where every Familiar gets a turn on what addresses no one; another
- * Familiar's handoff; or its own reminder.
+ * How a room input addresses this Familiar.
  */
-export type Addressed =
-  'dm' | 'mention' | 'lead' | 'open' | 'handoff' | 'schedule'
+export type Addressed = 'dm' | 'mention' | 'open' | 'handoff' | 'schedule'
 
 /**
  * Where a Familiar was shown an input: the room it came from, the room entry
@@ -214,10 +210,25 @@ export async function answeredInput(tx: Tx, taskId: TaskId) {
 }
 
 /**
- * The entry kind a Familiar's handoff to another is posted as in a room, and
- * placed as in the chat of the one it asks (see rooms/tools.ts).
+ * The entry kind for stored handoffs in room logs and Familiar chats.
  */
 export const HANDOFF_KIND = 'familiar.handoff'
+
+/**
+ * The entry kind another Familiar's reply in a room is placed as in the chat
+ * of a Familiar it's delivered to (see rooms/turn.ts).
+ */
+export const RELAY_KIND = 'familiar.relay'
+
+/**
+ * A Familiar's reply as placed in another's chat: who said it, by ID and by
+ * name then, and what it said.
+ */
+export type RelayData = InRoom & {
+  familiar: ConversationId
+  name: string
+  text: string
+}
 
 /**
  * The entry kind a host's note to a room is posted as: context for the
@@ -237,8 +248,7 @@ export type ScheduledData = InRoom & {
 }
 
 /**
- * A handoff as placed in the chat of the Familiar it asks: who handed it
- * over, by ID and by name then, and what they asked (see rooms/turn.ts).
+ * A stored handoff names the Familiar who made it and what they asked.
  */
 export type HandedOnData = InRoom & {
   from: ConversationId
@@ -269,8 +279,10 @@ export type Said =
   | ({ role: 'person'; author: Author } & Input)
   /** A schedule's prompt, set up earlier and submitted when due. */
   | ({ role: 'scheduled'; creator?: Author } & Input)
-  /** Another Familiar's note, handing a room's conversation on. */
+  /** Another Familiar's note, handing a room's conversation on (old entries). */
   | ({ role: 'handoff'; from: string } & Input)
+  /** Another Familiar's reply in a room, by its name then. */
+  | ({ role: 'familiar'; from: string } & Input)
   | { role: 'assistant'; text: string; at: number }
 
 /**
@@ -320,6 +332,18 @@ export function saidBy(entry: EntryRecord): Said | undefined {
       role: 'handoff',
       from: data.name,
       text: data.note,
+      ...shown(data),
+      at,
+    }
+  }
+
+  if (entry.kind === RELAY_KIND) {
+    const data = entry.data as RelayData
+
+    return {
+      role: 'familiar',
+      from: data.name,
+      text: data.text,
       ...shown(data),
       at,
     }

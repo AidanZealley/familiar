@@ -45,7 +45,6 @@ export async function startDemo() {
   const room = await workspace.rooms.create({
     name: 'Group',
     familiars: [familiar.id],
-    lead: familiar.id,
   })
   // The host's sign-ins: session token to the person it belongs to.
   const sessions = new Map<string, Author>()

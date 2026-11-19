@@ -1,6 +1,9 @@
 import type { Provider } from '@earendil-works/pi-ai/models'
 import type { ModelChoice } from '@familiar-ai/core'
-import { fauxAssistantMessage } from '@familiar-ai/core/models/faux'
+import {
+  fauxAssistantMessage,
+  fauxToolCall,
+} from '@familiar-ai/core/models/faux'
 import {
   keepNothing,
   scriptedModels,
@@ -44,8 +47,11 @@ function scenarioReply(request: ScriptedRequest) {
       return keepNothing(request.call)
     case 'scheduled':
       return scheduledReply()
-    case 'handoff':
-      return fauxAssistantMessage(`${request.from} asked: ${request.note}`)
+    case 'reply':
+      // Other Familiars' replies pass, so a room's chain ends.
+      return fauxAssistantMessage(fauxToolCall('stay_quiet', {}), {
+        stopReason: 'toolUse',
+      })
     case 'tool-result':
       return (
         replies[request.name]?.(request.output, request.context) ??

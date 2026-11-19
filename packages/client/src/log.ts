@@ -20,7 +20,7 @@ export type LogState = {
   view: ConversationView | undefined
   /** The room's turns in progress, live. */
   turns: RoomActivity | null | undefined
-  /** Every entry loaded, then the turns; unchanged by unrelated updates. */
+  /** Every entry loaded and the live activity; unchanged by unrelated updates. */
   transcript: Transcript | undefined
 }
 

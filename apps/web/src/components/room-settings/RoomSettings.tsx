@@ -7,7 +7,7 @@ import { GeneralSettings } from './components/general-settings'
 import { MembersSettings } from './components/members-settings'
 import type { RoomSettingsProps } from './types'
 
-/** A named room's name, its members and their lead, and archiving it. */
+/** A named room's name, its members, and archiving it. */
 export const RoomSettings = ({ id }: RoomSettingsProps) => {
   const room = useRoomSummary(id)
 
@@ -32,9 +32,8 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
               id: 'members',
               label: 'Members',
               icon: UsersIcon,
-              keywords: 'familiars order add remove lead crown open',
-              description:
-                'The Familiars in this room. Crown one as lead to answer every message that @mentions no one; without a lead the room is open, and they take turns in this order.',
+              keywords: 'familiars add remove',
+              description: 'Choose who is in this room.',
               content: <MembersSettings room={room} />,
             },
           ],

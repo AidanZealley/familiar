@@ -33,7 +33,6 @@ async function openTenant(options: WorkspaceOptions): Promise<Tenant> {
   const room = await workspace.rooms.create({
     name: 'Team',
     familiars: [familiar.id],
-    lead: familiar.id,
   })
   return { workspace, room }
 }
