@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, realpathSync } from 'node:fs'
+import { CodemodeSandbox } from '@earendil-works/pi-codemode'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { computer } from '@familiar-ai/computer'
 import { dockerHost } from '@familiar-ai/computer/docker'
@@ -59,6 +60,9 @@ export async function serve() {
       secrets: fileSecretStore(dataPath('secrets.json'), dataPath('vault.key')),
       mcpFetch: fetch,
       mcpStdio: stdioTransport,
+      codemodeSandbox: new CodemodeSandbox({
+        memoryLimitBytes: 256 * 1024 * 1024,
+      }),
     },
     config.name,
   )

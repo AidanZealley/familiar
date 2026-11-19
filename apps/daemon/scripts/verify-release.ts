@@ -162,6 +162,30 @@ try {
     await pages.destroy()
   }
 
+  // Starting a sandbox also loads its worker and QuickJS WASM from the install.
+  const sandboxCheck = resolve(installed, 'verify-codemode.mjs')
+  await writeFile(
+    sandboxCheck,
+    `import { CodemodeSandbox } from '@earendil-works/pi-codemode'
+const sandbox = new CodemodeSandbox()
+try {
+  const result = await sandbox.execute('return 6 * 7')
+  if (!result.ok) throw new Error(result.error.message)
+  console.log(result.value)
+} finally {
+  await sandbox.close()
+}`,
+  )
+  assert.equal(
+    execFileSync(process.execPath, [sandboxCheck], {
+      cwd: temporary,
+      env,
+      encoding: 'utf8',
+      timeout: 10000,
+    }).trim(),
+    '42',
+  )
+
   const reservation = createServer().listen(0, '127.0.0.1')
   await once(reservation, 'listening')
   const address = reservation.address()

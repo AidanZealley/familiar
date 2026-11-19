@@ -28,7 +28,7 @@ await build({
     'page-worker': resolve(daemon, 'src/web/page-worker.ts'),
   },
   platform: 'node',
-  external: ['piscina'],
+  external: ['@earendil-works/pi-codemode', 'piscina'],
   output: {
     dir: dist,
     format: 'esm',
@@ -53,7 +53,11 @@ await writeFile(
       bin: { familiar: 'familiar.js' },
       engines: workspace.engines,
       files: ['*.js', 'web'],
-      dependencies: { piscina: manifest.dependencies.piscina },
+      dependencies: {
+        '@earendil-works/pi-codemode':
+          manifest.dependencies['@earendil-works/pi-codemode'],
+        piscina: manifest.dependencies.piscina,
+      },
     },
     null,
     2,
