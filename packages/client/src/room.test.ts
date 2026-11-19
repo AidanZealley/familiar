@@ -125,19 +125,13 @@ const conversation = (...ids: number[]) => ({
 const itemIds = (store: RoomStore) =>
   store.getState().transcript?.items.map((item) => item.id)
 
-test('transcript arrives atomically with views and operations and updates queue marks as activity changes', async () => {
+test('transcript arrives atomically with views and operations and updates busy as activity changes', async () => {
   const server = testServer()
   const store = open('/api', { fetch: server.fetch })
   expect(store.getState().transcript).toBeUndefined()
   await expect.poll(() => store.getState().connection).toBe('open')
-  const observed: (number[] | undefined)[][] = []
-  store.subscribe(({ transcript }) =>
-    observed.push(
-      transcript?.items.map((item) =>
-        item.type === 'message' ? item.queuedFor : undefined,
-      ) ?? [],
-    ),
-  )
+  const observed: (boolean | undefined)[] = []
+  store.subscribe(({ transcript }) => observed.push(transcript?.busy))
   server.send(frame('view', conversation(1)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:1'])
   const initial = store.getState().transcript
@@ -153,7 +147,7 @@ test('transcript arrives atomically with views and operations and updates queue 
   expect(store.getState().transcript).not.toBe(initial)
   server.send(frame('document.ops', { name: 'turns', ops: [['d', ['1']]] }))
   await expect.poll(() => store.getState().transcript?.busy).toBe(false)
-  expect(observed).toEqual([[undefined], [[1]], [undefined]])
+  expect(observed).toEqual([false, true, false])
 })
 
 test('transcript reference survives unrelated updates and a failed load, and loading earlier reaches the start', async () => {

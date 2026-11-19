@@ -201,7 +201,7 @@ test("a host's note is an item of its own, with no author", () => {
   ])
 })
 
-test('running Familiars appear together and queued Familiars attach only to their cause', () => {
+test('running Familiars appear together without adding items to the transcript', () => {
   const view = viewOf(said(1, 'Hello'), said(2, 'Anyone there?'))
   const turns = {
     3: { familiar: 3, cause: 1, status: 'queued' },
@@ -217,10 +217,9 @@ test('running Familiars appear together and queued Familiars attach only to thei
   } as unknown as RoomActivity
   const { items, replying, busy } = toRoomTranscript(view, turns)
   expect(items).toMatchObject([
-    { type: 'message', id: 'entry:1', queuedFor: [3, 4] },
+    { type: 'message', id: 'entry:1' },
     { type: 'message', id: 'entry:2' },
   ])
-  expect(items[1]).not.toHaveProperty('queuedFor')
   expect(replying).toEqual([{ familiar: 5 }, { familiar: 6 }])
   expect(busy).toBe(true)
 
@@ -228,13 +227,13 @@ test('running Familiars appear together and queued Familiars attach only to thei
     ...turns,
     3: { ...turns[3]!, status: 'running' },
   })
-  expect(pickedUp.items[0]).toMatchObject({ queuedFor: [4] })
+  expect(pickedUp.items).toEqual(items)
   expect(pickedUp.replying).toContainEqual({ familiar: 3 })
 
   expect(toRoomTranscript(view, { 7: turns[7]! }).busy).toBe(true)
 })
 
-test('pending questions and model retries stay visible while their Familiar is replying', () => {
+test('live tool output, questions and model retries stay with the replying Familiar', () => {
   const question = {
     id: 'q1',
     familiar: 3,
@@ -246,7 +245,17 @@ test('pending questions and model retries stay visible while their Familiar is r
   }
   const retrying = { at: 5000, error: 'Rate limited' }
   const { items, replying } = toRoomTranscript(viewOf(said(1, 'Hello')), {
-    3: { familiar: 3, cause: 1, status: 'running', questions: [question] },
+    3: {
+      familiar: 3,
+      cause: 1,
+      status: 'running',
+      questions: [question],
+      generation: {
+        attempt: 0,
+        message: assistant([{ ...clock, arguments: { zone: 'UTC' } }]),
+      },
+      tools: [{ callId: 'c1', name: 'clock', status: 'done', output: '12:00' }],
+    },
     4: {
       familiar: 4,
       cause: 1,
@@ -256,7 +265,19 @@ test('pending questions and model retries stay visible while their Familiar is r
   } as unknown as RoomActivity)
   expect(items).toHaveLength(1)
   expect(replying).toEqual([
-    { familiar: 3, questions: [question] },
+    {
+      familiar: 3,
+      questions: [question],
+      tools: [
+        {
+          id: 'c1',
+          name: 'clock',
+          arguments: { zone: 'UTC' },
+          status: 'done',
+          output: '12:00',
+        },
+      ],
+    },
     { familiar: 4, retrying },
   ])
 })

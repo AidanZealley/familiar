@@ -48,13 +48,17 @@ type Respond = (
   signal?: AbortSignal,
 ) => AssistantMessage | Promise<AssistantMessage>
 
-/**
- * Answers each message it leads, is mentioned in or is sent directly with
- * its own words, stays quiet on the rest and on other Familiars' replies,
- * and answers anything else with "Done."
- */
+const QUIET_IN_GROUPS = 'Stay quiet on messages addressed to everyone.'
+
+/** Echoes messages, respecting the test persona and staying quiet on relayed replies. */
 const echo: Respond = (request) =>
-  request.type === 'reply' || shown(request).includes('where everyone hears it')
+  request.type === 'reply' ||
+  (shown(request).includes('where everyone hears it') &&
+    request.context.messages.some(
+      (message) =>
+        message.role === 'system' &&
+        Object.values(message.sections ?? {}).includes(QUIET_IN_GROUPS),
+    ))
     ? call('stay_quiet', {})
     : fauxAssistantMessage(
         request.type === 'message' ? `Re: ${request.text}` : 'Done.',
@@ -94,6 +98,7 @@ async function open(
     (
       await workspace.familiars.create({
         name,
+        ...(name === 'Bo' && { persona: QUIET_IN_GROUPS }),
         // Every plugin the test installs: each Familiar opts in.
         capabilities: {
           plugins: (options.plugins ?? []).map((plugin) => plugin.name),
@@ -221,10 +226,7 @@ test('a message that mentions no one reaches every Familiar in the room, who rep
         bothAsked()
       }
       await both
-      // Ada leads, and answers; Bo lets it pass.
-      return shown(request).includes('which you lead')
-        ? echo(request)
-        : call('stay_quiet', { reason: 'Ada has it.' })
+      return echo(request)
     }
     return echo(request)
   })
@@ -237,7 +239,6 @@ test('a message that mentions no one reaches every Familiar in the room, who rep
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada, bo],
-      lead: ada,
     }),
   )
 
@@ -347,7 +348,6 @@ test('a message from another room, sent while its Familiar is busy, is answered 
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada],
-      lead: ada,
     }),
   )
   await dm.post({ author: AIDAN, text: 'First', requestId: 'm1' })
@@ -370,7 +370,6 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada, bo],
-      lead: ada,
     }),
   )
   const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
@@ -394,10 +393,10 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
 
   const contexts = (await inputs(workspace, ada)).map((input) => input.context)
   expect(contexts).toEqual([
-    '[In #kitchen, which you lead]',
+    '[In #kitchen, where everyone hears it]',
     '[In your DM with Aidan]',
     [
-      '[In #kitchen, which you lead]',
+      '[In #kitchen, where everyone hears it]',
       'Earlier in this room:',
       '[Aidan]: Paint the fence blue.',
       '[Ada]: Re: Paint the fence blue.',
@@ -406,7 +405,7 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
     ].join('\n'),
     // Bo's reply, delivered to Ada; her answer to "Which colour?" then
     // has nothing new to show.
-    '[In #kitchen, which you lead]',
+    '[In #kitchen, where everyone hears it]',
   ])
 })
 
@@ -417,7 +416,6 @@ test("a host's note is shown to each Familiar on its next turn and causes no tur
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada, bo],
-      lead: ada,
     }),
   )
 
@@ -431,7 +429,7 @@ test("a host's note is shown to each Familiar on its next turn and causes no tur
   ).rejects.toBeInstanceOf(MessageError)
 
   // The note caused no turn: the first reply is to the message, and the
-  // lead's only input is the message.
+  // Ada's only input is the message.
   const message = await kitchen.post({
     author: AIDAN,
     text: 'Dinner?',
@@ -442,7 +440,7 @@ test("a host's note is shown to each Familiar on its next turn and causes no tur
   expect(await inputs(workspace, ada)).toEqual([
     expect.objectContaining({
       context: [
-        '[In #kitchen, which you lead]',
+        '[In #kitchen, where everyone hears it]',
         'Said here before:',
         '[Note]: Sam joined.',
       ].join('\n'),
@@ -504,7 +502,7 @@ test("stopping a room stops only its own turns: other rooms' work, in the same F
   })
   const [ada, bo] = [await create('Ada'), await create('Bo')]
   const named = async (name: string) =>
-    room(await workspace.rooms.create({ name, familiars: [ada], lead: ada }))
+    room(await workspace.rooms.create({ name, familiars: [ada] }))
   const [busy, waiting] = [await named('busy'), await named('waiting')]
   const adaDm = await room(await workspace.rooms.dm(ada, AIDAN.id))
   const boDm = await room(await workspace.rooms.dm(bo, AIDAN.id))
@@ -600,7 +598,6 @@ test("the rooms list previews each room's newest entry, counts what each person 
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada],
-      lead: ada,
     }),
   )
   const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
@@ -750,7 +747,6 @@ test('a schedule made in a room runs there when due, and notifies with its reply
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada],
-      lead: ada,
     }),
   )
   await kitchen.post({
@@ -807,7 +803,6 @@ test("a schedule whose room was archived runs in its Familiar's DM with whoever 
   const id = await workspace.rooms.create({
     name: 'kitchen',
     familiars: [ada],
-    lead: ada,
   })
   const kitchen = await room(id)
   await kitchen.post({
@@ -866,7 +861,6 @@ test("a Familiar's reply to another acts for the person whose message started it
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada, bo],
-      lead: ada,
     }),
   )
   await kitchen.post({
@@ -911,7 +905,6 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada, bo],
-      lead: ada,
     }),
   )
   const post = (text: string, mentions?: ReturnType<typeof mention>[]) =>
@@ -931,7 +924,7 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
 
   await workspace.familiars.remove(ada)
 
-  // Gone from the workspace, and from the room it led, which is open now.
+  // Gone from the workspace, and from the room.
   expect(workspace.familiars.get(ada)).toBeUndefined()
   expect((await workspace.familiars.list()).map(({ id }) => id)).toEqual([bo])
   const listed = (await workspace.rooms.list()).find(
@@ -942,7 +935,6 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
     name: 'kitchen',
     familiars: [bo],
   })
-  expect(listed).not.toHaveProperty('lead')
   // Its running and queued turns are stopped; Bo's carries on.
   expect(Object.values(await read(() => kitchen.watchTurns()))).toEqual([
     expect.objectContaining({ familiar: bo }),
@@ -992,7 +984,6 @@ test("filing treats another Familiar's reply delivered to a chat as said by that
     await workspace.rooms.create({
       name: 'kitchen',
       familiars: [ada, bo],
-      lead: ada,
     }),
   )
   await kitchen.post({ author: AIDAN, text: 'Dinner?', requestId: 'm1' })

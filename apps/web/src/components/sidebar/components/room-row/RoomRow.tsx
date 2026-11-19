@@ -8,9 +8,9 @@ import type { RoomRowProps } from './types'
 
 /**
  * A named room, opening it: its faces, talking while they reply, and its
- * latest entry, or who's in it and who leads until there is one.
+ * latest entry, or who's in it until there is one.
  */
-export const RoomRow = ({ room, familiars, className }: RoomRowProps) => (
+export const RoomRow = ({ room, className }: RoomRowProps) => (
   <Item
     size="xs"
     className={cn(
@@ -23,10 +23,6 @@ export const RoomRow = ({ room, familiars, className }: RoomRowProps) => (
     <ItemMedia>
       <RoomAvatar room={room} />
     </ItemMedia>
-    <RowSummary
-      title={room.name}
-      room={room}
-      fallback={setupOf(room, familiars)}
-    />
+    <RowSummary title={room.name} room={room} fallback={setupOf(room)} />
   </Item>
 )

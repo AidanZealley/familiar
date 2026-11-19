@@ -184,7 +184,6 @@ export async function runScenario(
         ? await workspace.rooms.create({
             name,
             familiars: [familiar],
-            lead: familiar,
           })
         : await workspace.rooms.dm(familiar, authorOf(who).id)
       room = (await workspace.rooms.get(id))!

@@ -84,14 +84,9 @@ export const titleOf = (
   familiars: readonly FamiliarSummary[],
 ) => (room.kind === 'dm' ? nameOf(familiars, room.familiar) : room.name)
 
-/** A named room's members and lead in words: `3 Familiars · Atlas leads`. */
-export const setupOf = (
-  room: NamedRoom,
-  familiars: readonly FamiliarSummary[],
-) =>
-  `${room.familiars.length} ${room.familiars.length === 1 ? 'Familiar' : 'Familiars'} · ${
-    room.lead === undefined ? 'open' : `${nameOf(familiars, room.lead)} leads`
-  }`
+/** How many Familiars are in a named room. */
+export const setupOf = (room: NamedRoom) =>
+  `${room.familiars.length} ${room.familiars.length === 1 ? 'Familiar' : 'Familiars'}`
 
 /**
  * Newest activity first, by each item's latest entry; items with none keep

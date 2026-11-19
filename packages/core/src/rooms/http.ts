@@ -29,34 +29,28 @@ async function refusable(c: Context, run: () => Promise<Response>) {
 
 /**
  * A named room's setup, as far as the body gives it; `RoomsApi` checks the
- * rest. A `null` lead, or none, leaves the room open. A change may unarchive
- * it with `archived: false`.
+ * rest. A change may unarchive it with `archived: false`.
  */
 const setup = validator('json', (body, c) => {
-  const { name, familiars, lead, archived } = (body ?? {}) as Record<
-    string,
-    unknown
-  >
+  const { name, familiars, archived } = (body ?? {}) as Record<string, unknown>
   if (
     (name !== undefined && typeof name !== 'string') ||
     (familiars !== undefined &&
       !(Array.isArray(familiars) && familiars.every(Number.isSafeInteger))) ||
-    (lead != null && !Number.isSafeInteger(lead)) ||
     (archived !== undefined && archived !== false)
   ) {
     return c.json(
       {
         error:
-          'name must be text, familiars and lead Familiar IDs, and archived only false',
+          'name must be text, familiars Familiar IDs, and archived only false',
       },
       400,
     )
   }
   // IDs on the wire are plain numbers; `RoomsApi` checks they're Familiars.
-  return body as {
+  return { name, familiars, archived } as {
     name?: string
     familiars?: number[]
-    lead?: number | null
     archived?: false
   }
 })
@@ -80,13 +74,10 @@ export function roomRoutes(rooms: RoomsApi) {
       )
       .post('/', can('rooms.create'), setup, (c) =>
         refusable(c, async () => {
-          const { lead, archived: _, ...setup } = c.req.valid('json')
+          const { archived: _, ...setup } = c.req.valid('json')
           return c.json(
             {
-              id: await rooms.create({
-                ...setup,
-                ...(lead != null && { lead }),
-              } as RoomSetup),
+              id: await rooms.create(setup as RoomSetup),
             },
             201,
           )

@@ -5,7 +5,7 @@ import { liveOf, nameOf, useFamiliars } from '@/lib/workspace'
 import type { RoomAvatarProps } from './types'
 
 /**
- * A room in one 32px square: its lead, then its members in the order they
+ * A room in one 32px square: its members in the order they
  * joined. One fills it, two share it side by side, and with more the first
  * takes the left half, the second the top right, and a count of the rest
  * the bottom right. Faces are cropped rather than shrunk, so pixels stay
@@ -14,9 +14,7 @@ import type { RoomAvatarProps } from './types'
 export const RoomAvatar = ({ room, className }: RoomAvatarProps) => {
   const familiars = useFamiliars()
   const talking = useMemo(() => liveOf(room.turns).running, [room.turns])
-  const ids = room.familiars.toSorted(
-    (a, b) => Number(b === room.lead) - Number(a === room.lead),
-  )
+  const ids = room.familiars
   const members = ids.flatMap((id) => familiars.find((f) => f.id === id) ?? [])
   const [first, second] = members
   const rest = members.length - 2

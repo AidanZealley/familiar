@@ -9,7 +9,16 @@ import { TranscriptItem } from '../transcript-item'
 import type { TranscriptItemsProps } from './types'
 
 /** The transcript's items, with the newest turn anchored while it's in view. */
-export const TranscriptItems = ({ items, dm, lead }: TranscriptItemsProps) => {
+export const TranscriptItems = ({ items, dm, turns }: TranscriptItemsProps) => {
+  const busyFamiliars = useMemo(
+    () =>
+      new Set<number>(
+        turns
+          .filter(({ status }) => status !== 'running')
+          .map(({ familiar }) => familiar),
+      ),
+    [turns],
+  )
   const runs = useMemo(() => replyRuns(items), [items])
   // Each run by its last item, under which a DM shows the time.
   const ends = useMemo(
@@ -49,7 +58,7 @@ export const TranscriptItems = ({ items, dm, lead }: TranscriptItemsProps) => {
       <TranscriptItem
         item={item}
         dm={dm}
-        lead={lead}
+        busy={item.type === 'reply' && busyFamiliars.has(item.familiar)}
         run={runs.get(item.id)}
         end={ends.get(item.id)}
       />

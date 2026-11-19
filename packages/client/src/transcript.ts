@@ -62,8 +62,6 @@ export type TranscriptItem =
       at: number
       /** Whom it addresses, by span of the text. */
       mentions?: Mention[]
-      /** Familiars with this message first in their room queue. */
-      queuedFor?: number[]
     }
   | {
       type: 'reply'
@@ -133,7 +131,7 @@ export type ReplyingFamiliar = {
   questions?: Question[]
   retrying?: Retrying
   /** Current tool activity, for clients that handle tool-specific actions. */
-  tools?: readonly ToolSlot[]
+  tools?: ToolCall[]
 }
 
 export type Transcript = {
@@ -159,35 +157,23 @@ export function toRoomTranscript(
   )
   const retryable = retryableIn(entries, turns)
   const replying: ReplyingFamiliar[] = []
-  const queued = new Map<number, number[]>()
   for (const turn of Object.values(turns)) {
-    if (turn.status === 'running') {
-      const retrying = turn.generation?.retry
-      replying.push({
-        familiar: turn.familiar,
-        ...(turn.questions?.length && { questions: turn.questions }),
-        ...(retrying && { retrying }),
-        ...(turn.tools?.length && { tools: turn.tools }),
-      })
-    } else {
-      const familiars = queued.get(turn.cause)
-      if (familiars) {
-        familiars.push(turn.familiar)
-      } else {
-        queued.set(turn.cause, [turn.familiar])
-      }
+    if (turn.status !== 'running') {
+      continue
     }
+    const retrying = turn.generation?.retry
+    const tools = liveTools(turn.generation?.message, turn.tools)
+    replying.push({
+      familiar: turn.familiar,
+      ...(turn.questions?.length && { questions: turn.questions }),
+      ...(retrying && { retrying }),
+      ...(tools.length && { tools }),
+    })
   }
   const items: TranscriptItem[] = []
   for (const row of rows) {
     if (row.kind === 'entry') {
-      items.push(
-        ...toItems(
-          row.entry,
-          retryable.has(row.entry.id),
-          queued.get(row.entry.id),
-        ),
-      )
+      items.push(...toItems(row.entry, retryable.has(row.entry.id)))
     } else if (row.kind === 'gap') {
       items.push({
         type: 'gap',
@@ -228,11 +214,7 @@ function retryableIn(entries: readonly EntryRecord[], turns: RoomActivity) {
   )
 }
 
-function toItems(
-  entry: EntryRecord,
-  retryable: boolean,
-  queuedFor: number[] | undefined,
-): TranscriptItem[] {
+function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
@@ -246,7 +228,6 @@ function toItems(
           text,
           at,
           ...(mentions && { mentions }),
-          ...(queuedFor && { queuedFor }),
         },
       ]
     }
@@ -353,6 +334,34 @@ function failureText(failure: ReplyData['failure']) {
     default:
       return 'The reply failed.'
   }
+}
+
+/** Match Pi's live tool slots to the current model's call arguments, when available. */
+function liveTools(message?: AssistantMessage, slots?: readonly ToolSlot[]) {
+  const calls = new Map<string, ToolCall>()
+  for (const block of message?.content ?? []) {
+    if (block.type === 'toolCall') {
+      const { id, name, arguments: args } = block
+      calls.set(id, {
+        id,
+        name,
+        arguments: args,
+        status: 'running',
+        output: '',
+      })
+    }
+  }
+  for (const slot of slots ?? []) {
+    calls.set(slot.callId, {
+      id: slot.callId,
+      name: slot.name,
+      arguments: calls.get(slot.callId)?.arguments ?? {},
+      status: slot.status === 'done' ? 'done' : 'running',
+      output: slot.output ?? '',
+      details: slot.details,
+    })
+  }
+  return [...calls.values()]
 }
 
 function toReply(

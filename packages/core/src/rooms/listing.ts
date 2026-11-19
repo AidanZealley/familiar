@@ -81,7 +81,14 @@ function listingsOf(sources: Sources, person: string | undefined) {
     const shown = sources.shown?.[id]
     const read = person === undefined ? undefined : shown?.read[person]
     rooms[id] = {
-      ...room,
+      ...(room.kind === 'room'
+        ? {
+            kind: room.kind,
+            name: room.name,
+            familiars: room.familiars,
+            ...(room.archived && { archived: room.archived }),
+          }
+        : room),
       ...(shown && { last: shown.last }),
       ...(person !== undefined && {
         unread: (shown?.count ?? 0) - (read?.count ?? 0),

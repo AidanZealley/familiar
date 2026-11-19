@@ -91,15 +91,15 @@ Removing a Familiar stops its turns in every room, its chat's queue, its schedul
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `rooms.list(person?)`        | `RoomSummary[]`, each room as a list shows it; with a host author ID, only that person's DMs and every named room, with what they haven't read |
 | `rooms.watch(person?)`       | Watch of the same, by ID                                                                                                                       |
-| `rooms.create(setup)`        | A named room, `{ name, familiars, lead? }`, returning its ID. Throws `RoomError` when refused                                                  |
-| `rooms.update(id, change)`   | Change a named room's name, Familiars or lead; `lead: null` clears the lead, and `archived: false` unarchives the room                         |
+| `rooms.create(setup)`        | A named room, `{ name, familiars }`, returning its ID. Throws `RoomError` when refused                                                         |
+| `rooms.update(id, change)`   | Change a named room's name or membership. `archived: false` unarchives the room                                                                |
 | `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                                                                            |
 | `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                                                                      |
 | `rooms.get(id, person?)`     | A room's API; with a host author ID, undefined for someone else's DM, as the HTTP API uses it                                                  |
 
 A list shows each room as a `RoomListing`: its setup, with `last`, its newest entry worth showing (`{ entry, at, text }` and who it's from by `kind`: a person's `message`, a Familiar's `reply` with its `outcome`, a `handoff` or `reminder`, or a host's `note`), `unread`, how many entries the person hasn't read, and `turns`, each turn in progress as `{ familiar, status }`. Staying quiet adds no entry. A `last` reply with `outcome: 'failed'` records a failure. The room updates `last` and the read markers as entries are posted. It derives `turns` from the Familiars' active runs and inboxes, with at most one status per Familiar. Unarchiving checks the room's setup, so one its last Familiar left needs Familiars in the same change.
 
-The optional `lead` is told it leads the room when it receives an unaddressed message. Each `RoomApi` has:
+Each `RoomApi` has:
 
 | Member                                         | Meaning                                                                                                                                     |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |

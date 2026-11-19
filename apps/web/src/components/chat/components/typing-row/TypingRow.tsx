@@ -24,7 +24,7 @@ export const TypingRow = ({ replying }: TypingRowProps) => {
   return (
     <div
       role="status"
-      className="mx-4 flex items-center gap-3 border border-border/60 bg-background/90 px-3 py-2 backdrop-blur-md"
+      className="mx-4 flex items-center gap-3 bg-background/90 py-2 backdrop-blur-md"
     >
       <span aria-hidden className="flex">
         {members.map((member, index) => (
@@ -32,7 +32,7 @@ export const TypingRow = ({ replying }: TypingRowProps) => {
             key={member.id}
             familiar={member}
             talking
-            className={cn('ring-2 ring-background', index > 0 && '-ml-2')}
+            className={cn(index > 0 && '-ml-2 border-l-2 border-background')}
           />
         ))}
       </span>

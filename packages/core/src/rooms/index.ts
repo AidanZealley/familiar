@@ -162,12 +162,11 @@ export type RoomsApi = {
   /** The rooms as `list` shows them, by RoomId, then every change to that. */
   watch(person?: string): Promise<WatchHandle<RoomsState>>
   /**
-   * A named room, open unless it has a `lead`. Throws a RoomError for a
-   * blank name, no Familiars, or a lead not among them.
+   * A named room. Throws a RoomError for an invalid name or membership.
    */
   create(setup: RoomSetup): Promise<RoomId>
   /**
-   * Changes a named room; what's left out stays, a `null` lead opens it, and
+   * Changes a named room; what's left out stays, and
    * `archived: false` unarchives it, listed and open to messages again.
    * Throws a RoomError as `create`.
    */

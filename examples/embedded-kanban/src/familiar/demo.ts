@@ -47,7 +47,6 @@ export async function startDemo() {
   const room = await workspace.rooms.create({
     name: 'Board',
     familiars: [familiar.id],
-    lead: familiar.id,
   })
   const api = createHttpApi(workspace, {
     // Nobody signs in to this demo, so every request is from its one person.

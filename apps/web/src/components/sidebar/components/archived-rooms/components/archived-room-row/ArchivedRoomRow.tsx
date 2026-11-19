@@ -10,7 +10,7 @@ import type { ArchivedRoomRowProps } from './types'
  * An archived room's row, with Unarchive beside it rather than inside its
  * link: shown on hover with a pointer, always on touch.
  */
-export const ArchivedRoomRow = ({ room, familiars }: ArchivedRoomRowProps) => {
+export const ArchivedRoomRow = ({ room }: ArchivedRoomRowProps) => {
   const unarchive = useMutation({
     mutationFn: () => workspace.rooms.unarchive(room.id),
     onError: (error) =>
@@ -19,7 +19,7 @@ export const ArchivedRoomRow = ({ room, familiars }: ArchivedRoomRowProps) => {
 
   return (
     <div className="group/archived-row relative">
-      <RoomRow room={room} familiars={familiars} className="pr-10" />
+      <RoomRow room={room} className="pr-10" />
       <Button
         variant="ghost"
         size="icon-sm"

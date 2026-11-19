@@ -105,7 +105,6 @@ type TranscriptItem =
       text: string
       at: number
       mentions?: Mention[]
-      queuedFor?: number[]
     }
   | {
       type: 'reply'
@@ -133,7 +132,7 @@ type ReplyingFamiliar = {
   familiar: number
   questions?: Question[]
   retrying?: Retrying
-  tools?: readonly ToolSlot[]
+  tools?: ToolCall[]
 }
 
 // A model request that failed, tried again `at`.
@@ -149,9 +148,9 @@ type ToolCall = {
 }
 ```
 
-Times are milliseconds since the epoch. `transcript.items` contains the room's history and gaps. A reply appears with its tool calls when it lands. A message's `queuedFor` lists the Familiar IDs for which it is the first queued entry in this room.
+Times are milliseconds since the epoch. `transcript.items` contains the room's history and gaps. A reply appears with its tool calls when it lands.
 
-`transcript.replying` lists the Familiars currently working on this room. Pending tool approvals and server questions are in `questions`. `retrying` gives the retry time and the failed model request's error. `tools` holds Pi's current tool slots for clients that handle tool-specific actions. `transcript.busy` covers both replying and queued work.
+`transcript.replying` lists the Familiars currently working on this room. Pending tool approvals and server questions are in `questions`. `retrying` gives the retry time and the failed model request's error. `tools` contains live calls for the current round, with their available arguments and output. `transcript.busy` covers both replying and queued work.
 
 ## Helpers
 

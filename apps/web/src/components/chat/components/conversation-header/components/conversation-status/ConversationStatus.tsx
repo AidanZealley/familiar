@@ -1,8 +1,7 @@
 import { useRoom } from '@familiar-ai/client/react'
-import { LiveStatus } from '@/components/live-status'
 import { HourglassSpinner } from '@/components/hourglass-spinner'
 import { connectionProblems } from '@/lib/connection-problems'
-import { setupOf, useFamiliars } from '@/lib/workspace'
+import { nameOf, setupOf, useFamiliars } from '@/lib/workspace'
 import type { ConversationStatusProps } from './types'
 
 const line = 'flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'
@@ -31,14 +30,23 @@ export const ConversationStatus = ({ room, live }: ConversationStatusProps) => {
       </span>
     )
   }
-  if (!live.running.length && room.turns.length) {
-    return <LiveStatus live={live} />
+  const busy = [...live.elsewhere, ...live.queued]
+  if (busy.length) {
+    const names = new Intl.ListFormat('en').format(
+      busy.map((id) => nameOf(familiars, id)),
+    )
+    return (
+      <span className={line} title={`${names} busy`}>
+        <HourglassSpinner />
+        <span className="truncate">{names} busy</span>
+      </span>
+    )
   }
   if (room.kind === 'room') {
     return (
       <span className={line}>
         <span className="truncate">
-          {room.archived ? 'Archived' : setupOf(room, familiars)}
+          {room.archived ? 'Archived' : setupOf(room)}
         </span>
       </span>
     )

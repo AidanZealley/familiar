@@ -7,8 +7,8 @@ import type { ReplyAttentionProps } from './types'
 
 export const ReplyAttention = ({ replying, dm }: ReplyAttentionProps) =>
   replying.map(({ familiar, questions, retrying, tools }) => {
-    const waiting = tools?.filter(waitsForPerson) ?? []
-    if (!questions?.length && !retrying && !waiting.length) {
+    const visibleTools = dm ? tools : tools?.filter(waitsForPerson)
+    if (!questions?.length && !retrying && !visibleTools?.length) {
       return null
     }
     return (
@@ -21,19 +21,8 @@ export const ReplyAttention = ({ replying, dm }: ReplyAttentionProps) =>
         {questions?.map((question) => (
           <Question key={question.id} question={question} />
         ))}
-        {waiting.map((slot) => (
-          <ToolCall
-            key={slot.callId}
-            familiar={familiar}
-            call={{
-              id: slot.callId,
-              name: slot.name,
-              status: 'running',
-              arguments: {},
-              output: slot.output ?? '',
-              details: slot.details,
-            }}
-          />
+        {visibleTools?.map((call) => (
+          <ToolCall key={call.id} familiar={familiar} call={call} />
         ))}
         {retrying && <Retrying retrying={retrying} />}
       </div>

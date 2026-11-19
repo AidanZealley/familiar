@@ -24,11 +24,9 @@ export type Author = {
 export type MessageData = { author: Author; text: string } & InRoom
 
 /**
- * How a room input addresses this Familiar. An unaddressed message or
- * reply uses 'lead' for the lead and 'open' for everyone else.
+ * How a room input addresses this Familiar.
  */
-export type Addressed =
-  'dm' | 'mention' | 'lead' | 'open' | 'handoff' | 'schedule'
+export type Addressed = 'dm' | 'mention' | 'open' | 'handoff' | 'schedule'
 
 /**
  * Where a Familiar was shown an input: the room it came from, the room entry

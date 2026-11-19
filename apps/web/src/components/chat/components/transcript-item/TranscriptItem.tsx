@@ -20,7 +20,7 @@ import type { TranscriptItemProps } from './types'
 export const TranscriptItem = ({
   item,
   dm,
-  lead,
+  busy,
   run,
   end,
 }: TranscriptItemProps) => {
@@ -63,8 +63,8 @@ export const TranscriptItem = ({
         <FamiliarTurn
           familiar={item.familiar}
           then={item.name}
+          busy={busy}
           dm={dm}
-          lead={item.familiar === lead}
           run={run}
           end={end}
         >

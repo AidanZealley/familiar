@@ -59,7 +59,7 @@ export type Moment = { at: number } & (
 )
 
 export type RoomSeed = (
-  { dm: string } | { name: string; familiars: string[]; lead?: string }
+  { dm: string } | { name: string; familiars: string[] }
 ) & {
   history: Moment[]
   /** Read up to its end; otherwise what came after the person's last message is unread. */
@@ -577,7 +577,7 @@ export function household(now: number): Story {
       {
         name: 'Allotment',
         familiars: ['Moss', 'Juniper', 'Spool'],
-        lead: 'Moss',
+
         read: true,
         history: [
           {

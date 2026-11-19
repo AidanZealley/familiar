@@ -465,7 +465,7 @@ function addressedIn(
       }))
     : others.map((familiar) => ({
         familiar,
-        addressed: (familiar === room.lead ? 'lead' : 'open') as Addressed,
+        addressed: 'open' as Addressed,
       }))
 }
 

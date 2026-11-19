@@ -145,7 +145,6 @@ const why: Record<Addressed, string> = {
   dm: '',
   schedule: '',
   mention: ', where you were mentioned',
-  lead: ', which you lead',
   open: ', where everyone hears it',
   handoff: ', handed to you',
 }
@@ -156,7 +155,7 @@ const why: Record<Addressed, string> = {
  */
 const where = (room: Room, person: string | undefined, addressed: Addressed) =>
   room.kind === 'room'
-    ? `[In #${room.name}${why[addressed]}]`
+    ? `[In #${room.name}${why[addressed] ?? why.open}]`
     : person === undefined
       ? '[In your DM]'
       : `[In your DM with ${person}]`

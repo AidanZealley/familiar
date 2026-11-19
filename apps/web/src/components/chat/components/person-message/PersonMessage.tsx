@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Message, MessageContent } from '@/components/ui/message'
-import { QueuedMark } from './components/queued-mark'
 import { formatTime } from '@/lib/format'
 import type { PersonMessageProps } from './types'
 
@@ -40,15 +39,12 @@ export const PersonMessage = ({ message }: PersonMessageProps) => (
           {withMentions(message)}
         </BubbleContent>
       </Bubble>
-      <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-        <time
-          dateTime={new Date(message.at).toISOString()}
-          className="font-heading text-[0.7rem] text-muted-foreground tabular-nums"
-        >
-          {formatTime(message.at)}
-        </time>
-        {message.queuedFor && <QueuedMark familiars={message.queuedFor} />}
-      </div>
+      <time
+        dateTime={new Date(message.at).toISOString()}
+        className="font-heading text-[0.7rem] text-muted-foreground tabular-nums"
+      >
+        {formatTime(message.at)}
+      </time>
     </MessageContent>
   </Message>
 )

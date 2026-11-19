@@ -143,7 +143,7 @@ export const Chat = ({ room }: ChatProps) => {
                 <TranscriptItems
                   items={transcript?.items ?? []}
                   dm={room.kind === 'dm'}
-                  lead={room.kind === 'room' ? room.lead : undefined}
+                  turns={room.turns}
                 />
                 <ReplyAttention
                   replying={transcript?.replying ?? []}
