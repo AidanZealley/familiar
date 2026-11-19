@@ -13,6 +13,10 @@ import {
   type WatchHandle,
 } from '@earendil-works/pi-durable'
 import {
+  createCodemodeExtension,
+  type CodemodeToolOptions,
+} from '@earendil-works/pi-durable/codemode'
+import {
   createAccount,
   type AccountApi,
   type AccountOptions,
@@ -177,6 +181,8 @@ export type WorkspaceOptions = {
   mcpFetch?: PluginFetch
   /** Optional host factory for owner-configured local MCP commands. */
   mcpStdio?: McpStdioFactory
+  /** Host-provided JavaScript runner. When supplied, chats also get Code Mode. */
+  codemodeSandbox?: CodemodeToolOptions['sandbox']
   /**
    * Roughly how many tokens each request may send, whatever the model's context
    * window; older conversation is compacted into a summary to stay under it.
@@ -458,6 +464,15 @@ export async function openWorkspace(
         schedules.extension,
         rooms.extension,
         questions.extension,
+        ...(options.codemodeSandbox
+          ? [
+              createCodemodeExtension({
+                sandbox: options.codemodeSandbox,
+                inlineBudget: 0,
+                models: false,
+              }),
+            ]
+          : []),
       ].map(plugins.provide),
       ...plugins.extensions,
     ]

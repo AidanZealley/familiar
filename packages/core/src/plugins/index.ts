@@ -34,6 +34,7 @@ export const definePlugin = (plugin: FamiliarPlugin) => plugin
  * isn't listed, so the list can't fall behind.
  */
 export const CORE_TOOLS: ReadonlySet<string> = new Set([
+  'codemode',
   'current_time',
   'recall',
   'read_memory',
