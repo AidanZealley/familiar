@@ -12,6 +12,11 @@ import { entriesOf } from '../pi/entries.ts'
 /** The entry kind people's messages are stored as. */
 export const MESSAGE_KIND = 'familiar.message'
 
+/** A completed background MCP invocation, delivered as its own follow-up. */
+export const MCP_COMPLETION_KIND = 'familiar.mcp-completion'
+
+export type McpCompletionData = InRoom & { author?: Author }
+
 /** Host-owned identity with a display name captured at send time. */
 export type Author = {
   /** Stable host-owned identity, unchanged across devices and renames. */

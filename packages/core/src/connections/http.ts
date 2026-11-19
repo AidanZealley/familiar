@@ -86,29 +86,35 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
       validator('json', (body, c) => {
         const enabled: unknown = body?.enabled
         const askBeforeRunning: unknown = body?.askBeforeRunning
+        const runInBackground: unknown = body?.runInBackground
         if (
-          (enabled === undefined && askBeforeRunning === undefined) ||
+          (enabled === undefined &&
+            askBeforeRunning === undefined &&
+            runInBackground === undefined) ||
+          (runInBackground !== undefined &&
+            typeof runInBackground !== 'boolean') ||
           (enabled !== undefined && typeof enabled !== 'boolean') ||
           (askBeforeRunning !== undefined &&
             typeof askBeforeRunning !== 'boolean')
         ) {
           return c.json(
-            { error: 'Supply enabled or askBeforeRunning as a boolean.' },
+            {
+              error:
+                'Supply enabled, askBeforeRunning or runInBackground as a boolean.',
+            },
             400,
           )
         }
         return {
           ...(enabled !== undefined && { enabled }),
           ...(askBeforeRunning !== undefined && { askBeforeRunning }),
+          ...(runInBackground !== undefined && { runInBackground }),
         } satisfies Partial<ToolSettings>
       }),
       async (c) => {
         const { kind, name, tool } = c.req.valid('param')
-        await connections.updateToolSettings(
-          { kind, name },
-          tool,
-          c.req.valid('json'),
-        )
+        const change = c.req.valid('json')
+        await connections.updateToolSettings({ kind, name }, tool, change)
         return c.body(null, 204)
       },
     )

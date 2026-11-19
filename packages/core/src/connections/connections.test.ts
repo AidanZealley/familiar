@@ -96,6 +96,34 @@ async function setup() {
   return { sent, api, callTool }
 }
 
+test('plugin tool overrides survive a restart only while the plugin is installed', async () => {
+  const host = await testHost({ plugins: [echo] })
+  const connection = { kind: 'plugin', name: echo.name } as const
+  await host
+    .workspace()
+    .connections.updateToolSettings(connection, 'echo_key', {
+      enabled: false,
+      askBeforeRunning: true,
+    })
+
+  await host.reopen()
+  expect(
+    (await host.workspace().connections.list())[0]?.tools[0],
+  ).toMatchObject({
+    enabled: false,
+    askBeforeRunning: true,
+  })
+
+  await host.reopen({ plugins: [] })
+  await host.reopen({ plugins: [echo] })
+  expect(
+    (await host.workspace().connections.list())[0]?.tools[0],
+  ).toMatchObject({
+    enabled: true,
+    askBeforeRunning: false,
+  })
+})
+
 test('authorizedFetch refuses any other request without sending it', async () => {
   const sent: RequestInit[] = []
   const fetch: PluginFetch = async (_input, init) => {
@@ -200,6 +228,7 @@ test("plugin connections expose their tools' names, descriptions and settings", 
           description: 'Calls the echo service.',
           enabled: true,
           askBeforeRunning: false,
+          runInBackground: false,
         },
       ],
     }),
@@ -216,11 +245,13 @@ test('patching tool settings updates only the supplied fields', async () => {
     })
   expect((await patch({ askBeforeRunning: true })).status).toBe(204)
   expect((await patch({ enabled: false })).status).toBe(204)
+  expect((await patch({ runInBackground: true })).status).toBe(204)
 
   const response = await api.request('/connections')
   const [connection] = await response.json()
   expect(connection.tools[0]).toMatchObject({
     enabled: false,
     askBeforeRunning: true,
+    runInBackground: false,
   })
 })

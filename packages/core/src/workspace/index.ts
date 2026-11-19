@@ -27,6 +27,7 @@ import {
   type PluginFetch,
   type SecretStore,
 } from '../connections/index.ts'
+import { prunePluginToolSettings } from '../connections/tool-settings.ts'
 import { conversationExtension } from '../conversation/extension.ts'
 import {
   installConversation,
@@ -503,6 +504,14 @@ export async function openWorkspace(
       await tx.doc(Shown)
       await questions.clear(tx)
     }, context)
+    await harness.commit(
+      (tx) =>
+        prunePluginToolSettings(
+          tx,
+          (options.plugins ?? []).map(({ name }) => name),
+        ),
+      context,
+    )
 
     // What a Familiar can be given: the workspace's now.
     const available = (): Available => ({

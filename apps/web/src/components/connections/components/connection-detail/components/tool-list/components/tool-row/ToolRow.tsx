@@ -61,8 +61,12 @@ export const ToolRow = ({ connection, tool }: ToolRowProps) => {
     filters: { mutationKey, exact: true, status: 'pending' },
     select: (mutation) => mutation.state.variables as Partial<ToolSettings>,
   })
-  const { enabled, askBeforeRunning } = Object.assign(
-    { enabled: tool.enabled, askBeforeRunning: tool.askBeforeRunning },
+  const { enabled, askBeforeRunning, runInBackground } = Object.assign(
+    {
+      enabled: tool.enabled,
+      askBeforeRunning: tool.askBeforeRunning,
+      runInBackground: tool.runInBackground,
+    },
     ...pending,
   )
 
@@ -112,6 +116,18 @@ export const ToolRow = ({ connection, tool }: ToolRowProps) => {
               />
               Ask first
             </label>
+            {connection.kind === 'mcp' && (
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  aria-label={`Run ${tool.name} in background`}
+                  checked={runInBackground}
+                  onCheckedChange={(runInBackground) =>
+                    settings.mutate({ runInBackground })
+                  }
+                />
+                Run in background
+              </label>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
