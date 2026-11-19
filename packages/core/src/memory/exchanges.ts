@@ -9,7 +9,7 @@ import {
   type InRoom,
   type Said,
 } from '../conversation/message.ts'
-import { formatHandoff } from '../rooms/log.ts'
+import { formatHandoff, formatRelay } from '../rooms/log.ts'
 import type { RoomId, RoomRegistry } from '../rooms/rooms.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
 import { entriesOf } from '../pi/entries.ts'
@@ -28,7 +28,11 @@ import { entriesOf } from '../pi/entries.ts'
  */
 const inputText = (said: Exclude<Said, { role: 'assistant' }>) => {
   const text =
-    said.role === 'handoff' ? formatHandoff(said.from, said.text) : said.text
+    said.role === 'handoff'
+      ? formatHandoff(said.from, said.text)
+      : said.role === 'familiar'
+        ? formatRelay(said.from, said.text)
+        : said.text
   return said.context
     ? `${text}\n[Shown from the room with it, said by others]\n${said.context}`
     : text
@@ -102,7 +106,7 @@ export function transcriptReader(familiar: FamiliarId) {
           open = {
             id: exchangeId(entry.id),
             at: said.at,
-            // A handoff's sender is a Familiar, named in its text.
+            // A handoff's or reply's sender is a Familiar, named in its text.
             ...(said.role === 'person'
               ? { author: said.author }
               : said.role === 'scheduled' && said.creator

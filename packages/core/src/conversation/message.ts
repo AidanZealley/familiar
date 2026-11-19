@@ -285,8 +285,10 @@ export type Said =
   | ({ role: 'person'; author: Author } & Input)
   /** A schedule's prompt, set up earlier and submitted when due. */
   | ({ role: 'scheduled'; creator?: Author } & Input)
-  /** Another Familiar's note, handing a room's conversation on. */
+  /** Another Familiar's note, handing a room's conversation on (old entries). */
   | ({ role: 'handoff'; from: string } & Input)
+  /** Another Familiar's reply in a room, by its name then. */
+  | ({ role: 'familiar'; from: string } & Input)
   | { role: 'assistant'; text: string; at: number }
 
 /**
@@ -336,6 +338,18 @@ export function saidBy(entry: EntryRecord): Said | undefined {
       role: 'handoff',
       from: data.name,
       text: data.note,
+      ...shown(data),
+      at,
+    }
+  }
+
+  if (entry.kind === RELAY_KIND) {
+    const data = entry.data as RelayData
+
+    return {
+      role: 'familiar',
+      from: data.name,
+      text: data.text,
       ...shown(data),
       at,
     }

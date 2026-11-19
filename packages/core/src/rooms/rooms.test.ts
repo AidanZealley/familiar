@@ -23,10 +23,12 @@ import {
   familiar as services,
   schema,
 } from '../index.ts'
+import { nextBatch } from '../memory/filing/batch.ts'
 import { Memory } from '../memory/store.ts'
 import { withHarness } from '../memory/testing.ts'
 import type { Notification } from '../notify.ts'
 import { Schedules } from '../schedules/schedules.ts'
+import { People } from '../workspace/people.ts'
 import { fakeClock, ReopenableStorage, timeAt } from '../testing.ts'
 import {
   openWorkspace,
@@ -979,5 +981,36 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
       await harness.snapshot(Schedules, String(ada), context),
     ).toBeUndefined()
     expect(await harness.snapshot(Memory, String(bo), context)).toBeDefined()
+  })
+})
+
+test("filing treats another Familiar's reply delivered to a chat as said by that Familiar, not a person", async () => {
+  const storage = new ReopenableStorage()
+  const { workspace, dismiss, create, room } = await open(echo, { storage })
+  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const kitchen = await room(
+    await workspace.rooms.create({
+      name: 'kitchen',
+      familiars: [ada, bo],
+      lead: ada,
+    }),
+  )
+  await kitchen.post({ author: AIDAN, text: 'Dinner?', requestId: 'm1' })
+  // Bo hears the message, then Ada's reply to it.
+  await expect.poll(async () => (await inputs(workspace, bo)).length).toBe(2)
+  await dismiss()
+
+  const batch = await withHarness(storage, (harness) =>
+    harness.commit(
+      async (tx) => nextBatch(tx, bo, null, await tx.doc(People)),
+      context,
+    ),
+  )
+  expect(batch.messages.map(({ author, text }) => [author.id, text])).toEqual([
+    [AIDAN.id, 'Dinner?'],
+  ])
+  expect(batch.lines).toContainEqual({
+    context: 'Re: Dinner?',
+    label: 'said by Ada, another Familiar',
   })
 })

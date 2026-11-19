@@ -147,9 +147,11 @@ export async function nextBatch(
         label:
           said.role === 'handoff'
             ? `handoff from ${said.from}`
-            : said.role === 'assistant'
-              ? 'its reply'
-              : 'it ran a scheduled job',
+            : said.role === 'familiar'
+              ? `said by ${said.from}, another Familiar`
+              : said.role === 'assistant'
+                ? 'its reply'
+                : 'it ran a scheduled job',
       })
     } else if (messages.length && entry.kind === 'pi.tool-result') {
       // A reply that set up, changed or cancelled a schedule: the schedule
