@@ -1,8 +1,13 @@
 import {
   BACKGROUND_CONTEXT,
+  type Context,
   withAbortSignal,
 } from '@earendil-works/chord/context'
-import type { Extension, Registry } from '@earendil-works/pi-durable'
+import type {
+  Extension,
+  JsonObject,
+  Registry,
+} from '@earendil-works/pi-durable'
 import { createToolSearchTool } from '@earendil-works/pi-durable/tool-search'
 import {
   Client,
@@ -22,6 +27,11 @@ import { idleDeadline, type IdleDeadline } from './deadline.ts'
 import { httpTransport } from './http-transport.ts'
 import type { McpServer, McpStdioFactory, McpStatus } from './servers.ts'
 import { defineTool } from '../tools.ts'
+import {
+  admitBackgroundMcp,
+  type McpInvocation,
+  type createBackgroundMcp,
+} from './background.ts'
 import { toolResult } from './tool-result.ts'
 
 const TIMEOUT_MS = 15_000
@@ -54,6 +64,8 @@ export function openConnection(
     questions?: Pick<QuestionsApi, 'ask'>
     /** The server forgot its session; the owner of connections replaces this one. */
     expired(): void
+    background: ReturnType<typeof createBackgroundMcp>
+    edit<T>(run: () => Promise<T>): Promise<T>
   },
 ) {
   const extensionName = mcpExtensionName(server.name)
@@ -123,13 +135,20 @@ export function openConnection(
     callId: string
     tool: string
     deadline: IdleDeadline
+    background: boolean
   }[] = []
 
   const { questions } = options
   if (questions) {
     client.setRequestHandler('elicitation/create', async (request, ctx) => {
       const call = calls.at(-1)
-      if (!call || request.params.mode === 'url') {
+      if (
+        !call ||
+        request.params.mode === 'url' ||
+        // Questions are presented with a live room turn. Legacy MCP also
+        // cannot identify which invocation asked when calls overlap.
+        calls.some((active) => active.background)
+      ) {
         return { action: 'decline' }
       }
       const waiting = [...calls]
@@ -149,7 +168,10 @@ export function openConnection(
             message: request.params.message,
             ...(form && { form }),
           },
-          withAbortSignal(ctx.mcpReq.signal, BACKGROUND_CONTEXT),
+          withAbortSignal(
+            AbortSignal.any([ctx.mcpReq.signal, call.deadline.signal]),
+            BACKGROUND_CONTEXT,
+          ),
         )
         return answer.action === 'accept'
           ? { action: 'accept', content: answer.content ?? {} }
@@ -162,6 +184,61 @@ export function openConnection(
         waiting.forEach((call) => call.deadline.resume())
       }
     })
+  }
+
+  const invoke = async (
+    input: McpInvocation,
+    context: Context,
+    background: boolean,
+  ) => {
+    signal.throwIfAborted()
+    const deadline = idleDeadline(
+      CALL_IDLE_MS,
+      context.abortSignal
+        ? AbortSignal.any([context.abortSignal, signal])
+        : signal,
+    )
+    const call = {
+      familiar: input.familiar,
+      callId: input.callId,
+      tool: input.tool,
+      background,
+      deadline,
+    }
+    calls.push(call)
+    try {
+      return toolResult(
+        await client.callTool(
+          {
+            name: input.name,
+            arguments: input.args,
+          },
+          {
+            signal: deadline.signal,
+            timeout: CALL_MAX_MS,
+            onprogress: deadline.restart,
+          },
+        ),
+      )
+    } catch (error) {
+      if (deadline.expired) {
+        throw new Error(
+          `${server.name} didn't answer for ${CALL_IDLE_MS / 1000}s.`,
+          { cause: error },
+        )
+      }
+      if (!context.abortSignal?.aborted && !signal.aborted) {
+        if (error instanceof SdkHttpError && error.status === 401) {
+          failed(error)
+        } else if (error instanceof SdkHttpError && error.status === 404) {
+          options.expired()
+        }
+      }
+      throw error
+    } finally {
+      deadline.done()
+      calls.splice(calls.indexOf(call), 1)
+    }
   }
 
   // The server's tools as deferred Pi tools, found through tool_search,
@@ -190,50 +267,26 @@ export function openConnection(
             deferred: true,
             ...(tool.annotations && { annotations: tool.annotations }),
             execute: async (args, api, context) => {
-              const deadline = idleDeadline(CALL_IDLE_MS, context.abortSignal)
-              const call = {
+              const invocation: McpInvocation = {
+                server: server.name,
+                name: tool.name,
+                tool: name,
+                args: args as JsonObject,
                 familiar: api.conversationId,
                 callId: api.callId,
-                tool: name,
-                deadline,
               }
-              calls.push(call)
-              try {
-                return toolResult(
-                  await client.callTool(
-                    {
-                      name: tool.name,
-                      arguments: args as Record<string, unknown>,
-                    },
-                    {
-                      signal: deadline.signal,
-                      timeout: CALL_MAX_MS,
-                      onprogress: deadline.restart,
-                    },
-                  ),
-                )
-              } catch (error) {
-                if (deadline.expired) {
-                  throw new Error(
-                    `${server.name} didn't answer for ${CALL_IDLE_MS / 1000}s.`,
-                    { cause: error },
-                  )
-                }
-                if (!context.abortSignal?.aborted && !signal.aborted) {
-                  if (error instanceof SdkHttpError && error.status === 401) {
-                    failed(error)
-                  } else if (
-                    error instanceof SdkHttpError &&
-                    error.status === 404
-                  ) {
-                    options.expired()
-                  }
-                }
-                throw error
-              } finally {
-                deadline.done()
-                calls.splice(calls.indexOf(call), 1)
-              }
+              const receipt = await admitBackgroundMcp(
+                options.background,
+                invocation,
+                api,
+                context,
+                (commit) =>
+                  options.edit(() => {
+                    signal.throwIfAborted()
+                    return commit()
+                  }),
+              )
+              return receipt ?? invoke(invocation, context, false)
             },
           })
         }),
@@ -320,6 +373,7 @@ export function openConnection(
 
   return {
     server,
+    invoke,
     info: () => structuredClone(info),
     close: async () => {
       closing.abort()

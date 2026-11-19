@@ -2,7 +2,11 @@ import { defineDoc, type Tx } from '@earendil-works/pi-durable'
 import type { Connection } from './secrets.ts'
 
 export type ToolAnnotations = { destructiveHint?: boolean }
-export type ToolSettings = { enabled: boolean; askBeforeRunning: boolean }
+export type ToolSettings = {
+  enabled: boolean
+  askBeforeRunning: boolean
+  runInBackground: boolean
+}
 
 type Overrides = Record<string, Record<string, Partial<ToolSettings>>>
 
@@ -16,6 +20,24 @@ export const ToolSettingsDocument = defineDoc<Overrides>({
 
 const key = (connection: Connection) => `${connection.kind}:${connection.name}`
 
+export async function removeToolSettings(tx: Tx, connection: Connection) {
+  delete (await tx.doc(ToolSettingsDocument))[key(connection)]
+}
+
+export async function pruneToolSettings(
+  tx: Tx,
+  kind: Connection['kind'],
+  names: readonly string[],
+) {
+  const overrides = await tx.doc(ToolSettingsDocument)
+  const installed = new Set(names.map((name) => key({ kind, name })))
+  for (const connection of Object.keys(overrides)) {
+    if (connection.startsWith(`${kind}:`) && !installed.has(connection)) {
+      delete overrides[connection]
+    }
+  }
+}
+
 export function toolSettingsOf(
   overrides: Readonly<Overrides> | null | undefined,
   connection: Connection,
@@ -26,6 +48,8 @@ export function toolSettingsOf(
   const chosen = tools && Object.hasOwn(tools, tool) ? tools[tool] : undefined
   return {
     enabled: chosen?.enabled ?? true,
+    runInBackground:
+      connection.kind === 'mcp' && chosen?.runInBackground === true,
     askBeforeRunning:
       chosen?.askBeforeRunning ?? annotations?.destructiveHint === true,
   }

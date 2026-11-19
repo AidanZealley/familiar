@@ -40,7 +40,7 @@ export function secretValue(value: string) {
  */
 export function allConnections(
   plugins: ConnectionsSource,
-  mcp: ConnectionsSource,
+  mcp: ConnectionsSource & Pick<ConnectionsApi, 'updateToolSettings'>,
   store: SecretStore | undefined,
   harness: Harness,
 ): ConnectionsApi {
@@ -59,7 +59,15 @@ export function allConnections(
       }))
     },
     updateToolSettings: async (connection, tool, change) => {
-      const exists = (await owner(connection).list()).some(
+      if (connection.kind === 'mcp') {
+        return mcp.updateToolSettings(connection, tool, change)
+      }
+      if (change.runInBackground !== undefined) {
+        throw new ConnectionError(
+          'Background execution is available for MCP tools only.',
+        )
+      }
+      const exists = (await plugins.list()).some(
         (info) =>
           info.kind === connection.kind && info.name === connection.name,
       )

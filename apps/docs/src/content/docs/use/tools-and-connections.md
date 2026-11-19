@@ -40,3 +40,9 @@ An MCP server can also ask you something itself while a tool runs, such as "Star
 Use **Enabled** to turn a tool off temporarily. It keeps its **Ask first** setting while disabled. For a tool whose server already asks for approval, you can uncheck **Ask first** to rely on the server's question.
 
 To give Familiar tools of your own, written in TypeScript, see [Extend your Familiar](/familiar/use/extend/).
+
+### Running an MCP tool in the background
+
+In **Connections**, open an MCP server, expand a tool, and check **Run in background** for calls that can report back later. For example, a printer watch can keep waiting while its Familiar replies elsewhere, then report the result in the original room. **Ask first** still applies before the call starts. Keep tools foreground if the current reply needs their result. While a background call is active, Familiar declines server questions on that connection because it cannot reliably match them to a room turn.
+
+A restart can interrupt an ordinary MCP request. Familiar reports the interruption without sending the request again. Removing the server stops its local background jobs and forgets its tool settings. The remote server may have already acted.

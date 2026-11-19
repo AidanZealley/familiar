@@ -15,11 +15,13 @@ import type { PluginFetch, ToolAnnotations } from './connections/index.ts'
 import {
   HANDOFF_KIND,
   MESSAGE_KIND,
+  MCP_COMPLETION_KIND,
   RELAY_KIND,
   SCHEDULED_KIND,
   type Author,
   type InRoom,
   type MessageData,
+  type McpCompletionData,
   type ScheduledData,
 } from './conversation/message.ts'
 import type { Notification } from './notify.ts'
@@ -136,13 +138,19 @@ export function withServices<P extends object, D extends JsonValue>(
  * a scheduled run, or whoever started a chain of Familiars' replies.
  * Undefined for any other input, such as memory filing.
  */
-async function toolAuthor(tx: Tx, taskId: TaskId): Promise<Author | undefined> {
+export async function toolAuthor(
+  tx: Tx,
+  taskId: TaskId,
+): Promise<Author | undefined> {
   const input = await callInput(tx, taskId)
   // Another Familiar's reply, or an old handoff, acts for whoever started
   // its chain, as that Familiar did: found from the room's record, never
   // from a model.
   if (input?.kind === RELAY_KIND || input?.kind === HANDOFF_KIND) {
     return startedBy(tx, (input.data as InRoom).entry)
+  }
+  if (input?.kind === MCP_COMPLETION_KIND) {
+    return (input.data as McpCompletionData).author
   }
   return input?.kind === MESSAGE_KIND
     ? (input.data as MessageData).author
@@ -199,6 +207,7 @@ export async function callInput(
   })) {
     if (
       entry.kind === MESSAGE_KIND ||
+      entry.kind === MCP_COMPLETION_KIND ||
       entry.kind === SCHEDULED_KIND ||
       entry.kind === RELAY_KIND ||
       entry.kind === HANDOFF_KIND

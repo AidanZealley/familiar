@@ -61,6 +61,32 @@ A tool result has two audiences. `output` is what the model reads. `details` is 
 
 The owner can add MCP servers at runtime through `workspace.mcp` or the `/mcp` routes. Every Familiar in the workspace shares them. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available: they're saved but show as failed. The host owns MCP transport and destination policy. Familiar checks a server's shape, then connects through `mcpFetch` or `mcpStdio`, so restrict protocols, destinations or commands there.
 
+### Run an MCP tool in the background from code
+
+For a workspace configured with `mcpFetch`, add the server, give a Familiar access to it, and set the override using the tool name from the server's listing.
+
+```ts
+await workspace.mcp.add({
+  name: 'topsail',
+  transport: {
+    type: 'http',
+    url: 'http://topsail.local:8000/mcp', // Use your server's URL.
+    auth: { type: 'none' },
+  },
+})
+
+const spool = await workspace.familiars.create({ name: 'Spool' })
+await spool.setCapabilities({ mcp: ['topsail'] })
+
+await workspace.connections.updateToolSettings(
+  { kind: 'mcp', name: 'topsail' },
+  'watch_print',
+  { runInBackground: true },
+)
+```
+
+When Spool calls `watch_print` directly, Familiar can reply while the request runs and then report the outcome in the original room. Any configured **Ask first** approval still happens before dispatch. The MCP server can expose an ordinary tool.
+
 ## Data that belongs to your host
 
 Keep your app's own records in your app. Familiar's storage holds rooms, each Familiar's working context, memory and schedules, and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check the call's author for permission there.

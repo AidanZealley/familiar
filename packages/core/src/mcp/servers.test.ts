@@ -221,6 +221,149 @@ async function search(host: TestHost, query: string) {
   return lastResult(requests[1])
 }
 
+test('an opted-in MCP call frees the Familiar and follows up in its original room', async () => {
+  const server = mcpServer()
+  const host = await connected(server)
+  const workspace = host.workspace()
+  const workshopId = await workspace.rooms.create({
+    name: 'Workshop',
+    familiars: [host.familiar().id],
+  })
+  const workshop = (await workspace.rooms.get(workshopId))!
+  const held = deferred()
+  onTestFinished(held.resolve)
+  server.state.call = async () => {
+    await held.promise
+    return { content: [{ type: 'text', text: 'Layer 12 reached.' }] }
+  }
+  await workspace.connections.updateToolSettings(connection, 'echo', {
+    runInBackground: true,
+    askBeforeRunning: true,
+  })
+  const watch = await workshop.watchTurns()
+  watch.start(async () => {})
+  onTestFinished(() => void watch.stop())
+
+  host.faux.setResponses([
+    searchFor('echo'),
+    callEcho(),
+    (request) => {
+      expect(JSON.stringify(lastResult(request))).toContain('accepted as job')
+      return fauxAssistantMessage('I will report back.')
+    },
+    fauxAssistantMessage('I can answer while it runs.'),
+    (request) => {
+      expect(JSON.stringify(request.messages.at(-1))).toContain(
+        'Layer 12 reached.',
+      )
+      return fauxAssistantMessage('The print reached layer 12.')
+    },
+  ])
+  const original = await workshop.post({
+    author: { id: 'aidan', name: 'Aidan' },
+    requestId: 'watch',
+    text: 'Watch the print.',
+  })
+  const asked = () =>
+    Object.values(watch.value).flatMap((turn) =>
+      'questions' in turn ? (turn.questions ?? []) : [],
+    )[0]
+  await expect
+    .poll(asked)
+    .toMatchObject({ kind: 'tool', tool: 'mcp__test__echo' })
+  expect(server.state.calls).toBe(0)
+  const question = asked()!
+  await workspace.questions.answer(question.familiar, question.id, {
+    action: 'accept',
+  })
+  await expect.poll(() => server.state.calls).toBe(1)
+  await replyTo(workshop, original)
+  await host.say('Can you still answer me?')
+  held.resolve()
+
+  await expect
+    .poll(async () => JSON.stringify(await workshop.history({}, 20)))
+    .toContain('The print reached layer 12.')
+  expect(JSON.stringify(await host.dm().history({}, 20))).not.toContain(
+    'The print reached layer 12.',
+  )
+  expect(server.state.calls).toBe(1)
+})
+
+test('restart reports an interrupted background MCP call without dispatching it again', async () => {
+  const server = mcpServer()
+  const host = await connected(server)
+  const held = deferred()
+  server.state.call = async () => {
+    await held.promise
+    return { content: [{ type: 'text', text: 'The old call finished.' }] }
+  }
+  await host.workspace().connections.updateToolSettings(connection, 'echo', {
+    runInBackground: true,
+  })
+  host.faux.setResponses([
+    searchFor('echo'),
+    callEcho(),
+    fauxAssistantMessage('Started.'),
+  ])
+  await host.say('Watch the print.')
+  await expect.poll(() => server.state.calls).toBe(1)
+
+  host.faux.setResponses([
+    (request) => {
+      expect(JSON.stringify(request.messages.at(-1))).toContain(
+        'interrupted and may have run',
+      )
+      return fauxAssistantMessage('The watch was interrupted.')
+    },
+  ])
+  await host.reopen({}, async () => held.resolve())
+
+  await expect
+    .poll(async () => JSON.stringify(await host.dm().history({}, 20)))
+    .toContain('The watch was interrupted.')
+  expect(server.state.calls).toBe(1)
+})
+
+test('removing an MCP server stops its background jobs and forgets their settings', async () => {
+  const server = mcpServer()
+  const host = await connected(server)
+  const workspace = host.workspace()
+  const held = deferred()
+  onTestFinished(held.resolve)
+  server.state.call = async () => {
+    await held.promise
+    return { content: [{ type: 'text', text: 'The removed call finished.' }] }
+  }
+  await workspace.connections.updateToolSettings(connection, 'echo', {
+    runInBackground: true,
+  })
+  host.faux.setResponses([
+    searchFor('echo'),
+    callEcho(),
+    fauxAssistantMessage('Started.'),
+  ])
+  await host.say('Watch the print.')
+  await expect.poll(() => server.state.calls).toBe(1)
+
+  await workspace.mcp.remove(home.name)
+  await workspace.mcp.add(home)
+  await workspace.connections.setSecret(connection, 'token', server.state.token)
+  await expect.poll(() => status(workspace)).toBe('connected')
+  expect((await info(workspace)).tools[0]?.runInBackground).toBe(false)
+  held.resolve()
+  host.faux.setResponses([
+    (request) => {
+      expect(JSON.stringify(request.messages)).not.toContain(
+        'The removed call finished.',
+      )
+      return fauxAssistantMessage('The new connection is ready.')
+    },
+  ])
+  await host.say('Are you there?')
+  expect(server.state.calls).toBe(1)
+})
+
 test.each([
   { name: 'Not a name', transport: home.transport },
   { name: 'home', transport: { type: 'ftp', url: 'ftp://home.local/' } },
@@ -280,6 +423,7 @@ test('a connection waits for its token, persists, follows tool changes and is cl
       description: 'Echo a nested message.',
       enabled: true,
       askBeforeRunning: false,
+      runInBackground: false,
     },
   ])
   expect(
@@ -320,8 +464,13 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
 
-  // Removal takes its tools, the last server's tool search and its token
-  // with it, for good.
+  await familiar.connections.updateToolSettings(connection, 'add', {
+    enabled: false,
+    askBeforeRunning: true,
+  })
+
+  // Removal takes its tools, the last server's tool search, token and
+  // tool overrides with it.
   await familiar.mcp.remove('test')
   expect(await search(host, 'add')).toMatchObject({
     content: [
@@ -332,6 +481,15 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
   expect(await secrets.get(connection, 'token')).toBeUndefined()
+  await familiar.mcp.add(home)
+  await familiar.connections.setSecret(connection, 'token', server.state.token)
+  await expect.poll(() => status(familiar)).toBe('connected')
+  expect((await info(familiar)).tools[0]).toMatchObject({
+    name: 'add',
+    enabled: true,
+    askBeforeRunning: false,
+  })
+  await familiar.mcp.remove('test')
   familiar = (await host.reopen()).workspace
   expect(await familiar.connections.list()).toEqual([])
 })

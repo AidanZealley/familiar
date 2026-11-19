@@ -7,7 +7,11 @@ import {
   type EntryId,
   type EntryRecord,
 } from '@earendil-works/pi-durable'
-import type { InRoom } from '../conversation/message.ts'
+import {
+  MCP_COMPLETION_KIND,
+  type InRoom,
+  type McpCompletionData,
+} from '../conversation/message.ts'
 import { entriesOf } from '../pi/entries.ts'
 import { Familiars, familiarIn } from '../workspace/familiars.ts'
 import {
@@ -17,7 +21,7 @@ import {
   replyText,
   type ReplyData,
 } from './log.ts'
-import { membersOf, Rooms } from './rooms.ts'
+import { membersOf, Rooms, seenBy } from './rooms.ts'
 import type { TurnTask } from './turn.ts'
 
 /**
@@ -58,6 +62,7 @@ export function createAnswer(turn: TurnTask) {
           // The run's one input, and what it said and did. A boundary can
           // place writes before the input.
           let input: InRoom | undefined
+          let completion: McpCompletionData | undefined
           const messages: Message[] = []
           for await (const entry of entriesOf(tx, {
             conversationId: chat,
@@ -67,6 +72,9 @@ export function createAnswer(turn: TurnTask) {
           })) {
             if (!input && isInput(entry)) {
               input = (entry.data ?? {}) as InRoom
+              if (entry.kind === MCP_COMPLETION_KIND) {
+                completion = input as McpCompletionData
+              }
             } else if (
               entry.kind === 'pi.assistant' ||
               entry.kind === 'pi.tool-result'
@@ -81,7 +89,11 @@ export function createAnswer(turn: TurnTask) {
             familiar === undefined ||
             familiar !== chat ||
             !record ||
-            cause === undefined
+            cause === undefined ||
+            (completion &&
+              ((record.kind === 'room' && record.archived) ||
+                !membersOf(record).includes(familiar) ||
+                !seenBy(record, completion.author?.id)))
           ) {
             return done
           }
