@@ -1,4 +1,3 @@
-import { LoaderIcon } from 'lucide-react'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import {
   Message,
@@ -59,13 +58,6 @@ export const TranscriptItem = ({
             )}
           </MessageContent>
         </Message>
-      )
-    case 'waiting':
-      return (
-        <LoaderIcon
-          aria-label="Familiar is replying"
-          className="size-4 animate-spin text-muted-foreground"
-        />
       )
     default:
       return null

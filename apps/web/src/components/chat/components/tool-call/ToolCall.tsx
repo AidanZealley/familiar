@@ -5,14 +5,7 @@ import { handBack, useComputerControl } from '@/lib/computer-control'
 import { Activity } from '../activity'
 import { toolLabel } from './label'
 import type { ToolCallProps } from './types'
-
-/** A computer call waiting for the person to hand the computer back. */
-const waitsForPerson = ({ status, details }: ToolCallProps['call']) =>
-  status === 'running' &&
-  typeof details === 'object' &&
-  details !== null &&
-  'waiting' in details &&
-  details.waiting === true
+import { waitsForPerson } from './waits-for-person'
 
 export const ToolCall = ({ call, familiar }: ToolCallProps) => {
   const id = useFamiliars().find((item) => item.id === familiar)?.id

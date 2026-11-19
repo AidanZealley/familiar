@@ -15,6 +15,7 @@ export type {
   TranscriptItem,
   TranscriptGap,
   Retrying,
+  ReplyingFamiliar,
 } from './transcript.ts'
 export { answerFor, shapeOf, type QuestionShape } from './questions.ts'
 export type {

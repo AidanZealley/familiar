@@ -125,13 +125,19 @@ const conversation = (...ids: number[]) => ({
 const itemIds = (store: RoomStore) =>
   store.getState().transcript?.items.map((item) => item.id)
 
-test('transcript arrives atomically with views and operations and retains streamed activity', async () => {
+test('transcript arrives atomically with views and operations and updates queue marks as activity changes', async () => {
   const server = testServer()
   const store = open('/api', { fetch: server.fetch })
   expect(store.getState().transcript).toBeUndefined()
   await expect.poll(() => store.getState().connection).toBe('open')
-  const observed: (string[] | undefined)[] = []
-  store.subscribe(() => observed.push(itemIds(store)))
+  const observed: (number[] | undefined)[][] = []
+  store.subscribe(({ transcript }) =>
+    observed.push(
+      transcript?.items.map((item) =>
+        item.type === 'message' ? item.queuedFor : undefined,
+      ) ?? [],
+    ),
+  )
   server.send(frame('view', conversation(1)))
   await expect.poll(() => itemIds(store)).toEqual(['entry:1'])
   const initial = store.getState().transcript
@@ -143,11 +149,11 @@ test('transcript arrives atomically with views and operations and retains stream
     }),
   )
   await expect.poll(() => store.getState().transcript?.busy).toBe(true)
-  expect(itemIds(store)).toEqual(['entry:1', 'turn:1'])
+  expect(itemIds(store)).toEqual(['entry:1'])
   expect(store.getState().transcript).not.toBe(initial)
   server.send(frame('document.ops', { name: 'turns', ops: [['d', ['1']]] }))
   await expect.poll(() => store.getState().transcript?.busy).toBe(false)
-  expect(observed).toEqual([['entry:1'], ['entry:1', 'turn:1'], ['entry:1']])
+  expect(observed).toEqual([[undefined], [[1]], [undefined]])
 })
 
 test('transcript reference survives unrelated updates and a failed load, and loading earlier reaches the start', async () => {

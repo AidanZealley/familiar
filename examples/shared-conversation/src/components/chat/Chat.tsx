@@ -55,6 +55,11 @@ export const Chat = ({ viewer }: ChatProps) => {
                 />
               </MessageScrollerItem>
             ))}
+            {!!transcript?.replying.length && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Familiar is replying…
+              </p>
+            )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
         <MessageScrollerButton />

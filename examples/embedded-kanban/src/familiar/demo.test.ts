@@ -25,7 +25,6 @@ const ask = async ({ store }: Demo, text: string) => {
     expect(transcript?.busy).toBe(false)
     expect(transcript?.items.at(-1)).toMatchObject({
       type: 'reply',
-      streaming: false,
       toolCalls: [],
     })
   })

@@ -15,7 +15,6 @@ const reply = (
   text: '',
   thinking: '',
   toolCalls: [],
-  streaming: false,
   stopped: false,
   ...more,
 })
@@ -38,14 +37,12 @@ describe('replyRuns', () => {
       reply('other', 2, 40),
       message('m2'),
       reply('next', 1, 50),
-      { type: 'waiting', id: 'w', familiar: 1, status: 'running' },
     ])
     expect([...runs]).toEqual([
-      ['tools', { last: 'answer', live: false, time: 20 }],
-      ['quiet', { last: 'quiet', live: false, time: 30 }],
-      ['other', { last: 'other', live: false, time: 40 }],
-      // Its turn is still going, so it has no time yet.
-      ['next', { last: 'w', live: true }],
+      ['tools', { last: 'answer', time: 20 }],
+      ['quiet', { last: 'quiet', time: 30 }],
+      ['other', { last: 'other', time: 40 }],
+      ['next', { last: 'next', time: 50 }],
     ])
   })
 })

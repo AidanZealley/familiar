@@ -9,7 +9,6 @@ const line = 'flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'
 /**
  * The most pressing of a room's turns, on one line: who's answering, else
  * queued, else busy in another room. Nothing while no one is working on it.
- * Answering shimmers like the chat's Thinking… marker, rather than spinning.
  */
 export const LiveStatus = ({ live, className }: LiveStatusProps) => {
   const familiars = useFamiliars()

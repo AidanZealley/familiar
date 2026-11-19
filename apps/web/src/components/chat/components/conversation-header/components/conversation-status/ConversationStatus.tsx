@@ -9,7 +9,7 @@ const line = 'flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'
 
 /**
  * Under the room's name, the most pressing of: the room's own connection,
- * who's answering, queued or busy elsewhere, then a named room's setup.
+ * who's queued or busy elsewhere, then a named room's setup.
  * A DM says nothing more while idle: its composer names the model.
  */
 export const ConversationStatus = ({ room, live }: ConversationStatusProps) => {
@@ -31,7 +31,7 @@ export const ConversationStatus = ({ room, live }: ConversationStatusProps) => {
       </span>
     )
   }
-  if (room.turns.length) {
+  if (!live.running.length && room.turns.length) {
     return <LiveStatus live={live} />
   }
   if (room.kind === 'room') {

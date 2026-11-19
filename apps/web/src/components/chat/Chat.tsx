@@ -19,8 +19,10 @@ import { ComputerPane } from './components/computer-pane'
 import { ComputerPopout } from './components/computer-popout'
 import { ConversationHeader } from './components/conversation-header'
 import { OlderMessages } from './components/older-messages'
+import { ReplyAttention } from './components/reply-attention'
 import { SignIn } from './components/sign-in'
 import { TranscriptItems } from './components/transcript-items'
+import { TypingRow } from './components/typing-row'
 import { useReadWhileOpen } from './read'
 import type { ChatProps } from './types'
 
@@ -125,7 +127,7 @@ export const Chat = ({ room }: ChatProps) => {
           <ConversationHeader room={room} />
           <MessageScroller className="flex-1">
             {/* The shared scroller hides its thumb while it scrolls itself, which
-              flashes on every streamed update, so keep one colour throughout. */}
+              flashes while following the conversation, so keep one colour throughout. */}
             <MessageScrollerViewport className="flex scroll-pt-(--header-overlap,var(--chrome)) scrollbar-thumb-border flex-col mask-none! [-webkit-mask-image:none]! data-autoscrolling:scrollbar-thumb-border">
               {/* Pinned to the top as the transcript scrolls, and under the
                   composer, which a long draft grows into it. */}
@@ -136,7 +138,6 @@ export const Chat = ({ room }: ChatProps) => {
               )}
               <MessageScrollerContent
                 ref={measureScrollMargin}
-                aria-busy={transcript?.busy}
                 className="mx-auto min-h-0 w-full max-w-(--page-width) shrink-0 grow gap-5 p-4 pt-[calc(var(--header-overlap,var(--chrome))+1rem)]"
               >
                 <TranscriptItems
@@ -144,11 +145,16 @@ export const Chat = ({ room }: ChatProps) => {
                   dm={room.kind === 'dm'}
                   lead={room.kind === 'room' ? room.lead : undefined}
                 />
+                <ReplyAttention
+                  replying={transcript?.replying ?? []}
+                  dm={room.kind === 'dm'}
+                />
               </MessageScrollerContent>
               {/* Lined up with the conversation. */}
               <div className="sticky bottom-0 z-30 mx-auto w-full max-w-(--page-width)">
                 <MessageScrollerButton className="data-[direction=end]:bottom-[calc(100%+1rem)]" />
                 <SignIn />
+                <TypingRow replying={transcript?.replying ?? []} />
                 <Composer room={room} busy={transcript?.busy ?? false} />
               </div>
             </MessageScrollerViewport>

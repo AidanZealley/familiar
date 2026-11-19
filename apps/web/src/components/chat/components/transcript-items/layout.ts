@@ -6,15 +6,13 @@ import { formatRelativeDay } from '../../../../lib/format'
 export type RunHead = {
   /** When the run's last reply was written, once the run has finished. */
   time?: number
-  /** Its Familiar is answering now, so its portrait talks. */
-  live: boolean
   /** The run's last item, under which a DM shows the time. */
   last: string
 }
 
-type Turn = Extract<TranscriptItem, { type: 'reply' | 'waiting' }>
+type Turn = Extract<TranscriptItem, { type: 'reply' }>
 
-const quiet = (item: Turn) => item.type === 'reply' && item.quiet === true
+const quiet = (item: Turn) => item.quiet === true
 
 /**
  * Each run of one Familiar's turn items in a row, by its first item's ID. A
@@ -30,17 +28,13 @@ export const replyRuns = (items: readonly TranscriptItem[]) => {
     if (head && last) {
       heads.set(head.id, {
         last: last.id,
-        live:
-          last.type === 'waiting' ? last.status === 'running' : last.streaming,
-        ...(last.type === 'reply' &&
-          !last.streaming &&
-          last.at !== undefined && { time: last.at }),
+        ...(last.at !== undefined && { time: last.at }),
       })
     }
     head = last = undefined
   }
   for (const item of items) {
-    if (item.type !== 'reply' && item.type !== 'waiting') {
+    if (item.type !== 'reply') {
       close()
     } else if (
       last &&
@@ -60,7 +54,7 @@ export const replyRuns = (items: readonly TranscriptItem[]) => {
 const timeOf = (item: TranscriptItem) =>
   item.type === 'scheduled'
     ? item.due
-    : item.type === 'waiting' || item.type === 'gap'
+    : item.type === 'gap'
       ? undefined
       : item.at
 

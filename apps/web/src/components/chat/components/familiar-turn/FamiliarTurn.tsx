@@ -46,7 +46,6 @@ export const FamiliarTurn = ({
         <FamiliarLink id={familiar} then={then} className="relative self-start">
           <PixelAvatar
             familiar={summary ?? { id: asId(familiar), name: then ?? '?' }}
-            talking={run.live}
           />
           {lead && <LeadBadge />}
         </FamiliarLink>

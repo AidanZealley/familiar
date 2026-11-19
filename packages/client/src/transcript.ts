@@ -25,7 +25,6 @@ import type {
   RoomMessageData,
   RoomScheduledData,
   SCHEDULED_KIND as CoreScheduledKind,
-  TurnActivity,
 } from '@familiar-ai/core/http'
 
 // Core's entry kinds, typed against it without loading its runtime.
@@ -63,27 +62,21 @@ export type TranscriptItem =
       at: number
       /** Whom it addresses, by span of the text. */
       mentions?: Mention[]
+      /** Familiars with this message first in their room queue. */
+      queuedFor?: number[]
     }
   | {
       type: 'reply'
       id: string
       /** The Familiar replying. */
       familiar: number
-      /** Its name when it replied; absent while it's still replying. */
+      /** Its name when it replied, if recorded. */
       name?: string
       text: string
       thinking: string
       toolCalls: ToolCall[]
-      /**
-       * What its Familiar is waiting for the person to answer before it goes
-       * on, oldest first: whether to run a call, or a server's question.
-       * Only while it's still replying.
-       */
-      questions?: Question[]
-      /** When it was generated, in ms since the epoch; absent before it starts. */
+      /** When it was written, in ms since the epoch. */
       at?: number
-      /** Still being generated. */
-      streaming: boolean
       /** Someone stopped it before it finished. */
       stopped: boolean
       /**
@@ -93,8 +86,6 @@ export type TranscriptItem =
       quiet?: true
       /** Why it failed, or the model's error. */
       error?: string
-      /** Still being generated, and waiting to try the model again. */
-      retrying?: Retrying
       /**
        * A failed reply's entry ID, which a room's `retry` tries again: on
        * its last item only, while it's its Familiar's newest reply to what
@@ -132,24 +123,22 @@ export type TranscriptItem =
       /** The time it was scheduled for, in ms since the epoch. */
       due: number
     }
-  /**
-   * A Familiar has a turn here with nothing to show yet: `queued` behind
-   * work in this room, `elsewhere` while it works in another room, or
-   * `running` before its reply starts.
-   */
-  | {
-      type: 'waiting'
-      id: string
-      familiar: number
-      status: TurnActivity['status']
-      retrying?: Retrying
-    }
 
 /** A model request that failed and is tried again `at`, in ms since the epoch. */
 export type Retrying = { at: number; error: string }
 
+export type ReplyingFamiliar = {
+  familiar: number
+  /** Pending tool approvals and server questions, oldest first. */
+  questions?: Question[]
+  retrying?: Retrying
+  /** Current tool activity, for clients that handle tool-specific actions. */
+  tools?: readonly ToolSlot[]
+}
+
 export type Transcript = {
   items: TranscriptItem[]
+  replying: ReplyingFamiliar[]
   /** A Familiar has a turn in progress here. */
   busy: boolean
   /** Entries exist before the first item, Pi's `earlier` marker. */
@@ -157,9 +146,8 @@ export type Transcript = {
 }
 
 /**
- * What a chat UI shows for a room: its assembled log, then each turn in
- * progress. Pi's TranscriptView supplies loaded history and missing ranges.
- * Pure, so any client can reuse it.
+ * What a chat UI shows for a room: its assembled log and live activity.
+ * Pi's TranscriptView supplies loaded history and missing ranges.
  */
 export function toRoomTranscript(
   view: TranscriptView,
@@ -170,10 +158,36 @@ export function toRoomTranscript(
     row.kind === 'entry' ? [row.entry] : [],
   )
   const retryable = retryableIn(entries, turns)
+  const replying: ReplyingFamiliar[] = []
+  const queued = new Map<number, number[]>()
+  for (const turn of Object.values(turns)) {
+    if (turn.status === 'running') {
+      const retrying = turn.generation?.retry
+      replying.push({
+        familiar: turn.familiar,
+        ...(turn.questions?.length && { questions: turn.questions }),
+        ...(retrying && { retrying }),
+        ...(turn.tools?.length && { tools: turn.tools }),
+      })
+    } else {
+      const familiars = queued.get(turn.cause)
+      if (familiars) {
+        familiars.push(turn.familiar)
+      } else {
+        queued.set(turn.cause, [turn.familiar])
+      }
+    }
+  }
   const items: TranscriptItem[] = []
   for (const row of rows) {
     if (row.kind === 'entry') {
-      items.push(...toItems(row.entry, retryable.has(row.entry.id)))
+      items.push(
+        ...toItems(
+          row.entry,
+          retryable.has(row.entry.id),
+          queued.get(row.entry.id),
+        ),
+      )
     } else if (row.kind === 'gap') {
       items.push({
         type: 'gap',
@@ -182,11 +196,9 @@ export function toRoomTranscript(
       })
     }
   }
-  for (const turn of Object.values(turns)) {
-    items.push(toActive(turn))
-  }
   return {
     items,
+    replying,
     busy: Object.keys(turns).length > 0,
     earlier: rows[0]?.kind === 'earlier',
   }
@@ -216,7 +228,11 @@ function retryableIn(entries: readonly EntryRecord[], turns: RoomActivity) {
   )
 }
 
-function toItems(entry: EntryRecord, retryable = false): TranscriptItem[] {
+function toItems(
+  entry: EntryRecord,
+  retryable: boolean,
+  queuedFor: number[] | undefined,
+): TranscriptItem[] {
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
@@ -230,6 +246,7 @@ function toItems(entry: EntryRecord, retryable = false): TranscriptItem[] {
           text,
           at,
           ...(mentions && { mentions }),
+          ...(queuedFor && { queuedFor }),
         },
       ]
     }
@@ -309,7 +326,6 @@ function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
       thinking: '',
       toolCalls: [],
       at: reply.at,
-      streaming: false,
       stopped: reply.outcome === 'stopped',
       ...(error && { error }),
     },
@@ -336,62 +352,6 @@ function failureText(failure: ReplyData['failure']) {
       return 'Interrupted before it finished.'
     default:
       return 'The reply failed.'
-  }
-}
-
-/** A turn in progress: its reply so far, or what it's waiting for. */
-function toActive(turn: TurnActivity): TranscriptItem {
-  const id = `turn:${turn.familiar}`
-  const retrying =
-    turn.status === 'running' ? turn.generation?.retry : undefined
-  if (
-    turn.status !== 'running' ||
-    (!turn.generation?.message && !turn.tools && !turn.questions)
-  ) {
-    return {
-      type: 'waiting',
-      id,
-      familiar: turn.familiar,
-      status: turn.status,
-      ...(retrying && { retrying }),
-    }
-  }
-  const calls = new Map<string, ToolCall>()
-  const partial = turn.generation?.message as AssistantMessage | undefined
-  const reply: Extract<TranscriptItem, { type: 'reply' }> = partial
-    ? toReply(id, turn.familiar, partial, calls)
-    : {
-        type: 'reply',
-        id,
-        familiar: turn.familiar,
-        text: '',
-        thinking: '',
-        toolCalls: [],
-        streaming: true,
-        stopped: false,
-      }
-  // The round's tools, whose calls an earlier message of the run made.
-  for (const slot of (turn.tools ?? []) as ToolSlot[]) {
-    let call = calls.get(slot.callId)
-    if (!call) {
-      call = {
-        id: slot.callId,
-        name: slot.name,
-        arguments: {},
-        status: 'running',
-        output: '',
-      }
-      reply.toolCalls.push(call)
-    }
-    call.status = slot.status === 'done' ? 'done' : 'running'
-    call.output = slot.output ?? ''
-    call.details = slot.details
-  }
-  return {
-    ...reply,
-    streaming: true,
-    ...(retrying && { retrying }),
-    ...(turn.questions && { questions: turn.questions }),
   }
 }
 
@@ -429,7 +389,6 @@ function toReply(
     thinking,
     toolCalls,
     at: message.timestamp,
-    streaming: false,
     stopped: message.stopReason === 'aborted',
     ...(message.stopReason === 'error' && { error: message.errorMessage }),
   }

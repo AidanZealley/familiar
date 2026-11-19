@@ -105,20 +105,19 @@ type TranscriptItem =
       text: string
       at: number
       mentions?: Mention[]
+      queuedFor?: number[]
     }
   | {
       type: 'reply'
       id: string
       familiar: number
-      name?: string // its name when it replied; absent while replying
+      name?: string // its name when it replied
       text: string
       thinking: string
       toolCalls: ToolCall[]
       at?: number
-      streaming: boolean
       stopped: boolean
       error?: string // why it failed, or the model's error
-      retrying?: Retrying
     }
   | {
       type: 'scheduled'
@@ -128,13 +127,14 @@ type TranscriptItem =
       creator?: Author
       due: number
     }
-  | {
-      type: 'waiting'
-      id: string
-      familiar: number
-      status: 'queued' | 'elsewhere' | 'running'
-      retrying?: Retrying
-    }
+// The union also includes historical handoffs and room notes.
+
+type ReplyingFamiliar = {
+  familiar: number
+  questions?: Question[]
+  retrying?: Retrying
+  tools?: readonly ToolSlot[]
+}
 
 // A model request that failed, tried again `at`.
 type Retrying = { at: number; error: string }
@@ -149,12 +149,14 @@ type ToolCall = {
 }
 ```
 
-Times are milliseconds since the epoch. Each active Familiar gets one item at the end of the transcript, as its streaming reply or as `waiting`: `queued` behind work in this room, `elsewhere` while its Familiar works in another room, or `running` before anything shows. `retrying` is set while a turn waits to try the model again after a failed request. While a reply streams, only its current round shows; the whole reply, with every tool call, replaces it when the turn ends.
+Times are milliseconds since the epoch. `transcript.items` contains the room's history and gaps. A reply appears with its tool calls when it lands. A message's `queuedFor` lists the Familiar IDs for which it is the first queued entry in this room.
+
+`transcript.replying` lists the Familiars currently working on this room. Pending tool approvals and server questions are in `questions`. `retrying` gives the retry time and the failed model request's error. `tools` holds Pi's current tool slots for clients that handle tool-specific actions. `transcript.busy` covers both replying and queued work.
 
 ## Helpers
 
 - `ConversationTranscript` is re-exported from Pi for clients that assemble their own history. Its gap objects pass directly to `loadGap`.
-- `toRoomTranscript(view, turns?)` renders an assembled Pi `TranscriptView` as Familiar items. The room store already does this; use it for other clients.
+- `toRoomTranscript(view, turns?)` projects an assembled Pi `TranscriptView` and optional room activity into a Familiar transcript. The room store already does this; use it for other clients.
 - `composeMessage(parts)` turns a composer's text and picked names, `{ kind, id, name }`, into `{ text, mentions }`: each pick becomes `@Name` in the text with a mention spanning it. Pass both to `send`.
 
 ## React
