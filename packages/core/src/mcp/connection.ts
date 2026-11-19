@@ -134,25 +134,26 @@ export function openConnection(
     familiar: FamiliarId
     callId: string
     tool: string
-    deadline: IdleDeadline
-    background: boolean
+    deadline?: IdleDeadline
   }[] = []
 
   const { questions } = options
   if (questions) {
     client.setRequestHandler('elicitation/create', async (request, ctx) => {
       const call = calls.at(-1)
+      const waiting = calls
+        .map((active) => active.deadline)
+        .filter((deadline) => deadline !== undefined)
       if (
-        !call ||
+        !call?.deadline ||
         request.params.mode === 'url' ||
         // Questions are presented with a live room turn. Legacy MCP also
         // cannot identify which invocation asked when calls overlap.
-        calls.some((active) => active.background)
+        waiting.length !== calls.length
       ) {
         return { action: 'decline' }
       }
-      const waiting = [...calls]
-      waiting.forEach((call) => call.deadline.pause())
+      waiting.forEach((deadline) => deadline.pause())
       try {
         const form =
           'requestedSchema' in request.params
@@ -181,7 +182,7 @@ export function openConnection(
         // Stopped, or the server gave up waiting.
         return { action: 'cancel' }
       } finally {
-        waiting.forEach((call) => call.deadline.resume())
+        waiting.forEach((deadline) => deadline.resume())
       }
     })
   }
@@ -192,17 +193,16 @@ export function openConnection(
     background: boolean,
   ) => {
     signal.throwIfAborted()
-    const deadline = idleDeadline(
-      CALL_IDLE_MS,
-      context.abortSignal
-        ? AbortSignal.any([context.abortSignal, signal])
-        : signal,
-    )
+    const callSignal = context.abortSignal
+      ? AbortSignal.any([context.abortSignal, signal])
+      : signal
+    const deadline = background
+      ? undefined
+      : idleDeadline(CALL_IDLE_MS, callSignal)
     const call = {
       familiar: input.familiar,
       callId: input.callId,
       tool: input.tool,
-      background,
       deadline,
     }
     calls.push(call)
@@ -213,15 +213,24 @@ export function openConnection(
             name: input.name,
             arguments: input.args,
           },
-          {
-            signal: deadline.signal,
-            timeout: CALL_MAX_MS,
-            onprogress: deadline.restart,
-          },
+          deadline
+            ? {
+                signal: deadline.signal,
+                timeout: CALL_MAX_MS,
+                onprogress: deadline.restart,
+              }
+            : {
+                signal: callSignal,
+                timeout: CALL_IDLE_MS,
+                maxTotalTimeout: CALL_MAX_MS,
+                resetTimeoutOnProgress: true,
+                // The SDK requests a progress token only when a handler is set.
+                onprogress: () => {},
+              },
         ),
       )
     } catch (error) {
-      if (deadline.expired) {
+      if (deadline?.expired) {
         throw new Error(
           `${server.name} didn't answer for ${CALL_IDLE_MS / 1000}s.`,
           { cause: error },
@@ -236,7 +245,7 @@ export function openConnection(
       }
       throw error
     } finally {
-      deadline.done()
+      deadline?.done()
       calls.splice(calls.indexOf(call), 1)
     }
   }
@@ -265,6 +274,7 @@ export function openConnection(
             description: tool.description ?? tool.name,
             parameters: tool.inputSchema,
             deferred: true,
+            replay: 'unsafe',
             ...(tool.annotations && { annotations: tool.annotations }),
             execute: async (args, api, context) => {
               const invocation: McpInvocation = {

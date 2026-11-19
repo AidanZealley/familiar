@@ -1,9 +1,7 @@
 import type { Context } from '@earendil-works/chord/context'
 import {
-  defineDoc,
   defineTask,
   type JsonObject,
-  type TaskId,
   type ToolExecutionApi,
   type ToolExecutionResult,
   type ToolTaskInput,
@@ -23,15 +21,6 @@ import {
 import { callInput, toolAuthor } from '../tools.ts'
 
 export const BACKGROUND_MCP_TASK = 'familiar.mcp-call'
-
-/** One admission per originating Pi tool task, in the admission commit. */
-const Admission = defineDoc<{ job?: TaskId }>({
-  kind: 'familiar.mcp-admission',
-  version: 1,
-  scope: 'task',
-  checkpointWhen: () => false,
-  initial: () => ({}),
-})
 
 export type McpInvocation = {
   server: string
@@ -79,8 +68,8 @@ export async function admitBackgroundMcp(
       const source = (await callInput(tx, api.taskId))?.data as
         InRoom | undefined
       const author = await toolAuthor(tx, api.taskId)
-      const admission = await tx.doc(Admission, api.taskId)
-      admission.job ??= await tx.createTask(
+      // Pi does not replay this MCP wrapper after its execution starts.
+      return tx.createTask(
         background,
         {
           ...invocation,
@@ -92,7 +81,6 @@ export async function admitBackgroundMcp(
         },
         { ownership: { kind: 'conversation' }, background: true },
       )
-      return admission.job
     }, context),
   )
   if (job === 'disabled') {
@@ -113,10 +101,7 @@ export async function admitBackgroundMcp(
 }
 
 type Result = Pick<ToolExecutionResult, 'output' | 'isError'>
-type Step =
-  | { phase: 'call' }
-  | { phase: 'interrupted' }
-  | { phase: 'deliver'; result: Result }
+type Step = { phase: 'call' }
 
 const error = (text: string): Result => ({
   isError: true,
@@ -125,7 +110,7 @@ const error = (text: string): Result => ({
 
 const interrupted = error('The MCP call was interrupted and may have run.')
 
-/** Bound the result before putting it into a durable checkpoint and prompt. */
+/** Bound the result before storing it and sending it to the model. */
 function bounded({ output, isError }: ToolExecutionResult): Result {
   const content: NonNullable<Result['output']> = []
   let textLeft = 32_000
@@ -166,42 +151,23 @@ export function createBackgroundMcp(
     initial: () => ({ phase: 'call' }),
     phases: {
       call: async (task, runtime, context) => {
-        // A restart from here cannot reattach to a plain MCP request. Record
-        // intent before sending so recovery never sends that request twice.
-        await runtime.commit(
-          () => ({ status: 'running', checkpoint: { phase: 'interrupted' } }),
-          context,
-        )
-        let result: Result
-        try {
-          result = bounded(await invoke(task.input, context))
-        } catch (cause) {
-          runtime.signal.throwIfAborted()
-          result = error(
-            cause instanceof Error
-              ? cause.message.slice(0, 2000)
-              : 'MCP call failed.',
-          )
+        // A plain MCP request cannot be reattached after a restart.
+        let result = interrupted
+        if (!(await runtime.memo<boolean>('dispatch-started', context))) {
+          await runtime.memo('dispatch-started', true, context)
+          try {
+            result = bounded(await invoke(task.input, context))
+          } catch (cause) {
+            runtime.signal.throwIfAborted()
+            result = error(
+              cause instanceof Error
+                ? cause.message.slice(0, 2000)
+                : 'MCP call failed.',
+            )
+          }
         }
-        await runtime.commit(
-          () => ({
-            status: 'running',
-            checkpoint: { phase: 'deliver', result },
-          }),
-          context,
-        )
-      },
-      interrupted: (_task, runtime, context) =>
-        runtime.commit(
-          () => ({
-            status: 'running',
-            checkpoint: { phase: 'deliver', result: interrupted },
-          }),
-          context,
-        ),
-      deliver: async (task, runtime, context) => {
+
         const { familiar, tool, origin } = task.input
-        const { result } = task.state.checkpoint
         const chat = await runtime.conversation(familiar, context)
         await runtime.commit(async (tx) => {
           const { room, entry, author } = origin
