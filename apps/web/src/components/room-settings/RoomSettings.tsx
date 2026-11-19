@@ -34,7 +34,7 @@ export const RoomSettings = ({ id }: RoomSettingsProps) => {
               icon: UsersIcon,
               keywords: 'familiars order add remove lead crown open',
               description:
-                'The Familiars in this room. Crown one as lead to answer every message that @mentions no one; without a lead the room is open, and they take turns in this order.',
+                'Choose who is in this room. The optional lead is told they lead when they receive a message that mentions no Familiar.',
               content: <MembersSettings room={room} />,
             },
           ],

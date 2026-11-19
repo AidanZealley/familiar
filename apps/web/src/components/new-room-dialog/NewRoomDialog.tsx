@@ -44,7 +44,6 @@ export const NewRoomDialog = () => {
     },
   })
   const toggle = (familiar: number, on: boolean) => {
-    // In the order they're listed, which is the room's turn order.
     setMembers(
       familiars
         .map((each) => each.id)
@@ -105,7 +104,7 @@ export const NewRoomDialog = () => {
               <Field orientation="horizontal">
                 <RadioGroupItem value="" id={`${id}-open`} />
                 <FieldLabel htmlFor={`${id}-open`} className="font-normal">
-                  No lead: each may answer, in turn
+                  No lead
                 </FieldLabel>
               </Field>
               {familiars
@@ -120,7 +119,7 @@ export const NewRoomDialog = () => {
                       htmlFor={`${id}-lead-${familiar.id}`}
                       className="font-normal"
                     >
-                      {familiar.name} answers what @mentions no one
+                      {familiar.name} leads
                     </FieldLabel>
                   </Field>
                 ))}

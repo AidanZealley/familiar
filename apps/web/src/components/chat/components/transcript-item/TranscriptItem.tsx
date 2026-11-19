@@ -68,9 +68,7 @@ export const TranscriptItem = ({
                 )}
               </MarkerIcon>
               <MarkerContent>
-                {item.status === 'queued'
-                  ? 'Queued: answers once the turn ahead of it here finishes'
-                  : 'Busy in another room: answers here next'}
+                {item.status === 'queued' ? 'Queued' : 'Busy in another room'}
               </MarkerContent>
             </Marker>
           )}

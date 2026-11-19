@@ -182,8 +182,8 @@ export function toRoomTranscript(
       })
     }
   }
-  for (const [task, turn] of Object.entries(turns)) {
-    items.push(toActive(task, turn))
+  for (const turn of Object.values(turns)) {
+    items.push(toActive(turn))
   }
   return {
     items,
@@ -287,17 +287,18 @@ function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
       },
     ]
   })
-  if (reply.outcome !== 'failed') {
+  const error =
+    reply.outcome === 'failed' ? failureText(reply.failure) : undefined
+  if (!error && (reply.outcome !== 'stopped' || items.length > 0)) {
     return items
   }
-  const error = failureText(reply.failure)
   const last = items.at(-1)
   // Says why on its last item, unless the model's own error already does.
   if (last?.type === 'reply') {
     last.error ??= error
     return items
   }
-  // A run that failed before saying anything still shows that it failed.
+  // A stop or failure note can have no assistant messages.
   return [
     {
       type: 'reply',
@@ -307,9 +308,10 @@ function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
       text: '',
       thinking: '',
       toolCalls: [],
+      at: reply.at,
       streaming: false,
-      stopped: false,
-      error,
+      stopped: reply.outcome === 'stopped',
+      ...(error && { error }),
     },
   ]
 }
@@ -338,8 +340,8 @@ function failureText(failure: ReplyData['failure']) {
 }
 
 /** A turn in progress: its reply so far, or what it's waiting for. */
-function toActive(task: string, turn: TurnActivity): TranscriptItem {
-  const id = `turn:${task}`
+function toActive(turn: TurnActivity): TranscriptItem {
+  const id = `turn:${turn.familiar}`
   const retrying =
     turn.status === 'running' ? turn.generation?.retry : undefined
   if (

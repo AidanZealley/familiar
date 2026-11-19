@@ -139,15 +139,15 @@ test('transcript arrives atomically with views and operations and retains stream
   server.send(
     frame('document', {
       name: 'turns',
-      value: { 5: { familiar: 1, cause: 1, status: 'queued' } },
+      value: { 1: { familiar: 1, cause: 1, status: 'queued' } },
     }),
   )
   await expect.poll(() => store.getState().transcript?.busy).toBe(true)
-  expect(itemIds(store)).toEqual(['entry:1', 'turn:5'])
+  expect(itemIds(store)).toEqual(['entry:1', 'turn:1'])
   expect(store.getState().transcript).not.toBe(initial)
-  server.send(frame('document.ops', { name: 'turns', ops: [['d', ['5']]] }))
+  server.send(frame('document.ops', { name: 'turns', ops: [['d', ['1']]] }))
   await expect.poll(() => store.getState().transcript?.busy).toBe(false)
-  expect(observed).toEqual([['entry:1'], ['entry:1', 'turn:5'], ['entry:1']])
+  expect(observed).toEqual([['entry:1'], ['entry:1', 'turn:1'], ['entry:1']])
 })
 
 test('transcript reference survives unrelated updates and a failed load, and loading earlier reaches the start', async () => {
