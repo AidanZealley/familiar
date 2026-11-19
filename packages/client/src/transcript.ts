@@ -71,6 +71,7 @@ export type TranscriptItem =
       /** Its name when it replied, if recorded. */
       name?: string
       text: string
+      mentions?: Mention[]
       thinking: string
       toolCalls: ToolCall[]
       /** When it was written, in ms since the epoch. */
@@ -269,6 +270,8 @@ function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
 /** A copied reply: an item per message the Familiar wrote, with its tools' results. */
 function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
   const calls = new Map<string, ToolCall>()
+  // Room routing records spans in the nonempty assistant texts joined by newlines.
+  let offset = 0
   const items = reply.messages.flatMap((message: Message, index) => {
     if (message.role === 'toolResult') {
       settle(calls, message)
@@ -277,9 +280,23 @@ function toReplies(id: string, reply: ReplyData): TranscriptItem[] {
     if (message.role !== 'assistant') {
       return []
     }
+    const item = toReply(`${id}:${index}`, reply.familiar, message, calls)
+    const mentions = reply.mentions
+      ?.filter(
+        ({ start, end }) => start >= offset && end <= offset + item.text.length,
+      )
+      .map((mention) => ({
+        ...mention,
+        start: mention.start - offset,
+        end: mention.end - offset,
+      }))
+    if (item.text) {
+      offset += item.text.length + 1
+    }
     return [
       {
-        ...toReply(`${id}:${index}`, reply.familiar, message, calls),
+        ...item,
+        ...(mentions?.length && { mentions }),
         name: reply.name,
         ...(reply.outcome === 'quiet' && { quiet: true as const }),
       },
@@ -370,12 +387,12 @@ function toReply(
   message: AssistantMessage,
   calls: Map<string, ToolCall>,
 ): Extract<TranscriptItem, { type: 'reply' }> {
-  let text = ''
+  const textBlocks: string[] = []
   let thinking = ''
   const toolCalls: ToolCall[] = []
   for (const block of message.content) {
     if (block.type === 'text') {
-      text += block.text
+      textBlocks.push(block.text)
     } else if (block.type === 'thinking') {
       thinking += block.thinking
     } else {
@@ -394,7 +411,7 @@ function toReply(
     type: 'reply',
     id,
     familiar,
-    text,
+    text: textBlocks.join('\n'),
     thinking,
     toolCalls,
     at: message.timestamp,

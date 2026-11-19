@@ -19,10 +19,9 @@ import { ComputerPane } from './components/computer-pane'
 import { ComputerPopout } from './components/computer-popout'
 import { ConversationHeader } from './components/conversation-header'
 import { OlderMessages } from './components/older-messages'
-import { ReplyAttention } from './components/reply-attention'
+import { LiveReplies } from './components/live-replies'
 import { SignIn } from './components/sign-in'
 import { TranscriptItems } from './components/transcript-items'
-import { TypingRow } from './components/typing-row'
 import { useReadWhileOpen } from './read'
 import type { ChatProps } from './types'
 
@@ -145,7 +144,7 @@ export const Chat = ({ room }: ChatProps) => {
                   dm={room.kind === 'dm'}
                   turns={room.turns}
                 />
-                <ReplyAttention
+                <LiveReplies
                   replying={transcript?.replying ?? []}
                   dm={room.kind === 'dm'}
                 />
@@ -154,7 +153,6 @@ export const Chat = ({ room }: ChatProps) => {
               <div className="sticky bottom-0 z-30 mx-auto w-full max-w-(--page-width)">
                 <MessageScrollerButton className="data-[direction=end]:bottom-[calc(100%+1rem)]" />
                 <SignIn />
-                <TypingRow replying={transcript?.replying ?? []} />
                 <Composer room={room} busy={transcript?.busy ?? false} />
               </div>
             </MessageScrollerViewport>

@@ -103,7 +103,8 @@ const demoLogin: NonNullable<Provider['auth']['oauth']> = {
  */
 export function createDemoModels(script: Script, clock: DemoClock) {
   const respond = async (request: ScriptedRequest) => ({
-    ...(await (script.reply(request) ?? scenarioReply(request))),
+    ...(await (script.reply(request, !clock.catchingUp()) ??
+      scenarioReply(request))),
     timestamp: clock.now(),
   })
   const models = scriptedModels(respond, {

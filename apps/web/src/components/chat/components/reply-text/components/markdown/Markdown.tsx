@@ -2,8 +2,10 @@ import { createCodePlugin } from '@streamdown/code'
 import { createMathPlugin } from '@streamdown/math'
 import { createMermaidPlugin } from '@streamdown/mermaid'
 import 'katex/dist/katex.min.css'
-import { Streamdown } from 'streamdown'
+import { Streamdown, defaultRemarkPlugins, type Components } from 'streamdown'
 import { useTheme } from '@/lib/theme'
+import { Mention } from '../../../mention'
+import { remarkMentions } from './remark-mentions'
 import type { MarkdownProps } from './types'
 import { LinkConfirmation } from './components/link-confirmation'
 
@@ -22,7 +24,12 @@ const mermaidThemes = {
   light: { config: { theme: 'default' } },
 } as const
 
-export const Markdown = ({ text }: MarkdownProps) => {
+const components: Components = {
+  'familiar-mention': ({ children }) =>
+    typeof children === 'string' ? <Mention>{children}</Mention> : null,
+}
+
+export const Markdown = ({ text, mentions }: MarkdownProps) => {
   const { dark } = useTheme()
 
   return (
@@ -30,6 +37,13 @@ export const Markdown = ({ text }: MarkdownProps) => {
       plugins={plugins}
       mermaid={mermaidThemes[dark ? 'dark' : 'light']}
       mode="static"
+      components={components}
+      allowedTags={{ 'familiar-mention': [] }}
+      remarkPlugins={
+        mentions?.length
+          ? [...Object.values(defaultRemarkPlugins), [remarkMentions, mentions]]
+          : undefined
+      }
       // Code blocks keep copy; the download button isn't useful in a chat.
       controls={{ code: { copy: true, download: false }, table: false }}
       lineNumbers={false}

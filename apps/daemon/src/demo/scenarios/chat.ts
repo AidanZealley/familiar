@@ -1,3 +1,4 @@
+import { defineTool, schema } from '@familiar-ai/core'
 import { setTimeout } from 'node:timers/promises'
 import {
   fauxAssistantMessage,
@@ -65,6 +66,20 @@ const slowReply = Array.from(
   (_, i) =>
     `**Part ${i + 1}.** This is a long reply for testing Stop and queued messages. Send another message while it streams and it waits its turn; press Stop to end this one early. The text keeps going so there is plenty of time to try both.`,
 ).join('\n\n')
+
+export const demoForecast = defineTool({
+  name: 'demo_forecast',
+  description: 'Returns a scripted forecast for the room demo.',
+  parameters: schema.obj({ city: schema.str() }),
+  execute: async ({ city }) => ({
+    output: [
+      {
+        type: 'text',
+        text: `${city}: light rain, 9°C. Wind from the west at 12 mph.`,
+      },
+    ],
+  }),
+})
 
 export const tool: Scenario = {
   start: async () => {

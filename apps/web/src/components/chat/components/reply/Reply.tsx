@@ -14,7 +14,7 @@ export const Reply = ({ reply }: ReplyProps) => (
       {reply.toolCalls.map((call) => (
         <ToolCall key={call.id} call={call} familiar={reply.familiar} />
       ))}
-      {reply.text && <ReplyText text={reply.text} />}
+      {reply.text && <ReplyText text={reply.text} mentions={reply.mentions} />}
       {reply.stopped && (
         <Marker className="text-muted-foreground">
           <MarkerIcon>

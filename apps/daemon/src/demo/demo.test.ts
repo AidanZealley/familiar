@@ -8,7 +8,7 @@ test('the demo seeds its household without error', async () => {
   const workspace = await openDemo()
   try {
     const rooms = await workspace.rooms.list(OWNER_ID)
-    expect(rooms).toHaveLength(8)
+    expect(rooms).toHaveLength(9)
     expect(rooms.some((room) => room.turns.length)).toBe(true)
 
     // The seed tool fails, leaving memory empty, if a quote isn't in the story.
