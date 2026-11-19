@@ -24,15 +24,14 @@ export async function removeToolSettings(tx: Tx, connection: Connection) {
   delete (await tx.doc(ToolSettingsDocument))[key(connection)]
 }
 
-export async function pruneToolSettings(
+export async function prunePluginToolSettings(
   tx: Tx,
-  kind: Connection['kind'],
   names: readonly string[],
 ) {
   const overrides = await tx.doc(ToolSettingsDocument)
-  const installed = new Set(names.map((name) => key({ kind, name })))
+  const installed = new Set(names.map((name) => key({ kind: 'plugin', name })))
   for (const connection of Object.keys(overrides)) {
-    if (connection.startsWith(`${kind}:`) && !installed.has(connection)) {
+    if (connection.startsWith('plugin:') && !installed.has(connection)) {
       delete overrides[connection]
     }
   }

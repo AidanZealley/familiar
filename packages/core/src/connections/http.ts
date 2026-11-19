@@ -114,12 +114,6 @@ export const connectionRoutes = (connections: ConnectionsApi) =>
       async (c) => {
         const { kind, name, tool } = c.req.valid('param')
         const change = c.req.valid('json')
-        if (kind === 'plugin' && change.runInBackground !== undefined) {
-          return c.json(
-            { error: 'Background execution is available for MCP tools only.' },
-            400,
-          )
-        }
         await connections.updateToolSettings({ kind, name }, tool, change)
         return c.body(null, 204)
       },

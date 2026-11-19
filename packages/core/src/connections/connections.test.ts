@@ -245,12 +245,13 @@ test('patching tool settings updates only the supplied fields', async () => {
     })
   expect((await patch({ askBeforeRunning: true })).status).toBe(204)
   expect((await patch({ enabled: false })).status).toBe(204)
-  expect((await patch({ runInBackground: true })).status).toBe(400)
+  expect((await patch({ runInBackground: true })).status).toBe(204)
 
   const response = await api.request('/connections')
   const [connection] = await response.json()
   expect(connection.tools[0]).toMatchObject({
     enabled: false,
     askBeforeRunning: true,
+    runInBackground: false,
   })
 })

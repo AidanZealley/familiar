@@ -27,7 +27,7 @@ import {
   type PluginFetch,
   type SecretStore,
 } from '../connections/index.ts'
-import { pruneToolSettings } from '../connections/tool-settings.ts'
+import { prunePluginToolSettings } from '../connections/tool-settings.ts'
 import { conversationExtension } from '../conversation/extension.ts'
 import {
   installConversation,
@@ -506,9 +506,8 @@ export async function openWorkspace(
     }, context)
     await harness.commit(
       (tx) =>
-        pruneToolSettings(
+        prunePluginToolSettings(
           tx,
-          'plugin',
           (options.plugins ?? []).map(({ name }) => name),
         ),
       context,

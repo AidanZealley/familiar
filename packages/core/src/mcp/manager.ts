@@ -13,9 +13,6 @@ import {
   type SecretStore,
 } from '../connections/index.ts'
 import {
-  pruneToolSettings,
-  ToolSettingsDocument,
-  toolSettingsOf,
   removeToolSettings,
   updateToolSettings,
 } from '../connections/tool-settings.ts'
@@ -68,26 +65,9 @@ export async function createMcp(
     }
     return entry
   }
-  const background = createBackgroundMcp(async (input, context) => {
-    const entry = get(input.server)
-    if (!entry.info().tools.some((tool) => tool.name === input.name)) {
-      throw new ConnectionError(`MCP tool ${input.tool} is unavailable.`)
-    }
-    const settings = await harness.snapshot(ToolSettingsDocument, context)
-    if (
-      !toolSettingsOf(
-        settings,
-        { kind: 'mcp', name: input.server },
-        input.name,
-        undefined,
-      ).enabled
-    ) {
-      throw new ConnectionError(
-        `The owner has turned ${input.tool} off in Familiar.`,
-      )
-    }
-    return entry.invoke(input, context, true)
-  })
+  const background = createBackgroundMcp((input, context) =>
+    get(input.server).invoke(input, context, true),
+  )
   registry.install(
     defineExtension({ name: 'familiar.mcp-background', tasks: [background] }),
   )
@@ -231,15 +211,10 @@ export async function createMcp(
         await options.secrets?.delete(connection, secret)
       }),
   }
-  const saved = await harness.commit(async (tx) => {
-    const servers = (await tx.doc(McpServers)).servers.map(parseServer)
-    await pruneToolSettings(
-      tx,
-      'mcp',
-      servers.map(({ name }) => name),
-    )
-    return servers
-  }, BACKGROUND_CONTEXT)
+  const saved = await harness.commit(
+    async (tx) => (await tx.doc(McpServers)).servers.map(parseServer),
+    BACKGROUND_CONTEXT,
+  )
   saved.forEach(start)
   return {
     api,

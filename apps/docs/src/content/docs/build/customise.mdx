@@ -63,21 +63,9 @@ The owner can add MCP servers at runtime through `workspace.mcp` or the `/mcp` r
 
 ### Run an MCP tool in the background from code
 
-For a workspace configured with `mcpFetch`, add the server, give a Familiar access to it, and set the override using the tool name from the server's listing.
+Once you've added the MCP server and enabled it for a Familiar, set the override using the tool name from the server's listing.
 
 ```ts
-await workspace.mcp.add({
-  name: 'topsail',
-  transport: {
-    type: 'http',
-    url: 'http://topsail.local:8000/mcp', // Use your server's URL.
-    auth: { type: 'none' },
-  },
-})
-
-const spool = await workspace.familiars.create({ name: 'Spool' })
-await spool.setCapabilities({ mcp: ['topsail'] })
-
 await workspace.connections.updateToolSettings(
   { kind: 'mcp', name: 'topsail' },
   'watch_print',
@@ -85,7 +73,7 @@ await workspace.connections.updateToolSettings(
 )
 ```
 
-When Spool calls `watch_print` directly, Familiar can reply while the request runs and then report the outcome in the original room. Any configured **Ask first** approval still happens before dispatch. The MCP server can expose an ordinary tool.
+When the Familiar calls `watch_print` directly, Familiar can reply while the request runs and then report the outcome in the original room. Any configured **Ask first** approval still happens before dispatch. The MCP server can expose an ordinary tool.
 
 ## Data that belongs to your host
 
