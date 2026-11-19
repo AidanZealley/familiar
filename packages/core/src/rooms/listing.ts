@@ -3,6 +3,7 @@ import {
   InboxDoc,
   LiveDoc,
   type Harness,
+  type SubmissionId,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
 import { derivedWatch } from '../pi/watch.ts'
@@ -10,26 +11,25 @@ import type { FamiliarId } from '../workspace/familiars.ts'
 import {
   activityOf,
   chatsOf,
-  turnsIn,
   type Chat,
   type TurnActivity,
 } from './activity.ts'
 import { Shown, type RoomPreview, type RoomShown } from './log.ts'
 import {
+  membersOf,
   Rooms,
   seenBy,
-  Turns,
   type Room,
   type RoomId,
   type RoomRegistry,
-  type TurnRecord,
 } from './rooms.ts'
+import { inputOrigin, originOf, type Origin } from './status.ts'
 
 /**
  * Rooms as a list shows them, for a sidebar: each room's setup, its newest
  * entry, what the person hasn't read and whose turns are in progress.
  * Derived from the registry, what each log has shown and how far the person
- * has read it, and the turns in progress, never stored, so the workspace's
+ * has read it, and its Familiars' chats, never stored, so the workspace's
  * one stream carries every room's state.
  */
 
@@ -51,9 +51,9 @@ export type RoomListing = Room & {
    */
   unread?: number
   /**
-   * Its turns in progress, oldest first: each `queued` behind work in this
-   * room, `elsewhere` while its Familiar works in another room, or
-   * `running`. Empty when no one is working on it.
+   * Its Familiars working on it, in room order: each `running` while
+   * replying here, `queued` behind work in this room, or `elsewhere` while
+   * its Familiar works in another room. Empty when no one is.
    */
   turns: RoomTurn[]
 }
@@ -68,7 +68,6 @@ export type RoomsState = {
 type Sources = {
   registry: Readonly<RoomRegistry> | null | undefined
   shown: Readonly<Record<string, RoomShown>> | null | undefined
-  turns: Readonly<Record<string, TurnRecord>> | null | undefined
   chatOf: (familiar: FamiliarId) => Chat
 }
 
@@ -87,9 +86,9 @@ function listingsOf(sources: Sources, person: string | undefined) {
       ...(person !== undefined && {
         unread: (shown?.count ?? 0) - (read?.count ?? 0),
       }),
-      turns: Object.values(
-        activityOf(turnsIn(sources.turns, id), sources.chatOf),
-      ).map(({ familiar, status }) => ({ familiar, status })),
+      turns: Object.values(activityOf(id, membersOf(room), sources.chatOf)).map(
+        ({ familiar, status }) => ({ familiar, status }),
+      ),
     }
   }
   return { rooms } satisfies RoomsState
@@ -97,37 +96,45 @@ function listingsOf(sources: Sources, person: string | undefined) {
 
 const context = BACKGROUND_CONTEXT
 
+/** Every Familiar in a room. */
+const inRooms = (registry: Readonly<RoomRegistry> | null | undefined) =>
+  new Set(Object.values(registry?.rooms ?? {}).flatMap(membersOf))
+
 /** The rooms `person` sees, as their list shows them now. */
 export async function listRooms(harness: Harness, person?: string) {
-  const [registry, shown, turns] = await Promise.all([
+  const [registry, shown] = await Promise.all([
     harness.snapshot(Rooms, context),
     harness.snapshot(Shown, context),
-    harness.snapshot(Turns, context),
   ])
-  const familiars = new Set(
-    Object.values(turns ?? {}).map((turn) => turn.familiar),
-  )
-  const chats = new Map(
-    await Promise.all(
-      [...familiars].map(
-        async (familiar) =>
-          [
-            familiar,
-            {
-              live: await harness.snapshot(LiveDoc, familiar, context),
-              inbox: await harness.snapshot(InboxDoc, familiar, context),
-            },
-          ] as const,
-      ),
-    ),
-  )
+  const chats = new Map<FamiliarId, Chat>()
+  for (const familiar of inRooms(registry)) {
+    const live = await harness.snapshot(LiveDoc, familiar, context)
+    const inbox = await harness.snapshot(InboxDoc, familiar, context)
+    const origins = new Map<SubmissionId, Origin | null>(
+      inbox?.items.map((item) => [item.id, originOf(item.entry?.data)]),
+    )
+    for (const input of live?.run?.inputs ?? []) {
+      origins.set(
+        input,
+        await harness.commit((tx) => inputOrigin(tx, input), context),
+      )
+    }
+    chats.set(familiar, {
+      live,
+      inbox,
+      origin: (input) => origins.get(input),
+    })
+  }
   const { rooms } = listingsOf(
     {
       registry,
       shown,
-      turns,
       chatOf: (familiar) =>
-        chats.get(familiar) ?? { live: undefined, inbox: undefined },
+        chats.get(familiar) ?? {
+          live: undefined,
+          inbox: undefined,
+          origin: () => undefined,
+        },
     },
     person,
   )
@@ -139,32 +146,32 @@ export async function listRooms(harness: Harness, person?: string) {
 
 /**
  * The rooms `person` sees, as their list shows them, live. Follows each
- * Familiar's chat from its first turn in any room until the watch stops.
+ * Familiar's chat from when it's first in a room until the watch stops.
  */
 export async function watchRooms(
   harness: Harness,
   person?: string,
 ): Promise<WatchHandle<RoomsState>> {
   // Opening the workspace creates each of these.
-  const [registry, shown, turns] = await Promise.all([
+  const [registry, shown] = await Promise.all([
     harness.watchDoc(Rooms, context),
     harness.watchDoc(Shown, context),
-    harness.watchDoc(Turns, context),
   ])
+  const familiars = () => inRooms(registry!.value)
   const chats = chatsOf(harness)
+  await chats.follow(familiars())
   const derived = derivedWatch(() =>
     listingsOf(
       {
         registry: registry!.value,
         shown: shown!.value,
-        turns: turns!.value,
         chatOf: chats.chatOf,
       },
       person,
     ),
   )
-  derived.follow(registry!)
+  chats.start(derived)
+  derived.follow(registry!, () => void chats.follow(familiars()))
   derived.follow(shown!)
-  derived.follow(turns!, () => chats.follow(derived, turns!.value))
   return derived.watch
 }

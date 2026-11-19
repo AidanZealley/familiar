@@ -50,7 +50,7 @@ import {
 } from '../plugins/index.ts'
 import { createRooms, type RoomsApi } from '../rooms/index.ts'
 import { Shown } from '../rooms/log.ts'
-import { Rooms, Turns } from '../rooms/rooms.ts'
+import { Rooms } from '../rooms/rooms.ts'
 import {
   checkMaxSchedules,
   createSchedules,
@@ -485,7 +485,6 @@ export async function openWorkspace(
     await harness.commit(async (tx) => {
       await tx.doc(Familiars)
       await tx.doc(Rooms)
-      await tx.doc(Turns)
       await tx.doc(Shown)
       await questions.clear(tx)
     }, context)

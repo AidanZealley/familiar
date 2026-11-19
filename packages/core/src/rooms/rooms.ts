@@ -1,8 +1,6 @@
 import {
   defineDoc,
   type ConversationId,
-  type EntryId,
-  type SubmissionId,
   type Tx,
 } from '@earendil-works/pi-durable'
 import { MESSAGE_LIMITS } from '../conversation/message.ts'
@@ -31,9 +29,8 @@ export type NamedRoom = {
   /** In the room, in display order. */
   familiars: FamiliarId[]
   /**
-   * Answers messages that address no one; one of `familiars`. Without one,
-   * the room is open: every Familiar in it takes a turn on such a message,
-   * one after another, in order.
+   * Leads the room, one of `familiars`: a hint each Familiar's input
+   * carries, not a rule. Every Familiar hears messages that address no one.
    */
   lead?: FamiliarId
   /** Hidden and closed to new messages; its history is kept. */
@@ -54,33 +51,6 @@ export const Rooms = defineDoc<RoomRegistry>({
   scope: 'session',
   initial: () => ({ rooms: {} }),
   checkpointWhen: () => true, // small: always store it whole
-})
-
-/** A turn a Familiar is taking in a room, by its task's ID (see turn.ts). */
-export type TurnRecord = {
-  room: RoomId
-  familiar: FamiliarId
-  /** Its name as the turn began, which its reply carries. */
-  name: string
-  /** The room entry it answers. */
-  cause: EntryId
-  /** Its input in the Familiar's chat, once delivered. */
-  submission?: SubmissionId
-}
-
-/**
- * The turns in progress in every room, by turn task ID. Written only by
- * turn tasks, in the commits that change their phase, so a room's stream can
- * show who is working on it and follow each one's input in its Familiar's
- * chat. One document for the workspace, so its stream follows every room's
- * turns with one watch.
- */
-export const Turns = defineDoc<Record<string, TurnRecord>>({
-  kind: 'familiar.turns',
-  version: 2,
-  scope: 'session',
-  initial: () => ({}),
-  checkpointWhen: () => true, // a handful of turns at most
 })
 
 /** A change to the rooms the rules refuse; nothing was changed. */

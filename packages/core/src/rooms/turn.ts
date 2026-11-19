@@ -33,7 +33,8 @@ import {
   type TurnInput,
   type TurnResult,
 } from './log.ts'
-import { membersOf, Rooms, Turns, type Room, type RoomId } from './rooms.ts'
+import { membersOf, Rooms, type Room } from './rooms.ts'
+import { replyingIn } from './status.ts'
 
 /**
  * A turn: delivering one room entry to one Familiar, as a task the room
@@ -77,34 +78,6 @@ const WAKE_KIND = 'familiar.wake'
  */
 const inputRequest = ({ room, cause, familiar, retries }: TurnInput) =>
   `turn:${room}:${cause}:${familiar}${retries === undefined ? '' : `:retry:${retries}`}`
-
-/**
- * Which of `familiars` are answering an input from `room` now, from their
- * chats' live runs. A run that has answered and is only posting its reply
- * has no inputs left, so it doesn't count.
- */
-export async function replyingIn(
-  tx: Tx,
-  room: RoomId,
-  familiars: readonly FamiliarId[],
-) {
-  const replying: FamiliarId[] = []
-  for (const familiar of familiars) {
-    const { run } = await tx.doc(LiveDoc, familiar)
-    for (const id of run?.inputs ?? []) {
-      const submission = await tx.submission(id)
-      const entry =
-        submission?.type === 'input' && submission.entry !== undefined
-          ? await tx.entry(submission.entry)
-          : undefined
-      if ((entry?.data as InRoom | undefined)?.room === room) {
-        replying.push(familiar)
-        break
-      }
-    }
-  }
-  return replying
-}
 
 /**
  * The room entry `cause` as its turn's input, with `where` it came from and
@@ -175,19 +148,6 @@ export function createTurnTask(harness: Harness, timeZone: string) {
    * input withdrawn before it ran, or never delivered, notes nothing.
    */
   async function settle(
-    tx: Tx,
-    taskId: number,
-    input: TurnInput,
-    name: string | undefined,
-    settled: SettledSubmissionRecord | undefined,
-    at: number,
-  ): Promise<TurnResult> {
-    const result = await noteUnanswered(tx, input, name, settled, at)
-    delete (await tx.doc(Turns))[taskId]
-    return result
-  }
-
-  async function noteUnanswered(
     tx: Tx,
     input: TurnInput,
     name: string | undefined,
@@ -309,7 +269,6 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             replying.map((other) => familiars[other].name),
           )
           const name = familiars[familiar].name
-          ;(await tx.doc(Turns))[task.id] = { room, familiar, name, cause }
           return {
             status: 'running',
             checkpoint: {
@@ -348,16 +307,13 @@ export function createTurnTask(harness: Harness, timeZone: string) {
           },
           context,
         )
-        await runtime.commit(async (tx) => {
-          const turn = (await tx.doc(Turns))[task.id]
-          if (turn) {
-            turn.submission = submission.id
-          }
-          return {
+        await runtime.commit(
+          async () => ({
             status: 'running',
             checkpoint: { phase: 'answer', name, submission: submission.id },
-          }
-        }, context)
+          }),
+          context,
+        )
       },
 
       answer: async (task, runtime, context) => {
@@ -371,7 +327,6 @@ export function createTurnTask(harness: Harness, timeZone: string) {
               status: 'completed',
               result: await settle(
                 tx,
-                task.id,
                 task.input,
                 name,
                 settled,
@@ -395,7 +350,6 @@ export function createTurnTask(harness: Harness, timeZone: string) {
             status: 'aborted',
             result: await settle(
               tx,
-              task.id,
               task.input,
               'name' in checkpoint
                 ? checkpoint.name

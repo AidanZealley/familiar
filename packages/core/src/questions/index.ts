@@ -17,7 +17,7 @@ import type { Connection } from '../connections/index.ts'
 import { mcpExtensionName } from '../mcp/connection.ts'
 import type { Notify } from '../notify.ts'
 import { pluginExtensionName, type FamiliarTool } from '../plugins/index.ts'
-import { Turns } from '../rooms/rooms.ts'
+import { runOrigin } from '../rooms/status.ts'
 import {
   Familiars,
   familiarIn,
@@ -176,12 +176,11 @@ export function createQuestions(
   const announce = async (question: Question) => {
     const { name, room } = await harness.commit(async (tx) => {
       const familiars = await tx.doc(Familiars)
-      const turn = Object.values(await tx.doc(Turns)).find(
-        (turn) => turn.familiar === question.familiar,
-      )
+      // The room its run is replying in, if any.
+      const origin = await runOrigin(tx, question.familiar)
       return {
         name: familiars.familiars[question.familiar]?.name ?? 'A Familiar',
-        room: turn?.room,
+        room: origin?.room,
       }
     }, context)
     await options.notify?.({

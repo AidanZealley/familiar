@@ -1,7 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import {
   defineExtension,
-  LiveDoc,
   type ConversationWatch,
   type ConversationWindow,
   type EntryQuery,
@@ -10,7 +9,6 @@ import {
   type Page,
   type EntryId,
   type Harness,
-  type Tx,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
 import { declineWaiting } from '../questions/index.ts'
@@ -37,14 +35,15 @@ import {
   createRoom,
   dmWith,
   Rooms,
+  membersOf,
   seenBy,
-  Turns,
   updateRoom,
   type RoomChange,
   type RoomId,
   type RoomSetup,
 } from './rooms.ts'
 import { createAnswer } from './answer.ts'
+import { replyingIn } from './status.ts'
 import { roomTools } from './tools.ts'
 import { createTurnTask } from './turn.ts'
 
@@ -127,9 +126,9 @@ export type RoomApi = {
    */
   watch(window?: ConversationWindow): Promise<ConversationWatch>
   /**
-   * The turns in progress here, by task ID: whether each is waiting for its
-   * Familiar or being answered, with the reply as it streams. Shows nothing
-   * of the Familiars' work in other rooms.
+   * Its Familiars' work here, by FamiliarId: whether each has something
+   * from here queued or is replying, with the reply as it streams. Shows
+   * nothing of their work in other rooms.
    */
   watchTurns(): Promise<WatchHandle<RoomActivity>>
   /**
@@ -193,21 +192,6 @@ const context = BACKGROUND_CONTEXT
  * Rooms: where people talk to Familiars. Install `extension` before the
  * Harness resumes; schedules post due reminders with `postScheduled`.
  */
-/** The Familiars whose current run answers one of `room`'s turns. */
-async function answeringIn(tx: Tx, room: RoomId) {
-  const familiars: FamiliarId[] = []
-  for (const turn of Object.values(await tx.doc(Turns))) {
-    if (String(turn.room) !== String(room) || turn.submission === undefined) {
-      continue
-    }
-    const live = await tx.doc(LiveDoc, turn.familiar)
-    if (live.run?.inputs.includes(turn.submission)) {
-      familiars.push(turn.familiar)
-    }
-  }
-  return familiars
-}
-
 export function createRooms(
   harness: Harness,
   options: {
@@ -241,7 +225,11 @@ export function createRooms(
       const { author, text, requestId } = admitMessage(message)
       const posted = await harness.commit(async (tx) => {
         // A Familiar waiting on the person here gets this instead.
-        await declineWaiting(tx, await answeringIn(tx, id))
+        const record = (await tx.doc(Rooms)).rooms[id]
+        await declineWaiting(
+          tx,
+          record ? await replyingIn(tx, id, membersOf(record)) : [],
+        )
         return post(
           tx,
           turn,

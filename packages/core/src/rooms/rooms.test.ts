@@ -561,9 +561,10 @@ test('archiving a room stops its turns in progress and queued, so no reply lands
   await kitchen.post({ author: AIDAN, text: 'hold', requestId: '1' })
   await expect.poll(() => holding).toBe(true)
   await kitchen.post({ author: AIDAN, text: 'next', requestId: '2' })
+  // One Familiar, replying to the first, with the second queued behind it.
   await expect
-    .poll(async () => Object.keys(await read(() => kitchen.watchTurns())))
-    .toHaveLength(2)
+    .poll(async () => Object.values(await read(() => kitchen.watchTurns())))
+    .toMatchObject([{ familiar: ada, status: 'running' }])
 
   await workspace.rooms.archive(id)
   expect(await read(() => kitchen.watchTurns())).toEqual({})
