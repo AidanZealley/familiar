@@ -5,12 +5,17 @@ import { handBack, useComputerControl } from '@/lib/computer-control'
 import { Activity } from '../activity'
 import { toolLabel } from './label'
 import type { ToolCallProps } from './types'
-import { waitsForPerson } from './waits-for-person'
 
 export const ToolCall = ({ call, familiar }: ToolCallProps) => {
   const id = useFamiliars().find((item) => item.id === familiar)?.id
   const held = useComputerControl(id) === 'held'
-  const waiting = waitsForPerson(call)
+  const { details } = call
+  const waiting =
+    call.status === 'running' &&
+    typeof details === 'object' &&
+    details !== null &&
+    'waiting' in details &&
+    details.waiting === true
   return (
     <div className="flex items-start gap-2">
       <Activity
