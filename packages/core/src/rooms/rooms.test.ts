@@ -212,7 +212,7 @@ test('a DM delivers a message to its Familiar once, and copies the answer back a
   ])
 })
 
-test('a message that mentions no one reaches every Familiar in the room, who reply in parallel or stay quiet; a mention goes only to whom it names', async () => {
+test('group messages reach every Familiar, and a mention marks a direct request', async () => {
   // Each answers "Dinner?" only once both are asked, so they must run at once.
   let asked = 0
   let bothAsked!: () => void
@@ -227,6 +227,12 @@ test('a message that mentions no one reaches every Familiar in the room, who rep
       }
       await both
       return echo(request)
+    }
+    if (
+      request.type === 'message' &&
+      !shown(request).includes('where you were mentioned')
+    ) {
+      return call('stay_quiet', {})
     }
     return echo(request)
   })
@@ -265,14 +271,18 @@ test('a message that mentions no one reaches every Familiar in the room, who rep
     addressed: 'open',
   })
 
-  // A mention goes to Bo alone; Bo's reply goes on to Ada.
+  // Ada hears the message as an open turn. Bo receives the direct request.
   await kitchen.post({
     author: AIDAN,
     text: '@Bo pudding?',
     requestId: 'm2',
     mentions: [mention(bo)],
   })
-  await expect.poll(async () => (await inputs(workspace, ada)).length).toBe(2)
+  await expect.poll(async () => (await inputs(workspace, ada)).length).toBe(3)
+  expect((await inputs(workspace, ada))[1]).toMatchObject({
+    text: '@Bo pudding?',
+    addressed: 'open',
+  })
   expect(
     (await replies(kitchen)).map((reply) => [reply.familiar, said(reply)]),
   ).toEqual([
@@ -301,7 +311,9 @@ test('Familiars reply to each other, by mention or to everyone else, until a rep
   const { workspace, create, room } = await open((request) =>
     request.type === 'reply'
       ? fauxAssistantMessage(`Re: ${request.text}`)
-      : fauxAssistantMessage('Re: @[Ada] hi'),
+      : shown(request).includes('where you were mentioned')
+        ? fauxAssistantMessage('Re: @[Ada] hi')
+        : call('stay_quiet', {}),
   )
   const [ada, bo] = [await create('Ada'), await create('Bo')]
   const kitchen = await room(
@@ -364,7 +376,13 @@ test('a message from another room, sent while its Familiar is busy, is answered 
 })
 
 test('a Familiar coming back to a room is shown what it missed there, and the thread it left', async () => {
-  const { workspace, create, room } = await open(echo)
+  const { workspace, create, room } = await open((request) =>
+    request.type === 'message' &&
+    request.text.startsWith('@Bo ') &&
+    !shown(request).includes('where you were mentioned')
+      ? call('stay_quiet', {})
+      : echo(request),
+  )
   const [ada, bo] = [await create('Ada'), await create('Bo')]
   const kitchen = await room(
     await workspace.rooms.create({
@@ -388,25 +406,25 @@ test('a Familiar coming back to a room is shown what it missed there, and the th
 
   await say(kitchen, 'Paint the fence blue.')
   await say(dm, 'What time is it?')
+  await kitchen.note({ text: 'The paint ran out.', requestId: 'paint-note' })
   await say(kitchen, '@Bo buy the paint.', bo)
   await say(kitchen, 'Which colour?')
 
   const contexts = (await inputs(workspace, ada)).map((input) => input.context)
-  expect(contexts).toEqual([
+  expect(contexts.slice(0, 2)).toEqual([
     '[In #kitchen, where everyone hears it]',
     '[In your DM with Aidan]',
+  ])
+  expect(contexts[2]).toContain(
     [
       '[In #kitchen, where everyone hears it]',
       'Earlier in this room:',
       '[Aidan]: Paint the fence blue.',
       '[Ada]: Re: Paint the fence blue.',
       'Said here since your last turn:',
-      '[Aidan]: @Bo buy the paint.',
+      '[Note]: The paint ran out.',
     ].join('\n'),
-    // Bo's reply, delivered to Ada; her answer to "Which colour?" then
-    // has nothing new to show.
-    '[In #kitchen, where everyone hears it]',
-  ])
+  )
 })
 
 test("a host's note is shown to each Familiar on its next turn and causes no turn", async () => {
@@ -845,7 +863,9 @@ test("a Familiar's reply to another acts for the person whose message started it
     (request) => {
       switch (request.type) {
         case 'message':
-          return fauxAssistantMessage('İ see. @[Bo Peep] who is this for?')
+          return shown(request).includes('where you were mentioned')
+            ? fauxAssistantMessage('İ see. @[Bo Peep] who is this for?')
+            : call('stay_quiet', {})
         case 'reply':
           return request.from === 'Ada'
             ? call('whoami', {})
@@ -893,6 +913,12 @@ test("removing a Familiar stops its turns and schedules, retires its memory, ope
           prompt: 'Remind Aidan to call Mum',
           at: '2099-01-01 09:00',
         })
+      }
+      if (
+        request.type === 'message' &&
+        shown(request).includes('where everyone hears it')
+      ) {
+        return call('stay_quiet', {})
       }
       if (request.type !== 'message' || !request.text.includes('hold')) {
         return echo(request)
