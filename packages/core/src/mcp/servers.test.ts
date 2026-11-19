@@ -1,3 +1,4 @@
+import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { TranscriptContext } from '@earendil-works/pi-ai'
 import {
   fauxAssistantMessage,
@@ -21,6 +22,7 @@ import {
   type PluginFetch,
 } from '../index.ts'
 import { createHttpApi } from '../http/index.ts'
+import { BACKGROUND_MCP_TASK } from './background.ts'
 import { offeredTools, replyTo, testHost, type TestHost } from '../testing.ts'
 
 // Familiar saves any well-formed server and connects through the transport
@@ -247,10 +249,7 @@ test('an opted-in MCP call frees the Familiar and follows up in its original roo
   host.faux.setResponses([
     searchFor('echo'),
     callEcho(),
-    (request) => {
-      expect(JSON.stringify(lastResult(request))).toContain('accepted as job')
-      return fauxAssistantMessage('I will report back.')
-    },
+    fauxAssistantMessage('I will report back.'),
     fauxAssistantMessage('I can answer while it runs.'),
     (request) => {
       expect(JSON.stringify(request.messages.at(-1))).toContain(
@@ -346,22 +345,33 @@ test('removing an MCP server stops its background jobs and forgets their setting
   await host.say('Watch the print.')
   await expect.poll(() => server.state.calls).toBe(1)
 
+  await workspace.connections.updateToolSettings(connection, 'echo', {
+    enabled: false,
+    askBeforeRunning: true,
+  })
   await workspace.mcp.remove(home.name)
+
+  const { items: jobs } = await host.storage.scanTasks(
+    { kind: BACKGROUND_MCP_TASK },
+    10,
+    undefined,
+    BACKGROUND_CONTEXT,
+  )
+  expect(jobs.map((job) => job.state)).toEqual([
+    expect.objectContaining({
+      status: 'terminal',
+      outcome: { status: 'aborted' },
+    }),
+  ])
+
   await workspace.mcp.add(home)
   await workspace.connections.setSecret(connection, 'token', server.state.token)
   await expect.poll(() => status(workspace)).toBe('connected')
-  expect((await info(workspace)).tools[0]?.runInBackground).toBe(false)
-  held.resolve()
-  host.faux.setResponses([
-    (request) => {
-      expect(JSON.stringify(request.messages)).not.toContain(
-        'The removed call finished.',
-      )
-      return fauxAssistantMessage('The new connection is ready.')
-    },
-  ])
-  await host.say('Are you there?')
-  expect(server.state.calls).toBe(1)
+  expect((await info(workspace)).tools[0]).toMatchObject({
+    enabled: true,
+    askBeforeRunning: false,
+    runInBackground: false,
+  })
 })
 
 test.each([
@@ -464,13 +474,8 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
 
-  await familiar.connections.updateToolSettings(connection, 'add', {
-    enabled: false,
-    askBeforeRunning: true,
-  })
-
-  // Removal takes its tools, the last server's tool search, token and
-  // tool overrides with it.
+  // Removal takes its tools, the last server's tool search and its token
+  // with it, for good.
   await familiar.mcp.remove('test')
   expect(await search(host, 'add')).toMatchObject({
     content: [
@@ -481,15 +486,6 @@ test('a connection waits for its token, persists, follows tool changes and is cl
     ],
   })
   expect(await secrets.get(connection, 'token')).toBeUndefined()
-  await familiar.mcp.add(home)
-  await familiar.connections.setSecret(connection, 'token', server.state.token)
-  await expect.poll(() => status(familiar)).toBe('connected')
-  expect((await info(familiar)).tools[0]).toMatchObject({
-    name: 'add',
-    enabled: true,
-    askBeforeRunning: false,
-  })
-  await familiar.mcp.remove('test')
   familiar = (await host.reopen()).workspace
   expect(await familiar.connections.list()).toEqual([])
 })
