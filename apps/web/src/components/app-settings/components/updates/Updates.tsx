@@ -20,36 +20,25 @@ import { UpdateProgress } from './components/update-progress'
  * The running version, and updating it from the latest release or the
  * latest build of main. Everything shown comes from the daemon's record of
  * the update, so a reload or another device shows the same; this page only
- * knows it asked for one, until the record shows it started.
+ * knows it asked for one, until the record shows it started or the wait
+ * for it runs out.
  */
 export const Updates = () => {
-  // The start of the last update when this page asked for one: until the
-  // record shows a later one, the job is still starting.
-  const [requested, setRequested] = useState<{ after?: string }>()
-  const { data: info, isError } = useQuery({
-    ...updateQuery,
-    refetchInterval: (query) =>
-      (requested && query.state.data?.last?.startedAt === requested.after) ||
-      isUpdating(query.state.data?.last)
-        ? 1000
-        : false,
-  })
+  const { data: info, isError } = useQuery(updateQuery)
   const { data: available } = useQuery(availableQuery)
   const [chosen, setChosen] = useState<UpdateSource>()
   const start = useMutation({
-    mutationFn: startUpdate,
-    onMutate: () => setRequested({ after: info?.last?.startedAt }),
-    onError: () => setRequested(undefined),
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: updateQuery.queryKey }),
+    mutationFn: (source: UpdateSource) =>
+      startUpdate(source, info?.last?.startedAt),
+    onSuccess: (started) =>
+      queryClient.setQueryData(updateQuery.queryKey, started),
   })
 
   if (!info) {
     return null
   }
   const { installed, service, last } = info
-  const starting =
-    requested !== undefined && last?.startedAt === requested.after
+  const starting = start.isPending
   const busy = starting || isUpdating(last)
   const source = chosen ?? installed?.source ?? 'release'
   const target = available?.[source]

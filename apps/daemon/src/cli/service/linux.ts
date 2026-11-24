@@ -48,7 +48,19 @@ WantedBy=default.target
 `
 }
 
-/** `systemd-run`'s arguments for `runJob`, with the service's environment. */
+/**
+ * A command argument the service manager leaves as it is. It expands
+ * `${NAME}` in a transient unit's command, but never specifiers. `$$` is
+ * the escape every version takes; `--expand-environment=no` is only from
+ * systemd 254.
+ */
+const literal = (arg: string) => arg.replaceAll('$', () => '$$')
+
+/**
+ * `systemd-run`'s arguments for `runJob`, with the service's environment.
+ * `Type=exec` makes it fail when the CLI can't be started, not only when
+ * the unit can't.
+ */
 export function jobCommand(
   {
     dataDir,
@@ -65,13 +77,12 @@ export function jobCommand(
     // Forget it once it ends, failed or not, so the name is free again.
     '--collect',
     '--quiet',
+    '--property=Type=exec',
     `--working-directory=${dataDir}`,
     `--setenv=FAMILIAR_DATA_DIR=${dataDir}`,
     `--setenv=PATH=${dirname(node)}:${path}`,
     '--',
-    node,
-    cliPath,
-    ...args,
+    ...[node, cliPath, ...args].map(literal),
   ]
 }
 
