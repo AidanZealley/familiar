@@ -111,6 +111,16 @@ export type ComputerDetail = {
   programs?: { command: string; memory?: number }[]
   tabs?: { title: string; url: string }[]
   system?: { os?: string; architecture?: string }
+  /** Beyond its image, which comes back when it's made again from a newer one. */
+  installed?: { packages: { name: string; summary?: string }[]; setup: boolean }
+  /** How putting that back went, if it was made again with any. */
+  restored?: {
+    at: string
+    installed: string[]
+    missed: string[]
+    setup?: 'ran' | 'failed' | 'stopped'
+    stopped?: true
+  }
 }
 
 /**

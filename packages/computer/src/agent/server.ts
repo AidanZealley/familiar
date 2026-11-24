@@ -26,7 +26,7 @@ import { KEEP_TEXT } from '../shorten.ts'
 import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
 import type { CallKind, ComputerControl } from './control.ts'
-import type { Restoring } from './restore.ts'
+import { installedOn, type Restoring } from './restore.ts'
 import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
 import { signIn } from './sign-in.ts'
@@ -345,7 +345,7 @@ export function computerServer(
     INFO_TOOL,
     {
       description:
-        'For the host, never a model: the open tabs and the system, as JSON.',
+        'For the host, never a model: the open tabs, the system and what is installed, as JSON.',
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
@@ -359,6 +359,7 @@ export function computerServer(
         ),
         tabs: await browser.tabs(),
         system: { os: await osName(), architecture: machine() },
+        ...(await installedOn(home)),
       }
       return text(JSON.stringify(info))
     },

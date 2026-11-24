@@ -142,7 +142,7 @@ export const annotationsOf = (tool: ComputerTool) => ({
 
 /**
  * The agent's hidden tool for a person looking at the computer: what it's
- * doing, its open tabs and system, as JSON text (`ComputerInfo`). It's on
+ * doing, its open tabs and system, what's installed on it, as JSON text (`ComputerInfo`). It's on
  * the agent's MCP server but not in `computerTools`, so no Familiar is ever
  * offered it, and it never keeps the computer awake.
  */
@@ -150,7 +150,13 @@ export const INFO_TOOL = 'computer_info'
 
 export type ComputerInfo = Pick<
   ComputerDetail,
-  'control' | 'doing' | 'lastUsed' | 'tabs' | 'system'
+  | 'control'
+  | 'doing'
+  | 'lastUsed'
+  | 'tabs'
+  | 'system'
+  | 'installed'
+  | 'restored'
 >
 
 /**

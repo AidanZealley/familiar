@@ -1,3 +1,4 @@
+import { BrowsersIcon, CpuIcon } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { HourglassSpinner } from '@/components/hourglass-spinner'
 import {
@@ -8,6 +9,7 @@ import {
 } from '@/lib/computers'
 import { formatAgo, formatBytes } from '@/lib/format'
 import { DetailSection } from './components/detail-section'
+import { InstalledSection } from './components/installed-section'
 import { UsageMeter } from './components/usage-meter'
 import type { ComputerSystemDetailsProps } from './types'
 
@@ -21,8 +23,8 @@ const amount = (
 
 /**
  * A Familiar's computer in detail, read only while this is shown: what it's
- * doing, when it started or slept, what it's using, its tabs, programs and
- * system. Only what its host reported appears: a host that can't tell
+ * doing, when it started or slept, what it's using, its tabs, programs,
+ * what's installed beyond its image, and its system. Only what its host reported appears: a host that can't tell
  * something, or a sleeping computer, simply shows less.
  */
 export const ComputerSystemDetails = ({
@@ -104,7 +106,7 @@ export const ComputerSystemDetails = ({
         </div>
       )}
       {!!detail?.tabs?.length && (
-        <DetailSection title="Tabs">
+        <DetailSection title="Tabs" icon={BrowsersIcon}>
           {detail.tabs.map((tab, index) => (
             <li key={index} className="flex min-w-0 flex-col">
               <span className="truncate">{tab.title || tab.url}</span>
@@ -118,7 +120,7 @@ export const ComputerSystemDetails = ({
         </DetailSection>
       )}
       {!!programs?.length && (
-        <DetailSection title="Programs">
+        <DetailSection title="Programs" icon={CpuIcon}>
           {programs.map((program) => (
             <li
               key={program.name}
@@ -141,6 +143,12 @@ export const ComputerSystemDetails = ({
             </li>
           ))}
         </DetailSection>
+      )}
+      {detail?.installed && (
+        <InstalledSection
+          installed={detail.installed}
+          restored={detail.restored}
+        />
       )}
       {system && <p className="text-muted-foreground">{system}</p>}
       {error && (

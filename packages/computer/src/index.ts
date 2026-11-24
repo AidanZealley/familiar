@@ -5,6 +5,7 @@ export type {
   ComputerCall,
   ComputerDetail,
   ComputerHost,
+  ComputerRestore,
   ComputerStatus,
   ComputerSummary,
   ComputersSummary,
