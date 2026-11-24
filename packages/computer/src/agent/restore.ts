@@ -213,10 +213,11 @@ export function restoring(home: string) {
 export type Restoring = ReturnType<typeof restoring>
 
 /**
- * What's installed on the computer whose home is `home` beyond its image,
- * as the records say, each package with apt's one-line summary, and how the
- * last restore went if it put anything back. While a restore runs, the
- * records say what it's putting back.
+ * What's installed on the computer whose home is `home` beyond its image:
+ * of the packages the records ask for, those dpkg says are installed, each
+ * with apt's one-line summary, so one a restore missed isn't listed; and
+ * how the last restore went if it put anything back, which names those
+ * it missed.
  */
 export async function installedOn(
   home: string,
@@ -225,14 +226,16 @@ export async function installedOn(
   const names = lines(
     await readFile(join(records, 'apt-packages'), 'utf8').catch(() => ''),
   ).filter((name) => PACKAGE.test(name))
-  const summaries = await summariesOf(names)
+  const installed = await installedOf(names)
   const restored = await readFile(RESTORED, 'utf8').then(
     (text) => JSON.parse(text) as ComputerRestore,
     () => undefined,
   )
   return {
     installed: {
-      packages: names.map((name) => ({ name, summary: summaries.get(name) })),
+      packages: names.flatMap((name) =>
+        installed.has(name) ? [{ name, summary: installed.get(name) }] : [],
+      ),
       setup: await exists(join(records, 'setup.sh')),
     },
     restored:
@@ -243,23 +246,35 @@ export async function installedOn(
   }
 }
 
-/** apt's one-line summary of each installed package of `names`. */
-const summariesOf = (names: string[]) =>
-  new Promise<Map<string, string>>((resolve) => {
+/**
+ * Those of `names` dpkg has installed, each with apt's one-line summary,
+ * if it has one.
+ */
+const installedOf = (names: string[]) =>
+  new Promise<Map<string, string | undefined>>((resolve) => {
     if (!names.length) {
       return resolve(new Map())
     }
-    // A package that isn't installed fails the query, but the rest print.
+    // A package dpkg has never seen fails the query, but the rest print.
     execFile(
       'dpkg-query',
-      ['-W', '-f=${binary:Package}\t${binary:Summary}\n', '--', ...names],
+      [
+        '-W',
+        '-f=${binary:Package}\t${db:Status-Abbrev}\t${binary:Summary}\n',
+        '--',
+        ...names,
+      ],
       (_error, stdout) =>
         resolve(
           new Map(
             lines(stdout ?? '').flatMap((line) => {
               // Named as apt-mark names it, `name:arch` when it must be.
-              const [name = '', summary] = line.split('\t')
-              return summary ? [[name, summary] as const] : []
+              const [name = '', status = '', summary] = line.split('\t')
+              // Such as `ii`: the second letter is its state, `i` installed;
+              // one removed but for its configuration files is `rc`.
+              return status[1] === 'i'
+                ? [[name, summary || undefined] as const]
+                : []
             }),
           ),
         ),
