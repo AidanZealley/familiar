@@ -22,6 +22,28 @@ const empty: Draft = { text: '', picked: [], images: [], note: false }
 export const revoke = (images: readonly DraftImage[]) =>
   images.forEach((image) => URL.revokeObjectURL(image.url))
 
+const isEmpty = (draft: Draft) => !draft.text.trim() && !draft.images.length
+
+/**
+ * A draft that couldn't be sent put back ahead of what's been drafted
+ * since, so neither is lost and every image stays in a draft that frees it.
+ * It goes as a note only if both would.
+ */
+const merged = (unsent: Draft, since: Draft): Draft =>
+  isEmpty(since)
+    ? unsent
+    : {
+        text: unsent.text ? `${unsent.text}\n${since.text}` : since.text,
+        picked: [
+          ...unsent.picked,
+          ...since.picked.filter(
+            (familiar) => !unsent.picked.some(({ id }) => id === familiar.id),
+          ),
+        ],
+        images: [...unsent.images, ...since.images],
+        note: unsent.note && since.note,
+      }
+
 const without = (draft: Draft, url: string): Draft => {
   revoke(draft.images.filter((image) => image.url === url))
   return { ...draft, images: draft.images.filter((image) => image.url !== url) }
@@ -117,7 +139,7 @@ export const useDraft = () => {
       setRefused(undefined)
       return { ...draft, text: text.trim() }
     },
-    /** Puts back a draft that couldn't be sent. */
-    restore: setDraft,
+    /** Puts back a draft that couldn't be sent, keeping any drafted since. */
+    restore: (unsent: Draft) => setDraft((draft) => merged(unsent, draft)),
   }
 }

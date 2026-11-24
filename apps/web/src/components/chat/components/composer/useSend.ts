@@ -7,7 +7,8 @@ import { revoke, type Draft } from './useDraft'
 /**
  * The composer's commands: sending a draft, as a message or a note, and
  * Stop. A draft that fails to send goes back through `restore`, images
- * and all; one that's sent frees its images. `error` is the latest
+ * and all, which keeps anything drafted meanwhile; one that's sent frees
+ * its images. `error` is the latest
  * failure of any command sharing the composer's key, the model picker's
  * too, until another succeeds.
  */
