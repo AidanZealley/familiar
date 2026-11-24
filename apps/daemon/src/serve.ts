@@ -12,6 +12,7 @@ import { WebSocketServer } from 'ws'
 import { avatarRoutes } from './avatars.ts'
 import { computerLimitRoutes, type ComputerLimit } from './computer-limit.ts'
 import { providerRoutes } from './providers.ts'
+import { updateRoutes, type Updater } from './updates.ts'
 
 export type ServeOptions = {
   host: string
@@ -33,6 +34,8 @@ export type ServeOptions = {
   computerLimit?: ComputerLimit
   /** Where Familiars' computers run, for the web UI's overview of them. */
   computers?: Pick<ComputerHost, 'summary'>
+  /** Updating this installation, from the web UI's settings. */
+  updater?: Updater
 }
 
 /**
@@ -115,6 +118,7 @@ export function daemonApp(
     | 'models'
     | 'computerLimit'
     | 'computers'
+    | 'updater'
   >,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin())
@@ -135,6 +139,10 @@ export function daemonApp(
   if (options.computerLimit) {
     app.use('/api/computer-limit', ownersOnly)
     app.route('/api/computer-limit', computerLimitRoutes(options.computerLimit))
+  }
+  if (options.updater) {
+    app.use('/api/update/*', ownersOnly)
+    app.route('/api/update', updateRoutes(options.updater))
   }
   // Every Familiar's computer at once, which the plugin's routes, each
   // Familiar's own, can't give.

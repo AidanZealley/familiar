@@ -9,7 +9,7 @@ import {
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { linuxService, renderUnit } from './linux.ts'
+import { jobCommand, linuxService, renderUnit } from './linux.ts'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 let temporary: string
@@ -127,4 +127,32 @@ test('another data directory cannot see, replace or remove this service', () => 
   expect(calls()).toEqual([])
   expect(() => other.install()).toThrow('different data directory')
   expect(() => other.uninstall()).toThrow('different data directory')
+})
+
+test('a job runs the CLI in its own transient unit, with the data folder set for it', () => {
+  expect(
+    jobCommand(
+      {
+        dataDir: '/data',
+        cliPath: '/app/familiar.js',
+        node: '/node/bin/node',
+        path: '/usr/bin',
+      },
+      'update',
+      ['update', '--main'],
+    ),
+  ).toEqual([
+    '--user',
+    '--unit=familiar-update',
+    '--collect',
+    '--quiet',
+    '--working-directory=/data',
+    '--setenv=FAMILIAR_DATA_DIR=/data',
+    '--setenv=PATH=/node/bin:/usr/bin',
+    '--',
+    '/node/bin/node',
+    '/app/familiar.js',
+    'update',
+    '--main',
+  ])
 })

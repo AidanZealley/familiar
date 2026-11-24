@@ -58,7 +58,7 @@ try {
         ;(await import('./cli/manage.ts')).logs()
         break
       case 'update':
-        await (await import('./cli/manage.ts')).update(source)
+        await (await import('./cli/update.ts')).update(source)
         break
       case 'uninstall':
         ;(await import('./cli/manage.ts')).uninstall()

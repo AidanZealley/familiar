@@ -14,6 +14,7 @@ import { powershell, powershellString } from './powershell.ts'
 import {
   hiddenLaunch,
   renderHiddenLauncher,
+  renderJobTask,
   renderLauncher,
   renderTask,
   windowsService,
@@ -127,6 +128,29 @@ test('task XML runs as the owner at logon with restart limits and safe argument 
   expect(xml).toContain('&quot;')
   expect(xml).toContain('wscript.exe</Command>')
   expect(xml).toContain('service.vbs')
+})
+
+test('a job runs the CLI hidden, on demand only, with the data folder set for it', () => {
+  const job = renderJobTask(
+    {
+      dataDir: 'C:\\Users\\o "q"\\Familiar',
+      cliPath: 'C:\\app\\familiar.js',
+      node: 'C:\\Program Files\\node.exe',
+    },
+    userId,
+    'update',
+    ['update', '--main'],
+  )
+  const script = job.content.toString('utf16le')
+  expect(script).toContain(
+    'shell.Environment("Process")("FAMILIAR_DATA_DIR") = "C:\\Users\\o ""q""\\Familiar"',
+  )
+  expect(script).toContain(
+    'shell.Run("""C:\\Program Files\\node.exe"" ""C:\\app\\familiar.js"" ""update"" ""--main""", 0, True)',
+  )
+  expect(job.xml).not.toContain('Trigger')
+  expect(job.xml).not.toContain('RestartOnFailure')
+  expect(job.xml).toContain('update-job.vbs')
 })
 
 test('install registers once and repeat setup preserves a running instance', () => {

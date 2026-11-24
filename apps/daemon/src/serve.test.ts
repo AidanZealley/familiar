@@ -25,12 +25,13 @@ import { expect, onTestFinished, test, vi } from 'vitest'
 import { WebSocket } from 'ws'
 import { settingsComputerLimit } from './computer-limit.ts'
 import { daemonApp, listen, OWNER_ID, type ServeOptions } from './serve.ts'
+import type { UpdateInfo } from './updates.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
 async function daemon(
   options: Pick<
     ServeOptions,
-    'webDir' | 'avatarsDir' | 'models' | 'computerLimit'
+    'webDir' | 'avatarsDir' | 'models' | 'computerLimit' | 'updater'
   > = {},
 ) {
   const models = createModels()
@@ -229,6 +230,47 @@ test("the computer limit is saved in settings.json, only by the owner's network"
     name: 'Cat',
     maxComputers: 3,
   })
+})
+
+test('an update starts only for the owner, on an installed service, one at a time', async () => {
+  const info: UpdateInfo = {
+    installed: { version: '0.4.3', source: 'main' },
+    service: true,
+    last: null,
+  }
+  const updater = {
+    info: () => info,
+    available: async () => ({ release: '0.5.0' }),
+    start: vi.fn(),
+  }
+  const { app } = await daemon({ updater })
+  const start = (source: unknown, host = local) =>
+    app.request('/api/update', {
+      method: 'POST',
+      headers: { host, 'content-type': 'application/json' },
+      body: JSON.stringify({ source }),
+    })
+
+  expect((await start('release', 'evil.example')).status).toBe(401)
+  expect((await start('nightly')).status).toBe(400)
+  expect((await start('release')).status).toBe(202)
+  expect(updater.start).toHaveBeenCalledExactlyOnceWith('release')
+  info.last = {
+    source: 'release',
+    from: '0.4.3',
+    phase: 'installing',
+    startedAt: '',
+  }
+  expect((await start('release')).status).toBe(409)
+  info.last = null
+  info.service = false
+  expect((await start('release')).status).toBe(400)
+  expect(updater.start).toHaveBeenCalledOnce()
+  expect(
+    await (
+      await app.request('/api/update/available', { headers: { host: local } })
+    ).json(),
+  ).toEqual({ release: '0.5.0' })
 })
 
 test("plugins' WebSocket routes echo, behind the owner's network and same origin", async () => {
