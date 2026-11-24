@@ -20,6 +20,7 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 | `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                                                       |
 | `@familiar-ai/core/node`              | Node building blocks: `fileSecretStore`, `fileCredentialStore`, `lockDataDir`, `jsonFile`. See [Plugin API](/familiar/reference/plugins/#node-building-blocks) |
 | `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                                                          |
+| `@familiar-ai/core/image`             | `checkImage`, `IMAGE_LIMITS` and `ImageProblem`: core's image rules, browser-safe, for clients to check images before sending                                  |
 
 The model and extension entries re-export Pi at the exact version core depends on.
 

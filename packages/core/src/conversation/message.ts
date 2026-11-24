@@ -9,9 +9,10 @@ import type {
 } from '@earendil-works/pi-durable'
 import { entriesOf } from '../pi/entries.ts'
 import {
-  readImageHeader,
-  type ImageHeader,
+  checkImage,
+  IMAGE_LIMITS,
   type ImageProblem,
+  type ImageRefusal,
 } from './image.ts'
 
 /** The entry kind people's messages are stored as. */
@@ -75,22 +76,6 @@ export const MESSAGE_LIMITS = {
 } as const
 
 /**
- * What a message's images may be. A client prepares them to fit (the web app
- * shrinks and encodes them in the browser); Familiar only checks. Each costs
- * the models tokens on every turn until its chat compacts, and past about
- * 1568px they gain little.
- */
-export const IMAGE_LIMITS = {
-  count: 10,
-  /** Characters of base64, per image. */
-  bytes: 1_500_000,
-  /** The longest side a client must prepare an image to, in pixels. */
-  pixels: 1568,
-  /** Frames of an animation, as a GIF the web app sends as it is. */
-  frames: 300,
-} as const
-
-/**
  * An image a message carries, as the model takes it inline: pi-ai's
  * `ImageContent`, as a type so it's JSON an entry can store.
  */
@@ -101,8 +86,8 @@ const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
 /**
  * `images` as a message stores them, each with the format its bytes show,
  * whatever it was labelled. Throws a MessageError for too many, too large,
- * not base64, or an image `readImageHeader` refuses or that's beyond
- * `IMAGE_LIMITS`, with the image's problem as data.
+ * not base64, or an image `checkImage` refuses, with the image's problem
+ * as data.
  */
 function admitImages(images: unknown): MessageImage[] {
   if (!Array.isArray(images) || images.length > IMAGE_LIMITS.count) {
@@ -122,21 +107,16 @@ function admitImages(images: unknown): MessageImage[] {
         `Each image must be base64 of at most ${IMAGE_LIMITS.bytes} characters.`,
       )
     }
-    const header = readImageHeader(
+    const header = checkImage(
       Uint8Array.from(atob(data), (char) => char.charCodeAt(0)),
     )
-    const problem: ImageProblem | undefined =
-      typeof header === 'string'
-        ? header
-        : Math.max(header.width, header.height) > IMAGE_LIMITS.pixels
-          ? 'pixels'
-          : header.frames > IMAGE_LIMITS.frames
-            ? 'frames'
-            : undefined
-    if (problem) {
-      throw new MessageError(IMAGE_PROBLEMS[problem], { index, problem })
+    if (typeof header === 'string') {
+      throw new MessageError(IMAGE_PROBLEMS[header], {
+        index,
+        problem: header,
+      })
     }
-    return { type: 'image', data, mimeType: (header as ImageHeader).mimeType }
+    return { type: 'image', data, mimeType: header.mimeType }
   })
 }
 
@@ -166,12 +146,9 @@ export function withImages(text: string, images = 0) {
  * which image was refused and why, when one was, for a host to word.
  */
 export class MessageError extends TypeError {
-  readonly image?: { index: number; problem: ImageProblem }
+  readonly image?: ImageRefusal
 
-  constructor(
-    message: string,
-    image?: { index: number; problem: ImageProblem },
-  ) {
+  constructor(message: string, image?: ImageRefusal) {
     super(message)
     this.image = image
   }

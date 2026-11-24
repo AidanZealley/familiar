@@ -2,11 +2,8 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import type { UpgradeWebSocket } from 'hono/ws'
 import { accountRoutes } from '../account/http.ts'
-import {
-  IMAGE_LIMITS,
-  MESSAGE_LIMITS,
-  type Author,
-} from '../conversation/message.ts'
+import { IMAGE_LIMITS } from '../conversation/image.ts'
+import { MESSAGE_LIMITS, type Author } from '../conversation/message.ts'
 import { mcpRoutes } from '../mcp/http.ts'
 import { pluginRoutes } from '../plugins/http.ts'
 import { isWebSocketUpgrade } from '../plugins/websocket.ts'

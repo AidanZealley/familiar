@@ -40,7 +40,8 @@ const workersOnly = [
 const portable = [...nodeOnly, ...workersOnly]
 
 // The client ships to browsers, so it shares core's and Pi's types but never
-// their code, except Pi's browser-safe transcript helper and Chord's ops.
+// their code, except Pi's browser-safe transcript helper, Chord's ops and
+// core's image rules (@familiar-ai/core/image).
 const typesOnlyFromPi = {
   group: [
     '@earendil-works/pi-ai',
