@@ -42,6 +42,38 @@ ${dataEntry(dataDir)}
 `
 }
 
+/** A one-shot LaunchAgent running the CLI with `args`, for `runJob`. */
+export function renderJob(
+  {
+    dataDir,
+    cliPath,
+    node = process.execPath,
+    path = process.env.PATH ?? '/usr/bin:/bin',
+  }: ServiceOptions,
+  job: string,
+  args: string[],
+) {
+  const program = [node, cliPath, ...args]
+    .map((arg) => `<string>${xml(arg)}</string>`)
+    .join('')
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>${xml(job)}</string>
+<key>ProgramArguments</key><array>${program}</array>
+<key>WorkingDirectory</key><string>${xml(dataDir)}</string>
+<key>EnvironmentVariables</key><dict>
+${dataEntry(dataDir)}
+<key>PATH</key><string>${xml(`${dirname(node)}:${path}`)}</string>
+</dict>
+<key>RunAtLoad</key><true/>
+<key>KeepAlive</key><false/>
+<key>StandardOutPath</key><string>${xml(resolve(dataDir, 'service.log'))}</string>
+<key>StandardErrorPath</key><string>${xml(resolve(dataDir, 'service.log'))}</string>
+</dict></plist>
+`
+}
+
 export function macosService(options: MacOptions) {
   const file = resolve(
     options.agentDir ?? resolve(homedir(), 'Library/LaunchAgents'),
@@ -68,9 +100,9 @@ export function macosService(options: MacOptions) {
       )
     }
   }
-  const inspect = () => {
+  const inspect = (job = target) => {
     try {
-      return launchctl('print', target)
+      return launchctl('print', job)
     } catch (error) {
       const failure = error as { stderr?: string; status?: number }
       if (
@@ -85,21 +117,22 @@ export function macosService(options: MacOptions) {
     }
   }
   const isRunning = () => ownsData() && /^\s*pid = \d+/m.test(inspect() ?? '')
-  const stop = () => {
-    if (inspect() === undefined) {
+  const unload = (job: string) => {
+    if (inspect(job) === undefined) {
       return
     }
-    launchctl('bootout', target)
+    launchctl('bootout', job)
     // bootout returns while launchd is still removing the job. Starting
     // before it is gone would kickstart the dying job instead of loading it.
     const deadline = Date.now() + 10000
-    while (inspect() !== undefined) {
+    while (inspect(job) !== undefined) {
       if (Date.now() > deadline) {
-        throw new Error('The Familiar LaunchAgent did not unload.')
+        throw new Error(`The LaunchAgent ${job} did not unload.`)
       }
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
     }
   }
+  const stop = () => unload(target)
   const start = () => {
     launchctl('enable', target)
     if (inspect() === undefined) {
@@ -144,6 +177,22 @@ export function macosService(options: MacOptions) {
       }
       stop()
       rmSync(file)
+    },
+    /**
+     * Runs the CLI with `args` as the one-shot LaunchAgent
+     * `com.familiar.daemon.<name>`, a job of its own, so stopping the
+     * service doesn't stop it. Its plist lives in the data folder, so it
+     * never runs at login. The last run's finished job is unloaded first.
+     */
+    runJob(name: string, args: string[]) {
+      const job = `${label}.${name}`
+      if (/^\s*pid = \d+/m.test(inspect(`${domain}/${job}`) ?? '')) {
+        throw new Error(`The ${name} job is already running.`)
+      }
+      unload(`${domain}/${job}`)
+      const plist = resolve(options.dataDir, `${name}-job.plist`)
+      writeFileSync(plist, renderJob(options, job, args), { mode: 0o600 })
+      launchctl('bootstrap', domain, plist)
     },
     logs() {
       execFileSync(

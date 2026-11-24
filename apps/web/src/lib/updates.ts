@@ -1,0 +1,102 @@
+import { queryOptions } from '@tanstack/react-query'
+import { check } from './http'
+
+/** Where an installation updates from, as the daemon names it. */
+export type UpdateSource = 'release' | 'main'
+
+/** The current or last update, as the daemon's `/api/update` reports it. */
+export type LastUpdate = {
+  source: UpdateSource
+  from: string
+  /** The version installed, once it is. */
+  to?: string
+  phase:
+    | 'downloading'
+    | 'installing'
+    | 'restarting'
+    | 'done'
+    | 'failed'
+    | 'interrupted'
+  error?: string
+  /** The end of the update's log, when it failed. */
+  log?: string
+  startedAt: string
+  endedAt?: string
+}
+
+/** What the daemon says about updating its installation. */
+export type UpdateInfo = {
+  /** The package the daemon runs, or null for a source checkout. */
+  installed: { version: string; source: UpdateSource } | null
+  /** Whether the daemon is the service, which an update restarts. */
+  service: boolean
+  last: LastUpdate | null
+}
+
+export const sourceNames: Record<UpdateSource, string> = {
+  release: 'Latest release',
+  main: 'Latest build of main',
+}
+
+/** Whether an update is still going. */
+export const isUpdating = (last: LastUpdate | null | undefined) =>
+  last?.phase === 'downloading' ||
+  last?.phase === 'installing' ||
+  last?.phase === 'restarting'
+
+/** The version the daemon ran when this page loaded, which its code is. */
+let pageVersion: string | undefined
+
+/**
+ * The version to reload for, once the daemon runs another than this page
+ * was loaded from.
+ */
+export const reloadFor = (info: UpdateInfo) =>
+  info.installed && pageVersion && info.installed.version !== pageVersion
+    ? info.installed.version
+    : undefined
+
+/**
+ * The installation's version and its current or last update. Null where
+ * nothing serves it: a host that updates itself. Polled while an update
+ * runs, through the daemon's restart: a failed poll keeps the last answer,
+ * so it keeps polling until the daemon is back.
+ */
+export const updateQuery = queryOptions({
+  queryKey: ['update'],
+  queryFn: async (): Promise<UpdateInfo | null> => {
+    const response = await fetch('/api/update')
+    if (response.status === 404) {
+      return null
+    }
+    await check(response)
+    const info = (await response.json()) as UpdateInfo
+    pageVersion ??= info.installed?.version
+    return info
+  },
+  retry: false,
+  refetchInterval: (query) =>
+    isUpdating(query.state.data?.last) ? 1000 : false,
+})
+
+/** The latest version each source offers; one is missing if unknown. */
+export const availableQuery = queryOptions({
+  queryKey: ['update-available'],
+  queryFn: async () => {
+    const response = await fetch('/api/update/available')
+    await check(response)
+    return (await response.json()) as Partial<Record<UpdateSource, string>>
+  },
+  staleTime: 60_000,
+})
+
+/** Starts updating from `source`, as its own job beside the daemon. */
+export async function startUpdate(source: UpdateSource) {
+  await check(
+    await fetch('/api/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source }),
+    }),
+  )
+}

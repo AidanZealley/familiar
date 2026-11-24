@@ -83,6 +83,10 @@ Dates and reminders use the computer's time zone when Familiar starts. Restart i
 
 `familiar update --main` switches a release to the latest build of `main`, and `familiar update --release` switches back. Switching back installs the latest release even when it's older than your build of `main`, so wait for a release newer than it.
 
+You can also update from the web app: **Settings → Updates** shows the version Familiar runs and the latest of each source. Choose one and update; it does the same as `familiar update`, as a job of its own beside the service, so Familiar can restart while it runs. The page follows it through the restart, and shows the new version, or why the update failed and its log. You can close the page meanwhile. Only an installed Familiar running as its service can update itself this way; a source checkout updates with git, and `familiar serve` in a terminal with `familiar update`.
+
+The download comes first, so a failed download leaves Familiar running. If the install fails, Familiar starts again on the version it had. An update stopped part way, such as by a reboot, may leave Familiar unable to start; run the install script again to repair it.
+
 Updates don't back up your data first, and there's no rollback. Familiar has no export, import or automatic backups yet.
 
 `familiar uninstall` removes the background service and the Tailscale address. Your data directory stays where it is.

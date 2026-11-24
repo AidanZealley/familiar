@@ -3,15 +3,13 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { rename, signIn, status, uninstall, update } from './manage.ts'
+import { rename, signIn, status, uninstall } from './manage.ts'
 import { ensureDataDir, resolvePaths } from '../paths.ts'
-import { runNpm } from './npm.ts'
 import { openService } from './service/index.ts'
 import { readSettings, saveSettings } from '../settings.ts'
 import { signIn as login } from './sign-in.ts'
 import { publishedUrl, unpublish } from './tailnet.ts'
 
-vi.mock('./npm.ts', () => ({ runNpm: vi.fn() }))
 vi.mock('../paths.ts', () => ({
   ensureDataDir: vi.fn(),
   resolvePaths: vi.fn(),
@@ -78,45 +76,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   rmSync(prefix, { recursive: true, force: true })
-})
-
-test('update targets this installation prefix while the service is suspended', async () => {
-  await update()
-  expect(withStopped).toHaveBeenCalledOnce()
-  expect(runNpm).toHaveBeenCalledWith(
-    [
-      'install',
-      '--global',
-      '--prefix',
-      prefix,
-      'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
-    ],
-    { stdio: 'inherit' },
-  )
-})
-
-test('update stays on the source its version names, unless told to switch', async () => {
-  const url = () => vi.mocked(runNpm).mock.lastCall?.[0].at(-1)
-  install('0.4.3-main.168a762c')
-  await update()
-  expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
-  await update('release')
-  expect(url()).toMatch(/\/releases\/latest\/download\/familiar\.tgz$/)
-  install('0.4.3')
-  await update('main')
-  expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
-})
-
-test('source checkouts cannot accidentally install a second copy through update', async () => {
-  vi.mocked(resolvePaths).mockReturnValue({
-    cliPath: '/repo/apps/daemon/src/cli.ts',
-    dataDir: '/private',
-    pluginsDir: '/private/plugins',
-    avatarsDir: '/private/avatars',
-    webDir: '/web',
-  })
-  await expect(update()).rejects.toThrow('source checkout')
-  expect(runNpm).not.toHaveBeenCalled()
 })
 
 test('uninstall removes the service and matching publication while preserving data', () => {

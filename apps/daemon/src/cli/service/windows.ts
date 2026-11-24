@@ -45,6 +45,56 @@ export function renderHiddenLauncher({
   )
 }
 
+/**
+ * As `renderHiddenLauncher`, for any command, with `env` set for it first:
+ * Task Scheduler runs with the user's own environment.
+ */
+function hiddenScript(command: string[], env: Record<string, string>) {
+  const vb = (value: string) => `"${value.replaceAll('"', '""')}"`
+  const line = command.map((part) => `"${part}"`).join(' ')
+  const setEnv = Object.entries(env).map(
+    ([key, value]) =>
+      `shell.Environment("Process")(${vb(key)}) = ${vb(value)}\r\n`,
+  )
+  return Buffer.from(
+    `\ufeffSet shell = CreateObject("WScript.Shell")\r\n${setEnv.join('')}WScript.Quit shell.Run(${vb(line)}, 0, True)\r\n`,
+    'utf16le',
+  )
+}
+
+/**
+ * A task with no trigger, run on demand, for `runJob`: the CLI with `args`
+ * as a process of its own, outside the service's tree, so stopping the
+ * service doesn't stop it. One at a time.
+ */
+export function renderJobTask(
+  { dataDir, node = process.execPath, cliPath }: ServiceOptions,
+  userId: string,
+  name: string,
+  args: string[],
+) {
+  const script = resolve(dataDir, `${name}-job.vbs`)
+  const launch = hiddenLaunch({ dataDir })
+  return {
+    script,
+    content: hiddenScript([node, cliPath, ...args], {
+      FAMILIAR_DATA_DIR: dataDir,
+      PATH: `${win32.dirname(node)};${process.env.PATH ?? ''}`,
+    }),
+    xml: `<?xml version="1.0"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+<Principals><Principal id="Owner"><UserId>${xml(userId)}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+<Settings>
+<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+<ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+</Settings>
+<Actions Context="Owner"><Exec><Command>${xml(launch.command)}</Command><Arguments>${xml(`"${script}"`)}</Arguments><WorkingDirectory>${xml(dataDir)}</WorkingDirectory></Exec></Actions>
+</Task>
+`,
+  }
+}
+
 /** A separate process gives Task Scheduler an exit code and a tree to stop. */
 export function renderLauncher({
   dataDir,
@@ -248,6 +298,15 @@ $link.WorkingDirectory = ${quote(options.dataDir)}; $link.WindowStyle = 7; $link
       console.log(
         'Familiar Windows startup is installed and running. It starts when you log in.',
       )
+    },
+    runJob(jobName: string, args: string[]) {
+      const job = renderJobTask(options, userId, jobName, args)
+      const file = resolve(options.dataDir, `${jobName}-job.xml`)
+      writeFileSync(job.script, job.content, { mode: 0o600 })
+      writeFileSync(file, job.xml, { mode: 0o600 })
+      const task = `Familiar-${jobName}-${userId}`
+      schtasks('/Create', '/TN', task, '/XML', file, '/F')
+      schtasks('/Run', '/TN', task)
     },
     uninstall() {
       const current = registration()

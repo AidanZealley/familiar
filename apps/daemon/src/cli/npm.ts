@@ -14,8 +14,10 @@ export function runNpm(
     throw result.error
   }
   if (result.status !== 0) {
+    // Its output went elsewhere when stdio wasn't piped.
+    const stderr = result.stderr?.trim()
     throw new Error(
-      `npm failed (${result.status ?? result.signal}): ${result.stderr ?? ''}`,
+      `npm failed (${result.status ?? result.signal})${stderr ? `: ${stderr}` : '.'}`,
     )
   }
   return result.stdout ?? ''

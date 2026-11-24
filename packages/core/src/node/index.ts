@@ -3,5 +3,5 @@
 // network access needs nothing here: on Node it's core's default.
 export { fileCredentialStore } from './credentials.ts'
 export { jsonFile } from './json-file.ts'
-export { lockDataDir } from './lock.ts'
+export { lockDataDir, lockHolder, takeLock } from './lock.ts'
 export { fileSecretStore } from './secrets.ts'

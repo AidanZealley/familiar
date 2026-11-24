@@ -48,6 +48,33 @@ WantedBy=default.target
 `
 }
 
+/** `systemd-run`'s arguments for `runJob`, with the service's environment. */
+export function jobCommand(
+  {
+    dataDir,
+    cliPath,
+    node = process.execPath,
+    path = process.env.PATH ?? '/usr/bin:/bin',
+  }: ServiceOptions,
+  name: string,
+  args: string[],
+) {
+  return [
+    '--user',
+    `--unit=familiar-${name}`,
+    // Forget it once it ends, failed or not, so the name is free again.
+    '--collect',
+    '--quiet',
+    `--working-directory=${dataDir}`,
+    `--setenv=FAMILIAR_DATA_DIR=${dataDir}`,
+    `--setenv=PATH=${dirname(node)}:${path}`,
+    '--',
+    node,
+    cliPath,
+    ...args,
+  ]
+}
+
 export function linuxService(options: LinuxOptions) {
   const unit = resolve(
     options.unitDir ??
@@ -145,6 +172,16 @@ export function linuxService(options: LinuxOptions) {
       systemctl('disable', '--now', 'familiar')
       rmSync(unit)
       systemctl('daemon-reload')
+    },
+    /**
+     * Runs the CLI with `args` as the transient unit `familiar-<name>`, in
+     * its own cgroup, so stopping the service doesn't stop it. systemd
+     * refuses a second while one runs.
+     */
+    runJob(name: string, args: string[]) {
+      execFileSync('systemd-run', jobCommand(options, name, args), {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
     },
     logs() {
       execFileSync('journalctl', ['--user', '-u', 'familiar', '-f'], {

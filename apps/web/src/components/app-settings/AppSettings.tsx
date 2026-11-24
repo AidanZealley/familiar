@@ -1,4 +1,5 @@
 import {
+  ArrowCircleUpIcon,
   GearSixIcon,
   BellIcon,
   CpuIcon,
@@ -16,12 +17,14 @@ import { SettingsDialog } from '@/components/settings-dialog'
 import { Badge } from '@/components/ui/badge'
 import { computerLimitQuery } from '@/lib/computers'
 import { useWorkspace } from '@/lib/familiar'
+import { updateQuery } from '@/lib/updates'
 import { AppearanceSettings } from './components/appearance-settings'
 import { ComputerLimit } from './components/computer-limit'
 import { ComputersOverview } from './components/computers-overview'
 import { DefaultTools } from './components/default-tools'
 import { ModelDefaults } from './components/model-defaults'
 import { Providers } from './components/providers'
+import { Updates } from './components/updates'
 import { YourProfile } from './components/your-profile'
 
 /** The one Settings: you and this device, then the workspace. */
@@ -30,6 +33,8 @@ export const AppSettings = () => {
   const me = useWorkspace((state) => state.me)
   // Only where the daemon keeps the limit.
   const { data: maxComputers } = useQuery(computerLimitQuery)
+  // Only where the daemon updates its own installation.
+  const { data: update } = useQuery(updateQuery)
 
   return (
     <SettingsDialog
@@ -138,6 +143,19 @@ export const AppSettings = () => {
                         />
                       </div>
                     ),
+                  },
+                ]
+              : []),
+            ...(update
+              ? [
+                  {
+                    id: 'updates',
+                    label: 'Updates',
+                    icon: ArrowCircleUpIcon,
+                    keywords: 'version update upgrade release main restart',
+                    description:
+                      'The version Familiar runs, and updating it. Familiar restarts to finish.',
+                    content: <Updates />,
                   },
                 ]
               : []),

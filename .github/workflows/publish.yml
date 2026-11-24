@@ -77,7 +77,10 @@ jobs:
       # build of main) is never marked Latest.
       - name: Publish the GitHub release
         run: |
-          assets=(apps/daemon/dist/familiar.tgz install.sh install.ps1)
+          # version.json tells an installation what it would update to,
+          # beside the package it would install.
+          jq -n --arg version "$VERSION" '{ version: $version }' > version.json
+          assets=(apps/daemon/dist/familiar.tgz version.json install.sh install.ps1)
           notes="Built from $GITHUB_SHA as $VERSION. Install it with FAMILIAR_VERSION=main, or switch an installation with familiar update --main."
           if [ "$RELEASE" = main-build ]; then
             # The workflow is main-build's only writer: the tag follows the

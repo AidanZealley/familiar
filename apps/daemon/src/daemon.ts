@@ -15,6 +15,7 @@ import { loadPlugins } from './plugins.ts'
 import { openPush } from './push.ts'
 import { OWNER_ID, serveWorkspace } from './serve.ts'
 import { webPlugin } from './web/plugin.ts'
+import { installationUpdater } from './updates.ts'
 import { openDaemonWorkspace } from './workspace.ts'
 
 export async function serve() {
@@ -78,6 +79,7 @@ export async function serve() {
     models,
     computerLimit,
     computers,
+    updater: installationUpdater(),
   })
 }
 
