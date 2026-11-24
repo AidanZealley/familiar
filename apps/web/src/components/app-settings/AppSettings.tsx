@@ -4,6 +4,7 @@ import {
   BellIcon,
   CpuIcon,
   DesktopTowerIcon,
+  ArrowClockwiseIcon,
   KeyIcon,
   PaletteIcon,
   PlugIcon,
@@ -11,6 +12,7 @@ import {
   UserIcon,
 } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { Connections, useNeedsAttention } from '@/components/connections'
 import { NotificationSetting } from '@/components/notification-setting'
 import { SettingsDialog } from '@/components/settings-dialog'
@@ -24,6 +26,7 @@ import { ComputersOverview } from './components/computers-overview'
 import { DefaultTools } from './components/default-tools'
 import { ModelDefaults } from './components/model-defaults'
 import { Providers } from './components/providers'
+import { RestartAction } from './components/restart-action'
 import { Updates } from './components/updates'
 import { YourProfile } from './components/your-profile'
 
@@ -121,7 +124,7 @@ export const AppSettings = () => {
               keywords:
                 'api keys chatgpt sign in sign out openai anthropic claude google gemini xai grok openrouter',
               description:
-                "Where Familiars' models come from. A provider's models are offered once it has a key, after Familiar restarts.",
+                "Where Familiars' models come from. A provider's models are offered once it has a key, after Familiar restarts (Actions, Restart).",
               content: <Providers />,
             },
             ...(maxComputers != null
@@ -161,6 +164,25 @@ export const AppSettings = () => {
               : []),
           ],
         },
+        // Only where the daemon can say whether it can restart itself.
+        ...(update
+          ? [
+              {
+                label: 'Actions',
+                actions: [
+                  {
+                    id: 'restart',
+                    label: 'Restart',
+                    icon: ArrowClockwiseIcon,
+                    keywords: 'restart reload service keys plugins',
+                    render: (link: ReactElement) => (
+                      <RestartAction link={link} info={update} />
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
       ]}
     />
   )

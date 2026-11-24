@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { openService } from './cli/service/index.ts'
 import {
   availableVersions,
@@ -18,6 +18,8 @@ export type UpdateInfo = {
   service: boolean
   /** The current or last update, wherever it was started. */
   last: LastUpdate | null
+  /** When this daemon started, so a client can tell it has restarted. */
+  started: string
 }
 
 /** Updating this installation, as the routes need it. */
@@ -26,6 +28,8 @@ export type Updater = {
   available(): Promise<Partial<Record<UpdateSource, string>>>
   /** Runs `familiar update` from `source` as a job outside the service. */
   start(source: UpdateSource): void
+  /** Runs `familiar restart` as a job outside the service it restarts. */
+  restart(): void
 }
 
 const running = (last: LastUpdate | null) =>
@@ -39,6 +43,7 @@ const running = (last: LastUpdate | null) =>
 export function installationUpdater(): Updater {
   const paths = resolvePaths()
   const installed = installedPackage(paths.cliPath)
+  const started = new Date().toISOString()
   // Only one daemon runs per data folder, so if its service is running,
   // this is it. Read once, when first asked: it can't change.
   let service: boolean | undefined
@@ -58,9 +63,11 @@ export function installationUpdater(): Updater {
         : null,
       service: isService(),
       last: lastUpdate(paths.dataDir) ?? null,
+      started,
     }),
     available: availableVersions,
     start: (source) => openService(paths).runJob('update', updateArgs(source)),
+    restart: () => openService(paths).runJob('restart', ['restart']),
   }
 }
 
@@ -68,8 +75,37 @@ const isSource = (value: unknown): value is UpdateSource =>
   value === 'release' || value === 'main'
 
 /**
+ * Starts `job` to `action` this installation, answering 202, unless this
+ * daemon isn't the installed service or an update is already running.
+ */
+function startJob(
+  c: Context,
+  info: UpdateInfo,
+  action: 'update' | 'restart',
+  job: () => void,
+) {
+  if (!info.installed || !info.service) {
+    return c.json({ error: `This installation cannot ${action} itself.` }, 400)
+  }
+  if (running(info.last)) {
+    return c.json({ error: 'An update is already running.' }, 409)
+  }
+  try {
+    job()
+  } catch (error) {
+    return c.json(
+      { error: error instanceof Error ? error.message : String(error) },
+      500,
+    )
+  }
+  return c.body(null, 202)
+}
+
+/**
  * Mounted at `/update`: `GET` the `UpdateInfo`, `GET /available` the
- * latest version of each source, and `POST { source }` to start one.
+ * latest version of each source, `POST { source }` to start one, and
+ * `POST /restart` to restart the service. Both need this daemon to be the
+ * installed service, and refuse while an update runs.
  */
 export const updateRoutes = (updater: Updater) =>
   new Hono()
@@ -91,20 +127,8 @@ export const updateRoutes = (updater: Updater) =>
       if (!isSource(source)) {
         return c.json({ error: 'source must be release or main' }, 400)
       }
-      const info = updater.info()
-      if (!info.installed || !info.service) {
-        return c.json({ error: 'This installation cannot update itself.' }, 400)
-      }
-      if (running(info.last)) {
-        return c.json({ error: 'An update is already running.' }, 409)
-      }
-      try {
-        updater.start(source)
-      } catch (error) {
-        return c.json(
-          { error: error instanceof Error ? error.message : String(error) },
-          500,
-        )
-      }
-      return c.body(null, 202)
+      return startJob(c, updater.info(), 'update', () => updater.start(source))
     })
+    .post('/restart', (c) =>
+      startJob(c, updater.info(), 'restart', updater.restart),
+    )

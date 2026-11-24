@@ -31,6 +31,8 @@ export type UpdateInfo = {
   /** Whether the daemon is the service, which an update restarts. */
   service: boolean
   last: LastUpdate | null
+  /** When the daemon started, which changes when it restarts. */
+  started: string
 }
 
 export const sourceNames: Record<UpdateSource, string> = {
@@ -43,6 +45,16 @@ export const isUpdating = (last: LastUpdate | null | undefined) =>
   last?.phase === 'downloading' ||
   last?.phase === 'installing' ||
   last?.phase === 'restarting'
+
+/** What the daemon says about its installation, or null if nothing serves it. */
+async function fetchInfo(): Promise<UpdateInfo | null> {
+  const response = await fetch('/api/update')
+  if (response.status === 404) {
+    return null
+  }
+  await check(response)
+  return (await response.json()) as UpdateInfo
+}
 
 /** The version the daemon ran when this page loaded, which its code is. */
 let pageVersion: string | undefined
@@ -64,14 +76,9 @@ export const reloadFor = (info: UpdateInfo) =>
  */
 export const updateQuery = queryOptions({
   queryKey: ['update'],
-  queryFn: async (): Promise<UpdateInfo | null> => {
-    const response = await fetch('/api/update')
-    if (response.status === 404) {
-      return null
-    }
-    await check(response)
-    const info = (await response.json()) as UpdateInfo
-    pageVersion ??= info.installed?.version
+  queryFn: async () => {
+    const info = await fetchInfo()
+    pageVersion ??= info?.installed?.version
     return info
   },
   retry: false,
@@ -98,5 +105,30 @@ export async function startUpdate(source: UpdateSource) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source }),
     }),
+  )
+}
+
+/** How long a restart may take before the page stops waiting for it. */
+const RESTART_LIMIT_MS = 120_000
+
+/**
+ * Restarts the daemon's service, as its own job beside it, and resolves
+ * once a daemon started since answers. Throws if it doesn't within
+ * `RESTART_LIMIT_MS`.
+ */
+export async function restartFamiliar() {
+  const before = (await fetchInfo())?.started
+  await check(await fetch('/api/update/restart', { method: 'POST' }))
+  const deadline = Date.now() + RESTART_LIMIT_MS
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Until the new daemon listens, requests fail.
+    const info = await fetchInfo().catch(() => undefined)
+    if (info && info.started !== before) {
+      return
+    }
+  }
+  throw new Error(
+    "Familiar hasn't come back. Run familiar logs on the machine it runs on to see why.",
   )
 }
