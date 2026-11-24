@@ -80,8 +80,15 @@ const CALL_MAX_MS = 15 * 60_000
 /** A control call this long without progress has an agent that stopped answering. */
 const CONTROL_SILENCE_MS = 3 * PROGRESS_MS
 
-const WOKE =
-  'Your computer was asleep, so it has just started: its files are as they were, but programs that were running have stopped.'
+/** How a call found its computer, if it started it. */
+type Started = 'woke' | 'replaced'
+
+/** What the Familiar is told when its call started the computer. */
+const STARTED: Record<Started, string> = {
+  woke: 'Your computer was asleep, so it has just started: its files are as they were, but programs that were running have stopped.',
+  replaced:
+    'Your computer was updated to a new version, so it has just started: its home folder is as it was, but programs that were running have stopped, and what was installed outside home is back only if apt installed it or ~/.familiar/setup.sh does.',
+}
 
 const failed = (text: string): CallToolResult => ({
   content: [{ type: 'text', text }],
@@ -165,14 +172,14 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
 
   /**
    * Makes what's wanted at its start true, once it's known. `answers`, for
-   * each computer a call waits on: whether it started it, or why it can't
-   * run. `failed`: what Docker failed to do, if anything.
+   * each computer a call waits on: how it started it, if it did, or why it
+   * can't run. `failed`: what Docker failed to do, if anything.
    */
   const pass = async () => {
     const wantedNow = wanted
     const waiting = awake
     awake = new Map()
-    const answers = new Map<FamiliarId, boolean | string>()
+    const answers = new Map<FamiliarId, { started?: Started } | string>()
     // Before the first sync, the list it will give: never "nobody". Once
     // the host has closed, nothing.
     const want = await Promise.race([wantedNow, closing])
@@ -215,7 +222,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
         await resources.createComputer(familiar)
       }
       if (restart === undefined || (found?.running && !restart)) {
-        return false
+        return {}
       }
       if (found?.running) {
         await resources.stop(familiar)
@@ -224,7 +231,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       if (outdated) {
         void image.removeOld()
       }
-      return true
+      return { started: outdated ? 'replaced' : 'woke' } as const
     }
 
     try {
@@ -270,17 +277,21 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     }
   }
 
-  /** Waits for the pass that runs the computer: whether it started it. */
+  /** Waits for the pass that runs the computer: how it started it, if it did. */
   const wake = async (familiar: FamiliarId, restart: boolean) => {
     awake.set(familiar, restart || (awake.get(familiar) ?? false))
     const answer = (await reconcile()).answers.get(familiar)!
     if (typeof answer === 'string') {
       throw new Error(answer)
     }
-    return answer
+    return answer.started
   }
 
-  type Connection = { client: Client; woke: boolean; gone: Promise<void> }
+  type Connection = {
+    client: Client
+    started: Started | undefined
+    gone: Promise<void>
+  }
   /**
    * Each awake computer's connection, shared by every call so a computer is
    * woken or restarted once for all of them. Only an entry's own end
@@ -289,11 +300,11 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
    */
   const clients = new Map<FamiliarId, Promise<Connection>>()
   const open = (familiar: FamiliarId, restart: boolean) => {
-    const connection = wake(familiar, restart).then(async (woke) => {
+    const connection = wake(familiar, restart).then(async (started) => {
       const { client, closed } = await connect(familiar)
       return {
         client,
-        woke,
+        started,
         gone: closed.then(() => void clients.delete(familiar)),
       }
     })
@@ -345,7 +356,9 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     tool: string,
     args: Record<string, unknown>,
     options: CallOptions,
-  ): Promise<{ result: CallToolResult; woke: boolean } | { retry: string }> => {
+  ): Promise<
+    { result: CallToolResult; started?: Started } | { retry: string }
+  > => {
     const cached = clients.get(familiar)
     const connected = await (cached ?? open(familiar, restart)).then(
       (connection) => ({ connection }),
@@ -354,7 +367,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     if ('retry' in connected) {
       return connected
     }
-    const { client, woke, gone } = connected.connection
+    const { client, started, gone } = connected.connection
     const result = (await client.callTool(
       { name: tool, arguments: args },
       { ...options, resetTimeoutOnProgress: true },
@@ -364,7 +377,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       await gone
       return { retry: 'it went to sleep as it woke' }
     }
-    return { result, woke: !cached && woke }
+    return { result, started: cached ? undefined : started }
   }
 
   /**
@@ -377,7 +390,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
     args: Record<string, unknown>,
     options: CallOptions,
   ): Promise<
-    { result: CallToolResult; woke: boolean } | { failed: CallToolResult }
+    { result: CallToolResult; started?: Started } | { failed: CallToolResult }
   > => {
     const { state } = image
     if (state.state === 'setting-up') {
@@ -441,11 +454,19 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
       if ('failed' in answer) {
         return answer.failed
       }
-      const { result, woke } = answer
-      return woke && !result._meta?.[PERSON_USED]
+      const { result, started } = answer
+      // A person who used the computer meanwhile is news enough, unless it
+      // was replaced: what changed in it is news to them too.
+      const told =
+        started === 'replaced' ||
+        (started === 'woke' && !result._meta?.[PERSON_USED])
+      return told
         ? {
             ...result,
-            content: [{ type: 'text', text: WOKE }, ...result.content],
+            content: [
+              { type: 'text', text: STARTED[started] },
+              ...result.content,
+            ],
           }
         : result
     },

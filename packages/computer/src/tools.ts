@@ -113,7 +113,7 @@ export const computerTools = {
   },
   run_command: {
     description:
-      'Runs a shell command on the computer, in its home directory, and returns its exit code and output. Times out after 60 seconds unless given longer, up to 10 minutes. Programs with windows show on the screen: start one in the background (ending the command with &) so the command returns.',
+      'Runs a shell command on the computer, in its home directory, and returns its exit code and output. Times out after 60 seconds unless given longer, up to 10 minutes. Programs with windows show on the screen: start one in the background (ending the command with &) so the command returns. sudo needs no password. When the computer is updated to a new version, only its home folder is kept as it was: packages installed with apt or dpkg are reinstalled by themselves, and installers that write into home (pipx, npm --prefix ~/.local) need nothing, but anything else installed outside home needs a line in ~/.familiar/setup.sh, which then runs as root.',
     input: z.object({
       command: z.string(),
       timeout_seconds: z.number().int().min(1).max(600).optional(),

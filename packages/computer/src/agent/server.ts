@@ -26,6 +26,7 @@ import { KEEP_TEXT } from '../shorten.ts'
 import type { Activity } from './activity.ts'
 import type { Browser } from './browser.ts'
 import type { CallKind, ComputerControl } from './control.ts'
+import type { Restoring } from './restore.ts'
 import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
 import { signIn } from './sign-in.ts'
@@ -110,13 +111,15 @@ const kindOf = (name: string, tool: ComputerTool): CallKind => ({
  * browser, file system, `activity`, which counts every call but a look
  * (the info tool), and `control`, which says whether a call may run while
  * a person takes over. `home` is where commands run and relative paths
- * start.
+ * start. Familiar tools wait for `restored` to finish, and the first to run
+ * carries its note.
  */
 export function computerServer(
   browser: Browser,
   home: string,
   activity: Activity,
   control: ComputerControl,
+  restored: Restoring,
 ) {
   /** Runs `act` on the open page and answers with its snapshot after. */
   const onPage =
@@ -208,19 +211,36 @@ export function computerServer(
           const { signal } = ctx.mcpReq
           let stopWaiting = () => {}
           try {
+            // A computer made again finishes restoring first, so the call
+            // finds what it had. Not under `control`, so a person taking
+            // over doesn't wait for it.
+            await restored.done
             const outcome = await control.run(
               call,
               kindOf(name, tool),
               signal,
               () => (stopWaiting = progress(ctx, WAITING)),
-              // Its own failure is its result, so a note still goes with it.
-              (using) =>
-                handle(args, signal, using).catch((error: unknown) =>
-                  text(
-                    error instanceof Error ? error.message : String(error),
-                    true,
-                  ),
-                ),
+              // Its own failure is its result, so a note still goes with it,
+              // as does what restoring put back, for the first to run.
+              async (using): Promise<CallToolResult> => {
+                const note = restored.takeNote()
+                const result = await handle(args, signal, using).catch(
+                  (error: unknown) =>
+                    text(
+                      error instanceof Error ? error.message : String(error),
+                      true,
+                    ),
+                )
+                return note
+                  ? {
+                      ...result,
+                      content: [
+                        { type: 'text', text: note },
+                        ...result.content,
+                      ],
+                    }
+                  : result
+              },
             )
             if (!outcome.ran) {
               return {

@@ -49,6 +49,15 @@ RUN install -D -m 644 -t /usr/local/share/fonts/familiar /usr/share/familiar-des
 # proxy explicitly, which still only reaches the public internet.
 RUN printf 'Acquire::http::Proxy "http://127.0.0.1:3128";\nAcquire::https::Proxy "http://127.0.0.1:3128";\n' \
     > /etc/apt/apt.conf.d/80familiar-proxy
+# Restoring a computer made again from a newer image (src/agent/restore.ts):
+# the packages the image itself installs on purpose, and a dpkg hook that
+# records the ones people add, in ~/.familiar/apt-packages. Last of the apt
+# work, so the image's own installs aren't recorded.
+COPY --chmod=755 restore/record-packages /usr/share/familiar/record-packages
+RUN apt-mark showmanual | LC_ALL=C sort > /usr/share/familiar/apt-baseline \
+  && printf 'post-invoke="/usr/share/familiar/record-packages || true"\n' \
+    > /etc/dpkg/dpkg.cfg.d/familiar-record \
+  && install -d -o computer -g computer /var/lib/familiar
 # The agent and the proxy, each bundled into one file, and the agent's
 # browser extension.
 COPY agent.js proxy.js /agent/

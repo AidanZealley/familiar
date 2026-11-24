@@ -19,6 +19,7 @@ test('the agent sleeps once idle, never during a call or for a look, then runs n
     '/',
     activity(200, () => (slept = true)),
     computerControl(),
+    { done: Promise.resolve(), takeNote: () => undefined },
   ).connect(agentSide)
   const client = new Client({ name: 'test', version: '1.0.0' })
   await client.connect(hostSide)
@@ -56,6 +57,7 @@ test('a person holds control as long as their call: actions wait and never run, 
     home,
     activity(200, () => (slept = true)),
     computerControl(),
+    { done: Promise.resolve(), takeNote: () => undefined },
   ).connect(agentSide)
   const client = new Client({ name: 'test', version: '1.0.0' })
   await client.connect(hostSide)

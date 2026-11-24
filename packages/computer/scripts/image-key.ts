@@ -23,7 +23,7 @@ import { build } from 'rolldown'
 // The context: the Dockerfile (which pins its base image by digest and holds
 // IMAGE_REFRESH, bumped to rebuild on purpose), the agent and proxy bundled
 // into one file each, a manifest pinning Playwright, which the image installs
-// with its browser, and the desktop and extension folders. Nothing else in the
+// with its browser, and the desktop, extension and restore folders. Nothing else in the
 // repository can change the key.
 
 const computer = resolve(import.meta.dirname, '..')
@@ -60,7 +60,7 @@ export async function stageImage(dir: string) {
     ) + '\n',
   )
   await cp(resolve(computer, 'Dockerfile'), join(dir, 'Dockerfile'))
-  for (const folder of ['desktop', 'extension']) {
+  for (const folder of ['desktop', 'extension', 'restore']) {
     await cp(resolve(computer, folder), join(dir, folder), { recursive: true })
   }
 }
