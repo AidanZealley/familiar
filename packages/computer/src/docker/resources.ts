@@ -46,6 +46,15 @@ export function reasonOf(error: unknown) {
   if (code === 'ENOENT') {
     return 'Install Docker to give Familiars computers.'
   }
+  // A process keeps the groups its login started with, so joining the
+  // docker group reaches Familiar only through a new login. Its service's
+  // lingers past logging out, hence restarting the machine.
+  if (
+    process.platform === 'linux' &&
+    /permission denied.*docker\.sock/i.test(stderr ?? '')
+  ) {
+    return "Familiar isn't allowed to use Docker. Add your user to the docker group (sudo usermod -aG docker $USER), then reboot the machine Familiar runs on so it picks that up."
+  }
   return (
     stderr?.trim() || (error instanceof Error ? error.message : String(error))
   )
