@@ -66,6 +66,17 @@ export type Question = {
       /** Undefined for a form Familiar can't show, which can only be declined. */
       form?: Form
     }
+  | {
+      /**
+       * A plugin's tool asking for values only it gets, such as a password.
+       * They go to the waiting tool, never into the stored answer.
+       */
+      kind: 'private'
+      /** The plugin's title, else its name: for the person. */
+      plugin: string
+      message: string
+      form: Form
+    }
 )
 
 /** Questions as asked, before they have an ID and a time. */
@@ -172,6 +183,14 @@ export function createQuestions(
 ) {
   const context = BACKGROUND_CONTEXT
 
+  // Each private question's slot while its `ask` waits: empty until the
+  // commit that stores the accept fills it, and commits publish in order,
+  // so `ask` never sees an accept without its values. An answer finds a
+  // slot only while its `ask` is waiting, which deletes it as it stops
+  // waiting, so values never outlive the wait. In memory only: a restart
+  // ends the wait too.
+  const privateValues = new Map<string, FormContent | undefined>()
+
   /** Tells the person, through the host, where to answer. */
   const announce = async (question: Question) => {
     const { name, room } = await harness.commit(async (tx) => {
@@ -195,7 +214,8 @@ export function createQuestions(
   /**
    * Asks the person and waits for their answer. Cancelling `context` stops
    * waiting and withdraws the question. A gated call asked again after a
-   * restart reuses its question.
+   * restart reuses its question. An accepted private question returns its
+   * values here; they're never stored.
    */
   const ask = async (draft: QuestionDraft, waiting: Context) => {
     waiting.abortSignal?.throwIfAborted()
@@ -219,12 +239,16 @@ export function createQuestions(
       questions[question.id] = question
       return { question, asked: true }
     }, context)
+    if (question.kind === 'private') {
+      privateValues.set(question.id, undefined)
+    }
     if (asked) {
       void announce(question).catch(() => {})
     }
+    // Fails only as the workspace closes, when no answer can commit either.
     const watch = (await harness.watchDoc(Questions, context))!
     try {
-      return await new Promise<Outcome>((resolve, reject) => {
+      const outcome = await new Promise<Outcome>((resolve, reject) => {
         const check = (state: Readonly<Record<string, Pending>> | null) => {
           const current = state?.[question.id]
           if (current?.answer) {
@@ -234,6 +258,7 @@ export function createQuestions(
           }
         }
         const signal = waiting.abortSignal
+        signal?.throwIfAborted()
         signal?.addEventListener('abort', () => reject(signal.reason), {
           once: true,
         })
@@ -244,7 +269,12 @@ export function createQuestions(
         watch.start(async () => check(watch.value))
         check(watch.value)
       })
+      const values = privateValues.get(question.id)
+      return values && outcome.action === 'accept'
+        ? ({ action: 'accept', content: values } satisfies Outcome)
+        : outcome
     } finally {
+      privateValues.delete(question.id)
       await watch.stop()
       await harness
         .commit(async (tx) => {
@@ -257,6 +287,8 @@ export function createQuestions(
   /**
    * Gives `familiar`'s question `id` its answer. Throws QuestionGone when
    * it isn't waiting, and a QuestionError when the answer doesn't fit it.
+   * A private question's values go to its waiting `ask`; its stored answer
+   * is the action alone.
    */
   const answer = (familiar: FamiliarId, id: string, answer: Answer) =>
     harness.commit(async (tx) => {
@@ -277,7 +309,17 @@ export function createQuestions(
           throw new QuestionError(problem)
         }
       }
-      question.answer = answer
+      if (question.kind === 'private') {
+        if (!privateValues.has(id)) {
+          throw new QuestionGone('That question is no longer waiting.')
+        }
+        if (answer.action === 'accept') {
+          privateValues.set(id, answer.content ?? {})
+        }
+        question.answer = { action: answer.action }
+      } else {
+        question.answer = answer
+      }
     }, context)
 
   /** Before any connection's tool runs, applies the owner's settings for it. */

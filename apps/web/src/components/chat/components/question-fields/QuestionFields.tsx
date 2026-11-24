@@ -12,6 +12,7 @@ import type { QuestionFieldsProps } from './types'
 
 const INPUT_TYPES = {
   email: 'email',
+  password: 'password',
   uri: 'url',
   date: 'date',
   'date-time': 'datetime-local',
@@ -92,6 +93,10 @@ export const QuestionFields = ({
                   {...(field.type === 'string'
                     ? {
                         type: field.format ? INPUT_TYPES[field.format] : 'text',
+                        autoComplete:
+                          field.format === 'password'
+                            ? 'new-password'
+                            : undefined,
                         minLength: field.minLength,
                         maxLength: field.maxLength,
                       }

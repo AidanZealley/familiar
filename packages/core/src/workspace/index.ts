@@ -50,6 +50,7 @@ import { createPersona } from '../persona.ts'
 import { createQuestions, type QuestionsApi } from '../questions/index.ts'
 import {
   createPlugins,
+  familiarSecrets,
   openPlugins,
   type FamiliarPlugin,
 } from '../plugins/index.ts'
@@ -168,7 +169,11 @@ export type WorkspaceOptions = {
    * what the host names them.
    */
   people?: readonly Author[]
-  /** Where plugins' secrets are kept. Without it, every secret is missing. */
+  /**
+   * Where plugins' and MCP servers' secrets are kept. Give each workspace
+   * its own: nothing in a secret's key names its workspace, so two sharing
+   * one would share their secrets. Without it, every secret is missing.
+   */
   secrets?: SecretStore
   /**
    * How tools reach the network. A model can be talked into fetching any
@@ -446,6 +451,7 @@ export async function openWorkspace(
 
     const plugins = createPlugins({
       plugins: options.plugins ?? [],
+      questions,
       secrets: options.secrets,
       fetch: options.fetch,
       notify: options.notify,
@@ -622,7 +628,10 @@ export async function openWorkspace(
       }
     }
 
+    const perFamiliar =
+      options.secrets && familiarSecrets(options.secrets, options.plugins ?? [])
     const closePlugins = await openPlugins(options.plugins ?? [], {
+      familiarSecrets: perFamiliar,
       usersOf: async (plugin) => {
         const users: FamiliarId[] = []
         for (const { id } of await list()) {
@@ -639,8 +648,15 @@ export async function openWorkspace(
       throw error
     })
     // Plugins close however the workspace closes: dismissed, or its storage
-    // failed, even while they were opening.
-    const pluginsClosed = harness.closed.then(closePlugins)
+    // failed, even while they were opening. Then no secret write they began
+    // outlives it.
+    const pluginsClosed = harness.closed.then(async () => {
+      try {
+        await closePlugins()
+      } finally {
+        await perFamiliar?.close()
+      }
+    })
 
     // Finish whatever the last process left unfinished, once plugins know
     // the workspace: a resumed tool call may reach one.
@@ -670,6 +686,8 @@ export async function openWorkspace(
         },
         update,
         remove: async (id) => {
+          // First, so a crash between leaves no secrets without an owner.
+          await perFamiliar?.remove(id)
           await removeFamiliar(harness, id, context)
           opened.delete(id)
           pluginUsersChanged()

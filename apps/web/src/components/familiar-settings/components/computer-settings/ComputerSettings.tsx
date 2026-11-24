@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { computerPlugin, computerQuery } from '@/lib/computers'
 import { useCapabilitySource } from '../../useCapabilitySource'
 import { RemoveComputerDialog } from '../remove-computer-dialog'
+import { ComputerLogins } from './components/computer-logins'
 import { ComputerStatus } from './components/computer-status'
 import { GiveComputer } from './components/give-computer'
 import type { ComputerSettingsProps } from './types'
@@ -62,6 +63,7 @@ export const ComputerSettings = ({ familiar }: ComputerSettingsProps) => {
         />
         <ComputerSystemDetails familiar={familiar} status={status} />
       </section>
+      <ComputerLogins key={familiar.id} familiar={familiar} />
       <section className="flex flex-col items-start gap-3 border-t pt-6">
         <div className="flex flex-col gap-1">
           <h3 className="font-heading font-medium">Remove computer</h3>

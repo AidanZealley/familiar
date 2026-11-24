@@ -162,6 +162,25 @@ export type ComputerInfo = Pick<
  */
 export const CONTROL_TOOL = 'computer_control'
 
+/** The agent action that fills and submits a saved login the host sends it. */
+export const SIGN_IN_TOOL = 'browser_sign_in'
+
+export const signInControls = z.union([
+  z.strictObject({ username: ref, password: ref, submit: ref }),
+  z.strictObject({
+    username: ref,
+    password: ref,
+    submitLabel: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .describe(
+        'Exact accessible name of the Log In button when the snapshot has no button ref.',
+      ),
+  }),
+])
+
 /**
  * How often the agent sends progress on a call that's waiting for a person
  * to hand back, and on the control call. The host's time limits restart on

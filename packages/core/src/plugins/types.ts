@@ -3,6 +3,7 @@ import type { PluginSecret } from '../connections/index.ts'
 import type { Author } from '../conversation/message.ts'
 import type { FamiliarTool } from '../tools.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
+import type { FamiliarSecrets } from './familiar-secrets.ts'
 
 export type { FamiliarTool } from '../tools.ts'
 
@@ -16,6 +17,11 @@ export type FamiliarPlugin = {
   /** For the owner, on the Connections page. */
   title: string
   secrets?: readonly PluginSecret[]
+  /**
+   * Names of private values it keeps for each Familiar, through
+   * `secretsFor`. Removing a Familiar deletes them.
+   */
+  familiarSecrets?: readonly string[]
   tools: readonly FamiliarTool[]
   /**
    * Called once the workspace is open, before it resumes the work the last
@@ -41,6 +47,11 @@ export type PluginClose = void | (() => void | Promise<void>)
 
 /** What a plugin is given when its workspace opens. */
 export type PluginContext = {
+  /**
+   * The plugin's encrypted private values for `familiar`, by the names in
+   * its `familiarSecrets`; undefined when the host keeps no secrets.
+   */
+  secretsFor?(familiar: FamiliarId): FamiliarSecrets
   /**
    * Calls `listener` with the Familiars that use this plugin, those that
    * have it turned on, then again when that changes: one turns it on or

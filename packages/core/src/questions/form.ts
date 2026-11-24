@@ -21,7 +21,7 @@ export type FormField = Field &
         default?: string
         minLength?: number
         maxLength?: number
-        format?: 'email' | 'uri' | 'date' | 'date-time'
+        format?: 'email' | 'uri' | 'date' | 'date-time' | 'password'
       }
     | {
         type: 'number' | 'integer'

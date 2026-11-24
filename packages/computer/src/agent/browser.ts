@@ -74,7 +74,7 @@ export function openBrowser(profileDir: string) {
     page,
     /** The page as text, with a ref for each element, up to `KEEP_TEXT`. */
     snapshot: async (page: Page) =>
-      `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`.slice(
+      `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await snapshotWithoutPasswords(page)}`.slice(
         0,
         KEEP_TEXT,
       ),
@@ -99,6 +99,33 @@ export function openBrowser(profileDir: string) {
 }
 
 export type Browser = ReturnType<typeof openBrowser>
+
+/**
+ * The page's AI snapshot, which shows what's typed in each field, with
+ * every password field's value masked, in any frame or shadow root, so the
+ * model never reads one, such as a saved login `sign_in` filled.
+ */
+export async function snapshotWithoutPasswords(page: Page) {
+  const snapshot = await page.ariaSnapshot({ mode: 'ai' })
+  const fields = await Promise.all(
+    page.frames().map((frame) =>
+      frame
+        .locator('input[type=password]')
+        .evaluateAll((fields) =>
+          fields.map((field) => (field as unknown as { value: string }).value),
+        )
+        .catch((): string[] => []),
+    ),
+  )
+  const passwords = fields.flat().filter(Boolean)
+  return snapshot
+    .split('\n')
+    .map((line) => {
+      const password = passwords.find((value) => line.endsWith(`: ${value}`))
+      return password ? `${line.slice(0, -password.length)}••••••••` : line
+    })
+    .join('\n')
+}
 
 /** Settles with `fallback` if `promise` takes longer than 500 ms. */
 const within = <T>(promise: Promise<T>, fallback: T) =>
