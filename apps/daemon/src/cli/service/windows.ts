@@ -49,7 +49,6 @@ export function renderHiddenLauncher({
 export function renderLauncher({
   dataDir,
   cliPath,
-  workDir = dirname(cliPath),
   node = process.execPath,
 }: ServiceOptions) {
   return `const { openSync, writeSync } = require('node:fs');
@@ -59,17 +58,14 @@ process.env.FAMILIAR_HOST = '127.0.0.1';
 process.env.PATH = ${JSON.stringify(`${win32.dirname(node)};`)} + (process.env.PATH || '');
 const log = openSync(${JSON.stringify(resolve(dataDir, 'service.log'))}, 'a', 0o600);
 const child = spawn(${JSON.stringify(node)}, [${JSON.stringify(cliPath)}, 'serve'], {
-  cwd: ${JSON.stringify(workDir)}, env: process.env, stdio: ['ignore', log, log], windowsHide: true,
+  cwd: ${JSON.stringify(dataDir)}, env: process.env, stdio: ['ignore', log, log], windowsHide: true,
 });
 child.on('error', (error) => { writeSync(log, String(error) + '\\n'); process.exitCode = 1; });
 child.on('exit', (code) => { process.exitCode = code ?? 1; });
 `
 }
 
-export function renderTask(
-  { dataDir, cliPath, workDir = dirname(cliPath) }: ServiceOptions,
-  userId: string,
-) {
+export function renderTask({ dataDir }: ServiceOptions, userId: string) {
   const launch = hiddenLaunch({ dataDir })
   // Omit a byte encoding so the XML also works as a Unicode COM string.
   return `<?xml version="1.0"?>
@@ -82,7 +78,7 @@ export function renderTask(
 <StartWhenAvailable>true</StartWhenAvailable><ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
 <RestartOnFailure><Interval>PT1M</Interval><Count>3</Count></RestartOnFailure>
 </Settings>
-<Actions Context="Owner"><Exec><Command>${xml(launch.command)}</Command><Arguments>${xml(launch.args)}</Arguments><WorkingDirectory>${xml(workDir)}</WorkingDirectory></Exec></Actions>
+<Actions Context="Owner"><Exec><Command>${xml(launch.command)}</Command><Arguments>${xml(launch.args)}</Arguments><WorkingDirectory>${xml(dataDir)}</WorkingDirectory></Exec></Actions>
 </Task>
 `
 }
@@ -183,7 +179,7 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
     const { task, link } = registration()
     if (link) {
       powershell(
-        `Start-Process -FilePath ${quote(hidden.command)} -ArgumentList ${quote(hidden.args)} -WorkingDirectory ${quote(options.workDir ?? dirname(options.cliPath))} -WindowStyle Hidden`,
+        `Start-Process -FilePath ${quote(hidden.command)} -ArgumentList ${quote(hidden.args)} -WorkingDirectory ${quote(options.dataDir)} -WindowStyle Hidden`,
       )
     } else if (task) {
       if (!task.enabled) {
@@ -239,7 +235,7 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
           powershell(`
 $link = (New-Object -ComObject WScript.Shell).CreateShortcut(${quote(shortcut)});
 $link.TargetPath = ${quote(hidden.command)}; $link.Arguments = ${quote(hidden.args)};
-$link.WorkingDirectory = ${quote(options.workDir ?? dirname(options.cliPath))}; $link.WindowStyle = 7; $link.Save()
+$link.WorkingDirectory = ${quote(options.dataDir)}; $link.WindowStyle = 7; $link.Save()
 `)
           console.log(
             'Task registration was refused. Using the Startup folder; automatic crash recovery is unavailable in this mode.',

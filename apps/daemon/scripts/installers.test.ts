@@ -25,11 +25,11 @@ const fixture = () => {
 }
 
 test.skipIf(process.platform === 'win32').each([
-  ['Linux', 'x86_64', false],
-  ['Darwin', 'arm64', true],
+  ['Linux', 'x86_64', false, 'v1.2.3', '/releases/download/v1.2.3/'],
+  ['Darwin', 'arm64', true, 'main', '/releases/download/main-build/'],
 ])(
   'shell installer on %s downloads a release and reuses or installs Node',
-  (os, arch, needsNode) => {
+  (os, arch, needsNode, version, download) => {
     const home = fixture()
     const bin = resolve(home, 'fake-bin')
     const runtime = resolve(home, 'runtime/bin')
@@ -84,7 +84,7 @@ cp "$HOME/\${url##*/}" "$2"
       TEST_OS: os,
       TEST_ARCH: arch,
       TEST_NEEDS_NODE: needsNode ? '1' : '0',
-      FAMILIAR_VERSION: 'v1.2.3',
+      FAMILIAR_VERSION: version,
     }
     const run = () =>
       spawnSync('sh', [resolve(root, 'install.sh')], { env, encoding: 'utf8' })
@@ -92,7 +92,7 @@ cp "$HOME/\${url##*/}" "$2"
     expect(first.stderr, first.stdout).not.toContain('verification failed')
     expect(first.status, first.stderr).toBe(0)
     expect(readFileSync(resolve(home, 'downloads.log'), 'utf8')).toContain(
-      '/releases/download/v1.2.3/familiar.tgz',
+      `${download}familiar.tgz`,
     )
     expect(readFileSync(resolve(home, 'npm.log'), 'utf8')).toContain(
       `--prefix\n${home}/.local`,
@@ -160,6 +160,7 @@ try {
   if (!(Test-Path (Join-Path $env:APPDATA 'npm/node.exe'))) { throw 'Node was not installed' }
   $entries = [Environment]::GetEnvironmentVariable('Path', 'User')
   if (!$entries.Contains((Join-Path $env:APPDATA 'npm'))) { throw 'Missing npm PATH entry' }
+  $env:FAMILIAR_VERSION = 'main'
   & ${quote(resolve(root, 'install.ps1'))}
 } finally { [Environment]::SetEnvironmentVariable('Path', $oldPath, 'User') }
 `,
@@ -184,9 +185,9 @@ try {
     expect(result.status, result.stderr + result.stdout).toBe(0)
     expect(readFileSync(resolve(home, 'npm.log'), 'utf8')).toContain('--prefix')
     expect(readFileSync(resolve(home, 'setup.log'), 'utf8')).toContain('setup')
-    expect(readFileSync(resolve(home, 'downloads.log'), 'utf8')).toContain(
-      '/releases/download/v1.2.3/familiar.tgz',
-    )
+    const downloads = readFileSync(resolve(home, 'downloads.log'), 'utf8')
+    expect(downloads).toContain('/releases/download/v1.2.3/familiar.tgz')
+    expect(downloads).toContain('/releases/download/main-build/familiar.tgz')
   },
   35000,
 )

@@ -38,8 +38,6 @@ export function resolvePaths({
     pluginsDir: resolve(dataDir, 'plugins'),
     /** The owner's portraits for their Familiars, which the web UI offers. */
     avatarsDir: resolve(dataDir, 'avatars'),
-    // Saved stdio MCP commands inherit this directory, including relative script paths.
-    workDir: source ? resolve(codeDir, '../../..') : codeDir,
     cliPath: resolve(codeDir, source ? 'cli.ts' : 'familiar.js'),
     webDir: resolve(codeDir, source ? '../../web/dist' : 'web'),
   }

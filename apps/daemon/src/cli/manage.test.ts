@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -27,7 +29,23 @@ const isRunning = vi.fn()
 const restart = vi.fn()
 const terminal = { question: vi.fn(), close: vi.fn() }
 const withStopped = vi.fn(async (run: () => Promise<void>) => run())
+let prefix: string
+const packageDir = () =>
+  resolve(
+    prefix,
+    process.platform === 'win32'
+      ? 'node_modules/familiar'
+      : 'lib/node_modules/familiar',
+  )
+const install = (version: string) =>
+  writeFileSync(
+    resolve(packageDir(), 'package.json'),
+    JSON.stringify({ version }),
+  )
 beforeEach(() => {
+  prefix = mkdtempSync(resolve(tmpdir(), 'familiar-prefix-'))
+  mkdirSync(packageDir(), { recursive: true })
+  install('0.4.3')
   vi.clearAllMocks()
   isRunning.mockReturnValue(true)
   vi.mocked(publishedUrl).mockReturnValue(
@@ -37,17 +55,11 @@ beforeEach(() => {
   vi.mocked(createInterface).mockReturnValue(terminal as never)
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.mocked(resolvePaths).mockReturnValue({
-    cliPath: resolve(
-      '/custom',
-      process.platform === 'win32'
-        ? 'node_modules/familiar/familiar.js'
-        : 'lib/node_modules/familiar/familiar.js',
-    ),
+    cliPath: resolve(packageDir(), 'familiar.js'),
     dataDir: '/private/data',
     pluginsDir: '/private/data/plugins',
     avatarsDir: '/private/data/avatars',
     webDir: '/web',
-    workDir: '/app',
   })
   vi.mocked(openService).mockReturnValue({
     uninstall: remove,
@@ -65,6 +77,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.restoreAllMocks()
+  rmSync(prefix, { recursive: true, force: true })
 })
 
 test('update targets this installation prefix while the service is suspended', async () => {
@@ -75,11 +88,23 @@ test('update targets this installation prefix while the service is suspended', a
       'install',
       '--global',
       '--prefix',
-      resolve('/custom'),
+      prefix,
       'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
     ],
     { stdio: 'inherit' },
   )
+})
+
+test('update stays on the source its version names, unless told to switch', async () => {
+  const url = () => vi.mocked(runNpm).mock.lastCall?.[0].at(-1)
+  install('0.4.3-main.168a762c')
+  await update()
+  expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
+  await update('release')
+  expect(url()).toMatch(/\/releases\/latest\/download\/familiar\.tgz$/)
+  install('0.4.3')
+  await update('main')
+  expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
 })
 
 test('source checkouts cannot accidentally install a second copy through update', async () => {
@@ -89,7 +114,6 @@ test('source checkouts cannot accidentally install a second copy through update'
     pluginsDir: '/private/plugins',
     avatarsDir: '/private/avatars',
     webDir: '/web',
-    workDir: '/app',
   })
   await expect(update()).rejects.toThrow('source checkout')
   expect(runNpm).not.toHaveBeenCalled()
@@ -113,6 +137,9 @@ test('explicit sign-in suspends the daemon to avoid competing credential writers
 test('status reports the saved name, matching service and existing URLs without changing anything', () => {
   status()
   expect(readSettings).toHaveBeenCalledWith('/private/data', {})
+  expect(console.log).toHaveBeenCalledWith(
+    'Version: 0.4.3, updates from the latest release',
+  )
   expect(console.log).toHaveBeenCalledWith(
     'Tailnet: https://machine.example.ts.net:10000',
   )

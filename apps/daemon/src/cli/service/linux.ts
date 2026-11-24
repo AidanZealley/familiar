@@ -8,6 +8,7 @@ import {
 } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { dirname, resolve } from 'node:path'
+import { ensureDataDir } from '../../paths.ts'
 import type { ServiceOptions } from './types.ts'
 
 type LinuxOptions = ServiceOptions & { unitDir?: string }
@@ -19,20 +20,22 @@ const quote = (value: string) => JSON.stringify(value.replaceAll('%', '%%'))
 export function renderUnit({
   dataDir,
   cliPath,
-  workDir = dirname(cliPath),
   node = process.execPath,
   path = process.env.PATH ?? '/usr/bin:/bin',
 }: ServiceOptions) {
-  if (/[\r\n]/.test(workDir)) {
-    throw new Error('The service working directory cannot contain a newline.')
+  if (/[\r\n]/.test(dataDir)) {
+    throw new Error('The data directory cannot contain a newline.')
   }
+  // Tools that write to their working directory, such as a browser MCP's
+  // output, write into the data folder, never into the package an update
+  // replaces.
   return `[Unit]
 Description=Familiar, a personal assistant
 After=network-online.target
 
 [Service]
 Type=exec
-WorkingDirectory=${workDir.replaceAll('%', '%%')}
+WorkingDirectory=${dataDir.replaceAll('%', '%%')}
 ExecStart=:${quote(node)} ${quote(cliPath)} serve
 Environment=${quote(`FAMILIAR_DATA_DIR=${dataDir}`)}
 Environment=FAMILIAR_HOST=127.0.0.1
@@ -99,6 +102,7 @@ export function linuxService(options: LinuxOptions) {
       const changed =
         !existsSync(unit) || readFileSync(unit, 'utf8') !== content
       if (changed) {
+        ensureDataDir(options.dataDir)
         mkdirSync(dirname(unit), { recursive: true })
         writeFileSync(unit, content)
         systemctl('daemon-reload')

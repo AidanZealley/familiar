@@ -6,10 +6,12 @@ $ProgressPreference = 'SilentlyContinue'
 $version = if ($env:FAMILIAR_VERSION) { $env:FAMILIAR_VERSION } else { 'latest' }
 if ($version -eq 'latest') {
     $release = 'https://github.com/AidanZealley/familiar/releases/latest/download'
+} elseif ($version -ceq 'main') {
+    $release = 'https://github.com/AidanZealley/familiar/releases/download/main-build'
 } elseif ($version -cmatch '^v[0-9][a-zA-Z0-9.+-]*$') {
     $release = "https://github.com/AidanZealley/familiar/releases/download/$version"
 } else {
-    throw 'FAMILIAR_VERSION must be latest or a v-prefixed release tag.'
+    throw 'FAMILIAR_VERSION must be latest, main or a v-prefixed release tag.'
 }
 # RuntimeInformation can be missing from Windows PowerShell 5.1's .NET Framework, so read the OS's own value.
 # PROCESSOR_ARCHITEW6432 holds the real architecture when 32-bit PowerShell runs on 64-bit Windows.

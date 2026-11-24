@@ -1,0 +1,122 @@
+name: Publish
+
+# A `v*` tag publishes a release: a GitHub release and the npm packages. A push
+# to main publishes the rolling `main-build` prerelease, which `familiar update`
+# and the install scripts use for main, and nothing to npm. Both run the same
+# checks and bundle; the `target` step is the one place they differ.
+on:
+  push:
+    tags: ['v*']
+    branches: [main]
+
+# A newer push to main replaces the build of an older one still running.
+# Tags never cancel each other.
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
+
+permissions:
+  contents: write
+  # Publishes the computers' image to ghcr.io, when it's new.
+  packages: write
+  # npm trusted publishing exchanges the workflow's OIDC token for a
+  # short-lived publish token, so the repo stores no npm secret.
+  id-token: write
+
+jobs:
+  # Publishes the computers' image the packages name, if it's new, before
+  # any package that names it.
+  computer-image:
+    uses: ./.github/workflows/computer-image.yml
+
+  publish:
+    needs: computer-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.19.0'
+      - uses: pnpm/action-setup@v6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck && pnpm lint && pnpm test && pnpm exec prettier --check .
+      - run: pnpm test:cloudflare
+      - run: pnpm --filter @familiar-example/cloudflare-worker build
+      # A tag publishes its own version as a release. A build of main is
+      # `<latest release>-main.<commit>`; `familiar update` reads `-main.` in
+      # the installed version to keep updating from main.
+      - id: target
+        name: Decide the version and the GitHub release
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version=${GITHUB_REF_NAME#v}
+            release=$GITHUB_REF_NAME
+          else
+            latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2> /dev/null || echo v0.0.0)
+            version="${latest#v}-main.${GITHUB_SHA::8}"
+            release=main-build
+          fi
+          echo "Publishing $version to $release"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      # The libraries share the version, set here so the checkout never
+      # carries one.
+      - run: pnpm --filter './packages/*' exec npm pkg set version="$RELEASE_VERSION"
+        env:
+          RELEASE_VERSION: ${{ steps.target.outputs.version }}
+      - run: pnpm bundle
+        env:
+          RELEASE_VERSION: ${{ steps.target.outputs.version }}
+      - run: pnpm test:release
+      - run: pnpm test:packages
+      - run: pnpm --filter './packages/*' pack --pack-destination npm-packages
+      # Each publish step skips what an earlier attempt finished, so a failed
+      # run can be rerun. A prerelease (a version with `-`, such as an rc or a
+      # build of main) is never marked Latest.
+      - name: Publish the GitHub release
+        run: |
+          assets=(apps/daemon/dist/familiar.tgz install.sh install.ps1)
+          notes="Built from $GITHUB_SHA as $VERSION. Install it with FAMILIAR_VERSION=main, or switch an installation with familiar update --main."
+          if [ "$RELEASE" = main-build ]; then
+            # The workflow is main-build's only writer: the tag follows the
+            # commit and the assets are replaced in place.
+            git push --force origin "$GITHUB_SHA:refs/tags/main-build"
+            if gh release view main-build --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              gh release upload main-build "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+              gh release edit main-build --notes "$notes" --repo "$GITHUB_REPOSITORY"
+            else
+              gh release create main-build "${assets[@]}" --verify-tag --prerelease --title 'Latest build of main' --notes "$notes" --repo "$GITHUB_REPOSITORY"
+            fi
+          elif gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $RELEASE already exists"
+          else
+            prerelease=()
+            case "$RELEASE" in *-*) prerelease=(--prerelease) ;; esac
+            gh release create "$RELEASE" "${assets[@]}" --verify-tag --generate-notes "${prerelease[@]}" --repo "$GITHUB_REPOSITORY"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.target.outputs.release }}
+          VERSION: ${{ steps.target.outputs.version }}
+      # pnpm pack resolves workspace: and catalog: versions; npm publishes,
+      # because it handles trusted publishing and provenance. Prereleases go
+      # to `next`, so `latest` only ever installs a stable version. Builds of
+      # main are never published to npm.
+      - name: Publish npm packages
+        if: steps.target.outputs.release != 'main-build'
+        run: |
+          tag=latest
+          case "$VERSION" in *-*) tag=next ;; esac
+          for package in npm-packages/*.tgz; do
+            spec=$(tar -xzOf "$package" package/package.json | jq -r '.name + "@" + .version')
+            if npm view "$spec" version > /dev/null 2>&1; then
+              echo "$spec is already published"
+            else
+              # Without ./ npm reads owner/name.tgz as a GitHub repository.
+              npm publish "./$package" --access public --tag "$tag"
+            fi
+          done
+        env:
+          VERSION: ${{ steps.target.outputs.version }}

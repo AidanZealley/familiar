@@ -204,7 +204,7 @@ test('the Windows launcher forwards logs and the daemon exit code', async () => 
     'console.log(process.env.FAMILIAR_DATA_DIR); console.error(process.env.FAMILIAR_HOST); process.exitCode = 7;',
   )
   const file = resolve(dataDir, 'service.cjs')
-  writeFileSync(file, renderLauncher({ dataDir, cliPath, workDir: temporary }))
+  writeFileSync(file, renderLauncher({ dataDir, cliPath }))
   const hidden = hiddenLaunch({ dataDir })
   writeFileSync(hidden.path, renderHiddenLauncher({ dataDir, cliPath }))
   const result = native.spawnSync(

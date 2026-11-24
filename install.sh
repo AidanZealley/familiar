@@ -6,11 +6,12 @@ main() {
   version=${FAMILIAR_VERSION:-latest}
   case "$version" in
     latest) release=https://github.com/AidanZealley/familiar/releases/latest/download ;;
+    main) release=https://github.com/AidanZealley/familiar/releases/download/main-build ;;
     v[0-9]*)
       case "$version" in *[!a-zA-Z0-9.+-]*) echo 'Invalid FAMILIAR_VERSION tag.' >&2; exit 1 ;; esac
       release="https://github.com/AidanZealley/familiar/releases/download/$version"
       ;;
-    *) echo 'FAMILIAR_VERSION must be latest or a v-prefixed release tag.' >&2; exit 1 ;;
+    *) echo 'FAMILIAR_VERSION must be latest, main or a v-prefixed release tag.' >&2; exit 1 ;;
   esac
   case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) echo 'Use install.ps1 on Windows.' >&2; exit 1 ;; esac
   case "$(uname -m)" in x86_64|amd64) arch=x64 ;; arm64|aarch64) arch=arm64 ;; *) echo 'Supported architectures: x64 and arm64.' >&2; exit 1 ;; esac

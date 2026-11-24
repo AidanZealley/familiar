@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { ensureDataDir, resolvePaths } from '../paths.ts'
@@ -20,37 +21,70 @@ export function uninstall() {
   )
 }
 
-export async function update() {
-  const paths = resolvePaths()
-  const packageDir = dirname(paths.cliPath)
+/** Where `familiar update` fetches the package from. */
+export type UpdateSource = 'release' | 'main'
+
+const packageUrls: Record<UpdateSource, string> = {
+  release:
+    'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
+  // The rolling prerelease the publish workflow replaces on each push to main.
+  main: 'https://github.com/AidanZealley/familiar/releases/download/main-build/familiar.tgz',
+}
+
+/**
+ * The installed package, or undefined for a source checkout. Where it came
+ * from is read from its version, never stored: a build of `main` is
+ * versioned `<last release>-main.<commit>`.
+ */
+function installedPackage(cliPath: string) {
+  const dir = dirname(cliPath)
   if (
-    basename(paths.cliPath) !== 'familiar.js' ||
-    basename(dirname(packageDir)) !== 'node_modules'
+    basename(cliPath) !== 'familiar.js' ||
+    basename(dirname(dir)) !== 'node_modules'
   ) {
+    return undefined
+  }
+  const { version } = JSON.parse(
+    readFileSync(resolve(dir, 'package.json'), 'utf8'),
+  ) as { version: string }
+  const source: UpdateSource = version.includes('-main.') ? 'main' : 'release'
+  return { dir, version, source }
+}
+
+const describeSource = (source: UpdateSource) =>
+  source === 'main' ? 'the latest build of main' : 'the latest release'
+
+/**
+ * Installs the package from `source`, by default the one this installation
+ * came from, and restarts the service.
+ */
+export async function update(source?: UpdateSource) {
+  const paths = resolvePaths()
+  const installed = installedPackage(paths.cliPath)
+  if (!installed) {
     throw new Error(
       'This is a source checkout. Update it with git and pnpm service:install.',
     )
   }
+  const from = source ?? installed.source
   const service = openService(paths)
   // npm's default prefix can differ from the one the installer used. Update
   // the actual installation, not a second global copy elsewhere on PATH.
   const prefix = resolve(
-    packageDir,
+    installed.dir,
     process.platform === 'win32' ? '../..' : '../../..',
   )
+  console.log(
+    `Updating Familiar ${installed.version} from ${describeSource(from)}.`,
+  )
   await service.withStopped(async () => {
-    runNpm(
-      [
-        'install',
-        '--global',
-        '--prefix',
-        prefix,
-        'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
-      ],
-      { stdio: 'inherit' },
-    )
+    runNpm(['install', '--global', '--prefix', prefix, packageUrls[from]], {
+      stdio: 'inherit',
+    })
   })
-  console.log('Updated Familiar.')
+  console.log(
+    `Updated Familiar to ${installedPackage(paths.cliPath)?.version}.`,
+  )
 }
 
 export async function signIn() {
@@ -71,7 +105,13 @@ export function status() {
   const paths = resolvePaths()
   const settings = readSettings(paths.dataDir, {})
   const running = openService(paths).isRunning()
+  const installed = installedPackage(paths.cliPath)
   console.log(`Name: ${settings.name}`)
+  console.log(
+    installed
+      ? `Version: ${installed.version}, updates from ${describeSource(installed.source)}`
+      : 'Version: source checkout',
+  )
   console.log(`Service: ${running ? 'running' : 'stopped'}`)
   console.log(`Local: http://127.0.0.1:${settings.port}`)
   console.log(`Plugins: ${paths.pluginsDir}`)
