@@ -97,15 +97,33 @@ export const availableQuery = queryOptions({
   staleTime: 60_000,
 })
 
-/** Starts updating from `source`, as its own job beside the daemon. */
-export async function startUpdate(source: UpdateSource) {
+/** How long an update's job may take to record that it started. */
+const START_LIMIT_MS = 60_000
+
+/**
+ * Starts updating from `source`, as its own job beside the daemon, and
+ * resolves with what the daemon says once its record shows an update
+ * started after `after`, the last one's start. Throws if the daemon
+ * refuses, or if no update starts within `START_LIMIT_MS`, as when the job
+ * exits before writing its record.
+ */
+export async function startUpdate(source: UpdateSource, after?: string) {
+  const signal = AbortSignal.timeout(START_LIMIT_MS)
   await check(
     await fetch('/api/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source }),
+      signal,
     }),
   )
+  try {
+    return await pollInfo((info) => info.last?.startedAt !== after, signal)
+  } catch {
+    throw new Error(
+      "The update didn't start. Run familiar logs on the machine it runs on to see why.",
+    )
+  }
 }
 
 /** How long a restart may take before the page stops waiting for it. */
@@ -130,18 +148,29 @@ export async function restartFamiliar(started: string) {
     ;({ started } = (await response.json()) as { started: string })
   }
   try {
-    while (true) {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      signal.throwIfAborted()
-      // Until the new daemon listens, requests fail.
-      const info = await fetchInfo(signal).catch(() => undefined)
-      if (info && info.started !== started) {
-        return
-      }
-    }
+    await pollInfo((info) => info.started !== started, signal)
   } catch {
     throw new Error(
       "Familiar hasn't come back. Run familiar logs on the machine it runs on to see why.",
     )
+  }
+}
+
+/**
+ * Asks the daemon each second until its answer is `done`, through any
+ * restart, as requests fail until it listens again. Throws once `signal`
+ * aborts.
+ */
+async function pollInfo(
+  done: (info: UpdateInfo) => boolean,
+  signal: AbortSignal,
+) {
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    signal.throwIfAborted()
+    const info = await fetchInfo(signal).catch(() => undefined)
+    if (info && done(info)) {
+      return info
+    }
   }
 }

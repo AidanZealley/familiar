@@ -134,7 +134,7 @@ test('a job runs the CLI in its own transient unit, with the data folder set for
     jobCommand(
       {
         dataDir: '/data',
-        cliPath: '/app/familiar.js',
+        cliPath: '/app/$HOME %h/familiar.js',
         node: '/node/bin/node',
         path: '/usr/bin',
       },
@@ -146,12 +146,14 @@ test('a job runs the CLI in its own transient unit, with the data folder set for
     '--unit=familiar-update',
     '--collect',
     '--quiet',
+    '--property=Type=exec',
     '--working-directory=/data',
     '--setenv=FAMILIAR_DATA_DIR=/data',
     '--setenv=PATH=/node/bin:/usr/bin',
     '--',
     '/node/bin/node',
-    '/app/familiar.js',
+    // Dollars escaped, as systemd expands them; specifiers it leaves.
+    '/app/$$HOME %h/familiar.js',
     'update',
     '--main',
   ])
