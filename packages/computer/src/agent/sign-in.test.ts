@@ -19,6 +19,11 @@ const pages: Record<string, string> = {
   '/': form(),
   '/foreign-action': form(`method="post" action="${other}/session"`),
   '/foreign-button': form(undefined, `formaction="${other}/session"`),
+  // Left out of the form's elements, but it submits the form all the same.
+  '/foreign-image': form().replace(
+    '</form>',
+    `<input type="image" alt="Go" formaction="${other}/session"></form>`,
+  ),
   '/framed': `<iframe src="${other}/"></iframe>`,
   // Native GET submissions, which would put the password in the address.
   '/get': form(''),
@@ -114,6 +119,7 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     await refused(other, /browser is on https:\/\/other\.example\.test/)
     await refused('/foreign-action', /another site/)
     await refused('/foreign-button', /another site/)
+    await refused('/foreign-image', /another site/)
     await refused('/framed', /Couldn't use those controls/)
     await refused('/required', /isn't complete/)
 
@@ -172,6 +178,24 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     expect(snapshot).toContain('name: kept')
     expect(snapshot).toMatch(/textbox "Password" .*\[ref=\w+\]: ••••••••$/m)
     expect(snapshot).not.toMatch(/secret|spaces/)
+
+    // A saved password shown as text, by a reveal button or the page
+    // echoing it, is masked too.
+    const saved = 'reveal: "me"  now'
+    await page.goto(origin)
+    await page.getByLabel('Password').fill(saved)
+    await page
+      .getByLabel('Password')
+      .evaluate((field) => field.setAttribute('type', 'text'))
+    await page
+      .locator('body')
+      .evaluate(
+        (body, text) => body.insertAdjacentText('beforeend', text),
+        saved,
+      )
+    const revealed = await snapshotWithoutPasswords(page, [saved])
+    expect(revealed).not.toMatch(/reveal|now/)
+    expect(revealed).toContain('- hidden')
 
     await page.goto(origin)
     expect(await signIn(page, login, await controls(), signal)).toEqual({

@@ -7,7 +7,10 @@ type Login = { origin: string; username: string; password: string }
 /** What the page scripts read of a control; the package has no DOM types. */
 type Control = {
   matches(selector: string): boolean
-  readonly ownerDocument: { readonly location: { readonly origin: string } }
+  readonly ownerDocument: {
+    readonly location: { readonly origin: string }
+    querySelectorAll(selector: string): ArrayLike<Control>
+  }
   readonly form?: {
     readonly action: string
     readonly elements: ArrayLike<Control>
@@ -154,9 +157,15 @@ async function secureForm(
       if (!form) {
         return 'ready'
       }
-      const submitters = Array.from(form.elements).filter((control) =>
-        control.matches('button:not([type]), [type=submit], [type=image]'),
-      )
+      // `elements` leaves out image buttons, which submit it all the same.
+      const submitters = [
+        ...Array.from(form.elements).filter((control) =>
+          control.matches('button:not([type]), [type=submit]'),
+        ),
+        ...Array.from(
+          field!.ownerDocument.querySelectorAll('input[type=image]'),
+        ).filter((control) => control.form === form),
+      ]
       const actions = [
         form.action,
         ...submitters

@@ -292,6 +292,7 @@ export function computerServer(
               const shown = await browser.page({ open: false })
               signal.throwIfAborted()
               const { controls, ...credentials } = login
+              browser.filling(credentials.password)
               return shown
                 ? signIn(shown.page, credentials, controls, signal)
                 : {
