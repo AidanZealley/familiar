@@ -35,6 +35,7 @@ export {
   MessageError,
   type Author,
 } from './conversation/message.ts'
+export type { ImageProblem } from './conversation/image.ts'
 export type { HistoryQuery, HistoryPage } from './rooms/index.ts'
 export {
   ModelError,
