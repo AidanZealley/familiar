@@ -1,6 +1,7 @@
 import {
   checkImage,
   IMAGE_LIMITS,
+  type ImageProblem,
   type OutgoingImage,
 } from '@familiar-ai/client'
 
@@ -71,6 +72,18 @@ export async function prepareImage(file: Blob): Promise<OutgoingImage> {
     bitmap.close()
   }
 }
+
+/** Why core refused an image, after "Image 2", say. */
+const PROBLEMS: Record<ImageProblem, string> = {
+  format: "isn't a PNG, JPEG, GIF or WebP",
+  corrupt: "couldn't be read; it may be damaged",
+  pixels: `is over ${IMAGE_LIMITS.pixels}px on its longest side`,
+  frames: `has over ${IMAGE_LIMITS.frames} frames`,
+}
+
+/** Why the image at `index` of a message was refused, as a sentence. */
+export const imageRefusal = (index: number, problem: ImageProblem) =>
+  `Image ${index + 1} ${PROBLEMS[problem]}.`
 
 /** Whether `file` is an image, by the type the browser gives it. */
 export const isImage = (file: File) => file.type.startsWith('image/')

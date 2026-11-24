@@ -1,6 +1,6 @@
 import { IMAGE_LIMITS, type FamiliarSummary } from '@familiar-ai/client'
 import { useState } from 'react'
-import { isImage, prepareImage } from '@/lib/images'
+import { imageRefusal, isImage, prepareImage } from '@/lib/images'
 import type { DraftImage } from './components/draft-images'
 import { completeMention } from './mentions'
 
@@ -18,36 +18,34 @@ export type Draft = {
 
 const empty: Draft = { text: '', picked: [], images: [], note: false }
 
-/** Frees what `images` were shown from, once nothing will show them again. */
-export const revoke = (images: readonly DraftImage[]) =>
-  images.forEach((image) => URL.revokeObjectURL(image.url))
+let lastId = 0
+/** A key for an image or a failed send, unique while the page is open. */
+export const nextId = () => ++lastId
 
-const isEmpty = (draft: Draft) => !draft.text.trim() && !draft.images.length
+export const isEmpty = (draft: Draft) =>
+  !draft.text.trim() && !draft.images.length
 
 /**
- * A draft that couldn't be sent put back ahead of what's been drafted
- * since, so neither is lost and every image stays in a draft that frees it.
- * It goes as a note only if both would.
+ * Whether `draft` can be sent: words or images, every image prepared and
+ * none refused.
  */
-const merged = (unsent: Draft, since: Draft): Draft =>
-  isEmpty(since)
-    ? unsent
-    : {
-        text: unsent.text ? `${unsent.text}\n${since.text}` : since.text,
-        picked: [
-          ...unsent.picked,
-          ...since.picked.filter(
-            (familiar) => !unsent.picked.some(({ id }) => id === familiar.id),
-          ),
-        ],
-        images: [...unsent.images, ...since.images],
-        note: unsent.note && since.note,
-      }
+export const isSendable = (draft: Draft) =>
+  !isEmpty(draft) &&
+  draft.images.every((image) => image.prepared && !image.problem)
 
-const without = (draft: Draft, url: string): Draft => {
-  revoke(draft.images.filter((image) => image.url === url))
-  return { ...draft, images: draft.images.filter((image) => image.url !== url) }
+/** Why `draft` can't be sent as it is: the first image core refused. */
+export const refusalOf = (draft: Draft) => {
+  const index = draft.images.findIndex((image) => image.problem)
+  return index < 0
+    ? undefined
+    : imageRefusal(index, draft.images[index].problem!)
 }
+
+/** `draft` without the image `id`. */
+export const without = (draft: Draft, id: number): Draft => ({
+  ...draft,
+  images: draft.images.filter((image) => image.id !== id),
+})
 
 /**
  * The composer's draft, and every change to it: the only writer of what's
@@ -81,25 +79,21 @@ export const useDraft = () => {
           ? 'Only images can be attached.'
           : undefined,
     )
-    const added = usable.slice(0, Math.max(0, room)).map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-    }))
-    setDraft((draft) => ({
-      ...draft,
-      images: [...draft.images, ...added.map(({ url }) => ({ url }))],
-    }))
-    for (const { file, url } of added) {
+    const added = usable
+      .slice(0, Math.max(0, room))
+      .map((file) => ({ id: nextId(), file }))
+    setDraft((draft) => ({ ...draft, images: [...draft.images, ...added] }))
+    for (const { id, file } of added) {
       prepareImage(file).then(
         (prepared) =>
           setDraft((draft) => ({
             ...draft,
             images: draft.images.map((image) =>
-              image.url === url ? { ...image, prepared } : image,
+              image.id === id ? { ...image, prepared } : image,
             ),
           })),
         () => {
-          setDraft((draft) => without(draft, url))
+          setDraft((draft) => without(draft, id))
           setRefused("That image couldn't be read.")
         },
       )
@@ -109,10 +103,7 @@ export const useDraft = () => {
   return {
     draft,
     refused,
-    /** Something to send: words or images, every image prepared. */
-    sendable:
-      (!!text.trim() || images.length > 0) &&
-      images.every((image) => image.prepared),
+    sendable: isSendable(draft),
     type: (text: string) => setDraft((draft) => ({ ...draft, text })),
     /** Completes the `@` being typed as `familiar`'s name. */
     mention: (familiar: FamiliarSummary) =>
@@ -129,17 +120,20 @@ export const useDraft = () => {
       })),
     toggleNote: () => setDraft((draft) => ({ ...draft, note: !draft.note })),
     attach,
-    remove: (url: string) => setDraft((draft) => without(draft, url)),
-    /**
-     * The draft to send, its words trimmed, leaving the composer empty. Its
-     * images stay shown from their URLs until it's sent or restored.
-     */
+    remove: (id: number) => setDraft((draft) => without(draft, id)),
+    /** The draft to send, its words trimmed, leaving the composer empty. */
     take: () => {
       setDraft(empty)
       setRefused(undefined)
       return { ...draft, text: text.trim() }
     },
-    /** Puts back a draft that couldn't be sent, keeping any drafted since. */
-    restore: (unsent: Draft) => setDraft((draft) => merged(unsent, draft)),
+    /**
+     * Makes `unsent` the draft, to change it before sending. The composer
+     * offers this only while the draft is empty, so it's never merged.
+     */
+    edit: (unsent: Draft) => {
+      setDraft(unsent)
+      setRefused(undefined)
+    },
   }
 }

@@ -16,16 +16,18 @@ import { ArchivedNotice } from './components/archived-notice'
 import { ComposerActions } from './components/composer-actions'
 import { ComposerNotice } from './components/composer-notice'
 import { DraftImages } from './components/draft-images'
+import { FailedSendItem } from './components/failed-send-item'
 import { MentionMenu } from './components/mention-menu'
 import { suggestionsFor } from './mentions'
 import type { ComposerProps } from './types'
-import { useDraft } from './useDraft'
+import { isEmpty, refusalOf, useDraft } from './useDraft'
 import { useSend } from './useSend'
 
 /**
  * Writing to a room: words, `@` mentions and images, sent as a message or
- * a note. `useDraft` owns what's drafted and `useSend` the commands; this
- * wires them to the input.
+ * a note. `useDraft` owns what's drafted, and `useSend` the commands and
+ * the sends that failed, each shown above the draft and never merged into
+ * it; this wires them to the input.
  */
 export const Composer = ({ room, busy }: ComposerProps) => {
   const familiars = useFamiliars()
@@ -33,7 +35,8 @@ export const Composer = ({ room, busy }: ComposerProps) => {
   const drafting = useDraft()
   const { draft, refused, sendable } = drafting
   const { text, note, images } = draft
-  const { send, stop, error } = useSend(drafting.restore)
+  const sending = useSend()
+  const { send, stop, error, failed } = sending
   const title = titleOf(room, familiars)
   const focus = () => input.current?.focus()
 
@@ -106,9 +109,27 @@ export const Composer = ({ room, busy }: ComposerProps) => {
       {suggestions.length > 0 && (
         <MentionMenu familiars={suggestions} onPick={mention} />
       )}
-      {(refused ?? error) && (
+      {failed.map((each) => (
+        <FailedSendItem
+          key={each.id}
+          failed={each}
+          onRetry={() => sending.retry(each)}
+          onEdit={
+            isEmpty(draft)
+              ? () => {
+                  drafting.edit(each.draft)
+                  sending.discard(each.id)
+                  focus()
+                }
+              : undefined
+          }
+          onDiscard={() => sending.discard(each.id)}
+          onRemoveImage={(image) => sending.removeImage(each.id, image)}
+        />
+      ))}
+      {(refused ?? refusalOf(draft) ?? error) && (
         <ComposerNotice tone="error">
-          {refused ?? error?.message}
+          {refused ?? refusalOf(draft) ?? error?.message}
         </ComposerNotice>
       )}
       {note && (
@@ -125,8 +146,8 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           <InputGroupAddon align="block-start" className="p-0">
             <DraftImages
               images={images}
-              onRemove={(url) => {
-                drafting.remove(url)
+              onRemove={(id) => {
+                drafting.remove(id)
                 focus()
               }}
             />

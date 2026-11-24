@@ -14,6 +14,7 @@ export {
   type ImageProblem,
   type OutgoingImage,
 } from './images.ts'
+export { RequestError } from './commands.ts'
 export { toRoomTranscript } from './transcript.ts'
 export type {
   ToolCall,
