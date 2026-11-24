@@ -55,7 +55,7 @@ test('platform variables and the explicit data override are respected', () => {
   ).toBe(join(home, 'custom'))
 })
 
-test('a checkout and an installed bundle each find their web UI and working directory', () => {
+test('a checkout and an installed bundle each find their web UI', () => {
   const home = homeDirectory()
   const source = resolvePaths({
     home,
@@ -63,13 +63,11 @@ test('a checkout and an installed bundle each find their web UI and working dire
     codeDir: join(home, 'repo/apps/daemon/src'),
   })
   expect(source).toMatchObject({
-    workDir: join(home, 'repo'),
     cliPath: join(home, 'repo/apps/daemon/src/cli.ts'),
     webDir: join(home, 'repo/apps/web/dist'),
   })
   const bundle = resolvePaths({ home, env: {}, codeDir: join(home, 'package') })
   expect(bundle).toMatchObject({
-    workDir: join(home, 'package'),
     cliPath: join(home, 'package/familiar.js'),
     webDir: join(home, 'package/web'),
   })

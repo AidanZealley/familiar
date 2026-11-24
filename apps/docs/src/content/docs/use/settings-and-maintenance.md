@@ -7,12 +7,12 @@ description: Familiar's commands, settings file, data location, updates and remo
 
 ```sh
 familiar             # Guided setup, or resume it
-familiar status      # Name, service status, URLs and the plugins folder
+familiar status      # Name, version, service status, URLs and the plugins folder
 familiar rename      # Change the assistant's name. Pass the new name or answer the prompt
 familiar sign-in     # Sign in with ChatGPT again
 familiar restart     # Restart the service, such as after changing your plugins
 familiar logs        # Follow the service logs
-familiar update      # Install the latest release and restart
+familiar update      # Update and restart. --main or --release switches source
 familiar uninstall   # Remove the service, keeping your data
 familiar serve       # Run in the foreground instead of as a service
 ```
@@ -51,6 +51,8 @@ Familiar reaches OpenAI's models through your ChatGPT sign-in. To use Anthropic,
 
 It holds the conversation, memory, your ChatGPT login, model providers' API keys, connection keys, notification subscriptions, [your own plugins](/familiar/use/extend/) and your Familiars' portraits. Keep it private.
 
+The service also runs in the data directory, so anything a tool writes to its working folder, such as a browser MCP server's screenshots, lands there and survives updates. A service installed by an older version runs in the app's own folder, which an update replaces; run `familiar` once to reinstall the service and move it.
+
 ### Stored credentials
 
 Familiar encrypts connection keys in `secrets.json`, and your ChatGPT login and
@@ -77,6 +79,10 @@ Dates and reminders use the computer's time zone when Familiar starts. Restart i
 
 ## Updates and removal
 
-`familiar update` installs the latest release and restarts the service. It doesn't back up your data first, and there's no rollback. Familiar has no export, import or automatic backups yet.
+`familiar update` installs the newest version from where this installation came from, and restarts the service. A release updates to the latest release. A build of `main`, installed with `FAMILIAR_VERSION=main`, updates to the latest build of `main`. `familiar status` shows the version and which of the two it updates from.
+
+`familiar update --main` switches a release to the latest build of `main`, and `familiar update --release` switches back. Switching back installs the latest release even when it's older than your build of `main`, so wait for a release newer than it.
+
+Updates don't back up your data first, and there's no rollback. Familiar has no export, import or automatic backups yet.
 
 `familiar uninstall` removes the background service and the Tailscale address. Your data directory stays where it is.

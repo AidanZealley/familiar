@@ -20,7 +20,6 @@ type MacOptions = ServiceOptions & { agentDir?: string; uid?: number }
 export function renderAgent({
   dataDir,
   cliPath,
-  workDir = dirname(cliPath),
   node = process.execPath,
   path = process.env.PATH ?? '/usr/bin:/bin',
 }: ServiceOptions) {
@@ -29,7 +28,7 @@ export function renderAgent({
 <plist version="1.0"><dict>
 <key>Label</key><string>${label}</string>
 <key>ProgramArguments</key><array><string>${xml(node)}</string><string>${xml(cliPath)}</string><string>serve</string></array>
-<key>WorkingDirectory</key><string>${xml(workDir)}</string>
+<key>WorkingDirectory</key><string>${xml(dataDir)}</string>
 <key>EnvironmentVariables</key><dict>
 ${dataEntry(dataDir)}
 <key>FAMILIAR_HOST</key><string>127.0.0.1</string>

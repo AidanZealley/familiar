@@ -11,7 +11,9 @@ Commands:
   restart   Restart the service, such as after changing your plugins
   serve     Run Familiar in the foreground
   sign-in   Sign in with ChatGPT
-  update    Update the installed app and restart its service
+  update    Update the installed app and restart its service. A release
+            updates to the latest release, a build of main to the latest
+            build of main. --main or --release switches between them.
   logs      Follow service logs
   uninstall Remove the service, keeping your data
 
@@ -22,10 +24,19 @@ Options:
 try {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { help: { type: 'boolean', short: 'h' } },
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      main: { type: 'boolean' },
+      release: { type: 'boolean' },
+    },
   })
+  const source = values.main ? 'main' : values.release ? 'release' : undefined
   if (values.help) {
     console.log(help)
+  } else if (values.main && values.release) {
+    throw new Error('Choose one of --main and --release.')
+  } else if (source && positionals[0] !== 'update') {
+    throw new Error('Only update accepts --main or --release.')
   } else if (positionals.length === 0) {
     await (await import('./cli/setup.ts')).setup()
   } else if (positionals.length > (positionals[0] === 'rename' ? 2 : 1)) {
@@ -47,7 +58,7 @@ try {
         ;(await import('./cli/manage.ts')).logs()
         break
       case 'update':
-        await (await import('./cli/manage.ts')).update()
+        await (await import('./cli/manage.ts')).update(source)
         break
       case 'uninstall':
         ;(await import('./cli/manage.ts')).uninstall()
