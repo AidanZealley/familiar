@@ -2,31 +2,31 @@
 # the JWM window manager), Chromium and the agent, run as an unprivileged
 # user whose home is the computer's disk. The agent listens on a Unix
 # socket the host reaches with `docker exec … socat`, and Xvnc on another
-# beside it. The same image
-# runs the host's egress proxy (`docker/proxy-main.js`), which listens on a
-# socket in /run/familiar-proxy, a volume shared with every computer.
+# beside it. The same image runs the host's egress proxy (`/agent/proxy.js`),
+# which listens on a socket in /run/familiar-proxy, a volume shared with
+# every computer. Paths the agent and host rely on are in src/agent/layout.ts.
 #
-# Build from the repository root, for this machine's platform: pnpm image.
-# Releases publish it for linux/amd64 and linux/arm64 as one image.
+# scripts/image-key.ts stages this image's build context and names the image
+# by its hash: `pnpm image` builds it for this machine's platform, and CI
+# publishes it for linux/amd64 and linux/arm64 when that name is new.
 
-FROM node:24-bookworm-slim AS build
-RUN corepack enable
-WORKDIR /repo
-COPY . .
-RUN pnpm install --frozen-lockfile --filter @familiar-ai/computer... \
-  && pnpm --filter @familiar-ai/computer build \
-  && pnpm --filter @familiar-ai/computer deploy --legacy --prod /agent
-
-FROM node:24-bookworm-slim
+# Pinned, so a new base image is a change here, and so a new image.
+FROM node:24-bookworm-slim@sha256:873f586f3794f52281bd039bf02c048a0be08fde619338f9941bad1eb6b34530
 # Links the image published on ghcr.io to its repository.
 LABEL org.opencontainers.image.source=https://github.com/AidanZealley/familiar
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright LANG=C.UTF-8
-COPY --from=build /agent /agent
-# Chromium as the agent's own Playwright version expects it, with its
-# system libraries; socat for the host's connection; curl for the shell;
-# the display and window manager (whose launcher's terminal is urxvt, a
-# dependency); xdotool, xclip and maim for the screen tools.
-RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell chromium \
+# Changed to rebuild the image on purpose, such as for Debian's security
+# updates, when nothing else has. Each change replaces every computer, so it's
+# a reviewed commit, not a schedule.
+ARG IMAGE_REFRESH=2026-11
+# Playwright, at the version the computer package pins, and Chromium as it
+# expects it, with its system libraries; socat for the host's connection;
+# curl for the shell; the display and window manager (whose launcher's
+# terminal is urxvt, a dependency); xdotool, xclip and maim for the screen
+# tools.
+COPY package.json /agent/
+RUN cd /agent && npm install --omit=dev --no-audit --no-fund && rm -rf /root/.npm \
+  && node /agent/node_modules/playwright/cli.js install --with-deps --no-shell chromium \
   && apt-get install -y --no-install-recommends sudo socat curl ca-certificates \
     tigervnc-standalone-server jwm xdotool xclip maim \
   && rm -rf /var/lib/apt/lists/* \
@@ -39,7 +39,7 @@ RUN node /agent/node_modules/playwright/cli.js install --with-deps --no-shell ch
 # The desktop's look (JWM's config, Familiar's fonts, wallpaper, launcher
 # icon and terminal), and Chrome's policy: no incognito windows, as the
 # agent finds the shown tab through its own extension, which can't see them.
-COPY packages/computer/desktop /usr/share/familiar-desktop
+COPY desktop /usr/share/familiar-desktop
 RUN install -D -m 644 -t /usr/local/share/fonts/familiar /usr/share/familiar-desktop/fonts/* \
   && fc-cache -f \
   && ln -sf /usr/share/familiar-desktop/jwmrc /etc/jwm/system.jwmrc \
@@ -49,6 +49,10 @@ RUN install -D -m 644 -t /usr/local/share/fonts/familiar /usr/share/familiar-des
 # proxy explicitly, which still only reaches the public internet.
 RUN printf 'Acquire::http::Proxy "http://127.0.0.1:3128";\nAcquire::https::Proxy "http://127.0.0.1:3128";\n' \
     > /etc/apt/apt.conf.d/80familiar-proxy
+# The agent and the proxy, each bundled into one file, and the agent's
+# browser extension.
+COPY agent.js proxy.js /agent/
+COPY extension /agent/extension
 USER computer
 WORKDIR /home/computer
-ENTRYPOINT ["node", "/agent/dist/agent/main.js"]
+ENTRYPOINT ["node", "/agent/agent.js"]

@@ -15,7 +15,7 @@ import { openBrowser } from './browser.ts'
 import { computerControl } from './control.ts'
 import { startDisplay } from './display.ts'
 import { computerServer } from './server.ts'
-import { AGENT_SOCKET, PROXY_PORT } from './socket.ts'
+import { AGENT_SOCKET, PROXY_PORT } from './layout.ts'
 
 // The computer agent, the image's entrypoint: serves the computer's tools
 // over MCP on a Unix socket, one server per connection, as newline-delimited

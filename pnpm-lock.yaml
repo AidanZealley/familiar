@@ -504,12 +504,6 @@ importers:
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
         version: 2.4.0
-      '@modelcontextprotocol/server':
-        specifier: 'catalog:'
-        version: 2.4.0
-      playwright:
-        specifier: 1.65.1
-        version: 1.65.1
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -517,9 +511,18 @@ importers:
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../core
+      '@modelcontextprotocol/server':
+        specifier: 'catalog:'
+        version: 2.4.0
       hono:
         specifier: 'catalog:'
         version: 4.13.13
+      playwright:
+        specifier: 1.65.1
+        version: 1.65.1
+      rolldown:
+        specifier: 1.2.15
+        version: 1.2.15
 
   packages/core:
     dependencies:

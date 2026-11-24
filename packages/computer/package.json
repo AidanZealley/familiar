@@ -17,7 +17,7 @@
   },
   "files": [
     "dist",
-    "extension"
+    "image.json"
   ],
   "publishConfig": {
     "access": "public",
@@ -29,7 +29,8 @@
   "scripts": {
     "typecheck": "tsc",
     "build": "tsc -p tsconfig.build.json",
-    "image": "docker build -t $npm_package_config_image:$npm_package_version -f Dockerfile ../.."
+    "image:key": "node scripts/image-key.ts",
+    "image": "node scripts/image-key.ts --build"
   },
   "peerDependencies": {
     "@familiar-ai/core": "workspace:*",
@@ -37,12 +38,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/client": "catalog:",
-    "@modelcontextprotocol/server": "catalog:",
-    "playwright": "1.65.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@familiar-ai/core": "workspace:*",
-    "hono": "catalog:"
+    "@modelcontextprotocol/server": "catalog:",
+    "hono": "catalog:",
+    "playwright": "1.65.1",
+    "rolldown": "1.2.15"
   }
 }
