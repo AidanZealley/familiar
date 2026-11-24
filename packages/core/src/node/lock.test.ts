@@ -63,3 +63,15 @@ test('a lock is free once its holder exits, even by crashing', async () => {
   }
   expect(lockHeld(path)).toBe(false)
 })
+
+test('an older version holding the lock by process ID alone keeps it, even after this version has used it', () => {
+  const path = lockFile()
+  const lock = takeLock(path)
+  if (lock.taken) {
+    lock.release()
+  }
+  // As a rolled-back version writes it: a live process's ID, no OS lock.
+  writeFileSync(path, String(process.ppid))
+  expect(lockHeld(path)).toBe(true)
+  expect(takeLock(path)).toEqual({ taken: false, holder: process.ppid })
+})

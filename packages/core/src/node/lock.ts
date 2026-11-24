@@ -40,16 +40,14 @@ const held = new Set<DatabaseSync>()
  * `<path>.db`: the kernel lets it go when its holder exits, crashed or
  * not, so there's no stale lock to judge or take over, and two processes
  * can never both hold it. `path` holds the holder's process ID for
- * messages, written whole once it holds the lock; it decides nothing.
- * `<path>.db` is never removed, as a second file would be a second lock.
+ * messages and for versions before `<path>.db`, which lock by it alone,
+ * written whole once it holds the lock. So either version refuses while
+ * the other runs, across an update or a rollback. `<path>.db` is never
+ * removed, as a second file would be a second lock.
  */
 export function takeLock(
   path: string,
 ): { taken: true; release(): void } | { taken: false; holder?: number } {
-  const legacy = legacyHolder(path)
-  if (legacy !== undefined) {
-    return { taken: false, holder: legacy }
-  }
   const db = new DatabaseSync(`${path}.db`)
   try {
     // Waits out another process's brief look in `lockHeld`.
@@ -61,18 +59,33 @@ export function takeLock(
     }
     return { taken: false, holder: recordedHolder(path) }
   }
+  // An older version, holding it by process ID alone.
+  const legacy = legacyHolder(path)
+  if (legacy !== undefined) {
+    db.close()
+    return { taken: false, holder: legacy }
+  }
+  try {
+    // Older versions read it to stay out, so without it nothing is held.
+    const temporary = `${path}.${process.pid}.tmp`
+    writeFileSync(temporary, String(process.pid), { mode: 0o600 })
+    renameSync(temporary, path)
+  } catch (error) {
+    db.close()
+    throw error
+  }
   held.add(db)
-  const temporary = `${path}.${process.pid}.tmp`
-  writeFileSync(temporary, String(process.pid), { mode: 0o600 })
-  renameSync(temporary, path)
   const release = () => {
     process.off('exit', release)
     if (!held.delete(db)) {
       return
     }
-    // Before letting go, so it never names the next holder.
-    rmSync(path, { force: true })
-    db.close()
+    try {
+      // Before letting go, so it never names the next holder.
+      rmSync(path, { force: true })
+    } finally {
+      db.close()
+    }
   }
   process.on('exit', release)
   return { taken: true, release }
@@ -80,8 +93,11 @@ export function takeLock(
 
 /** Whether a process holds the lock at `path`. */
 export function lockHeld(path: string): boolean {
+  if (legacyHolder(path) !== undefined) {
+    return true
+  }
   if (!existsSync(`${path}.db`)) {
-    return legacyHolder(path) !== undefined
+    return false
   }
   const db = new DatabaseSync(`${path}.db`)
   try {
@@ -116,14 +132,11 @@ function recordedHolder(path: string) {
 }
 
 /**
- * The live process holding `path` as a version before `<path>.db` did: a
- * process ID alone, which it never removed on a crash. Only consulted
- * until a lock is first taken here, across the update that brings this.
+ * The live process, other than this one, that `path` names: how a version
+ * before `<path>.db` holds it, and leaves it on a crash. This version
+ * writes it too, so it also names this version's holder.
  */
 function legacyHolder(path: string) {
-  if (existsSync(`${path}.db`)) {
-    return undefined
-  }
   const pid = recordedHolder(path)
   return pid && pid !== process.pid && isRunning(pid) ? pid : undefined
 }
