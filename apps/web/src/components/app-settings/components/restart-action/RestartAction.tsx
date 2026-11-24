@@ -25,7 +25,7 @@ import type { RestartActionProps } from './types'
 export const RestartAction = ({ link, info }: RestartActionProps) => {
   const [open, setOpen] = useState(false)
   const restart = useMutation({
-    mutationFn: restartFamiliar,
+    mutationFn: () => restartFamiliar(info.started),
     onSuccess: () => {
       setOpen(false)
       // What it read at startup, such as the models on offer, may differ.

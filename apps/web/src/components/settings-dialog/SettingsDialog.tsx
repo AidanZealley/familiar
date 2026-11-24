@@ -3,7 +3,7 @@ import {
   MagnifyingGlassIcon,
   XIcon,
 } from '@phosphor-icons/react'
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -51,6 +51,7 @@ export const SettingsDialog = ({
   const category = useDialogCategory()
   const { showCategory, close } = useDialogs()
   const [query, setQuery] = useState('')
+  const results = useRef<HTMLDivElement>(null)
   const all = groups.flatMap((group) => group.categories ?? [])
   const current =
     all.find((each) => each.id === category) ?? (isPhone ? undefined : all[0])
@@ -76,18 +77,20 @@ export const SettingsDialog = ({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
-            const first = visible.flatMap((group) => group.categories ?? [])[0]
-            if (event.key === 'Enter' && first) {
-              showCategory(first.id)
+            // The first result, as a click does: a category shows, an action acts.
+            if (event.key === 'Enter') {
+              results.current?.querySelector('button')?.click()
             }
           }}
         />
       </InputGroup>
-      <CategoryList
-        groups={visible}
-        current={current?.id}
-        onShow={showCategory}
-      />
+      <div ref={results}>
+        <CategoryList
+          groups={visible}
+          current={current?.id}
+          onShow={showCategory}
+        />
+      </div>
       {visible.length === 0 && (
         <p className="px-2 py-4 text-xs text-muted-foreground">
           No settings match “{query.trim()}”.

@@ -47,8 +47,8 @@ export const isUpdating = (last: LastUpdate | null | undefined) =>
   last?.phase === 'restarting'
 
 /** What the daemon says about its installation, or null if nothing serves it. */
-async function fetchInfo(): Promise<UpdateInfo | null> {
-  const response = await fetch('/api/update')
+async function fetchInfo(signal?: AbortSignal): Promise<UpdateInfo | null> {
+  const response = await fetch('/api/update', { signal })
   if (response.status === 404) {
     return null
   }
@@ -113,22 +113,35 @@ const RESTART_LIMIT_MS = 120_000
 
 /**
  * Restarts the daemon's service, as its own job beside it, and resolves
- * once a daemon started since answers. Throws if it doesn't within
- * `RESTART_LIMIT_MS`.
+ * once a daemon started after `started` (the one asked) answers. Throws if
+ * the daemon refuses, or if none answers within `RESTART_LIMIT_MS`.
  */
-export async function restartFamiliar() {
-  const before = (await fetchInfo())?.started
-  await check(await fetch('/api/update/restart', { method: 'POST' }))
-  const deadline = Date.now() + RESTART_LIMIT_MS
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    // Until the new daemon listens, requests fail.
-    const info = await fetchInfo().catch(() => undefined)
-    if (info && info.started !== before) {
-      return
-    }
+export async function restartFamiliar(started: string) {
+  const signal = AbortSignal.timeout(RESTART_LIMIT_MS)
+  let response: Response | undefined
+  try {
+    response = await fetch('/api/update/restart', { method: 'POST', signal })
+  } catch {
+    // The restart can stop the daemon before its answer arrives: wait and see.
   }
-  throw new Error(
-    "Familiar hasn't come back. Run familiar logs on the machine it runs on to see why.",
-  )
+  if (response) {
+    await check(response)
+    // The daemon that accepted it, newer than the page's if it restarted since.
+    ;({ started } = (await response.json()) as { started: string })
+  }
+  try {
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      signal.throwIfAborted()
+      // Until the new daemon listens, requests fail.
+      const info = await fetchInfo(signal).catch(() => undefined)
+      if (info && info.started !== started) {
+        return
+      }
+    }
+  } catch {
+    throw new Error(
+      "Familiar hasn't come back. Run familiar logs on the machine it runs on to see why.",
+    )
+  }
 }

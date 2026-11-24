@@ -56,6 +56,11 @@ export function installationUpdater(): Updater {
     }
     return service
   }
+  // The installation's one maintenance job: update and restart share its
+  // name, so the service manager refuses one while the other runs, from the
+  // moment it's accepted, before it writes any record.
+  const maintain = (args: string[]) =>
+    openService(paths).runJob('maintenance', args)
   return {
     info: () => ({
       installed: installed
@@ -66,8 +71,8 @@ export function installationUpdater(): Updater {
       started,
     }),
     available: availableVersions,
-    start: (source) => openService(paths).runJob('update', updateArgs(source)),
-    restart: () => openService(paths).runJob('restart', ['restart']),
+    start: (source) => maintain(updateArgs(source)),
+    restart: () => maintain(['restart']),
   }
 }
 
@@ -98,7 +103,9 @@ function startJob(
       500,
     )
   }
-  return c.body(null, 202)
+  // The daemon accepting it, which the job may stop before this reaches the
+  // client, so it can tell when a later one answers.
+  return c.json({ started: info.started }, 202)
 }
 
 /**

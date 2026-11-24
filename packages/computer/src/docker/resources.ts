@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { homedir, networkInterfaces } from 'node:os'
+import { homedir, networkInterfaces, userInfo } from 'node:os'
 import { dirname } from 'node:path'
 import { promisify } from 'node:util'
 import type { FamiliarId } from '@familiar-ai/core'
@@ -46,14 +46,16 @@ export function reasonOf(error: unknown) {
   if (code === 'ENOENT') {
     return 'Install Docker to give Familiars computers.'
   }
-  // A process keeps the groups its login started with, so joining the
-  // docker group reaches Familiar only through a new login. Its service's
-  // lingers past logging out, hence restarting the machine.
+  // The system engine's socket refused this account: the docker group
+  // grants it. A process keeps the groups its login started with, and
+  // Familiar's service lingers past logging out, hence rebooting. Other
+  // sockets, such as rootless Docker's, keep Docker's own message.
   if (
     process.platform === 'linux' &&
-    /permission denied.*docker\.sock/i.test(stderr ?? '')
+    /permission denied/i.test(stderr ?? '') &&
+    /\/(var\/)?run\/docker\.sock\b/.test(stderr ?? '')
   ) {
-    return "Familiar isn't allowed to use Docker. Add your user to the docker group (sudo usermod -aG docker $USER), then reboot the machine Familiar runs on so it picks that up."
+    return `Familiar isn't allowed to use Docker. Add ${userInfo().username}, the account Familiar runs as, to the docker group (sudo usermod -aG docker ${userInfo().username}), then reboot the machine Familiar runs on so it picks that up.`
   }
   return (
     stderr?.trim() || (error instanceof Error ? error.message : String(error))
