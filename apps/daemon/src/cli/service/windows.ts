@@ -203,22 +203,30 @@ $link = (New-Object -ComObject WScript.Shell).CreateShortcut(${quote(shortcut)})
     }
     return { task, link }
   }
-  // Match the quoted launcher argument our task and shortcut emit, not a stale PID or another node.exe process.
-  const processIds = (): number[] =>
+  // Match the quoted argument we emit, not a stale PID or another process
+  // of the same program.
+  const processIds = (program: string, argument: string): number[] =>
     JSON.parse(
       powershell(`
 ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Object {
-  $_.Name -eq ${quote(win32.basename(node))} -and $_.CommandLine -and $_.CommandLine.IndexOf(${quote(args)}, [StringComparison]::OrdinalIgnoreCase) -ge 0
+  $_.Name -eq ${quote(program)} -and $_.CommandLine -and $_.CommandLine.IndexOf(${quote(argument)}, [StringComparison]::OrdinalIgnoreCase) -ge 0
 } | Select-Object -ExpandProperty ProcessId)
 `),
     )
-  const isRunning = () => existsSync(launcher) && processIds().length > 0
+  /** The daemon's launcher, as our task and shortcut start it. */
+  const daemonIds = () => processIds(win32.basename(node), args)
+  const isRunning = () => existsSync(launcher) && daemonIds().length > 0
+  /** Starts `args` hidden, as a process outside the daemon's tree. */
+  const launch = (args: string) =>
+    powershell(
+      `Start-Process -FilePath ${quote(hidden.command)} -ArgumentList ${quote(args)} -WorkingDirectory ${quote(options.dataDir)} -WindowStyle Hidden`,
+    )
   const stop = () => {
     const { task } = registration()
     if (task?.enabled) {
       schtasks('/Change', '/TN', name, '/DISABLE')
     }
-    for (const pid of processIds()) {
+    for (const pid of daemonIds()) {
       execFileSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -228,9 +236,7 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
   const start = () => {
     const { task, link } = registration()
     if (link) {
-      powershell(
-        `Start-Process -FilePath ${quote(hidden.command)} -ArgumentList ${quote(hidden.args)} -WorkingDirectory ${quote(options.dataDir)} -WindowStyle Hidden`,
-      )
+      launch(hidden.args)
     } else if (task) {
       if (!task.enabled) {
         schtasks('/Change', '/TN', name, '/ENABLE')
@@ -299,8 +305,25 @@ $link.WorkingDirectory = ${quote(options.dataDir)}; $link.WindowStyle = 7; $link
         'Familiar Windows startup is installed and running. It starts when you log in.',
       )
     },
+    /**
+     * Runs the CLI with `args` as a job of its own, outside the daemon's
+     * tree, so stopping the service doesn't stop it: as the on-demand task
+     * `Familiar-<name>-<user>`, or, where task registration was refused and
+     * the service starts from the Startup folder, launched as the service
+     * is, refusing a second while one runs.
+     */
     runJob(jobName: string, args: string[]) {
       const job = renderJobTask(options, userId, jobName, args)
+      const { link } = registration()
+      if (link) {
+        const script = `"${job.script}"`
+        if (processIds(win32.basename(hidden.command), script).length) {
+          throw new Error(`The ${jobName} job is already running.`)
+        }
+        writeFileSync(job.script, job.content, { mode: 0o600 })
+        launch(script)
+        return
+      }
       const file = resolve(options.dataDir, `${jobName}-job.xml`)
       writeFileSync(job.script, job.content, { mode: 0o600 })
       writeFileSync(file, job.xml, { mode: 0o600 })

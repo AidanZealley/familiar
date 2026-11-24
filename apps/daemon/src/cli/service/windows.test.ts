@@ -24,6 +24,8 @@ vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 const userId = 'S-1-5-21-1000'
 let temporary: string
 let running: boolean
+/** Whether a job launched from the Startup-folder mode is running. */
+let jobRunning: boolean
 let refused: boolean
 let task: { node: string; args: string; enabled: boolean } | null
 const launcher = () => resolve(temporary, 'data/service.cjs')
@@ -46,6 +48,7 @@ const calls = () =>
 beforeEach(() => {
   temporary = mkdtempSync(resolve(tmpdir(), 'familiar-windows-'))
   running = false
+  jobRunning = false
   refused = false
   task = null
   vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -58,6 +61,9 @@ beforeEach(() => {
           return JSON.stringify(task) as never
         }
         if (source.includes('Get-CimInstance')) {
+          if (source.includes('-job.vbs')) {
+            return JSON.stringify(jobRunning ? [456] : []) as never
+          }
           return JSON.stringify(running ? [123] : []) as never
         }
         if (source.includes('CreateShortcut')) {
@@ -71,7 +77,11 @@ beforeEach(() => {
           }) as never
         }
         if (source.includes('Start-Process')) {
-          running = true
+          if (source.includes('-job.vbs')) {
+            jobRunning = true
+          } else {
+            running = true
+          }
         }
         return '' as never
       }
@@ -188,6 +198,23 @@ test('refused registration uses a Startup shortcut with an explicit recovery lim
   host.uninstall()
   expect(existsSync(shortcut())).toBe(false)
   expect(existsSync(launcher())).toBe(false)
+})
+
+test('without a task, a job starts as the service does, outside its tree, one at a time', () => {
+  refused = true
+  const host = service()
+  host.install()
+  vi.mocked(execFileSync).mockClear()
+  host.runJob('maintenance', ['update'])
+  expect(jobRunning).toBe(true)
+  expect(existsSync(resolve(temporary, 'data/maintenance-job.vbs'))).toBe(true)
+  expect(calls().some((call) => call.startsWith('schtasks.exe'))).toBe(false)
+  expect(() => host.runJob('maintenance', ['update'])).toThrow(
+    'already running',
+  )
+  // Stopping the service leaves it running.
+  host.stop()
+  expect(jobRunning).toBe(true)
 })
 
 test('a task for another data directory cannot be replaced or deleted', () => {
