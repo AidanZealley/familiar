@@ -10,7 +10,7 @@ import {
 import { basename, dirname, resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { lockHolder, takeLock } from '@familiar-ai/core/node'
+import { lockHeld, takeLock } from '@familiar-ai/core/node'
 import { resolvePaths } from '../paths.ts'
 import { runNpm } from './npm.ts'
 import { readSettings } from '../settings.ts'
@@ -91,7 +91,9 @@ export async function update(source?: UpdateSource) {
   const files = updateFiles(paths.dataDir)
   const lock = takeLock(files.lock)
   if (!lock.taken) {
-    throw new Error(`An update is already running (process ${lock.holder}).`)
+    throw new Error(
+      `An update is already running${lock.holder ? ` (process ${lock.holder})` : ''}.`,
+    )
   }
   const record: UpdateRecord = {
     source: from,
@@ -181,7 +183,7 @@ export function lastUpdate(dataDir: string): LastUpdate | undefined {
   const files = updateFiles(dataDir)
   // The lock before the record: an update writes its last phase before it
   // lets go, so a held lock and an unfinished record mean it's still running.
-  const running = lockHolder(files.lock) !== undefined
+  const running = lockHeld(files.lock)
   const record = readJson<UpdateRecord>(files.record)
   if (!record) {
     return undefined

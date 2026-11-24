@@ -8,6 +8,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { takeLock } from '@familiar-ai/core/node'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { resolvePaths } from '../paths.ts'
 import { runNpm } from './npm.ts'
@@ -164,8 +165,7 @@ test('a failed install restarts the old version and reads back with its log', as
 })
 
 test('one update at a time, and an abandoned one reads as interrupted', async () => {
-  const lock = resolve(dataDir(), 'update.lock')
-  writeFileSync(lock, String(process.ppid))
+  const lock = takeLock(resolve(dataDir(), 'update.lock'))
   await expect(update()).rejects.toThrow('already running')
   expect(events).toEqual([])
 
@@ -174,7 +174,9 @@ test('one update at a time, and an abandoned one reads as interrupted', async ()
     JSON.stringify({ source: 'main', from: '0.4.3', phase: 'installing' }),
   )
   expect(lastUpdate(dataDir())?.phase).toBe('installing')
-  rmSync(lock)
+  if (lock.taken) {
+    lock.release()
+  }
   expect(lastUpdate(dataDir())?.phase).toBe('interrupted')
 })
 
