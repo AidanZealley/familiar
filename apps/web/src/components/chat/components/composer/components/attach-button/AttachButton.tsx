@@ -38,7 +38,7 @@ export const AttachButton = ({ onAttach }: AttachButtonProps) => {
         <PaperclipIcon />
       </InputGroupButton>
       {touch ? (
-        <Drawer open={open} onOpenChange={setOpen}>
+        <Drawer open={open} onOpenChange={setOpen} showSwipeHandle>
           <DrawerContent className="pb-[env(safe-area-inset-bottom)]">
             <DrawerTitle className="sr-only">Attach images</DrawerTitle>
             {/* Labels open their inputs natively, beside the option tapped. */}
