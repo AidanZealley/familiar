@@ -28,6 +28,12 @@ const pages: Record<string, string> = {
     '</form>',
     '<input aria-label="Code" required></form>',
   ),
+  // A GET form its page submits as soon as the password is typed.
+  '/submit-on-input': `${form('')}
+    <script>
+      document.querySelector('[type=password]').addEventListener('input', () =>
+        document.querySelector('form').requestSubmit())
+    </script>`,
   // A form its page sends itself.
   '/script': `${form('')}
     <script>
@@ -126,6 +132,15 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     }
     expect(addresses.join(' ')).not.toContain(login.password)
 
+    // Secured before filling, so even a submission mid-fill is a POST.
+    await page.goto(`${origin}/submit-on-input`)
+    await signIn(page, login, await controls(), signal)
+    await expect
+      .poll(() => sent.at(-1)?.url())
+      .toBe(`${origin}/submit-on-input`)
+    expect(sent.at(-1)!.method()).toBe('POST')
+    expect(addresses.join(' ')).not.toContain(login.username)
+
     await page.goto(`${origin}/script`)
     expect(await signIn(page, login, await controls(), signal)).toEqual({
       text: expect.stringMatching(/^Submitted/),
@@ -148,10 +163,15 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     ).toEqual({ text: expect.stringMatching(/^Submitted/) })
     await expect.poll(() => sent.at(-1)?.postData()).toBe(login.password)
 
-    // The model's snapshot never shows a typed password.
+    // The model's snapshot never shows a typed password, though it quotes
+    // and reflows values.
     await page.goto(origin)
-    await page.getByLabel('Password').fill(login.password)
-    expect(await snapshotWithoutPasswords(page)).not.toContain(login.password)
+    await page.getByLabel('Username').fill('name: kept')
+    await page.getByLabel('Password').fill('secret: with  spaces')
+    const snapshot = await snapshotWithoutPasswords(page)
+    expect(snapshot).toContain('name: kept')
+    expect(snapshot).toMatch(/textbox "Password" .*\[ref=\w+\]: ••••••••$/m)
+    expect(snapshot).not.toMatch(/secret|spaces/)
 
     await page.goto(origin)
     expect(await signIn(page, login, await controls(), signal)).toEqual({
