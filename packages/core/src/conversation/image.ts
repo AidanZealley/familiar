@@ -1,4 +1,20 @@
 /**
+ * What a message's images may be. A client prepares them to fit (the web app
+ * shrinks and encodes them in the browser); Familiar only checks, with
+ * `checkImage`, which clients may run too. Each costs the models tokens on
+ * every turn until its chat compacts, and past about 1568px they gain little.
+ */
+export const IMAGE_LIMITS = {
+  count: 10,
+  /** Characters of base64, per image. */
+  bytes: 1_500_000,
+  /** The longest side a client must prepare an image to, in pixels. */
+  pixels: 1568,
+  /** Frames of an animation, as a GIF the web app sends as it is. */
+  frames: 300,
+} as const
+
+/**
  * What an image's own structure says it is: its format, size and frames,
  * read from its headers without decoding its pixels.
  */
@@ -15,6 +31,25 @@ export type ImageHeader = {
  * truncated; or one larger, in pixels or frames, than `IMAGE_LIMITS`.
  */
 export type ImageProblem = 'format' | 'corrupt' | 'pixels' | 'frames'
+
+/** Which of a message's images was refused, by its place, and why. */
+export type ImageRefusal = { index: number; problem: ImageProblem }
+
+/**
+ * `bytes` as an image a message may carry: its header, or why it's refused,
+ * by its structure or by `IMAGE_LIMITS`' pixels and frames. Its size in
+ * base64 is the caller's to check.
+ */
+export function checkImage(bytes: Uint8Array): ImageHeader | ImageProblem {
+  const header = readImageHeader(bytes)
+  return typeof header === 'string'
+    ? header
+    : Math.max(header.width, header.height) > IMAGE_LIMITS.pixels
+      ? 'pixels'
+      : header.frames > IMAGE_LIMITS.frames
+        ? 'frames'
+        : header
+}
 
 /**
  * `bytes` as a PNG, JPEG, GIF or WebP, by its signature, walked to its end
