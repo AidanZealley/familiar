@@ -66,9 +66,8 @@ export async function prepareImage(file: Blob): Promise<OutgoingImage> {
   }
 }
 
-/** The image files among what was pasted, dropped or picked. */
-export const imageFiles = (files: FileList | readonly File[] | undefined) =>
-  [...(files ?? [])].filter((file) => file.type.startsWith('image/'))
+/** Whether `file` is an image, by the type the browser gives it. */
+export const isImage = (file: File) => file.type.startsWith('image/')
 
 /** A message image as an `<img>` source. */
 export const imageSource = ({ data, mimeType }: OutgoingImage) =>

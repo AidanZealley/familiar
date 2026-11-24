@@ -1,6 +1,6 @@
 import { IMAGE_LIMITS, type FamiliarSummary } from '@familiar-ai/client'
 import { useState } from 'react'
-import { prepareImage } from '@/lib/images'
+import { isImage, prepareImage } from '@/lib/images'
 import type { DraftImage } from './components/draft-images'
 import { completeMention } from './mentions'
 
@@ -38,20 +38,28 @@ export const useDraft = () => {
   const { text, images } = draft
 
   /**
-   * Attaches what fits of `files`, each shown at once and sendable once
-   * it's prepared. A note carries no images.
+   * Attaches what fits of the images among `files`, each shown at once and
+   * sendable once it's prepared, and says why any others weren't, or why
+   * none were: a note carries no images.
    */
   const attach = (files: readonly File[]) => {
     const room = IMAGE_LIMITS.count - images.length
-    if (draft.note || !files.length) {
+    const usable = files.filter(isImage)
+    if (!files.length) {
+      return
+    }
+    if (draft.note) {
+      setRefused('A note carries no images.')
       return
     }
     setRefused(
-      files.length > room
+      usable.length > room
         ? `A message takes up to ${IMAGE_LIMITS.count} images.`
-        : undefined,
+        : usable.length < files.length
+          ? 'Only images can be attached.'
+          : undefined,
     )
-    const added = files.slice(0, Math.max(0, room)).map((file) => ({
+    const added = usable.slice(0, Math.max(0, room)).map((file) => ({
       file,
       url: URL.createObjectURL(file),
     }))

@@ -1,4 +1,4 @@
 export type AttachButtonProps = {
-  /** The images picked, if any. */
+  /** What was picked; the draft keeps only images. */
   onAttach(files: File[]): void
 }

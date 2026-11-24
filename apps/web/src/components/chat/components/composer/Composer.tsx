@@ -11,7 +11,6 @@ import {
   InputGroupAddon,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { imageFiles } from '@/lib/images'
 import { titleOf, useFamiliars } from '@/lib/workspace'
 import { ArchivedNotice } from './components/archived-notice'
 import { ComposerActions } from './components/composer-actions'
@@ -72,7 +71,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
   }
 
   const onPaste = (event: ClipboardEvent) => {
-    const files = imageFiles(event.clipboardData.files)
+    const files = [...event.clipboardData.files]
     // Pasted words win over a picture of them, as from a document.
     if (files.length && !event.clipboardData.types.includes('text/plain')) {
       event.preventDefault()
@@ -80,8 +79,9 @@ export const Composer = ({ room, busy }: ComposerProps) => {
     }
   }
 
+  // Any files dropped here are the draft's, never the browser's to open.
   const onDrop = (event: DragEvent) => {
-    const files = imageFiles(event.dataTransfer.files)
+    const files = [...event.dataTransfer.files]
     if (files.length) {
       event.preventDefault()
       drafting.attach(files)
@@ -96,7 +96,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
     <form
       onSubmit={submit}
       onDragOver={(event) => {
-        if (!note && event.dataTransfer.types.includes('Files')) {
+        if (event.dataTransfer.types.includes('Files')) {
           event.preventDefault()
         }
       }}
