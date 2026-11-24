@@ -16,12 +16,17 @@ import { computerControl } from './control.ts'
 import { startDisplay } from './display.ts'
 import { computerServer } from './server.ts'
 import { AGENT_SOCKET, PROXY_PORT } from './layout.ts'
+import { restoring } from './restore.ts'
 
 // The computer agent, the image's entrypoint: serves the computer's tools
 // over MCP on a Unix socket, one server per connection, as newline-delimited
 // JSON-RPC (MCP's stdio framing). It only listens: `dockerHost` reaches in
 // with `docker exec` running `socat`. The browser outlives connections, so a
 // new connection finds its pages as they were.
+//
+// On a new container it first restores what was installed outside home
+// (see restore.ts), while it starts the display and listens; Familiars'
+// calls wait for it.
 //
 // It owns the display: it starts it before it listens, and ends if it goes,
 // so the computer is never running without one; the next call starts it
@@ -59,13 +64,18 @@ if (proxy) {
   await listen(proxy, { port: PROXY_PORT, host: '127.0.0.1' })
 }
 
+// A computer made again from a newer image puts back what was installed,
+// once the proxy is up for apt. Calls wait for it; looks and a person
+// taking over don't.
+const home = homedir()
+const restored = restoring(home)
+
 // Without its display, the browser has gone too: nothing is left to close.
 await startDisplay((reason) => {
   console.error(`${reason} Stopping.`)
   process.exit(1)
 })
 
-const home = homedir()
 const control = computerControl()
 const browser = openBrowser(resolve(home, '.familiar-computer', 'browser'))
 // A socket left by an agent that stopped.
@@ -73,7 +83,7 @@ await rm(AGENT_SOCKET, { force: true })
 const server = createServer((socket) => {
   // A connection that drops ends its server, which stops its calls.
   socket.on('error', () => socket.destroy())
-  void computerServer(browser, home, calls, control).connect(
+  void computerServer(browser, home, calls, control, restored).connect(
     new StdioServerTransport(socket, socket),
   )
 })

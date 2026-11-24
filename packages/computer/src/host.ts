@@ -12,7 +12,8 @@ export type ComputerHost = {
   /**
    * Runs a computer tool on the Familiar's computer, making or waking it
    * first. A result that couldn't run says why (no Docker, say), and one that
-   * woke the computer says so. Throws if the computer stopped answering
+   * woke the computer, or made it again from a new image, says so, with
+   * what was restored. Throws if the computer stopped answering
    * during the call, or when `signal` stops it. An action made while a
    * person has control waits for them to hand back, without its time limit
    * running, calling `onWait` once as it starts to wait; it then doesn't

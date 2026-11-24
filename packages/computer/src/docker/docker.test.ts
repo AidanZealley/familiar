@@ -416,6 +416,18 @@ test.skipIf(!hasImage)(
     const cy = (ada.id + 2000) as FamiliarId
     await host.sync([cy])
     expect(await run('echo kept > marker.txt', cy)).toMatch(/Exit code 0/)
+    expect(
+      await run(
+        'sudo -n apt-get update -qq && sudo -n apt-get install -y -qq hello',
+        cy,
+      ),
+    ).toMatch(/Exit code 0/)
+    expect(
+      await run(
+        `mkdir -p .familiar && echo 'touch /usr/local/share/from-setup' > .familiar/setup.sh`,
+        cy,
+      ),
+    ).toMatch(/Exit code 0/)
     await vi.waitFor(
       async () => expect(await host.status(cy)).toEqual({ state: 'asleep' }),
       { timeout: 30_000, interval: 500 },
@@ -428,13 +440,16 @@ test.skipIf(!hasImage)(
       timeout: 30_000,
       interval: 500,
     })
-    // ...then wakes Cy's computer on the new one, its disk as it was, after
-    // which nothing uses the old one.
+    // ...then wakes Cy's computer on the new one, its disk as it was and
+    // what was installed put back, saying so, after which nothing uses the
+    // old one.
     const updatedRun = await updated.call(cy, 'run_command', {
-      command: 'cat marker.txt',
+      command: 'cat marker.txt && hello && ls /usr/local/share/from-setup',
       timeout_seconds: 30,
     })
-    expect(JSON.stringify(updatedRun.content)).toMatch(/was asleep.*kept/s)
+    expect(JSON.stringify(updatedRun.content)).toMatch(
+      /updated to a new version.*Reinstalled 1 apt package \(hello\)\. Ran ~\/.familiar\/setup.sh\..*kept.*Hello, world!.*from-setup.*Exit code 0/s,
+    )
     expect(
       docker(
         'container',

@@ -1,0 +1,15 @@
+#!/bin/sh
+# dpkg runs this after each of its runs, whatever started it (apt, apt-get,
+# dpkg -i or an app), as root. It records the packages people installed on
+# purpose, beyond the image's own, on the computer's disk, so a computer made
+# again from a newer image installs them again (src/agent/restore.ts). Not
+# before that restore has run: until then, the record says what to restore,
+# not what's installed. Paths as in src/agent/layout.ts.
+[ -e /var/lib/familiar/restored ] || exit 0
+manual=$(apt-mark showmanual) || exit 0
+dir=/home/computer/.familiar
+install -d -o computer -g computer "$dir"
+printf '%s\n' "$manual" | LC_ALL=C sort \
+  | LC_ALL=C comm -23 - /usr/share/familiar/apt-baseline > "$dir/apt-packages.new" \
+  && chown computer:computer "$dir/apt-packages.new" \
+  && mv "$dir/apt-packages.new" "$dir/apt-packages"

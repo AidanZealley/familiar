@@ -21,3 +21,14 @@ export const DISPLAY_SOCKET = '/run/familiar/display.sock'
  * `proxySocket`, for `HTTP_PROXY` and `HTTPS_PROXY`.
  */
 export const PROXY_PORT = 3128
+
+/**
+ * Written by the agent once it has restored a computer made from a new
+ * image, with how that went, in the container's own layer: a new container
+ * hasn't got it, and one that slept and woke has. The dpkg hook
+ * (`restore/record-packages`) records nothing until it exists.
+ */
+export const RESTORED = '/var/lib/familiar/restored'
+
+/** The packages the image installs on purpose, one per line, sorted. */
+export const APT_BASELINE = '/usr/share/familiar/apt-baseline'
