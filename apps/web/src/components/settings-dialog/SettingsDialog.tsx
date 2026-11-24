@@ -3,7 +3,7 @@ import {
   MagnifyingGlassIcon,
   XIcon,
 } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,13 +21,16 @@ import { useDialogCategory, useDialogs } from '@/lib/dialogs'
 import { useIsPhone } from '@/lib/media'
 import { CategoryBody } from './components/category-body'
 import { CategoryList } from './components/category-list'
-import type { SettingsCategory, SettingsDialogProps } from './types'
+import type { SettingsDialogProps, SettingsItem } from './types'
 
-const matches = (category: SettingsCategory, query: string) =>
+const matches = (
+  item: SettingsItem & { description?: ReactNode },
+  query: string,
+) =>
   [
-    category.label,
-    typeof category.description === 'string' ? category.description : '',
-    category.keywords ?? '',
+    item.label,
+    typeof item.description === 'string' ? item.description : '',
+    item.keywords ?? '',
   ]
     .join(' ')
     .toLowerCase()
@@ -48,15 +51,17 @@ export const SettingsDialog = ({
   const category = useDialogCategory()
   const { showCategory, close } = useDialogs()
   const [query, setQuery] = useState('')
-  const all = groups.flatMap((group) => group.categories)
+  const results = useRef<HTMLDivElement>(null)
+  const all = groups.flatMap((group) => group.categories ?? [])
   const current =
     all.find((each) => each.id === category) ?? (isPhone ? undefined : all[0])
   const visible = groups
     .map((group) => ({
       ...group,
-      categories: group.categories.filter((each) => matches(each, query)),
+      categories: group.categories?.filter((each) => matches(each, query)),
+      actions: group.actions?.filter((each) => matches(each, query)),
     }))
-    .filter((group) => group.categories.length > 0)
+    .filter((group) => group.categories?.length || group.actions?.length)
 
   const list = (
     <div className="flex flex-col gap-3">
@@ -72,18 +77,20 @@ export const SettingsDialog = ({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
-            const first = visible[0]?.categories[0]
-            if (event.key === 'Enter' && first) {
-              showCategory(first.id)
+            // The first result, as a click does: a category shows, an action acts.
+            if (event.key === 'Enter') {
+              results.current?.querySelector('button')?.click()
             }
           }}
         />
       </InputGroup>
-      <CategoryList
-        groups={visible}
-        current={current?.id}
-        onShow={showCategory}
-      />
+      <div ref={results}>
+        <CategoryList
+          groups={visible}
+          current={current?.id}
+          onShow={showCategory}
+        />
+      </div>
       {visible.length === 0 && (
         <p className="px-2 py-4 text-xs text-muted-foreground">
           No settings match “{query.trim()}”.

@@ -232,16 +232,18 @@ test("the computer limit is saved in settings.json, only by the owner's network"
   })
 })
 
-test('an update starts only for the owner, on an installed service, one at a time', async () => {
+test('an update or restart starts only for the owner, on an installed service, not during an update', async () => {
   const info: UpdateInfo = {
     installed: { version: '0.4.3', source: 'main' },
     service: true,
     last: null,
+    started: '',
   }
   const updater = {
     info: () => info,
     available: async () => ({ release: '0.5.0' }),
     start: vi.fn(),
+    restart: vi.fn(),
   }
   const { app } = await daemon({ updater })
   const start = (source: unknown, host = local) =>
@@ -250,8 +252,13 @@ test('an update starts only for the owner, on an installed service, one at a tim
       headers: { host, 'content-type': 'application/json' },
       body: JSON.stringify({ source }),
     })
+  const restart = (host = local) =>
+    app.request('/api/update/restart', { method: 'POST', headers: { host } })
 
   expect((await start('release', 'evil.example')).status).toBe(401)
+  expect((await restart('evil.example')).status).toBe(401)
+  expect((await restart()).status).toBe(202)
+  expect(updater.restart).toHaveBeenCalledOnce()
   expect((await start('nightly')).status).toBe(400)
   expect((await start('release')).status).toBe(202)
   expect(updater.start).toHaveBeenCalledExactlyOnceWith('release')
@@ -262,10 +269,13 @@ test('an update starts only for the owner, on an installed service, one at a tim
     startedAt: '',
   }
   expect((await start('release')).status).toBe(409)
+  expect((await restart()).status).toBe(409)
   info.last = null
   info.service = false
   expect((await start('release')).status).toBe(400)
+  expect((await restart()).status).toBe(400)
   expect(updater.start).toHaveBeenCalledOnce()
+  expect(updater.restart).toHaveBeenCalledOnce()
   expect(
     await (
       await app.request('/api/update/available', { headers: { host: local } })
