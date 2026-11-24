@@ -1,4 +1,13 @@
-/** Where the agent listens in the Docker image, and `dockerHost` connects. */
+// Where things are in the computers' image, which the Dockerfile puts there
+// and the agent and `dockerHost` rely on.
+
+/** The agent's Chrome extension, which its browser loads. */
+export const EXTENSION_DIR = '/agent/extension'
+
+/** The proxy's entry point, which `dockerHost` runs in the proxy container. */
+export const PROXY_ENTRY = '/agent/proxy.js'
+
+/** Where the agent listens, and `dockerHost` connects. */
 export const AGENT_SOCKET = '/run/familiar/agent.sock'
 
 /**

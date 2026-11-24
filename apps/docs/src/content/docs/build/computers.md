@@ -25,7 +25,7 @@ const workspace = await openWorkspace({
 })
 ```
 
-When the workspace opens, the host starts downloading the computers' image in the background, so it's usually ready before anyone needs it. The image is about 420 MB to download and 1.5 GB unpacked. Its tag matches the package's version. The host keeps one version: once the image is ready, it removes the image's other versions that no container uses, and a computer made from an earlier version is made again on the current one when it next wakes, keeping its disk.
+When the workspace opens, the host starts downloading the computers' image in the background, so it's usually ready before anyone needs it. The image is about 420 MB to download and 1.5 GB unpacked. Its tag is a hash of what's in it, so a package version that changes nothing in the image uses the same one, and updating downloads nothing. The host keeps one version: once the image is ready, it removes the image's other versions that no container uses, and a computer made from an earlier version is made again on the current one when it next wakes, keeping its disk.
 
 ## Turn it on per Familiar
 

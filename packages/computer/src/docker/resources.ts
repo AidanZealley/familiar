@@ -3,7 +3,12 @@ import { homedir, networkInterfaces } from 'node:os'
 import { dirname } from 'node:path'
 import { promisify } from 'node:util'
 import type { FamiliarId } from '@familiar-ai/core'
-import { AGENT_SOCKET, DISPLAY_SOCKET, PROXY_PORT } from '../agent/socket.ts'
+import {
+  AGENT_SOCKET,
+  DISPLAY_SOCKET,
+  PROXY_ENTRY,
+  PROXY_PORT,
+} from '../agent/layout.ts'
 import { OWN_ADDRESSES, PROXY_SOCKET } from './proxy.ts'
 
 /**
@@ -166,7 +171,7 @@ export function dockerResources(
         '--entrypoint',
         'node',
         image,
-        '/agent/dist/docker/proxy-main.js',
+        PROXY_ENTRY,
       )
     },
 

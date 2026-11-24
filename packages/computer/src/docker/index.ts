@@ -10,6 +10,7 @@ import type {
   ComputerStatus,
 } from '../host.ts'
 import { ASLEEP, CONTROL_TOOL, PERSON_USED, PROGRESS_MS } from '../tools.ts'
+import imageJson from '../../image.json' with { type: 'json' }
 import manifest from '../../package.json' with { type: 'json' }
 import { coalesce } from './coalesce.ts'
 import { computerImage } from './image.ts'
@@ -39,7 +40,7 @@ export type DockerHostOptions = {
    * keep it for these images only. Default `COMPUTER_REPOSITORY`.
    */
   repository?: string
-  /** The image's tag. Default this package's version. */
+  /** The image's tag. Default its key, `COMPUTER_IMAGE`'s. */
   tag?: string
   /**
    * How long a computer runs without a call before it sleeps, given to each
@@ -61,11 +62,13 @@ export type DockerHostOptions = {
 export const COMPUTER_REPOSITORY = manifest.config.image
 
 /**
- * The computers' image, tagged with this package's version: each release
- * publishes its own, so a host runs the agent it was released with. A
- * checkout's version is `0.0.0`, the tag `pnpm image` builds.
+ * The computers' image, tagged with its key, a hash of what's in it, which
+ * `pnpm image` commits in `image.json`: a host runs the agent it was built
+ * with, and an update that changes nothing in the image keeps it, so no
+ * computer is replaced. CI publishes each key once; `pnpm image` builds a
+ * checkout's locally.
  */
-export const COMPUTER_IMAGE = `${COMPUTER_REPOSITORY}:${manifest.version}`
+export const COMPUTER_IMAGE = `${COMPUTER_REPOSITORY}:${imageJson.key}`
 
 /**
  * Longer than any tool's own limit: the agent stops its own calls first.
@@ -117,7 +120,7 @@ export function dockerHost(options: DockerHostOptions = {}): ComputerHost {
   const {
     hostId = 'default',
     repository = COMPUTER_REPOSITORY,
-    tag = manifest.version,
+    tag = imageJson.key,
     idleMs = 15 * 60_000,
     maxComputers = 10,
   } = options

@@ -4,11 +4,8 @@ import {
   type Page,
   type Worker,
 } from 'playwright'
-import { fileURLToPath } from 'node:url'
 import { KEEP_TEXT } from '../shorten.ts'
-
-/** Ours, for Chrome's own record of the shown tab (see `shown`). */
-const EXTENSION = fileURLToPath(new URL('../../extension', import.meta.url))
+import { EXTENSION_DIR } from './layout.ts'
 
 /**
  * The computer's browser: full Chromium (`channel: 'chromium'`), visible on
@@ -30,8 +27,8 @@ export function openBrowser(profileDir: string) {
       viewport: null,
       args: [
         '--start-maximized',
-        `--disable-extensions-except=${EXTENSION}`,
-        `--load-extension=${EXTENSION}`,
+        `--disable-extensions-except=${EXTENSION_DIR}`,
+        `--load-extension=${EXTENSION_DIR}`,
       ],
       ignoreDefaultArgs: ['--disable-extensions'],
       ...(proxy && { proxy: { server: proxy } }),

@@ -60,7 +60,9 @@ Also run:
 
 CI runs the main checks and `pnpm test:packages` on every pull request. The workerd tests, the CLI on macOS, Linux and Windows, and the docs build run when a pull request changes their files.
 
-Computers need the computers' image. `pnpm image` builds it from your checkout, tagged with the version a checkout's hosts use, and the Docker test is skipped until it's built.
+Computers need the computers' image. Its tag is a key, a hash of what goes into it: the agent and proxy (bundled), the Dockerfile, `desktop/` and `extension/`, and the Playwright version. `packages/computer/image.json` holds the key, and hosts use the image it names. `pnpm image` recomputes the key, writes `image.json` and builds that image from your checkout. A test fails when `image.json` is out of date, so run `pnpm image` and commit `image.json` after changing anything in the image. Changes elsewhere, such as to core or the Docker host, keep the key. The Docker test is skipped until the image is built.
+
+To rebuild the image when nothing in it changed, such as for Debian's security updates, change `IMAGE_REFRESH` in the Dockerfile. Each new key replaces every computer, keeping its disk.
 
 Use the faux provider, or `scriptedModels` for a script that answers every request, to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model. `pnpm eval:memory-scenarios` and `pnpm eval:longmem` run memory on real models, through an eval-only sign-in.
 
@@ -76,4 +78,4 @@ Pushes to `main` that change the docs or packages deploy the site to GitHub Page
 
 ## Releases
 
-Pushing a `v*` tag runs the [release workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/release.yml). It publishes the npm packages, the installable assistant and the computers' image, `ghcr.io/aidanzealley/familiar-computer:<version>`, which hosts of that version pull. `pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.
+Pushing a `v*` tag runs the [release workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/release.yml). It publishes the npm packages and the installable assistant, and first the computers' image, `ghcr.io/aidanzealley/familiar-computer:<key>`, if no image has that key yet. A release that changes nothing in the image publishes no image, and hosts keep their computers. Tags with a `-`, such as `v0.5.0-rc.1`, publish a GitHub prerelease and npm's `next` tag. `pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.

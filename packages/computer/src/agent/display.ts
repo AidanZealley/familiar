@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { rm } from 'node:fs/promises'
 import { SCREEN } from '../tools.ts'
-import { DISPLAY_SOCKET } from './socket.ts'
+import { DISPLAY_SOCKET } from './layout.ts'
 
 const DISPLAY = ':1'
 

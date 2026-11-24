@@ -520,6 +520,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.13
+      rolldown:
+        specifier: 1.2.15
+        version: 1.2.15
 
   packages/core:
     dependencies:

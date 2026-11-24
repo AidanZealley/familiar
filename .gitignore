@@ -36,3 +36,6 @@ apps/docs/public/demos/
 # Local environment files, such as the Node example's secrets.
 .env
 
+
+# The computers' image's build context, staged by its key script.
+packages/computer/image/
