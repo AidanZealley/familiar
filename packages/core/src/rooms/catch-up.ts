@@ -9,6 +9,7 @@ import {
   HANDOFF_KIND,
   MESSAGE_KIND,
   NOTE_KIND,
+  withImages,
   type Addressed,
 } from '../conversation/message.ts'
 import {
@@ -80,8 +81,9 @@ function line(
   const said = (name: string, text: string) =>
     text ? `[${name}]: ${text.replace(/\n/g, '\n  ')}` : undefined
   if (entry.kind === MESSAGE_KIND) {
+    // Only the turn that answers a message shows its images.
     const data = entry.data as RoomMessageData
-    return said(data.author.name, data.text)
+    return said(data.author.name, withImages(data.text, data.images?.length))
   }
   if (entry.kind === REPLY_KIND) {
     const data = entry.data as unknown as ReplyData

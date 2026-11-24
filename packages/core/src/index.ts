@@ -30,6 +30,7 @@ export type {
   AccountState,
 } from './account/index.ts'
 export {
+  IMAGE_LIMITS,
   MESSAGE_LIMITS,
   MessageError,
   type Author,

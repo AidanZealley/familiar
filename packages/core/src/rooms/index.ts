@@ -77,7 +77,14 @@ export type RoomMessage = {
    * attributes words; it grants nothing.
    */
   author: Author
+  /** May be empty when it has images. */
   text: string
+  /**
+   * Images as base64, prepared by the client to fit `IMAGE_LIMITS`; each
+   * one's format is read from its bytes, not `mimeType`. Shown in the room
+   * and to each Familiar the message is delivered to.
+   */
+  images?: readonly { data: string; mimeType?: string }[]
   /**
    * Stable per logical message from this author, so a retried post is
    * admitted once. Scoped to the author: another author's same ID is a
@@ -223,7 +230,7 @@ export function createRooms(
   const open = (id: RoomId): RoomApi => ({
     id,
     post: async (message) => {
-      const { author, text, requestId } = admitMessage(message)
+      const { author, text, images, requestId } = admitMessage(message)
       const posted = await harness.commit(async (tx) => {
         // A Familiar waiting on the person here gets this instead.
         const record = (await tx.doc(Rooms)).rooms[id]
@@ -240,6 +247,7 @@ export function createRooms(
             data: {
               author,
               text,
+              ...(images && { images }),
               at: options.now(),
               ...(message.mentions && { mentions: message.mentions }),
             },

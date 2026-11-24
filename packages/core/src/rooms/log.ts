@@ -17,6 +17,7 @@ import {
   textOf,
   type Addressed,
   type Author,
+  type MessageImage,
 } from '../conversation/message.ts'
 import { entriesOf } from '../pi/entries.ts'
 import {
@@ -57,7 +58,10 @@ export type Mention = {
 /** A person's message in a room. */
 export type RoomMessageData = {
   author: Author
+  /** Empty when it has images and no words. */
   text: string
+  /** Its images, as the Familiars it's delivered to see them. */
+  images?: MessageImage[]
   /**
    * When it was posted, in ms since the epoch, on the workspace's clock. A
    * room's entries have no model message to carry a time, as a chat's do.
@@ -212,7 +216,12 @@ export type RoomPreview = {
   /** The start of what it says, on one line. */
   text: string
 } & (
-  | { kind: 'message'; author: Author }
+  | {
+      kind: 'message'
+      author: Author
+      /** How many images it carries; its `text` is only its words, maybe none. */
+      images?: number
+    }
   | {
       kind: 'reply'
       familiar: FamiliarId
@@ -239,8 +248,15 @@ function previewOf(
   const nameOf = (familiar: FamiliarId) => familiars[familiar]?.name ?? ''
   switch (entry.kind) {
     case MESSAGE_KIND: {
-      const { author, text, at } = entry.data
-      return { entry: id, at, text: excerpt(text), kind: 'message', author }
+      const { author, text, images, at } = entry.data
+      return {
+        entry: id,
+        at,
+        text: excerpt(text),
+        kind: 'message',
+        author,
+        ...(images?.length && { images: images.length }),
+      }
     }
     case REPLY_KIND: {
       const { familiar, name, outcome, at } = entry.data

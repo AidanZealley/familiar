@@ -63,7 +63,10 @@ type TurnStep =
 
 /** The chat entry a turn's input is placed as: what it says, and where from. */
 type ChatInput =
-  | { kind: typeof MESSAGE_KIND; data: Required<MessageData> }
+  | {
+      kind: typeof MESSAGE_KIND
+      data: MessageData & Required<Omit<MessageData, 'images'>>
+    }
   | { kind: typeof SCHEDULED_KIND; data: ScheduledData & Required<InRoom> }
   | { kind: typeof RELAY_KIND; data: RelayData & Required<InRoom> }
 
@@ -136,10 +139,18 @@ const deliveryHandlers = new Map<string, PrepareInput>([
   [
     MESSAGE_KIND,
     (cause, where) => {
-      const { author, text } = cause.data as RoomMessageData
+      const { author, text, images } = cause.data as RoomMessageData
       return {
         input: formatMessage({ author, text }),
-        entry: { kind: MESSAGE_KIND, data: { author, text, ...where } },
+        entry: {
+          kind: MESSAGE_KIND,
+          data: {
+            author,
+            text,
+            ...(images?.length && { images: images.length }),
+            ...where,
+          },
+        },
       }
     },
   ],
@@ -325,12 +336,23 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         }, context),
 
       deliver: async (task, runtime, context) => {
-        const { familiar } = task.input
+        const { familiar, cause } = task.input
         const { name, input, entry, mentionHint } = task.state.checkpoint
         const chat = await runtime.conversation(familiar, context)
         if (!chat) {
           throw new Error(`No chat for Familiar ${familiar}.`)
         }
+        // A message's images are read from the room, where they never
+        // change, rather than copied into this task's state.
+        const images =
+          entry.kind === MESSAGE_KIND && entry.data.images
+            ? await harness.commit(
+                async (tx) =>
+                  ((await tx.entry(cause))?.data as RoomMessageData | undefined)
+                    ?.images ?? [],
+                context,
+              )
+            : []
         // A follow-up, never a steer: Pi places one follow-up per run, so
         // each run answers one room entry and its reply has one room. What
         // it was shown comes first, so the input itself ends the message,
@@ -346,6 +368,7 @@ export function createTurnTask(harness: Harness, timeZone: string) {
                   : entry.data.context,
               },
               { type: 'text', text: input },
+              ...images,
             ],
             requestId: inputRequest(task.input),
             entry: entry as InputEntry,

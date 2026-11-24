@@ -2,7 +2,11 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import type { UpgradeWebSocket } from 'hono/ws'
 import { accountRoutes } from '../account/http.ts'
-import type { Author } from '../conversation/message.ts'
+import {
+  IMAGE_LIMITS,
+  MESSAGE_LIMITS,
+  type Author,
+} from '../conversation/message.ts'
 import { mcpRoutes } from '../mcp/http.ts'
 import { pluginRoutes } from '../plugins/http.ts'
 import { isWebSocketUpgrade } from '../plugins/websocket.ts'
@@ -65,10 +69,12 @@ export type HttpOptions = {
 }
 
 /**
- * Room for the largest message Familiar admits, `MESSAGE_LIMITS.text`, even
- * if JSON escapes every character, with every other request far under it.
+ * Room for the largest message Familiar admits: `MESSAGE_LIMITS.text` even
+ * if JSON escapes every character, and the most images it may carry, with
+ * every other request far under it.
  */
-export const DEFAULT_MAX_BODY_SIZE = 1024 * 1024
+export const DEFAULT_MAX_BODY_SIZE =
+  MESSAGE_LIMITS.text * 6 + IMAGE_LIMITS.count * IMAGE_LIMITS.bytes + 64 * 1024
 
 const routes = (workspace: Workspace, push: PushHost | undefined) =>
   new Hono<AccessEnv>()

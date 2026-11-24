@@ -16,6 +16,7 @@ import type {
   HandoffData,
   MESSAGE_KIND as CoreMessageKind,
   Mention,
+  MessageImage,
   NOTE_KIND as CoreNoteKind,
   NoteData,
   Question,
@@ -57,7 +58,10 @@ export type TranscriptItem =
       type: 'message'
       id: string
       author: Author
+      /** Empty when it's images alone. */
       text: string
+      /** Its images, in order. */
+      images?: MessageImage[]
       /** When it was posted, in ms since the epoch. */
       at: number
       /** Whom it addresses, by span of the text. */
@@ -219,7 +223,7 @@ function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
-      const { author, text, at, mentions } =
+      const { author, text, images, at, mentions } =
         entry.data as unknown as RoomMessageData
       return [
         {
@@ -227,6 +231,7 @@ function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
           id,
           author,
           text,
+          ...(images?.length && { images }),
           at,
           ...(mentions && { mentions }),
         },

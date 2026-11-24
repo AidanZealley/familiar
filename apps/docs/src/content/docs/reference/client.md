@@ -59,7 +59,7 @@ type RoomPreview = {
   at: number // ms since the epoch: sort by it for most recent first
   text: string // the start of what it says, on one line
 } & (
-  | { kind: 'message'; author: Author }
+  | { kind: 'message'; author: Author; images?: number } // `text` is only its words: empty for images alone
   | {
       kind: 'reply'
       familiar: number
@@ -77,19 +77,19 @@ Staying quiet adds no entry. A `last` reply whose `outcome` is `failed` means th
 
 Commands return promises that reject with the server's error. They aren't retried. Each one calls the [route operation](/familiar/reference/http/) of the same name, except `loadOlder()` and `loadGap(gap)`, which call `rooms.history`.
 
-| Store     | Group         | Commands                                                                                                |
-| --------- | ------------- | ------------------------------------------------------------------------------------------------------- |
-| Workspace | `familiars`   | `list()`, `create(identity)`, `update(id, change)`, `remove(id)`, `dm(id)` (the room ID)                |
-| Workspace | `rooms`       | `list()`, `create(setup)`, `update(id, change)`, `archive(id)`, `unarchive(id)`                         |
-| Workspace | `me`          | `rename(name)`                                                                                          |
-| Workspace | `account`     | `signIn()`, `answerSignIn(text)`, `cancelSignIn()`, `signOut()`                                         |
-| Workspace | `push`        | `key()` (`undefined` when the host has no push), `subscribe(subscription)`, `unsubscribe(subscription)` |
-| Workspace | `connections` | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`                    |
-| Workspace | `mcp`         | `add(server)`, `remove(name)`, `reconnect(name)`                                                        |
-| Familiar  | `model`       | `options()`, `set(ref)`, `setThinkingLevel(level)`                                                      |
-| Familiar  | `memory`      | `section()`, `page(subject)`, `forget(note)`                                                            |
-| Familiar  | `schedules`   | `cancel(id)`, `pause(id)`, `resume(id)`                                                                 |
-| Room      |               | `send(text, mentions?)`, `note(text)`, `retry(reply)`, `stop()`, `read(entry)`, `loadOlder()`           |
+| Store     | Group         | Commands                                                                                                   |
+| --------- | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| Workspace | `familiars`   | `list()`, `create(identity)`, `update(id, change)`, `remove(id)`, `dm(id)` (the room ID)                   |
+| Workspace | `rooms`       | `list()`, `create(setup)`, `update(id, change)`, `archive(id)`, `unarchive(id)`                            |
+| Workspace | `me`          | `rename(name)`                                                                                             |
+| Workspace | `account`     | `signIn()`, `answerSignIn(text)`, `cancelSignIn()`, `signOut()`                                            |
+| Workspace | `push`        | `key()` (`undefined` when the host has no push), `subscribe(subscription)`, `unsubscribe(subscription)`    |
+| Workspace | `connections` | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`                       |
+| Workspace | `mcp`         | `add(server)`, `remove(name)`, `reconnect(name)`                                                           |
+| Familiar  | `model`       | `options()`, `set(ref)`, `setThinkingLevel(level)`                                                         |
+| Familiar  | `memory`      | `section()`, `page(subject)`, `forget(note)`                                                               |
+| Familiar  | `schedules`   | `cancel(id)`, `pause(id)`, `resume(id)`                                                                    |
+| Room      |               | `send(text, { mentions?, images? })`, `note(text)`, `retry(reply)`, `stop()`, `read(entry)`, `loadOlder()` |
 
 `send` and `note` generate the `requestId`. `retry(reply)` tries a failed reply's turn again; the transcript sets `retry` to that ID on a failed reply's last item while it can be. A note is context the room's Familiars see on their next turn, which no one replies to. `loadOlder()` loads the page before the transcript's start while `transcript.earlier` is true; calls made while one loads share it. `familiars.update` takes `{ name?, persona?, avatar?, chatModel?, memoryModel? }`; a `null` persona, avatar or model returns it to the default. `chatModel` is the model that Familiar answers with and `memoryModel` the one its memory filing and consolidation run on, each one of the workspace's `modelChoices`. A `memoryModel` may carry a `thinkingLevel`. `defaults.models()` returns the workspace's `{ chat, memory }` defaults, each with its `thinkingLevel`, and every `ModelOption`; `defaults.setModels({ chat?, memory? })` changes them, each a model with an optional level. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
 
@@ -103,6 +103,7 @@ type TranscriptItem =
       id: string
       author: Author
       text: string
+      images?: MessageImage[]
       at: number
       mentions?: Mention[]
     }

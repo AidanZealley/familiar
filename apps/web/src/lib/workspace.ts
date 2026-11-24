@@ -118,21 +118,43 @@ export const plainText = (markdown: string) =>
     .trim()
 
 /**
+ * A preview's line: who said it, if it's signed; how many images came with
+ * it, to show before its words; and its words.
+ */
+export type PreviewLine = { by?: string; images?: number; text: string }
+
+/**
  * A room's latest entry as a list previews it, on one line: `Ada: Sure…`,
  * `You: Thanks`, `Ada couldn't answer`. `me` is the person's author ID. A DM's
  * row is already titled with its Familiar's name, so there its words go
- * unsigned: `Sure…`, `Couldn't answer`.
+ * unsigned: `Sure…`, `Couldn't answer`. A message of images alone reads
+ * `Image` or `Images`.
  */
 export const previewOf = (
   latest: RoomPreview,
   familiars: readonly FamiliarSummary[],
   me: string | undefined,
   dm = false,
-) => {
+): PreviewLine => {
   const last = { ...latest, text: plainText(latest.text) }
+  if (last.kind === 'message') {
+    const { images } = last
+    return {
+      by: last.author.id === me ? 'You' : last.author.name,
+      ...(images && { images }),
+      text: last.text || (images === 1 ? 'Image' : images ? 'Images' : ''),
+    }
+  }
+  return { text: summaryOf(last, familiars, dm) }
+}
+
+/** Any other entry's preview, as one line of words. */
+const summaryOf = (
+  last: Exclude<RoomPreview, { kind: 'message' }>,
+  familiars: readonly FamiliarSummary[],
+  dm: boolean,
+) => {
   switch (last.kind) {
-    case 'message':
-      return `${last.author.id === me ? 'You' : last.author.name}: ${last.text}`
     case 'reply': {
       if (dm) {
         return last.outcome === 'failed'

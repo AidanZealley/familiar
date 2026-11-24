@@ -29,13 +29,13 @@ Change things by calling the commands on the store itself: the workspace's `fami
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 
-`send(text, mentions?)` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, the message goes to the Familiars it mentions, or to everyone if it mentions none. Each Familiar decides whether to reply. `composeMessage` builds the text and mention spans from what a composer picked. Typing `@Ada` without picking her leaves the message unaddressed.
+`send(text, { mentions?, images? })` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, the message goes to the Familiars it mentions, or to everyone if it mentions none. Each Familiar decides whether to reply. `composeMessage` builds the text and mention spans from what a composer picked. Typing `@Ada` without picking her leaves the message unaddressed. `images` are base64 `{ data, mimeType }`, which your client shrinks to fit `IMAGE_LIMITS` before sending; the text may be empty when there are images.
 
 ## The transcript
 
 `state.transcript.items` is what a chat shows, in order. Each item has an `id` that stays the same across updates. Use it as the key.
 
-- `message`: a person's words, with their `author`, when they were posted and any `mentions`
+- `message`: a person's words, with their `author`, when they were posted, any `mentions` and any `images`
 - `reply`: a Familiar's `text`, `thinking` and `toolCalls`, with which `familiar` and its `name`, `streaming`, `stopped` and any `error`
 - `scheduled`: a schedule's prompt arriving, with its `due` time and `creator`
 - `waiting`: a Familiar has a turn here with nothing to show yet: `queued` behind work in this room, `elsewhere` while it works in another room, or `running` before its reply starts

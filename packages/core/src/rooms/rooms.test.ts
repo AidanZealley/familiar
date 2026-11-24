@@ -1038,3 +1038,95 @@ test("filing treats another Familiar's reply delivered to a chat as said by that
     label: 'said by Ada, another Familiar',
   })
 })
+
+/** A 1×1 PNG, as base64. */
+const PIXEL =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
+test('a message admits only bounded images, and may be images alone', async () => {
+  // No reply, so the message stays the room's newest entry.
+  const { workspace, create, room } = await open((_request, signal) =>
+    hang(signal),
+  )
+  const dm = await room(await workspace.rooms.dm(await create('Ada'), AIDAN.id))
+  const post = (images: { data: string; mimeType: string }[], text = '') =>
+    dm.post({ author: AIDAN, text, requestId: crypto.randomUUID(), images })
+
+  for (const images of [
+    // Too many, too large, not base64, or not an image whatever its label.
+    Array(11).fill({ data: PIXEL, mimeType: 'image/png' }),
+    [{ data: 'A'.repeat(1_500_004), mimeType: 'image/png' }],
+    [{ data: 'not base64!', mimeType: 'image/png' }],
+    [{ data: btoa('%PDF-1.7 hello'), mimeType: 'image/png' }],
+    // Words are needed without images.
+    [],
+  ]) {
+    await expect(post(images)).rejects.toBeInstanceOf(MessageError)
+  }
+  // The format comes from the bytes, not the label.
+  await post([{ data: PIXEL, mimeType: 'image/jpeg' }])
+  const [message] = await log(dm)
+  expect(message.data).toMatchObject({
+    text: '',
+    images: [{ type: 'image', data: PIXEL, mimeType: 'image/png' }],
+  })
+  // A list gets the count as data, to word as it likes.
+  expect((await workspace.rooms.list())[0].last).toMatchObject({
+    kind: 'message',
+    text: '',
+    images: 1,
+  })
+})
+
+test("a message's images reach the Familiars it's delivered to; catch-up and memory see only how many", async () => {
+  const seen: ScriptedRequest[] = []
+  const storage = new ReopenableStorage()
+  const { workspace, dismiss, create, room } = await open(
+    (request) => {
+      seen.push(request)
+      return echo(request)
+    },
+    { storage },
+  )
+  const [ada, bo] = [await create('Ada'), await create('Bo')]
+  const id = await workspace.rooms.create({ name: 'kitchen', familiars: [ada] })
+  const kitchen = await room(id)
+  await kitchen.post({
+    author: AIDAN,
+    text: 'Look',
+    requestId: 'm1',
+    images: [{ data: PIXEL, mimeType: 'image/png' }],
+  })
+  await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
+
+  // Ada's input ends with the message's words, then its image.
+  const input = seen
+    .find((request) => request.type === 'message')!
+    .context.messages.findLast((message) => message.role === 'user')!
+  expect(Array.isArray(input.content) && input.content.slice(-2)).toEqual([
+    { type: 'text', text: expect.stringMatching(/\nLook$/) },
+    { type: 'image', data: PIXEL, mimeType: 'image/png' },
+  ])
+
+  // Bo joins later and is shown the message as a line, without the image.
+  await workspace.rooms.update(id, { familiars: [ada, bo] })
+  await kitchen.post({
+    author: AIDAN,
+    text: '@Bo hi',
+    requestId: 'm2',
+    mentions: [mention(bo)],
+  })
+  await expect
+    .poll(async () => (await inputs(workspace, bo))[0]?.context)
+    .toContain('[Aidan]: Look [1 image]')
+  await dismiss()
+
+  // Memory files the words and how many images came with them.
+  const batch = await withHarness(storage, (harness) =>
+    harness.commit(
+      async (tx) => nextBatch(tx, ada, null, await tx.doc(People)),
+      context,
+    ),
+  )
+  expect(batch.messages[0].text).toBe('Look [1 image]')
+})

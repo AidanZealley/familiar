@@ -40,6 +40,14 @@ const replies: NonNullable<Scenario['replies']> = Object.assign(
   ...Object.values(scenarios).map((scenario) => scenario.replies),
 )
 
+/** How many images came with the message a request answers. */
+const imagesIn = ({ context }: ScriptedRequest) => {
+  const input = context.messages.findLast((message) => message.role === 'user')
+  return Array.isArray(input?.content)
+    ? input.content.filter((part) => part.type === 'image').length
+    : 0
+}
+
 /** The scenarios' answers to anything the household's script doesn't cover. */
 function scenarioReply(request: ScriptedRequest) {
   switch (request.type) {
@@ -60,6 +68,12 @@ function scenarioReply(request: ScriptedRequest) {
         fauxAssistantMessage(request.output)
       )
     case 'message': {
+      const images = imagesIn(request)
+      if (images) {
+        return fauxAssistantMessage(
+          `I can see the ${images === 1 ? 'image' : `${images} images`} you sent${request.text ? `, with "${request.text}"` : ''}.`,
+        )
+      }
       const matched = Object.entries(scenarios).find(([word]) =>
         new RegExp(`\\b${word}\\b`).test(request.text.toLowerCase()),
       )

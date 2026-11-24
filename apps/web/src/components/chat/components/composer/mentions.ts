@@ -1,8 +1,29 @@
-import type { FamiliarSummary, Picked } from '@familiar-ai/client'
+import type { FamiliarSummary, Picked, RoomSummary } from '@familiar-ai/client'
 
 /** The `@name` being typed at the end of the text, if any: what to suggest for. */
 export const mentionQuery = (text: string) =>
   /(?:^|\s)@([^\s@]*)$/.exec(text)?.[1]
+
+/**
+ * The `room`'s Familiars whose names start with the `@name` being typed in
+ * `text`. Only a named room's need addressing, as a DM has one, and a
+ * `note` addresses no one.
+ */
+export const suggestionsFor = (
+  room: RoomSummary,
+  familiars: readonly FamiliarSummary[],
+  text: string,
+  note: boolean,
+) => {
+  const query = note ? undefined : mentionQuery(text)?.toLowerCase()
+  return room.kind !== 'room' || query === undefined
+    ? []
+    : familiars.filter(
+        (familiar) =>
+          room.familiars.includes(familiar.id) &&
+          familiar.name.toLowerCase().startsWith(query),
+      )
+}
 
 /** The text with the `@name` being typed replaced by the picked Familiar's. */
 export const completeMention = (text: string, familiar: FamiliarSummary) =>

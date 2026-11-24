@@ -14,6 +14,8 @@ import type { FamiliarsState } from '../workspace/index.ts'
 // with Pi's own types.
 export type {
   Author,
+  IMAGE_LIMITS,
+  MessageImage,
   HANDOFF_KIND,
   MESSAGE_KIND,
   NOTE_KIND,

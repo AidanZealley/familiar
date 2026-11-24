@@ -1,4 +1,5 @@
 import { hc } from 'hono/client'
+import type { OutgoingImage } from './images.ts'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type {
@@ -308,9 +309,16 @@ export const roomCommands = (api: Api, id: number) => {
   return {
     /**
      * Posts a message as the signed-in person, addressing whoever
-     * `mentions` picks (see `composeMessage`).
+     * `mentions` picks (see `composeMessage`), with any `images`, prepared
+     * to fit `IMAGE_LIMITS`. `text` may be empty when it has images.
      */
-    send: (text: string, mentions?: Mention[]) =>
+    send: (
+      text: string,
+      {
+        mentions,
+        images,
+      }: { mentions?: Mention[]; images?: readonly OutgoingImage[] } = {},
+    ) =>
       succeed(
         room.messages.$post({
           param,
@@ -318,6 +326,7 @@ export const roomCommands = (api: Api, id: number) => {
             text,
             requestId: randomId(),
             ...(mentions?.length && { mentions }),
+            ...(images?.length && { images: [...images] }),
           },
         }),
       ),
