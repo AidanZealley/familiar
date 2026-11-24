@@ -135,7 +135,7 @@ test('a job runs the CLI in its own transient unit, with the data folder set for
       {
         dataDir: '/data',
         cliPath: '/app/$HOME %h/familiar.js',
-        node: '/node/bin/node',
+        node: '/node/$v/bin/node',
         path: '/usr/bin',
       },
       'update',
@@ -149,10 +149,11 @@ test('a job runs the CLI in its own transient unit, with the data folder set for
     '--property=Type=exec',
     '--working-directory=/data',
     '--setenv=FAMILIAR_DATA_DIR=/data',
-    '--setenv=PATH=/node/bin:/usr/bin',
+    '--setenv=PATH=/node/$v/bin:/usr/bin',
     '--',
-    '/node/bin/node',
-    // Dollars escaped, as systemd expands them; specifiers it leaves.
+    // The executable's path is resolved, never expanded.
+    '/node/$v/bin/node',
+    // Arguments' dollars escaped, as systemd expands them; specifiers it leaves.
     '/app/$$HOME %h/familiar.js',
     'update',
     '--main',

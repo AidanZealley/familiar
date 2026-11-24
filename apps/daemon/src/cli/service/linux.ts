@@ -50,9 +50,9 @@ WantedBy=default.target
 
 /**
  * A command argument the service manager leaves as it is. It expands
- * `${NAME}` in a transient unit's command, but never specifiers. `$$` is
- * the escape every version takes; `--expand-environment=no` is only from
- * systemd 254.
+ * `${NAME}` in a transient unit's arguments, but never specifiers, and
+ * never the executable's path, which it resolves first. `$$` is the escape
+ * every version takes; `--expand-environment=no` is only from systemd 254.
  */
 const literal = (arg: string) => arg.replaceAll('$', () => '$$')
 
@@ -82,7 +82,8 @@ export function jobCommand(
     `--setenv=FAMILIAR_DATA_DIR=${dataDir}`,
     `--setenv=PATH=${dirname(node)}:${path}`,
     '--',
-    ...[node, cliPath, ...args].map(literal),
+    node,
+    ...[cliPath, ...args].map(literal),
   ]
 }
 
@@ -195,9 +196,14 @@ export function linuxService(options: LinuxOptions) {
       })
     },
     logs() {
-      execFileSync('journalctl', ['--user', '-u', 'familiar', '-f'], {
-        stdio: 'inherit',
-      })
+      // With the maintenance job's, such as an update that failed to start.
+      execFileSync(
+        'journalctl',
+        ['--user', '-u', 'familiar', '-u', 'familiar-maintenance', '-f'],
+        {
+          stdio: 'inherit',
+        },
+      )
     },
   }
 }
