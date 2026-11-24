@@ -109,14 +109,20 @@ const START_LIMIT_MS = 60_000
  */
 export async function startUpdate(source: UpdateSource, after?: string) {
   const signal = AbortSignal.timeout(START_LIMIT_MS)
-  await check(
-    await fetch('/api/update', {
+  let response: Response | undefined
+  try {
+    response = await fetch('/api/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source }),
       signal,
-    }),
-  )
+    })
+  } catch {
+    // The update can stop the daemon before its answer arrives: wait and see.
+  }
+  if (response) {
+    await check(response)
+  }
   try {
     return await pollInfo((info) => info.last?.startedAt !== after, signal)
   } catch {
