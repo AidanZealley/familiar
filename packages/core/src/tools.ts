@@ -7,6 +7,7 @@ import type {
   EntryRecord,
   TaskId,
   ToolExecutionResult,
+  ToolExecutionApi,
   ToolRegistration,
   ToolTaskInput,
   Tx,
@@ -24,6 +25,7 @@ import {
   type McpCompletionData,
   type ScheduledData,
 } from './conversation/message.ts'
+import type { Form, FormContent } from './questions/form.ts'
 import type { Notification } from './notify.ts'
 import { entriesOf } from './pi/entries.ts'
 import { REPLY_KIND } from './rooms/log.ts'
@@ -90,6 +92,18 @@ export type ToolServices = {
    * arguments. Throws in a conversation no Familiar owns.
    */
   familiarId(): Promise<FamiliarId>
+  /**
+   * Asks the person for values only this plugin tool gets, such as a
+   * password or an API key, in a form in the chat, and waits. The values
+   * come back here and are never stored. Throws for core's tools.
+   */
+  askPrivately(request: {
+    message: string
+    form: Form
+  }): Promise<
+    | { action: 'accept'; values: FormContent }
+    | { action: 'decline' | 'moved-on' }
+  >
 }
 
 // A global symbol, so a plugin's own copy of core finds the same services.
@@ -109,7 +123,11 @@ export function familiar(context: Context): ToolServices {
 /** `tool`, given `services`, with its call's author and Familiar, whenever it runs. */
 export function withServices<P extends object, D extends JsonValue>(
   tool: ToolRegistration<P, D>,
-  services: Omit<ToolServices, 'author' | 'familiarId'>,
+  services: (
+    tool: FamiliarTool<P, D>,
+    api: ToolExecutionApi,
+    context: Context,
+  ) => Omit<ToolServices, 'author' | 'familiarId'>,
 ): ToolRegistration<P, D> {
   return {
     ...tool,
@@ -120,7 +138,7 @@ export function withServices<P extends object, D extends JsonValue>(
         withContextValue(
           servicesKey,
           {
-            ...services,
+            ...services(tool, api, context),
             author: () =>
               api.commit((tx) => toolAuthor(tx, api.taskId), context),
             familiarId: () =>

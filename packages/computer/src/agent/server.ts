@@ -16,6 +16,8 @@ import {
   type ComputerTool,
   INFO_TOOL,
   PROGRESS_MS,
+  SIGN_IN_TOOL,
+  signInControls,
   type ComputerInfo,
   PERSON_USED,
   type ComputerToolName,
@@ -26,6 +28,7 @@ import type { Browser } from './browser.ts'
 import type { CallKind, ComputerControl } from './control.ts'
 import { screen } from './screen.ts'
 import { runCommand } from './shell.ts'
+import { signIn } from './sign-in.ts'
 
 type Args<Name extends ComputerToolName> = z.infer<
   (typeof computerTools)[Name]['input']
@@ -244,6 +247,55 @@ export function computerServer(
         })) ?? ASLEEP_RESULT,
     )
   }
+  server.registerTool(
+    SIGN_IN_TOOL,
+    {
+      description: 'For the host: fill and submit a saved login.',
+      inputSchema: z.object({
+        origin: z.string(),
+        username: z.string(),
+        password: z.string(),
+        controls: signInControls,
+      }),
+    },
+    async (login, ctx) =>
+      (await activity.run(SIGN_IN_TOOL, {}, async (call) => {
+        const signal = ctx.mcpReq.signal
+        let stopWaiting = () => {}
+        try {
+          const outcome = await control.run(
+            call,
+            { reads: false, display: true },
+            signal,
+            () => (stopWaiting = progress(ctx, WAITING)),
+            async () => {
+              const shown = await browser.page({ open: false })
+              signal.throwIfAborted()
+              const { controls, ...credentials } = login
+              return shown
+                ? signIn(shown.page, credentials, controls, signal)
+                : {
+                    text: "There's no open browser tab. Open the site's login page first.",
+                    isError: true,
+                  }
+            },
+          )
+          if (!outcome.ran) {
+            return text(outcome.note, true)
+          }
+          // An action only runs with no note: no one took over first.
+          return text(outcome.value.text, outcome.value.isError)
+        } catch {
+          // Never an error's own text: it could hold the login.
+          return text(
+            "Couldn't sign in. Check the browser before trying again.",
+            true,
+          )
+        } finally {
+          stopWaiting()
+        }
+      })) ?? ASLEEP_RESULT,
+  )
   server.registerTool(
     CONTROL_TOOL,
     {

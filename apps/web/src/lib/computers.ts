@@ -234,3 +234,42 @@ export const programsByName = (
   }
   return [...named.values()].sort((a, b) => (b.memory ?? 0) - (a.memory ?? 0))
 }
+
+export type ComputerLogin = { origin: string; username: string }
+
+const loginsPath = (familiar: FamiliarSummary['id']) =>
+  `/api/plugins/computer/familiars/${familiar}/logins`
+
+export const loginsQuery = (familiar: FamiliarSummary['id']) =>
+  queryOptions({
+    queryKey: ['computer-logins', familiar],
+    queryFn: async () => {
+      const response = await fetch(loginsPath(familiar))
+      await check(response)
+      return (await response.json()) as ComputerLogin[]
+    },
+  })
+
+const sendLogin = async (
+  familiar: FamiliarSummary['id'],
+  method: 'PUT' | 'DELETE',
+  body: ComputerLogin & { password?: string },
+) =>
+  check(
+    await fetch(loginsPath(familiar), {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  )
+
+/** Saves it, replacing the password of one with the same site and username. */
+export const saveComputerLogin = (
+  familiar: FamiliarSummary['id'],
+  login: ComputerLogin & { password: string },
+) => sendLogin(familiar, 'PUT', login)
+
+export const deleteComputerLogin = (
+  familiar: FamiliarSummary['id'],
+  { origin, username }: ComputerLogin,
+) => sendLogin(familiar, 'DELETE', { origin, username })

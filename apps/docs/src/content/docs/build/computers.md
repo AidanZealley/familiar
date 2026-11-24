@@ -46,7 +46,7 @@ Turning it on makes the Familiar's computer once the image is ready. Turning it 
 
 ## The tools
 
-A Familiar with a computer has thirteen tools. Each call goes to that Familiar's own computer, never another's.
+A Familiar with a computer has sixteen tools. Each call goes to that Familiar's own computer, never another's.
 
 - `browser_snapshot`: the open page as text, with a ref for each element.
 - `browser_screenshot`: a picture of the open page.
@@ -58,6 +58,7 @@ A Familiar with a computer has thirteen tools. Each call goes to that Familiar's
 - `run_command`: runs a shell command in its home directory, for up to 10 minutes.
 - `read_file`: reads a text file.
 - `write_file`: writes a text file.
+- `saved_logins`, `request_login` and `sign_in`: use the Familiar's saved website logins. See [Saved logins](#saved-logins).
 
 The computer has a desktop, 1280×800 pixels, with a taskbar and a launcher. The browser is Chromium, shown on it, and the browser tools act on its shown tab. Screen tools use display pixels, so they work in any app, such as one the Familiar installed and started with `run_command`. Long results are shortened. For commands, the end of the output is kept.
 
@@ -124,6 +125,24 @@ To use the computer yourself, for a sign-in or a CAPTCHA, hold `GET /plugins/com
 While you have control, the computer stays awake. The Familiar's reads still run, with a note that someone is using it. Its actions wait, without their time limit running, and the chat shows "Waiting for you to hand back the computer". An action that waited never runs: its result tells the Familiar to look again. The Familiar's first call after you hand back is told too, so a take-over between its calls isn't missed.
 
 Send input to the screen socket only while you hold control. This is coordination, not security: watching and taking over need the same permission.
+
+## Saved logins
+
+A Familiar can sign in to websites with logins you've saved for it, one per site and username:
+
+- `saved_logins` lists the sites and usernames. Passwords are never shown.
+- `request_login` asks you for a login in a private form in the chat. What you type goes to the plugin, not into the conversation or storage.
+- `sign_in` fills in a saved login and submits it. It asks you first, showing the site and username.
+
+`sign_in` fills a login only where the password stays on its site: the page, the form's frame and where the form sends it must all match the saved origin exactly, including `www`. Its form is made to send by POST, so the password never lands in the page's address, and snapshots mask every password field. A login it couldn't submit, such as with a required field still empty, is cleared from the field. These checks follow what a password manager does: they stop the form sending the password to another site, but a site's own script can read what's typed into its page.
+
+The plugin serves the Familiar's logins on `GET`, `PUT` and `DELETE /plugins/computer/familiars/:familiar/logins`, which your settings UI can use. They need a `secrets` store in `openWorkspace`: they're kept there, encrypted by the daemon's store, and deleted when the Familiar is removed. Without one, the routes answer 503.
+
+### The trust boundary
+
+Saved logins keep passwords out of the chat, the transcript, workspace storage and what the model reads. They don't keep them from the computer. To sign in, the password is typed into the computer's browser, and the Familiar can run any command on that computer, as root. A Familiar set on it could read a password from the browser while a sign-in runs, or take the session it leaves signed in.
+
+So save a login only where you'd be content for the Familiar to hold the account. Prefer accounts made for it, app passwords and scoped tokens to your own main logins. For anything else, take over the computer and sign in yourself: the Familiar then has the session, but never the password. A site that needs two-factor sign-in needs that anyway.
 
 ## Limits
 

@@ -16,6 +16,7 @@ import { ask } from './scenarios/ask.ts'
 import { compact } from './scenarios/compaction.ts'
 import { computer } from './scenarios/computer.ts'
 import { key } from './scenarios/connections.ts'
+import { login } from './scenarios/login.ts'
 import { mcp } from './scenarios/mcp.ts'
 import { memory } from './scenarios/memory.ts'
 import { remind, scheduledReply } from './scenarios/schedules.ts'
@@ -31,6 +32,7 @@ const scenarios = {
   slow,
   compact,
   computer,
+  login,
   error,
 }
 const replies: NonNullable<Scenario['replies']> = Object.assign(

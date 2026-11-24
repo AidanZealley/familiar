@@ -1,9 +1,12 @@
 import type { FamiliarId } from '../workspace/familiars.ts'
+import type { FamiliarSecretsApi } from './familiar-secrets.ts'
 import type { FamiliarPlugin } from './types.ts'
 
 export type OpenPluginsOptions = {
   /** The Familiars that use a plugin now, read from storage. */
   usersOf: (plugin: string) => Promise<FamiliarId[]>
+  /** Each Familiar's plugin secrets, when the host keeps secrets. */
+  familiarSecrets?: FamiliarSecretsApi
   /** Fires `change` whenever who uses a plugin may have changed. */
   changes: EventTarget
 }
@@ -18,7 +21,7 @@ export type OpenPluginsOptions = {
  */
 export async function openPlugins(
   plugins: readonly FamiliarPlugin[],
-  { usersOf, changes }: OpenPluginsOptions,
+  { usersOf, familiarSecrets, changes }: OpenPluginsOptions,
 ) {
   const watching = new AbortController()
   const closes: (() => void | Promise<void>)[] = []
@@ -44,6 +47,9 @@ export async function openPlugins(
       /** Each watch's first telling, begun while the plugin opens. */
       const firsts: Promise<void>[] = []
       const closePlugin = await plugin.open?.({
+        secretsFor:
+          familiarSecrets &&
+          ((familiar) => familiarSecrets.for(plugin, familiar)),
         watchFamiliars: (listener) => {
           let told: string | undefined
           let reading = Promise.resolve()

@@ -1,7 +1,6 @@
 import { answerFor, shapeOf, type Answer } from '@familiar-ai/client'
 import { useRoomStore } from '@familiar-ai/client/react'
 import { HandPalmIcon } from '@phosphor-icons/react'
-import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
@@ -25,12 +24,26 @@ export const Question = ({ question }: QuestionProps) => {
   const [values, setValues] = useState<FieldValues>(() =>
     shape.type === 'form' ? initialValues(shape.form) : {},
   )
-  const answer = useMutation({
-    mutationFn: (answer: Answer) => store.answer(question, answer),
-  })
+  // Not a mutation: its cache would keep a private answer's values.
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string>()
+  const submit = async (answer: Answer) => {
+    setPending(true)
+    setError(undefined)
+    try {
+      await store.answer(question, answer)
+      setValues({})
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : 'Could not submit the answer.',
+      )
+    } finally {
+      setPending(false)
+    }
+  }
   const tool = toolName(question.tool)
   const accept = () =>
-    answer.mutate(
+    void submit(
       answerFor(
         question,
         shape.type === 'form' ? contentOf(shape.form, values) : undefined,
@@ -40,15 +53,19 @@ export const Question = ({ question }: QuestionProps) => {
   const actions = (
     <div className="flex gap-2">
       {shape.type !== 'unsupported' && (
-        <Button size="xs" disabled={answer.isPending} onClick={accept}>
-          {shape.type === 'form' ? 'Submit' : 'Approve'}
+        <Button size="xs" disabled={pending} onClick={accept}>
+          {question.kind === 'private'
+            ? 'Submit privately'
+            : shape.type === 'form'
+              ? 'Submit'
+              : 'Approve'}
         </Button>
       )}
       <Button
         size="xs"
         variant="outline"
-        disabled={answer.isPending}
-        onClick={() => answer.mutate({ action: 'decline' })}
+        disabled={pending}
+        onClick={() => void submit({ action: 'decline' })}
       >
         Decline
       </Button>
@@ -74,7 +91,7 @@ export const Question = ({ question }: QuestionProps) => {
         {shape.type === 'approval' && actions}
       </div>
       <div className="ml-6 flex flex-col gap-3 border-l pl-3">
-        {question.kind === 'elicitation' && (
+        {question.kind !== 'tool' && (
           <p className="text-muted-foreground">{question.message}</p>
         )}
         {question.kind === 'tool' && (
@@ -87,7 +104,7 @@ export const Question = ({ question }: QuestionProps) => {
             form={shape.form}
             values={values}
             onChange={setValues}
-            disabled={answer.isPending}
+            disabled={pending}
           />
         )}
         {shape.type === 'unsupported' && (
@@ -97,9 +114,9 @@ export const Question = ({ question }: QuestionProps) => {
           </p>
         )}
         {shape.type !== 'approval' && actions}
-        {answer.error && (
+        {error && (
           <p role="alert" className="text-destructive">
-            {answer.error.message}
+            {error}
           </p>
         )}
       </div>

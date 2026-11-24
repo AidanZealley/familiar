@@ -1,15 +1,15 @@
 import {
   definePlugin,
   defineTool,
-  familiar,
   upgradeWebSocket,
   type PluginEnv,
 } from '@familiar-ai/core'
-import type { ImageContent, TextContent } from '@familiar-ai/core/extensions'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { ComputerHost } from './host.ts'
-import { shorten } from './shorten.ts'
+import { callComputer } from './call.ts'
+import { loginTools } from './login-tools.ts'
+import { computerLogins, LOGINS } from './logins.ts'
 import { annotationsOf, computerTools } from './tools.ts'
 
 /**
@@ -56,71 +56,37 @@ export type ComputerOptions = {
  * see `CONTROL_PROTOCOL`.
  */
 export function computer({ host }: ComputerOptions) {
+  const logins = computerLogins()
   return definePlugin({
     name: 'computer',
     title: 'Computer',
-    tools: Object.entries(computerTools).map(([name, tool]) =>
-      defineTool({
-        name,
-        description: tool.description,
-        parameters: z.toJSONSchema(tool.input) as object,
-        // Only looking is safe to run again after a restart; Pi reports any
-        // other call a restart interrupted, so the model looks before retrying.
-        ...('reads' in tool && { replay: 'safe' as const }),
-        annotations: annotationsOf(tool),
-        execute: async (args, api, context) => {
-          const id = await familiar(context).familiarId()
-          let result
-          try {
-            result = await host.call(
-              id,
+    tools: [
+      ...Object.entries(computerTools).map(([name, tool]) =>
+        defineTool({
+          name,
+          description: tool.description,
+          parameters: z.toJSONSchema(tool.input) as object,
+          // Only looking is safe to run again after a restart; Pi reports any
+          // other call a restart interrupted, so the model looks before retrying.
+          ...('reads' in tool && { replay: 'safe' as const }),
+          annotations: annotationsOf(tool),
+          execute: (args, api, context) =>
+            callComputer(
+              host,
               name,
               args as Record<string, unknown>,
-              context.abortSignal,
-              // The chat shows it, as "Waiting for you to hand back".
-              () =>
-                void api.details({ waiting: true }, context).catch(() => {}),
-            )
-          } catch (error) {
-            // Stopped, or the host is closing: Pi reports that itself.
-            if (context.abortSignal?.aborted) {
-              throw error
-            }
-            const reason =
-              error instanceof Error ? error.message : String(error)
-            return {
-              output: [
-                {
-                  type: 'text' as const,
-                  text: `Your computer stopped answering during this call (${reason}), so it may have partly run. Look before trying again.`,
-                },
-              ],
-              isError: true,
-            }
-          }
-          const keep = 'keepsEnd' in tool ? 'end' : 'start'
-          return {
-            output: result.content.flatMap<TextContent | ImageContent>(
-              (block) =>
-                block.type === 'text'
-                  ? [{ type: 'text', text: shorten(block.text, keep) }]
-                  : block.type === 'image'
-                    ? [
-                        {
-                          type: 'image',
-                          data: block.data,
-                          mimeType: block.mimeType,
-                        },
-                      ]
-                    : [],
+              api,
+              context,
+              'keepsEnd' in tool ? 'end' : 'start',
             ),
-            isError: result.isError ?? false,
-          }
-        },
-      }),
-    ),
-    open: ({ watchFamiliars }) => {
-      watchFamiliars((familiars) =>
+        }),
+      ),
+      ...loginTools(host, logins),
+    ],
+    familiarSecrets: [LOGINS],
+    open: (context) => {
+      logins.open(context)
+      context.watchFamiliars((familiars) =>
         host.sync(familiars).catch((error) => {
           console.error(
             `Computers couldn't sync: ${error instanceof Error ? error.message : error}`,
@@ -130,6 +96,7 @@ export function computer({ host }: ComputerOptions) {
       return () => host.close()
     },
     routes: new Hono<PluginEnv>()
+      .route('/logins', logins.routes)
       .get('/status', async (c) => c.json(await host.status(c.get('familiar'))))
       .get('/inspect', async (c) =>
         c.json(await host.inspect(c.get('familiar'))),

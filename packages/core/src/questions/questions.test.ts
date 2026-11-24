@@ -4,8 +4,8 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import { expect, test, vi } from 'vitest'
 import { schema, type FamiliarPlugin, type RoomApi } from '../index.ts'
-import { replyTo, testHost } from '../testing.ts'
-import { defineTool } from '../tools.ts'
+import { ReopenableStorage, replyTo, testHost } from '../testing.ts'
+import { defineTool, familiar } from '../tools.ts'
 
 // The gate before a connection's tools: what asks, what doesn't, and that
 // a question outlives neither its call nor a restart's rerun of it.
@@ -255,4 +255,62 @@ test('disabling a tool preserves its approval setting when re-enabled', async ()
   })
   await resultOf(host, entry)
   expect(host.ran).toEqual(['search'])
+})
+
+test("a private question's values go to the asking tool and are never stored", async () => {
+  const key = 'dummy-api-key'
+  const written: string[] = []
+  class WatchedStorage extends ReopenableStorage {
+    override commit(...args: Parameters<ReopenableStorage['commit']>) {
+      written.push(
+        JSON.stringify(args[0], (_key, value: unknown) =>
+          typeof value === 'bigint' ? String(value) : value,
+        ),
+      )
+      return super.commit(...args)
+    }
+  }
+  let received: unknown
+  const host = await testHost({
+    storage: new WatchedStorage(),
+    plugins: [
+      {
+        name: 'weather',
+        title: 'Weather',
+        tools: [
+          defineTool({
+            name: 'connect',
+            description: 'connect',
+            parameters: schema.obj({ what: schema.str() }),
+            execute: async (_args, _api, context) => {
+              received = await familiar(context).askPrivately({
+                message: 'Your API key',
+                form: [
+                  { name: 'key', title: 'Key', type: 'string', required: true },
+                ],
+              })
+              return { output: [{ type: 'text' as const, text: 'Connected' }] }
+            },
+          }),
+        ],
+      },
+    ],
+  })
+  host.faux.setResponses([call('connect'), fauxAssistantMessage('Done')])
+  const entry = await host.dm().post({
+    author: { id: 'aidan', name: 'aidan' },
+    text: 'Connect',
+    requestId: 'connect',
+  })
+  const [question] = await asked(host.dm())
+  expect(question).toMatchObject({ kind: 'private', plugin: 'Weather' })
+  const { questions } = host.workspace()
+  const accept = { action: 'accept', content: { key } } as const
+  await questions.answer(question!.familiar, question!.id, accept)
+  await expect(
+    questions.answer(question!.familiar, question!.id, accept),
+  ).rejects.toThrow('no longer waiting')
+  await replyTo(host.dm(), entry)
+  expect(received).toEqual({ action: 'accept', values: { key } })
+  expect(written.join('')).not.toContain(key)
 })

@@ -90,6 +90,7 @@ export {
   checkPlugins,
   definePlugin,
   type FamiliarPlugin,
+  type FamiliarSecrets,
   type FamiliarTool,
   type PluginClose,
   type PluginContext,

@@ -1,6 +1,6 @@
 ---
 title: Plugin API
-description: definePlugin, familiar(context), secret declarations and the Node building blocks.
+description: definePlugin, familiar(context), secret declarations, Familiar secrets and the Node building blocks.
 ---
 
 Declarations live in [`plugins`](https://github.com/AidanZealley/familiar/tree/main/packages/core/src/plugins), [`connections`](https://github.com/AidanZealley/familiar/tree/main/packages/core/src/connections) for secrets and `authorizedFetch`, and [`tools.ts`](https://github.com/AidanZealley/familiar/blob/main/packages/core/src/tools.ts) for `familiar(context)`, all in `packages/core/src`. [Customise your assistant](/familiar/build/customise/) has worked examples.
@@ -12,6 +12,7 @@ type FamiliarPlugin = {
   name: string // keys its secrets and routes, so keep it stable
   title: string // shown on the Connections page
   secrets?: PluginSecret[]
+  familiarSecrets?: string[] // names of values it keeps per Familiar
   tools: FamiliarTool[] // Pi Durable tools, with optional annotations
   open?(context: PluginContext): PluginClose | Promise<PluginClose>
   routes?: Hono<PluginEnv> // routes about one Familiar
@@ -27,10 +28,13 @@ For a plugin with background state or clean-up. `openWorkspace` calls it once th
 ```ts
 type PluginContext = {
   watchFamiliars(listener: (familiars: FamiliarId[]) => void): void
+  secretsFor?(familiar: FamiliarId): FamiliarSecrets
 }
 ```
 
 `watchFamiliars` calls `listener` with the Familiars that use the plugin, those that have it turned on, then again when that changes: one turns it on or off, or is created with it or removed. Called from `open`, its first call comes before the workspace resumes any work, so a plugin knows who uses it before a resumed call arrives; later calls come asynchronously. If storage can't be read, as when it fails, there's no first call and opening goes on without one, so a plugin that acts on the list should do nothing until it has one. Changes close together may come as one call; the last call is always who uses it now. A promise `listener` returns isn't awaited, so handle its errors.
+
+`secretsFor` is the plugin's private values for one Familiar, by the names in its `familiarSecrets`. It's undefined when the host passes no `secrets` store. See [Familiar secrets](#familiar-secrets).
 
 ### routes
 
@@ -45,7 +49,7 @@ const routes = new Hono<PluginEnv>().get('/status', async (c) =>
 
 ## checkPlugins(plugins)
 
-Throws, naming the plugin, unless the plugins can run together: unique plugin names, secret declarations that can be sent, and tool names that aren't core's or another plugin's. `openWorkspace` runs it on its `plugins`. A host that loads plugins one at a time, as the daemon does, can run it on each to skip a bad one instead of failing to start.
+Throws, naming the plugin, unless the plugins can run together: unique plugin names, secret declarations that can be sent and don't start with `familiar/`, `familiarSecrets` names that are distinct, non-empty and without a `/`, and tool names that aren't core's or another plugin's. `openWorkspace` runs it on its `plugins`. A host that loads plugins one at a time, as the daemon does, can run it on each to skip a bad one instead of failing to start.
 
 ## defineTool(tool)
 
@@ -72,14 +76,15 @@ A `ToolResult` has optional `output` (content for the model), `details` (JSON fo
 
 What Familiar gives each call, read from the call's context. It throws if the tool runs anywhere but in a Familiar.
 
-| Member                                  | Meaning                                                                                                                                                                                                                |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `author()`                              | The person the call runs for, as described under [Tool author](/familiar/reference/core/#tool-author). Resolved from storage when you call it, so tools that don't need it pay nothing                                 |
-| `familiarId()`                          | The Familiar making the call. Resolved from storage when you call it, never from the tool's arguments. Throws in a conversation no Familiar owns                                                                       |
-| `fetch(input, init?)`                   | The host's network access. On Node, the default refuses every address that isn't public                                                                                                                                |
-| `authorizedFetch(secret, input, init?)` | `fetch`, with the named secret attached, if the request matches the plugin's declaration. Otherwise throws without sending. Throws a "not connected" message when the secret isn't set. Redirects come back unfollowed |
-| `notify(notification)`                  | Send a notification through the host. It never carries a schedule's context                                                                                                                                            |
-| `timeZone`                              | The owner's IANA zone. Format times with `localMinute`                                                                                                                                                                 |
+| Member                                  | Meaning                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `author()`                              | The person the call runs for, as described under [Tool author](/familiar/reference/core/#tool-author). Resolved from storage when you call it, so tools that don't need it pay nothing                                                                                                                    |
+| `familiarId()`                          | The Familiar making the call. Resolved from storage when you call it, never from the tool's arguments. Throws in a conversation no Familiar owns                                                                                                                                                          |
+| `fetch(input, init?)`                   | The host's network access. On Node, the default refuses every address that isn't public                                                                                                                                                                                                                   |
+| `authorizedFetch(secret, input, init?)` | `fetch`, with the named secret attached, if the request matches the plugin's declaration. Otherwise throws without sending. Throws a "not connected" message when the secret isn't set. Redirects come back unfollowed                                                                                    |
+| `askPrivately({ message, form })`       | Asks the person in a form in the chat for values only this tool gets, such as a password or an API key, and waits. Resolves `{ action: 'accept', values }`, or `{ action: 'decline' }` or `{ action: 'moved-on' }` when they sent a new message instead. The values are never stored. Plugins' tools only |
+| `notify(notification)`                  | Send a notification through the host. It never carries a schedule's context                                                                                                                                                                                                                               |
+| `timeZone`                              | The owner's IANA zone. Format times with `localMinute`                                                                                                                                                                                                                                                    |
 
 Familiar puts these on every tool it runs, core's and plugins'. Only a plugin's tools can send secrets, and only their own plugin's.
 
@@ -101,6 +106,25 @@ type PluginSecret = {
 }
 ```
 
+## Familiar secrets
+
+Values a plugin keeps for each Familiar, such as its saved logins or an API key it asked for with `askPrivately`. List their names in `familiarSecrets`, then use them through `secretsFor(familiar)` from `open`:
+
+```ts
+type FamiliarSecrets = {
+  get(name: string): Promise<string | undefined>
+  // Replaces the value with what change returns (undefined deletes it)
+  update(
+    name: string,
+    change: (value: string | undefined) => string | undefined,
+  ): Promise<void>
+}
+```
+
+Unlike a `PluginSecret`, the plugin reads these values itself, and the Connections page doesn't show them, so the plugin gives the person whatever UI it needs. A name that isn't listed throws.
+
+They're kept in the host's `SecretStore` under the plugin's connection, as `familiar/<id>/<name>`. Each Familiar's reads and changes run one at a time, so two changes never lose each other. Removing a Familiar deletes all of its secrets before it's removed, after any change already under way, and refuses changes from then on.
+
 ## SecretStore
 
 ```ts
@@ -112,6 +136,8 @@ type SecretStore = {
 ```
 
 `memorySecrets()` is an in-memory store for tests.
+
+Give each workspace its own store. Nothing in a secret's key names its workspace, so two workspaces sharing a store would share their secrets.
 
 ## Node building blocks
 

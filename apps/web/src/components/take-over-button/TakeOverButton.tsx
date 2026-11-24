@@ -42,7 +42,7 @@ export const TakeOverButton = ({
       onClick={() =>
         control === 'off' ? takeOver(familiar) : handBack(familiar.id)
       }
-      className={cn(attention > 0 && 'animate-attention', className)}
+      className={cn(attention > 0 && 'animate-bounce', className)}
     >
       {control === 'held' ? (
         <HandArrowUpIcon />
