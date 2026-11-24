@@ -1,7 +1,8 @@
 import { useNavigate } from '@tanstack/react-router'
 import { ComputerScreen } from '@/components/computer-screen'
 import { StatusDot } from '@/components/status-dot'
-import { computerStates, type ComputerStatus as Status } from '@/lib/computers'
+import type { ComputerStatus as Status } from '@familiar-ai/computer'
+import { computerStates } from '@/lib/computers'
 import type { ComputerStatusProps } from './types'
 
 /**

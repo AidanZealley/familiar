@@ -10,12 +10,8 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item'
-import {
-  computersQuery,
-  computerStates,
-  describeCall,
-  type ComputerSummary,
-} from '@/lib/computers'
+import type { ComputerSummary } from '@familiar-ai/computer'
+import { computersQuery, computerStates, describeCall } from '@/lib/computers'
 import { formatAgo } from '@/lib/format'
 import { nameOf, useFamiliars } from '@/lib/workspace'
 

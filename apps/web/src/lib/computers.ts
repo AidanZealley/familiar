@@ -1,4 +1,10 @@
 import type { ConnectionInfo, FamiliarSummary } from '@familiar-ai/client'
+import type {
+  ComputerCall,
+  ComputerDetail,
+  ComputerStatus,
+  ComputersSummary,
+} from '@familiar-ai/computer'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Tone } from '@/components/status-dot'
 import { capabilitiesKey, useFamiliarStore } from './familiar'
@@ -13,11 +19,6 @@ export const isComputer = ({
   name,
 }: Pick<ConnectionInfo, 'kind' | 'name'>) =>
   kind === computerPlugin.kind && name === computerPlugin.name
-
-/** A Familiar's computer, as the plugin's host reports it. */
-export type ComputerStatus =
-  | { state: 'running' | 'asleep' | 'setting-up' | 'none' }
-  | { state: 'unavailable'; reason: string }
 
 /**
  * Whether the nearest Familiar has a computer: its `computer` capability,
@@ -78,51 +79,6 @@ export const screenUrl = (familiar: FamiliarSummary['id']) => {
   return url.href
 }
 
-/** Some amount in use against its limit, such as memory in bytes. */
-export type Usage = { used: number; limit?: number }
-
-/**
- * A call running on a computer: its tool and a short target, such as the
- * URL or command, and whether it waits for a person to hand back.
- */
-export type ComputerCall = { tool: string; target?: string; waiting?: true }
-
-/**
- * A Familiar's computer in detail, as its host reports it (the computer
- * package's `ComputerDetail`). Every field is optional: each host fills in
- * what it can tell. Times are ISO 8601.
- */
-export type ComputerDetail = {
-  control?: 'familiar' | 'person' | 'returned'
-  status?: ComputerStatus
-  doing?: ComputerCall[]
-  /** When it last started, or while asleep, when it went to sleep. */
-  since?: string
-  /** When its last call ended, if none is running. */
-  lastUsed?: string
-  /** CPUs. */
-  cpu?: Usage
-  /** Bytes. */
-  memory?: Usage
-  processes?: Usage
-  /** Bytes. */
-  disk?: Usage
-  /** The most memory (bytes) first. */
-  programs?: { command: string; memory?: number }[]
-  tabs?: { title: string; url: string }[]
-  system?: { os?: string; architecture?: string }
-  /** Beyond its image, which comes back when it's made again from a newer one. */
-  installed?: { packages: { name: string; summary?: string }[]; setup: boolean }
-  /** How putting that back went, if it was made again with any. */
-  restored?: {
-    at: string
-    installed: string[]
-    missed: string[]
-    setup?: 'ran' | 'failed' | 'stopped'
-    stopped?: true
-  }
-}
-
 /**
  * A Familiar's computer in detail, read only while someone looks at it:
  * use it only in what's shown then. Refreshed every few seconds.
@@ -142,12 +98,6 @@ export const computerDetailQuery = (familiar: FamiliarSummary['id']) =>
     gcTime: 0,
   })
 
-/** One Familiar's computer in the overview. */
-export type ComputerSummary = Pick<
-  ComputerDetail,
-  'doing' | 'since' | 'lastUsed'
-> & { familiar: FamiliarSummary['id']; state: 'running' | 'asleep' }
-
 /**
  * Every Familiar's computer, from the host the daemon holds, and how many
  * it allows. Null where nothing serves it.
@@ -160,10 +110,7 @@ export const computersQuery = queryOptions({
       return null
     }
     await check(response)
-    return (await response.json()) as {
-      max?: number
-      computers: ComputerSummary[]
-    }
+    return (await response.json()) as ComputersSummary
   },
   refetchInterval: 5000,
 })

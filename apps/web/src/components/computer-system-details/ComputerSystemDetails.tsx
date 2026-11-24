@@ -1,11 +1,11 @@
 import { BrowsersIcon, CpuIcon } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { HourglassSpinner } from '@/components/hourglass-spinner'
+import type { Usage } from '@familiar-ai/computer'
 import {
   computerDetailQuery,
   describeCall,
   programsByName,
-  type Usage,
 } from '@/lib/computers'
 import { formatAgo, formatBytes } from '@/lib/format'
 import { DetailSection } from './components/detail-section'
