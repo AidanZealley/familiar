@@ -8,6 +8,7 @@ export type { Store, StoreOptions } from './mirror.ts'
 export type { FamiliarChange, RoomChange, RoomSetup } from './commands.ts'
 export type { Connection } from './events.ts'
 export { composeMessage, type Picked } from './mentions.ts'
+export { IMAGE_LIMITS, type OutgoingImage } from './images.ts'
 export { toRoomTranscript } from './transcript.ts'
 export type {
   ToolCall,
@@ -34,6 +35,7 @@ export type {
   McpServer,
   MemoryState,
   Mention,
+  MessageImage,
   ModelDefaults,
   ModelDefaultsChange,
   ModelOption,

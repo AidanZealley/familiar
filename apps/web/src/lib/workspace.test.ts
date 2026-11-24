@@ -18,14 +18,22 @@ describe('previewOf', () => {
         [ada],
         'me',
       ),
-    ).toBe('You: Hi')
+    ).toEqual({ by: 'You', text: 'Hi' })
     expect(
       previewOf(
         { kind: 'message', author: me, text: 'Hi', at, entry },
         [ada],
         'other',
       ),
-    ).toBe('Sam: Hi')
+    ).toEqual({ by: 'Sam', text: 'Hi' })
+    // Images alone still read as something, after their icon.
+    expect(
+      previewOf(
+        { kind: 'message', author: me, text: '', images: 2, at, entry },
+        [ada],
+        'me',
+      ),
+    ).toEqual({ by: 'You', images: 2, text: 'Images' })
     expect(
       previewOf(
         {
@@ -39,7 +47,7 @@ describe('previewOf', () => {
         } as RoomPreview,
         [ada],
         'me',
-      ),
+      ).text,
     ).toBe('Ada: Sure')
   })
 
@@ -58,8 +66,8 @@ describe('previewOf', () => {
         'me',
         true,
       )
-    expect(reply('answered', 'Sure')).toBe('Sure')
-    expect(reply('failed', 'partial')).toBe("Couldn't answer")
+    expect(reply('answered', 'Sure').text).toBe('Sure')
+    expect(reply('failed', 'partial').text).toBe("Couldn't answer")
   })
 
   it('says a failed reply failed, whatever it said', () => {
@@ -76,7 +84,7 @@ describe('previewOf', () => {
         } as RoomPreview,
         [ada],
         'me',
-      ),
+      ).text,
     ).toBe("Gone couldn't answer")
   })
 })

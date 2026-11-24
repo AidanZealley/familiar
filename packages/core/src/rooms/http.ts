@@ -112,11 +112,17 @@ export function roomRoutes(rooms: RoomsApi) {
           if (body.mentions !== undefined && !Array.isArray(body.mentions)) {
             return c.json({ error: 'mentions must be a list' }, 400)
           }
+          if (body.images !== undefined && !Array.isArray(body.images)) {
+            return c.json({ error: 'images must be a list' }, 400)
+          }
           return {
             text: body.text as string,
             requestId: body.requestId as string,
             ...(body.mentions !== undefined && {
               mentions: body.mentions as Mention[],
+            }),
+            ...(body.images !== undefined && {
+              images: body.images as { data: string; mimeType: string }[],
             }),
           }
         }),

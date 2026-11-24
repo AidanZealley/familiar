@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { WarningCircleIcon } from '@phosphor-icons/react'
+import { ImageIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { LiveStatus } from '@/components/live-status'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +21,7 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
   const unread = room?.unread ?? 0
   const hasUnread = unread > 0
   const failed = last?.kind === 'reply' && last.outcome === 'failed'
+  const preview = last && previewOf(last, familiars, me, room?.kind === 'dm')
 
   return (
     <ItemContent className="min-w-0 gap-0">
@@ -48,7 +49,7 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
       <div className="flex h-4 min-w-0 items-center gap-2">
         {room?.turns.length ? (
           <LiveStatus live={live} className="flex-1" />
-        ) : last ? (
+        ) : preview ? (
           <ItemDescription
             className={cn(
               'flex min-w-0 flex-1 items-center gap-1 text-xs',
@@ -57,9 +58,21 @@ export const RowSummary = ({ title, room, fallback }: RowSummaryProps) => {
             )}
           >
             {failed && <WarningCircleIcon className="size-3 shrink-0" />}
-            <span className="truncate">
-              {previewOf(last, familiars, me, room?.kind === 'dm')}
-            </span>
+            {preview.by && <span className="shrink-0">{preview.by}:</span>}
+            {preview.images && (
+              <span
+                className="flex shrink-0 items-center gap-0.5"
+                aria-label={`${preview.images} image${preview.images === 1 ? '' : 's'}`}
+              >
+                <ImageIcon className="size-3" />
+                {preview.images > 1 && (
+                  <span className="text-[11px] tabular-nums">
+                    {preview.images}
+                  </span>
+                )}
+              </span>
+            )}
+            <span className="truncate">{preview.text}</span>
           </ItemDescription>
         ) : (
           fallback && (
