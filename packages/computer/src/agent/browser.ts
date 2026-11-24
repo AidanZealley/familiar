@@ -99,30 +99,57 @@ export type Browser = ReturnType<typeof openBrowser>
 
 /**
  * The page's AI snapshot, which shows what's typed in each field, with
- * every password field's value masked, in any frame or shadow root, so the
- * model never reads one, such as a saved login `sign_in` filled.
+ * every password field's value masked, in any frame or open shadow root, so
+ * the model never reads one, such as a saved login `sign_in` filled.
+ *
+ * Fields are found by identity, not by their value, since the snapshot
+ * quotes and reflows values: each password field with a value is
+ * snapshotted alone, which gives its ref, and that ref's line is masked.
+ * If any such field has no ref, as when it's hidden or the page changed
+ * meanwhile, every value in the snapshot is masked instead.
  */
 export async function snapshotWithoutPasswords(page: Page) {
   const snapshot = await page.ariaSnapshot({ mode: 'ai' })
-  const fields = await Promise.all(
-    page.frames().map((frame) =>
-      frame
-        .locator('input[type=password]')
-        .evaluateAll((fields) =>
-          fields.map((field) => (field as unknown as { value: string }).value),
-        )
-        .catch((): string[] => []),
-    ),
-  )
-  const passwords = fields.flat().filter(Boolean)
+  const refs = await Promise.all(
+    page.frames().map(async (frame) => {
+      const fields = await frame.locator('input[type=password]').all()
+      return Promise.all(
+        fields.map(async (field) => {
+          const [value, own] = await Promise.all([
+            field.inputValue({ timeout: 1000 }),
+            field.ariaSnapshot({ mode: 'ai', timeout: 1000 }),
+          ])
+          return value ? (own.match(REF)?.[1] ?? null) : undefined
+        }),
+      )
+    }),
+  ).catch(() => [[null]])
+  const found = refs.flat().filter((ref) => ref !== undefined)
+  const all = found.includes(null)
   return snapshot
     .split('\n')
     .map((line) => {
-      const password = passwords.find((value) => line.endsWith(`: ${value}`))
-      return password ? `${line.slice(0, -password.length)}••••••••` : line
+      const ref = line.match(REF)?.[1]
+      if (!ref || (!all && !found.includes(ref))) {
+        return line
+      }
+      const field = line.match(FIELD)
+      if (!field) {
+        return `${line.match(/^\s*/)![0]}- hidden [ref=${ref}]`
+      }
+      const [, start, key, value] = field
+      return value ? `${start}${key}: ••••••••` : line
     })
     .join('\n')
 }
+
+/** A snapshot line's ref. */
+const REF = /\[ref=([^\]]+)\]/
+/**
+ * A snapshot line with a ref: its start, its key up to its last
+ * attribute, unquoted, and any value after it.
+ */
+const FIELD = /^(\s*- )'?(.*\[ref=[^\]]+\](?: \[[^\]]*\])*)'?(?::(?: (.+))?)?$/
 
 /** Settles with `fallback` if `promise` takes longer than 500 ms. */
 const within = <T>(promise: Promise<T>, fallback: T) =>
