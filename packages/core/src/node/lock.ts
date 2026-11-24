@@ -1,62 +1,131 @@
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
 
 /**
- * Claim a data directory for this process, through a lock file at `path`.
+ * Claim a data directory for this process, through a lock at `path`.
  * Pi Durable allows one process per storage and has no cross-process
  * locking, so a second process must stop before it opens anything. Throws
- * while another live process holds it; a crashed one's lock is taken over.
+ * while another process holds it.
  */
 export function lockDataDir(path: string) {
   const lock = takeLock(path)
   if (!lock.taken) {
     throw new Error(
-      `Familiar is already running (process ${lock.holder}). Stop it first.`,
+      `Familiar is already running${byProcess(lock.holder)}. Stop it first.`,
     )
   }
 }
 
+/** " (process 123)", or nothing when the holder didn't say. */
+const byProcess = (holder: number | undefined) =>
+  holder ? ` (process ${holder})` : ''
+
 /**
- * Take the lock file at `path` for this process, until it's released or
- * the process exits, or say which live process holds it. A crashed
- * holder's lock is taken over.
+ * Locks held by this process, kept referenced: closing one, as collecting
+ * it would, lets the lock go.
+ */
+const held = new Set<DatabaseSync>()
+
+/**
+ * Take the lock at `path` for this process, until it's released or the
+ * process exits, or say which process holds it, if it said.
+ *
+ * The lock is the operating system's, taken through SQLite on
+ * `<path>.db`: the kernel lets it go when its holder exits, crashed or
+ * not, so there's no stale lock to judge or take over, and two processes
+ * can never both hold it. `path` holds the holder's process ID for
+ * messages, written whole once it holds the lock; it decides nothing.
+ * `<path>.db` is never removed, as a second file would be a second lock.
  */
 export function takeLock(
   path: string,
-): { taken: true; release(): void } | { taken: false; holder: number } {
+): { taken: true; release(): void } | { taken: false; holder?: number } {
+  const legacy = legacyHolder(path)
+  if (legacy !== undefined) {
+    return { taken: false, holder: legacy }
+  }
+  const db = new DatabaseSync(`${path}.db`)
   try {
-    writeFileSync(path, String(process.pid), { flag: 'wx', mode: 0o600 })
+    // Waits out another process's brief look in `lockHeld`.
+    db.exec('PRAGMA busy_timeout = 1000; BEGIN EXCLUSIVE')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+    db.close()
+    if (!isBusy(error)) {
       throw error
     }
-    const holder = lockHolder(path)
-    if (holder !== undefined) {
-      return { taken: false, holder }
-    }
-    // Left behind by a process that crashed.
-    writeFileSync(path, String(process.pid), { mode: 0o600 })
+    return { taken: false, holder: recordedHolder(path) }
   }
+  held.add(db)
+  const temporary = `${path}.${process.pid}.tmp`
+  writeFileSync(temporary, String(process.pid), { mode: 0o600 })
+  renameSync(temporary, path)
   const release = () => {
-    rmSync(path, { force: true })
     process.off('exit', release)
+    if (!held.delete(db)) {
+      return
+    }
+    // Before letting go, so it never names the next holder.
+    rmSync(path, { force: true })
+    db.close()
   }
   process.on('exit', release)
   return { taken: true, release }
 }
 
-/** The live process holding the lock file at `path`, if any. */
-export function lockHolder(path: string): number | undefined {
-  let owner: number
-  try {
-    owner = Number(readFileSync(path, 'utf8'))
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return undefined
-    }
-    throw error
+/** Whether a process holds the lock at `path`. */
+export function lockHeld(path: string): boolean {
+  if (!existsSync(`${path}.db`)) {
+    return legacyHolder(path) !== undefined
   }
-  // An empty or torn file names no process; 0 would mean our own group.
-  return owner > 0 && isRunning(owner) ? owner : undefined
+  const db = new DatabaseSync(`${path}.db`)
+  try {
+    // A shared lock, refused while another holds it exclusively.
+    db.exec(
+      'PRAGMA busy_timeout = 0; BEGIN; SELECT count(*) FROM sqlite_master; COMMIT',
+    )
+    return false
+  } catch (error) {
+    if (!isBusy(error)) {
+      throw error
+    }
+    return true
+  } finally {
+    db.close()
+  }
+}
+
+const isBusy = (error: unknown) =>
+  (error as { errcode?: number }).errcode === SQLITE_BUSY
+
+const SQLITE_BUSY = 5
+
+/** The process ID the holder recorded at `path`, if it has yet. */
+function recordedHolder(path: string) {
+  try {
+    const pid = Number(readFileSync(path, 'utf8'))
+    return pid > 0 ? pid : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The live process holding `path` as a version before `<path>.db` did: a
+ * process ID alone, which it never removed on a crash. Only consulted
+ * until a lock is first taken here, across the update that brings this.
+ */
+function legacyHolder(path: string) {
+  if (existsSync(`${path}.db`)) {
+    return undefined
+  }
+  const pid = recordedHolder(path)
+  return pid && pid !== process.pid && isRunning(pid) ? pid : undefined
 }
 
 function isRunning(pid: number) {
