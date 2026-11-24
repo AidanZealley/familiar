@@ -10,6 +10,7 @@ type Control = {
   readonly ownerDocument: { readonly location: { readonly origin: string } }
   readonly form?: {
     readonly action: string
+    readonly elements: ArrayLike<Control>
     method: string
     checkValidity(): boolean
   } | null
@@ -60,18 +61,17 @@ export async function signIn(
       ? page.locator(`aria-ref=${controls.submit}`)
       : page.getByRole('button', { name: controls.submitLabel, exact: true })
 
-  const checked = await checkControls(
-    login.origin,
-    password,
-    username,
-    submit,
-  ).catch(() => 'controls' as const)
-  if (checked === 'controls') {
+  const secure = () =>
+    secureForm(login.origin, password, username, submit).catch(
+      () => 'controls' as const,
+    )
+  const before = await secure()
+  if (before === 'controls') {
     return failed(
       "Couldn't use those controls. Take a fresh browser snapshot and pass the username and password fields and the Log In button.",
     )
   }
-  if (checked === 'destination') {
+  if (before === 'destination') {
     return failed(
       "This form would send the login to another site, so it wasn't filled.",
     )
@@ -95,7 +95,13 @@ export async function signIn(
         "Filled the login, but the Log In button couldn't be clicked. Check the page for a missing field or a challenge.",
       )
     }
-    if (!(await sendsByPost(password, submit))) {
+    const after = await secure()
+    if (after === 'destination' || after === 'controls') {
+      return failed(
+        "The form changed after the login was filled, so it wasn't submitted.",
+      )
+    }
+    if (after === 'incomplete') {
       return failed(
         "Filled the login, but the form isn't complete. Check the page for a missing field.",
       )
@@ -112,10 +118,13 @@ export async function signIn(
 }
 
 /**
- * Whether the controls are a username field, a password field and a button
- * all on `origin`, in a form that sends to `origin`.
+ * Checks the controls are a username field, a password field and a button
+ * all on `origin`, in a form, if any, that sends only to `origin`, by any of
+ * its buttons, as a script may submit it with any. Then makes the form send
+ * by POST, its buttons' own methods removed, and says whether the browser
+ * would send it now: not with a required field empty.
  */
-async function checkControls(
+async function secureForm(
   origin: string,
   password: Locator,
   username: Locator,
@@ -142,37 +151,28 @@ async function checkControls(
         return 'controls'
       }
       const form = field!.form
-      // Where the form sends, as the button may override it.
-      const action =
-        form &&
-        (send!.hasAttribute('formaction') ? send!.formAction! : form.action)
-      return action && new URL(action).origin !== origin
-        ? 'destination'
-        : undefined
+      if (!form) {
+        return 'ready'
+      }
+      const submitters = Array.from(form.elements).filter((control) =>
+        control.matches('button:not([type]), [type=submit], [type=image]'),
+      )
+      const actions = [
+        form.action,
+        ...submitters
+          .filter((control) => control.hasAttribute('formaction'))
+          .map((control) => control.formAction!),
+      ]
+      if (actions.some((action) => new URL(action).origin !== origin)) {
+        return 'destination'
+      }
+      form.method = 'post'
+      for (const control of [...submitters, send!]) {
+        control.removeAttribute('formmethod')
+      }
+      return form.checkValidity() ? 'ready' : 'incomplete'
     },
     [...others, origin] as const,
     { timeout: TIMEOUT },
-  )
-}
-
-/**
- * Makes the password's form, if any, send by POST, the button's own method
- * included, and says whether the browser would send it now: not with a
- * required field empty.
- */
-const sendsByPost = async (password: Locator, submit: Locator) => {
-  const button = await submit.elementHandle({ timeout: 1000 })
-  return password.evaluate(
-    (element, button) => {
-      const form = (element as unknown as Control).form
-      if (!form) {
-        return true
-      }
-      form.method = 'post'
-      ;(button as unknown as Control).removeAttribute('formmethod')
-      return form.checkValidity()
-    },
-    button,
-    { timeout: 1000 },
   )
 }
