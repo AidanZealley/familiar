@@ -11,4 +11,5 @@ export type {
   ComputersSummary,
   Usage,
 } from './host.ts'
+export type { ComputerLogin } from './logins.ts'
 export { computer, type ComputerOptions } from './plugin.ts'

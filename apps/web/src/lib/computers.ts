@@ -1,6 +1,7 @@
 import type { ConnectionInfo, FamiliarSummary } from '@familiar-ai/client'
 import type {
   ComputerCall,
+  ComputerLogin,
   ComputerDetail,
   ComputerStatus,
   ComputersSummary,
@@ -191,8 +192,6 @@ export const programsByName = (
   }
   return [...named.values()].sort((a, b) => (b.memory ?? 0) - (a.memory ?? 0))
 }
-
-export type ComputerLogin = { origin: string; username: string }
 
 const loginsPath = (familiar: FamiliarSummary['id']) =>
   `/api/plugins/computer/familiars/${familiar}/logins`

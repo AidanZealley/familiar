@@ -25,6 +25,9 @@ const login = loginKey.extend({ password: z.string().min(1) })
 export type Login = z.output<typeof login>
 type LoginKey = z.output<typeof loginKey>
 
+/** A saved login as its routes list it: its site and username, never its password. */
+export type ComputerLogin = LoginKey
+
 /** Its secret's name: each Familiar's logins are one encrypted JSON list. */
 export const LOGINS = 'logins'
 
@@ -63,7 +66,7 @@ export function computerLogins() {
       return logins.length ? JSON.stringify(logins) : undefined
     })
 
-  const list = async (familiar: FamiliarId) =>
+  const list = async (familiar: FamiliarId): Promise<ComputerLogin[]> =>
     (await read(familiar)).map(({ origin, username }) => ({ origin, username }))
 
   const save = (familiar: FamiliarId, value: Login) =>
