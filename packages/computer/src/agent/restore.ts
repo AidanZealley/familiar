@@ -1,6 +1,7 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { access, mkdir, open, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { ComputerDetail, ComputerRestore } from '../host.ts'
 import { APT_BASELINE, RESTORED } from './layout.ts'
 
 // A computer made again from a newer image has its home, but not what was
@@ -14,20 +15,7 @@ import { APT_BASELINE, RESTORED } from './layout.ts'
 /** How long restoring may take in all; then it stops, wherever it got to. */
 export const RESTORE_LIMIT_MS = 10 * 60_000
 
-/** How restoring went, as the marker records it. */
-export type Restored = {
-  at: string
-  /** Recorded packages it installed. */
-  installed: string[]
-  /** Recorded packages it couldn't install, such as ones apt no longer has. */
-  missed: string[]
-  /** How `setup.sh` went, if there is one. */
-  setup?: Outcome
-  /** It reached its time limit. */
-  stopped?: true
-}
-
-type Outcome = 'ran' | 'failed' | 'stopped'
+type Outcome = NonNullable<ComputerRestore['setup']>
 
 /** apt's package names, so a line can't pass for an option. */
 const PACKAGE = /^[a-z0-9][a-z0-9+.:-]*$/
@@ -52,7 +40,7 @@ const exists = (path: string) =>
 export async function restore(
   home: string,
   limitMs = RESTORE_LIMIT_MS,
-): Promise<Restored | undefined> {
+): Promise<ComputerRestore | undefined> {
   if (await exists(RESTORED)) {
     return undefined
   }
@@ -64,7 +52,7 @@ export async function restore(
     await readFile(join(records, 'apt-packages'), 'utf8').catch(() => ''),
   ).filter((name) => !baseline.has(name))
   const setup = join(records, 'setup.sh')
-  const restored: Restored = {
+  const restored: ComputerRestore = {
     at: new Date().toISOString(),
     installed: [],
     missed: [],
@@ -91,7 +79,7 @@ async function restoreFrom(
   packages: string[],
   setup: string,
   limitMs: number,
-  restored: Restored,
+  restored: ComputerRestore,
 ) {
   await mkdir(records, { recursive: true })
   const log = await open(join(records, 'restore.log'), 'w')
@@ -180,7 +168,7 @@ const countOf = (count: number) =>
   `${count} apt package${count === 1 ? '' : 's'}`
 
 /** What the Familiar is told of a restore, if there was anything to restore. */
-export function noteOf(restored: Restored | undefined) {
+export function noteOf(restored: ComputerRestore | undefined) {
   if (!restored) {
     return undefined
   }
@@ -223,3 +211,57 @@ export function restoring(home: string) {
 }
 
 export type Restoring = ReturnType<typeof restoring>
+
+/**
+ * What's installed on the computer whose home is `home` beyond its image,
+ * as the records say, each package with apt's one-line summary, and how the
+ * last restore went if it put anything back. While a restore runs, the
+ * records say what it's putting back.
+ */
+export async function installedOn(
+  home: string,
+): Promise<Pick<ComputerDetail, 'installed' | 'restored'>> {
+  const records = join(home, '.familiar')
+  const names = lines(
+    await readFile(join(records, 'apt-packages'), 'utf8').catch(() => ''),
+  ).filter((name) => PACKAGE.test(name))
+  const summaries = await summariesOf(names)
+  const restored = await readFile(RESTORED, 'utf8').then(
+    (text) => JSON.parse(text) as ComputerRestore,
+    () => undefined,
+  )
+  return {
+    installed: {
+      packages: names.map((name) => ({ name, summary: summaries.get(name) })),
+      setup: await exists(join(records, 'setup.sh')),
+    },
+    restored:
+      restored &&
+      (restored.installed.length || restored.missed.length || restored.setup)
+        ? restored
+        : undefined,
+  }
+}
+
+/** apt's one-line summary of each installed package of `names`. */
+const summariesOf = (names: string[]) =>
+  new Promise<Map<string, string>>((resolve) => {
+    if (!names.length) {
+      return resolve(new Map())
+    }
+    // A package that isn't installed fails the query, but the rest print.
+    execFile(
+      'dpkg-query',
+      ['-W', '-f=${binary:Package}\t${binary:Summary}\n', '--', ...names],
+      (_error, stdout) =>
+        resolve(
+          new Map(
+            lines(stdout ?? '').flatMap((line) => {
+              // Named as apt-mark names it, `name:arch` when it must be.
+              const [name = '', summary] = line.split('\t')
+              return summary ? [[name, summary] as const] : []
+            }),
+          ),
+        ),
+    )
+  })

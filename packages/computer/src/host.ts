@@ -125,6 +125,28 @@ export type ComputerDetail = {
   /** The browser's open tabs. */
   tabs?: { title: string; url: string }[]
   system?: { os?: string; architecture?: string }
+  /**
+   * What's installed beyond its image, which comes back when it's made
+   * again from a newer one: packages with their one-line summaries, and
+   * whether it has a setup script for the rest.
+   */
+  installed?: { packages: { name: string; summary?: string }[]; setup: boolean }
+  /** How putting that back went, if this computer was made again with any. */
+  restored?: ComputerRestore
+}
+
+/**
+ * How a computer made again from a newer image put back what had been
+ * installed on it: when, which packages it reinstalled and which it
+ * couldn't, how the setup script went if there is one, and whether it was
+ * stopped at its time limit.
+ */
+export type ComputerRestore = {
+  at: string
+  installed: string[]
+  missed: string[]
+  setup?: 'ran' | 'failed' | 'stopped'
+  stopped?: true
 }
 
 /** One Familiar's computer in a host's overview. */

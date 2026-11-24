@@ -1,3 +1,4 @@
+import type { ComputerLogin } from '@familiar-ai/computer'
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type SubmitEvent } from 'react'
@@ -18,7 +19,6 @@ import {
   deleteComputerLogin,
   loginsQuery,
   saveComputerLogin,
-  type ComputerLogin,
 } from '@/lib/computers'
 import type { ComputerLoginsProps } from './types'
 

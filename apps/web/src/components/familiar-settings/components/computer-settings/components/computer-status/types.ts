@@ -1,5 +1,5 @@
 import type { FamiliarSummary } from '@familiar-ai/client'
-import type { ComputerStatus } from '@/lib/computers'
+import type { ComputerStatus } from '@familiar-ai/computer'
 
 export type ComputerStatusProps = {
   familiar: FamiliarSummary

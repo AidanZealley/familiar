@@ -1,4 +1,4 @@
-import type { Usage } from '@/lib/computers'
+import type { Usage } from '@familiar-ai/computer'
 
 export type UsageMeterProps = {
   label: string

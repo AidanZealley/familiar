@@ -179,6 +179,9 @@ importers:
       '@familiar-ai/client':
         specifier: workspace:*
         version: link:../../packages/client
+      '@familiar-ai/computer':
+        specifier: workspace:*
+        version: link:../../packages/computer
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
