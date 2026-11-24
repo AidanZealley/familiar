@@ -53,7 +53,7 @@ export async function stageImage(dir: string) {
       {
         private: true,
         type: 'module',
-        dependencies: { playwright: manifest.dependencies.playwright },
+        dependencies: { playwright: manifest.devDependencies.playwright },
       },
       null,
       2,

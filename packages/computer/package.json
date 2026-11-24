@@ -38,13 +38,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/client": "catalog:",
-    "@modelcontextprotocol/server": "catalog:",
-    "playwright": "1.65.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@familiar-ai/core": "workspace:*",
+    "@modelcontextprotocol/server": "catalog:",
     "hono": "catalog:",
+    "playwright": "1.65.1",
     "rolldown": "1.2.15"
   }
 }

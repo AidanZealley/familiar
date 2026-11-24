@@ -6,8 +6,16 @@ name: Computer image
 # what packages name; so a release whose image is unchanged publishes nothing
 # here. Workflows that publish a package naming the key run this first, so
 # every key a package names exists, for both platforms, before it's published.
+# It can also be run by hand on any branch (`gh workflow run computer-image.yml
+# --ref <branch>`), to publish or check that branch's image without a release.
 on:
   workflow_call:
+  workflow_dispatch:
+
+# What publishing to ghcr.io needs, when run by hand; a caller grants the same.
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   # Stages the build context and its key. The platform builds use this one
