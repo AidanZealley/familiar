@@ -70,29 +70,40 @@ const starts = (prefix: number[]) => (bytes: Uint8Array) =>
 
 const ascii = (text: string) => [...text].map((char) => char.charCodeAt(0))
 
-/** Chunks, from the signature to IEND: IHDR first, image data, and APNG's frame count. */
+/**
+ * Chunks, from the signature to IEND: one IHDR, first; at most one acTL,
+ * APNG's frame count, before the image data; and image data, not empty.
+ */
 function readPng(bytes: Bytes): ImageHeader {
   let offset = 8
   let header: { width: number; height: number } | undefined
   let frames = 1
+  let animated = false
   let data = false
   for (;;) {
     const length = bytes.u32be(offset)
     const type = bytes.text(offset + 4, 4)
     // The chunk's data and CRC must be there.
     bytes.at(offset + 12 + length - 1)
-    if (!header && type !== 'IHDR') {
-      throw new Error('no IHDR')
+    if (!header !== (type === 'IHDR')) {
+      throw new Error('IHDR not first, or repeated')
     }
     if (type === 'IHDR') {
+      if (length !== 13) {
+        throw new Error('bad IHDR')
+      }
       header = {
         width: bytes.u32be(offset + 8),
         height: bytes.u32be(offset + 12),
       }
     } else if (type === 'acTL') {
+      if (length !== 8 || animated || data) {
+        throw new Error('bad acTL')
+      }
+      animated = true
       frames = bytes.u32be(offset + 8)
     } else if (type === 'IDAT') {
-      data = true
+      data ||= length > 0
     } else if (type === 'IEND') {
       if (!data) {
         throw new Error('no IDAT')
@@ -155,10 +166,13 @@ const hasEoi = (tail: Uint8Array) => {
   return end >= 2 && tail[end - 2] === 0xff && tail[end - 1] === 0xd9
 }
 
-/** Blocks, from the screen descriptor to the trailer, counting images. */
+/**
+ * Blocks, from the screen descriptor to the trailer, counting images. Its
+ * size covers every image, which may reach past the screen.
+ */
 function readGif(bytes: Bytes): ImageHeader {
-  const width = bytes.u16le(6)
-  const height = bytes.u16le(8)
+  let width = bytes.u16le(6)
+  let height = bytes.u16le(8)
   const flags = bytes.at(10)
   let offset = 13 + (flags & 0x80 ? 3 * 2 ** ((flags & 7) + 1) : 0)
   let frames = 0
@@ -177,6 +191,12 @@ function readGif(bytes: Bytes): ImageHeader {
       offset += 2
       subBlocks()
     } else if (block === 0x2c) {
+      const [w, h] = [bytes.u16le(offset + 5), bytes.u16le(offset + 7)]
+      if (!w || !h) {
+        throw new Error('empty image')
+      }
+      width = Math.max(width, bytes.u16le(offset + 1) + w)
+      height = Math.max(height, bytes.u16le(offset + 3) + h)
       const local = bytes.at(offset + 9)
       offset += 10 + (local & 0x80 ? 3 * 2 ** ((local & 7) + 1) : 0)
       // LZW minimum code size, then the image data.
@@ -203,7 +223,10 @@ function readWebp(bytes: Bytes): ImageHeader {
     const type = bytes.text(offset, 4)
     const length = bytes.u32le(offset + 4)
     const data = offset + 8
-    bytes.at(data + length - 1)
+    // Within the RIFF size, not only the bytes there are.
+    if (data + length > end) {
+      throw new Error('chunk past the end')
+    }
     if (type === 'VP8X') {
       canvas = {
         width: bytes.u24le(data + 4) + 1,
