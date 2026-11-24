@@ -123,19 +123,35 @@ export async function update(source?: UpdateSource) {
       process.platform === 'win32' ? '../..' : '../../..',
     )
     const service = openService(paths)
-    await service.withStopped(async () => {
+    const running = service.isRunning()
+    if (running) {
+      service.stop()
+    }
+    try {
       write({ phase: 'installing' })
       runNpm(['install', '--global', '--prefix', prefix, files.package], {
         stdio: ['ignore', log, log],
       })
-      write({
-        phase: 'restarting',
-        to: installedPackage(paths.cliPath)?.version,
-      })
+    } catch (error) {
+      // The old version, as it was.
+      if (running) {
+        service.start()
+      }
+      throw error
+    }
+    write({
+      phase: 'restarting',
+      to: installedPackage(paths.cliPath)?.version,
     })
+    // Registered afresh as it starts, so a registration from an older
+    // version, such as one without the data folder as its working
+    // directory, doesn't outlive the update.
+    if (running) {
+      service.install()
+    }
     // Installed isn't enough: a version that fails to start isn't an update.
     // A service that wasn't running stays stopped, with nothing to wait for.
-    if (service.isRunning()) {
+    if (running) {
       await waitForService(readSettings(paths.dataDir).port)
     }
     write({ phase: 'done', endedAt: new Date().toISOString() })

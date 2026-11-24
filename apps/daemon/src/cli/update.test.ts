@@ -66,14 +66,9 @@ beforeEach(() => {
   })
   vi.mocked(openService).mockReturnValue({
     isRunning: () => true,
-    withStopped: async (work: () => Promise<void>) => {
-      events.push('stop')
-      try {
-        await work()
-      } finally {
-        events.push('start')
-      }
-    },
+    stop: () => events.push('stop'),
+    start: () => events.push('start'),
+    install: () => events.push('register'),
   } as never)
   vi.mocked(runNpm).mockImplementation(() => {
     events.push('install')
@@ -98,7 +93,14 @@ afterEach(() => {
 
 test('downloads before stopping, installs into this prefix, and records the result', async () => {
   await update()
-  expect(events).toEqual(['download', 'stop', 'install', 'start', 'answered'])
+  expect(events).toEqual([
+    'download',
+    'stop',
+    'install',
+    // The new version's service registration replaces the old one's.
+    'register',
+    'answered',
+  ])
   expect(downloaded()).toBe(
     'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
   )
