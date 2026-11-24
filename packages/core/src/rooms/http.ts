@@ -20,6 +20,9 @@ async function refusable(c: Context, run: () => Promise<Response>) {
   try {
     return await run()
   } catch (error) {
+    if (error instanceof MessageError && error.image) {
+      return c.json({ error: error.message, image: error.image }, 400)
+    }
     if (error instanceof RoomError || error instanceof MessageError) {
       return c.json({ error: error.message }, 400)
     }

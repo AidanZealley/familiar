@@ -12,7 +12,8 @@ export const IMAGE_LIMITS: typeof CoreImageLimits = {
   count: 10,
   bytes: 1_500_000,
   pixels: 1568,
+  frames: 300,
 }
 
-/** An image to send: base64, which core checks is a PNG, JPEG, GIF or WebP. */
+/** An image to send: base64, which core checks is a whole PNG, JPEG, GIF or WebP. */
 export type OutgoingImage = Pick<MessageImage, 'data' | 'mimeType'>
