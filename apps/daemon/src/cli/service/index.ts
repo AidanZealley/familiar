@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises'
 import { linuxService } from './linux.ts'
 import { macosService } from './macos.ts'
 import { windowsService } from './windows.ts'
@@ -49,4 +50,29 @@ function platformService(options: ServiceOptions): PlatformService {
         'Automatic service setup supports Linux, macOS and Windows. Use familiar sign-in and familiar serve on this platform.',
       )
   }
+}
+
+/**
+ * Waits for the service's daemon to answer on `port`, as it does once it
+ * has opened its HTTP listener after starting. Throws if it doesn't within
+ * about five seconds.
+ */
+export async function waitForService(port: number) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/connections`, {
+        signal: AbortSignal.timeout(500),
+      })
+      await response.body?.cancel()
+      if (response.ok) {
+        return
+      }
+    } catch {
+      // systemd starts Node before the daemon has opened its HTTP listener.
+    }
+    await setTimeout(250)
+  }
+  throw new Error(
+    'Familiar did not answer after starting. Run familiar logs to inspect the service.',
+  )
 }

@@ -18,7 +18,10 @@ import { publish } from './tailnet.ts'
 vi.mock('node:timers/promises', () => ({ setTimeout: async () => {} }))
 vi.mock('node:readline/promises', () => ({ createInterface: vi.fn() }))
 vi.mock('../models.ts', () => ({ openModels: vi.fn() }))
-vi.mock('./service/index.ts', () => ({ openService: vi.fn() }))
+vi.mock('./service/index.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./service/index.ts')>()),
+  openService: vi.fn(),
+}))
 vi.mock('./sign-in.ts', () => ({ signIn: vi.fn() }))
 vi.mock('./tailnet.ts', () => ({ publish: vi.fn() }))
 let temporary: string

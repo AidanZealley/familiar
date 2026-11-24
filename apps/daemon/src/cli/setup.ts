@@ -1,9 +1,8 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
-import { setTimeout } from 'node:timers/promises'
 import { ensureDataDir, resolvePaths } from '../paths.ts'
-import { openService } from './service/index.ts'
+import { openService, waitForService } from './service/index.ts'
 import { readSettings, saveSettings } from '../settings.ts'
 import { publish } from './tailnet.ts'
 
@@ -55,24 +54,4 @@ export async function setup() {
   if (url) {
     console.log(`On your tailnet: ${url}`)
   }
-}
-
-async function waitForService(port: number) {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/connections`, {
-        signal: AbortSignal.timeout(500),
-      })
-      await response.body?.cancel()
-      if (response.ok) {
-        return
-      }
-    } catch {
-      // systemd starts Node before the daemon has opened its HTTP listener.
-    }
-    await setTimeout(250)
-  }
-  throw new Error(
-    'Familiar did not answer after starting. Run familiar logs to inspect the service.',
-  )
 }

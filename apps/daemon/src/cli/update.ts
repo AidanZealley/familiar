@@ -13,7 +13,8 @@ import { pipeline } from 'node:stream/promises'
 import { lockHolder, takeLock } from '@familiar-ai/core/node'
 import { resolvePaths } from '../paths.ts'
 import { runNpm } from './npm.ts'
-import { openService } from './service/index.ts'
+import { readSettings } from '../settings.ts'
+import { openService, waitForService } from './service/index.ts'
 
 /** Where an update fetches the package from. */
 export type UpdateSource = 'release' | 'main'
@@ -119,7 +120,8 @@ export async function update(source?: UpdateSource) {
       installed.dir,
       process.platform === 'win32' ? '../..' : '../../..',
     )
-    await openService(paths).withStopped(async () => {
+    const service = openService(paths)
+    await service.withStopped(async () => {
       write({ phase: 'installing' })
       runNpm(['install', '--global', '--prefix', prefix, files.package], {
         stdio: ['ignore', log, log],
@@ -129,6 +131,11 @@ export async function update(source?: UpdateSource) {
         to: installedPackage(paths.cliPath)?.version,
       })
     })
+    // Installed isn't enough: a version that fails to start isn't an update.
+    // A service that wasn't running stays stopped, with nothing to wait for.
+    if (service.isRunning()) {
+      await waitForService(readSettings(paths.dataDir).port)
+    }
     write({ phase: 'done', endedAt: new Date().toISOString() })
     console.log(`Updated Familiar to ${record.to}.`)
   } catch (error) {

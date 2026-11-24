@@ -16,7 +16,11 @@ import { lastUpdate, update } from './update.ts'
 
 vi.mock('./npm.ts', () => ({ runNpm: vi.fn() }))
 vi.mock('../paths.ts', () => ({ resolvePaths: vi.fn() }))
-vi.mock('./service/index.ts', () => ({ openService: vi.fn() }))
+vi.mock('./service/index.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./service/index.ts')>()),
+  openService: vi.fn(),
+}))
+vi.mock('node:timers/promises', () => ({ setTimeout: async () => {} }))
 
 let root: string
 const dataDir = () => resolve(root, 'data')
@@ -35,6 +39,12 @@ const install = (version: string) =>
 const record = () =>
   JSON.parse(readFileSync(resolve(dataDir(), 'update.json'), 'utf8'))
 const fetched = vi.fn()
+/** The last package URL fetched, leaving out checks that the daemon answers. */
+const downloaded = () =>
+  fetched.mock.calls
+    .map(([url]) => url as string)
+    .filter((url) => !url.endsWith('/api/connections'))
+    .at(-1)
 // What the service is doing, in order, against when the download happened.
 const events: string[] = []
 
@@ -54,6 +64,7 @@ beforeEach(() => {
     webDir: '',
   })
   vi.mocked(openService).mockReturnValue({
+    isRunning: () => true,
     withStopped: async (work: () => Promise<void>) => {
       events.push('stop')
       try {
@@ -68,7 +79,11 @@ beforeEach(() => {
     install('0.5.0')
     return ''
   })
-  fetched.mockImplementation(async () => {
+  fetched.mockImplementation(async (url: string) => {
+    if (url.endsWith('/api/connections')) {
+      events.push('answered')
+      return new Response('[]')
+    }
     events.push('download')
     return new Response('package')
   })
@@ -82,8 +97,8 @@ afterEach(() => {
 
 test('downloads before stopping, installs into this prefix, and records the result', async () => {
   await update()
-  expect(events).toEqual(['download', 'stop', 'install', 'start'])
-  expect(fetched.mock.lastCall?.[0]).toBe(
+  expect(events).toEqual(['download', 'stop', 'install', 'start', 'answered'])
+  expect(downloaded()).toBe(
     'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
   )
   expect(vi.mocked(runNpm).mock.lastCall?.[0]).toEqual([
@@ -103,7 +118,7 @@ test('downloads before stopping, installs into this prefix, and records the resu
 })
 
 test('stays on the source its version names, unless told to switch', async () => {
-  const url = () => fetched.mock.lastCall?.[0]
+  const url = downloaded
   install('0.4.3-main.168a762c')
   vi.mocked(runNpm).mockReturnValue('')
   await update()
@@ -113,6 +128,18 @@ test('stays on the source its version names, unless told to switch', async () =>
   install('0.4.3')
   await update('main')
   expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
+})
+
+test("a version that doesn't answer after starting is a failed update", async () => {
+  const download = fetched.getMockImplementation()!
+  fetched.mockImplementation(async (url: string) => {
+    if (url.endsWith('/api/connections')) {
+      throw new Error('not listening')
+    }
+    return download(url)
+  })
+  await expect(update()).rejects.toThrow('did not answer after starting')
+  expect(record()).toMatchObject({ phase: 'failed', to: '0.5.0' })
 })
 
 test('a failed download never stops the service', async () => {
