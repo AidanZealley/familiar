@@ -13,6 +13,19 @@ const watchPhone = (change: () => void) => {
 export const useIsPhone = () =>
   useSyncExternalStore(watchPhone, () => phone.matches)
 
+const touch = window.matchMedia('(pointer: coarse)')
+const watchTouch = (change: () => void) => {
+  touch.addEventListener('change', change)
+  return () => touch.removeEventListener('change', change)
+}
+
+/**
+ * A touch screen is the main pointer: a phone or tablet, whose keyboard and
+ * native menus behave unlike a desktop's.
+ */
+export const useIsTouch = () =>
+  useSyncExternalStore(watchTouch, () => touch.matches)
+
 const watchVisibility = (change: () => void) => {
   document.addEventListener('visibilitychange', change)
   return () => document.removeEventListener('visibilitychange', change)
