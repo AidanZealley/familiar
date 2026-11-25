@@ -35,6 +35,8 @@ Settings live in `settings.json` in the data directory:
 
 Environment variables override the file: `FAMILIAR_NAME`, `FAMILIAR_OWNER`, `FAMILIAR_PORT`, `FAMILIAR_MODEL` for the default ChatGPT chat and memory model until you choose others in **Settings › Models**, and `FAMILIAR_DATA_DIR` for the data directory. Restart the service after changing either.
 
+Dates and reminders use the computer's time zone when Familiar starts. Restart it after you change time zones.
+
 The **Settings** menu in the web app switches between light, dark and system appearance, and signs out of ChatGPT.
 
 ### Model providers
@@ -49,44 +51,26 @@ Familiar reaches OpenAI's models through your ChatGPT sign-in. To use Anthropic,
 | macOS    | `~/Library/Application Support/Familiar` |
 | Windows  | `%LOCALAPPDATA%\Familiar`                |
 
-It holds the conversation, memory, your ChatGPT login, model providers' API keys, connection keys, notification subscriptions, [your own plugins](/familiar/use/extend/) and your Familiars' portraits. Keep it private.
-
-The service also runs in the data directory, so anything a tool writes to its working folder, such as a browser MCP server's screenshots, lands there and survives updates. A service installed by an older version runs in the app's own folder, which an update replaces; run `familiar` once to reinstall the service and move it.
+It holds the conversation, memory, logins and keys, notification subscriptions, [your own plugins](/familiar/use/extend/) and portraits. Keep it private. The service runs in it too, so files a tool writes to its working folder survive updates.
 
 ### Stored credentials
 
-Familiar encrypts connection keys in `secrets.json`, and your ChatGPT login and
-model providers' API keys in `auth.json`, under a `vault.key` it creates in the data directory. There's
-nothing to set up.
+Familiar encrypts connection keys in `secrets.json`, and your ChatGPT login and API keys in `auth.json`, under a `vault.key` it creates beside them.
 
-Stop Familiar before backing up or restoring the data directory, and keep
-`vault.key` with the files in every backup. Without it they can't be read: if
-it's lost, Familiar says so and leaves them alone. Delete them, then sign in
-and enter your keys again.
-
-Keep the machine and its backups private. Encryption protects copied credential
-files when the key is absent. The running daemon can decrypt them, and someone
-with control of its machine can too. Conversation history and other data are
-not encrypted by this credential store.
+Stop Familiar before backing up or restoring the data directory, and keep `vault.key` with the files. Without it they can't be read: delete them, then sign in and enter your keys again. Encryption protects copied files, not a machine someone controls, and the conversation itself isn't encrypted.
 
 ### Portraits
 
-Each Familiar starts with its own pixel character, generated from its ID, which looks around and blinks. In the web UI, its settings' Profile changes it to its initial on a colour, another character's shape or colour, or one of your own images.
+Each Familiar starts with a pixel character generated from its ID. Its settings' **Profile** changes it to its initial, another character, or one of your own images.
 
-Your own images go in the `avatars` folder in the data directory, which `familiar status` shows and the Image tab names. Each is a 64×32 PNG strip of two 32×32 frames, which the web UI alternates while the Familiar replies: draw whatever animation you like across them, the first frame being the one shown at rest. The file's name is the portrait's name. Familiar reads the folder as you use it, so new images show when you reopen the app.
-
-Dates and reminders use the computer's time zone when Familiar starts. Restart it after you change time zones.
+Your own images go in the `avatars` folder in the data directory. Each is a 64×32 PNG: two 32×32 frames, the first shown at rest, alternating while the Familiar replies. The file's name is the portrait's name.
 
 ## Updates and removal
 
-`familiar update` installs the newest version from where this installation came from, and restarts the service. A release updates to the latest release. A build of `main`, installed with `FAMILIAR_VERSION=main`, updates to the latest build of `main`. `familiar status` shows the version and which of the two it updates from.
+`familiar update` installs the newest version from the same source, a release or a build of `main`, and restarts. `familiar status` shows which. `--main` and `--release` switch source; switching back to releases installs the latest release even if it's older than your build.
 
-`familiar update --main` switches a release to the latest build of `main`, and `familiar update --release` switches back. Switching back installs the latest release even when it's older than your build of `main`, so wait for a release newer than it.
+**Settings › Updates** in the web app does the same and follows Familiar through the restart. It works only for an installed Familiar running as its service.
 
-You can also update from the web app: **Settings → Updates** shows the version Familiar runs and the latest of each source. Choose one and update; it does the same as `familiar update`, as a job of its own beside the service, so Familiar can restart while it runs. The page follows it through the restart, and shows the new version, or why the update failed and its log. You can close the page meanwhile. Only an installed Familiar running as its service can update itself this way; a source checkout updates with git, and `familiar serve` in a terminal with `familiar update`.
-
-The download comes first, so a failed download leaves Familiar running. If the install fails, Familiar starts again on the version it had. An update stopped part way, such as by a reboot, may leave Familiar unable to start; run the install script again to repair it.
-
-Updates don't back up your data first, and there's no rollback. Familiar has no export, import or automatic backups yet.
+A failed download leaves Familiar running, and a failed install starts it again on the old version. If an interrupted update leaves it unable to start, run the install script again. Updates don't back up your data, and there's no rollback.
 
 `familiar uninstall` removes the background service and the Tailscale address. Your data directory stays where it is.
