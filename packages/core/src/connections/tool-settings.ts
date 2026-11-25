@@ -1,7 +1,10 @@
 import { defineDoc, type Tx } from '@earendil-works/pi-durable'
+import type { ToolAnnotations } from '@modelcontextprotocol/client'
 import type { Connection } from './secrets.ts'
 
-export type ToolAnnotations = { destructiveHint?: boolean }
+/** MCP's tool annotations, which plugin tools declare too. */
+export type { ToolAnnotations } from '@modelcontextprotocol/client'
+
 export type ToolSettings = {
   enabled: boolean
   askBeforeRunning: boolean

@@ -14,6 +14,7 @@ import {
   SdkHttpError,
   StreamableHTTPClientTransport,
   type Tool,
+  type ToolAnnotations,
   type Transport,
 } from '@modelcontextprotocol/client'
 import type {
@@ -241,13 +242,7 @@ export function openConnection(
   // The server's tools as deferred Pi tools, found through tool_search,
   // which every server's extension carries. Pi offers one tool per name, so
   // a Familiar has tool search exactly when it uses an MCP connection.
-  const install = (listed: Tool[]) => {
-    const tools = listed.map(({ annotations, ...tool }) => ({
-      ...tool,
-      ...(annotations?.destructiveHint !== undefined && {
-        annotations: { destructiveHint: annotations.destructiveHint },
-      }),
-    }))
+  const install = (tools: Tool[]) => {
     const extension: Extension = {
       name: extensionName,
       tools: [
@@ -259,7 +254,10 @@ export function openConnection(
           }
           return defineTool({
             name,
-            description: tool.description ?? tool.name,
+            description: withHints(
+              tool.description ?? tool.name,
+              tool.annotations,
+            ),
             parameters: tool.inputSchema,
             deferred: true,
             replay: 'unsafe',
@@ -388,4 +386,20 @@ export function openConnection(
       info = { ...info, status: { type: 'disconnected' }, tools: [] }
     },
   }
+}
+
+// What a tool's declared hints mean, for the model. Only hints set true say
+// anything, so an unannotated tool reads as its server wrote it.
+const HINTS = [
+  ['readOnlyHint', 'Read-only.'],
+  ['destructiveHint', 'May be destructive.'],
+  ['idempotentHint', 'Idempotent.'],
+  ['openWorldHint', 'Reaches outside its server.'],
+] as const
+
+function withHints(description: string, annotations?: ToolAnnotations) {
+  const notes = HINTS.filter(([hint]) => annotations?.[hint] === true)
+  return notes.length === 0
+    ? description
+    : `${description}\n\n${notes.map(([, note]) => note).join(' ')}`
 }

@@ -63,7 +63,7 @@ A Pi Durable tool, with one optional field Familiar reads: `annotations`.
 | `execute(args, api, context)` | Runs the tool. Returns a `ToolResult`                                 |
 | `replay`                      | `'safe'` reruns an interrupted call after a crash. Default `'unsafe'` |
 | `structuredOutputSchema`      | Optional schema for output that other tools and code mode read        |
-| `annotations`                 | `{ destructiveHint? }`, as MCP tools declare them                     |
+| `annotations`                 | MCP's `ToolAnnotations`: `title` and the four hints                   |
 
 - `schema.obj` rejects undeclared properties. Use `schema.obj(properties, { open: true })` to accept them.
 - A tool with `destructiveHint: true` asks the person first. Others run straight away. The Connections page can change either.
