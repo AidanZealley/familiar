@@ -26,9 +26,12 @@ export type {
   ImageRef,
 } from '../images/types.ts'
 export type { HistoryQuery, HistoryPage } from '../rooms/index.ts'
+export type { ToolRead, ToolRun } from '../tool-runs/index.ts'
 export type {
   HandoffData,
   Mention,
+  TOOL_RUN_KIND,
+  ToolRunData,
   NoteData,
   REPLY_KIND,
   ReplyData,

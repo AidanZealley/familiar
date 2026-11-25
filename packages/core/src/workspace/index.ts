@@ -102,6 +102,7 @@ import {
   type ModelDefaultsChange,
 } from './models.ts'
 import { removeFamiliar } from './remove.ts'
+import { createToolRuns, type ToolRunsApi } from '../tool-runs/index.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
 export type {
@@ -391,6 +392,8 @@ export type Workspace = {
   account?: AccountApi
   connections: ConnectionsApi
   mcp: McpApi
+  /** A Familiar's connection tools, run by a person with no model. */
+  tools: ToolRunsApi
   /** Questions for the person while Familiars work, which the chat shows. */
   questions: Pick<QuestionsApi, 'answer'>
   /** The plugins it was opened with, whose routes `createHttpApi` mounts. */
@@ -466,6 +469,20 @@ export async function openWorkspace(
       now: options.now,
     })
 
+    // Runs read MCP and capabilities, which exist further down, only when
+    // a person runs a tool.
+    const toolRuns = createToolRuns(harness, {
+      registry: () => registry.snapshot(),
+      capabilities: async (familiar) =>
+        capabilitiesOf(
+          await harness.snapshot(AgentDoc, familiar, context),
+          available(),
+        ),
+      invoke: (input) => mcp.call(input),
+      record: rooms.postToolRun,
+      now: options.now ?? Date.now,
+    })
+
     const memory = createMemory(harness, {
       now: options.now ?? Date.now,
       memoryModelOf: settings.memoryOf,
@@ -479,6 +496,7 @@ export async function openWorkspace(
       fetch: options.fetch,
       notify: options.notify,
       timeZone: options.timeZone,
+      connectionTools: toolRuns.list,
     })
 
     // Every Familiar shares these; each tool, hook and section finds whose
@@ -744,6 +762,7 @@ export async function openWorkspace(
       images: createImages(harness, options.images, options.now ?? Date.now),
       account: account?.api,
       mcp: mcp.api,
+      tools: toolRuns,
       connections: allConnections(
         plugins.api,
         mcp.connections,

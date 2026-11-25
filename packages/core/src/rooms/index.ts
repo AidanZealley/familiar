@@ -32,7 +32,14 @@ import {
   type RoomListing,
   type RoomsState,
 } from './listing.ts'
-import { markRead, post, retryTurn, type Mention } from './log.ts'
+import {
+  markRead,
+  post,
+  retryTurn,
+  TOOL_RUN_KIND,
+  type Mention,
+  type ToolRunData,
+} from './log.ts'
 import {
   archiveRoom,
   createRoom,
@@ -58,6 +65,7 @@ export type HistoryQuery = Pick<
 export type HistoryPage = Page<EntryRecord, Cursor>
 
 export type {
+  ToolRunData,
   HandoffData,
   Mention,
   NoteData,
@@ -66,7 +74,7 @@ export type {
   RoomPreview,
   RoomScheduledData,
 } from './log.ts'
-export { MAX_DEPTH, REPLY_KIND } from './log.ts'
+export { MAX_DEPTH, REPLY_KIND, TOOL_RUN_KIND } from './log.ts'
 export { RoomError } from './rooms.ts'
 export type { Room, RoomChange, RoomId, RoomSetup } from './rooms.ts'
 export type { RoomListing, RoomsState, RoomTurn } from './listing.ts'
@@ -327,6 +335,19 @@ export function createRooms(
       hooks: [answer.hook],
     }),
     postScheduled,
+    /**
+     * Records a tool a person ran: shown in the room and to its Familiars
+     * on their next turn, with no turn of its own. Once per request ID.
+     * Rejects with a RoomError for a closed room, as `post`.
+     */
+    postToolRun: async (room: RoomId, data: ToolRunData) =>
+      (
+        await harness.commit(
+          (tx) =>
+            post(tx, turn, room, { kind: TOOL_RUN_KIND, data }, data.requestId),
+          context,
+        )
+      ).entry,
     api,
   }
 }

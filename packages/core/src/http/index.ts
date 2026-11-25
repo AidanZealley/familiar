@@ -79,7 +79,10 @@ const routes = (workspace: Workspace, push: PushHost | undefined) =>
     .route('/mcp', mcpRoutes(workspace.mcp))
     .route('/familiars', familiarRoutes(workspace))
     .route('/defaults', defaultRoutes(workspace))
-    .route('/rooms', roomRoutes(workspace.rooms, workspace.images))
+    .route(
+      '/rooms',
+      roomRoutes(workspace.rooms, workspace.images, workspace.tools),
+    )
     .route('/me', meRoutes(workspace))
     // Who the Familiars are, the rooms the person sees, who they are, and
     // the login.

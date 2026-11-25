@@ -2,7 +2,10 @@ import type { EntryId } from '@earendil-works/pi-durable'
 import { Hono, type Context, type TypedResponse } from 'hono'
 import { validator } from 'hono/validator'
 import { can, type AccessEnv } from '../access.ts'
-import { MessageError } from '../conversation/message.ts'
+import type { JsonObject } from '@earendil-works/pi-durable'
+import { MESSAGE_LIMITS, MessageError } from '../conversation/message.ts'
+import type { ToolRead, ToolRun, ToolRunsApi } from '../tool-runs/index.ts'
+import type { FamiliarId } from '../workspace/familiars.ts'
 import { streamEvents } from '../http/events.ts'
 import { found } from '../http/found.ts'
 import type { ImagesApi } from '../images/index.ts'
@@ -47,6 +50,18 @@ async function refusable(c: Context, run: () => Promise<Response>) {
   }
 }
 
+/** A tool request's familiar, tool and args, if the body has them right. */
+const toolRequest = (body: unknown) => {
+  const { familiar, tool, args } = (body ?? {}) as Record<string, unknown>
+  return Number.isSafeInteger(familiar) &&
+    typeof tool === 'string' &&
+    typeof args === 'object' &&
+    args !== null &&
+    !Array.isArray(args)
+    ? { familiar: familiar as number, tool, args: args as JsonObject }
+    : undefined
+}
+
 /**
  * A named room's setup, as far as the body gives it; `RoomsApi` checks the
  * rest. A change may unarchive it with `archived: false`.
@@ -80,7 +95,11 @@ const setup = validator('json', (body, c) => {
  * up, and each room's messages, history, Stop and `/events`. Message
  * attribution comes only from the host, never the body.
  */
-export function roomRoutes(rooms: RoomsApi, images: ImagesApi) {
+export function roomRoutes(
+  rooms: RoomsApi,
+  images: ImagesApi,
+  tools: ToolRunsApi,
+) {
   const idOf = (c: Context) => Number(c.req.param('room')) as RoomId
   // Someone else's DM is no such room, so nobody learns it exists.
   const roomOf = async (c: Context<AccessEnv>) =>
@@ -257,6 +276,75 @@ export function roomRoutes(rooms: RoomsApi, images: ImagesApi) {
             200,
             'json'
           >
+        },
+      )
+      // A person running one of a Familiar's tools, with no model, such as
+      // from a card: recorded here. Attribution comes only from the host.
+      .post(
+        '/:room/tools/run',
+        can('tools.run'),
+        validator('json', (body, c) => {
+          const run = toolRequest(body)
+          const { approved, requestId } = (body ?? {}) as Record<
+            string,
+            unknown
+          >
+          if (
+            !run ||
+            (approved !== undefined && typeof approved !== 'boolean') ||
+            typeof requestId !== 'string' ||
+            requestId.length > MESSAGE_LIMITS.requestId
+          ) {
+            return c.json(
+              {
+                error:
+                  'familiar, tool, args (an object) and requestId are required; approved is a boolean',
+              },
+              400,
+            )
+          }
+          return {
+            ...run,
+            requestId,
+            ...(approved === true && { approved: true }),
+          }
+        }),
+        (c) =>
+          refusable(c, async () => {
+            await roomOf(c)
+            const { familiar, ...run } = c.req.valid('json')
+            const result = await tools.run({
+              ...run,
+              familiar: familiar as FamiliarId,
+              room: idOf(c),
+              author: c.get('author'),
+            })
+            return c.json(result as ToolRun, 200)
+          }),
+      )
+      // A read-only tool's text, for a card to refresh from. Never recorded.
+      .post(
+        '/:room/tools/read',
+        can('tools.read'),
+        validator('json', (body, c) => {
+          const run = toolRequest(body)
+          return (
+            run ??
+            c.json(
+              { error: 'familiar, tool and args (an object) are required' },
+              400,
+            )
+          )
+        }),
+        async (c) => {
+          await roomOf(c)
+          const { familiar, ...read } = c.req.valid('json')
+          const result = await tools.read({
+            ...read,
+            familiar: familiar as FamiliarId,
+            room: idOf(c),
+          })
+          return c.json(result as ToolRead, 200)
         },
       )
       // Tries a failed reply's turn again.

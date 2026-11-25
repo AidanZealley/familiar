@@ -21,6 +21,7 @@ import {
   BACKGROUND_MCP_TASK,
   createBackgroundMcp,
   type BackgroundMcpInput,
+  type McpInvocation,
 } from './background.ts'
 import { openConnection } from './connection.ts'
 import {
@@ -221,6 +222,12 @@ export async function createMcp(
     connections,
     /** Every configured server's name, connected or not. */
     names: () => [...entries.keys()],
+    /**
+     * Calls a tool directly, outside Pi: once, with no task or replay, as a
+     * person's run does. Throws for a server that isn't configured.
+     */
+    call: (input: McpInvocation) =>
+      get(input.server).invoke(input, BACKGROUND_CONTEXT, false),
     close: async () => {
       lifetime.abort()
       await edits

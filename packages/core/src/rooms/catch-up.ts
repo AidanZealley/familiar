@@ -21,6 +21,8 @@ import {
 import {
   REPLY_KIND,
   replyText,
+  TOOL_RUN_KIND,
+  type ToolRunData,
   type HandoffData,
   type NoteData,
   type ReplyData,
@@ -97,6 +99,20 @@ function line(
   }
   if (entry.kind === NOTE_KIND) {
     return said('Note', (entry.data as NoteData).text)
+  }
+  if (entry.kind === TOOL_RUN_KIND) {
+    // A person ran one of a Familiar's tools directly, with no model.
+    const run = entry.data as ToolRunData
+    const whose =
+      run.familiar === own
+        ? 'your'
+        : `${familiars[run.familiar]?.name ?? 'a removed assistant'}'s`
+    const result =
+      run.outcome === 'done' ? 'done' : `failed: ${run.message ?? ''}`
+    return said(
+      `${run.author.name} ran ${whose} tool`,
+      `${run.tool} ${JSON.stringify(run.args)} → ${result}`,
+    )
   }
   return undefined
 }

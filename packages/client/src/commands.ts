@@ -1,10 +1,12 @@
 import { hc } from 'hono/client'
 import { uploadImage, type UploadOptions } from './images.ts'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import type { ModelRef } from '@earendil-works/pi-durable'
+import type { JsonObject, ModelRef } from '@earendil-works/pi-durable'
 import type {
   Answer,
   HttpApi,
+  ToolRead,
+  ToolRun,
   HistoryQuery,
   Connection as ConnectionKey,
   ConnectionInfo,
@@ -393,6 +395,33 @@ export const roomCommands = (
      */
     read: (entry: number) =>
       succeed(room.read.$post({ param, json: { entry } })),
+    /**
+     * Runs a Familiar's connection tools for the signed-in person, with no
+     * model, such as from a card. Each run happens once; nothing retries.
+     */
+    tools: {
+      /**
+       * Runs `tool` for `familiar`, recorded in the room. Resolves to `ask`
+       * when the owner wants it approved: show the person the call, then
+       * run it again with `approved`.
+       */
+      run: (
+        familiar: number,
+        call: { tool: string; args: JsonObject; approved?: boolean },
+      ): Promise<ToolRun> =>
+        read(
+          room.tools.run.$post({
+            param,
+            json: { familiar, ...call, requestId: createRequestId() },
+          }),
+        ),
+      /** A read-only tool's text, for `familiar`; never recorded. */
+      read: (
+        familiar: number,
+        call: { tool: string; args: JsonObject },
+      ): Promise<ToolRead> =>
+        read(room.tools.read.$post({ param, json: { familiar, ...call } })),
+    },
     /** A page of the room's entries: Pi's entry loader, over HTTP. */
     history: (query: HistoryQuery, limit: number) =>
       read(room.history.$get({ param, query: { ...query, limit } })),

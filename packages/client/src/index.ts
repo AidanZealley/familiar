@@ -58,6 +58,8 @@ export type {
   SchedulesState,
   Subject,
   ToolAnnotations,
+  ToolRead,
+  ToolRun,
   ToolSettings,
   ToolInfo,
   TurnActivity,
@@ -67,6 +69,7 @@ export type {
   ConversationView,
   TranscriptView,
   EntryRecord,
+  JsonObject,
   ModelRef,
 } from '@earendil-works/pi-durable'
 

@@ -13,6 +13,7 @@ import type {
   Tx,
 } from '@earendil-works/pi-durable'
 import type { PluginFetch, ToolAnnotations } from './connections/index.ts'
+import type { ConnectionTool } from './tool-runs/tools.ts'
 import {
   HANDOFF_KIND,
   MESSAGE_KIND,
@@ -92,6 +93,12 @@ export type ToolServices = {
    * arguments. Throws in a conversation no Familiar owns.
    */
   familiarId(): Promise<FamiliarId>
+  /**
+   * The MCP connection tools this call's Familiar can run now, with their
+   * schemas, annotations and whether the owner wants them approved first:
+   * what a plugin checks a model's choice of tools against.
+   */
+  connectionTools(): Promise<ConnectionTool[]>
   /**
    * Asks the person for values only this plugin tool gets, such as a
    * password or an API key, in a form in the chat, and waits. The values

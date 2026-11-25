@@ -1,7 +1,8 @@
 import type { Extension, ToolExecutionApi } from '@earendil-works/pi-durable'
 import type { Context } from '@earendil-works/chord/context'
 import type { QuestionsApi } from '../questions/index.ts'
-import { familiarFor } from '../workspace/familiars.ts'
+import { familiarFor, type FamiliarId } from '../workspace/familiars.ts'
+import type { ConnectionTool } from '../tool-runs/tools.ts'
 import { defaultFetch } from '#default-fetch'
 import type { Notify } from '../notify.ts'
 import {
@@ -121,6 +122,8 @@ export type PluginsOptions = {
   notify?: Notify
   timeZone: string
   questions?: Pick<QuestionsApi, 'ask'>
+  /** A Familiar's connection tools as it has them now (see `ToolRunsApi.list`). */
+  connectionTools?: (familiar: FamiliarId) => Promise<ConnectionTool[]>
 }
 
 /**
@@ -156,6 +159,13 @@ export function createPlugins(options: PluginsOptions) {
           init,
         )
       },
+      connectionTools: async () =>
+        options.connectionTools?.(
+          await api.commit(
+            (tx) => familiarFor(tx, api.conversationId),
+            context,
+          ),
+        ) ?? [],
       askPrivately: async ({ message, form }) => {
         if (!plugin || !options.questions) {
           throw new Error('Only a plugin tool can ask privately.')

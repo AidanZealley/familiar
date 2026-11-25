@@ -78,6 +78,13 @@ export {
 } from './rooms/index.ts'
 export { defaultPersona } from './persona.ts'
 export {
+  argsProblem,
+  type ConnectionTool,
+  type ToolRead,
+  type ToolRun,
+  type ToolRunsApi,
+} from './tool-runs/index.ts'
+export {
   DEFAULT_MAX_SCHEDULES,
   SCHEDULE_LIMITS,
   type SchedulesApi,

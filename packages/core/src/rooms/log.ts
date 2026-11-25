@@ -3,6 +3,7 @@ import {
   defineDoc,
   type EntryDraft,
   type EntryId,
+  type JsonObject,
   type TaskId,
   type Tx,
 } from '@earendil-works/pi-durable'
@@ -191,6 +192,30 @@ export type NoteData = {
   requestId?: string
 }
 
+/** The entry kind a person's run of a Familiar's tool is recorded as. */
+export const TOOL_RUN_KIND = 'familiar.tool-run'
+
+/**
+ * A tool a person ran for a Familiar, with no model, such as from a card.
+ * Shown in the room and to its Familiars on their next turn; no one replies.
+ */
+export type ToolRunData = {
+  /** Whose tool it was. */
+  familiar: FamiliarId
+  /** Who ran it. */
+  author: Author
+  /** The tool, by its name in Pi, such as `mcp__home__HassTurnOff`. */
+  tool: string
+  args: JsonObject
+  outcome: 'done' | 'failed'
+  /** The tool's own text, cut short, when it failed. */
+  message?: string
+  /** When it finished, in ms since the epoch. */
+  at: number
+  /** The request that ran it, so a client knows its own. */
+  requestId: string
+}
+
 /** A room's record of a reminder falling due; a turn answers it like a message. */
 export type RoomScheduledData = {
   familiar: FamiliarId
@@ -209,6 +234,7 @@ export type RoomEntry =
   | { kind: typeof SCHEDULED_KIND; data: RoomScheduledData }
   | { kind: typeof HANDOFF_KIND; data: HandoffData }
   | { kind: typeof NOTE_KIND; data: NoteData }
+  | { kind: typeof TOOL_RUN_KIND; data: ToolRunData }
 
 /** What a reply says, without its tool calls: what a room shows of it. */
 export const replyText = (reply: ReplyData) =>
@@ -320,6 +346,8 @@ function previewOf(
         name: nameOf(familiar),
       }
     }
+    case TOOL_RUN_KIND:
+      return undefined
     case NOTE_KIND:
       return {
         entry: id,
@@ -527,6 +555,7 @@ function recipients(
   switch (entry.kind) {
     case NOTE_KIND:
     case HANDOFF_KIND:
+    case TOOL_RUN_KIND:
       return []
     case SCHEDULED_KIND:
       return [{ familiar: entry.data.familiar, addressed: 'schedule' }]
@@ -614,6 +643,9 @@ export async function postAll(
     throw new RoomError(closed)
   }
   for (const { entry } of fresh) {
+    if (entry.kind === TOOL_RUN_KIND) {
+      entry.data.author = knownAs(await tx.doc(People), entry.data.author)
+    }
     if (entry.kind === MESSAGE_KIND) {
       // Signed with the name the person chose, if they have.
       entry.data.author = knownAs(await tx.doc(People), entry.data.author)

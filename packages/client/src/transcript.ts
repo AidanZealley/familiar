@@ -13,6 +13,8 @@ import type {
 import type {
   Author,
   HANDOFF_KIND as CoreHandoffKind,
+  TOOL_RUN_KIND as CoreToolRunKind,
+  ToolRunData,
   HandoffData,
   MESSAGE_KIND as CoreMessageKind,
   ImageRef,
@@ -34,6 +36,7 @@ export const REPLY_KIND: typeof CoreReplyKind = 'familiar.reply'
 const SCHEDULED_KIND: typeof CoreScheduledKind = 'familiar.scheduled'
 export const HANDOFF_KIND: typeof CoreHandoffKind = 'familiar.handoff'
 export const NOTE_KIND: typeof CoreNoteKind = 'familiar.note'
+const TOOL_RUN_KIND: typeof CoreToolRunKind = 'familiar.tool-run'
 
 export type ToolCall = {
   id: string
@@ -121,6 +124,8 @@ export type TranscriptItem =
       /** When it was posted, in ms since the epoch. */
       at: number
     }
+  /** A tool a person ran for a Familiar, with no model, such as from a card. */
+  | ({ type: 'tool-run'; id: string } & Omit<ToolRunData, 'requestId'>)
   /** A schedule's prompt, arriving now that it's due. A reply follows it. */
   | {
       type: 'scheduled'
@@ -268,6 +273,10 @@ function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
     case NOTE_KIND: {
       const { text, at } = entry.data as unknown as NoteData
       return [{ type: 'note', id, text, at }]
+    }
+    case TOOL_RUN_KIND: {
+      const { requestId: _, ...run } = entry.data as unknown as ToolRunData
+      return [{ type: 'tool-run', id, ...run }]
     }
     case REPLY_KIND: {
       const items = toReplies(id, entry.data as unknown as ReplyData)

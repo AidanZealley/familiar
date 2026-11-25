@@ -70,6 +70,8 @@ export type RoomOperation =
   | 'rooms.history'
   | 'rooms.retry'
   | 'rooms.stop'
+  | 'tools.run'
+  | 'tools.read'
   | 'events.room'
 
 /** Everything the HTTP API can do, each named for `allow`. */
