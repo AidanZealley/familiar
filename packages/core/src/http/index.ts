@@ -2,11 +2,8 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import type { UpgradeWebSocket } from 'hono/ws'
 import { accountRoutes } from '../account/http.ts'
-import {
-  IMAGE_LIMITS,
-  MESSAGE_LIMITS,
-  type Author,
-} from '../conversation/message.ts'
+import type { Author } from '../conversation/message.ts'
+import { IMAGE_LIMITS } from '../images/types.ts'
 import { mcpRoutes } from '../mcp/http.ts'
 import { pluginRoutes } from '../plugins/http.ts'
 import { isWebSocketUpgrade } from '../plugins/websocket.ts'
@@ -69,12 +66,10 @@ export type HttpOptions = {
 }
 
 /**
- * Room for the largest message Familiar admits: `MESSAGE_LIMITS.text` even
- * if JSON escapes every character, and the most images it may carry, with
- * every other request far under it.
+ * Room for the largest image upload Familiar takes, with every other
+ * request, messages at their longest included, far under it.
  */
-export const DEFAULT_MAX_BODY_SIZE =
-  MESSAGE_LIMITS.text * 6 + IMAGE_LIMITS.count * IMAGE_LIMITS.bytes + 64 * 1024
+export const DEFAULT_MAX_BODY_SIZE = IMAGE_LIMITS.upload + 64 * 1024
 
 const routes = (workspace: Workspace, push: PushHost | undefined) =>
   new Hono<AccessEnv>()
@@ -84,7 +79,7 @@ const routes = (workspace: Workspace, push: PushHost | undefined) =>
     .route('/mcp', mcpRoutes(workspace.mcp))
     .route('/familiars', familiarRoutes(workspace))
     .route('/defaults', defaultRoutes(workspace))
-    .route('/rooms', roomRoutes(workspace.rooms))
+    .route('/rooms', roomRoutes(workspace.rooms, workspace.images))
     .route('/me', meRoutes(workspace))
     // Who the Familiars are, the rooms the person sees, who they are, and
     // the login.

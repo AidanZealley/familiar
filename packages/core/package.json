@@ -68,6 +68,7 @@
     "@modelcontextprotocol/client": "catalog:",
     "croner": "11.0.0",
     "hono": "catalog:",
+    "image-size": "2.1.0",
     "minisearch": "7.2.0",
     "node-fetch": "3.3.2",
     "request-filtering-agent": "3.2.1",

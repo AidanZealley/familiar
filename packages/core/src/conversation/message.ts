@@ -7,6 +7,7 @@ import type {
   TaskId,
   Tx,
 } from '@earendil-works/pi-durable'
+import { IMAGE_LIMITS, isImageId, type ImageId } from '../images/types.ts'
 import { entriesOf } from '../pi/entries.ts'
 
 /** The entry kind people's messages are stored as. */
@@ -70,71 +71,20 @@ export const MESSAGE_LIMITS = {
 } as const
 
 /**
- * What a message's images may be. A client prepares them to fit (the web app
- * shrinks and encodes them in the browser); Familiar only checks. Each costs
- * the models tokens on every turn until its chat compacts, and past about
- * 1568px they gain little.
+ * `images` as a message names them: at most `IMAGE_LIMITS.count` image IDs.
+ * Throws a MessageError otherwise. `post` checks each is stored.
  */
-export const IMAGE_LIMITS = {
-  count: 10,
-  /** Characters of base64, per image. */
-  bytes: 1_500_000,
-  /** The longest side a client should prepare an image to, in pixels. */
-  pixels: 1568,
-} as const
-
-/**
- * An image a message carries, as the model takes it inline: pi-ai's
- * `ImageContent`, as a type so it's JSON an entry can store.
- */
-export type MessageImage = { type: 'image'; data: string; mimeType: string }
-
-/** A format every model provider takes inline, by its leading bytes. */
-const IMAGE_SIGNATURES: [
-  mimeType: string,
-  matches: (head: string) => boolean,
-][] = [
-  ['image/png', (head) => head.startsWith('\x89PNG\r\n\x1a\n')],
-  ['image/jpeg', (head) => head.startsWith('\xff\xd8\xff')],
-  ['image/gif', (head) => /^GIF8[79]a/.test(head)],
-  [
-    'image/webp',
-    (head) => head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP',
-  ],
-]
-
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
-
-/**
- * `images` as a message stores them, each with the format its bytes show,
- * whatever it was labelled. Throws a MessageError for too many, too large,
- * or anything not PNG, JPEG, GIF or WebP base64.
- */
-function admitImages(images: unknown): MessageImage[] {
-  if (!Array.isArray(images) || images.length > IMAGE_LIMITS.count) {
+function admitImages(images: unknown): ImageId[] {
+  if (
+    !Array.isArray(images) ||
+    images.length > IMAGE_LIMITS.count ||
+    !images.every(isImageId)
+  ) {
     throw new MessageError(
-      `A message may carry at most ${IMAGE_LIMITS.count} images.`,
+      `A message may carry at most ${IMAGE_LIMITS.count} images, by image ID.`,
     )
   }
-  return images.map((image: { data?: unknown } | null) => {
-    const data = image?.data
-    if (
-      typeof data !== 'string' ||
-      data.length > IMAGE_LIMITS.bytes ||
-      data.length % 4 !== 0 ||
-      !BASE64.test(data)
-    ) {
-      throw new MessageError(
-        `Each image must be base64 of at most ${IMAGE_LIMITS.bytes} characters.`,
-      )
-    }
-    const head = atob(data.slice(0, 16))
-    const mimeType = IMAGE_SIGNATURES.find(([, matches]) => matches(head))?.[0]
-    if (!mimeType) {
-      throw new MessageError('Each image must be a PNG, JPEG, GIF or WebP.')
-    }
-    return { type: 'image', data, mimeType }
-  })
+  return images
 }
 
 /**
@@ -223,7 +173,7 @@ export function admitMessage(message: {
   author: Author
   text: string
   requestId: string
-  images?: readonly { data: string; mimeType?: string }[]
+  images?: readonly ImageId[]
 }) {
   const author = authorSnapshot(message.author)
   const images = message.images === undefined ? [] : admitImages(message.images)

@@ -4,6 +4,7 @@ import {
 } from '@earendil-works/pi-ai/providers/faux'
 import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { EntryRecord, Storage } from '@earendil-works/pi-durable'
+import type { ImageProcessor } from '@earendil-works/pi-durable/tools'
 import { BACKGROUND_CONTEXT as context } from '@earendil-works/chord/context'
 import { expect, onTestFinished, test } from 'vitest'
 import {
@@ -1043,42 +1044,15 @@ test("filing treats another Familiar's reply delivered to a chat as said by that
 const PIXEL =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 
-test('a message admits only bounded images, and may be images alone', async () => {
-  // No reply, so the message stays the room's newest entry.
-  const { workspace, create, room } = await open((_request, signal) =>
-    hang(signal),
-  )
-  const dm = await room(await workspace.rooms.dm(await create('Ada'), AIDAN.id))
-  const post = (images: { data: string; mimeType: string }[], text = '') =>
-    dm.post({ author: AIDAN, text, requestId: crypto.randomUUID(), images })
+/** Prepares an image by keeping it as it is, as Photon does a small one. */
+const keepImages: ImageProcessor = {
+  prepare: async (bytes, mimeType) => ({
+    data: btoa(String.fromCharCode(...bytes)),
+    mimeType,
+  }),
+}
 
-  for (const images of [
-    // Too many, too large, not base64, or not an image whatever its label.
-    Array(11).fill({ data: PIXEL, mimeType: 'image/png' }),
-    [{ data: 'A'.repeat(1_500_004), mimeType: 'image/png' }],
-    [{ data: 'not base64!', mimeType: 'image/png' }],
-    [{ data: btoa('%PDF-1.7 hello'), mimeType: 'image/png' }],
-    // Words are needed without images.
-    [],
-  ]) {
-    await expect(post(images)).rejects.toBeInstanceOf(MessageError)
-  }
-  // The format comes from the bytes, not the label.
-  await post([{ data: PIXEL, mimeType: 'image/jpeg' }])
-  const [message] = await log(dm)
-  expect(message.data).toMatchObject({
-    text: '',
-    images: [{ type: 'image', data: PIXEL, mimeType: 'image/png' }],
-  })
-  // A list gets the count as data, to word as it likes.
-  expect((await workspace.rooms.list())[0].last).toMatchObject({
-    kind: 'message',
-    text: '',
-    images: 1,
-  })
-})
-
-test("a message's images reach the Familiars it's delivered to; catch-up and memory see only how many", async () => {
+test('an uploaded image reaches the Familiars its message is delivered to; catch-up and memory see only how many', async () => {
   const seen: ScriptedRequest[] = []
   const storage = new ReopenableStorage()
   const { workspace, dismiss, create, room } = await open(
@@ -1086,20 +1060,46 @@ test("a message's images reach the Familiars it's delivered to; catch-up and mem
       seen.push(request)
       return echo(request)
     },
-    { storage },
+    { storage, images: { processor: keepImages } },
   )
   const [ada, bo] = [await create('Ada'), await create('Bo')]
   const id = await workspace.rooms.create({ name: 'kitchen', familiars: [ada] })
   const kitchen = await room(id)
-  await kitchen.post({
+  const ref = await workspace.images.upload(
+    Uint8Array.from(atob(PIXEL), (char) => char.charCodeAt(0)),
+  )
+  expect(ref).toEqual({
+    id: expect.stringMatching(/^[0-9a-f]{32}$/),
+    mimeType: 'image/png',
+    width: 1,
+    height: 1,
+  })
+  const message = {
     author: AIDAN,
     text: 'Look',
     requestId: 'm1',
-    images: [{ data: PIXEL, mimeType: 'image/png' }],
-  })
+    images: [ref.id],
+  }
+  const entry = await kitchen.post(message)
+  // A retry posts nothing more.
+  expect(await kitchen.post(message)).toBe(entry)
   await expect.poll(async () => (await replies(kitchen)).length).toBe(1)
+  const messages = (await log(kitchen)).filter(
+    (each) => each.kind === MESSAGE_KIND,
+  )
+  expect(messages.map((each) => each.data)).toEqual([
+    expect.objectContaining({ images: [ref] }),
+  ])
 
-  // Ada's input ends with the message's words, then its image.
+  // Ada's chat keeps a reference to the image; her request has its bytes,
+  // after the message's words.
+  const chat = (await read(() => workspace.familiars.get(ada)!.watch())).entries
+  const stored = chat.find((each) => each.kind === MESSAGE_KIND)!
+  expect(stored.model![0].content.at(-1)).toEqual({
+    type: 'image',
+    mimeType: 'image/png',
+    data: `familiar-image:${ref.id}`,
+  })
   const input = seen
     .find((request) => request.type === 'message')!
     .context.messages.findLast((message) => message.role === 'user')!

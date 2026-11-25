@@ -14,13 +14,17 @@ import type { FamiliarsState } from '../workspace/index.ts'
 // with Pi's own types.
 export type {
   Author,
-  IMAGE_LIMITS,
-  MessageImage,
   HANDOFF_KIND,
   MESSAGE_KIND,
   NOTE_KIND,
   SCHEDULED_KIND,
 } from '../conversation/message.ts'
+export type {
+  IMAGE_LIMITS,
+  ImageErrorCode,
+  ImageId,
+  ImageRef,
+} from '../images/types.ts'
 export type { HistoryQuery, HistoryPage } from '../rooms/index.ts'
 export type {
   HandoffData,
