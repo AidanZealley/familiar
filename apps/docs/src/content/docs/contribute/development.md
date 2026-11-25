@@ -78,6 +78,6 @@ Pushes to `main` that change the docs or packages deploy the site to GitHub Page
 
 Pushing a `v*` tag runs the [publish workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/publish.yml): it publishes the npm packages, the installable assistant and, if its key is new, the computers' image. Tags with a `-`, such as `v0.5.0-rc.1`, publish a prerelease and npm's `next` tag.
 
-Every push to `main` replaces `familiar.tgz` in the rolling `main-build` prerelease and publishes nothing to npm. `FAMILIAR_VERSION=main` installs it.
+Every push to `main` publishes its own prerelease, `v<version>-main.<commit>`, then points `main-build/version.json` at it, keeping the newest 10; nothing goes to npm. `FAMILIAR_VERSION=main` installs the latest one.
 
 `pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.
