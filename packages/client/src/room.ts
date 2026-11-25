@@ -37,7 +37,12 @@ export function createRoomStore(
   options: StoreOptions = {},
 ): RoomStore {
   const fetch = fetchOf(options)
-  const { history, ...commands } = roomCommands(createApi(baseUrl, fetch), room)
+  const { history, ...commands } = roomCommands(
+    createApi(baseUrl, fetch),
+    room,
+    baseUrl,
+    options.fetch,
+  )
   const store = createStore<RoomState>()(() => ({
     connection: 'connecting',
     view: undefined,

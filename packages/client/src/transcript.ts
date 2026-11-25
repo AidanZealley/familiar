@@ -15,8 +15,8 @@ import type {
   HANDOFF_KIND as CoreHandoffKind,
   HandoffData,
   MESSAGE_KIND as CoreMessageKind,
+  ImageRef,
   Mention,
-  MessageImage,
   NOTE_KIND as CoreNoteKind,
   NoteData,
   Question,
@@ -51,6 +51,12 @@ export type TranscriptGap = Extract<
   { kind: 'gap' }
 >
 
+/**
+ * An image a message carries, or `unavailable` for one stored inline in the
+ * message before images were stored apart, which is no longer shown.
+ */
+export type TranscriptImage = ImageRef | { unavailable: true }
+
 /** Item IDs are unique across the transcript and stable across updates: use them as keys. */
 export type TranscriptItem =
   | { type: 'gap'; id: string; gap: TranscriptGap }
@@ -61,7 +67,7 @@ export type TranscriptItem =
       /** Empty when it's images alone. */
       text: string
       /** Its images, in order. */
-      images?: MessageImage[]
+      images?: TranscriptImage[]
       /** When it was posted, in ms since the epoch. */
       at: number
       /** Whom it addresses, by span of the text. */
@@ -231,7 +237,11 @@ function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
           id,
           author,
           text,
-          ...(images?.length && { images }),
+          ...(images?.length && {
+            images: images.map((image) =>
+              image.id ? image : { unavailable: true as const },
+            ),
+          }),
           at,
           ...(mentions && { mentions }),
         },
