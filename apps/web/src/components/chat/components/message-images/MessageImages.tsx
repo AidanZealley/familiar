@@ -19,7 +19,10 @@ export const MessageImages = ({ images }: MessageImagesProps) => {
       <div
         className={cn(
           'grid gap-1',
-          alone ? 'max-w-[min(80%,24rem)]' : 'w-[min(80%,24rem)] grid-cols-2',
+          // A set width either way, so each image's box is sized before
+          // it loads.
+          'w-[min(80%,24rem)]',
+          !alone && 'grid-cols-2',
         )}
       >
         {images.map((image, index) => (
