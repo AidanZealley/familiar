@@ -6,5 +6,4 @@ export type FailedSendItemProps = {
   /** Takes it into the composer; offered only while the draft is empty. */
   onEdit?: () => void
   onDiscard(): void
-  onRemoveImage(id: number): void
 }

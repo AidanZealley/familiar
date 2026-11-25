@@ -1,32 +1,12 @@
-import { composeMessage, RequestError } from '@familiar-ai/client'
+import { composeMessage } from '@familiar-ai/client'
 import { useRoomStore } from '@familiar-ai/client/react'
 import { useMutation, useMutationState } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toParts } from './mentions'
-import { nextId, without, type Draft } from './useDraft'
+import { nextId, type Draft } from './useDraft'
 
-/**
- * A draft that couldn't be sent, kept as it was sent apart from the draft,
- * with why: the image core refused marked with its problem, or `error`, why
- * anything else failed.
- */
-export type FailedSend = { id: number; draft: Draft; error?: string }
-
-/** `sent` with the image `error` names marked, or with `error`'s message. */
-const failure = (sent: Draft, error: Error): FailedSend => {
-  const image = error instanceof RequestError ? error.image : undefined
-  return image
-    ? {
-        id: nextId(),
-        draft: {
-          ...sent,
-          images: sent.images.map((each, index) =>
-            index === image.index ? { ...each, problem: image.problem } : each,
-          ),
-        },
-      }
-    : { id: nextId(), draft: sent, error: error.message }
-}
+/** A draft that couldn't be sent, kept as it was sent, with why. */
+export type FailedSend = { id: number; draft: Draft; error: string }
 
 /**
  * The composer's commands: sending a draft, as a message or a note, and
@@ -54,8 +34,11 @@ export const useSend = () => {
         images: images.map((image) => image.prepared!),
       })
     },
-    onError: (error, sent) =>
-      setFailed((failed) => [...failed, failure(sent, error)]),
+    onError: (error, draft) =>
+      setFailed((failed) => [
+        ...failed,
+        { id: nextId(), draft, error: error.message },
+      ]),
   })
   const stop = useMutation({
     mutationKey: ['composer'],
@@ -77,14 +60,5 @@ export const useSend = () => {
       send.mutate(draft)
     },
     discard: drop,
-    /** Takes the image `image` out of the failed send `id`. */
-    removeImage: (id: number, image: number) =>
-      setFailed((failed) =>
-        failed.map((each) =>
-          each.id === id
-            ? { ...each, draft: without(each.draft, image) }
-            : each,
-        ),
-      ),
   }
 }
