@@ -149,8 +149,11 @@ export function roomRoutes(rooms: RoomsApi, images: ImagesApi) {
         (c) =>
           refusable(c, async () => {
             const room = await roomOf(c)
-            await room.post({ author: c.get('author'), ...c.req.valid('json') })
-            return c.body(null, 202)
+            const entry = await room.post({
+              author: c.get('author'),
+              ...c.req.valid('json'),
+            })
+            return c.json({ entry }, 202)
           }),
       )
       // An image for a message to carry, as its raw bytes, of any type:
@@ -188,8 +191,8 @@ export function roomRoutes(rooms: RoomsApi, images: ImagesApi) {
         }),
         (c) =>
           refusable(c, async () => {
-            await (await roomOf(c)).note(c.req.valid('json'))
-            return c.body(null, 202)
+            const entry = await (await roomOf(c)).note(c.req.valid('json'))
+            return c.json({ entry }, 202)
           }),
       )
       // Marks the room read by whoever asks, up to an entry they've seen.
