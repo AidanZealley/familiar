@@ -58,7 +58,7 @@ export class Bot extends DurableObject {
 
 The factory returns everything `openWorkspace` takes except storage, the clock and wake handling, which the adapter supplies. The adapter calls it each time the object opens, including after eviction, then `setup`, before any request or alarm reaches the workspace. This scripted model answers every request alike. A real host registers its provider, credentials, notifications and network policy in the factory, and makes its Familiars and rooms in `setup`.
 
-To take images, pass `images: { processor: createCloudflarePhotonImages(), maxPixels: 16_000_000 }`, with the processor from `@earendil-works/pi-durable/images/cloudflare`. Photon runs on the object's own thread, so an image blocks it for up to about a second, and decoding takes four bytes a pixel of the object's 128 MB, hence the lower cap. Images are stored in the object's SQLite: each prepared image is at most 1.5 million base64 characters, under its value limit.
+To take images, pass `images: { processor: createCloudflarePhotonImages(), maxPixels: 16_000_000 }`, with the processor from `@familiar-ai/cloudflare/images`. Photon runs on the object's own thread, so an image blocks it for up to about a second, and decoding takes four bytes a pixel of the object's 128 MB, hence the lower cap. Images are stored in the object's SQLite: each prepared image is at most 1.5 million base64 characters, under its value limit.
 
 Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudflare Worker example's [`wrangler.jsonc`](https://github.com/AidanZealley/familiar/blob/main/examples/cloudflare-worker/wrangler.jsonc) is a working configuration.
 

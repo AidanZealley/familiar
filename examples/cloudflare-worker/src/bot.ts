@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
-import { createCloudflarePhotonImages } from '@earendil-works/pi-durable/images/cloudflare'
 import { DurableWorkspace, WorkspaceTerminated } from '@familiar-ai/cloudflare'
+import { createCloudflarePhotonImages } from '@familiar-ai/cloudflare/images'
 import { createHttpApi } from '@familiar-ai/core/http'
 import type { Env } from './env.ts'
 import { ECHO_MODEL, echoModels } from './model.ts'

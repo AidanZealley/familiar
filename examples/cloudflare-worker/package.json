@@ -8,7 +8,6 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@earendil-works/pi-durable": "catalog:",
     "@familiar-ai/cloudflare": "workspace:*",
     "@familiar-ai/core": "workspace:*",
     "hono": "catalog:"

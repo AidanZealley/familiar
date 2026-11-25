@@ -11,9 +11,9 @@ export * from './types.ts'
 
 export type ImagesOptions = {
   /**
-   * Prepares each upload, such as pi-durable's Photon processor:
-   * `createNodePhotonImages()` from `@earendil-works/pi-durable/images/node`,
-   * or `createCloudflarePhotonImages()` in a Worker.
+   * Prepares each upload: Photon, as `createNodePhotonImages()` from
+   * `@familiar-ai/core/node` or `createCloudflarePhotonImages()` from
+   * `@familiar-ai/cloudflare/images`.
    */
   processor: ImageProcessor
   /**
