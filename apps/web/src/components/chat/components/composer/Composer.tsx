@@ -1,54 +1,45 @@
-import type { FamiliarSummary } from '@familiar-ai/client'
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  type ClipboardEvent,
-  type DragEvent,
-  type FormEvent,
-  type KeyboardEvent,
-} from 'react'
+import { composeMessage, type FamiliarSummary } from '@familiar-ai/client'
+import { useRoomStore } from '@familiar-ai/client/react'
+import { useMutation, useMutationState } from '@tanstack/react-query'
+import type { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent } from 'react'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { forget } from '@/lib/outbox'
+import { send } from '@/lib/outbox'
 import { titleOf, useFamiliars } from '@/lib/workspace'
 import { ArchivedNotice } from './components/archived-notice'
 import { ComposerActions } from './components/composer-actions'
 import { ComposerNotice } from './components/composer-notice'
-import { DraftImages } from './components/draft-images'
-import { FailedSendItem } from './components/failed-send-item'
+import { DraftImages } from '../draft-images'
 import { MentionMenu } from './components/mention-menu'
-import { suggestionsFor } from './mentions'
+import { suggestionsFor, toParts } from './mentions'
 import type { ComposerProps } from './types'
-import { isEmpty, useDraft } from './useDraft'
-import { keysOf, useSend } from './useSend'
 
 /**
  * Writing to a room: words, `@` mentions and images, sent as a message or
- * a note. `useDraft` owns what's drafted, and `useSend` the commands and
- * the sends that failed, each shown above the draft and never merged into
- * it; this wires them to the input.
+ * a note. The chat owns the draft, as `drafting`, so a failed send in the
+ * transcript can be taken back into it; Send hands it to the outbox, which
+ * shows it in the transcript until it's posted, and Stop stops the room.
  */
-export const Composer = ({ room, busy }: ComposerProps) => {
+export const Composer = ({ room, busy, drafting, input }: ComposerProps) => {
   const familiars = useFamiliars()
-  const input = useRef<HTMLTextAreaElement>(null)
-  const drafting = useDraft()
+  const store = useRoomStore()
   const { draft, refused, sendable } = drafting
   const { text, note, images } = draft
-  const sending = useSend()
-  const { send, stop, error, failed } = sending
   const title = titleOf(room, familiars)
   const focus = () => input.current?.focus()
-
-  // The draft's and failed sends' uploads go with them, when the composer
-  // does, as when the room changes.
-  const forgetUploads = useEffectEvent(() =>
-    forget([draft, ...failed.map((each) => each.draft)].flatMap(keysOf)),
-  )
-  useEffect(() => () => forgetUploads(), [])
+  const stop = useMutation({
+    mutationKey: ['composer'],
+    mutationFn: () => store.stop(),
+  })
+  // The latest failure of the commands sharing the composer's key, the
+  // model picker's too, until one succeeds.
+  const error = useMutationState({
+    filters: { mutationKey: ['composer'] },
+    select: (mutation) => mutation.state.error,
+  }).at(-1)
 
   const suggestions = suggestionsFor(room, familiars, text, note)
 
@@ -60,7 +51,15 @@ export const Composer = ({ room, busy }: ComposerProps) => {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (sendable) {
-      send(drafting.take())
+      const draft = drafting.take()
+      send(
+        room.id,
+        draft,
+        draft.note
+          ? { text: draft.text }
+          : composeMessage(toParts(draft.text, draft.picked)),
+        store,
+      )
     }
   }
 
@@ -119,22 +118,6 @@ export const Composer = ({ room, busy }: ComposerProps) => {
       {suggestions.length > 0 && (
         <MentionMenu familiars={suggestions} onPick={mention} />
       )}
-      {failed.map((each) => (
-        <FailedSendItem
-          key={each.id}
-          failed={each}
-          onRetry={() => sending.retry(each)}
-          onEdit={
-            isEmpty(draft)
-              ? () => {
-                  drafting.edit(sending.take(each))
-                  focus()
-                }
-              : undefined
-          }
-          onDiscard={() => sending.discard(each)}
-        />
-      ))}
       {(refused ?? error) && (
         <ComposerNotice tone="error">
           {refused ?? error?.message}
@@ -189,7 +172,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
             drafting.toggleNote()
             focus()
           }}
-          onStop={stop}
+          onStop={() => stop.mutate()}
         />
       </InputGroup>
     </form>

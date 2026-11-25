@@ -1,4 +1,4 @@
-import type { DraftImage } from '../../types'
+import type { DraftImage } from '@/lib/outbox'
 
 export type AttachedImageProps = {
   image: DraftImage

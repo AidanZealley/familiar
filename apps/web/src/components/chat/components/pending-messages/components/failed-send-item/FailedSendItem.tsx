@@ -1,14 +1,15 @@
 import { WarningCircleIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { DraftImages } from '../draft-images'
+import { DraftImages } from '../../../draft-images'
 import type { FailedSendItemProps } from './types'
 
 /**
- * A send that failed, above the composer and apart from its draft: what it
- * said and carried, why it failed, and Retry, Edit and Discard.
+ * A send that failed, where it was pending at the transcript's foot: what
+ * it said and carried, why it failed, and Retry, Edit and Discard.
  */
 export const FailedSendItem = ({
-  failed: { draft, error },
+  draft,
+  error,
   onRetry,
   onEdit,
   onDiscard,
@@ -17,7 +18,7 @@ export const FailedSendItem = ({
   return (
     <section
       aria-label={`${kind} not sent`}
-      className="mb-2 border border-destructive/40 bg-background/80 text-xs backdrop-blur-xl"
+      className="border border-destructive/40 text-xs"
     >
       <p
         role="alert"
