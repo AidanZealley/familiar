@@ -1,5 +1,5 @@
 import { hc } from 'hono/client'
-import type { OutgoingImage } from './images.ts'
+import { uploadImage, type UploadOptions } from './images.ts'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelRef } from '@earendil-works/pi-durable'
 import type {
@@ -302,22 +302,32 @@ export const familiarCommands = (api: Api, id: number) => {
   }
 }
 
-/** What one room does: posting, Stop and paging back. */
-export const roomCommands = (api: Api, id: number) => {
+/**
+ * What one room does: posting, uploading images, Stop and paging back.
+ * `baseUrl` is where the API is mounted, and `fetch` the host's own, if it
+ * gave one, for what Hono's client doesn't make: uploads and image URLs.
+ */
+export const roomCommands = (
+  api: Api,
+  id: number,
+  baseUrl: string,
+  fetch?: typeof globalThis.fetch,
+) => {
   const room = api.rooms[':room']
   const param = { room: String(id) }
+  const images = `${baseUrl}/rooms/${id}/images`
   return {
     /**
      * Posts a message as the signed-in person, addressing whoever
-     * `mentions` picks (see `composeMessage`), with any `images`, prepared
-     * to fit `IMAGE_LIMITS`. `text` may be empty when it has images.
+     * `mentions` picks (see `composeMessage`), with any `images`, by the
+     * IDs `uploadImage` gave them. `text` may be empty when it has images.
      */
     send: (
       text: string,
       {
         mentions,
         images,
-      }: { mentions?: Mention[]; images?: readonly OutgoingImage[] } = {},
+      }: { mentions?: Mention[]; images?: readonly string[] } = {},
     ) =>
       succeed(
         room.messages.$post({
@@ -330,6 +340,15 @@ export const roomCommands = (api: Api, id: number) => {
           },
         }),
       ),
+    /**
+     * Uploads an image for a message to carry; the server prepares it.
+     * Rejects with an ImageUploadError, whose `code` says why the server
+     * refused it, if it did. Reports progress unless the host gave `fetch`.
+     */
+    uploadImage: (blob: Blob, options?: UploadOptions) =>
+      uploadImage(images, blob, fetch, options),
+    /** Where a stored image loads from, as for an `<img>`. */
+    imageUrl: (image: string) => `${images}/${image}`,
     /**
      * Posts a note: context the room's Familiars see on their next turn,
      * which no one replies to.
