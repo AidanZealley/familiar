@@ -114,7 +114,7 @@ export function household(now: number): Story {
           'You’re Rowan’s household Familiar: the flat at Kelham Court, Pip the greyhound, the heating, the shopping and the reminders. Warm, brief and practical.',
         avatar: '001',
         capabilities: {
-          plugins: ['demo'],
+          plugins: ['demo', 'cards'],
           mcp: ['home-assistant', 'time', 'scratch', 'bench'],
         },
       },
@@ -141,7 +141,7 @@ export function household(now: number): Story {
         model: { provider: 'faux', modelId: 'faux-2' },
       },
     ],
-    defaults: { plugins: ['demo'], mcp: ['time'] },
+    defaults: { plugins: ['demo', 'cards'], mcp: ['time'] },
     rooms: [
       {
         dm: 'Juniper',

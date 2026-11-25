@@ -9,6 +9,7 @@ import {
 } from '@familiar-ai/core'
 import { createNodePhotonImages } from '@familiar-ai/core/node'
 import { WEB_RENDERING } from '../rendering.ts'
+import { cardsPlugin } from '../cards/plugin.ts'
 import { OWNER_ID } from '../serve.ts'
 import { openDaemonWorkspace } from '../workspace.ts'
 import { demoClock } from './clock.ts'
@@ -59,7 +60,7 @@ export async function openDemo(
       // The owner signs in and out from the web UI, as on a real daemon.
       account: {},
       notify,
-      plugins: [demoPlugin, workshopPlugin, ...plugins],
+      plugins: [demoPlugin, workshopPlugin, cardsPlugin, ...plugins],
       people: [{ id: OWNER_ID, name: 'demo' }],
       secrets: memorySecrets(),
       fetch: demoFetch,

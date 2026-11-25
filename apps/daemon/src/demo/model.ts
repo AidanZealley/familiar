@@ -13,6 +13,7 @@ import type { DemoClock } from './clock.ts'
 import type { Script } from './household/script.ts'
 import { markdownReply, tool, slow, error } from './scenarios/chat.ts'
 import { ask } from './scenarios/ask.ts'
+import { controls } from './scenarios/card.ts'
 import { compact } from './scenarios/compaction.ts'
 import { computer } from './scenarios/computer.ts'
 import { key } from './scenarios/connections.ts'
@@ -34,6 +35,7 @@ const scenarios = {
   computer,
   login,
   error,
+  controls,
 }
 const replies: NonNullable<Scenario['replies']> = Object.assign(
   {},

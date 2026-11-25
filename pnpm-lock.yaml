@@ -74,7 +74,7 @@ importers:
     dependencies:
       '@earendil-works/chord':
         specifier: 'catalog:'
-        version: 1.5.2(esbuild@0.28.2)(react@19.3.1)(ws@8.21.0)
+        version: 1.5.2(esbuild@0.28.2)(react@19.3.0)(ws@8.21.0)
       '@earendil-works/pi-ai':
         specifier: 'catalog:'
         version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
@@ -83,16 +83,25 @@ importers:
         version: 1.5.2
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
-        version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.1)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
+        version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.0)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@familiar-ai/computer':
         specifier: workspace:*
         version: link:../../packages/computer
       '@familiar-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@familiar-ai/web':
+        specifier: workspace:*
+        version: link:../web
       '@hono/node-server':
         specifier: 2.1.8
         version: 2.1.8(hono@4.13.13)
+      '@json-render/core':
+        specifier: 0.23.2
+        version: 0.23.2(zod@4.6.7)
+      '@json-render/react':
+        specifier: 0.23.2
+        version: 0.23.2(react@19.3.0)(zod@4.6.7)
       '@mdream/js':
         specifier: 2.0.3
         version: 2.0.3
@@ -102,6 +111,9 @@ importers:
       cross-spawn:
         specifier: 7.0.6
         version: 7.0.6
+      gencn:
+        specifier: file:/home/aidanzealley/code/gencn/packages/core
+        version: file:../../../../code/gencn/packages/core(@json-render/core@0.23.2(zod@4.6.7))(@json-render/react@0.23.2(react@19.3.0)(zod@4.6.7))(react@19.3.0)(zod@4.6.7)
       hono:
         specifier: 'catalog:'
         version: 4.13.13
@@ -373,7 +385,7 @@ importers:
     dependencies:
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
-        version: 1.5.2(esbuild@0.28.2)(supports-color@10.2.2)(ws@8.21.0)(zod@4.6.7)
+        version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.0)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@familiar-ai/client':
         specifier: workspace:*
         version: link:../../packages/client
@@ -496,7 +508,7 @@ importers:
     dependencies:
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
-        version: 1.5.2(esbuild@0.28.2)(supports-color@10.2.2)(ws@8.21.0)(zod@4.6.7)
+        version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.0)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 5.20261023.1
@@ -540,13 +552,13 @@ importers:
     dependencies:
       '@earendil-works/chord':
         specifier: 'catalog:'
-        version: 1.5.2(esbuild@0.28.2)(react@19.3.1)(ws@8.21.0)
+        version: 1.5.2(esbuild@0.28.2)(react@19.3.0)(ws@8.21.0)
       '@earendil-works/pi-ai':
         specifier: 'catalog:'
         version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@earendil-works/pi-durable':
         specifier: 'catalog:'
-        version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.1)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
+        version: 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.0)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@earendil-works/pi-schema':
         specifier: 'catalog:'
         version: 1.5.2
@@ -5052,6 +5064,10 @@ packages:
     peerDependencies:
       react: ^19.3.1
 
+  react@19.3.0:
+    resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
+    engines: {node: '>=0.10.0'}
+
   react@19.3.1:
     resolution: {integrity: sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw==}
     engines: {node: '>=0.10.0'}
@@ -6883,6 +6899,15 @@ snapshots:
 
   '@dotenvx/primitives@0.8.0': {}
 
+  '@earendil-works/chord@1.5.2(esbuild@0.28.2)(react@19.3.0)(ws@8.21.0)':
+    dependencies:
+      '@earendil-works/pi-schema': 1.5.2
+      '@earendil-works/pi-telemetry': 1.5.2
+    optionalDependencies:
+      esbuild: 0.28.2
+      react: 19.3.0
+      ws: 8.21.0
+
   '@earendil-works/chord@1.5.2(esbuild@0.28.2)(react@19.3.1)(ws@8.21.0)':
     dependencies:
       '@earendil-works/pi-schema': 1.5.2
@@ -6921,9 +6946,9 @@ snapshots:
     dependencies:
       quickjs-wasi: 3.6.2
 
-  '@earendil-works/pi-durable@1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.1)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)':
+  '@earendil-works/pi-durable@1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.0)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/chord': 1.5.2(esbuild@0.28.2)(react@19.3.1)(ws@8.21.0)
+      '@earendil-works/chord': 1.5.2(esbuild@0.28.2)(react@19.3.0)(ws@8.21.0)
       '@earendil-works/pi-ai': 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@earendil-works/pi-codemode': 1.5.2
       '@earendil-works/pi-schema': 1.5.2
@@ -6945,7 +6970,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-durable@1.5.2(esbuild@0.28.2)(supports-color@10.2.2)(ws@8.21.0)(zod@4.6.7)':
+  '@earendil-works/pi-durable@1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(react@19.3.1)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)':
     dependencies:
       '@earendil-works/chord': 1.5.2(esbuild@0.28.2)(react@19.3.1)(ws@8.21.0)
       '@earendil-works/pi-ai': 1.5.2(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
@@ -7366,6 +7391,13 @@ snapshots:
   '@json-render/core@0.23.2(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
+
+  '@json-render/react@0.23.2(react@19.3.0)(zod@4.6.7)':
+    dependencies:
+      '@json-render/core': 0.23.2(zod@4.6.7)
+      react: 19.3.0
+    transitivePeerDependencies:
+      - zod
 
   '@json-render/react@0.23.2(react@19.3.1)(zod@4.6.7)':
     dependencies:
@@ -9471,6 +9503,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  gencn@file:../../../../code/gencn/packages/core(@json-render/core@0.23.2(zod@4.6.7))(@json-render/react@0.23.2(react@19.3.0)(zod@4.6.7))(react@19.3.0)(zod@4.6.7):
+    dependencies:
+      '@json-render/core': 0.23.2(zod@4.6.7)
+      '@json-render/react': 0.23.2(react@19.3.0)(zod@4.6.7)
+      re2js: 2.10.0
+      zod: 4.6.7
+    optionalDependencies:
+      react: 19.3.0
+
   gencn@file:../../../../code/gencn/packages/core(@json-render/core@0.23.2(zod@4.6.7))(@json-render/react@0.23.2(react@19.3.1)(zod@4.6.7))(react@19.3.1)(zod@4.6.7):
     dependencies:
       '@json-render/core': 0.23.2(zod@4.6.7)
@@ -11037,6 +11078,8 @@ snapshots:
     dependencies:
       react: 19.3.1
       scheduler: 0.28.0
+
+  react@19.3.0: {}
 
   react@19.3.1: {}
 

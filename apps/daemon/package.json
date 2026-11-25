@@ -14,7 +14,8 @@
     "eval:memory-scenarios": "node src/memory-eval/scenarios-main.ts",
     "typecheck": "tsc",
     "bundle": "pnpm --filter @familiar-ai/web build && node scripts/bundle.ts",
-    "test:release": "node scripts/verify-release.ts"
+    "test:release": "node scripts/verify-release.ts",
+    "dev:cards": "node scripts/dev-cards.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "catalog:",
@@ -23,10 +24,14 @@
     "@earendil-works/pi-durable": "catalog:",
     "@familiar-ai/computer": "workspace:*",
     "@familiar-ai/core": "workspace:*",
+    "@familiar-ai/web": "workspace:*",
     "@hono/node-server": "2.1.8",
+    "@json-render/core": "0.23.2",
+    "@json-render/react": "0.23.2",
     "@mdream/js": "2.0.3",
     "@modelcontextprotocol/client": "catalog:",
     "cross-spawn": "7.0.6",
+    "gencn": "file:/home/aidanzealley/code/gencn/packages/core",
     "hono": "catalog:",
     "piscina": "5.3.2",
     "web-push": "3.6.7",

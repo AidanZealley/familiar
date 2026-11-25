@@ -10,6 +10,7 @@ import {
   type Tool,
   type ToolAnnotations,
 } from '@modelcontextprotocol/server'
+import { callHome, homeTools } from './home.ts'
 import type { Scenario } from './scenario.ts'
 
 // Pretend MCP services, so the Connections page has real connections in every
@@ -54,6 +55,7 @@ const destroys: ToolAnnotations = { ...sets, destructiveHint: true }
 // serves echo, so a server added from the page can be tried in chat.
 const services: Record<string, Tool[]> = {
   'home.demo.invalid': [
+    ...homeTools,
     ...pretend(reads, {
       get_live_context: 'Gets the current state of every exposed device.',
       list_areas: 'Lists the areas of the home.',
@@ -146,6 +148,12 @@ function serve(tools: Tool[]) {
     const text = (text: string) => ({
       content: [{ type: 'text' as const, text }],
     })
+    const home = tools.some((tool) => homeTools.includes(tool))
+      ? callHome(params.name, params.arguments)
+      : undefined
+    if (home) {
+      return home
+    }
     switch (params.name) {
       case 'echo':
         return text(String(params.arguments?.text ?? ''))
@@ -272,6 +280,12 @@ export async function seedMcp(workspace: Workspace) {
   await workspace.connections.updateToolSettings(
     { kind: 'mcp', name: 'home-assistant' },
     'unlock',
+    { askBeforeRunning: true },
+  )
+  // Changing the heating asks first, so a card's Select shows approval.
+  await workspace.connections.updateToolSettings(
+    { kind: 'mcp', name: 'home-assistant' },
+    'HassClimateSetMode',
     { askBeforeRunning: true },
   )
   await http('notes', 'https://notes.demo.invalid/mcp')

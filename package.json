@@ -30,7 +30,8 @@
     "test:cloudflare": "pnpm --filter @familiar-ai/cloudflare test",
     "bundle": "pnpm --filter @familiar-ai/daemon bundle",
     "test:release": "pnpm --filter @familiar-ai/daemon test:release",
-    "test:packages": "node scripts/verify-packages.ts"
+    "test:packages": "node scripts/verify-packages.ts",
+    "dev:cards": "pnpm --filter @familiar-ai/daemon dev:cards"
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.1",
