@@ -36,6 +36,8 @@ export type ServeOptions = {
   computers?: Pick<ComputerHost, 'summary'>
   /** Updating this installation, from the web UI's settings. */
   updater?: Updater
+  /** Runs before every route, such as the demo's rough network. */
+  middleware?: MiddlewareHandler
 }
 
 /**
@@ -119,9 +121,13 @@ export function daemonApp(
     | 'computerLimit'
     | 'computers'
     | 'updater'
+    | 'middleware'
   >,
 ) {
   const app = new Hono().use(browserRequestsSameOrigin())
+  if (options.middleware) {
+    app.use(options.middleware)
+  }
   if (options.avatarsDir) {
     app.route('/api/avatars', avatarRoutes(options.avatarsDir))
   }
