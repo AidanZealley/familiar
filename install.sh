@@ -6,7 +6,7 @@ main() {
   version=${FAMILIAR_VERSION:-latest}
   case "$version" in
     latest) release=https://github.com/AidanZealley/familiar/releases/latest/download ;;
-    main) release=https://github.com/AidanZealley/familiar/releases/download/main-build ;;
+    main) release= ;;
     v[0-9]*)
       case "$version" in *[!a-zA-Z0-9.+-]*) echo 'Invalid FAMILIAR_VERSION tag.' >&2; exit 1 ;; esac
       release="https://github.com/AidanZealley/familiar/releases/download/$version"
@@ -19,6 +19,13 @@ main() {
   temporary=$(mktemp -d)
   trap 'rm -rf "$temporary"' EXIT
   trap 'exit 1' HUP INT TERM
+  if [ -z "$release" ]; then
+    # main-build holds only a pointer to the latest build of main, its own release.
+    curl -fsSL https://github.com/AidanZealley/familiar/releases/download/main-build/version.json -o "$temporary/version.json"
+    build=$(sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p' "$temporary/version.json")
+    [ -n "$build" ] || { echo "Couldn't find the latest build of main." >&2; exit 1; }
+    release="https://github.com/AidanZealley/familiar/releases/download/v$build"
+  fi
   echo "Downloading Familiar ($version)..."
   curl -fSL "$release/familiar.tgz" -o "$temporary/familiar.tgz"
 

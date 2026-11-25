@@ -26,7 +26,7 @@ const fixture = () => {
 
 test.skipIf(process.platform === 'win32').each([
   ['Linux', 'x86_64', false, 'v1.2.3', '/releases/download/v1.2.3/'],
-  ['Darwin', 'arm64', true, 'main', '/releases/download/main-build/'],
+  ['Darwin', 'arm64', true, 'main', '/releases/download/v1.2.3-main.1a2b3c4d/'],
 ])(
   'shell installer on %s downloads a release and reuses or installs Node',
   (os, arch, needsNode, version, download) => {
@@ -68,6 +68,11 @@ chmod +x "$HOME/.local/bin/familiar"
       .digest('hex')
     writeFileSync(resolve(home, 'SHASUMS256.txt'), `${digest}  ${archive}\n`)
     writeFileSync(resolve(home, 'familiar.tgz'), 'release fixture')
+    // main-build's pointer, as the publish workflow writes it.
+    writeFileSync(
+      resolve(home, 'version.json'),
+      '{\n  "version": "1.2.3-main.1a2b3c4d"\n}\n',
+    )
     executable(
       resolve(bin, 'curl'),
       `printf '%s\\n' "$@" >> "$HOME/downloads.log"
@@ -153,6 +158,8 @@ function Invoke-WebRequest {
     New-Item -ItemType Directory -Force $folder | Out-Null
     Set-Content (Join-Path $folder 'node.exe') 'runtime fixture'
     Compress-Archive -Path $folder -DestinationPath $OutFile
+  } elseif ($Uri -like '*/version.json') {
+    Set-Content $OutFile '{ "version": "1.2.3-main.1a2b3c4d" }'
   } else { Set-Content $OutFile 'release fixture' }
 }
 try {
@@ -187,7 +194,9 @@ try {
     expect(readFileSync(resolve(home, 'setup.log'), 'utf8')).toContain('setup')
     const downloads = readFileSync(resolve(home, 'downloads.log'), 'utf8')
     expect(downloads).toContain('/releases/download/v1.2.3/familiar.tgz')
-    expect(downloads).toContain('/releases/download/main-build/familiar.tgz')
+    expect(downloads).toContain(
+      '/releases/download/v1.2.3-main.1a2b3c4d/familiar.tgz',
+    )
   },
   35000,
 )

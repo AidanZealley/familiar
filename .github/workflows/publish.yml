@@ -1,9 +1,9 @@
 name: Publish
 
 # A `v*` tag publishes a release: a GitHub release and the npm packages. A push
-# to main publishes the rolling `main-build` prerelease, which `familiar update`
-# and the install scripts use for main, and nothing to npm. Both run the same
-# checks and bundle; the `target` step is the one place they differ.
+# to main publishes its build as a prerelease, moves the `main-build` pointer
+# that `familiar update` and the install scripts follow for main, and
+# publishes nothing to npm. Both run the same checks and bundle.
 on:
   push:
     tags: ['v*']
@@ -42,25 +42,23 @@ jobs:
       - run: pnpm typecheck && pnpm lint && pnpm test && pnpm exec prettier --check .
       - run: pnpm test:cloudflare
       - run: pnpm --filter @familiar-example/cloudflare-worker build
-      # A tag publishes its own version as a release. A build of main is
+      # A tag publishes its own version. A build of main is
       # `<latest release>-main.<commit>`; `familiar update` reads `-main.` in
       # the installed version to keep updating from main.
       - id: target
-        name: Decide the version and the GitHub release
+        name: Decide the version
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             version=${GITHUB_REF_NAME#v}
-            release=$GITHUB_REF_NAME
           else
-            latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2> /dev/null || echo v0.0.0)
+            latest=$(gh release view --json tagName --jq .tagName 2> /dev/null || echo v0.0.0)
             version="${latest#v}-main.${GITHUB_SHA::8}"
-            release=main-build
           fi
-          echo "Publishing $version to $release"
+          echo "Publishing $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "release=$release" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       # The libraries share the version, set here so the checkout never
       # carries one.
       - run: pnpm --filter './packages/*' exec npm pkg set version="$RELEASE_VERSION"
@@ -72,43 +70,68 @@ jobs:
       - run: pnpm test:release
       - run: pnpm test:packages
       - run: pnpm --filter './packages/*' pack --pack-destination npm-packages
-      # Each publish step skips what an earlier attempt finished, so a failed
-      # run can be rerun. A prerelease (a version with `-`, such as an rc or a
-      # build of main) is never marked Latest.
-      - name: Publish the GitHub release
+      # Every build, a tag's or main's, is its own release `v<version>`,
+      # written once: created as a draft, which no download URL serves,
+      # filled, then published, so it is seen whole or not at all. Publishing
+      # a tag's is what moves releases/latest; a prerelease (an rc or a build
+      # of main) is never marked Latest. A rerun finishes a draft and skips a
+      # published release, as the npm step skips published packages.
+      - name: Publish the build's release
         run: |
-          # version.json tells an installation what it would update to,
-          # beside the package it would install.
+          # version.json tells an installation the version beside it, and
+          # releases/latest's is the pointer to the latest release.
           jq -n --arg version "$VERSION" '{ version: $version }' > version.json
-          assets=(apps/daemon/dist/familiar.tgz version.json install.sh install.ps1)
-          notes="Built from $GITHUB_SHA as $VERSION. Install it with FAMILIAR_VERSION=main, or switch an installation with familiar update --main."
-          if [ "$RELEASE" = main-build ]; then
-            # The workflow is main-build's only writer: the tag follows the
-            # commit and the assets are replaced in place.
-            git push --force origin "$GITHUB_SHA:refs/tags/main-build"
-            if gh release view main-build --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-              gh release upload main-build "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
-              gh release edit main-build --notes "$notes" --repo "$GITHUB_REPOSITORY"
-            else
-              gh release create main-build "${assets[@]}" --verify-tag --prerelease --title 'Latest build of main' --notes "$notes" --repo "$GITHUB_REPOSITORY"
-            fi
-          elif gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "Release $RELEASE already exists"
-          else
-            prerelease=()
-            case "$RELEASE" in *-*) prerelease=(--prerelease) ;; esac
-            gh release create "$RELEASE" "${assets[@]}" --verify-tag --generate-notes "${prerelease[@]}" --repo "$GITHUB_REPOSITORY"
+          tag="v$VERSION"
+          draft=$(gh release view "$tag" --json isDraft --jq .isDraft 2> /dev/null || echo missing)
+          if [ "$draft" = false ]; then
+            echo "Release $tag is already published"
+            exit 0
           fi
+          if [ "$draft" = missing ]; then
+            options=(--generate-notes)
+            case "$VERSION" in *-main.*) options=(--notes "Built from $GITHUB_SHA.") ;; esac
+            case "$VERSION" in *-*) options+=(--prerelease) ;; esac
+            gh release create "$tag" --draft --target "$GITHUB_SHA" "${options[@]}"
+          fi
+          gh release upload "$tag" apps/daemon/dist/familiar.tgz version.json install.sh install.ps1 --clobber
+          gh release edit "$tag" --draft=false
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE: ${{ steps.target.outputs.release }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.target.outputs.version }}
+      # main-build is main's pointer: it holds only version.json, naming the
+      # latest build of main, and is replaced once that build is published.
+      # Runs on main go one at a time, the newer cancelling the older, so it
+      # only moves forward. The newest 10 builds of main are kept, to go back
+      # to with FAMILIAR_VERSION=v<version>; older ones, and drafts a
+      # cancelled run left, are deleted with their tags.
+      - name: Point main-build at this build
+        if: github.ref_type == 'branch'
+        run: |
+          notes="Points to the latest build of main, $VERSION. Install it with FAMILIAR_VERSION=main, or switch an installation with familiar update --main."
+          if gh release view main-build > /dev/null 2>&1; then
+            gh release upload main-build version.json --clobber
+            gh release edit main-build --notes "$notes"
+          else
+            gh release create main-build version.json --target "$GITHUB_SHA" --prerelease --title 'Latest build of main' --notes "$notes"
+          fi
+          gh release list --limit 1000 --json tagName,isDraft,createdAt --jq '
+            [.[] | select(.tagName | test("^v.+-main\\."))] | sort_by(.createdAt) | reverse
+            | map(select(.isDraft)) + (map(select(.isDraft | not)) | .[10:])
+            | .[].tagName' |
+            while read -r old; do
+              gh release delete "$old" --cleanup-tag --yes || echo "Couldn't delete $old"
+            done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.target.outputs.version }}
       # pnpm pack resolves workspace: and catalog: versions; npm publishes,
       # because it handles trusted publishing and provenance. Prereleases go
       # to `next`, so `latest` only ever installs a stable version. Builds of
       # main are never published to npm.
       - name: Publish npm packages
-        if: steps.target.outputs.release != 'main-build'
+        if: github.ref_type == 'tag'
         run: |
           tag=latest
           case "$VERSION" in *-*) tag=next ;; esac
