@@ -264,20 +264,27 @@ async function deliver(room: number, key: number, to: Room) {
   }
 }
 
-/** The newest entry `state`'s room shows, once it shows any. */
-export const newestOf = ({ view }: RoomState) =>
-  view?.entries.at(-1)?.id ?? view?.before
-
 /**
- * Whether `send` is in the room's transcript, whose newest entry is
- * `newest`: posted, and the room's stream has delivered its entry. Until
- * then it's pending, so it shows in its place with no gap, and from then
- * the entry does, with no duplicate. (C3 in the plan.)
+ * Whether `send` is in the room's transcript, `view`: an entry there was
+ * posted by its request, whether the stream delivers it before or after
+ * the post answers; or, posted, its entry is no newer than the newest
+ * there. Until then it's pending, so it shows in its place with no gap,
+ * and from then the entry does, with no duplicate. (C3 in the plan.)
  */
-export const isShown = (send: Send, newest: number | undefined) =>
-  send.phase.status === 'posted' &&
-  newest !== undefined &&
-  newest >= send.phase.entry
+export const isShown = (send: Send, view: RoomState['view']) => {
+  const entries = view?.entries ?? []
+  const newest = entries.at(-1)?.id ?? view?.before
+  return (
+    entries.some(
+      ({ data }) =>
+        (data as { requestId?: string } | undefined)?.requestId ===
+        send.requestId,
+    ) ||
+    (send.phase.status === 'posted' &&
+      newest !== undefined &&
+      newest >= send.phase.entry)
+  )
+}
 
 /**
  * Sends `draft` to `room`, as `message`, once its images are uploaded,
@@ -291,9 +298,9 @@ export function send(
   to: Room,
 ) {
   const key = nextId()
-  const newest = newestOf(to.getState())
+  const { view } = to.getState()
   const shown = (outbox.getState().sends.get(room) ?? []).filter((each) =>
-    isShown(each, newest),
+    isShown(each, view),
   )
   forget(shown.flatMap((each) => keysOf(each.draft)))
   setSends(room, (sends) => [

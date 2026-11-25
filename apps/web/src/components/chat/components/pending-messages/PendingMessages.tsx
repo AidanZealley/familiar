@@ -1,14 +1,6 @@
 import { useRoom, useRoomStore } from '@familiar-ai/client/react'
 import { useStore } from 'zustand'
-import {
-  discard,
-  isShown,
-  newestOf,
-  outbox,
-  retry,
-  take,
-  type Send,
-} from '@/lib/outbox'
+import { discard, isShown, outbox, retry, take, type Send } from '@/lib/outbox'
 import { FailedSendItem } from './components/failed-send-item'
 import { PendingMessage } from './components/pending-message'
 import type { PendingMessagesProps } from './types'
@@ -24,10 +16,10 @@ const none: readonly Send[] = []
 export const PendingMessages = ({ room, onEdit }: PendingMessagesProps) => {
   const store = useRoomStore()
   const sends = useStore(outbox, (state) => state.sends.get(room) ?? none)
-  const newest = useRoom(newestOf)
+  const view = useRoom((state) => state.view)
 
   return sends
-    .filter((send) => !isShown(send, newest))
+    .filter((send) => !isShown(send, view))
     .map((send) =>
       send.phase.status === 'failed' ? (
         <FailedSendItem

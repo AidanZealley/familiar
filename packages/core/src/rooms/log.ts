@@ -71,6 +71,11 @@ export type RoomMessageData = {
    */
   at: number
   mentions?: Mention[]
+  /**
+   * The request it was posted by, so its sender's client knows it among
+   * the room's entries. Absent before entries carried it.
+   */
+  requestId?: string
 }
 
 /** The entry kind a Familiar's reply is copied into a room as. */
@@ -166,6 +171,8 @@ export type NoteData = {
   text: string
   /** When it was posted, in ms since the epoch, on the workspace's clock. */
   at: number
+  /** The request it was posted by, as a message's. */
+  requestId?: string
 }
 
 /** A room's record of a reminder falling due; a turn answers it like a message. */

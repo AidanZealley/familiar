@@ -70,14 +70,20 @@ describe('outbox', () => {
     })
   })
 
-  it('shows a send until the room shows its entry', () => {
-    const at = (phase: Send['phase']) => ({ phase }) as Send
+  it('shows a send until the room shows its entry, found by request ID or entry', () => {
+    const at = (phase: Send['phase']) => ({ requestId: 'r1', phase }) as Send
+    const view = (entries: { id: number; data?: object }[]) =>
+      ({ entries }) as unknown as RoomState['view']
     const posted = at({ status: 'posted', entry: 5 })
 
     expect(isShown(posted, undefined)).toBe(false)
-    expect(isShown(posted, 4)).toBe(false)
-    expect(isShown(posted, 5)).toBe(true)
-    expect(isShown(posted, 6)).toBe(true)
-    expect(isShown(at({ status: 'posting' }), 6)).toBe(false)
+    expect(isShown(posted, view([{ id: 4 }]))).toBe(false)
+    expect(isShown(posted, view([{ id: 5 }]))).toBe(true)
+    // The stream can deliver it before the post answers.
+    const posting = at({ status: 'posting' })
+    expect(isShown(posting, view([{ id: 6 }]))).toBe(false)
+    expect(isShown(posting, view([{ id: 6, data: { requestId: 'r1' } }]))).toBe(
+      true,
+    )
   })
 })
