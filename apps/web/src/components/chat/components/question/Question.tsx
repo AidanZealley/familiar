@@ -11,11 +11,12 @@ import {
   type FieldValues,
 } from '../question-fields'
 import { toolName } from '../tool-call/label'
+import { ToolApproval } from '../tool-approval'
 import type { QuestionProps } from './types'
 
 /**
- * What a reply is waiting for the person to answer: whether to run a call,
- * or a server's question. Approving or submitting lets the reply go on;
+ * What a reply is waiting for the person to answer: whether to run a call
+ * (see ToolApproval), or a server's question. Approving or submitting lets the reply go on;
  * declining tells the Familiar no. Sending a new message instead declines it.
  */
 export const Question = ({ question }: QuestionProps) => {
@@ -49,6 +50,19 @@ export const Question = ({ question }: QuestionProps) => {
         shape.type === 'form' ? contentOf(shape.form, values) : undefined,
       ),
     )
+
+  if (question.kind === 'tool') {
+    return (
+      <ToolApproval
+        tool={question.tool}
+        args={question.arguments}
+        pending={pending}
+        error={error}
+        onApprove={accept}
+        onDecline={() => void submit({ action: 'decline' })}
+      />
+    )
+  }
 
   const actions = (
     <div className="flex gap-2">
@@ -84,21 +98,13 @@ export const Question = ({ question }: QuestionProps) => {
             <HandPalmIcon />
           </MarkerIcon>
           <MarkerContent className="shimmer">
-            Waiting for you ·{' '}
-            {question.kind === 'tool' ? `Run ${tool}?` : `${tool} asks`}
+            Waiting for you · {tool} asks
           </MarkerContent>
         </Marker>
         {shape.type === 'approval' && actions}
       </div>
       <div className="ml-6 flex flex-col gap-3 border-l pl-3">
-        {question.kind !== 'tool' && (
-          <p className="text-muted-foreground">{question.message}</p>
-        )}
-        {question.kind === 'tool' && (
-          <pre className="font-mono text-xs whitespace-pre-wrap text-muted-foreground">
-            {JSON.stringify(question.arguments, null, 2)}
-          </pre>
-        )}
+        <p className="text-muted-foreground">{question.message}</p>
         {shape.type === 'form' && (
           <QuestionFields
             form={shape.form}

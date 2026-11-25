@@ -6,6 +6,7 @@ import { FamiliarTurn } from '../familiar-turn'
 import { PersonMessage } from '../person-message'
 import { Reply } from '../reply'
 import { Handoff } from './components/handoff'
+import { ToolRun } from './components/tool-run'
 import { TranscriptGap } from './components/transcript-gap'
 import { RoomNote } from './components/room-note'
 import { ScheduledPrompt } from './components/scheduled-prompt'
@@ -42,6 +43,12 @@ export const TranscriptItem = ({
       )
     case 'note':
       return <RoomNote note={item} />
+    case 'tool-run':
+      return (
+        <div className={gutter}>
+          <ToolRun run={item} />
+        </div>
+      )
     case 'reply':
       // Saying nothing is shown once, as a line of its own.
       if (item.quiet) {

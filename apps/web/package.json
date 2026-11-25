@@ -2,6 +2,9 @@
   "name": "@familiar-ai/web",
   "private": true,
   "type": "module",
+  "exports": {
+    "./cards": "./src/cards/catalog.ts"
+  },
   "scripts": {
     "dev": "vite",
     "dev:live": "FAMILIAR_API=http://127.0.0.1:4317 vite --port 5173 --strictPort",
@@ -16,6 +19,8 @@
     "@familiar-ai/computer": "workspace:*",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@json-render/core": "0.23.2",
+    "@json-render/react": "0.23.2",
     "@novnc/novnc": "1.7.0",
     "@phosphor-icons/react": "^2.1.10",
     "@shadcn/react": "^0.3.1",
@@ -27,6 +32,7 @@
     "@tanstack/react-router": "^1.170.46",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
+    "gencn": "file:/home/aidanzealley/code/gencn/packages/core",
     "katex": "^0.16.47",
     "next-themes": "^0.4.6",
     "react": "^19.3.1",

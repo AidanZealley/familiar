@@ -1,4 +1,6 @@
 import { WrenchIcon } from '@phosphor-icons/react'
+import { SHOW_CARD, type CardDetails } from '@/cards/catalog'
+import { GenerativeCard } from '@/components/generative-card'
 import { Button } from '@/components/ui/button'
 import { useFamiliars } from '@/lib/workspace'
 import { handBack, useComputerControl } from '@/lib/computer-control'
@@ -10,6 +12,15 @@ export const ToolCall = ({ call, familiar }: ToolCallProps) => {
   const id = useFamiliars().find((item) => item.id === familiar)?.id
   const held = useComputerControl(id) === 'held'
   const { details } = call
+  if (call.name === SHOW_CARD && call.status === 'done') {
+    // The cards plugin keeps the checked spec as a shown card's details.
+    return (
+      <GenerativeCard
+        spec={(details as CardDetails).spec}
+        familiar={familiar}
+      />
+    )
+  }
   const waiting =
     call.status === 'running' &&
     typeof details === 'object' &&

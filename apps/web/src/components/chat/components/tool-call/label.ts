@@ -1,4 +1,5 @@
 import type { ToolCall } from '@familiar-ai/client'
+import { SHOW_CARD } from '@/cards/catalog'
 
 type Status = ToolCall['status']
 
@@ -30,6 +31,13 @@ export const toolLabel = (name: string, status: Status) => {
       running: 'Looking for tools…',
       done: 'Looked for tools',
       error: "Couldn't look for tools",
+    }[status]
+  }
+  if (name === SHOW_CARD) {
+    return {
+      running: 'Making a card…',
+      done: 'Showed a card',
+      error: "Couldn't show the card",
     }[status]
   }
   const shown = toolName(name)

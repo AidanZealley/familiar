@@ -188,6 +188,12 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@json-render/core':
+        specifier: 0.23.2
+        version: 0.23.2(zod@4.6.7)
+      '@json-render/react':
+        specifier: 0.23.2
+        version: 0.23.2(react@19.3.1)(zod@4.6.7)
       '@novnc/novnc':
         specifier: 1.7.0
         version: 1.7.0
@@ -221,6 +227,9 @@ importers:
       cn:
         specifier: ^0.5.0
         version: 0.5.0
+      gencn:
+        specifier: file:/home/aidanzealley/code/gencn/packages/core
+        version: file:../../../../code/gencn/packages/core(@json-render/core@0.23.2(zod@4.6.7))(@json-render/react@0.23.2(react@19.3.1)(zod@4.6.7))(react@19.3.1)(zod@4.6.7)
       katex:
         specifier: ^0.16.47
         version: 0.16.47
@@ -1710,6 +1719,16 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+
+  '@json-render/core@0.23.2':
+    resolution: {integrity: sha512-2BRXjS2uWLLmlPnlw9kvtCYJFSmnYqBhUyqf6dx7MheKhedGoz80rf4s0XTdGDVue2MLwnFqpcamcEnHi1HLeQ==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@json-render/react@0.23.2':
+    resolution: {integrity: sha512-DzHB+UekHk5acxjFU2+qleFhCncOmYLEZXXQT6D3hlE0PsJ/kKEb2be0WfwqFJ0ypDC0DQmnKp3/pQDlW64oAQ==}
+    peerDependencies:
+      react: ^19.2.3
 
   '@keyv/bigmap@1.3.1':
     resolution: {integrity: sha512-WbzE9sdmQtKy8vrNPa9BRnwZh5UF4s1KTmSK0KUVLo3eff5BlQNNWDnFOouNpKfPKDnms9xynJjsMYjMaT/aFQ==}
@@ -3673,6 +3692,17 @@ packages:
     resolution: {integrity: sha512-zV/5HKTfCeKWnxG0Dmrw51hEWFGfcF2xiXqcA3+J90WDuP0SvoiSO5ORvcBsifmx/FoIjgQN3oNOGaQ5PhLFkg==}
     engines: {node: '>=18'}
 
+  gencn@file:../../../../code/gencn/packages/core:
+    resolution: {directory: ../../../../code/gencn/packages/core, type: directory}
+    peerDependencies:
+      '@json-render/core': ^0.23.2
+      '@json-render/react': ^0.23.2
+      react: ^19.2.3
+      zod: ^4.3.6
+    peerDependenciesMeta:
+      react:
+        optional: true
+
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
@@ -5012,6 +5042,10 @@ packages:
   raw-body@3.0.2:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
+
+  re2js@2.10.0:
+    resolution: {integrity: sha512-/P6FNnLbHjXJMRF1dPoZoVTyHvFcuVhbDpzml9DPMlbeErYlZ18GueAaG9GhYhAm/9AN7i7Y6crmDrLX0DeJ4Q==}
+    engines: {node: '>=20.0.0'}
 
   react-dom@19.3.1:
     resolution: {integrity: sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ==}
@@ -7329,6 +7363,17 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@json-render/core@0.23.2(zod@4.6.7)':
+    dependencies:
+      zod: 4.6.7
+
+  '@json-render/react@0.23.2(react@19.3.1)(zod@4.6.7)':
+    dependencies:
+      '@json-render/core': 0.23.2(zod@4.6.7)
+      react: 19.3.1
+    transitivePeerDependencies:
+      - zod
+
   '@keyv/bigmap@1.3.1(keyv@5.6.0)':
     dependencies:
       hashery: 1.5.1
@@ -9426,6 +9471,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  gencn@file:../../../../code/gencn/packages/core(@json-render/core@0.23.2(zod@4.6.7))(@json-render/react@0.23.2(react@19.3.1)(zod@4.6.7))(react@19.3.1)(zod@4.6.7):
+    dependencies:
+      '@json-render/core': 0.23.2(zod@4.6.7)
+      '@json-render/react': 0.23.2(react@19.3.1)(zod@4.6.7)
+      re2js: 2.10.0
+      zod: 4.6.7
+    optionalDependencies:
+      react: 19.3.1
+
   gensync@1.0.0-beta.2: {}
 
   get-caller-file@2.0.5: {}
@@ -10976,6 +11030,8 @@ snapshots:
       iconv-lite: 0.7.3
       unpipe: 1.0.0
     optional: true
+
+  re2js@2.10.0: {}
 
   react-dom@19.3.1(react@19.3.1):
     dependencies:

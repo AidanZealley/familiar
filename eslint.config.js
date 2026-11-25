@@ -69,6 +69,8 @@ export default defineConfig([
     'examples/embedded-kanban/src/components/ui',
     'examples/embedded-kanban/src/components/reui',
     'examples/shared-conversation/src/components/ui',
+    // Blocks installed from gencn's registry and updated through it.
+    'apps/web/src/components/generative',
   ]),
   {
     files: ['**/*.{ts,tsx,js}'],
