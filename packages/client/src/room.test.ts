@@ -97,7 +97,7 @@ test('a refused or failed command rejects once and is never sent again', async (
 })
 
 test('without a fetch option the store uses the global fetch for the stream and commands', async () => {
-  const server = testServer()
+  const server = testServer(() => Response.json({ entry: 1 }, { status: 202 }))
   vi.stubGlobal('fetch', server.fetch)
   const store = open('http://familiar.test/api')
   await expect.poll(server.connections).toBe(1)

@@ -65,7 +65,7 @@ test('a host fetch authenticates the stream, each reconnect and each command aga
     )
     .post('/rooms/1/messages', async (c) => {
       sent.push((await c.req.json()).text)
-      return c.body(null, 204)
+      return c.json({ entry: 1 }, 202)
     })
 
   // The host's fetch, as in the client's docs.

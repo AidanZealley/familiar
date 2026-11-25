@@ -321,20 +321,28 @@ export const roomCommands = (
      * Posts a message as the signed-in person, addressing whoever
      * `mentions` picks (see `composeMessage`), with any `images`, by the
      * IDs `uploadImage` gave them. `text` may be empty when it has images.
+     * Resolves to its `entry`, the ID it's committed as. A retry that
+     * passes the first attempt's `requestId` posts it once, and resolves to
+     * the same entry.
      */
     send: (
       text: string,
       {
         mentions,
         images,
-      }: { mentions?: Mention[]; images?: readonly string[] } = {},
+        requestId = createRequestId(),
+      }: {
+        mentions?: Mention[]
+        images?: readonly string[]
+        requestId?: string
+      } = {},
     ) =>
-      succeed(
+      read(
         room.messages.$post({
           param,
           json: {
             text,
-            requestId: randomId(),
+            requestId,
             ...(mentions?.length && { mentions }),
             ...(images?.length && { images: [...images] }),
           },
@@ -351,12 +359,12 @@ export const roomCommands = (
     imageUrl: (image: string) => `${images}/${image}`,
     /**
      * Posts a note: context the room's Familiars see on their next turn,
-     * which no one replies to.
+     * which no one replies to. Resolves and retries as `send`.
      */
-    note: (text: string) =>
-      succeed(
-        room.notes.$post({ param, json: { text, requestId: randomId() } }),
-      ),
+    note: (
+      text: string,
+      { requestId = createRequestId() }: { requestId?: string } = {},
+    ) => read(room.notes.$post({ param, json: { text, requestId } })),
     /**
      * Tries a failed reply's turn again, by the failed reply's entry ID;
      * asking twice starts it once.
@@ -401,9 +409,13 @@ const failed = async (response: Response) => {
   )
 }
 
-/** 32 hex characters. getRandomValues, unlike randomUUID, works outside
- * secure contexts, such as plain HTTP LAN and tailnet previews. */
-const randomId = () =>
+/**
+ * A request ID for `send` or `note`: 32 random hex characters. Made once
+ * per message, so each retry of it can pass the same one. getRandomValues,
+ * unlike randomUUID, works outside secure contexts, such as plain HTTP LAN
+ * and tailnet previews.
+ */
+export const createRequestId = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('')
