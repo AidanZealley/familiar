@@ -1,29 +1,9 @@
-import type { ReactNode } from 'react'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Message, MessageContent } from '@/components/ui/message'
 import { formatTime } from '@/lib/format'
-import { Mention } from '../mention'
+import { withMentions } from './withMentions'
 import { MessageImages } from '../message-images'
 import type { PersonMessageProps } from './types'
-
-/** The message's text, with the spans it mentions someone in picked out. */
-const withMentions = ({
-  text,
-  mentions = [],
-}: PersonMessageProps['message']) => {
-  const parts: ReactNode[] = []
-  let at = 0
-  for (const mention of mentions.toSorted((a, b) => a.start - b.start)) {
-    parts.push(
-      text.slice(at, mention.start),
-      <Mention key={mention.start}>
-        {text.slice(mention.start, mention.end)}
-      </Mention>,
-    )
-    at = mention.end
-  }
-  return [...parts, text.slice(at)]
-}
 
 /**
  * A person's message: no name or avatar, only what they said, any images

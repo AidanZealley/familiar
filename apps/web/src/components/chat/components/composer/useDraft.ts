@@ -4,30 +4,19 @@ import {
   type FamiliarSummary,
 } from '@familiar-ai/client'
 import { useRoomStore } from '@familiar-ai/client/react'
-import { useState } from 'react'
-import { useStore } from 'zustand'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { isImage, refusalOf } from '@/lib/images'
-import { forget, outbox, upload } from '@/lib/outbox'
-import type { DraftImage } from './components/draft-images'
+import {
+  forget,
+  keysOf,
+  nextId,
+  upload,
+  type Draft,
+  type DraftImage,
+} from '@/lib/outbox'
 import { completeMention } from './mentions'
 
-/**
- * What's typed, the Familiars picked from the `@` menu while typing it, the
- * images attached, and whether it goes as a note: context no one replies
- * to, which carries no images.
- */
-export type Draft = {
-  text: string
-  picked: readonly FamiliarSummary[]
-  images: readonly DraftImage[]
-  note: boolean
-}
-
 const empty: Draft = { text: '', picked: [], images: [], note: false }
-
-let lastId = 0
-/** A key for an image or a failed send, unique while the page is open. */
-export const nextId = () => ++lastId
 
 export const isEmpty = (draft: Draft) =>
   !draft.text.trim() && !draft.images.length
@@ -39,17 +28,21 @@ const without = (draft: Draft, id: number): Draft => ({
 })
 
 /**
- * The composer's draft, and every change to it: the only writer of what's
+ * The room's draft, and every change to it: the only writer of what's
  * typed, picked and attached. Each image's upload starts as it's attached,
- * in the outbox, under the image's key. `refused` says why the last images
- * couldn't be attached, until more are or the draft is taken.
+ * in the outbox, under the image's key, and is the draft's until it's
+ * taken to send; the draft's uploads go with it, as when the room changes.
+ * `refused` says why the last images couldn't be attached, until more are
+ * or the draft is taken.
  */
 export const useDraft = () => {
   const store = useRoomStore()
   const [draft, setDraft] = useState<Draft>(empty)
   const [refused, setRefused] = useState<string>()
-  const uploads = useStore(outbox, (state) => state.uploads)
   const { text, images } = draft
+
+  const forgetUploads = useEffectEvent(() => forget(keysOf(draft)))
+  useEffect(() => () => forgetUploads(), [])
 
   /** Uploads `image`; if the daemon refuses it, it's removed, with why. */
   const startUpload = ({ id, file }: DraftImage) =>
@@ -64,7 +57,7 @@ export const useDraft = () => {
 
   /**
    * Attaches what fits of the images among `files`, each shown at once and
-   * sendable once it's uploaded, and says why any others weren't, or why
+   * uploading, and says why any others weren't, or why
    * none were: a note carries no images.
    */
   const attach = (files: readonly File[]) => {
@@ -94,10 +87,8 @@ export const useDraft = () => {
   return {
     draft,
     refused,
-    /** Words or images, and every image uploaded. */
-    sendable:
-      !isEmpty(draft) &&
-      images.every((image) => uploads.get(image.id)?.status === 'ready'),
+    /** Words or images, however far their uploads have got. */
+    sendable: !isEmpty(draft),
     type: (text: string) => setDraft((draft) => ({ ...draft, text })),
     /** Completes the `@` being typed as `familiar`'s name. */
     mention: (familiar: FamiliarSummary) =>
@@ -128,7 +119,7 @@ export const useDraft = () => {
       return { ...draft, text: text.trim() }
     },
     /**
-     * Makes `unsent` the draft, to change it before sending. The composer
+     * Makes `unsent` the draft, to change it before sending. A failed send
      * offers this only while the draft is empty, so it's never merged.
      */
     edit: (unsent: Draft) => {
@@ -137,3 +128,6 @@ export const useDraft = () => {
     },
   }
 }
+
+/** The room's draft and its changes, as `useDraft` gives them. */
+export type Drafting = ReturnType<typeof useDraft>

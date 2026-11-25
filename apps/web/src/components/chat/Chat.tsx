@@ -1,6 +1,6 @@
 import { useRoom } from '@familiar-ai/client/react'
 import { cn } from 'cn'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { PaneLoader } from '@/components/pane-loader'
 import { Problem } from '@/components/problem'
 import { Button } from '@/components/ui/button'
@@ -14,20 +14,22 @@ import {
 import { useComputerView } from '@/lib/computer-view'
 import { connectionProblems } from '@/lib/connection-problems'
 import { useFamiliars } from '@/lib/workspace'
-import { Composer } from './components/composer'
+import { Composer, isEmpty, useDraft } from './components/composer'
 import { ComputerPane } from './components/computer-pane'
 import { ComputerPopout } from './components/computer-popout'
 import { ConversationHeader } from './components/conversation-header'
 import { OlderMessages } from './components/older-messages'
 import { LiveReplies } from './components/live-replies'
+import { PendingMessages } from './components/pending-messages'
 import { SignIn } from './components/sign-in'
 import { TranscriptItems } from './components/transcript-items'
 import { useReadWhileOpen } from './read'
 import type { ChatProps } from './types'
 
 /**
- * The open room: its header, its transcript and the composer, marked read
- * while it's on screen. In a DM, the Familiar's screen can pop out over
+ * The open room: its header, its transcript, the sends on their way at its
+ * foot, and the composer, marked read while it's on screen. It owns the
+ * room's draft, which a failed send at the foot can be taken back into. In a DM, the Familiar's screen can pop out over
  * it, or go full screen with the chat docked beside it (below, on a
  * phone), the same chat throughout so nothing in it is lost. Until the room's first view arrives, its header
  * over a loader; the view then stays through any reconnect, which the
@@ -56,6 +58,8 @@ export const Chat = ({ room }: ChatProps) => {
     return () => observer.disconnect()
   }, [])
   useReadWhileOpen(room)
+  const drafting = useDraft()
+  const input = useRef<HTMLTextAreaElement>(null)
   const familiars = useFamiliars()
   const { view } = useComputerView()
   const dm =
@@ -148,12 +152,28 @@ export const Chat = ({ room }: ChatProps) => {
                   replying={transcript?.replying ?? []}
                   dm={room.kind === 'dm'}
                 />
+                <PendingMessages
+                  room={room.id}
+                  onEdit={
+                    isEmpty(drafting.draft)
+                      ? (draft) => {
+                          drafting.edit(draft)
+                          input.current?.focus()
+                        }
+                      : undefined
+                  }
+                />
               </MessageScrollerContent>
               {/* Lined up with the conversation. */}
               <div className="sticky bottom-0 z-30 mx-auto w-full max-w-(--page-width)">
                 <MessageScrollerButton className="data-[direction=end]:bottom-[calc(100%+1rem)]" />
                 <SignIn />
-                <Composer room={room} busy={transcript?.busy ?? false} />
+                <Composer
+                  room={room}
+                  busy={transcript?.busy ?? false}
+                  drafting={drafting}
+                  input={input}
+                />
               </div>
             </MessageScrollerViewport>
             <OlderMessages firstItemIds={firstItemIds} />
