@@ -7,6 +7,7 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { build } from 'rolldown'
 import { runNpm } from '../src/cli/npm.ts'
@@ -19,6 +20,14 @@ const manifest = JSON.parse(
 const workspace = JSON.parse(
   await readFile(resolve(daemon, '../../package.json'), 'utf8'),
 )
+// Photon's image worker, which pi-durable starts from beside its own code,
+// and the Photon it depends on, for its WebAssembly.
+const local = createRequire(import.meta.url)
+const photonWorker = resolve(
+  local.resolve('@earendil-works/pi-durable/images/node'),
+  '../node-worker.js',
+)
+const photon = createRequire(photonWorker)('@silvia-odwyer/photon/package.json')
 
 await rm(dist, { recursive: true, force: true })
 await mkdir(dist, { recursive: true })
@@ -26,6 +35,8 @@ await build({
   input: {
     familiar: resolve(daemon, 'src/cli.ts'),
     'page-worker': resolve(daemon, 'src/web/page-worker.ts'),
+    // Beside the bundled code that starts it, as it is in pi-durable.
+    'node-worker': photonWorker,
   },
   platform: 'node',
   external: ['@earendil-works/pi-codemode', 'piscina'],
@@ -56,6 +67,8 @@ await writeFile(
       dependencies: {
         '@earendil-works/pi-codemode':
           manifest.dependencies['@earendil-works/pi-codemode'],
+        // Its WebAssembly, which pi-durable finds as a package.
+        '@silvia-odwyer/photon': photon.version,
         piscina: manifest.dependencies.piscina,
       },
     },
