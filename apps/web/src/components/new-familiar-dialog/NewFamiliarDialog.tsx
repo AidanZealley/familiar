@@ -61,12 +61,13 @@ export const NewFamiliarDialog = () => {
           <Textarea
             id={`${id}-persona`}
             value={persona}
-            placeholder="Optional: who it is in conversation, including its name."
+            placeholder="You keep the household running: the shopping, the heating and the reminders. Warm, brief and practical."
             onChange={(event) => setPersona(event.target.value)}
             className="min-h-24 text-sm"
           />
           <FieldDescription>
-            Leave it empty for the default, built from the name.
+            Optional. Written to it as “You…”, after its name. Leave it empty
+            for the default.
           </FieldDescription>
         </Field>
         <FieldError>{create.error?.message}</FieldError>

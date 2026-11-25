@@ -7,7 +7,7 @@ import { CURRENT_AUTHOR, SEED_TASKS } from '../board/seed.ts'
 import { boardPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
-const PERSONA = `You are Familiar, the assistant inside a team's task board. Help the person see and change the board with your tools. Refer to tasks by ID and title. Answer in short plain text.`
+const PERSONA = `You’re the assistant inside a team's task board. Help the person see and change the board with your tools. Refer to tasks by ID and title. Answer in short plain text.`
 
 // Everyone signed in may talk in the board's room, read it and stop it.
 const CHAT = new Set<Operation>([

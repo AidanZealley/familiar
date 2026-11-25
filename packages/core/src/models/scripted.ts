@@ -15,6 +15,7 @@ import {
   textOf,
   type MessageData,
 } from '../conversation/message.ts'
+import { introducedAs } from '../persona.ts'
 import { readRelay } from '../rooms/log.ts'
 import { SCHEDULED_PREFIX } from '../schedules/task.ts'
 
@@ -23,8 +24,14 @@ type Said = Pick<MessageData, 'author' | 'text'>
 /** A person's message, after the people's earlier messages in this request. */
 export type ScriptedMessage = { type: 'message'; earlier: Said[] } & Said
 
-/** What a scripted model is asked, read from the request Familiar sends. */
-export type ScriptedRequest = { context: TranscriptContext } & (
+/**
+ * What a scripted model is asked, read from the request Familiar sends:
+ * which Familiar is answering, by name, unless it's memory's own call.
+ */
+export type ScriptedRequest = {
+  context: TranscriptContext
+  familiar?: string
+} & (
   | ScriptedMessage
   /** A tool the script called has returned. */
   | { type: 'tool-result'; name: string; output: string; isError: boolean }
@@ -62,6 +69,18 @@ function memoryCall({ messages }: TranscriptContext) {
     : offered.includes('tidy')
       ? 'tidy'
       : undefined
+}
+
+/** The Familiar a request is for, from its prompt's introduction. */
+function familiarOf({ messages }: TranscriptContext) {
+  for (const message of messages) {
+    const introduction =
+      message.role === 'system' ? message.sections?.introduction : undefined
+    if (introduction) {
+      return introducedAs(introduction)
+    }
+  }
+  return undefined
 }
 
 /**
@@ -143,7 +162,11 @@ export function scriptedModels(
     options?: { signal?: AbortSignal },
   ) => {
     faux.appendResponses([step])
-    return respond(readRequest(context), options?.signal)
+    const familiar = familiarOf(context)
+    return respond(
+      { ...readRequest(context), ...(familiar && { familiar }) },
+      options?.signal,
+    )
   }
   faux.setResponses([step])
   const models = createModels()

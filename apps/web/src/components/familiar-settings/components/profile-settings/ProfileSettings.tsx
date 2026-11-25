@@ -16,7 +16,7 @@ import type { ProfileSettingsProps } from './types'
 
 /**
  * Its name, persona and portrait. Edits are a draft until saved; an empty
- * persona saves as the default one, built from the name, and its own
+ * persona saves as the default one, and its own
  * character as the portrait its ID generates.
  */
 export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
@@ -58,13 +58,13 @@ export const ProfileSettings = ({ familiar }: ProfileSettingsProps) => {
         <Field>
           <FieldLabel htmlFor={`${id}-persona`}>Persona</FieldLabel>
           <FieldDescription>
-            Who {familiar.name} is in conversation, used exactly as written, so
-            include its name. Leave it empty for the default.
+            Who {familiar.name} is, written to it as “You…”, after its name.
+            Leave it empty for the default.
           </FieldDescription>
           <Textarea
             id={`${id}-persona`}
             value={persona}
-            placeholder={`The default persona, built from the name “${familiar.name}”. Write one to replace it.`}
+            placeholder="You keep the household running: the shopping, the heating and the reminders. Warm, brief and practical."
             onChange={(event) => setPersona(event.target.value)}
             className="min-h-32 text-sm"
           />

@@ -33,7 +33,7 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
       const ada = await createFamiliar(tx, { name: 'Ada' })
       const bo = await createFamiliar(tx, {
         name: 'Bo',
-        persona: 'You are Bo, a gardener.',
+        persona: 'You’re a gardener.',
       })
       await seedPage(
         tx,
@@ -99,18 +99,20 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   await say(bo, 'Hi Bo.')
 
   const [toAda, toBo] = requests
-  expect(toAda).toContain(defaultPersona('Ada'))
+  expect(toAda).toContain('You are Ada.')
+  expect(toAda).toContain(defaultPersona)
   expect(toAda).toContain('Has a cat called Miso')
-  expect(toBo).toContain('You are Bo, a gardener.')
+  expect(toBo).toContain('You are Bo.')
+  expect(toBo).toContain('You’re a gardener.')
   expect(toBo).not.toContain('Miso')
   for (const request of [toAda, toBo]) {
     expect(request).toContain('Replies render as plain text.')
   }
 
   // A change of identity reaches the next request.
-  await workspace.familiars.update(ada, { persona: 'You are Ada, a vet.' })
+  await workspace.familiars.update(ada, { persona: 'You’re a vet.' })
   await say(ada, 'Hello again.')
-  expect(requests.at(-1)).toContain('You are Ada, a vet.')
+  expect(requests.at(-1)).toContain('You’re a vet.')
 
   expect(
     (await read(() => familiar(bo).watch())).entries.some((entry) =>
@@ -130,8 +132,8 @@ test('Familiars in one workspace each keep their own chat, memory, schedules, mo
   ).toBe('medium')
 
   expect(await workspace.familiars.list()).toEqual([
-    { id: ada, name: 'Ada', persona: 'You are Ada, a vet.' },
-    { id: bo, name: 'Bo', persona: 'You are Bo, a gardener.' },
+    { id: ada, name: 'Ada', persona: 'You’re a vet.' },
+    { id: bo, name: 'Bo', persona: 'You’re a gardener.' },
   ])
   await expect(workspace.familiars.update(bo, { name: ' ' })).rejects.toThrow(
     'must not be blank',

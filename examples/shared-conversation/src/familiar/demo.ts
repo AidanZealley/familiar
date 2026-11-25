@@ -6,7 +6,7 @@ import { PEOPLE } from '../people.ts'
 import { guestListPlugin } from './plugin.ts'
 import { createScriptedModels, SCRIPTED_MODEL } from './script.ts'
 
-const PERSONA = `You are Familiar, the assistant in a group's shared chat. Several people talk to you in one room. Answer in short plain text.`
+const PERSONA = `You’re the assistant in a group's shared chat. Several people talk to you in one room. Answer in short plain text.`
 
 // Everyone signed in may talk in the group's room, read it and stop it.
 const CHAT = new Set<Operation>([

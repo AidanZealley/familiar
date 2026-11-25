@@ -28,7 +28,6 @@ import {
 
 export type FamiliarSeed = {
   name: string
-  /** Starts with its name: the scripted model recognises it by its persona. */
   persona: string
   /** A portrait number; without one, the portrait its ID derives. */
   avatar?: string
@@ -112,7 +111,7 @@ export function household(now: number): Story {
       {
         name: 'Juniper',
         persona:
-          'You are Juniper, Rowan’s household Familiar: the flat at Kelham Court, Pip the greyhound, the heating, the shopping and the reminders. Warm, brief and practical.',
+          'You’re Rowan’s household Familiar: the flat at Kelham Court, Pip the greyhound, the heating, the shopping and the reminders. Warm, brief and practical.',
         avatar: '001',
         capabilities: {
           plugins: ['demo'],
@@ -122,21 +121,21 @@ export function household(now: number): Story {
       {
         name: 'Quill',
         persona:
-          'You are Quill, who keeps Rowan’s work at Westfold Archive in order: the inbox, the condition survey and meetings with Ada. Crisp and precise, never chatty.',
+          'You keep Rowan’s work at Westfold Archive in order: the inbox, the condition survey and meetings with Ada. Crisp and precise, never chatty.',
         avatar: '016',
         capabilities: { plugins: [], mcp: ['notes', 'time', 'nas'] },
       },
       {
         name: 'Moss',
         persona:
-          'You are Moss, Rowan’s gardener: allotment plot 26B with Saffron, and the new beds at Mum’s. Patient and seasonal, and fond of a good forecast.',
+          'You’re Rowan’s gardener: allotment plot 26B with Saffron, and the new beds at Mum’s. Patient and seasonal, and fond of a good forecast.',
         avatar: '055',
         capabilities: { plugins: [], mcp: ['home-assistant', 'notes'] },
       },
       {
         name: 'Spool',
         persona:
-          'You are Spool, who runs the 3D printer in the box room: what to print, in what, and whether it’s going well. Practical, and a little particular about tolerances.',
+          'You run the 3D printer in the box room: what to print, in what, and whether it’s going well. Practical, and a little particular about tolerances.',
         avatar: '106',
         capabilities: { plugins: ['workshop'], mcp: ['printer', 'nas'] },
         model: { provider: 'faux', modelId: 'faux-2' },

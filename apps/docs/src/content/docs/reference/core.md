@@ -81,7 +81,7 @@ Familiar stores no permissions; a tool, or the API behind it, checks the author.
 | `modelDefaults()`, `setModelDefaults({ chat?, memory? })` | The default chat and memory models, each with its `thinkingLevel`                            |
 | `defaultCapabilities()`, `setDefaultCapabilities(change)` | The plugins and MCP connections new Familiars use                                            |
 
-- Without a `persona`, a Familiar uses `defaultPersona(name)`. Its name also titles its notifications.
+- A Familiar's prompt opens with `You are {name}.`, then its `persona`, or `defaultPersona` without one. Its name also titles its notifications.
 - An `avatar` is a string of up to 64 characters that your UI interprets; core never reads it.
 - Without `capabilities`, a new Familiar uses the defaults. A plugin added to the workspace later is off for every Familiar until turned on.
 - A removed Familiar leaves its named rooms, its DMs stay readable but refuse new messages, and rooms keep its replies.
