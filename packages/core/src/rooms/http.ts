@@ -322,7 +322,8 @@ export function roomRoutes(
             return c.json(result as ToolRun, 200)
           }),
       )
-      // A read-only tool's text, for a card to refresh from. Never recorded.
+      // A tool's text for a card to refresh from, if the Familiar may run it
+      // unprompted. Never asks, never recorded.
       .post(
         '/:room/tools/read',
         can('tools.read'),

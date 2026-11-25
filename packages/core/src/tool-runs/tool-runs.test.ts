@@ -28,7 +28,7 @@ function home() {
         inputSchema: { type: 'object' as const },
         annotations: { readOnlyHint: true },
       },
-      // Reads too, but doesn't say so: never run without a click.
+      // No annotations, as Home Assistant's own tools have none.
       { name: 'GetHistory', inputSchema: { type: 'object' as const } },
     ],
   }))
@@ -56,7 +56,7 @@ function home() {
   return { calls, transport }
 }
 
-test("a person runs a Familiar's tools once each, asks first where the owner says, and only reads read-only tools", async () => {
+test("a person runs a Familiar's tools once each, asks first where the owner says, and only reads tools it may run unprompted", async () => {
   const { calls, transport } = home()
   const host = await testHost({ mcpStdio: transport })
   const workspace = host.workspace()
@@ -106,12 +106,15 @@ test("a person runs a Familiar's tools once each, asks first where the owner say
     outcome: 'read',
     text: "- names: Lamp\n  state: 'on'",
   })
-  expect(await read('GetHistory')).toEqual({ outcome: 'unavailable' })
+  // Reads need only what the model has: enabled and not set to ask first.
+  expect(await read('GetHistory')).toMatchObject({ outcome: 'read' })
+  expect(await read('HassUnlock')).toEqual({ outcome: 'unavailable' })
   expect(calls).toEqual([
     'HassTurnOff Lamp',
     'HassTurnOff Porch',
     'HassUnlock Door',
     'GetLiveContext',
+    'GetHistory',
   ])
 
   // Runs are recorded in the room; reads aren't.

@@ -38,7 +38,7 @@ export type ToolRun =
 export type ToolRead =
   | { outcome: 'read'; text: string }
   | { outcome: 'failed'; message?: string }
-  /** Not runnable here now, not read-only, or set to ask first. */
+  /** Not runnable here now, or set to ask first. */
   | { outcome: 'unavailable' }
 
 /** A tool a person runs for `familiar` in `room`. */
@@ -69,8 +69,9 @@ export type ToolRunsApi = {
     },
   ): Promise<ToolRun>
   /**
-   * Runs a read-only tool (`readOnlyHint: true`, not set to ask) and
-   * returns its text. Never asks, never recorded.
+   * Runs a tool the Familiar may run unprompted (enabled, not set to ask
+   * first) and returns its text, for a card's refresh. Never asks, never
+   * recorded.
    */
   read(request: ToolRunRequest): Promise<ToolRead>
   /** `familiar`'s connection tools as it has them now. */
@@ -150,11 +151,10 @@ export function createToolRuns(
     },
     read: async (request) => {
       const found = await runnable(request)
-      if (
-        !found ||
-        found.annotations?.readOnlyHint !== true ||
-        found.askBeforeRunning
-      ) {
+      // The same permission the model has to run it unprompted: enabled for
+      // this Familiar and not set to ask first (a destructive tool asks by
+      // default). Annotations are hints: nothing here depends on readOnlyHint.
+      if (!found || found.askBeforeRunning) {
         return { outcome: 'unavailable' }
       }
       try {

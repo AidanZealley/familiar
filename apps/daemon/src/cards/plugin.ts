@@ -27,7 +27,9 @@ const CONTROLS = ['Switch', 'Slider', 'Select', 'Button']
 
 const description = `Show the person a small card in the conversation: a device's status, a few readings, a photo, or controls such as a light's switch and brightness. Use a card when seeing or changing a few things at once is easier than reading a reply.
 
-Controls run your MCP connection tools directly when the person uses them, without you: callTool's tool is the tool's full name, such as mcp__home__HassTurnOn (find tools with tool_search first). Bind each control's value to state with $bindState and pass it in args with $state. A refresh's tool must be read-only (its description says so); it runs now to check your extract, and again whenever the card is on screen.
+Call show_card directly, never from a codemode script: only a direct call shows the card.
+
+Controls run your MCP connection tools directly when the person uses them, without you: callTool's tool is the tool's full name, such as mcp__home__HassTurnOn (find tools with tool_search first). Bind each control's value to state with $bindState and pass it in args with $state. A refresh reads with a tool that only reads, such as one that gets the current state; it runs once now to check your extract against your state, and again whenever the card is on screen.
 
 ${toolPrompt(catalog)}`
 
@@ -123,12 +125,9 @@ function toolProblems(spec: Spec, tools: readonly ConnectionTool[]) {
       problems.push(
         `- refresh reads ${spec.refresh.tool}, which isn't one of your MCP connection tools.`,
       )
-    } else if (
-      tool.annotations?.readOnlyHint !== true ||
-      tool.askBeforeRunning
-    ) {
+    } else if (tool.askBeforeRunning) {
       problems.push(
-        `- refresh reads ${tool.name}, which isn't marked read-only (or the owner wants it approved), so it can't run without the person. Leave refresh out.`,
+        `- refresh reads ${tool.name}, which the owner wants approved before each run, so it can't run without the person. Leave refresh out.`,
       )
     } else {
       const problem = argsProblem(tool, (spec.refresh.args ?? {}) as JsonObject)
@@ -163,6 +162,9 @@ const showCard = defineTool({
   description,
   parameters,
   replay: 'safe',
+  // Only a direct call shows a card (the web app draws top-level show_card
+  // calls), so codemode scripts aren't offered this tool.
+  callers: ['model'],
   // A rejected spec goes back to the model with what to fix, so it can
   // call again in the same turn: the agent loop is the repair loop.
   execute: async (args, api, context) => {

@@ -415,7 +415,7 @@ export const roomCommands = (
             json: { familiar, ...call, requestId: createRequestId() },
           }),
         ),
-      /** A read-only tool's text, for `familiar`; never recorded. */
+      /** A tool's text, for `familiar`, if it may run unprompted; never recorded. */
       read: (
         familiar: number,
         call: { tool: string; args: JsonObject },
