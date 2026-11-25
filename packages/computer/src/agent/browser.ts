@@ -72,13 +72,15 @@ export function openBrowser(profileDir: string) {
 
   return {
     page,
-    /** Remembers a saved password before it's filled, to mask it. */
+    /** Remembers a saved password before it's filled, for `mask`. */
     filling: (password: string) => {
       filled.add(password)
     },
+    /** `text` for the model, without the saved passwords filled so far. */
+    mask: (text: string) => maskSaved(text, filled),
     /** The page as text, with a ref for each element, up to `KEEP_TEXT`. */
     snapshot: async (page: Page) =>
-      `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await snapshotWithoutPasswords(page, filled)}`.slice(
+      `Page: ${await page.title()}\nAddress: ${page.url()}\n\n${await snapshotWithoutPasswords(page)}`.slice(
         0,
         KEEP_TEXT,
       ),
@@ -114,17 +116,8 @@ export type Browser = ReturnType<typeof openBrowser>
  * snapshotted alone, which gives its ref, and that ref's line is masked.
  * If any such field has no ref, as when it's hidden or the page changed
  * meanwhile, every value in the snapshot is masked instead.
- *
- * A saved password can also show outside a password field: one a reveal
- * button turned into text, or a page echoing it in a label. So any line
- * holding one of `saved`, compared without quotes, escapes and spacing,
- * is masked whole. What a page shows of a password it altered, such as
- * its first letters, can't be recognised.
  */
-export async function snapshotWithoutPasswords(
-  page: Page,
-  saved: Iterable<string> = [],
-) {
+export async function snapshotWithoutPasswords(page: Page) {
   const snapshot = await page.ariaSnapshot({ mode: 'ai' })
   const refs = await Promise.all(
     page.frames().map(async (frame) => {
@@ -142,20 +135,16 @@ export async function snapshotWithoutPasswords(
   ).catch(() => [[null]])
   const found = refs.flat().filter((ref) => ref !== undefined)
   const all = found.includes(null)
-  const secrets = [...saved].map(bare).filter(Boolean)
   return snapshot
     .split('\n')
     .map((line) => {
       const ref = line.match(REF)?.[1]
-      if (secrets.some((secret) => bare(line).includes(secret))) {
-        return hidden(line, ref)
-      }
       if (!ref || (!all && !found.includes(ref))) {
         return line
       }
       const field = line.match(FIELD)
       if (!field) {
-        return hidden(line, ref)
+        return `${line.match(/^\s*/)![0]}- hidden [ref=${ref}]`
       }
       const [, start, key, value] = field
       return value ? `${start}${key}: ••••••••` : line
@@ -163,14 +152,33 @@ export async function snapshotWithoutPasswords(
     .join('\n')
 }
 
-/** `line` replaced by a placeholder, keeping its depth and any ref. */
-const hidden = (line: string, ref: string | undefined) =>
-  `${line.match(/^\s*/)![0]}- hidden${ref ? ` [ref=${ref}]` : ''}`
-
 /**
- * `text` without what a snapshot may add to or change in a value: quotes,
- * escapes and spacing.
+ * `text` with every line holding one of the `saved` passwords masked whole,
+ * the line compared without quotes, escapes and spacing, which a snapshot
+ * or an error may add or change. This covers a password shown outside its
+ * field, as a reveal button or the page may show it, in any text a tool
+ * returns.
+ *
+ * It's the accepted limit of keeping saved passwords from the model: the
+ * site is trusted, and a password split across lines, changed by the page,
+ * or seen in a screenshot isn't recognised.
  */
+export function maskSaved(text: string, saved: Iterable<string>) {
+  const secrets = [...saved].map(bare).filter(Boolean)
+  if (!secrets.length) {
+    return text
+  }
+  return text
+    .split('\n')
+    .map((line) =>
+      secrets.some((secret) => bare(line).includes(secret))
+        ? `${line.match(/^\s*/)![0]}••••••••`
+        : line,
+    )
+    .join('\n')
+}
+
+/** `text` without quotes, escapes and spacing. */
 const bare = (text: string) => text.replace(/[\s"'\\]/g, '')
 
 /** A snapshot line's ref. */

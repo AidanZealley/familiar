@@ -7,10 +7,9 @@ type Login = { origin: string; username: string; password: string }
 /** What the page scripts read of a control; the package has no DOM types. */
 type Control = {
   matches(selector: string): boolean
-  readonly ownerDocument: {
-    readonly location: { readonly origin: string }
-    querySelectorAll(selector: string): ArrayLike<Control>
-  }
+  readonly ownerDocument: { readonly location: { readonly origin: string } }
+  /** Its document, or the shadow root it's in. */
+  getRootNode(): { querySelectorAll(selector: string): ArrayLike<Control> }
   readonly form?: {
     readonly action: string
     readonly elements: ArrayLike<Control>
@@ -157,13 +156,14 @@ async function secureForm(
       if (!form) {
         return 'ready'
       }
-      // `elements` leaves out image buttons, which submit it all the same.
+      // `elements` leaves out image buttons, which submit it all the same;
+      // they're found in the form's own document or shadow root.
       const submitters = [
         ...Array.from(form.elements).filter((control) =>
           control.matches('button:not([type]), [type=submit]'),
         ),
         ...Array.from(
-          field!.ownerDocument.querySelectorAll('input[type=image]'),
+          field!.getRootNode().querySelectorAll('input[type=image]'),
         ).filter((control) => control.form === form),
       ]
       const actions = [
