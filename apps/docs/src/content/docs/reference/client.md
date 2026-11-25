@@ -3,19 +3,19 @@ title: Client and React API
 description: The workspace, Familiar and room stores, their state and commands, the room transcript and the React bindings.
 ---
 
-Declarations live in [`packages/client/src`](https://github.com/AidanZealley/familiar/tree/main/packages/client/src). The [Connect a frontend](/familiar/build/connect-a-frontend/) guide explains how the pieces fit.
+Declarations live in [`packages/client/src`](https://github.com/AidanZealley/familiar/tree/main/packages/client/src). [Connect a frontend](/familiar/build/connect-a-frontend/) shows how the pieces fit.
 
 ## Stores
 
-Each store mirrors one of the API's [event streams](/familiar/reference/http/#events) and opens it when created. `url` is the API's base URL. `options.fetch` makes every request; it defaults to the platform `fetch`.
+Each store mirrors one of the API's [event streams](/familiar/reference/http/#events) and opens it when created. `url` is the API's base URL. `options.fetch` makes every request, including stream reconnects; it defaults to the platform `fetch`.
 
-| Function                                 | Mirrors                                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------------------ |
-| `createWorkspaceStore(url, options?)`    | Who the Familiars are, the rooms this person sees, who they are, and the login |
-| `createFamiliarStore(url, id, options?)` | One Familiar's model, memory and schedules                                     |
-| `createRoomStore(url, id, options?)`     | One room's log, its turns in progress and their transcript                     |
+| Function                                 | Mirrors                                                    |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `createWorkspaceStore(url, options?)`    | The Familiars, the rooms this person sees, them, the login |
+| `createFamiliarStore(url, id, options?)` | One Familiar's model, memory and schedules                 |
+| `createRoomStore(url, id, options?)`     | One room's log, its turns in progress and its transcript   |
 
-Each reads like a Zustand store, with `getState()`, `getInitialState()` and `subscribe(listener)`, but has no `setState`. Its state is plain data from the stream. Commands, and `disconnect()`, are on the store itself and never change identity. `disconnect()` stops the stream and retries, and keeps the last state.
+Each reads like a Zustand store, with `getState()`, `getInitialState()` and `subscribe(listener)`, but has no `setState`. Commands and `disconnect()` are on the store itself and never change identity. `disconnect()` stops the stream and keeps the last state.
 
 ```ts
 const workspace = createWorkspaceStore('/api')
@@ -26,40 +26,40 @@ await room.send('Hello')
 
 ## State
 
-Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unauthorized' | 'failed' | 'outdated'`. It goes `open` when the server's handshake matches, before the first values arrive.
+Every store has `connection`: `'connecting' | 'open' | 'reconnecting' | 'unauthorized' | 'failed' | 'outdated'`.
 
-| Store     | Field        | Type                                  | Notes                                                                     |
-| --------- | ------------ | ------------------------------------- | ------------------------------------------------------------------------- |
-| Workspace | `familiars`  | `FamiliarsState \| null \| undefined` | `{ familiars }`, who each one is, by ID                                   |
-| Workspace | `rooms`      | `RoomsState \| null \| undefined`     | `{ rooms }`, by ID: named rooms and own DMs, as a list shows them (below) |
-| Workspace | `me`         | `Author \| null \| undefined`         | `{ id, name }`: this person's author ID and the name Familiars call them  |
-| Workspace | `account`    | `AccountState \| null \| undefined`   | `null` when the host manages credentials                                  |
-| Familiar  | `model`      | `AgentState \| null \| undefined`     | Its model and reasoning level                                             |
-| Familiar  | `memory`     | `MemoryState \| null \| undefined`    | `{ subjects, next, months, forgotten }`: who and what it knows about      |
-| Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |                                                                           |
-| Room      | `transcript` | `Transcript \| undefined`             | `{ items, busy, earlier }`                                                |
-| Room      | `view`       | `ConversationView \| undefined`       | The room log's view, as streamed                                          |
-| Room      | `turns`      | `RoomActivity \| null \| undefined`   | Activity keyed by Familiar ID                                             |
+| Store     | Field        | Type                                  |
+| --------- | ------------ | ------------------------------------- |
+| Workspace | `familiars`  | `FamiliarsState \| null \| undefined` |
+| Workspace | `rooms`      | `RoomsState \| null \| undefined`     |
+| Workspace | `me`         | `Author \| null \| undefined`         |
+| Workspace | `account`    | `AccountState \| null \| undefined`   |
+| Familiar  | `model`      | `AgentState \| null \| undefined`     |
+| Familiar  | `memory`     | `MemoryState \| null \| undefined`    |
+| Familiar  | `schedules`  | `SchedulesState \| null \| undefined` |
+| Room      | `transcript` | `Transcript \| undefined`             |
+| Room      | `view`       | `ConversationView \| undefined`       |
+| Room      | `turns`      | `RoomActivity \| null \| undefined`   |
 
-Each document is `undefined` until it arrives and `null` when the stream sends none.
+Each is `undefined` until it arrives and `null` when the stream sends none, such as `account` when the host manages credentials.
 
 ### Rooms list
 
-Every room in `rooms` is a `RoomListing`: its setup (`Room`) and what a sidebar shows of it, all on the workspace's one stream, so a list never opens a stream per room.
+`rooms.rooms` holds every named room and this person's DMs, by ID, each a `RoomListing` with what a sidebar needs. A list never opens a stream per room.
 
 ```ts
 type RoomListing = Room & {
-  last?: RoomPreview // its newest entry worth showing; absent until one is posted
+  last?: RoomPreview // the newest entry worth showing
   unread?: number // entries since this person's read marker
   turns: { familiar: number; status: 'queued' | 'elsewhere' | 'running' }[]
 }
 
 type RoomPreview = {
-  entry: number // compare with a read marker, or pass to `read`
-  at: number // ms since the epoch: sort by it for most recent first
+  entry: number // pass to `read`
+  at: number // sort by it for most recent first
   text: string // the start of what it says, on one line
 } & (
-  | { kind: 'message'; author: Author; images?: number } // `text` is only its words: empty for images alone
+  | { kind: 'message'; author: Author; images?: number }
   | {
       kind: 'reply'
       familiar: number
@@ -71,29 +71,56 @@ type RoomPreview = {
 )
 ```
 
-Staying quiet adds no entry. A `last` reply whose `outcome` is `failed` means the room's last turn failed. `turns` is empty when no one is working on the room; a Familiar `elsewhere` is busy in another room, which isn't said. `unread` counts from the person's marker, which their own messages move, and the room store's `read(entry)` moves; it's every entry if they've never read the room.
-
 ## Commands
 
-Commands return promises that reject with the server's error. They aren't retried. Each one calls the [route operation](/familiar/reference/http/) of the same name, except `loadOlder()` and `loadGap(gap)`, which call `rooms.history`.
+Commands return promises that reject with the server's error. They aren't retried. Each calls the [route](/familiar/reference/http/) of the same name.
 
-| Store     | Group         | Commands                                                                                                                                                                                              |
-| --------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workspace | `familiars`   | `list()`, `create(identity)`, `update(id, change)`, `remove(id)`, `dm(id)` (the room ID)                                                                                                              |
-| Workspace | `rooms`       | `list()`, `create(setup)`, `update(id, change)`, `archive(id)`, `unarchive(id)`                                                                                                                       |
-| Workspace | `me`          | `rename(name)`                                                                                                                                                                                        |
-| Workspace | `account`     | `signIn()`, `answerSignIn(text)`, `cancelSignIn()`, `signOut()`                                                                                                                                       |
-| Workspace | `push`        | `key()` (`undefined` when the host has no push), `subscribe(subscription)`, `unsubscribe(subscription)`                                                                                               |
-| Workspace | `connections` | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`                                                                                                                  |
-| Workspace | `mcp`         | `add(server)`, `remove(name)`, `reconnect(name)`                                                                                                                                                      |
-| Familiar  | `model`       | `options()`, `set(ref)`, `setThinkingLevel(level)`                                                                                                                                                    |
-| Familiar  | `memory`      | `section()`, `page(subject)`, `forget(note)`                                                                                                                                                          |
-| Familiar  | `schedules`   | `cancel(id)`, `pause(id)`, `resume(id)`                                                                                                                                                               |
-| Room      |               | `send(text, { mentions?, images?, requestId? })`, `uploadImage(blob, { onProgress?, signal? })`, `imageUrl(id)`, `note(text, { requestId? })`, `retry(reply)`, `stop()`, `read(entry)`, `loadOlder()` |
+**Workspace store**
 
-`send` and `note` resolve to `{ entry }`, the entry ID the message or note was committed as, which the room's stream delivers too. Each makes a fresh `requestId` unless given one. To retry a send that failed, make its ID once with `createRequestId()` and pass the same one to every attempt, so a message whose first attempt reached the server is posted once. `retry(reply)` tries a failed reply's turn again; the transcript sets `retry` to that ID on a failed reply's last item while it can be. A note is context the room's Familiars see on their next turn, which no one replies to. `loadOlder()` loads the page before the transcript's start while `transcript.earlier` is true; calls made while one loads share it. `familiars.update` takes `{ name?, persona?, avatar?, chatModel?, memoryModel? }`; a `null` persona, avatar or model returns it to the default. `chatModel` is the model that Familiar answers with and `memoryModel` the one its memory filing and consolidation run on, each one of the workspace's `modelChoices`. A `memoryModel` may carry a `thinkingLevel`. `defaults.models()` returns the workspace's `{ chat, memory }` defaults, each with its `thinkingLevel`, and every `ModelOption`; `defaults.setModels({ chat?, memory? })` changes them, each a model with an optional level. An avatar is a short string your UI interprets, such as an index into its portraits; core only keeps it. `unarchive` calls `rooms.update` with `{ archived: false }`. `read(entry)` marks the room read up to the newest entry the person has seen, such as its `last.entry`, and never moves the marker back. `me.rename(name)` changes what Familiars call the person from their next message.
+| Group         | Commands                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `familiars`   | `list()`, `create(identity)` (its ID), `update(id, change)`, `remove(id)`, `dm(id)` (the room ID)                                    |
+| `rooms`       | `list()`, `create(setup)`, `update(id, change)`, `archive(id)`, `unarchive(id)`                                                      |
+| `defaults`    | `models()`, `setModels({ chat?, memory? })`, `capabilities()`, `setCapabilities(change)`                                             |
+| `me`          | `rename(name)`                                                                                                                       |
+| `account`     | `signIn()`, `answerSignIn(text)`, `cancelSignIn()`, `signOut()`                                                                      |
+| `push`        | `key()` (`undefined` without push), `subscribe(subscription)`, `unsubscribe(subscription)`                                           |
+| `connections` | `list()`, `setSecret(connection, secret, value)`, `deleteSecret(connection, secret)`, `updateToolSettings(connection, tool, change)` |
+| `mcp`         | `add(server)`, `remove(name)`, `reconnect(name)`                                                                                     |
+
+**Familiar store**
+
+| Group          | Commands                                                       |
+| -------------- | -------------------------------------------------------------- |
+| `model`        | `options()`, `set(ref)`, `setThinkingLevel(level)`             |
+| `capabilities` | `get()`, `set(change)`                                         |
+| `memory`       | `section()`, `page(subject)`, `journal(month)`, `forget(note)` |
+| `schedules`    | `cancel(id)`, `pause(id)`, `resume(id)`                        |
+
+**Room store**
+
+| Command                                          | Meaning                                                |
+| ------------------------------------------------ | ------------------------------------------------------ |
+| `send(text, { mentions?, images?, requestId? })` | Post a message. Resolves to `{ entry }`                |
+| `note(text, { requestId? })`                     | Post a note the Familiars see, which no one replies to |
+| `uploadImage(blob, { onProgress?, signal? })`    | Upload an image. Resolves to its `ImageRef`            |
+| `imageUrl(id)`                                   | Where a stored image loads from                        |
+| `answer(question, answer)`                       | Answer a question a reply is waiting on                |
+| `retry(reply)`                                   | Try a failed reply's turn again                        |
+| `stop()`                                         | Stop the room's turns                                  |
+| `read(entry)`                                    | Mark the room read up to `entry`. Never moves back     |
+| `loadOlder()`                                    | Load the page before the transcript's start            |
+| `loadGap(gap)`                                   | Load entries missing at a `gap` item                   |
+
+- **Request IDs.** `send` and `note` make a fresh `requestId` unless given one. For a retry, make it once with `createRequestId()` and pass it to every attempt, so the message posts once. The room's view entries carry it in their data, so you can match a pending message to its entry.
+- **Image uploads** reject with an `ImageUploadError`. Its `code` is the server's reason; no `code` means it never reached the server and may work if tried again. Progress uses `XMLHttpRequest` unless the store was given its own `fetch`.
+- **Retry.** The transcript sets `retry` on a failed reply's last item while it can be retried.
+- **Loading.** `loadOlder()` works while `transcript.earlier` is true. Both loads reject on failure, so show it where you call them.
+- **Models.** `familiars.update` takes `{ name?, persona?, avatar?, chatModel?, memoryModel? }`; `null` returns one to the default.
 
 ## Transcript
+
+`transcript` is `{ items, replying, busy, earlier }`. Times are milliseconds since the epoch, and item IDs are stable keys.
 
 ```ts
 type TranscriptItem =
@@ -102,8 +129,8 @@ type TranscriptItem =
       type: 'message'
       id: string
       author: Author
-      text: string
-      images?: (ImageRef | { unavailable: true })[] // inline images from before uploads are unavailable
+      text: string // empty for images alone
+      images?: (ImageRef | { unavailable: true })[]
       at: number
       mentions?: Mention[]
     }
@@ -113,12 +140,24 @@ type TranscriptItem =
       familiar: number
       name?: string // its name when it replied
       text: string
+      mentions?: Mention[]
       thinking: string
       toolCalls: ToolCall[]
       at?: number
       stopped: boolean
-      error?: string // why it failed, or the model's error
+      quiet?: true // it chose to say nothing
+      error?: string
+      retry?: number // pass to `retry`
     }
+  | {
+      type: 'handoff'
+      id: string
+      from: number
+      to: number
+      note: string
+      at: number
+    }
+  | { type: 'note'; id: string; text: string; at: number }
   | {
       type: 'scheduled'
       id: string
@@ -127,17 +166,13 @@ type TranscriptItem =
       creator?: Author
       due: number
     }
-// The union also includes historical handoffs and room notes.
 
 type ReplyingFamiliar = {
   familiar: number
-  questions?: Question[]
-  retrying?: Retrying
-  tools?: ToolCall[]
+  questions?: Question[] // tool approvals and server questions waiting
+  retrying?: { at: number; error: string } // a failed model request, tried again `at`
+  tools?: ToolCall[] // this round's live calls
 }
-
-// A model request that failed, tried again `at`.
-type Retrying = { at: number; error: string }
 
 type ToolCall = {
   id: string
@@ -145,28 +180,28 @@ type ToolCall = {
   arguments: Record<string, unknown>
   status: 'running' | 'done' | 'error'
   output: string
-  details?: unknown
+  details?: unknown // narrow before rendering
 }
 ```
 
-Times are milliseconds since the epoch. `transcript.items` contains the room's history and gaps. A reply appears with its tool calls when it lands.
-
-`transcript.replying` lists the Familiars currently working on this room. Pending tool approvals and server questions are in `questions`. `retrying` gives the retry time and the failed model request's error. `tools` contains live calls for the current round, with their available arguments and output. `transcript.busy` covers both replying and queued work.
+- `items` is the loaded history. A reply appears, with all its tool calls, when its turn ends.
+- `replying` lists the Familiars running a turn here, with their live state.
+- `busy` is true while any Familiar has a turn here, queued or running.
+- A `gap` marks entries still missing, such as after a long disconnect.
 
 ## Helpers
 
-- `ConversationTranscript` is re-exported from Pi for clients that assemble their own history. Its gap objects pass directly to `loadGap`.
-- `toRoomTranscript(view, turns?)` projects an assembled Pi `TranscriptView` and optional room activity into a Familiar transcript. The room store already does this; use it for other clients.
-- `composeMessage(parts)` turns a composer's text and picked names, `{ kind, id, name }`, into `{ text, mentions }`: each pick becomes `@Name` in the text with a mention spanning it. Pass both to `send`.
+- `composeMessage(parts)` turns a composer's text and picks, `{ kind, id, name }`, into `{ text, mentions }` for `send`.
+- `shapeOf(question)` says how to show a question: `approval`, `form` or `unsupported`. `answerFor(question, content?)` builds the accepting `Answer`.
+- `createRequestId()` makes a request ID.
+- `toRoomTranscript(view, turns?)` turns a Pi `TranscriptView` into a transcript, for clients that assemble their own history with `ConversationTranscript`.
 
 ## React
 
-Import from `@familiar-ai/client/react`. Requires React 18 or 19. The bindings are for a room; use Zustand's `useStore` with the other stores.
+Import from `@familiar-ai/client/react`, with React 18 or 19. The bindings are for a room; use Zustand's `useStore` with the other stores.
 
 | Binding             | Meaning                                                |
 | ------------------- | ------------------------------------------------------ |
 | `RoomProvider`      | `{ store, children }`. Doesn't open or close the store |
 | `useRoom(selector)` | Select from state. Compares with `Object.is`           |
 | `useRoomStore()`    | The nearest provider's store, for its commands         |
-
-The transcript retains loaded history across reconnects, and a reconnect resumes right after its newest entry. A `gap` item marks messages still missing, as after a disconnect too long to resume; `loadGap(gap)` fills it through the history endpoint and rejects if loading fails.
