@@ -47,11 +47,11 @@ let starts: (version: string) => boolean
 const record = () =>
   JSON.parse(readFileSync(resolve(dataDir(), 'update.json'), 'utf8'))
 const fetched = vi.fn()
-/** The last package URL fetched, leaving out checks that the daemon answers. */
+/** The last package URL fetched. */
 const downloaded = () =>
   fetched.mock.calls
     .map(([url]) => url as string)
-    .filter((url) => !url.endsWith('/api/update'))
+    .filter((url) => url.endsWith('.tgz'))
     .at(-1)
 // What the service is doing, in order, against when the download happened.
 const events: string[] = []
@@ -91,6 +91,13 @@ beforeEach(() => {
       events.push(`answered ${live()}`)
       return Response.json({ installed: { version: live() } })
     }
+    // Each source's pointer.
+    if (url.endsWith('/main-build/version.json')) {
+      return Response.json({ version: '0.5.0-main.1a2b3c4d' })
+    }
+    if (url.endsWith('/version.json')) {
+      return Response.json({ version: '0.5.0' })
+    }
     events.push('download')
     return new Response('package')
   })
@@ -114,7 +121,7 @@ test('installs beside the running version, swaps it in, and records the result',
     'answered 0.5.0',
   ])
   expect(downloaded()).toBe(
-    'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
+    'https://github.com/AidanZealley/familiar/releases/download/v0.5.0/familiar.tgz',
   )
   expect(vi.mocked(runNpm).mock.lastCall?.[0]).toEqual([
     'install',
@@ -138,12 +145,12 @@ test('stays on the source its version names, unless told to switch', async () =>
   const url = downloaded
   install('0.4.3-main.168a762c')
   await update()
-  expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
+  expect(url()).toMatch(/\/download\/v0\.5\.0-main\.1a2b3c4d\/familiar\.tgz$/)
   await update('release')
-  expect(url()).toMatch(/\/releases\/latest\/download\/familiar\.tgz$/)
+  expect(url()).toMatch(/\/download\/v0\.5\.0\/familiar\.tgz$/)
   install('0.4.3')
   await update('main')
-  expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
+  expect(url()).toMatch(/\/download\/v0\.5\.0-main\.1a2b3c4d\/familiar\.tgz$/)
 })
 
 test("a version that doesn't answer after starting is rolled back", async () => {
@@ -167,7 +174,7 @@ test("a version that doesn't answer after starting is rolled back", async () => 
 
 test('a failed download never stops the service', async () => {
   fetched.mockResolvedValue(new Response(null, { status: 404 }))
-  await expect(update()).rejects.toThrow('404')
+  await expect(update()).rejects.toThrow("Couldn't find the latest release.")
   expect(events).toEqual([])
   expect(record()).toMatchObject({ phase: 'failed', from: '0.4.3' })
 })

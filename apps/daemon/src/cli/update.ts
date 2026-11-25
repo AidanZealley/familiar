@@ -21,11 +21,30 @@ import { openService } from './service/index.ts'
 /** Where an update fetches the package from. */
 export type UpdateSource = 'release' | 'main'
 
-const download = (source: UpdateSource, file: string) =>
-  source === 'release'
-    ? `https://github.com/AidanZealley/familiar/releases/latest/download/${file}`
-    : // The rolling prerelease the publish workflow replaces on each push to main.
-      `https://github.com/AidanZealley/familiar/releases/download/main-build/${file}`
+const releases = 'https://github.com/AidanZealley/familiar/releases'
+
+/**
+ * The version `source` offers. Each source's `version.json` is a pointer the
+ * publish workflow moves only once the build it names is published, and a
+ * published build never changes, so the two can't disagree.
+ */
+async function latestVersion(source: UpdateSource) {
+  const response = await fetch(
+    source === 'release'
+      ? `${releases}/latest/download/version.json`
+      : `${releases}/download/main-build/version.json`,
+    { signal: AbortSignal.timeout(10000) },
+  )
+  if (!response.ok) {
+    await response.body?.cancel()
+    return undefined
+  }
+  return ((await response.json()) as { version: string }).version
+}
+
+/** A published build's package. Each build is its own `v<version>` release. */
+const packageUrl = (version: string) =>
+  `${releases}/download/v${version}/familiar.tgz`
 
 const packageVersion = (dir: string) =>
   (
@@ -165,7 +184,11 @@ export async function update(source?: UpdateSource) {
     `Updating Familiar ${installed.version} from ${describeSource(from)}.`,
   )
   try {
-    await fetchTo(download(from, 'familiar.tgz'), files.package)
+    const version = await latestVersion(from)
+    if (!version) {
+      throw new Error(`Couldn't find ${describeSource(from)}.`)
+    }
+    await fetchTo(packageUrl(version), files.package)
     write({ phase: 'installing' })
     runNpm(
       ['install', '--global', '--prefix', folders.staging, files.package],
@@ -329,20 +352,11 @@ export function lastUpdate(dataDir: string): LastUpdate | undefined {
     : { ...record, phase }
 }
 
-/** The latest version each source offers, from the file beside its package. */
+/** The latest version each source offers. */
 export async function availableVersions() {
-  const versionOf = async (source: UpdateSource) => {
-    const response = await fetch(download(source, 'version.json'), {
-      signal: AbortSignal.timeout(10000),
-    })
-    // A release from before the file existed has none.
-    return response.ok
-      ? ((await response.json()) as { version: string }).version
-      : undefined
-  }
   const [release, main] = await Promise.all([
-    versionOf('release'),
-    versionOf('main'),
+    latestVersion('release'),
+    latestVersion('main'),
   ])
   return { release, main }
 }

@@ -7,7 +7,7 @@ $version = if ($env:FAMILIAR_VERSION) { $env:FAMILIAR_VERSION } else { 'latest' 
 if ($version -eq 'latest') {
     $release = 'https://github.com/AidanZealley/familiar/releases/latest/download'
 } elseif ($version -ceq 'main') {
-    $release = 'https://github.com/AidanZealley/familiar/releases/download/main-build'
+    $release = $null
 } elseif ($version -cmatch '^v[0-9][a-zA-Z0-9.+-]*$') {
     $release = "https://github.com/AidanZealley/familiar/releases/download/$version"
 } else {
@@ -20,6 +20,14 @@ $arch = switch ($architecture) { 'AMD64' { 'x64' } 'ARM64' { 'arm64' } default {
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
+    if (!$release) {
+        # main-build holds only a pointer to the latest build of main, its own release.
+        $pointer = Join-Path $temporary 'version.json'
+        Invoke-WebRequest 'https://github.com/AidanZealley/familiar/releases/download/main-build/version.json' -OutFile $pointer -UseBasicParsing
+        $build = (Get-Content $pointer -Raw | ConvertFrom-Json).version
+        if (!$build) { throw "Couldn't find the latest build of main." }
+        $release = "https://github.com/AidanZealley/familiar/releases/download/v$build"
+    }
     Write-Host "Downloading Familiar ($version)..."
     $package = Join-Path $temporary 'familiar.tgz'
     Invoke-WebRequest "$release/familiar.tgz" -OutFile $package -UseBasicParsing

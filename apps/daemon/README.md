@@ -61,6 +61,6 @@ After the core build (pages, journal and one search), 2026-11-13, no model. Retr
 
 The model-backed evals' tests use scripted models and no network. LongMemEval is MIT licensed. The Hugging Face dataset card (`xiaowu0162/longmemeval-cleaned`) declares `license: mit`, and the code repository (`xiaowu0162/LongMemEval`) has `LICENSE`: "MIT License, Copyright (c) 2024 Di Wu". The release is downloaded once (277 MB, checked against its published SHA-256) into `~/.local/share/familiar-eval/longmemeval/` and never committed.
 
-`pnpm bundle` creates the installable tarball; `pnpm test:release` verifies it using temporary storage. Both run from the repository root. The [publish workflow](../../.github/workflows/publish.yml) publishes tagged releases, and each push to `main` as the rolling `main-build` prerelease.
+`pnpm bundle` creates the installable tarball; `pnpm test:release` verifies it using temporary storage. Both run from the repository root. The [publish workflow](../../.github/workflows/publish.yml) publishes tagged releases, and each push to `main` as a prerelease that the `main-build` pointer names.
 
 Start reading at `src/cli.ts`, the entry, then `src/daemon.ts`, which assembles the host, `src/serve.ts`, `src/config.ts` and `src/web/`, the web plugin. Platform setup is under `src/cli/`. Portable assistant capabilities belong in [core](../../packages/core/README.md), not this host.
