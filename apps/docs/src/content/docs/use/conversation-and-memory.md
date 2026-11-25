@@ -1,15 +1,17 @@
 ---
 title: Conversation and memory
-description: How Familiar's single conversation works, what it remembers and how to correct it.
+description: How DMs and rooms work, what a Familiar remembers and how to correct it.
 ---
 
-## One conversation
+## Familiars, DMs and rooms
 
-Familiar has one conversation. It never starts a new chat. Every device shows the same messages, and replies stream to all of them as they're written. If the computer restarts in the middle of a reply, Familiar finishes the work it had started when it comes back.
+You can have several Familiars. Each has a DM with you, and named rooms hold one or more of them. In a room, a message goes to the Familiars you @mention, or to all of them if you mention none, and each decides whether to reply.
 
-You can send while a reply is still running. Your message waits until the current step finishes, then Familiar reads it. The stop button ends the current reply and withdraws any messages waiting behind it.
+A Familiar keeps one working context across all its rooms, so what you tell it in a DM can come up elsewhere. Every device shows the same rooms, and replies stream to all of them. If the computer restarts mid-reply, Familiar finishes the work when it's back.
 
-Long conversations don't fill up. When the model's context gets close to its budget, Familiar summarises older messages for the model. The chat keeps every message as it was.
+You can send while a reply is running; your message waits its turn. **Stop** ends the room's current replies.
+
+Long conversations don't fill up. Familiar summarises older messages for the model, and the chat keeps every message as it was.
 
 ## What it remembers
 
@@ -27,7 +29,7 @@ Filing happens each night at 04:00 in your time zone: Familiar files what people
 
 Schedules aren't memory. Feedback about a recurring job, such as "include the links in my digest", changes that job's instructions, not what Familiar remembers.
 
-[How memory works](/familiar/use/how-memory-works/) explains all of this in depth: what filing keeps and why, how it's checked, how a reply finds what it needs, and the research behind it.
+[How memory works](/familiar/use/how-memory-works/) explains the design in depth.
 
 ## Review memory
 

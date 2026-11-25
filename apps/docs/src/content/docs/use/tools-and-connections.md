@@ -3,7 +3,7 @@ title: Tools and connections
 description: Web search, page reading and the MCP tools you can connect to Familiar.
 ---
 
-Familiar always has its own tools for time, memory and schedules. Open **Connections** in the header to add more and to see whether each one is ready.
+Familiar always has its own tools for time, memory and schedules. Open **Settings › Connections** to add more and see whether each one is ready.
 
 ## Web search and page reading
 
@@ -43,6 +43,6 @@ To give Familiar tools of your own, written in TypeScript, see [Extend your Fami
 
 ### Running an MCP tool in the background
 
-In **Connections**, open an MCP server, expand a tool, and check **Run in background** for calls that can report back later. For example, a printer watch can keep waiting while its Familiar replies elsewhere, then report the result in the original room. **Ask first** still applies before the call starts. Keep tools foreground if the current reply needs their result. While a background call is active, Familiar declines server questions on that connection because it cannot reliably match them to a room turn.
+In **Connections**, open an MCP server, expand a tool and check **Run in background** for slow calls that can report back later, such as watching a print. The Familiar replies meanwhile, then reports the result in the original room. **Ask first** still applies. Keep a tool in the foreground if the reply needs its result.
 
-A restart can interrupt an ordinary MCP request. Familiar reports the interruption without sending the request again. Removing the server stops its local background jobs and forgets its tool settings. The remote server may have already acted.
+While a background call runs, Familiar declines that server's questions. A restart interrupts an MCP request without sending it again.
