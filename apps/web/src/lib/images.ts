@@ -1,18 +1,4 @@
-import { IMAGE_LIMITS, type OutgoingImage } from '@familiar-ai/client'
-
-/** Formats Familiar takes as they are, when they're small enough. */
-const AS_IS = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
-
-/** How long `blob`'s base64 is: four characters for every three bytes. */
-const base64Length = (blob: Blob) => Math.ceil(blob.size / 3) * 4
-
-const toBase64 = (blob: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result).split(',')[1])
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(blob)
-  })
+import { IMAGE_LIMITS, type ImageErrorCode } from '@familiar-ai/client'
 
 const encode = (canvas: HTMLCanvasElement, type: string) =>
   new Promise<Blob>((resolve, reject) =>
@@ -24,43 +10,38 @@ const encode = (canvas: HTMLCanvasElement, type: string) =>
   )
 
 /**
- * `file` as a message image, within `IMAGE_LIMITS`: as it is when it already
- * fits, so a GIF keeps its frames; otherwise drawn upright, shrunk to the
- * longest side allowed, and encoded as PNG when it was one and still fits,
- * else as JPEG, smaller until it fits. Rejects for what the browser can't
- * decode.
+ * `file` as it's best uploaded: as it is when it's a GIF or already no
+ * larger than the daemon keeps, else drawn upright at that size and encoded
+ * once, as PNG if it was one and JPEG otherwise, so a phone photo sends
+ * hundreds of kilobytes, not megabytes. The daemon prepares what's stored,
+ * so anything the browser can't decode goes as it is, for the daemon to
+ * decide.
  */
-export async function prepareImage(file: Blob): Promise<OutgoingImage> {
-  const bitmap = await createImageBitmap(file)
+export async function shrinkForUpload(file: File): Promise<Blob> {
+  if (file.type === 'image/gif') {
+    return file
+  }
+  const bitmap = await createImageBitmap(file).catch(() => undefined)
+  if (!bitmap) {
+    return file
+  }
   try {
-    const { pixels, bytes } = IMAGE_LIMITS
-    const longest = Math.max(bitmap.width, bitmap.height)
-    if (
-      AS_IS.has(file.type) &&
-      longest <= pixels &&
-      base64Length(file) <= bytes
-    ) {
-      return { data: await toBase64(file), mimeType: file.type }
+    const scale = IMAGE_LIMITS.pixels / Math.max(bitmap.width, bitmap.height)
+    if (scale >= 1) {
+      return file
     }
+    const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
     const canvas = document.createElement('canvas')
-    for (let scale = Math.min(1, pixels / longest); ; scale *= 0.75) {
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale))
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale))
-      const context = canvas.getContext('2d')!
-      for (const type of file.type === 'image/png'
-        ? ['image/png', 'image/jpeg']
-        : ['image/jpeg']) {
-        // JPEG has no transparency: what's clear shows white, not black.
-        context.fillStyle = type === 'image/jpeg' ? '#fff' : 'transparent'
-        context.clearRect(0, 0, canvas.width, canvas.height)
-        context.fillRect(0, 0, canvas.width, canvas.height)
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-        const blob = await encode(canvas, type)
-        if (base64Length(blob) <= bytes) {
-          return { data: await toBase64(blob), mimeType: type }
-        }
-      }
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')!
+    // JPEG has no transparency: what's clear shows white, not black.
+    if (type === 'image/jpeg') {
+      context.fillStyle = '#fff'
+      context.fillRect(0, 0, canvas.width, canvas.height)
     }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    return await encode(canvas, type).catch(() => file)
   } finally {
     bitmap.close()
   }
@@ -69,6 +50,13 @@ export async function prepareImage(file: Blob): Promise<OutgoingImage> {
 /** Whether `file` is an image, by the type the browser gives it. */
 export const isImage = (file: File) => file.type.startsWith('image/')
 
-/** A message image as an `<img>` source. */
-export const imageSource = ({ data, mimeType }: OutgoingImage) =>
-  `data:${mimeType};base64,${data}`
+/** Why the daemon refused an upload, in the composer's words. */
+export const refusalOf = (code: ImageErrorCode) =>
+  ({
+    unsupported:
+      "That image's format isn't supported: try a PNG, JPEG or WebP.",
+    'too-large': 'That image is too large.',
+    unreadable: "That image couldn't be read.",
+    missing: 'That image is no longer stored. Attach it again.',
+    unavailable: "This Familiar can't take images.",
+  })[code]

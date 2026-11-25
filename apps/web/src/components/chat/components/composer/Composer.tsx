@@ -1,5 +1,7 @@
 import type { FamiliarSummary } from '@familiar-ai/client'
 import {
+  useEffect,
+  useEffectEvent,
   useRef,
   type ClipboardEvent,
   type DragEvent,
@@ -11,6 +13,7 @@ import {
   InputGroupAddon,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
+import { forget } from '@/lib/outbox'
 import { titleOf, useFamiliars } from '@/lib/workspace'
 import { ArchivedNotice } from './components/archived-notice'
 import { ComposerActions } from './components/composer-actions'
@@ -21,7 +24,7 @@ import { MentionMenu } from './components/mention-menu'
 import { suggestionsFor } from './mentions'
 import type { ComposerProps } from './types'
 import { isEmpty, useDraft } from './useDraft'
-import { useSend } from './useSend'
+import { keysOf, useSend } from './useSend'
 
 /**
  * Writing to a room: words, `@` mentions and images, sent as a message or
@@ -39,6 +42,13 @@ export const Composer = ({ room, busy }: ComposerProps) => {
   const { send, stop, error, failed } = sending
   const title = titleOf(room, familiars)
   const focus = () => input.current?.focus()
+
+  // The draft's and failed sends' uploads go with them, when the composer
+  // does, as when the room changes.
+  const forgetUploads = useEffectEvent(() =>
+    forget([draft, ...failed.map((each) => each.draft)].flatMap(keysOf)),
+  )
+  useEffect(() => () => forgetUploads(), [])
 
   const suggestions = suggestionsFor(room, familiars, text, note)
 
@@ -117,13 +127,12 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           onEdit={
             isEmpty(draft)
               ? () => {
-                  drafting.edit(each.draft)
-                  sending.discard(each.id)
+                  drafting.edit(sending.take(each))
                   focus()
                 }
               : undefined
           }
-          onDiscard={() => sending.discard(each.id)}
+          onDiscard={() => sending.discard(each)}
         />
       ))}
       {(refused ?? error) && (
@@ -145,6 +154,7 @@ export const Composer = ({ room, busy }: ComposerProps) => {
           <InputGroupAddon align="block-start" className="p-0">
             <DraftImages
               images={images}
+              onRetry={drafting.retry}
               onRemove={(id) => {
                 drafting.remove(id)
                 focus()

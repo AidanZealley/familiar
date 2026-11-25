@@ -1,6 +1,13 @@
-import { IMAGE_LIMITS, type FamiliarSummary } from '@familiar-ai/client'
+import {
+  IMAGE_LIMITS,
+  ImageUploadError,
+  type FamiliarSummary,
+} from '@familiar-ai/client'
+import { useRoomStore } from '@familiar-ai/client/react'
 import { useState } from 'react'
-import { isImage, prepareImage } from '@/lib/images'
+import { useStore } from 'zustand'
+import { isImage, refusalOf } from '@/lib/images'
+import { forget, outbox, upload } from '@/lib/outbox'
 import type { DraftImage } from './components/draft-images'
 import { completeMention } from './mentions'
 
@@ -25,10 +32,6 @@ export const nextId = () => ++lastId
 export const isEmpty = (draft: Draft) =>
   !draft.text.trim() && !draft.images.length
 
-/** Whether `draft` can be sent: words or images, every image prepared. */
-export const isSendable = (draft: Draft) =>
-  !isEmpty(draft) && draft.images.every((image) => image.prepared)
-
 /** `draft` without the image `id`. */
 const without = (draft: Draft, id: number): Draft => ({
   ...draft,
@@ -37,17 +40,31 @@ const without = (draft: Draft, id: number): Draft => ({
 
 /**
  * The composer's draft, and every change to it: the only writer of what's
- * typed, picked and attached. `refused` says why the last images couldn't
- * be attached, until more are or the draft is taken.
+ * typed, picked and attached. Each image's upload starts as it's attached,
+ * in the outbox, under the image's key. `refused` says why the last images
+ * couldn't be attached, until more are or the draft is taken.
  */
 export const useDraft = () => {
+  const store = useRoomStore()
   const [draft, setDraft] = useState<Draft>(empty)
   const [refused, setRefused] = useState<string>()
+  const uploads = useStore(outbox, (state) => state.uploads)
   const { text, images } = draft
+
+  /** Uploads `image`; if the daemon refuses it, it's removed, with why. */
+  const startUpload = ({ id, file }: DraftImage) =>
+    upload(id, file, store.uploadImage).catch((error: unknown) => {
+      setDraft((draft) => without(draft, id))
+      setRefused(
+        error instanceof ImageUploadError && error.code
+          ? refusalOf(error.code)
+          : "That image couldn't be uploaded.",
+      )
+    })
 
   /**
    * Attaches what fits of the images among `files`, each shown at once and
-   * sendable once it's prepared, and says why any others weren't, or why
+   * sendable once it's uploaded, and says why any others weren't, or why
    * none were: a note carries no images.
    */
   const attach = (files: readonly File[]) => {
@@ -71,27 +88,16 @@ export const useDraft = () => {
       .slice(0, Math.max(0, room))
       .map((file) => ({ id: nextId(), file }))
     setDraft((draft) => ({ ...draft, images: [...draft.images, ...added] }))
-    for (const { id, file } of added) {
-      prepareImage(file).then(
-        (prepared) =>
-          setDraft((draft) => ({
-            ...draft,
-            images: draft.images.map((image) =>
-              image.id === id ? { ...image, prepared } : image,
-            ),
-          })),
-        () => {
-          setDraft((draft) => without(draft, id))
-          setRefused("That image couldn't be read.")
-        },
-      )
-    }
+    added.forEach(startUpload)
   }
 
   return {
     draft,
     refused,
-    sendable: isSendable(draft),
+    /** Words or images, and every image uploaded. */
+    sendable:
+      !isEmpty(draft) &&
+      images.every((image) => uploads.get(image.id)?.status === 'ready'),
     type: (text: string) => setDraft((draft) => ({ ...draft, text })),
     /** Completes the `@` being typed as `familiar`'s name. */
     mention: (familiar: FamiliarSummary) =>
@@ -108,7 +114,13 @@ export const useDraft = () => {
       })),
     toggleNote: () => setDraft((draft) => ({ ...draft, note: !draft.note })),
     attach,
-    remove: (id: number) => setDraft((draft) => without(draft, id)),
+    /** Tries a failed upload again. */
+    retry: (image: DraftImage) => void startUpload(image),
+    /** Removes an image, stopping its upload if it's running. */
+    remove: (id: number) => {
+      forget([id])
+      setDraft((draft) => without(draft, id))
+    },
     /** The draft to send, its words trimmed, leaving the composer empty. */
     take: () => {
       setDraft(empty)
