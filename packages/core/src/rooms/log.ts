@@ -17,8 +17,8 @@ import {
   textOf,
   type Addressed,
   type Author,
-  type MessageImage,
 } from '../conversation/message.ts'
+import type { ImageRef } from '../images/types.ts'
 import { entriesOf } from '../pi/entries.ts'
 import {
   Familiars,
@@ -60,8 +60,11 @@ export type RoomMessageData = {
   author: Author
   /** Empty when it has images and no words. */
   text: string
-  /** Its images, as the Familiars it's delivered to see them. */
-  images?: MessageImage[]
+  /**
+   * The stored images it carries. Messages posted before images were stored
+   * apart have them inline, with no `id`.
+   */
+  images?: ImageRef[]
   /**
    * When it was posted, in ms since the epoch, on the workspace's clock. A
    * room's entries have no model message to carry a time, as a chat's do.

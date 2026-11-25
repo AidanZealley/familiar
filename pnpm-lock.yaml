@@ -270,6 +270,9 @@ importers:
 
   examples/cloudflare-worker:
     dependencies:
+      '@earendil-works/pi-durable':
+        specifier: 'catalog:'
+        version: 1.5.2(esbuild@0.28.2)(supports-color@10.2.2)(ws@8.21.0)(zod@4.6.7)
       '@familiar-ai/cloudflare':
         specifier: workspace:*
         version: link:../../packages/cloudflare
@@ -550,6 +553,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.13
+      image-size:
+        specifier: 2.1.0
+        version: 2.1.0
       minisearch:
         specifier: 7.2.0
         version: 7.2.0
@@ -3906,6 +3912,11 @@ packages:
   ignore@7.0.14:
     resolution: {integrity: sha512-wCBiZ77u1tuWde6G/nfOtLaCTYcFDU5yCzARzK10y+rLhzYoL7a7yEemcopcc2Mzow7gZOIjnV2ym1NYmdiJOQ==}
     engines: {node: '>= 4'}
+
+  image-size@2.1.0:
+    resolution: {integrity: sha512-6Dbisa46RsgeAh3TMSFL2i8+uIFG+/LRmz6Q2oscSJJvXo1sOw3EgNO4M8jPl1P+gR1atJLDPrpclX4IHz63sA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   import-meta-resolve@4.2.0:
     resolution: {integrity: sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg==}
@@ -9782,6 +9793,8 @@ snapshots:
   ignore@5.3.2: {}
 
   ignore@7.0.14: {}
+
+  image-size@2.1.0: {}
 
   import-meta-resolve@4.2.0: {}
 

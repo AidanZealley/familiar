@@ -19,6 +19,8 @@ import {
   type RelayData,
   type ScheduledData,
 } from '../conversation/message.ts'
+import { imageReference } from '../images/extension.ts'
+import type { ImageRef } from '../images/types.ts'
 import { scheduledInput } from '../schedules/task.ts'
 import { Familiars, type FamiliarId } from '../workspace/familiars.ts'
 import { catchUp } from './catch-up.ts'
@@ -56,6 +58,8 @@ type TurnStep =
       name: string
       input: string
       entry: ChatInput
+      /** A message's images, which its chat entry only counts. */
+      images?: ImageRef[]
       mentionHint?: string
     }
   /** Waits for the chat to settle it, then notes it if it went unanswered. */
@@ -98,7 +102,7 @@ type PrepareInput = (
   where: Required<InRoom>,
   names: (familiar: FamiliarId) => string,
   timeZone: string,
-) => { input: string; entry: ChatInput }
+) => { input: string; entry: ChatInput; images?: ImageRef[] }
 
 const deliveryHandlers = new Map<string, PrepareInput>([
   [
@@ -151,6 +155,7 @@ const deliveryHandlers = new Map<string, PrepareInput>([
             ...where,
           },
         },
+        ...(images?.length && { images }),
       }
     },
   ],
@@ -336,23 +341,13 @@ export function createTurnTask(harness: Harness, timeZone: string) {
         }, context),
 
       deliver: async (task, runtime, context) => {
-        const { familiar, cause } = task.input
-        const { name, input, entry, mentionHint } = task.state.checkpoint
+        const { familiar } = task.input
+        const { name, input, entry, images, mentionHint } =
+          task.state.checkpoint
         const chat = await runtime.conversation(familiar, context)
         if (!chat) {
           throw new Error(`No chat for Familiar ${familiar}.`)
         }
-        // A message's images are read from the room, where they never
-        // change, rather than copied into this task's state.
-        const images =
-          entry.kind === MESSAGE_KIND && entry.data.images
-            ? await harness.commit(
-                async (tx) =>
-                  ((await tx.entry(cause))?.data as RoomMessageData | undefined)
-                    ?.images ?? [],
-                context,
-              )
-            : []
         // A follow-up, never a steer: Pi places one follow-up per run, so
         // each run answers one room entry and its reply has one room. What
         // it was shown comes first, so the input itself ends the message,
@@ -368,7 +363,8 @@ export function createTurnTask(harness: Harness, timeZone: string) {
                   : entry.data.context,
               },
               { type: 'text', text: input },
-              ...images,
+              // By reference: the images extension swaps in their bytes.
+              ...(images ?? []).map(imageReference),
             ],
             requestId: inputRequest(task.input),
             entry: entry as InputEntry,

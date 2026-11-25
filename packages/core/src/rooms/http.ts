@@ -5,6 +5,8 @@ import { can, type AccessEnv } from '../access.ts'
 import { MessageError } from '../conversation/message.ts'
 import { streamEvents } from '../http/events.ts'
 import { found } from '../http/found.ts'
+import type { ImagesApi } from '../images/index.ts'
+import { ImageError, type ImageErrorCode } from '../images/types.ts'
 import type { Mention } from './log.ts'
 import {
   RoomError,
@@ -15,13 +17,31 @@ import {
 import type { RoomApi, RoomsApi } from './index.ts'
 import type { HistoryPage, HistoryQuery } from './index.ts'
 
-/** Answers `run`'s response, or 400 when the rooms' or messages' rules refuse it. */
+/** The status each refused image answers with. */
+const IMAGE_STATUS = {
+  unsupported: 415,
+  'too-large': 422,
+  unreadable: 422,
+  missing: 400,
+  unavailable: 501,
+} as const satisfies Record<ImageErrorCode, number>
+
+/**
+ * Answers `run`'s response, or 400 when the rooms' or messages' rules
+ * refuse it; a refused image answers with its `code` for the client to word.
+ */
 async function refusable(c: Context, run: () => Promise<Response>) {
   try {
     return await run()
   } catch (error) {
     if (error instanceof RoomError || error instanceof MessageError) {
       return c.json({ error: error.message }, 400)
+    }
+    if (error instanceof ImageError) {
+      return c.json(
+        { error: error.message, code: error.code },
+        IMAGE_STATUS[error.code],
+      )
     }
     throw error
   }
@@ -60,7 +80,7 @@ const setup = validator('json', (body, c) => {
  * up, and each room's messages, history, Stop and `/events`. Message
  * attribution comes only from the host, never the body.
  */
-export function roomRoutes(rooms: RoomsApi) {
+export function roomRoutes(rooms: RoomsApi, images: ImagesApi) {
   const idOf = (c: Context) => Number(c.req.param('room')) as RoomId
   // Someone else's DM is no such room, so nobody learns it exists.
   const roomOf = async (c: Context<AccessEnv>) =>
@@ -113,7 +133,7 @@ export function roomRoutes(rooms: RoomsApi) {
             return c.json({ error: 'mentions must be a list' }, 400)
           }
           if (body.images !== undefined && !Array.isArray(body.images)) {
-            return c.json({ error: 'images must be a list' }, 400)
+            return c.json({ error: 'images must be a list of image IDs' }, 400)
           }
           return {
             text: body.text as string,
@@ -122,7 +142,7 @@ export function roomRoutes(rooms: RoomsApi) {
               mentions: body.mentions as Mention[],
             }),
             ...(body.images !== undefined && {
-              images: body.images as { data: string; mimeType: string }[],
+              images: body.images as string[],
             }),
           }
         }),
@@ -133,6 +153,26 @@ export function roomRoutes(rooms: RoomsApi) {
             return c.body(null, 202)
           }),
       )
+      // An image for a message to carry, as its raw bytes, of any type:
+      // core reads what it is. Kept a day for a message to claim it.
+      .post('/:room/images', can('rooms.post'), (c) =>
+        refusable(c, async () => {
+          await roomOf(c)
+          const bytes = new Uint8Array(await c.req.arrayBuffer())
+          return c.json(await images.upload(bytes), 201)
+        }),
+      )
+      // A stored image. Its ID is a hash of its bytes, so it never changes.
+      // Any room's history reaches it: knowing the hash means having had it.
+      .get('/:room/images/:image', can('rooms.history'), async (c) => {
+        await roomOf(c)
+        const image = found(await images.get(c.req.param('image')), 'image')
+        return c.body(image.bytes as Uint8Array<ArrayBuffer>, 200, {
+          'Content-Type': image.mimeType,
+          ETag: `"${c.req.param('image')}"`,
+          'Cache-Control': 'private, max-age=31536000, immutable',
+        })
+      })
       // A host's note, which Familiars are shown but no one answers.
       .post(
         '/:room/notes',

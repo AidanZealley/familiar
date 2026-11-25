@@ -54,6 +54,12 @@ import {
   openPlugins,
   type FamiliarPlugin,
 } from '../plugins/index.ts'
+import {
+  createImages,
+  imagesExtension,
+  type ImagesApi,
+  type ImagesOptions,
+} from '../images/index.ts'
 import { createRooms, type RoomsApi } from '../rooms/index.ts'
 import { Shown } from '../rooms/log.ts'
 import { Rooms } from '../rooms/rooms.ts'
@@ -187,6 +193,13 @@ export type WorkspaceOptions = {
   mcpFetch?: PluginFetch
   /** Optional host factory for owner-configured local MCP commands. */
   mcpStdio?: McpStdioFactory
+  /**
+   * How images people send are prepared: decoded, turned upright, shrunk
+   * and re-encoded to fit `IMAGE_LIMITS`, then kept in the workspace's own
+   * storage. Without it, uploads are refused as `unavailable` and messages
+   * carry words only.
+   */
+  images?: ImagesOptions
   /** Host-provided JavaScript runner. When supplied, chats also get Code Mode. */
   codemodeSandbox?: CodemodeToolOptions['sandbox']
   /**
@@ -363,6 +376,8 @@ export type Workspace = {
    * named rooms with one or more Familiars.
    */
   rooms: RoomsApi
+  /** The images messages carry: uploaded first, then named by a message. */
+  images: ImagesApi
   /** Settles on dismissal or a storage failure. Failed instances must be reopened. */
   readonly closed: Promise<SessionEnd>
   /** The owner's login with the models' provider, if the host passed `account`. */
@@ -467,6 +482,7 @@ export async function openWorkspace(
         conversationExtension,
         ...(account ? [account.extension] : []),
         createTime(options.timeZone),
+        imagesExtension,
         ...memory.extensions,
         schedules.extension,
         rooms.extension,
@@ -717,6 +733,7 @@ export async function openWorkspace(
       setModelDefaults: (change) =>
         harness.commit((tx) => settings.setDefaults(tx, change), context),
       rooms: rooms.api,
+      images: createImages(harness, options.images, options.now ?? Date.now),
       account: account?.api,
       mcp: mcp.api,
       connections: allConnections(

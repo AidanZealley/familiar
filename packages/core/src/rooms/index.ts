@@ -11,6 +11,8 @@ import {
   type Harness,
   type WatchHandle,
 } from '@earendil-works/pi-durable'
+import { claimImages } from '../images/store.ts'
+import type { ImageId } from '../images/types.ts'
 import { declineWaiting } from '../questions/index.ts'
 import {
   admitMessage,
@@ -80,11 +82,11 @@ export type RoomMessage = {
   /** May be empty when it has images. */
   text: string
   /**
-   * Images as base64, prepared by the client to fit `IMAGE_LIMITS`; each
-   * one's format is read from its bytes, not `mimeType`. Shown in the room
-   * and to each Familiar the message is delivered to.
+   * The images it carries, by the IDs `images.upload` gave them, at most
+   * `IMAGE_LIMITS.count`. Posting claims them, so they're kept for good.
+   * Shown in the room and to each Familiar the message is delivered to.
    */
-  images?: readonly { data: string; mimeType?: string }[]
+  images?: readonly ImageId[]
   /**
    * Stable per logical message from this author, so a retried post is
    * admitted once. Scoped to the author: another author's same ID is a
@@ -106,7 +108,8 @@ export type RoomApi = {
   /**
    * Posts a message and starts the turns it causes; a retry with the same
    * request ID posts nothing. Returns its entry. Rejects with a MessageError
-   * for a message `admitMessage` or the mention rules refuse, and a
+   * for a message `admitMessage` or the mention rules refuse, an ImageError
+   * `missing` for an image that isn't stored, and a
    * RoomError for a closed room: an archived one, or a DM whose Familiar
    * was removed.
    */
@@ -232,6 +235,8 @@ export function createRooms(
     post: async (message) => {
       const { author, text, images, requestId } = admitMessage(message)
       const posted = await harness.commit(async (tx) => {
+        // Claimed with the post, or, if it fails, not at all.
+        const refs = images && (await claimImages(tx, images))
         // A Familiar waiting on the person here gets this instead.
         const record = (await tx.doc(Rooms)).rooms[id]
         await declineWaiting(
@@ -247,7 +252,7 @@ export function createRooms(
             data: {
               author,
               text,
-              ...(images && { images }),
+              ...(refs && { images: refs }),
               at: options.now(),
               ...(message.mentions && { mentions: message.mentions }),
             },
