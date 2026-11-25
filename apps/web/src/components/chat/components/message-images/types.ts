@@ -1,5 +1,5 @@
-import type { MessageImage } from '@familiar-ai/client'
+import type { TranscriptImage } from '@familiar-ai/client'
 
 export type MessageImagesProps = {
-  images: readonly MessageImage[]
+  images: readonly TranscriptImage[]
 }
