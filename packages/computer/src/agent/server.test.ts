@@ -12,7 +12,10 @@ import { computerServer } from './server.ts'
 
 test('the agent sleeps once idle, never during a call or for a look, then runs nothing', async () => {
   let slept = false
-  const browser = { tabs: async () => [] } as unknown as Browser
+  const browser = {
+    tabs: async () => [],
+    mask: (text: string) => text,
+  } as unknown as Browser
   const [agentSide, hostSide] = InMemoryTransport.createLinkedPair()
   await computerServer(
     browser,
@@ -50,7 +53,10 @@ test('the agent sleeps once idle, never during a call or for a look, then runs n
 test('a person holds control as long as their call: actions wait and never run, and the Familiar is told', async () => {
   let slept = false
   const home = mkdtempSync(join(tmpdir(), 'familiar-control-'))
-  const browser = { tabs: async () => [] } as unknown as Browser
+  const browser = {
+    tabs: async () => [],
+    mask: (text: string) => text,
+  } as unknown as Browser
   const [agentSide, hostSide] = InMemoryTransport.createLinkedPair()
   await computerServer(
     browser,

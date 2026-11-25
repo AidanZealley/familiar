@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { chromium, type Request } from 'playwright'
 import { expect, onTestFinished, test } from 'vitest'
-import { snapshotWithoutPasswords } from './browser.ts'
+import { maskSaved, snapshotWithoutPasswords } from './browser.ts'
 import { signIn } from './sign-in.ts'
 
 const origin = 'https://login.example.test'
@@ -28,6 +28,10 @@ const pages: Record<string, string> = {
   // Native GET submissions, which would put the password in the address.
   '/get': form(''),
   '/get-button': form(undefined, 'formmethod="get"'),
+  '/foreign-image-shadow': `<div><template shadowrootmode="open">${form().replace(
+    '</form>',
+    `<input type="image" alt="Go" formaction="${other}/session"></form>`,
+  )}</template></div>`,
   '/get-shadow': `<div><template shadowrootmode="open">${form('')}</template></div>`,
   '/required': form(undefined, '').replace(
     '</form>',
@@ -120,6 +124,7 @@ test.skipIf(!existsSync(chromium.executablePath()))(
     await refused('/foreign-action', /another site/)
     await refused('/foreign-button', /another site/)
     await refused('/foreign-image', /another site/)
+    await refused('/foreign-image-shadow', /another site/)
     await refused('/framed', /Couldn't use those controls/)
     await refused('/required', /isn't complete/)
 
@@ -193,9 +198,9 @@ test.skipIf(!existsSync(chromium.executablePath()))(
         (body, text) => body.insertAdjacentText('beforeend', text),
         saved,
       )
-    const revealed = await snapshotWithoutPasswords(page, [saved])
+    const revealed = maskSaved(await snapshotWithoutPasswords(page), [saved])
     expect(revealed).not.toMatch(/reveal|now/)
-    expect(revealed).toContain('- hidden')
+    expect(revealed).toContain('••••••••')
 
     await page.goto(origin)
     expect(await signIn(page, login, await controls(), signal)).toEqual({

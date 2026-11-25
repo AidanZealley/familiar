@@ -134,6 +134,14 @@ export function computerServer(
       return text((started ? STARTED : '') + (await browser.snapshot(page)))
     }
 
+  /** `result`'s text as the model may see it: see `Browser.mask`. */
+  const withoutSavedPasswords = (result: CallToolResult): CallToolResult => ({
+    ...result,
+    content: result.content.map((part) =>
+      part.type === 'text' ? { ...part, text: browser.mask(part.text) } : part,
+    ),
+  })
+
   const handlers: Handlers = {
     browser_snapshot: onPage(async () => {}),
     browser_screenshot: async (_args, _signal, using) => {
@@ -206,65 +214,71 @@ export function computerServer(
         inputSchema: tool.input as z.ZodObject,
         annotations: annotationsOf(tool),
       },
-      async (args, ctx) =>
-        (await activity.run(name, args, async (call) => {
-          const { signal } = ctx.mcpReq
-          let stopWaiting = () => {}
-          try {
-            // A computer made again finishes restoring first, so the call
-            // finds what it had. Not under `control`, so a person taking
-            // over doesn't wait for it.
-            await restored.done
-            const outcome = await control.run(
-              call,
-              kindOf(name, tool),
-              signal,
-              () => (stopWaiting = progress(ctx, WAITING)),
-              // Its own failure is its result, so a note still goes with it,
-              // as does what restoring put back, for the first to run.
-              async (using): Promise<CallToolResult> => {
-                const note = restored.takeNote()
-                const result = await handle(args, signal, using).catch(
-                  (error: unknown) =>
-                    text(
-                      error instanceof Error ? error.message : String(error),
-                      true,
-                    ),
-                )
-                return note
-                  ? {
-                      ...result,
-                      content: [
-                        { type: 'text', text: note },
-                        ...result.content,
-                      ],
-                    }
-                  : result
-              },
-            )
-            if (!outcome.ran) {
-              return {
-                ...text(outcome.note, true),
-                _meta: { [PERSON_USED]: true },
-              }
-            }
-            const { value: result, note } = outcome
-            return note
-              ? {
-                  ...result,
-                  _meta: { ...result._meta, [PERSON_USED]: true },
-                  content: [{ type: 'text', text: note }, ...result.content],
+      async (args, ctx) => {
+        const result = await activity.run(
+          name,
+          args,
+          async (call): Promise<CallToolResult> => {
+            const { signal } = ctx.mcpReq
+            let stopWaiting = () => {}
+            try {
+              // A computer made again finishes restoring first, so the call
+              // finds what it had. Not under `control`, so a person taking
+              // over doesn't wait for it.
+              await restored.done
+              const outcome = await control.run(
+                call,
+                kindOf(name, tool),
+                signal,
+                () => (stopWaiting = progress(ctx, WAITING)),
+                // Its own failure is its result, so a note still goes with it,
+                // as does what restoring put back, for the first to run.
+                async (using): Promise<CallToolResult> => {
+                  const note = restored.takeNote()
+                  const result = await handle(args, signal, using).catch(
+                    (error: unknown) =>
+                      text(
+                        error instanceof Error ? error.message : String(error),
+                        true,
+                      ),
+                  )
+                  return note
+                    ? {
+                        ...result,
+                        content: [
+                          { type: 'text', text: note },
+                          ...result.content,
+                        ],
+                      }
+                    : result
+                },
+              )
+              if (!outcome.ran) {
+                return {
+                  ...text(outcome.note, true),
+                  _meta: { [PERSON_USED]: true },
                 }
-              : result
-          } catch (error) {
-            return text(
-              error instanceof Error ? error.message : String(error),
-              true,
-            )
-          } finally {
-            stopWaiting()
-          }
-        })) ?? ASLEEP_RESULT,
+              }
+              const { value: result, note } = outcome
+              return note
+                ? {
+                    ...result,
+                    _meta: { ...result._meta, [PERSON_USED]: true },
+                    content: [{ type: 'text', text: note }, ...result.content],
+                  }
+                : result
+            } catch (error) {
+              return text(
+                error instanceof Error ? error.message : String(error),
+                true,
+              )
+            } finally {
+              stopWaiting()
+            }
+          },
+        )
+        return result ? withoutSavedPasswords(result) : ASLEEP_RESULT
+      },
     )
   }
   server.registerTool(
