@@ -20,7 +20,7 @@ import { FailedSendItem } from './components/failed-send-item'
 import { MentionMenu } from './components/mention-menu'
 import { suggestionsFor } from './mentions'
 import type { ComposerProps } from './types'
-import { isEmpty, refusalOf, useDraft } from './useDraft'
+import { isEmpty, useDraft } from './useDraft'
 import { useSend } from './useSend'
 
 /**
@@ -124,12 +124,11 @@ export const Composer = ({ room, busy }: ComposerProps) => {
               : undefined
           }
           onDiscard={() => sending.discard(each.id)}
-          onRemoveImage={(image) => sending.removeImage(each.id, image)}
         />
       ))}
-      {(refused ?? refusalOf(draft) ?? error) && (
+      {(refused ?? error) && (
         <ComposerNotice tone="error">
-          {refused ?? refusalOf(draft) ?? error?.message}
+          {refused ?? error?.message}
         </ComposerNotice>
       )}
       {note && (

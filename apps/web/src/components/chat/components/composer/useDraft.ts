@@ -1,6 +1,6 @@
 import { IMAGE_LIMITS, type FamiliarSummary } from '@familiar-ai/client'
 import { useState } from 'react'
-import { imageRefusal, isImage, prepareImage } from '@/lib/images'
+import { isImage, prepareImage } from '@/lib/images'
 import type { DraftImage } from './components/draft-images'
 import { completeMention } from './mentions'
 
@@ -25,24 +25,12 @@ export const nextId = () => ++lastId
 export const isEmpty = (draft: Draft) =>
   !draft.text.trim() && !draft.images.length
 
-/**
- * Whether `draft` can be sent: words or images, every image prepared and
- * none refused.
- */
+/** Whether `draft` can be sent: words or images, every image prepared. */
 export const isSendable = (draft: Draft) =>
-  !isEmpty(draft) &&
-  draft.images.every((image) => image.prepared && !image.problem)
-
-/** Why `draft` can't be sent as it is: the first image core refused. */
-export const refusalOf = (draft: Draft) => {
-  const index = draft.images.findIndex((image) => image.problem)
-  return index < 0
-    ? undefined
-    : imageRefusal(index, draft.images[index].problem!)
-}
+  !isEmpty(draft) && draft.images.every((image) => image.prepared)
 
 /** `draft` without the image `id`. */
-export const without = (draft: Draft, id: number): Draft => ({
+const without = (draft: Draft, id: number): Draft => ({
   ...draft,
   images: draft.images.filter((image) => image.id !== id),
 })

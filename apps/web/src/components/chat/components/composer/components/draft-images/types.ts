@@ -1,19 +1,18 @@
-import type { ImageProblem, OutgoingImage } from '@familiar-ai/client'
+import type { OutgoingImage } from '@familiar-ai/client'
 
 /**
- * An image attached to a draft: shown from its `file` at once, sent once
- * it's `prepared` to fit (see `prepareImage`), and marked with the
- * `problem` core gave when it refused it in a send that failed.
+ * An image attached to a draft: shown from its `file` at once, and sent
+ * once it's `prepared` to fit (see `prepareImage`).
  */
 export type DraftImage = {
   /** Its identity, as `nextId` gives it. */
   id: number
   file: File
   prepared?: OutgoingImage
-  problem?: ImageProblem
 }
 
 export type DraftImagesProps = {
   images: readonly DraftImage[]
-  onRemove(id: number): void
+  /** Offers a × on each, to remove it. */
+  onRemove?: (id: number) => void
 }
