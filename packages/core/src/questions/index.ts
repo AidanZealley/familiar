@@ -322,23 +322,37 @@ export function createQuestions(
       }
     }, context)
 
-  /** Before any connection's tool runs, applies the owner's settings for it. */
+  /** Before a connection's tool or a destructive Familiar tool runs, asks or applies the owner's settings. */
   const extension = defineExtension({
     name: 'familiar.questions',
     hooks: [
       hook(ToolTask, {
         beforeTool: async (call, api, context) => {
-          const found = connectionToolOf(options.registry(), call.name)
-          if (!found) {
+          const registry = options.registry()
+          const found = connectionToolOf(registry, call.name)
+          // Familiar's own destructive tools always ask; the owner sets the
+          // rest per connection.
+          const destructive =
+            !found &&
+            registry
+              .tools()
+              .some(
+                ({ tool }) =>
+                  tool.name === call.name &&
+                  (tool as FamiliarTool).annotations?.destructiveHint === true,
+              )
+          if (!found && !destructive) {
             return undefined
           }
           const settings = async () =>
-            toolSettingsOf(
-              await api.snapshot(ToolSettingsDocument, context),
-              found.connection,
-              found.tool,
-              found.annotations,
-            )
+            found
+              ? toolSettingsOf(
+                  await api.snapshot(ToolSettingsDocument, context),
+                  found.connection,
+                  found.tool,
+                  found.annotations,
+                )
+              : { enabled: true, askBeforeRunning: true }
           const off = {
             block: `The owner has turned ${call.name} off in Familiar.`,
           }

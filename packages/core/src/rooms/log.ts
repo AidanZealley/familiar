@@ -85,7 +85,7 @@ export const REPLY_KIND = 'familiar.reply'
  * How many Familiar replies in a row a room delivers since a person last
  * spoke: a reply this deep is posted but sent to no one.
  */
-export const MAX_DEPTH = 10
+export const MAX_DEPTH = 50
 
 /**
  * A Familiar's reply to one room entry: its run's answer, posted once the
@@ -121,6 +121,22 @@ export type ReplyData = {
   /** When it was posted, in ms since the epoch. */
   at: number
 }
+
+const NO_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+/** A reply's messages for text a Familiar posts without a model run. */
+export const textMessages = (text: string, at: number): Message[] => [
+  {
+    role: 'assistant',
+    content: [{ type: 'text', text }],
+    api: 'openai-responses',
+    provider: 'familiar',
+    model: 'familiar',
+    stopReason: 'stop',
+    timestamp: at,
+    usage: { ...NO_COST, totalTokens: 0, cost: { ...NO_COST, total: 0 } },
+  },
+]
 
 /** A stored request from one Familiar to another in the same room. */
 export type HandoffData = {
@@ -617,34 +633,51 @@ export async function postAll(
       results.push({ entry: already, turns: [] })
       continue
     }
-    // Raw admission: a room never runs, so admitting a write is appending it.
-    const submission = await tx.createSubmission({
-      type: 'write',
-      conversationId: room,
-      requestId,
-      status: 'queued',
-    })
-    // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
-    const appended = await tx.appendEntry(room, entry as EntryDraft)
-    tx.placeSubmission(submission.id, appended.id)
-    await noteShown(tx, room, appended.id, entry)
-
-    const turns: TaskId<TurnResult>[] = []
-    for (const { familiar, addressed } of closed
-      ? []
-      : recipients(record, entry)) {
-      turns.push(
-        await startTurn(tx, turn, {
-          room,
-          familiar,
-          cause: appended.id,
-          addressed,
-        }),
-      )
-    }
-    results.push({ entry: appended.id, turns })
+    results.push(
+      await appendPosting(
+        tx,
+        turn,
+        room,
+        { entry, requestId },
+        closed ? [] : recipients(record, entry),
+      ),
+    )
   }
   return results
+}
+
+/** Appends a fresh posting after the caller checks the room and request. */
+export async function appendPosting(
+  tx: Tx,
+  turn: TurnTask,
+  room: RoomId,
+  { entry, requestId }: Posting,
+  targets: readonly { familiar: FamiliarId; addressed: Addressed }[],
+) {
+  // Raw admission: a room never runs, so admitting a write is appending it.
+  const submission = await tx.createSubmission({
+    type: 'write',
+    conversationId: room,
+    requestId,
+    status: 'queued',
+  })
+  // A reply's messages are JSON as stored in the chat; Pi's types don't say so.
+  const appended = await tx.appendEntry(room, entry as EntryDraft)
+  tx.placeSubmission(submission.id, appended.id)
+  await noteShown(tx, room, appended.id, entry)
+
+  const turns: TaskId<TurnResult>[] = []
+  for (const { familiar, addressed } of targets) {
+    turns.push(
+      await startTurn(tx, turn, {
+        room,
+        familiar,
+        cause: appended.id,
+        addressed,
+      }),
+    )
+  }
+  return { entry: appended.id, turns }
 }
 
 /** Creates a turn task in `room`. Background: a room's Stop aborts it, and nothing waits for a room. */

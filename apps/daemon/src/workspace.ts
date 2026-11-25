@@ -12,7 +12,10 @@ export async function openDaemonWorkspace(
   options: WorkspaceOptions,
   name: string,
 ) {
-  const workspace = await openWorkspace(options)
+  const workspace = await openWorkspace({
+    allowRoomTools: () => true,
+    ...options,
+  })
   try {
     const [first] = await workspace.familiars.list()
     let familiar: FamiliarId
