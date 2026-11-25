@@ -21,7 +21,9 @@ pnpm dev
 
 This starts a daemon on port 4318 with a scripted model and in-memory storage, and the web app on port 5174. It needs no sign-in and touches no installed assistant's data. Vite accepts LAN and tailnet connections, so you can open it from another device.
 
-The demo opens on Rowan's household, a few days in: four Familiars with their own tools, memory and schedules, their DMs, named rooms and a print still being watched. It's written as data in `apps/daemon/src/demo/household/story.ts`, each message with the replies it gets. Anything the story doesn't script falls back to a scenario: type `tool`, `memory`, `remind`, `key`, `mcp`, `slow`, `compact` or `error` in Juniper's DM. Only the model and external services are simulated. Add scenarios under `apps/daemon/src/demo/scenarios/` and register them in `apps/daemon/src/demo/model.ts`.
+The demo opens on Rowan's household: four Familiars with their own tools, memory and schedules, their DMs and named rooms. The story is data in `apps/daemon/src/demo/household/story.ts`. Anything it doesn't script falls back to a scenario: type `tool`, `memory`, `remind`, `key`, `mcp`, `ask`, `slow`, `compact`, `computer`, `login` or `error` in Juniper's DM. Add scenarios under `apps/daemon/src/demo/scenarios/` and register them in `apps/daemon/src/demo/model.ts`.
+
+To see sending's slow and failing states, put `#slow`, `#fail` or `#trouble` in a message. See `apps/daemon/src/demo/trouble.ts`.
 
 :::caution
 `pnpm dev:live`, `pnpm start` and `pnpm sign-in` work with the real installed assistant on port 4317 and its data. Use them only when you mean to. Never run a second daemon over the same storage.
@@ -58,13 +60,9 @@ Also run:
 - `pnpm test:packages` for package exports or dependencies. It packs the libraries and installs them outside the workspace.
 - `pnpm build:docs` for documentation changes. It builds this site and fails on broken internal links.
 
-CI runs the main checks and `pnpm test:packages` on every pull request. The workerd tests, the CLI on macOS, Linux and Windows, and the docs build run when a pull request changes their files.
+The computers' image is tagged with a hash of what goes into it, kept in `packages/computer/image.json`. After changing anything in the image, run `pnpm image` and commit `image.json`; a test fails while it's out of date. To rebuild with nothing changed, such as for security updates, change `IMAGE_REFRESH` in the Dockerfile.
 
-Computers need the computers' image. Its tag is a key, a hash of what goes into it: the agent and proxy (bundled), the Dockerfile, `desktop/` and `extension/`, and the Playwright version. `packages/computer/image.json` holds the key, and hosts use the image it names. `pnpm image` recomputes the key, writes `image.json` and builds that image from your checkout. A test fails when `image.json` is out of date, so run `pnpm image` and commit `image.json` after changing anything in the image. Changes elsewhere, such as to core or the Docker host, keep the key. The Docker test is skipped until the image is built.
-
-To rebuild the image when nothing in it changed, such as for Debian's security updates, change `IMAGE_REFRESH` in the Dockerfile. Each new key replaces every computer, keeping its disk.
-
-Use the faux provider, or `scriptedModels` for a script that answers every request, to test the real harness without model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model. `pnpm eval:memory-scenarios` and `pnpm eval:longmem` run memory on real models, through an eval-only sign-in.
+Test the real harness with the faux provider or `scriptedModels`, not model requests. `pnpm eval:recall` and `pnpm eval:unfiled` check memory retrieval without a model; `pnpm eval:memory-scenarios` and `pnpm eval:longmem` run memory on real models.
 
 ## The docs site
 
@@ -78,4 +76,8 @@ Pushes to `main` that change the docs or packages deploy the site to GitHub Page
 
 ## Releases
 
-Pushing a `v*` tag runs the [publish workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/publish.yml). It publishes the npm packages and the installable assistant, and first the computers' image, `ghcr.io/aidanzealley/familiar-computer:<key>`, if no image has that key yet. A release that changes nothing in the image publishes no image, and hosts keep their computers. Tags with a `-`, such as `v0.5.0-rc.1`, publish a GitHub prerelease and npm's `next` tag. Every push to `main` runs the same workflow without a release: it replaces `familiar.tgz` in the rolling `main-build` prerelease, versioned `<latest release>-main.<commit>` (such as `0.4.3-main.168a762c`), and publishes nothing to npm. A newer push cancels a build still running. `FAMILIAR_VERSION=main` installs it and `familiar update --main` switches to it. `pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.
+Pushing a `v*` tag runs the [publish workflow](https://github.com/AidanZealley/familiar/blob/main/.github/workflows/publish.yml): it publishes the npm packages, the installable assistant and, if its key is new, the computers' image. Tags with a `-`, such as `v0.5.0-rc.1`, publish a prerelease and npm's `next` tag.
+
+Every push to `main` replaces `familiar.tgz` in the rolling `main-build` prerelease and publishes nothing to npm. `FAMILIAR_VERSION=main` installs it.
+
+`pnpm bundle` builds the installable tarball locally, and `pnpm test:release` checks it with temporary storage.
