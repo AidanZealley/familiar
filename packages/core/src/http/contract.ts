@@ -12,9 +12,9 @@ import type { FamiliarsState } from '../workspace/index.ts'
 // are typed by `HttpApi`; the event stream, which Hono's client can't type,
 // by `StreamEvent`. A room's log is Pi's view as it is, so clients type it
 // with Pi's own types.
-export type { ImageProblem, ImageRefusal } from '../conversation/image.ts'
 export type {
   Author,
+  IMAGE_LIMITS,
   MessageImage,
   HANDOFF_KIND,
   MESSAGE_KIND,

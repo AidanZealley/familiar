@@ -8,13 +8,7 @@ export type { Store, StoreOptions } from './mirror.ts'
 export type { FamiliarChange, RoomChange, RoomSetup } from './commands.ts'
 export type { Connection } from './events.ts'
 export { composeMessage, type Picked } from './mentions.ts'
-export {
-  checkImage,
-  IMAGE_LIMITS,
-  type ImageProblem,
-  type OutgoingImage,
-} from './images.ts'
-export { RequestError } from './commands.ts'
+export { IMAGE_LIMITS, type OutgoingImage } from './images.ts'
 export { toRoomTranscript } from './transcript.ts'
 export type {
   ToolCall,

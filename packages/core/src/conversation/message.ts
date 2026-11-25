@@ -8,12 +8,6 @@ import type {
   Tx,
 } from '@earendil-works/pi-durable'
 import { entriesOf } from '../pi/entries.ts'
-import {
-  checkImage,
-  IMAGE_LIMITS,
-  type ImageProblem,
-  type ImageRefusal,
-} from './image.ts'
 
 /** The entry kind people's messages are stored as. */
 export const MESSAGE_KIND = 'familiar.message'
@@ -76,18 +70,45 @@ export const MESSAGE_LIMITS = {
 } as const
 
 /**
+ * What a message's images may be. A client prepares them to fit (the web app
+ * shrinks and encodes them in the browser); Familiar only checks. Each costs
+ * the models tokens on every turn until its chat compacts, and past about
+ * 1568px they gain little.
+ */
+export const IMAGE_LIMITS = {
+  count: 10,
+  /** Characters of base64, per image. */
+  bytes: 1_500_000,
+  /** The longest side a client should prepare an image to, in pixels. */
+  pixels: 1568,
+} as const
+
+/**
  * An image a message carries, as the model takes it inline: pi-ai's
  * `ImageContent`, as a type so it's JSON an entry can store.
  */
 export type MessageImage = { type: 'image'; data: string; mimeType: string }
+
+/** A format every model provider takes inline, by its leading bytes. */
+const IMAGE_SIGNATURES: [
+  mimeType: string,
+  matches: (head: string) => boolean,
+][] = [
+  ['image/png', (head) => head.startsWith('\x89PNG\r\n\x1a\n')],
+  ['image/jpeg', (head) => head.startsWith('\xff\xd8\xff')],
+  ['image/gif', (head) => /^GIF8[79]a/.test(head)],
+  [
+    'image/webp',
+    (head) => head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP',
+  ],
+]
 
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
 
 /**
  * `images` as a message stores them, each with the format its bytes show,
  * whatever it was labelled. Throws a MessageError for too many, too large,
- * not base64, or an image `checkImage` refuses, with the image's problem
- * as data.
+ * or anything not PNG, JPEG, GIF or WebP base64.
  */
 function admitImages(images: unknown): MessageImage[] {
   if (!Array.isArray(images) || images.length > IMAGE_LIMITS.count) {
@@ -95,7 +116,7 @@ function admitImages(images: unknown): MessageImage[] {
       `A message may carry at most ${IMAGE_LIMITS.count} images.`,
     )
   }
-  return images.map((image: { data?: unknown } | null, index) => {
+  return images.map((image: { data?: unknown } | null) => {
     const data = image?.data
     if (
       typeof data !== 'string' ||
@@ -107,25 +128,13 @@ function admitImages(images: unknown): MessageImage[] {
         `Each image must be base64 of at most ${IMAGE_LIMITS.bytes} characters.`,
       )
     }
-    const header = checkImage(
-      Uint8Array.from(atob(data), (char) => char.charCodeAt(0)),
-    )
-    if (typeof header === 'string') {
-      throw new MessageError(IMAGE_PROBLEMS[header], {
-        index,
-        problem: header,
-      })
+    const head = atob(data.slice(0, 16))
+    const mimeType = IMAGE_SIGNATURES.find(([, matches]) => matches(head))?.[0]
+    if (!mimeType) {
+      throw new MessageError('Each image must be a PNG, JPEG, GIF or WebP.')
     }
-    return { type: 'image', data, mimeType: header.mimeType }
+    return { type: 'image', data, mimeType }
   })
-}
-
-/** Fallback wording for callers that show a MessageError as it is. */
-const IMAGE_PROBLEMS: Record<ImageProblem, string> = {
-  format: 'Each image must be a PNG, JPEG, GIF or WebP.',
-  corrupt: "An image couldn't be read; it may be truncated or damaged.",
-  pixels: `Each image's longest side must be at most ${IMAGE_LIMITS.pixels} pixels.`,
-  frames: `An animated image may have at most ${IMAGE_LIMITS.frames} frames.`,
 }
 
 /**
@@ -141,18 +150,8 @@ export function withImages(text: string, images = 0) {
   return text ? `${text} ${marker}` : marker
 }
 
-/**
- * A message the admission rules refuse; nothing was sent. `image` says
- * which image was refused and why, when one was, for a host to word.
- */
-export class MessageError extends TypeError {
-  readonly image?: ImageRefusal
-
-  constructor(message: string, image?: ImageRefusal) {
-    super(message)
-    this.image = image
-  }
-}
+/** A message the admission rules refuse; nothing was sent. */
+export class MessageError extends TypeError {}
 
 const bounded = (value: unknown, limit: number): value is string =>
   typeof value === 'string' && !!value.trim() && value.length <= limit

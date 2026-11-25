@@ -1058,18 +1058,11 @@ test('a message admits only bounded images, and may be images alone', async () =
     [{ data: 'A'.repeat(1_500_004), mimeType: 'image/png' }],
     [{ data: 'not base64!', mimeType: 'image/png' }],
     [{ data: btoa('%PDF-1.7 hello'), mimeType: 'image/png' }],
-    // A PNG's signature alone, or a PNG cut short, doesn't parse.
-    [{ data: btoa('\x89PNG\r\n\x1a\n'), mimeType: 'image/png' }],
-    [{ data: btoa(atob(PIXEL).slice(0, 48)), mimeType: 'image/png' }],
     // Words are needed without images.
     [],
   ]) {
     await expect(post(images)).rejects.toBeInstanceOf(MessageError)
   }
-  // Why, as data for the host to word.
-  await expect(
-    post([{ data: btoa(atob(PIXEL).slice(0, 48)), mimeType: 'image/png' }]),
-  ).rejects.toMatchObject({ image: { index: 0, problem: 'corrupt' } })
   // The format comes from the bytes, not the label.
   await post([{ data: PIXEL, mimeType: 'image/jpeg' }])
   const [message] = await log(dm)
