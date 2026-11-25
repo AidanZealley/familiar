@@ -127,6 +127,8 @@ export function linuxService(options: LinuxOptions) {
     systemctl('restart', 'familiar')
   }
   return {
+    /** Whether this data folder's service is registered, running or not. */
+    isRegistered: ownsData,
     isRunning: () => ownsData() && isRunning(),
     stop: () => {
       systemctl('stop', 'familiar')

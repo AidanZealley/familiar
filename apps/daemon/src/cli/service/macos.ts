@@ -147,6 +147,8 @@ export function macosService(options: MacOptions) {
     start()
   }
   return {
+    /** Whether this data folder's service is registered, running or not. */
+    isRegistered: ownsData,
     isRunning,
     stop,
     start,
