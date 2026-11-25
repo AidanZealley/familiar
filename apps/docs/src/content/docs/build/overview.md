@@ -17,25 +17,23 @@ Core is portable. It starts no server and renders nothing. Its Node-only buildin
 
 ## What your host owns
 
-A host opens one workspace over one storage, and makes its Familiars and rooms on the first open. It supplies:
+A host opens one workspace over one storage, and creates its Familiars and rooms on the first open. It supplies:
 
-- **Storage.** `MemoryStorage` for tests, Pi Durable's SQLite storage on Node, or a Durable Object on Workers. Only one live workspace may own a storage at a time.
-- **Models and credentials.** A `Models` instance with providers registered and a credential store. See [Models and sign-in](/familiar/build/models-and-sign-in/).
-- **Time zone.** An IANA zone such as `Europe/London`. Memory's dates and nightly filing, and schedules, use it.
-- **Identity.** Who sent each message. Familiar records an `Author` with a stable `id` and a display `name`. It doesn't authenticate anyone.
-- **Audience.** Which rooms each person reaches: a DM each with a Familiar, named rooms shared by a group, or both. Everyone a Familiar serves shares what it remembers, its tools and its schedules, so separate audiences, such as tenants, get separate workspaces over separate storage.
-- **Authorization.** Which operations each person may use, with `createHttpApi`'s `allow`, and narrower rules about your app's data and actions, which tools check against the call's author, `familiar(context).author()`. Attribution grants nothing.
-- **Network policy.** Tools' `fetch`. On Node it defaults to one that refuses private addresses, and in Workers and browsers to the runtime's. Pass your own to change that. Also the MCP transports, `mcpFetch` and `mcpStdio`, which decide what MCP servers may reach or run. Familiar only checks an MCP server's shape.
-- **Notifications.** An optional `notify` for scheduled replies. Your host chooses who receives each one, and stores and authorizes any Web Push subscriptions.
-- **Browser protection.** Cross-site request protection if you authenticate browsers with cookies, and your pages' own framing and content policies. `createHttpApi` adds neither.
+- **Storage.** `MemoryStorage` for tests, Pi Durable's SQLite on Node, or a Durable Object on Workers. One live workspace per storage.
+- **Models and credentials.** See [Models and sign-in](/familiar/build/models-and-sign-in/).
+- **A time zone**, such as `Europe/London`, for memory's dates and schedules.
+- **Identity.** Who sent each message, as an `Author` with a stable `id` and a `name`. Familiar doesn't authenticate anyone.
+- **Authorization.** Which operations each person may use, with `createHttpApi`'s `allow`. Rules about your own data belong in your tools, checked against the call's author.
+- **Audience.** Everyone who reaches a Familiar shares what it remembers, its tools and schedules, so separate audiences get separate workspaces.
+- **Network policy.** Tools' `fetch`, and the MCP transports `mcpFetch` and `mcpStdio`. On Node, the default `fetch` refuses private addresses.
+- **Notifications**, optionally: who receives each scheduled reply.
+- **Browser protection**, such as CSRF protection for cookie sign-in. `createHttpApi` adds none.
 
 ## What Familiar owns
 
-Familiar owns the rooms and everything its Familiars do in the background: whose turn a message is, replies, tool calls, memory filing, schedules and recovery after a crash. Pi Durable runs that work and commits each change to storage. The HTTP adapter streams those commits, and the client mirrors them. Your UI renders the client's state and sends commands. It never edits state directly.
+Familiar owns rooms and everything its Familiars do: whose turn a message is, replies, tool calls, memory, schedules and recovery after a crash. Pi Durable runs that work and commits each change to storage; the HTTP API streams those commits, and the client mirrors them. Your UI renders the client's state and sends commands.
 
-Several people can share one Familiar, in a named room or each in their own DM. Each message keeps its author, and tools can see who started a turn. A Familiar keeps one working context across its rooms, so they also share what it knows, every tool and every schedule. A host that serves separate audiences opens one workspace for each. See [Serve the API](/familiar/build/serve-the-api/#a-familiar-is-shared).
-
-Familiar bounds what it admits: request bodies, message and schedule sizes, how often a repeat runs and how many schedules it keeps. It doesn't sandbox tools. Plugins are code you install, trusted like any other dependency, and they run with your process's privileges. Replies, tool results and fetched pages are untrusted text, so sanitise them wherever you render them.
+Familiar bounds what it admits, such as message and request sizes. It doesn't sandbox plugins, which run with your process's privileges. Treat replies, tool results and fetched pages as untrusted text wherever you render them.
 
 ## Where to go next
 

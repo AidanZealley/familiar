@@ -18,33 +18,34 @@ models.setProvider(openaiProvider())
 models.setProvider(openrouterProvider())
 ```
 
-`credentials` is a `CredentialStore` your host owns. It must persist, or every restart signs out. The daemon's [file store](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/credentials.ts) is a working Node example.
+`credentials` is a `CredentialStore` your host owns. It must persist, or every restart signs out. On Node, use [`fileCredentialStore`](/familiar/reference/plugins/#node-building-blocks).
 
 Keep provider credentials on the server. Never put them in frontend code.
 
 ## ChatGPT sign-in
 
-ChatGPT sign-in lets a Familiar use a ChatGPT subscription instead of an API key. It's the model's access, not a login to your app. Pass `account`, and Familiar signs in through the same `models`:
+ChatGPT sign-in lets Familiars use a ChatGPT subscription instead of an API key. It's the model's access, not a login to your app. Pass `account`:
 
 <Code code={models} lang="ts" title="assistant.ts" />
 
-The `./host.ts` imports stand in for your own code. `deviceId` returns a stable ID for this installation; OpenAI identifies the app's logins by it.
+The `./host.ts` imports stand in for your own code. `deviceId` must return a stable ID for this installation.
 
-With `account`:
+- `workspace.account` has `state()`, `signIn()`, `answer(text)`, `cancelSignIn()`, `signOut()` and `onChange(listener)`.
+- The state is `signed-in`, `signed-out`, `expired` or `signing-in`. While signing in it carries the provider's `url`, and `paste: true` when the person must paste back the address the browser ended on.
+- The HTTP API serves it under `/account` and streams the state, so a UI can run the whole sign-in.
+- Every Familiar in the workspace uses the one login.
 
-- `workspace.account` exposes `state()`, `signIn()`, `answer(text)`, `cancelSignIn()`, `signOut()` and `onChange(listener)`.
-- The state is one of `signed-in`, `signed-out`, `expired` or `signing-in`. While signing in it carries the provider's `url` and `paste: true` when the provider needs the address the browser ended on.
-- The HTTP API serves these under `/account` and streams the state, so a UI can run the whole sign-in.
-- The workspace closes the account when it's dismissed. Every Familiar in it uses the one login.
-
-Without an account, the host keeps credentials working itself and a failed request fails like any other.
+Without `account`, your host keeps the credentials working, and a failed request fails like any other.
 
 ## Model choices
 
-`modelChoices` lists the models the installation offers, each with the reasoning level it starts on. Leave it out and the only choice is `chatModel` at medium.
+`modelChoices` lists the models on offer, each with the reasoning level it starts on. Leave it out and the only choice is `chatModel` at medium.
 
-The workspace has a default model and reasoning level for each job. Familiars' chats run on the chat default, and memory's filing and profiles on the memory default, which can be a cheaper model: background memory work needs less than a chat does. `chatModel` and `memoryModel` (default `chatModel`), at their levels in `modelChoices`, are the defaults until the owner chooses others with `setModelDefaults({ chat?, memory? })`, each `{ provider, modelId, thinkingLevel? }`; a model given without a level runs at its own. `modelDefaults()` returns the ones in use, each with its level. Changing the chat default moves every Familiar that follows it from its next request.
+There are two jobs, each with a workspace default:
 
-Each Familiar can choose its own model for either job instead: `familiars.update(id, { chatModel, memoryModel })`, where `null` returns it to the default and a `memoryModel` may carry a `thinkingLevel`. Its `setModel(ref)` chooses its chat model the same way, and `setThinkingLevel(level)` changes the current model's level, remembered for that model; both are on `workspace.familiars.get(id)` and over HTTP under `/familiars/:familiar/model`, and throw a `ModelError` for a choice that isn't on offer. Every model must be in `modelChoices`.
+- **Chat**, what Familiars answer with: `chatModel`.
+- **Memory**, what files and profiles their conversations: `memoryModel`, default `chatModel`. It can be a cheaper model.
 
-A model's level for a job is the one chosen with it, else the job's default level if it's the default model, else its own in `modelChoices`. A chat's level remembered with `setThinkingLevel` wins over all of these, so changing the default level leaves it alone. A Familiar's own choice that a restart no longer offers falls back to the default.
+Change the defaults with `setModelDefaults({ chat?, memory? })`, each `{ provider, modelId, thinkingLevel? }`. A Familiar can choose its own with `familiars.update(id, { chatModel, memoryModel })`, where `null` returns it to the default, or `setModel(ref)` for chat. `setThinkingLevel(level)` sets a chat model's level for that Familiar, and wins over the defaults.
+
+Every model must be in `modelChoices`, or the call throws. A Familiar's choice that a restart no longer offers falls back to the default.

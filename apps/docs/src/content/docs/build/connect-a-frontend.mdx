@@ -7,7 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import client from '../../../../snippets/client.ts?raw'
 import react from '../../../../snippets/react.tsx?raw'
 
-`@familiar-ai/client` connects to the HTTP API, mirrors what its event streams send and derives the transcript a chat UI renders for a room. Familiar's own web app is built on it.
+`@familiar-ai/client` connects to the HTTP API, mirrors its event streams and derives the transcript a chat UI renders. Familiar's own web app is built on it.
 
 ```sh
 npm install @familiar-ai/client
@@ -17,54 +17,67 @@ npm install @familiar-ai/client
 
 <Code code={client} lang="ts" title="client.ts" />
 
-There's a store for each stream: `createWorkspaceStore(url, options)` for who the Familiars are, the rooms this person sees and the sign-in; `createFamiliarStore(url, id, options)` for one Familiar's model, memory and schedules; and `createRoomStore(url, id, options)` for one room. Each opens its stream straight away. A store offers every command; one your host's [`allow`](/familiar/build/serve-the-api/#decide-who-may-do-what) refuses rejects with its 403, so render only the UI each person may use. The optional `fetch` makes every request, including stream reconnects, so you can attach a fresh credential each time. An open stream keeps the credentials it started with until it reconnects.
+There's a store for each stream:
 
-A store's state is plain data from its stream. Read it with `getState()` and `subscribe()`:
+- `createWorkspaceStore` for the Familiars, the rooms this person sees, who they are and the sign-in. Each room arrives with its newest entry, unread count and turns, so a room list needs no stream per room.
+- `createFamiliarStore` for one Familiar's model, memory and schedules.
+- `createRoomStore` for one room's log and its `transcript`.
 
-- the workspace's `familiars`, `rooms`, `me` and `account`: every room arrives as a sidebar lists it, with its newest entry, what this person hasn't read and whose turns are in progress, so a list needs no stream per room
-- a Familiar's `model`, `memory` and `schedules`
-- a room's `view`, its log; `turns`, its turns in progress; and `transcript`, the derived chat items with any older entries loaded, whether a Familiar is `busy` here, and whether `earlier` entries remain to load
+Read state with `getState()` and `subscribe()`. Change things by calling commands on the store, such as `room.send(text)` or `workspace.familiars.dm(id)`. Streamed values are `undefined` until they arrive.
 
-Change things by calling the commands on the store itself: the workspace's `familiars`, `rooms`, `me`, `account`, `push`, `connections` and `mcp`; a Familiar's `model`, `memory` and `schedules`; a room's `send`, `stop`, `read` and `loadOlder`. They never change identity, so you can pass them around freely. `workspace.familiars.dm(id)` resolves to the room ID of this person's DM with a Familiar, created if new. Call a room's `read(entry)` with the newest entry the person has seen, such as when they open it, to clear its unread count.
+A store offers every command. One your host's [`allow`](/familiar/build/serve-the-api/#decide-who-may-do-what) refuses rejects with its 403, so render only the UI each person may use. Pass `fetch` to attach a fresh credential to every request, stream reconnects included.
 
-Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
+Call `room.read(entry)` with the newest entry the person has seen, such as when they open the room, to clear its unread count.
 
-`send(text, { mentions?, images?, requestId? })` posts a message and resolves to `{ entry }`, its entry ID, which the room's stream delivers too. It makes a fresh `requestId` unless given one: for a Retry button, make one with `createRequestId()` at Send and pass it to every attempt, so a message whose first answer was lost is posted once. The host decides who sent it. In a named room, the message goes to the Familiars it mentions, or to everyone if it mentions none. Each Familiar decides whether to reply. `composeMessage` builds the text and mention spans from what a composer picked. Typing `@Ada` without picking her leaves the message unaddressed. `images` are image IDs: upload each with `uploadImage(blob, { onProgress?, signal? })` as soon as it's attached, and send once every upload has answered with its `ImageRef`; the message can show as pending meanwhile, until the stream delivers its entry. The server prepares each image, so shrinking first only saves bytes on the wire. Uploads report progress through `XMLHttpRequest`, unless the store was given its own `fetch`. A refused upload rejects with an `ImageUploadError` whose `code` says why; one without a `code` never reached the server and may work if tried again. `imageUrl(id)` is where a message's image loads from. The text may be empty when there are images.
+## Sending
+
+```ts
+const requestId = createRequestId() // once per message, at Send
+await room.send(text, { mentions, images, requestId })
+```
+
+- **Retry with the same `requestId`.** A message whose first answer was lost then posts once. The entry the stream delivers carries the `requestId` in its data, so you can match it to the pending message.
+- **Mentions.** `composeMessage` builds the text and mention spans from what a composer picked. In a named room, a message goes to the Familiars it mentions, or to all of them if it mentions none. Typing `@Ada` without picking her doesn't address her.
+- **Images.** Upload each with `room.uploadImage(blob, { onProgress })` as soon as it's attached, then send its `ImageRef`'s `id`. The server resizes, so don't shrink first. `room.imageUrl(id)` is where an image loads from. The text may be empty when there are images.
+- **Upload errors.** An `ImageUploadError` with a `code` was refused by the server. One without a `code` never reached it and may work if tried again.
 
 ## The transcript
 
-`state.transcript.items` is what a chat shows, in order. Each item has an `id` that stays the same across updates. Use it as the key.
+`state.transcript.items` is what a chat shows, in order. Key each item by its `id`.
 
-- `message`: a person's words, with their `author`, when they were posted, any `mentions` and any `images`
-- `reply`: a Familiar's `text`, `thinking` and `toolCalls`, with which `familiar` and its `name`, `streaming`, `stopped` and any `error`
-- `scheduled`: a schedule's prompt arriving, with its `due` time and `creator`
-- `waiting`: a Familiar has a turn here with nothing to show yet: `queued` behind work in this room, `elsewhere` while it works in another room, or `running` before its reply starts
+- `message`: a person's words, with their `author`, `mentions` and `images`
+- `reply`: a Familiar's `text`, `thinking` and `toolCalls`, with `stopped`, `error` and, when it failed, `retry` to pass to `room.retry`
+- `scheduled`: a schedule's prompt arriving
+- `note` and `handoff`: context for the Familiars, and one Familiar asking another to answer
+- `gap`: entries still missing after a long disconnect; fill it with `room.loadGap(gap)`
 
-While a reply streams, only its current round shows. When the turn ends, the whole reply, every tool call included, replaces it.
+A reply appears once its turn ends. Until then, `transcript.replying` lists each Familiar running a turn here, with its live tool calls, any `questions` waiting for an answer, and `retrying` when a model request failed. `transcript.busy` is true while any Familiar has a turn here, queued or running.
 
-Each tool call has a `name`, `arguments`, `status` (`running`, `done` or `error`), text `output` and optional `details`. `details` is whatever the tool returned for UIs. Narrow it before you render it.
+Answer a question with `room.answer(question, answerFor(question))` to approve, or `{ action: 'decline' }`. `shapeOf(question)` says whether to show an approval or a form.
 
-Older entries arrive through `room.loadOlder()` while `transcript.earlier` is true. It rejects if the page fails to load, so show its progress and failure where you call it.
+A tool call's `details` is whatever the tool returned for UIs, typed `unknown`. Narrow it before you render it, and fall back to its text `output`.
+
+Load older entries with `room.loadOlder()` while `transcript.earlier` is true. It rejects if the page fails, so show its progress and failure where you call it.
 
 ## The connection
 
-`state.connection` moves through these values:
+`state.connection` is one of:
 
-| Value          | Meaning                                                                        |
-| -------------- | ------------------------------------------------------------------------------ |
-| `connecting`   | The first stream request is under way                                          |
-| `open`         | A compatible protocol handshake has arrived; values follow                     |
-| `reconnecting` | A network error, closed stream, 5xx or 429. The store retries with fresh state |
-| `unauthorized` | The stream was answered 401 or 403. Retries stop                               |
-| `failed`       | Any other unusable answer, such as a 404. Retries stop                         |
-| `outdated`     | The protocol handshake was missing or incompatible. Retries stop               |
+| Value          | Meaning                                                       |
+| -------------- | ------------------------------------------------------------- |
+| `connecting`   | The first stream request is under way                         |
+| `open`         | The protocol handshake matched; values follow                 |
+| `reconnecting` | A network error, closed stream, 5xx or 429. The store retries |
+| `unauthorized` | The stream was answered 401 or 403. Retries stop              |
+| `failed`       | Any other unusable answer, such as a 404. Retries stop        |
+| `outdated`     | The server speaks another protocol version. Retries stop      |
 
-The store never reloads the page or signs anyone in. After a terminal state, sign-out or an identity change, call `store.disconnect()` and create a new store. Commands reject with the server's error and aren't retried. Commands already sent still settle after you disconnect.
+The store never signs anyone in or reloads the page. After a terminal state, sign-out or an identity change, call `store.disconnect()` and create a new store. Commands aren't retried.
 
 ## React
 
-Install React 18 or 19, then use the separate `/react` entry:
+Install React 18 or 19, then use the `/react` entry:
 
 <Code code={react} lang="tsx" title="App.tsx" />
 
-Create the store once, outside render, where your app manages connections. `RoomProvider` gives its subtree a room store, and nested providers each give their own. The provider doesn't open or close it. `useRoom` compares selections with `Object.is`, so return stable values such as a single field. `useRoomStore()` returns the nearest provider's store, for its commands. For the workspace's and Familiars' stores, use Zustand's `useStore`. The vanilla entry doesn't load React.
+Create the store once, outside render. `RoomProvider` gives its subtree a room store without opening or closing it. `useRoom` compares selections with `Object.is`, so select single fields. `useRoomStore()` returns the store, for its commands. For the workspace and Familiar stores, use Zustand's `useStore`.

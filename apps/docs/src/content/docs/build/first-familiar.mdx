@@ -25,14 +25,14 @@ Familiar: Hello, Sam.
 
 ## What each part does
 
-- **`fauxProvider`** is a scripted model provider. Each `setResponses` entry answers one model request. Use it in tests to drive the real harness without model calls. For a script that answers every request, such as a demo, `scriptedModels` from `@familiar-ai/core/models/scripted` hands it each request already read: a person's message, a tool's result, a due schedule or background work.
-- **`MemoryStorage`** keeps everything in memory and loses it when the process exits.
-- **`openWorkspace`** opens the workspace over its storage, resumes any unfinished work and starts background work such as schedules and memory filing.
-- **`familiars.create`** makes a Familiar. Familiars live in the storage, so a lasting host does this once, on the first open.
-- **`rooms.dm`** gets or creates the DM between a Familiar and a person, by your host's ID for them. People talk to Familiars only in rooms: DMs, and named rooms with one or more Familiars.
-- **`post`** records a message from `author` and starts the Familiar's turn. `requestId` should stay the same if you retry the same logical message, so it's posted once.
-- **`watch`** returns the room's committed log, then streams each commit's changes, so you see the reply arrive when the turn ends. Stop it when you're done.
-- **`ConversationTranscript`** assembles Pi's conversation windows. **`toRoomTranscript`** turns that log into the items a chat UI shows. It comes from the client package and is pure, so it works on the server too.
+- **`fauxProvider`** is a scripted model: each `setResponses` entry answers one request. Use it in tests. For a demo that answers every request, use `scriptedModels` from `@familiar-ai/core/models/scripted`.
+- **`MemoryStorage`** keeps everything in memory until the process exits.
+- **`openWorkspace`** opens the workspace, resumes unfinished work and starts background work such as schedules and memory filing.
+- **`familiars.create`** makes a Familiar. A lasting host does this once, on the first open.
+- **`rooms.dm`** gets or creates the DM between a Familiar and a person, by your ID for them.
+- **`post`** records a message and starts the Familiar's turn. Reuse the `requestId` if you retry the same message, so it's posted once.
+- **`watch`** returns the room's log, then each commit, so you see the reply arrive.
+- **`ConversationTranscript`** assembles the log, and **`toRoomTranscript`**, from the client package, turns it into chat items. It's pure, so it works on the server too.
 - **`dismiss`** closes the workspace. Always call it, so timers and connections stop.
 
 ## Make it last
