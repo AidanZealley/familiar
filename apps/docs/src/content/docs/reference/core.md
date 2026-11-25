@@ -7,19 +7,19 @@ The TypeScript declarations in [`packages/core/src`](https://github.com/AidanZea
 
 ## Entry points
 
-| Import                                | Contents                                                                                                                                                       |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@familiar-ai/core`                   | `openWorkspace`, `definePlugin`, `defineTool`, `familiar`, `schema`, `memorySecrets`, `defaultPersona`, `localMinute`, errors and types                        |
-| `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                                                                                                |
-| `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                                                                                               |
-| `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                                                                                               |
-| `@familiar-ai/core/models/openrouter` | `openrouterProvider`                                                                                                                                           |
-| `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                                                                                        |
-| `@familiar-ai/core/models/scripted`   | `scriptedModels`: faux models that answer each request with a script, read as a message, tool result, schedule or background work                              |
-| `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                                                                                                |
-| `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                                                                                       |
-| `@familiar-ai/core/node`              | Node building blocks: `fileSecretStore`, `fileCredentialStore`, `lockDataDir`, `jsonFile`. See [Plugin API](/familiar/reference/plugins/#node-building-blocks) |
-| `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                                                                                          |
+| Import                                | Contents                                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `@familiar-ai/core`                   | `openWorkspace`, plugin and tool helpers, errors and types                                |
+| `@familiar-ai/core/http`              | `createHttpApi`, `HttpApi`, `Operation`, `Allow` and wire types                           |
+| `@familiar-ai/core/models`            | Pi's `createModels` and model types, including `CredentialStore`                          |
+| `@familiar-ai/core/models/openai`     | `openaiProvider`                                                                          |
+| `@familiar-ai/core/models/openrouter` | `openrouterProvider`                                                                      |
+| `@familiar-ai/core/models/faux`       | `fauxProvider`, `fauxAssistantMessage` and other scripted-model helpers                   |
+| `@familiar-ai/core/models/scripted`   | `scriptedModels`: faux models that answer each request with a script                      |
+| `@familiar-ai/core/storage/memory`    | `MemoryStorage`                                                                           |
+| `@familiar-ai/core/extensions`        | Pi Durable's extension types and helpers                                                  |
+| `@familiar-ai/core/node`              | Node building blocks. See [Plugin API](/familiar/reference/plugins/#node-building-blocks) |
+| `@familiar-ai/core/diagnostics`       | Memory internals for evaluation tools                                                     |
 
 The model and extension entries re-export Pi at the exact version core depends on.
 
@@ -27,156 +27,167 @@ The model and extension entries re-export Pi at the exact version core depends o
 
 Opens a workspace over its storage, resumes unfinished work and starts background work. Returns `Promise<Workspace>`. Use one process per storage, and `dismiss()` it when done.
 
-A workspace holds Familiars and the rooms where people talk to them. Each Familiar has its own memory, schedules, model and one working context it carries across all its rooms; plugins, MCP servers, secrets and the model login are shared. Familiars and rooms are stored, so a host creates them once, on the first open.
+A workspace holds Familiars and the rooms people talk to them in. Each Familiar has its own memory, schedules and model; plugins, MCP servers, secrets and the model login are shared. Familiars and rooms are stored, so create them once, on the first open.
 
-| Option             | Required | Meaning                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`          | yes      | Pi Durable `Storage`                                                                                                                                                                                                                                                                                                                                        |
-| `models`           | yes      | Pi `Models` with providers registered                                                                                                                                                                                                                                                                                                                       |
-| `chatModel`        | yes      | `{ provider, modelId }` Familiars' chats run on by default, until the owner chooses another default or a Familiar its own. Must be in `modelChoices`                                                                                                                                                                                                        |
-| `memoryModel`      |          | `{ provider, modelId }` memory's filing and profiles run on by default, at its level in `modelChoices`, as `chatModel`. Background memory work can use a cheaper model than the chat. Default: `chatModel`                                                                                                                                                  |
-| `timeZone`         | yes      | IANA zone. Throws if invalid                                                                                                                                                                                                                                                                                                                                |
-| `modelChoices`     |          | `{ model, thinkingLevel }[]` the installation offers: what people may switch a chat to, and what a Familiar's memory may run on. Must include `chatModel` and `memoryModel`. Default: `chatModel` at medium                                                                                                                                                 |
-| `hostInstructions` |          | What the host adds after each Familiar's persona, such as what its UI renders                                                                                                                                                                                                                                                                               |
-| `account`          |          | `{ login }`: lets the owner sign in to `chatModel.provider`. `login` is Pi's `LoginOptions`; OpenAI needs `getDeviceId`                                                                                                                                                                                                                                     |
-| `plugins`          |          | `FamiliarPlugin[]`                                                                                                                                                                                                                                                                                                                                          |
-| `secrets`          |          | `SecretStore`. Without it, every secret is missing                                                                                                                                                                                                                                                                                                          |
-| `fetch`            |          | `PluginFetch` for tools, used as given. Refuse private destinations the process can reach. Default: on Node, a fetch that refuses every address that isn't public; elsewhere, the runtime's                                                                                                                                                                 |
-| `mcpFetch`         |          | `PluginFetch` for owner-configured HTTP MCP servers                                                                                                                                                                                                                                                                                                         |
-| `mcpStdio`         |          | `McpStdioFactory` for owner-configured local MCP commands                                                                                                                                                                                                                                                                                                   |
-| `images`           |          | `{ processor, maxPixels? }`: prepares uploaded images. `processor` is Photon: `createNodePhotonImages()` from `@familiar-ai/core/node`, or `createCloudflarePhotonImages()` from `@familiar-ai/cloudflare/images` in a Worker. `maxPixels` refuses larger images before decoding them; default 40 million. Without it, uploads are refused as `unavailable` |
-| `contextBudget`    |          | Tokens per request before a Familiar's older context is compacted. Default 64,000                                                                                                                                                                                                                                                                           |
-| `notify`           |          | `Notify`: delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)                                                                                                                                                                                                                                                        |
-| `maxSchedules`     |          | Most schedules each Familiar keeps at once, a positive whole number. Default `DEFAULT_MAX_SCHEDULES`, 50                                                                                                                                                                                                                                                    |
-| `people`           |          | `Author[]`: what people are called at first, by host author ID, such as an owner. Used on the first open only; after that, each person's name is theirs to change with `people.rename`                                                                                                                                                                      |
-| `onWake`           |          | For evictable hosts. Replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)                                                                                                                                                                                                                                                      |
-| `now`, `setTimer`  |          | Clock and timer overrides, mainly for tests                                                                                                                                                                                                                                                                                                                 |
+| Option                | Required | Meaning                                                                                                  |
+| --------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `storage`             | yes      | Pi Durable `Storage`                                                                                     |
+| `models`              | yes      | Pi `Models` with providers registered                                                                    |
+| `chatModel`           | yes      | `{ provider, modelId }`, the default chat model. Must be in `modelChoices`                               |
+| `timeZone`            | yes      | IANA zone, for memory's dates and schedules. Throws if invalid                                           |
+| `memoryModel`         |          | The default model for memory's filing, which can be cheaper. Default `chatModel`                         |
+| `modelChoices`        |          | `{ model, thinkingLevel }[]` on offer. Must include both defaults. Default `chatModel` at medium         |
+| `hostInstructions`    |          | Added after each Familiar's persona, such as what your UI renders                                        |
+| `account`             |          | `{ login }`: lets the owner sign in to `chatModel.provider`. OpenAI needs `getDeviceId`                  |
+| `plugins`             |          | `FamiliarPlugin[]`                                                                                       |
+| `defaultCapabilities` |          | `{ plugins?, mcp? }` a new Familiar uses. Used on the first open only                                    |
+| `secrets`             |          | `SecretStore`, one per workspace. Without it, every secret is missing                                    |
+| `fetch`               |          | Tools' network access. Default on Node: refuses every address that isn't public; elsewhere the runtime's |
+| `mcpFetch`            |          | Fetch for owner-configured HTTP MCP servers                                                              |
+| `mcpStdio`            |          | Factory for owner-configured local MCP commands. Without it, they show as failed                         |
+| `images`              |          | `{ processor, maxPixels? }`. Without it, uploads are refused as `unavailable`. See [Images](#images)     |
+| `codemodeSandbox`     |          | A JavaScript runner. With it, chats also get Code Mode                                                   |
+| `contextBudget`       |          | Tokens per request before older context is compacted. Default 64,000                                     |
+| `notify`              |          | Delivers scheduled replies and plugins' notifications. See [Notifications](#notifications)               |
+| `maxSchedules`        |          | Schedules each Familiar keeps at once. Default 50                                                        |
+| `people`              |          | `Author[]`: what people are called at first. Used on the first open only                                 |
+| `onWake`              |          | For evictable hosts; replaces in-process timers. See [Host on Cloudflare](/familiar/build/cloudflare/)   |
+| `now`, `setTimer`     |          | Clock and timer overrides, for tests                                                                     |
 
 ### Notifications
 
-`notify(notification, context?)` receives `{ title, body, url? }`, the same for everyone who sees it. A scheduled run also passes a `NotificationContext`, `{ scheduleId, creator }`. `creator` is the `Author` stored with the schedule when it was made, unchanged by restarts or later renames, and `undefined` when no person asked for it. A plugin's notification has no context.
+`notify(notification, context?)` receives `{ title, body, url? }`. A scheduled run also passes `{ scheduleId, creator }`, where `creator` is the `Author` who made the schedule, or `undefined`. A plugin's notification has no context.
 
-Familiar never chooses recipients. Your host decides who sees each notification, in which tenant, and how: through Web Push with `PushHost`, or its own notification preferences and delivery. The creator is attribution, not a recipient: a reminder's turn answers it in the room it was made in, where others may also want it, and the host may send it to none of them.
-
-[Serve the API](/familiar/build/serve-the-api/#notifications) has a tenant's `notify` that delivers through the app's own preferences.
+Familiar never chooses recipients; your host does. The creator is attribution, not a recipient. [Serve the API](/familiar/build/serve-the-api/#notifications) has an example.
 
 ### Tool author
 
-A workspace's plugins and MCP connections are assigned to Familiars, which opt in: a new one uses what `familiars.create` was given, else the workspace's default tools (`defaultCapabilities()`, `setDefaultCapabilities()`, and the `openWorkspace` option `defaultCapabilities`, used on the first open only), and one added to the workspace later is off until it's turned on with `setCapabilities`. Core's own tools are always on, and tool search comes with any MCP connection. A Familiar's tools are available for everyone who talks to it. A tool reads the person a call runs for with `await familiar(context).author()`, an `Author` or `undefined`, resolved from the stored input that started the call, never from its arguments. It is the message's author, or a scheduled run's creator. A run triggered by another Familiar's reply acts for the person who started the chain. Nested calls and calls rerun after a crash keep it, and a message queued later can't replace it. It's `undefined` for memory filing and any other input with no person behind it. MCP tools don't receive it.
+`await familiar(context).author()` is the person a tool call runs for: the message's author, or a scheduled run's creator. A chain of Familiar replies keeps the person who started it, and so do nested calls and calls rerun after a crash. It's `undefined` for memory filing and other work no person asked for. MCP tools don't receive it.
 
-Familiar stores no permissions. A tool, or the app API behind it, enforces narrower rules about its data and actions against that author. See [Serve the API](/familiar/build/serve-the-api/#identity-is-not-permission).
+Familiar stores no permissions; a tool, or the API behind it, checks the author. See [Identity is not permission](/familiar/build/serve-the-api/#identity-is-not-permission).
 
 ## Workspace
 
 **Familiars**
 
-| Member                                        | Meaning                                                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `familiars.list()`                            | `FamiliarSummary[]`: each Familiar's `id`, `name`, and any `persona` and `avatar`                                  |
-| `familiars.watch()`                           | Watch of who each Familiar is                                                                                      |
-| `familiars.create({ name, persona, avatar })` | Create one, returning its `WorkspaceFamiliar`. Throws a `TypeError` for a blank one                                |
-| `familiars.update(id, change)`                | Change its name, persona, avatar, `chatModel` or `memoryModel`; `null` returns one to the default                  |
-| `familiars.get(id)`                           | Its `WorkspaceFamiliar`, or `undefined`                                                                            |
-| `familiars.remove(id)`                        | Remove it, stopping its work. Throws for no such Familiar                                                          |
-| `modelOptions()`                              | `ModelOption[]`: every model a Familiar may run on                                                                 |
-| `modelDefaults()`                             | `{ chat, memory }`: the models and levels Familiars run on unless they choose their own                            |
-| `setModelDefaults({ chat?, memory? })`        | Each `{ provider, modelId, thinkingLevel? }` given replaces that default. Throws a `TypeError` for one not offered |
+| Member                                                    | Meaning                                                                                      |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `familiars.list()`, `familiars.watch()`                   | `FamiliarSummary[]`: each `id`, `name`, and any `persona` and `avatar`                       |
+| `familiars.create(identity)`                              | `{ name, persona?, avatar?, chatModel?, memoryModel?, capabilities? }`. Returns the Familiar |
+| `familiars.update(id, change)`                            | Change any of those but `capabilities`; `null` returns one to the default                    |
+| `familiars.get(id)`                                       | Its `WorkspaceFamiliar`, or `undefined`                                                      |
+| `familiars.remove(id)`                                    | Remove it and stop its work                                                                  |
+| `modelOptions()`                                          | Every model a Familiar may run on                                                            |
+| `modelDefaults()`, `setModelDefaults({ chat?, memory? })` | The default chat and memory models, each with its `thinkingLevel`                            |
+| `defaultCapabilities()`, `setDefaultCapabilities(change)` | The plugins and MCP connections new Familiars use                                            |
 
-Without a `persona`, a Familiar introduces itself with `defaultPersona(name)`. Its name also titles its notifications and its memory's prompts. An `avatar` is a short string, at most 64 characters, that your UI interprets, such as an index into its set of portraits; core keeps it and never reads it, and without one your UI derives one from the ID.
-
-Removing a Familiar stops its turns in every room, its chat's queue, its schedules and its memory filing, and retires its memory, schedules and settings. It leaves every named room: a room it led becomes open, and one it leaves with no Familiars is archived. Its DMs stay readable but `post` throws a `RoomError` there. Rooms keep its replies, under its name at the time, and shared plugins, connections and secrets stay.
+- Without a `persona`, a Familiar uses `defaultPersona(name)`. Its name also titles its notifications.
+- An `avatar` is a string of up to 64 characters that your UI interprets; core never reads it.
+- Without `capabilities`, a new Familiar uses the defaults. A plugin added to the workspace later is off for every Familiar until turned on.
+- A removed Familiar leaves its named rooms, its DMs stay readable but refuse new messages, and rooms keep its replies.
 
 **Rooms**
 
-| Member                       | Meaning                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rooms.list(person?)`        | `RoomSummary[]`, each room as a list shows it; with a host author ID, only that person's DMs and every named room, with what they haven't read |
-| `rooms.watch(person?)`       | Watch of the same, by ID                                                                                                                       |
-| `rooms.create(setup)`        | A named room, `{ name, familiars }`, returning its ID. Throws `RoomError` when refused                                                         |
-| `rooms.update(id, change)`   | Change a named room's name or membership. `archived: false` unarchives the room                                                                |
-| `rooms.archive(id)`          | Hide a named room and close it to new messages, keeping its history                                                                            |
-| `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new                                                                      |
-| `rooms.get(id, person?)`     | A room's API; with a host author ID, undefined for someone else's DM, as the HTTP API uses it                                                  |
+| Member                       | Meaning                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| `rooms.list(person?)`        | `RoomListing[]`. With a host author ID: every named room and only that person's DMs |
+| `rooms.watch(person?)`       | Watch of the same, by ID                                                            |
+| `rooms.create(setup)`        | A named room, `{ name, familiars }`. Returns its ID                                 |
+| `rooms.update(id, change)`   | Change a named room's name or Familiars. `archived: false` unarchives it            |
+| `rooms.archive(id)`          | Hide a named room and close it to messages, keeping its history                     |
+| `rooms.dm(familiar, person)` | The DM between a Familiar and a person, by host author ID, created if new           |
+| `rooms.get(id, person?)`     | A `RoomApi`. With a host author ID, `undefined` for someone else's DM               |
 
-A list shows each room as a `RoomListing`: its setup, with `last`, its newest entry worth showing (`{ entry, at, text }` and who it's from by `kind`: a person's `message`, a Familiar's `reply` with its `outcome`, a `handoff` or `reminder`, or a host's `note`), `unread`, how many entries the person hasn't read, and `turns`, each turn in progress as `{ familiar, status }`. Staying quiet adds no entry. A `last` reply with `outcome: 'failed'` records a failure. The room updates `last` and the read markers as entries are posted. It derives `turns` from the Familiars' active runs and inboxes, with at most one status per Familiar. Unarchiving checks the room's setup, so one its last Familiar left needs Familiars in the same change.
+A `RoomListing` is the room's setup plus `last`, its newest entry worth showing; `unread`, the entries the person hasn't read; and `turns`, each turn in progress as `{ familiar, status }`. The [client reference](/familiar/reference/client/#rooms-list) has the full type.
 
 Each `RoomApi` has:
 
-| Member                                                  | Meaning                                                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `post({ author, text, requestId, mentions?, images? })` | Post a message and start the turns it causes, returning its entry ID. A repeated `requestId` posts once                                     |
-| `note({ text, requestId })`                             | Post a host's note: shown to each Familiar in the room on its next turn, with no turn of its own. Returns its entry ID                      |
-| `watch(window?)`                                        | The log's committed view as `value`, then `start(listener)` and `stop()`. `window` is Pi's: the newest 50 entries, or `{ from }` an entry   |
-| `watchTurns()`                                          | Activity keyed by Familiar ID, with status `queued`, `elsewhere` or `running` and the reply so far                                          |
-| `read(person, entry)`                                   | Mark it read by a person, by host author ID, up to `entry`, the newest they've seen; never back. Their own messages mark it read up to them |
-| `history(query, limit)`                                 | Pi's `{ items, next? }` page for inclusive `minEntryId`/`maxEntryId` bounds and `order`                                                     |
-| `retry(reply)`                                          | Try a failed reply's turn again, by its entry ID: its Familiar answers the same entry anew, after it. Asking twice starts it once           |
-| `stop()`                                                | Stop this room's turns, leaving other rooms' work alone                                                                                     |
+| Member                                                  | Meaning                                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `post({ author, text, requestId, mentions?, images? })` | Post a message and start the turns it causes. Returns its entry ID             |
+| `note({ text, requestId })`                             | Post a note: context the Familiars see on their next turn, with no reply       |
+| `watch(window?)`                                        | The log's view, then each commit. Default the newest 50 entries, or `{ from }` |
+| `watchTurns()`                                          | Activity by Familiar: `queued`, `elsewhere` or `running` with the reply so far |
+| `read(person, entry)`                                   | Move a person's read marker forward to `entry`                                 |
+| `history(query, limit)`                                 | Pi's `{ items, next? }` page                                                   |
+| `retry(reply)`                                          | Try a failed reply's turn again, by its entry ID                               |
+| `stop()`                                                | Stop this room's turns                                                         |
 
-A DM's message goes to its Familiar. In a named room, it goes to the Familiars it mentions, or to every Familiar in the room if it mentions none. Each recipient chooses whether to reply and can do so alongside the others. A mention is `{ kind: 'familiar' | 'person', id, start, end }`, the span of an `@Name` in the text. `post` throws a `MessageError` for a mention that doesn't span an `@` or names a Familiar outside the room, and a `RoomError` for an archived room.
-
-Each Familiar handles one input at a time across its rooms. Its input includes what it missed and who else was replying in the room when the input was prepared. A reply, including its tool calls, is posted as a `familiar.reply` entry once the run ends. A stopped input that had started has a reply entry with `outcome: 'stopped'` and an empty `messages` array.
-
-A note is a `familiar.note` entry, `{ text, at }`: context for the room's Familiars, such as "Sam joined" or "the board was updated", that causes no turn, so no one replies to it. It reads in catch-up as `[Note]: …`, and takes the same text bounds as a message. It is for short passing context; a Familiar sees it once, and then it lives in that Familiar's working context only.
-
-A Familiar can call `stay_quiet` to end its run without posting. In a named room, Familiars receive mention tokens such as `@[Mary Jane]` for the other members. A reply goes to the Familiars it mentions with those tokens, or to all the other Familiars if it mentions none. Answered replies record their `depth` in the chain since a person last spoke, and `mentions` when they name other Familiars. At depth 10, Familiar posts the reply in the room without delivering it to another Familiar.
+- **Who answers.** A DM's message goes to its Familiar. In a named room, it goes to the Familiars it mentions, or all of them if it mentions none. Each decides whether to reply, and can call `stay_quiet` to post nothing.
+- **Mentions** are `{ kind: 'familiar' | 'person', id, start, end }`, spanning an `@Name` in the text. A mention of a Familiar outside the room throws `MessageError`.
+- **Request IDs.** A repeated `requestId` from the same author posts once and returns the first entry. It's stored in the entry's data, so a client can match a pending message to it.
+- **Familiars talking to each other.** A reply goes to the other Familiars it mentions, or all of them. A chain stops being delivered at depth 10 since a person last spoke.
+- **One input at a time.** Each Familiar handles one input at a time across all its rooms. A reply, with its tool calls, is posted once its run ends.
+- An archived room, or a removed Familiar's DM, throws `RoomError` on `post`.
 
 **Each Familiar**, a `WorkspaceFamiliar`
 
-| Member                                        | Meaning                                                                                                                               |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                                          | Its `FamiliarId`                                                                                                                      |
-| `models()`                                    | `ModelOption[]`: each chat model with its `name` and supported `thinkingLevels`                                                       |
-| `watchModel()`                                | Watch of its model and level, Pi's `AgentState`                                                                                       |
-| `setModel(ref)`                               | Choose its own chat model. Throws `ModelError` if it isn't offered                                                                    |
-| `setThinkingLevel(level)`                     | Change the current model's level. Throws `ModelError` if unsupported                                                                  |
-| `capabilities()`                              | `{ plugins, mcp }`: the plugin and MCP connection names it uses                                                                       |
-| `setCapabilities({ plugins?, mcp? })`         | Each list given replaces what it uses of that kind, from its next request. Throws a `CapabilityError` for a name the workspace hasn't |
-| `watch()`                                     | Its working context across every room, for inspection: never show it to people                                                        |
-| `memory.watch()`                              | Document watch of its memory's subjects: `{ subjects, next, months }`                                                                 |
-| `memory.page(subject)`                        | A subject's page, `{ profile, notes }`. Rejects with `MemoryError` for no such subject                                                |
-| `memory.section()`                            | The memory section of the prompt, exactly as the model sees it now                                                                    |
-| `memory.forget(note)`                         | Forget a note. Rejects with `MemoryError` for no such note                                                                            |
-| `schedules.watch()`                           | Document watch for schedules                                                                                                          |
-| `schedules.cancel(id)`                        | Cancel a schedule. Rejects if there's no such schedule                                                                                |
-| `schedules.pause(id)`, `schedules.resume(id)` | Stop a schedule running, keeping its `next`, and run it again. Rejects as `cancel`                                                    |
-
-Forgetting removes a note and clears its page's profile until the night's work rewrites it. A paused schedule has `paused: true`. A paused repeat skips the times that fall due, so its `next` stays the time it would run; a paused one-off whose time passes runs, late, once resumed.
+| Member                                            | Meaning                                                               |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| `id`                                              | Its `FamiliarId`                                                      |
+| `models()`                                        | Each chat model with its `name` and supported `thinkingLevels`        |
+| `watchModel()`                                    | Its model and level, Pi's `AgentState`                                |
+| `setModel(ref)`, `setThinkingLevel(level)`        | Its own chat model, and the current model's level. Throw `ModelError` |
+| `capabilities()`, `setCapabilities(change)`       | `{ plugins, mcp }` it uses. Each list given replaces that kind        |
+| `watch()`                                         | Its working context across every room, for inspection. Never show it  |
+| `memory.watch()`                                  | Its memory's subjects                                                 |
+| `memory.page(subject)`, `memory.journal(month)`   | A subject's `{ profile, notes }`, and a month's journal lines         |
+| `memory.section()`                                | The memory section of the prompt, as the model sees it                |
+| `memory.forget(note)`                             | Forget a note; its page's profile is cleared until that night         |
+| `schedules.watch()`                               | Its schedules                                                         |
+| `schedules.cancel(id)`, `pause(id)`, `resume(id)` | A paused one-off whose time passes runs, late, once resumed           |
 
 **Shared**
 
-| Member                                                       | Meaning                                                                                                         |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `connections.list()`                                         | Plugin and MCP connections, with their tools' descriptions and whether each secret is set                       |
-| `people.get(author)`, `people.watch(author)`                 | An `Author` as Familiars know them: with the name they chose, if any                                            |
-| `people.rename(id, name)`                                    | What Familiars call a person, by host author ID, from their next message. Throws a `TypeError` for a blank name |
-| `connections.setSecret(connection, name, value)`             | Store a secret. `connection` is `{ kind: 'plugin' \| 'mcp', name }`                                             |
-| `connections.deleteSecret(connection, name)`                 | Remove a secret                                                                                                 |
-| `mcp.add(server)`, `mcp.remove(name)`, `mcp.reconnect(name)` | Manage owner-configured MCP servers. `add` throws `McpConfigError`                                              |
-| `account`                                                    | The account's API, if `account` was passed                                                                      |
+| Member                                                       | Meaning                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `people.get(author)`, `people.watch(author)`                 | An `Author` with the name they chose, if any                            |
+| `people.rename(id, name)`                                    | What Familiars call a person, from their next message                   |
+| `connections.list()`                                         | Plugin and MCP connections, their tools, and whether each secret is set |
+| `connections.setSecret(connection, name, value)`             | Store a secret. `connection` is `{ kind, name }`                        |
+| `connections.deleteSecret(connection, name)`                 | Remove a secret                                                         |
+| `connections.updateToolSettings(connection, tool, change)`   | `{ enabled?, askBeforeRunning?, runInBackground? }`                     |
+| `mcp.add(server)`, `mcp.remove(name)`, `mcp.reconnect(name)` | Owner-configured MCP servers. `add` throws `McpConfigError`             |
+| `images.upload(bytes)`, `images.get(id)`                     | See [Images](#images)                                                   |
+| `questions.answer(familiar, id, answer)`                     | Answer a tool approval, an MCP server's question or a private form      |
+| `account`                                                    | The account's API, if `account` was passed                              |
 
 **Lifecycle**
 
 | Member               | Meaning                                                                       |
 | -------------------- | ----------------------------------------------------------------------------- |
-| `usage()`            | Pi's usage totals for the workspace                                           |
+| `usage()`            | Pi's usage totals                                                             |
 | `wake()`, `resume()` | For hosts that pass `onWake`                                                  |
 | `closed`             | Settles on dismissal or a storage failure. A failed instance must be reopened |
-| `dismiss()`          | Close the workspace, its account, its MCP connections and its plugins         |
+| `dismiss()`          | Close the workspace, its account, MCP connections and plugins                 |
 | `plugins`            | The plugins it was opened with, whose routes `createHttpApi` mounts           |
+
+## Images
+
+Pass `images: { processor }` to take them: `createNodePhotonImages()` from `@familiar-ai/core/node`, or `createCloudflarePhotonImages()` from `@familiar-ai/cloudflare/images`. `maxPixels` refuses larger images before decoding; default 40 million.
+
+`images.upload(bytes)` prepares an image (upright, at most 1568 pixels on its longest side) and stores it, returning an `ImageRef`, `{ id, mimeType, width, height }`. It rejects with an `ImageError` whose `code` is `unsupported`, `too-large`, `unreadable` or `unavailable`, for your host to word. Post the IDs with the message; `post` throws `ImageError` `missing` for one that isn't stored. An upload no message claims is removed after a day.
+
+Only the Familiars a message is delivered to see its images. Others, and memory, see how many there were.
 
 ## Types
 
-`Author` is `{ id: string; name: string }`. Both must be non-empty. `id` is stable and owned by the host. `name` is captured when the message is posted: the name the person chose with `people.rename`, if they have, else the host's.
+`Author` is `{ id, name }`, both non-empty. `id` is stable and yours. `name` is captured when each message is posted.
 
-`post` throws a `MessageError`, posting nothing, unless the author's `id` and `name` and the `text` are non-empty and within `MESSAGE_LIMITS` (256, 128 and 128,000 characters) and `requestId` is 1 to 128 characters. The `text` may be empty when the message has `images`: at most `IMAGE_LIMITS.count` (10) image IDs, each from `workspace.images.upload(bytes)`. That prepares the image with the `images` processor, upright and at most `IMAGE_LIMITS.pixels` (1568) on its longest side, stores it in the workspace's own storage, and returns an `ImageRef`, `{ id, mimeType, width, height }`. It rejects with an `ImageError` whose `code` is `unsupported`, `too-large`, `unreadable` or `unavailable`, for the host to word. `post` claims the images it names in the same commit, keeping them for good, and throws an `ImageError` `missing` for one that isn't stored: an upload no message claims is removed by a later upload after a day. `workspace.images.get(id)` returns `{ bytes, mimeType }`. A message stored before images were stored apart has them inline, with no `id`; clients show those as unavailable. The Familiars a message is delivered to see its images; others shown it later, and memory, see only how many there were. Familiar namespaces each `requestId` by the author's `id`, so it only needs to be unique per author and can never match one of Familiar's own submissions, such as a schedule's.
+| Limit                                   | Value    | Bounds                                                    |
+| --------------------------------------- | -------- | --------------------------------------------------------- |
+| `MESSAGE_LIMITS.text`                   | 128,000  | Characters of a message or note. May be empty with images |
+| `MESSAGE_LIMITS.authorId`, `authorName` | 256, 128 | Characters of an `Author`                                 |
+| `MESSAGE_LIMITS.requestId`              | 128      | Characters. Unique per author                             |
+| `IMAGE_LIMITS.count`                    | 10       | Images per message                                        |
+| `IMAGE_LIMITS.upload`                   | 20 MB    | Bytes an upload may be before it's prepared               |
+| `SCHEDULE_LIMITS.prompt`                | 2,000    | Characters of a schedule's prompt                         |
+| `SCHEDULE_LIMITS.repeat`                | 256      | Characters of a repeat's cron expression                  |
 
-Schedules are bounded too: a prompt is at most `SCHEDULE_LIMITS.prompt` (2,000) characters, and a repeat is a five-field cron expression of at most `SCHEDULE_LIMITS.repeat` (256) characters, read in Familiar's time zone, such as `0 7 * * 1-5` for 07:00 on weekdays. [Croner](https://croner.56k.guru/) reads it, including its extensions such as `L` and `#`, and decides daylight saving: a time the clock skips runs when the clock resumes. When a time is shown twice, a daily or less frequent repeat runs only the first time, while an hourly one such as `30 * * * *` runs at both. A repeat runs at most hourly: each occurrence is at least an hour after the one before, and closer ones, such as most of `*/5 * * * *`, are skipped.
+A message outside these throws `MessageError`, posting nothing.
 
-One MCP connection is one session with its server, under one account, shared by every Familiar that uses it, so they share its state. For separate accounts, add separate named connections and assign each to its Familiar.
+A repeat is a five-field cron expression in the workspace's time zone, read by [Croner](https://croner.56k.guru/), such as `0 7 * * 1-5` for 07:00 on weekdays. It runs at most hourly: closer occurrences are skipped.
 
-`add` throws `McpConfigError`, saving nothing, for a server of the wrong shape: a bad name, an unknown transport, or a URL that isn't `http://` or `https://` or carries credentials, a query or a fragment. Familiar saves any server of the right shape and connects through the transport the host passed, `mcpFetch` or `mcpStdio`. The host owns which protocols, destinations and commands those transports allow. A server whose transport the host didn't pass, or whose connection fails, shows `{ type: 'failed', error }` in `connections.list()` and never stops Familiar opening. An HTTP server with a bearer token and no token set shows `needs-auth`.
+**MCP.** One connection is one session under one account, shared by every Familiar that uses it. For separate accounts, add separate named connections. `mcp.add` saves any well-shaped server and connects through `mcpFetch` or `mcpStdio`, which decide what's allowed. One that fails shows `{ type: 'failed', error }` in `connections.list()`; an HTTP server missing its bearer token shows `needs-auth`.
 
-`Workspace`, `WorkspaceFamiliar`, `RoomApi`, `RoomsApi`, `Room`, `RoomMessage`, `Mention`, `ReplyData`, `HistoryQuery`, `HistoryPage`, `ModelChoice`, `ModelOption`, `Notification`, `NotificationContext`, `Notify`, `MemoryApi`, `SchedulesApi`, `ConnectionsApi`, `McpApi`, `McpServer`, `AccountState` and the plugin types are all exported from `@familiar-ai/core`, with `ImageRef`, `ImagesApi`, `ImagesOptions`, `MESSAGE_LIMITS`, `IMAGE_LIMITS`, `MessageError`, `ImageError`, `RoomError`, `CapabilityError`, `SCHEDULE_LIMITS`, `DEFAULT_MAX_SCHEDULES` and `McpConfigError`.
-
-The `schema` namespace re-exports the pinned `@earendil-works/pi-schema`, including `schema.obj`, `schema.str`, `schema.opt`, `schema.oneOf`, `schema.Schema` and `schema.Static`.
+Every type and error named on this page is exported from `@familiar-ai/core`. The `schema` namespace re-exports the pinned `@earendil-works/pi-schema`, including `schema.obj`, `schema.str`, `schema.opt` and `schema.oneOf`.
