@@ -29,7 +29,10 @@ const identityOf = async (
  * is, its own persona or the default, then what the host says every
  * Familiar should know, such as what its UI renders.
  */
-export const createPersona = (hostInstructions: string | undefined) =>
+export const createPersona = (
+  hostInstructions: string | undefined,
+  showPeers = false,
+) =>
   defineExtension({
     name: 'familiar.persona',
     // Change only when the Familiar's identity or the host's options do: a
@@ -53,5 +56,28 @@ export const createPersona = (hostInstructions: string | undefined) =>
         { tag: false },
       ),
       section('host', () => hostInstructions, { tag: false }),
+      section('other_familiars', async (input, context) => {
+        if (!showPeers) {
+          return undefined
+        }
+        const state = await input.read.snapshot(Familiars, context)
+        const self = state && familiarIn(state, input.conversationId)
+        if (!state || self === undefined) {
+          return undefined
+        }
+        const peers = Object.entries(state.familiars)
+          .filter(([id]) => id !== String(self))
+          .map(([, { name, persona }]) => ({
+            name,
+            persona: persona ?? defaultPersona,
+          }))
+        if (!peers.length) {
+          return undefined
+        }
+        return (
+          'These profiles describe other Familiars. Use them to choose who could help. Follow your own persona.\n' +
+          JSON.stringify(peers, null, 2)
+        )
+      }),
     ],
   })

@@ -16,6 +16,7 @@ import {
   createCodemodeExtension,
   type CodemodeToolOptions,
 } from '@earendil-works/pi-durable/codemode'
+import type { Allow } from '../access.ts'
 import {
   createAccount,
   type AccountApi,
@@ -28,7 +29,7 @@ import {
   type SecretStore,
 } from '../connections/index.ts'
 import { prunePluginToolSettings } from '../connections/tool-settings.ts'
-import { conversationExtension } from '../conversation/extension.ts'
+import { createConversationExtension } from '../conversation/extension.ts'
 import {
   installConversation,
   type ConversationApi,
@@ -111,6 +112,12 @@ export { CapabilityError } from './capabilities.ts'
 export type { ModelDefaults, ModelDefaultsChange } from './models.ts'
 
 export type WorkspaceOptions = {
+  /**
+   * Host policy for room tool calls. Supplying it enables the approval-gated
+   * tools and shares familiar personas with one another in this workspace.
+   * Hosts can pass the same policy they use for HTTP.
+   */
+  allowRoomTools?: Allow
   storage: Storage
   models: Models
   /**
@@ -442,6 +449,7 @@ export async function openWorkspace(
     )
 
     const rooms = createRooms(harness, {
+      allowTools: options.allowRoomTools,
       timeZone: options.timeZone,
       now: options.now ?? Date.now,
     })
@@ -478,8 +486,8 @@ export async function openWorkspace(
     // tools and sections come first.
     const extensions = [
       ...[
-        createPersona(options.hostInstructions),
-        conversationExtension,
+        createPersona(options.hostInstructions, !!options.allowRoomTools),
+        createConversationExtension(!!options.allowRoomTools),
         ...(account ? [account.extension] : []),
         createTime(options.timeZone),
         imagesExtension,

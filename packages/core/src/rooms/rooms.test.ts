@@ -6,7 +6,7 @@ import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { EntryRecord, Storage } from '@earendil-works/pi-durable'
 import type { ImageProcessor } from '@earendil-works/pi-durable/tools'
 import { BACKGROUND_CONTEXT as context } from '@earendil-works/chord/context'
-import { expect, onTestFinished, test } from 'vitest'
+import { expect, onTestFinished, test, vi } from 'vitest'
 import {
   MESSAGE_KIND,
   MessageError,
@@ -128,7 +128,7 @@ const replies = async (room: RoomApi) =>
     .map((entry) => entry.data as unknown as ReplyData)
 
 /** A tool call, as the model's whole answer. */
-const call = (name: string, args: Record<string, string>) =>
+const call = (name: string, args: Record<string, string | string[]>) =>
   fauxAssistantMessage([fauxToolCall(name, args)], { stopReason: 'toolUse' })
 
 /** What a request's Familiar was shown from the room with its input. */
@@ -340,6 +340,113 @@ test('Familiars reply to each other, by mention or to everyone else, until a rep
   expect(chain.map((reply) => reply.familiar)).toEqual(
     Array.from({ length: MAX_DEPTH }, (_, index) => (index % 2 ? bo : ada)),
   )
+})
+
+const pendingApproval = async (room: RoomApi) => {
+  const watch = await room.watchTurns()
+  watch.start(async () => {})
+  try {
+    const pending = () =>
+      Object.values(watch.value)
+        .flatMap((turn) => ('questions' in turn ? (turn.questions ?? []) : []))
+        .at(0)
+    await vi.waitFor(() => expect(pending()).toBeDefined())
+    return pending()!
+  } finally {
+    await watch.stop()
+  }
+}
+
+test('an approved create_room opens a discussion as the calling Familiar', async () => {
+  const { workspace, create, room } = await open(
+    (request) => {
+      if (request.type === 'message' && request.text === 'Discuss with Bo') {
+        return call('create_room', {
+          name: 'Review',
+          familiars: [' bo '],
+          brief: 'Please review the plan.',
+        })
+      }
+      if (request.type === 'tool-result' && request.name === 'create_room') {
+        expect(request.isError).toBe(false)
+        return fauxAssistantMessage('Room created')
+      }
+      return request.type === 'reply' &&
+        request.text === 'Please review the plan.'
+        ? fauxAssistantMessage('Reviewed.')
+        : call('stay_quiet', {})
+    },
+    { allowRoomTools: () => true },
+  )
+  const ada = await create('Ada')
+  const bo = await create('Bo')
+  const dm = await room(await workspace.rooms.dm(ada, AIDAN.id))
+  await dm.post({ author: AIDAN, text: 'Discuss with Bo', requestId: 'create' })
+  const approval = await pendingApproval(dm)
+  expect(approval).toMatchObject({ kind: 'tool', tool: 'create_room' })
+  expect((await workspace.rooms.list()).map((room) => room.kind)).toEqual([
+    'dm',
+  ])
+  await workspace.questions.answer(approval.familiar, approval.id, {
+    action: 'accept',
+  })
+
+  await expect
+    .poll(async () => {
+      const review = (await workspace.rooms.list()).find(
+        (room) => room.kind === 'room',
+      )
+      if (!review) {
+        return undefined
+      }
+      return {
+        room: review,
+        replies: await replies(await room(review.id)),
+      }
+    })
+    .toMatchObject({
+      room: { name: 'Review', familiars: [ada, bo] },
+      replies: [
+        { familiar: ada, depth: 0 },
+        { familiar: bo, depth: 1 },
+      ],
+    })
+})
+
+test('an approved invitation lets the caller address the new Familiar in the same turn', async () => {
+  const { workspace, create, room } = await open(
+    (request) => {
+      if (request.type === 'message' && request.text === 'Invite Bo') {
+        return call('add_to_room', { familiars: ['Bo'] })
+      }
+      if (request.type === 'tool-result' && request.name === 'add_to_room') {
+        expect(request.isError).toBe(false)
+        return fauxAssistantMessage('@[Bo] Please review this.')
+      }
+      return request.type === 'reply' &&
+        request.text.includes('Please review this.')
+        ? fauxAssistantMessage('Reviewed.')
+        : call('stay_quiet', {})
+    },
+    { allowRoomTools: () => true },
+  )
+  const ada = await create('Ada')
+  const bo = await create('Bo')
+  const id = await workspace.rooms.create({ name: 'Review', familiars: [ada] })
+  const review = await room(id)
+  await review.post({ author: AIDAN, text: 'Invite Bo', requestId: 'invite' })
+  const approval = await pendingApproval(review)
+  expect(approval).toMatchObject({ kind: 'tool', tool: 'add_to_room' })
+  expect((await workspace.rooms.list())[0]).toMatchObject({ familiars: [ada] })
+  await workspace.questions.answer(approval.familiar, approval.id, {
+    action: 'accept',
+  })
+  await expect
+    .poll(() => replies(review))
+    .toMatchObject([
+      { familiar: ada, depth: 1, mentions: [{ id: String(bo) }] },
+      { familiar: bo, depth: 2 },
+    ])
 })
 
 test('a message from another room, sent while its Familiar is busy, is answered in its own room after that run ends', async () => {

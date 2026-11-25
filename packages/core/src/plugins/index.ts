@@ -55,6 +55,8 @@ export const CORE_TOOLS: ReadonlySet<string> = new Set([
   'update_schedule',
   'cancel_schedule',
   'stay_quiet',
+  'create_room',
+  'add_to_room',
   'hand_off',
 ])
 

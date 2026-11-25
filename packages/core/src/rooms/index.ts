@@ -13,6 +13,7 @@ import {
 } from '@earendil-works/pi-durable'
 import { claimImages } from '../images/store.ts'
 import type { ImageId } from '../images/types.ts'
+import type { Allow } from '../access.ts'
 import { declineWaiting } from '../questions/index.ts'
 import {
   admitMessage,
@@ -207,6 +208,7 @@ export function createRooms(
   harness: Harness,
   options: {
     timeZone: string
+    allowTools?: Allow
     now: () => number
   },
 ) {
@@ -321,7 +323,7 @@ export function createRooms(
     extension: defineExtension({
       name: 'familiar.rooms',
       tasks: [turn, answer.task],
-      tools: roomTools(),
+      tools: roomTools(turn, options.allowTools),
       hooks: [answer.hook],
     }),
     postScheduled,
