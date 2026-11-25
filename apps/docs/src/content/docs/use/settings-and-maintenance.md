@@ -41,7 +41,7 @@ The **Settings** menu in the web app switches between light, dark and system app
 
 ### Model providers
 
-Familiar reaches OpenAI's models through your ChatGPT sign-in. To use Anthropic, Google, xAI or OpenRouter (for open-weight models such as DeepSeek, Kimi, GLM, MiniMax and Qwen), enter the provider's API key in **Settings › Providers**, where the ChatGPT sign-in also lives, then restart Familiar (`familiar restart`). Familiar then offers that provider's models. While you're signed in to ChatGPT its models come first and stay the default; otherwise the first provider with a key does, until you choose another in **Settings › Models**. Without a sign-in or any key, Familiar offers ChatGPT's models and asks you to sign in.
+Familiar reaches OpenAI's models through your ChatGPT sign-in. To use Anthropic, Google, xAI or OpenRouter (for open-weight models such as DeepSeek, Kimi, GLM, MiniMax and Qwen), enter the provider's API key in **Settings › Providers**, where the ChatGPT sign-in also lives, then restart Familiar when Settings asks (or `familiar restart`). Familiar then offers that provider's models. While you're signed in to ChatGPT its models come first and stay the default; otherwise the first provider with a key does, until you choose another in **Settings › Models**. Without a sign-in or any key, Familiar offers ChatGPT's models and asks you to sign in.
 
 ## Your data
 

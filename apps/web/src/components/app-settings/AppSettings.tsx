@@ -124,7 +124,7 @@ export const AppSettings = () => {
               keywords:
                 'api keys chatgpt sign in sign out openai anthropic claude google gemini xai grok openrouter',
               description:
-                "Where Familiars' models come from. A provider's models are offered once it has a key, after Familiar restarts (Actions, Restart).",
+                "Where Familiars' models come from. A provider's models are offered once it has a key and Familiar has restarted.",
               content: <Providers />,
             },
             ...(maxComputers != null

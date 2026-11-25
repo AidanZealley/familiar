@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
+import { RestartDialog } from '@/components/restart-dialog'
 import { SettingsFooter } from '@/components/settings-footer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,16 +14,20 @@ import {
 import { Input } from '@/components/ui/input'
 import { queryClient } from '@/lib/familiar'
 import { providerKeysQuery, setProviderKey } from '@/lib/providers'
+import { updateQuery } from '@/lib/updates'
 
 /**
  * Model providers' API keys. Write-only: fields start empty, because the
  * daemon only says whether a provider has a key. It offers a provider's
- * models from its next start.
+ * models from its next start, so a change asks to restart it, where the
+ * daemon can say whether it can.
  */
 export const ProviderKeys = () => {
   const id = useId()
   const providers = useQuery(providerKeysQuery)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const { data: update } = useQuery(updateQuery)
+  const [restarting, setRestarting] = useState(false)
   const changed = Object.entries(drafts).filter(([, key]) => key.trim())
   // Each provider's new key, or null to remove it.
   const change = useMutation({
@@ -33,12 +38,14 @@ export const ProviderKeys = () => {
     },
     // Clears only the drafts this change saved, so removing one key keeps
     // another key still being typed.
-    onSuccess: (_, keys) =>
+    onSuccess: (_, keys) => {
       setDrafts((drafts) =>
         Object.fromEntries(
           Object.entries(drafts).filter(([provider]) => !(provider in keys)),
         ),
-      ),
+      )
+      setRestarting(true)
+    },
     // Keys saved before one failed are still saved, so refresh anyway.
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: providerKeysQuery.queryKey }),
@@ -112,6 +119,15 @@ export const ProviderKeys = () => {
           onDiscard={changed.length ? () => setDrafts({}) : undefined}
         />
       </FieldGroup>
+      {update && (
+        <RestartDialog
+          open={restarting}
+          onOpenChange={setRestarting}
+          info={update}
+          description="Familiar offers a provider's models from its next start. Until it restarts, a new key's models aren't offered, and replies on a removed key's models fail."
+          cancelLabel="Later"
+        />
+      )}
     </form>
   )
 }
