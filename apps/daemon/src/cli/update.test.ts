@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -25,18 +26,24 @@ vi.mock('node:timers/promises', () => ({ setTimeout: async () => {} }))
 
 let root: string
 const dataDir = () => resolve(root, 'data')
-const packageDir = () =>
-  resolve(
-    root,
-    process.platform === 'win32'
-      ? 'node_modules/familiar'
-      : 'lib/node_modules/familiar',
-  )
-const install = (version: string) =>
+const modules =
+  process.platform === 'win32' ? 'node_modules' : 'lib/node_modules'
+/** The package in the global npm prefix `prefix`. */
+const packageDir = (prefix = root) => resolve(prefix, modules, 'familiar')
+const staging = () => resolve(root, modules, '.familiar-next')
+const install = (version: string, prefix = root) => {
+  mkdirSync(packageDir(prefix), { recursive: true })
   writeFileSync(
-    resolve(packageDir(), 'package.json'),
+    resolve(packageDir(prefix), 'package.json'),
     JSON.stringify({ version }),
   )
+}
+/** The version the live package is, as the daemon started from it says. */
+const live = () =>
+  JSON.parse(readFileSync(resolve(packageDir(), 'package.json'), 'utf8'))
+    .version as string
+/** The versions that answer once started. */
+let starts: (version: string) => boolean
 const record = () =>
   JSON.parse(readFileSync(resolve(dataDir(), 'update.json'), 'utf8'))
 const fetched = vi.fn()
@@ -44,16 +51,16 @@ const fetched = vi.fn()
 const downloaded = () =>
   fetched.mock.calls
     .map(([url]) => url as string)
-    .filter((url) => !url.endsWith('/api/connections'))
+    .filter((url) => !url.endsWith('/api/update'))
     .at(-1)
 // What the service is doing, in order, against when the download happened.
 const events: string[] = []
 
 beforeEach(() => {
   root = mkdtempSync(resolve(tmpdir(), 'familiar-update-'))
-  mkdirSync(packageDir(), { recursive: true })
   mkdirSync(dataDir())
   install('0.4.3')
+  starts = () => true
   vi.clearAllMocks()
   events.length = 0
   vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -65,20 +72,24 @@ beforeEach(() => {
     webDir: '',
   })
   vi.mocked(openService).mockReturnValue({
-    isRunning: () => true,
+    isRegistered: () => true,
     stop: () => events.push('stop'),
     start: () => events.push('start'),
     install: () => events.push('register'),
   } as never)
-  vi.mocked(runNpm).mockImplementation(() => {
+  vi.mocked(runNpm).mockImplementation((args) => {
     events.push('install')
-    install('0.5.0')
+    install('0.5.0', args[3])
     return ''
   })
+  // The daemon, running whatever version is live, if that one starts.
   fetched.mockImplementation(async (url: string) => {
-    if (url.endsWith('/api/connections')) {
-      events.push('answered')
-      return new Response('[]')
+    if (url.endsWith('/api/update')) {
+      if (!starts(live())) {
+        throw new Error('not listening')
+      }
+      events.push(`answered ${live()}`)
+      return Response.json({ installed: { version: live() } })
     }
     events.push('download')
     return new Response('package')
@@ -91,15 +102,16 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-test('downloads before stopping, installs into this prefix, and records the result', async () => {
+test('installs beside the running version, swaps it in, and records the result', async () => {
   await update()
   expect(events).toEqual([
+    // Familiar runs until the new version is ready.
     'download',
-    'stop',
     'install',
+    'stop',
     // The new version's service registration replaces the old one's.
     'register',
-    'answered',
+    'answered 0.5.0',
   ])
   expect(downloaded()).toBe(
     'https://github.com/AidanZealley/familiar/releases/latest/download/familiar.tgz',
@@ -108,7 +120,7 @@ test('downloads before stopping, installs into this prefix, and records the resu
     'install',
     '--global',
     '--prefix',
-    root,
+    staging(),
     resolve(dataDir(), 'update.tgz'),
   ])
   expect(record()).toMatchObject({
@@ -117,13 +129,14 @@ test('downloads before stopping, installs into this prefix, and records the resu
     to: '0.5.0',
     phase: 'done',
   })
+  expect(live()).toBe('0.5.0')
+  expect(readdirSync(resolve(root, modules))).toEqual(['familiar'])
   expect(existsSync(resolve(dataDir(), 'update.tgz'))).toBe(false)
 })
 
 test('stays on the source its version names, unless told to switch', async () => {
   const url = downloaded
   install('0.4.3-main.168a762c')
-  vi.mocked(runNpm).mockReturnValue('')
   await update()
   expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
   await update('release')
@@ -133,15 +146,22 @@ test('stays on the source its version names, unless told to switch', async () =>
   expect(url()).toMatch(/\/releases\/download\/main-build\/familiar\.tgz$/)
 })
 
-test("a version that doesn't answer after starting is a failed update", async () => {
-  const download = fetched.getMockImplementation()!
-  fetched.mockImplementation(async (url: string) => {
-    if (url.endsWith('/api/connections')) {
-      throw new Error('not listening')
-    }
-    return download(url)
-  })
-  await expect(update()).rejects.toThrow('did not answer after starting')
+test("a version that doesn't answer after starting is rolled back", async () => {
+  starts = (version) => version !== '0.5.0'
+  await expect(update()).rejects.toThrow(
+    "0.5.0 didn't answer after starting, so Familiar went back to 0.4.3.",
+  )
+  expect(events).toEqual([
+    'download',
+    'install',
+    'stop',
+    'register',
+    'stop',
+    'start',
+    'answered 0.4.3',
+  ])
+  expect(live()).toBe('0.4.3')
+  expect(readdirSync(resolve(root, modules))).toEqual(['familiar'])
   expect(record()).toMatchObject({ phase: 'failed', to: '0.5.0' })
 })
 
@@ -152,13 +172,14 @@ test('a failed download never stops the service', async () => {
   expect(record()).toMatchObject({ phase: 'failed', from: '0.4.3' })
 })
 
-test('a failed install restarts the old version and reads back with its log', async () => {
+test('a failed install never stops the service, and reads back with its log', async () => {
   vi.mocked(runNpm).mockImplementation(() => {
     writeFileSync(resolve(dataDir(), 'update.log'), 'npm error EACCES\n')
     throw new Error('npm failed (243)')
   })
   await expect(update()).rejects.toThrow('npm failed')
-  expect(events).toEqual(['download', 'stop', 'start'])
+  expect(events).toEqual(['download'])
+  expect(live()).toBe('0.4.3')
   expect(lastUpdate(dataDir())).toMatchObject({
     phase: 'failed',
     error: 'npm failed (243)',

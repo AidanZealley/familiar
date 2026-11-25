@@ -10,11 +10,13 @@ import {
 import { basename, dirname, resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { setTimeout } from 'node:timers/promises'
 import { lockHeld, takeLock } from '@familiar-ai/core/node'
 import { resolvePaths } from '../paths.ts'
 import { runNpm } from './npm.ts'
 import { readSettings } from '../settings.ts'
-import { openService, waitForService } from './service/index.ts'
+import type { UpdateInfo } from '../updates.ts'
+import { openService } from './service/index.ts'
 
 /** Where an update fetches the package from. */
 export type UpdateSource = 'release' | 'main'
@@ -24,6 +26,13 @@ const download = (source: UpdateSource, file: string) =>
     ? `https://github.com/AidanZealley/familiar/releases/latest/download/${file}`
     : // The rolling prerelease the publish workflow replaces on each push to main.
       `https://github.com/AidanZealley/familiar/releases/download/main-build/${file}`
+
+const packageVersion = (dir: string) =>
+  (
+    JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8')) as {
+      version: string
+    }
+  ).version
 
 /**
  * The installed package, or undefined for a source checkout. Where it came
@@ -38,9 +47,7 @@ export function installedPackage(cliPath: string) {
   ) {
     return undefined
   }
-  const { version } = JSON.parse(
-    readFileSync(resolve(dir, 'package.json'), 'utf8'),
-  ) as { version: string }
+  const version = packageVersion(dir)
   const source: UpdateSource = version.includes('-main.') ? 'main' : 'release'
   return { dir, version, source }
 }
@@ -52,8 +59,13 @@ export const describeSource = (source: UpdateSource) =>
 export type UpdateRecord = {
   source: UpdateSource
   from: string
-  /** The version installed, once it is. */
+  /** The version installed beside the running one, once it is. */
   to?: string
+  /**
+   * `installing` happens beside the running version; only `restarting`
+   * stops the service. A new version that doesn't answer is rolled back
+   * within `restarting`, and the update ends `failed`, saying so.
+   */
   phase: 'downloading' | 'installing' | 'restarting' | 'done' | 'failed'
   error?: string
   startedAt: string
@@ -73,11 +85,41 @@ const updateFiles = (dataDir: string) => ({
 })
 
 /**
+ * An update's package folders, all beside the live one in its
+ * `node_modules`, so moving between them is a rename on one filesystem.
+ * npm ignores dot-named folders there.
+ */
+const packageFolders = (live: string) => {
+  const modules = dirname(live)
+  const staging = resolve(modules, `.${basename(live)}-next`)
+  return {
+    /** The package the service and the `familiar` command run. */
+    live,
+    /** A global npm prefix the new version is installed into. */
+    staging,
+    /** The new version in it, laid out as in the real prefix. */
+    staged: resolve(
+      staging,
+      process.platform === 'win32' ? 'node_modules' : 'lib/node_modules',
+      basename(live),
+    ),
+    /** The old version, while the new one proves it starts. */
+    previous: resolve(modules, `.${basename(live)}-previous`),
+  }
+}
+
+/**
  * Installs the package from `source`, by default the one this installation
- * came from, and restarts the service. The download comes first, so a
- * network failure never stops Familiar. The terminal and the web app's
- * update (which runs this as its own job, outside the service) both come
- * here; the lock lets one run at a time, and the record says how far it got.
+ * came from, and restarts the service with it. The terminal and the web
+ * app's update (which runs this as its own job, outside the service) both
+ * come here; the lock lets one run at a time, and the record says how far
+ * it got.
+ *
+ * The new version is downloaded and installed beside the live one while
+ * Familiar keeps running, so a network or npm failure never stops it. Only
+ * then is the service stopped, the new version swapped in by renaming
+ * folders, and the service started. If the new version doesn't answer, the
+ * same swap puts the old one back. Both folders are removed at the end.
  */
 export async function update(source?: UpdateSource) {
   const paths = resolvePaths()
@@ -89,6 +131,7 @@ export async function update(source?: UpdateSource) {
   }
   const from = source ?? installed.source
   const files = updateFiles(paths.dataDir)
+  const folders = packageFolders(installed.dir)
   const lock = takeLock(files.lock)
   if (!lock.taken) {
     throw new Error(
@@ -109,51 +152,27 @@ export async function update(source?: UpdateSource) {
     })
     renameSync(`${files.record}.tmp`, files.record)
   }
+  const clear = () => {
+    rmSync(files.package, { force: true })
+    rmSync(folders.staging, { recursive: true, force: true })
+    rmSync(folders.previous, { recursive: true, force: true })
+  }
   write({})
+  // An update that died part way may have left them.
+  clear()
   const log = openSync(files.log, 'w', 0o600)
   console.log(
     `Updating Familiar ${installed.version} from ${describeSource(from)}.`,
   )
   try {
     await fetchTo(download(from, 'familiar.tgz'), files.package)
-    // npm's default prefix can differ from the one the installer used.
-    // Update the actual installation, not a second global copy elsewhere.
-    const prefix = resolve(
-      installed.dir,
-      process.platform === 'win32' ? '../..' : '../../..',
+    write({ phase: 'installing' })
+    runNpm(
+      ['install', '--global', '--prefix', folders.staging, files.package],
+      { stdio: ['ignore', log, log] },
     )
-    const service = openService(paths)
-    const running = service.isRunning()
-    if (running) {
-      service.stop()
-    }
-    try {
-      write({ phase: 'installing' })
-      runNpm(['install', '--global', '--prefix', prefix, files.package], {
-        stdio: ['ignore', log, log],
-      })
-    } catch (error) {
-      // The old version, as it was.
-      if (running) {
-        service.start()
-      }
-      throw error
-    }
-    write({
-      phase: 'restarting',
-      to: installedPackage(paths.cliPath)?.version,
-    })
-    // Registered afresh as it starts, so a registration from an older
-    // version, such as one without the data folder as its working
-    // directory, doesn't outlive the update.
-    if (running) {
-      service.install()
-    }
-    // Installed isn't enough: a version that fails to start isn't an update.
-    // A service that wasn't running stays stopped, with nothing to wait for.
-    if (running) {
-      await waitForService(readSettings(paths.dataDir).port)
-    }
+    write({ phase: 'restarting', to: packageVersion(folders.staged) })
+    await activate(paths, folders, installed.version, record.to!)
     write({ phase: 'done', endedAt: new Date().toISOString() })
     console.log(`Updated Familiar to ${record.to}.`)
   } catch (error) {
@@ -168,10 +187,109 @@ export async function update(source?: UpdateSource) {
     })
   } finally {
     closeSync(log)
-    rmSync(files.package, { force: true })
+    clear()
     // Last, after the record's final phase.
     lock.release()
   }
+}
+
+/**
+ * Puts the staged version live and leaves a registered service running
+ * it, or, if it doesn't answer with its version, running the previous one
+ * again. Throws unless the new version answered. Ctrl-C or a closed
+ * terminal waits for this to finish, so it never leaves Familiar stopped.
+ *
+ * From the first swap, this process's own package is at `previous`, so
+ * everything it runs must already be loaded: no lazy imports.
+ */
+async function activate(
+  paths: ReturnType<typeof resolvePaths>,
+  folders: ReturnType<typeof packageFolders>,
+  from: string,
+  to: string,
+) {
+  const service = openService(paths)
+  const registered = service.isRegistered()
+  const port = readSettings(paths.dataDir).port
+  const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
+  const wait = () =>
+    console.log('Finishing the update, so Familiar is left running.')
+  for (const signal of signals) {
+    process.on(signal, wait)
+  }
+  try {
+    if (!registered) {
+      swap(folders.live, folders.staged, folders.previous)
+      return
+    }
+    service.stop()
+    try {
+      swap(folders.live, folders.staged, folders.previous)
+    } catch (error) {
+      service.start()
+      throw error
+    }
+    // Registered afresh, which starts it, so a registration from an older
+    // version, such as one without the data folder as its working
+    // directory, doesn't outlive the update.
+    service.install()
+    if (await answers(port, to)) {
+      return
+    }
+    service.stop()
+    swap(folders.live, folders.previous, folders.staged)
+    service.start()
+    throw new Error(
+      (await answers(port, from))
+        ? `${to} didn't answer after starting, so Familiar went back to ${from}.`
+        : `${to} didn't answer after starting, and ${from} didn't either once it was put back. Run familiar logs to see why.`,
+    )
+  } finally {
+    for (const signal of signals) {
+      process.off(signal, wait)
+    }
+  }
+}
+
+/**
+ * Puts the package at `incoming` live, moving the live one to `outgoing`,
+ * or, if that fails, leaves both where they were.
+ */
+function swap(live: string, incoming: string, outgoing: string) {
+  renameSync(live, outgoing)
+  try {
+    renameSync(incoming, live)
+  } catch (error) {
+    renameSync(outgoing, live)
+    throw error
+  }
+}
+
+/**
+ * Whether the daemon on `port` comes to answer as `version`, within about
+ * 30 seconds: long enough for the service manager to start it, or restart
+ * it once after a crash. Asking for its version means an answer from the
+ * one it replaced can't count.
+ */
+async function answers(port: number, version: string) {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/update`, {
+        signal: AbortSignal.timeout(1000),
+      })
+      if (!response.ok) {
+        await response.body?.cancel()
+      } else if (
+        ((await response.json()) as UpdateInfo).installed?.version === version
+      ) {
+        return true
+      }
+    } catch {
+      // Not listening yet.
+    }
+    await setTimeout(250)
+  }
+  return false
 }
 
 async function fetchTo(url: string, file: string) {

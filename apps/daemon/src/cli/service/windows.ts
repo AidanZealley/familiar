@@ -253,6 +253,11 @@ ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Ob
     start()
   }
   return {
+    /** Whether this data folder's service is registered, running or not. */
+    isRegistered: () => {
+      const { task, link } = registration()
+      return Boolean(task ?? link)
+    },
     isRunning,
     stop,
     start,
