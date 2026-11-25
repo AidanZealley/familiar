@@ -29,7 +29,7 @@ Change things by calling the commands on the store itself: the workspace's `fami
 
 Streamed documents are `undefined` until they arrive, and `null` when the server sends none.
 
-`send(text, { mentions?, images? })` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, the message goes to the Familiars it mentions, or to everyone if it mentions none. Each Familiar decides whether to reply. `composeMessage` builds the text and mention spans from what a composer picked. Typing `@Ada` without picking her leaves the message unaddressed. `images` are base64 `{ data, mimeType }`, which your client shrinks to fit `IMAGE_LIMITS` before sending; `checkImage(bytes)` checks one as core will, returning its header or an `ImageProblem`. The text may be empty when there are images. A refused command rejects with a `RequestError`, whose `image`, when one image was refused, is `{ index, problem }` for you to word.
+`send(text, { mentions?, images? })` posts a message with a fresh `requestId`. The host decides who sent it. In a named room, the message goes to the Familiars it mentions, or to everyone if it mentions none. Each Familiar decides whether to reply. `composeMessage` builds the text and mention spans from what a composer picked. Typing `@Ada` without picking her leaves the message unaddressed. `images` are base64 `{ data, mimeType }`, which your client shrinks to fit `IMAGE_LIMITS` before sending; the text may be empty when there are images.
 
 ## The transcript
 

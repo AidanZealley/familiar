@@ -12,7 +12,6 @@ import type {
   FamiliarCapabilities,
   FamiliarIdentity,
   FamiliarSummary,
-  ImageRefusal,
   JournalLine,
   McpServer,
   Mention,
@@ -373,27 +372,13 @@ export const roomCommands = (api: Api, id: number) => {
   }
 }
 
-/**
- * A request the server refused, with its own message when it sends one,
- * such as why a server was refused, and `image`, which of a message's
- * images it refused and why, for a host to word.
- */
-export class RequestError extends Error {
-  readonly image?: ImageRefusal
-
-  constructor(message: string, image?: ImageRefusal) {
-    super(message)
-    this.image = image
-  }
-}
-
+/** The server's own message when it sends one, such as why a server was refused. */
 const failed = async (response: Response) => {
   const body = await response.json().catch(() => undefined)
-  return new RequestError(
+  return new Error(
     typeof body?.error === 'string'
       ? body.error
       : `${response.url} failed: ${response.status} ${response.statusText}`,
-    body?.image,
   )
 }
 

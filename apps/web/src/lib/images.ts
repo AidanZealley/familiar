@@ -1,9 +1,4 @@
-import {
-  checkImage,
-  IMAGE_LIMITS,
-  type ImageProblem,
-  type OutgoingImage,
-} from '@familiar-ai/client'
+import { IMAGE_LIMITS, type OutgoingImage } from '@familiar-ai/client'
 
 /** Formats Familiar takes as they are, when they're small enough. */
 const AS_IS = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
@@ -29,12 +24,11 @@ const encode = (canvas: HTMLCanvasElement, type: string) =>
   )
 
 /**
- * `file` as a message image, within `IMAGE_LIMITS`: as it is when core's
- * `checkImage` takes it, so a GIF keeps its frames; otherwise, as for one
- * with too many frames, too large, or whose bytes core reads differently
- * from the browser, drawn upright as a still, shrunk to the longest side
- * allowed, and encoded as PNG when it was one and still fits, else as JPEG,
- * smaller until it fits. Rejects for what the browser can't decode.
+ * `file` as a message image, within `IMAGE_LIMITS`: as it is when it already
+ * fits, so a GIF keeps its frames; otherwise drawn upright, shrunk to the
+ * longest side allowed, and encoded as PNG when it was one and still fits,
+ * else as JPEG, smaller until it fits. Rejects for what the browser can't
+ * decode.
  */
 export async function prepareImage(file: Blob): Promise<OutgoingImage> {
   const bitmap = await createImageBitmap(file)
@@ -44,8 +38,7 @@ export async function prepareImage(file: Blob): Promise<OutgoingImage> {
     if (
       AS_IS.has(file.type) &&
       longest <= pixels &&
-      base64Length(file) <= bytes &&
-      typeof checkImage(new Uint8Array(await file.arrayBuffer())) !== 'string'
+      base64Length(file) <= bytes
     ) {
       return { data: await toBase64(file), mimeType: file.type }
     }
@@ -72,18 +65,6 @@ export async function prepareImage(file: Blob): Promise<OutgoingImage> {
     bitmap.close()
   }
 }
-
-/** Why core refused an image, after "Image 2", say. */
-const PROBLEMS: Record<ImageProblem, string> = {
-  format: "isn't a PNG, JPEG, GIF or WebP",
-  corrupt: "couldn't be read; it may be damaged",
-  pixels: `is over ${IMAGE_LIMITS.pixels}px on its longest side`,
-  frames: `has over ${IMAGE_LIMITS.frames} frames`,
-}
-
-/** Why the image at `index` of a message was refused, as a sentence. */
-export const imageRefusal = (index: number, problem: ImageProblem) =>
-  `Image ${index + 1} ${PROBLEMS[problem]}.`
 
 /** Whether `file` is an image, by the type the browser gives it. */
 export const isImage = (file: File) => file.type.startsWith('image/')

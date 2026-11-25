@@ -30,15 +30,11 @@ export type {
   AccountState,
 } from './account/index.ts'
 export {
+  IMAGE_LIMITS,
   MESSAGE_LIMITS,
   MessageError,
   type Author,
 } from './conversation/message.ts'
-export {
-  IMAGE_LIMITS,
-  type ImageProblem,
-  type ImageRefusal,
-} from './conversation/image.ts'
 export type { HistoryQuery, HistoryPage } from './rooms/index.ts'
 export {
   ModelError,
