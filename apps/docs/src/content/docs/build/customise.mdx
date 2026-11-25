@@ -12,7 +12,7 @@ import connected from '../../../../snippets/connected-plugin.ts?raw'
 
 Each Familiar has a `name` and an optional `persona`, given to `familiars.create` and changed with `familiars.update`. Create Familiars once, on the first open.
 
-- `persona` replaces the default, `defaultPersona(name)`, completely. Include the name if the model should know it.
+- `persona` follows the prompt's `You are {name}.`, so write it as "You…" without the name. It replaces `defaultPersona` completely.
 - `hostInstructions`, a workspace option, is added after every persona, such as what your UI renders. Core adds its own instructions for rooms, memory, schedules and tools.
 
 <Code code={customAssistant} lang="ts" title="assistant.ts" />

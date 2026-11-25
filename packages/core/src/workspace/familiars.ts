@@ -23,11 +23,12 @@ export type FamiliarId = ConversationId
 
 /** Who a Familiar is. */
 export type FamiliarIdentity = {
-  /** What it's called: in its default persona, its notifications and memory's prompts. */
+  /** What it's called: in its prompt, its notifications and memory's prompts. */
   name: string
   /**
-   * Who it is in conversation, in place of `defaultPersona(name)`, used
-   * exactly as given, so it includes the name if the model should know it.
+   * Who it is in conversation, in place of `defaultPersona`, used exactly
+   * as given after the prompt's "You are {name}.", so written to it in the
+   * second person, without the name.
    */
   persona?: string
   /**

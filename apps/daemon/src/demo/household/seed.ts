@@ -15,7 +15,7 @@ import type { Moment, RoomSeed, Said, Story } from './story.ts'
 
 /** Every reply the story writes down, for the scripted model to give. */
 export function scriptOf(story: Story) {
-  const script = createScript(story.familiars)
+  const script = createScript()
   for (const room of story.rooms) {
     for (const said of [...room.history, ...(room.live ? [room.live] : [])]) {
       if ('say' in said) {

@@ -99,10 +99,10 @@ const keyOf = ({ familiar, input }: Key) => `${familiar}\n${input}`
 
 /**
  * The household's replies, and how the scripted model finds the one it's
- * asked for. Each Familiar is recognised by its persona, which starts its
- * system prompt; a tool call's ID says which reply and step it came from.
+ * asked for: the request says which Familiar it's for, and a tool call's ID
+ * says which reply and step it came from.
  */
-export function createScript(familiars: { name: string; persona: string }[]) {
+export function createScript() {
   const replies: Reply[] = []
   const byKey = new Map<string, number>()
   // A failed reply's retry, by its key, and the keys that have failed.
@@ -163,16 +163,7 @@ export function createScript(familiars: { name: string; persona: string }[]) {
         ? respond(Number(index), next, live)
         : undefined
     }
-    const prompt = context.messages
-      .flatMap((message) =>
-        message.role === 'system'
-          ? [textOf(message.content), ...Object.values(message.sections ?? {})]
-          : [],
-      )
-      .join('\n')
-    const familiar = familiars.find(({ persona }) =>
-      prompt.includes(persona),
-    )?.name
+    const { familiar } = request
     const input = inputOf(request)
     if (familiar === undefined || input === undefined) {
       return undefined

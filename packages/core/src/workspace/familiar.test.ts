@@ -117,28 +117,27 @@ async function firstRequest(options: SetupOptions = {}) {
   } as { sections: Record<string, string>; tools: string[] }
 }
 
-test('without a persona, Familiar introduces itself by name and promises no renderer', async () => {
+test('without a persona, Familiar is told its name and the default, and promised no renderer', async () => {
   const { sections } = await firstRequest({ name: 'Wren' })
-  expect(sections.preamble).toBe(defaultPersona('Wren'))
-  expect(sections.preamble).toContain('You are Wren, a personal assistant.')
+  expect(sections.introduction).toBe('You are Wren.')
+  expect(sections.persona).toBe(defaultPersona)
   // What replies render as belongs to the host that draws them.
   const prompt = Object.values(sections).join('\n')
   expect(prompt).not.toMatch(/KaTeX|Mermaid|render/i)
 })
 
 test("a host's persona replaces the default and keeps core's instructions", async () => {
-  const persona = 'You are Gatherbot. Answer in one short sentence.'
+  const persona = 'Answer in one short sentence.'
   const custom = await firstRequest({ name: 'Wren', persona })
   const standard = await firstRequest({ name: 'Wren' })
 
-  expect(custom.sections.preamble).toBe(persona)
+  expect(custom.sections.persona).toBe(persona)
   const prompt = Object.values(custom.sections).join('\n')
-  expect(prompt).not.toContain('Wren')
-  expect(prompt).not.toContain(defaultPersona('Wren'))
+  expect(prompt).not.toContain(defaultPersona)
 
   // Everything after the persona is core's and unchanged by it.
   const after = (sections: Record<string, string>) =>
-    Object.entries(sections).filter(([key]) => key !== 'preamble')
+    Object.entries(sections).filter(([key]) => key !== 'persona')
   expect(after(custom.sections)).toEqual(after(standard.sections))
   expect(custom.sections.conversation).toContain(
     'one long-running conversation',
