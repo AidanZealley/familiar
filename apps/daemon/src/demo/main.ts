@@ -4,6 +4,7 @@ import { resolvePaths } from '../paths.ts'
 import { openPush } from '../push.ts'
 import { serveWorkspace } from '../serve.ts'
 import { openDemo } from './demo.ts'
+import { demoTrouble } from './trouble.ts'
 
 // Keys and subscriptions last only until the demo restarts.
 const push = openPush({ contact: 'mailto:familiar@example.com' })
@@ -39,4 +40,5 @@ serveWorkspace(workspace, {
   push: push.host,
   computerLimit,
   computers,
+  middleware: demoTrouble(),
 })
