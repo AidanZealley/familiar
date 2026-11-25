@@ -563,6 +563,33 @@ test('deferred tools are found by search, checked against nested schemas and rea
   expect(server.state.calls).toBe(1)
 })
 
+test('a tool keeps its annotations and the model reads its hints', async () => {
+  const server = mcpServer()
+  const annotations = {
+    title: 'Echo',
+    readOnlyHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  }
+  server.state.tools = [{ ...echo, annotations }]
+  const host = await connected(server)
+
+  expect((await info(host.workspace())).tools[0]).toMatchObject({
+    annotations,
+    askBeforeRunning: false,
+  })
+  const [, found] = await converse(host, 'Find echo.', [
+    searchFor('echo nested message'),
+    fauxAssistantMessage('Done.'),
+  ])
+  const added = found!.messages.flatMap((message) =>
+    message.role === 'system' ? (message.toolsAdded ?? []) : [],
+  )
+  expect(
+    added.find((tool) => tool.name === 'mcp__test__echo')?.description,
+  ).toBe('Echo a nested message.\n\nRead-only. Idempotent.')
+})
+
 // A remote call can act on the world, so one cut short is never run again.
 test.for(['Stop', 'a restart'] as const)(
   'a remote call interrupted by %s is not run again',

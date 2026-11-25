@@ -17,6 +17,14 @@ import { workspace } from '@/lib/familiar'
 import { connectionsQuery } from '../../../../../../query'
 import type { ToolRowProps } from './types'
 
+// The MCP hints a tool declares true, in the words the row shows.
+const HINTS = [
+  { hint: 'readOnlyHint', label: 'Read-only' },
+  { hint: 'destructiveHint', label: 'Destructive' },
+  { hint: 'idempotentHint', label: 'Idempotent' },
+  { hint: 'openWorldHint', label: 'Open world' },
+] as const
+
 export const ToolRow = ({ connection, tool }: ToolRowProps) => {
   const queryClient = useQueryClient()
   const mutationKey = [
@@ -70,6 +78,8 @@ export const ToolRow = ({ connection, tool }: ToolRowProps) => {
     ...pending,
   )
 
+  const hints = HINTS.filter(({ hint }) => tool.annotations?.[hint] === true)
+
   return (
     <li>
       <Collapsible>
@@ -78,12 +88,23 @@ export const ToolRow = ({ connection, tool }: ToolRowProps) => {
             aria-hidden
             className="size-3.5 shrink-0 text-muted-foreground group-data-[panel-open]/tool:rotate-90"
           />
-          <span className="flex min-w-0 grow flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex min-w-0 grow flex-col gap-1">
             <span className="min-w-0 font-mono text-sm font-medium wrap-break-word">
               {tool.name}
             </span>
-            {tool.annotations?.destructiveHint === true && (
-              <Badge variant="destructive">Caution</Badge>
+            {hints.length > 0 && (
+              <span className="flex flex-wrap gap-1">
+                {hints.map(({ hint, label }) => (
+                  <Badge
+                    key={hint}
+                    variant={
+                      hint === 'destructiveHint' ? 'destructive' : 'outline'
+                    }
+                  >
+                    {label}
+                  </Badge>
+                ))}
+              </span>
             )}
           </span>
           {!enabled && <Badge variant="outline">Disabled</Badge>}

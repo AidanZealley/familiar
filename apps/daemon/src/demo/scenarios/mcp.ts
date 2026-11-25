@@ -8,6 +8,7 @@ import {
   Server,
   WebStandardStreamableHTTPServerTransport,
   type Tool,
+  type ToolAnnotations,
 } from '@modelcontextprotocol/server'
 import type { Scenario } from './scenario.ts'
 
@@ -26,27 +27,47 @@ const echo: Tool = {
 }
 
 /** Tools that answer without doing anything, described as the real ones would be. */
-const pretend = (tools: Record<string, string>): Tool[] =>
+const pretend = (
+  annotations: ToolAnnotations,
+  tools: Record<string, string>,
+): Tool[] =>
   Object.entries(tools).map(([name, description]) => ({
     name,
     description,
     inputSchema: { type: 'object' },
+    annotations,
   }))
+
+// Hints as each kind of tool would declare them; the services are closed
+// worlds unless a tool says otherwise.
+const reads: ToolAnnotations = { readOnlyHint: true, openWorldHint: false }
+const sets: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+}
+const acts: ToolAnnotations = { ...sets, idempotentHint: false }
+const destroys: ToolAnnotations = { ...sets, destructiveHint: true }
 
 // Keyed by host. Any other host under demo.invalid, and any local command,
 // serves echo, so a server added from the page can be tried in chat.
 const services: Record<string, Tool[]> = {
   'home.demo.invalid': [
-    ...pretend({
+    ...pretend(reads, {
       get_live_context: 'Gets the current state of every exposed device.',
       list_areas: 'Lists the areas of the home.',
       list_devices: 'Lists devices, optionally in one area.',
       get_history: 'Gets how a device’s state changed over a period.',
       get_logbook: 'Gets recent events, such as doors opening.',
-      get_weather: 'Gets the forecast for the home’s location.',
+    }),
+    ...pretend(
+      { ...reads, openWorldHint: true },
+      { get_weather: 'Gets the forecast for the home’s location.' },
+    ),
+    ...pretend(sets, {
       turn_on: 'Turns a device or area on.',
       turn_off: 'Turns a device or area off.',
-      toggle: 'Switches a device between on and off.',
       set_brightness: 'Sets a light’s brightness.',
       set_colour: 'Sets a light’s colour.',
       set_temperature: 'Sets a thermostat’s target temperature.',
@@ -58,31 +79,38 @@ const services: Record<string, Tool[]> = {
       media_pause: 'Pauses a media player.',
       media_play: 'Resumes a media player.',
       set_volume: 'Sets a media player’s volume.',
+    }),
+    ...pretend(acts, {
+      toggle: 'Switches a device between on and off.',
       start_vacuum: 'Sends the robot vacuum to clean.',
     }),
   ],
   'notes.demo.invalid': [
-    ...pretend({
+    ...pretend(reads, {
       search_notes: 'Searches your notes by keyword.',
       read_note: 'Reads a note in full.',
       list_tags: 'Lists the tags your notes use.',
+    }),
+    ...pretend(acts, {
       create_note: 'Creates a note with a title and text.',
       append_to_note: 'Adds text to the end of a note.',
     }),
   ],
   'printer.demo.invalid': [
-    ...pretend({
+    ...pretend(reads, {
       printer_status: 'Gets the printer’s state, temperatures and progress.',
       list_files: 'Lists the files ready to print.',
-      start_print: 'Starts printing a file.',
+    }),
+    ...pretend(acts, { start_print: 'Starts printing a file.' }),
+    ...pretend(sets, {
       pause_print: 'Pauses the current print.',
-      cancel_print: 'Cancels the current print.',
       set_bed_temperature: 'Sets the print bed’s temperature.',
     }),
+    ...pretend(destroys, { cancel_print: 'Cancels the current print.' }),
   ],
   // Asks the person mid-call, as Topsail does before a print.
   'bench.demo.invalid': [
-    ...pretend({
+    ...pretend(reads, {
       bench_status: 'Gets what the workbench’s printer is doing.',
     }),
     {
@@ -93,16 +121,16 @@ const services: Record<string, Tool[]> = {
         properties: { file: { type: 'string' } },
         required: ['file'],
       },
-      annotations: { destructiveHint: true },
+      annotations: { ...acts, destructiveHint: true },
     },
     {
       name: 'log_spool',
       description: 'Logs a new filament spool, asking the person for details.',
       inputSchema: { type: 'object' },
-      annotations: { destructiveHint: false },
+      annotations: acts,
     },
   ],
-  'mcp-server-time': pretend({
+  'mcp-server-time': pretend(reads, {
     get_current_time: 'Gets the current time in a time zone.',
     convert_time: 'Converts a time between time zones.',
   }),
