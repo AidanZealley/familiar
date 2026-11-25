@@ -56,9 +56,9 @@ export class Bot extends DurableObject {
 }
 ```
 
-The factory returns everything `openWorkspace` takes except storage, the clock and wake handling, which the adapter supplies. The adapter calls it each time the object opens, including after eviction, then `setup`, before any request or alarm reaches the workspace. This scripted model answers every request alike. A real host registers its provider, credentials, notifications and network policy in the factory, and makes its Familiars and rooms in `setup`.
+The factory returns `openWorkspace`'s options except storage, the clock and wake handling, which the adapter supplies. It runs each time the object opens, including after eviction, then `setup`, before any request or alarm reaches the workspace. A real host registers its provider, credentials and notifications in the factory, and creates its Familiars and rooms in `setup`.
 
-To take images, pass `images: { processor: createCloudflarePhotonImages(), maxPixels: 16_000_000 }`, with the processor from `@familiar-ai/cloudflare/images`. Photon runs on the object's own thread, so an image blocks it for up to about a second, and decoding takes four bytes a pixel of the object's 128 MB, hence the lower cap. Images are stored in the object's SQLite: each prepared image is at most 1.5 million base64 characters, under its value limit.
+To take images, pass `images: { processor: createCloudflarePhotonImages(), maxPixels: 16_000_000 }`, with the processor from `@familiar-ai/cloudflare/images`. The lower cap keeps decoding within the object's 128 MB of memory. An image blocks the object for up to about a second while it's prepared.
 
 Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudflare Worker example's [`wrangler.jsonc`](https://github.com/AidanZealley/familiar/blob/main/examples/cloudflare-worker/wrangler.jsonc) is a working configuration.
 
@@ -68,7 +68,7 @@ Configure a SQLite Durable Object binding and migration in Wrangler. The Cloudfl
 - Don't call the workspace's `dismiss()` yourself.
 - `terminate()` permanently refuses that object ID. Its history stays in storage.
 
-While work is running, the adapter keeps a heartbeat alarm, so work a lost process left resumes soon; `heartbeatMs` sets how often, default one minute. While the workspace sleeps, the alarm is set for its next wake time, such as a reminder.
+The adapter keeps the alarm set: every `heartbeatMs` (default one minute) while work is running, so a lost process's work resumes, and for the next wake time, such as a reminder, while it sleeps.
 
 ## Serving HTTP
 
@@ -87,8 +87,8 @@ override fetch(request: Request) {
 }
 ```
 
-`author` is whoever your Worker authenticated. Decide what each person may do as in [Decide who may do what](/familiar/build/serve-the-api/#decide-who-may-do-what); `allow: () => true` allows everything, only when the object's owner is the only person who reaches it. Each object is one workspace over its own storage, so give each tenant its own object, chosen from the authenticated session as in [One workspace per tenant](/familiar/build/serve-the-api/#one-workspace-per-tenant). The repository's [Cloudflare Worker example](https://github.com/AidanZealley/familiar/tree/main/examples/cloudflare-worker) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
+`author` is whoever your Worker authenticated; decide what they may do as in [Serve the API](/familiar/build/serve-the-api/#decide-who-may-do-what). Each object is one workspace, so give each tenant its own object, chosen from the session as in [One workspace per tenant](/familiar/build/serve-the-api/#one-workspace-per-tenant). The repository's [Cloudflare Worker example](https://github.com/AidanZealley/familiar/tree/main/examples/cloudflare-worker) routes `/bots/<name>/api/*` to one object per name, behind one shared bearer token.
 
 ## What's been verified
 
-Local workerd tests cover reminder delivery, whether the object was evicted or stayed in memory, recovery of an interrupted reply and persistent termination, all with scripted models. ChatGPT sign-in and real models on Workers haven't been verified.
+Local workerd tests cover reminders across eviction, recovery of an interrupted reply and termination, with scripted models. ChatGPT sign-in and real models on Workers haven't been verified.

@@ -8,65 +8,49 @@ import serve from '../../../../snippets/serve.ts?raw'
 import tenants from '../../../../snippets/tenants.ts?raw'
 import notify from '../../../../snippets/notify.ts?raw'
 
-`@familiar-ai/core/http` turns a workspace into a [Hono](https://hono.dev) app: JSON commands for the workspace, its Familiars and its rooms, plus a server-sent event stream for each. Any runtime with the Fetch API can serve it.
+`@familiar-ai/core/http` turns a workspace into a [Hono](https://hono.dev) app: JSON commands plus a server-sent event stream for the workspace, each Familiar and each room. Any runtime with the Fetch API can serve it.
 
 ## Decide who may do what
 
-`createHttpApi` takes an `authenticate` function and an `allow` policy. Every route is mounted; `allow` decides, for each request, whether its author may perform that operation.
+`createHttpApi` takes two functions:
+
+- `authenticate(request)` returns the person as `{ id, name }`, or `undefined` for a 401. That person is the author of any message the request posts; a body can't choose its own author.
+- `allow(author, operation, resource)` decides whether they may perform the operation. Anything but `true` answers 403. `resource` is `{ familiar }` or `{ room }` from the path, so you can refuse per Familiar or per room.
 
 <Code code={serve} lang="ts" title="api.ts" />
 
-Mount it under any path, such as `new Hono().route('/api', createApi(workspace))`. The client offers every command; one your policy refuses rejects with the 403, so show each person only the UI they may use.
+Mount it under any path, such as `new Hono().route('/api', createApi(workspace))`.
 
-`allow(author, operation, resource)` is asked after authentication and the body limit, before the route reads anything or changes anything, and anything but `true` answers 403. `resource` is `{ familiar }` or `{ room }`, the ID in the path, for a Familiar's or a room's operations, so you can refuse per Familiar or per room. You never need to refuse someone else's DM: Familiar answers 404 to anyone but its person, whatever `allow` says. `operation` names one of:
+Operations are named `group.name`, such as `rooms.post` or `memory.forget`. The `Operation` type is their union, and the [HTTP reference](/familiar/reference/http/) lists each with its route.
 
-| Group          | Operations                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------------- |
-| `familiars`    | `list`, `create`, and with `{ familiar }`: `update`, `remove`, `dm`                                         |
-| `rooms`        | `list`, `create`, and with `{ room }`: `update`, `archive`, `post`, `history`, `stop`                       |
-| `model`        | `options`, `set`, `setThinkingLevel`, with `{ familiar }`                                                   |
-| `capabilities` | `get`, `set`, with `{ familiar }`                                                                           |
-| `defaults`     | `get`, `set`: the default tools new Familiars start with                                                    |
-| `memory`       | `read`, `forget`, with `{ familiar }`                                                                       |
-| `schedules`    | `cancel`, with `{ familiar }`                                                                               |
-| `account`      | `state`, `signIn`, `answerSignIn`, `cancelSignIn`, `signOut`                                                |
-| `push`         | `key`, `subscribe`, `unsubscribe`                                                                           |
-| `connections`  | `list`, `setSecret`, `deleteSecret`                                                                         |
-| `mcp`          | `add`, `remove`, `reconnect`                                                                                |
-| `events`       | `familiars`, `rooms`, `account`; `model`, `memory`, `schedules` with `{ familiar }`; `room` with `{ room }` |
+Things to know:
 
-each as `group.name`, such as `memory.forget`. Core lists each person's own DMs and every named room, but doesn't refuse a room: whether a person may read or post to one is `allow`'s to decide. The `Operation` type is that union, so a misspelt name in a `Set<Operation>` is a type error. Check against a list of what you allow, as above, so an operation Familiar adds later is refused until you add it.
-
-`events.*` decides what each `/events` stream sends: the workspace's, a Familiar's and a room's. Each source is asked once, when a stream connects: revoking someone's access applies from their next connection, not to a stream they already have open. A stream every source refuses answers 403. The account routes don't stream the account: its sign-in page arrives only through `events.account`, so keep that source to the people who sign in.
-
-`allow: () => true` lets everyone `authenticate` accepts do everything, including anything Familiar adds later. Use it only when everyone who can reach the API is the workspace's owner. The daemon does, because only its owner can reach it. Pass `push` as well if your host offers Web Push. Without it, the `/push` routes answer 404 so clients can tell notifications aren't available. See [Notifications](#notifications).
-
-`authenticate` receives each request and returns the person making it as `{ id, name }`, or `undefined` to answer 401. The result becomes the author of any message that request posts, and the person whose DM `POST /familiars/:familiar/dm` opens. Request bodies can't choose their own author.
-
-Request bodies are limited to `maxBodySize` bytes, by default `DEFAULT_MAX_BODY_SIZE` (1 MiB), and larger ones answer 413. Familiar checks field bounds such as `MESSAGE_LIMITS` itself, for every caller.
+- **Allow from a list**, as above, so an operation Familiar adds later is refused until you add it. `allow: () => true` allows everything, now and later; use it only when everyone who can reach the API is the owner, as the daemon does.
+- **DMs are private already.** Familiar answers 404 to anyone but a DM's person, whatever `allow` says. Named rooms are open to whoever `allow` lets in.
+- **Streams are checked once.** `events.*` operations decide what each stream sends, asked when it connects. Revoking access applies from the next connection.
+- **Sign-in streams on `events.account`.** Keep that source to the people who sign the model in.
+- **The client offers every command.** One your policy refuses rejects with the 403, so show each person only the UI they may use.
 
 ## A Familiar is shared
 
-Everyone who reads a room reads what its Familiars say there, and a Familiar keeps one working context across all its rooms, so what it hears in a DM can inform what it says in a named room, and anything the model recalls from memory can reach anyone in a reply. Refusing `events.memory` keeps the memory document off the stream, but it doesn't make memory private: the model can repeat what it remembers. Familiar doesn't promise per-room secrecy. Give people who mustn't share information [separate workspaces](#one-workspace-per-tenant).
+A Familiar keeps one working context across all its rooms, so what it hears in a DM can come up in a named room, and anything it remembers can reach anyone it replies to. Refusing `events.memory` hides the memory document, not what the model says. Its tools and schedules are shared the same way: anyone allowed to cancel a Familiar's schedules can cancel anyone's.
+
+Give people who mustn't share information [separate workspaces](#one-workspace-per-tenant).
 
 ## Identity is not permission
 
-Familiar records who said what and shows the model each author. It doesn't decide who may do what. Your host must:
+Familiar records who said what. It doesn't decide who may do what. Your host owns:
 
-- authenticate every request, including the event stream
-- decide who may do what, with `allow`
-- choose each room's audience, and so each Familiar's: who may post to it, and so share it
-- choose the workspace's tools, with `plugins` and its MCP servers, and which Familiars use each
-- choose who receives each notification, and store and authorize push subscriptions
-- decide which MCP transports, destinations and commands it allows
+- authenticating every request, including the event streams
+- `allow`, and so each room's audience
+- the workspace's tools, and which Familiars use each
+- who receives each notification
+- which MCP transports, destinations and commands are allowed
 
-Each Familiar opts in to the plugins and MCP connections it uses: what it was created with, else the workspace's default tools, changed later with `setCapabilities` (or `PUT /familiars/:familiar/capabilities`). Pass `defaultCapabilities` to `openWorkspace` for the defaults; it fills them in on the first open only, so changes people make later are kept. A Familiar's tools are available for everyone who talks to it. One MCP connection is one session under one account, shared by every Familiar that uses it; give Familiars separate accounts with separate named connections. Familiar has no per-person tool permissions. Where a tool's data or actions need narrower rules, such as who may change a task, the tool enforces them, or the app API behind it does, using `familiar(context).author()`. That is the person the call runs for, from the stored input that started it, never from the tool's arguments: the author of the message, or the creator of a scheduled run. It's `undefined` for Familiar's own memory filing.
-
-Nested calls, and calls rerun after a crash, keep the author of the input that started them, and a message queued while a call runs can't take its place. Familiar stores who started each call, never a permission, so your app's current rules apply when a tool checks them:
+Familiar has no per-person tool permissions. When a tool needs narrower rules, such as who may change a task, the tool or the API behind it checks them against `familiar(context).author()`: the person whose message started the call, or the creator of a scheduled run. It comes from storage, never from the tool's arguments, and is `undefined` for background work such as memory filing.
 
 ```ts
 execute: async ({ taskId }, _api, context) => {
-  // Your API checks, as it runs, whether this person may change the task.
   const author = await familiar(context).author()
   if (!author) {
     return {
@@ -74,44 +58,33 @@ execute: async ({ taskId }, _api, context) => {
       isError: true,
     }
   }
+  // Your API checks, as it runs, whether this person may change the task.
   return updateTask(taskId, { as: author.id })
 }
 ```
 
-The author is for native tools. An MCP server's tools receive only their arguments, so an MCP server can't tell who asked.
+MCP tools receive only their arguments, so they can't tell who asked.
 
-Schedules are shared controls: anyone `allow` lets cancel a Familiar's schedules can cancel any of them, so Alice can cancel Bob's reminder. That's the group's contract, not a missing check. A reminder is answered in the room it was made in, and its tools see the schedule's creator as the author. Give people who mustn't share tools or schedules separate workspaces.
-
-Native tools are code you install, trusted like any other dependency. They run in your process with its privileges. Familiar doesn't sandbox them. The host's `fetch` and `authorizedFetch`'s declarations limit where a well-behaved tool sends requests and secrets, whatever the model asks for, not what the tool's own code can do.
+Plugins run in your process with its privileges, unsandboxed. The `fetch` Familiar gives them limits where a well-behaved tool sends requests, not what its code can do.
 
 ## One workspace per tenant
 
-When your app has separate audiences, such as teams, households or customers, open one workspace for each, over that audience's own storage. Choose it from the authenticated session, never from anything the request says. Each workspace then has its own Familiars, rooms, memory, tools, schedules and secrets. Here each tenant's members share one room with one Familiar:
+When your app has separate audiences, such as teams or customers, open one workspace each over that audience's own storage. Choose it from the authenticated session, never from the request. Here each tenant's members share one room with one Familiar:
 
 <Code code={tenants} lang="ts" title="tenants.ts" />
 
-Mount `host.fetch` under your API path, for example with Hono's `app.mount('/api', host.fetch)`. Only one live workspace may own a storage, so a host that runs several processes routes each tenant to one of them, as a Durable Object does on [Cloudflare](/familiar/build/cloudflare/).
+Mount `host.fetch` under your API path, such as with Hono's `app.mount('/api', host.fetch)`. Only one live workspace may own a storage, so a host with several processes routes each tenant to one of them, as a Durable Object does on [Cloudflare](/familiar/build/cloudflare/).
 
 ## Notifications
 
-Familiar's `notify` says what to show and, for a scheduled run, which schedule it was and who created it. It never chooses recipients. This tenant's `notify` delivers through the app's own preferences and notifications, without Familiar's push routes:
+`notify` says what to show and, for a scheduled run, which schedule and who created it. It never chooses recipients. This one delivers through the app's own preferences:
 
 <Code code={notify} lang="ts" title="notify.ts" />
 
-The creator is attribution, not a recipient. Familiar's `/push` routes are optional, for hosts that want browser Web Push. A `PushHost` stores subscriptions and decides what each person may change. Its `subscribe` and `unsubscribe` receive the subscription and the authenticated `Author`. Store each subscription with its subscriber's `id`, and let unsubscribing remove only that person's own: an endpoint is not proof of whose browser it is. See [Notifications](/familiar/reference/core/#notifications) for the types.
+For browser Web Push, pass `push`, a `PushHost`, to `createHttpApi`; without it the `/push` routes answer 404. Its `subscribe` and `unsubscribe` receive the authenticated `Author`. Store each subscription with its subscriber's `id`, and let people remove only their own: an endpoint is no proof of whose browser it is.
 
-## What the daemon does for itself
+## Protect browsers yourself
 
-These protections are the installed daemon's own, for a host that only its owner reaches. `createHttpApi` doesn't apply them to your host, so choose your own.
+`createHttpApi` adds no CSRF protection or framing policy. If you authenticate browsers with cookies, add CSRF protection, such as Hono's `csrf` middleware, and set your own `Content-Security-Policy`. It does refuse WebSocket upgrades from another origin.
 
-The daemon authenticates every request as its owner, with the stable ID `owner`, serves every route and relies on the network for access. Its web app talks in the owner's DM with the workspace's first Familiar. It listens on loopback, is published only on the owner's tailnet and refuses requests whose `Host` isn't an IP address, `localhost` or a `.ts.net` name.
-
-Because the browser sends the network along with every request, the daemon also uses Hono's `csrf` middleware against cross-site requests. It refuses a browser's form or bodyless `POST` unless `Sec-Fetch-Site` is `same-origin` or `Origin` names the `Host` the request was sent to. That still accepts the daemon's own page through Tailscale Serve and through Vite's proxy. A JSON `POST` from another site needs a CORS preflight, which the daemon never grants, so a browser doesn't send it. Requests with neither header, such as from the CLI or `curl`, aren't from a browser and pass. If your host authenticates browsers with cookies or other ambient credentials, add the same protection, because `createHttpApi` doesn't.
-
-The daemon's own web UI also refuses to be shown inside another site's page, with `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. Those headers are the daemon's, not `createHttpApi`'s: a host that embeds Familiar in its own pages, or in a frame, sets its own framing policy.
-
-The daemon's Web Push stores each subscription with the authenticated subscriber who added it, and subscribing or unsubscribing changes only that subscriber's entries. The daemon authenticates every request as `owner`, so all of its devices share one subscriber. A host that authenticates separate people receives each person's `Author` and must enforce the same scoping in its `PushHost` implementation. It also gives each delivery a 30-second socket inactivity timeout, web-push's `timeout`, so a push service that stops answering can't hold up a scheduled run. That limits silence, not a delivery's total time or the size of its response. A failed delivery is reported and doesn't stop other devices getting theirs.
-
-The daemon gives plugins a `fetch` that refuses every address that isn't public unicast, on each connection and every redirect. Its web UI renders replies with Streamdown, which sanitises their HTML, and draws Mermaid diagrams in strict mode. Those reduce what a reply can do in the page, but they aren't a verified guarantee against script injection. Anyone who can reach the daemon can add MCP servers, including local commands that run as the daemon's user.
-
-The [HTTP API reference](/familiar/reference/http/) lists every route and event.
+The daemon is a useful reference for a single-owner host. It authenticates every request as `owner`, listens on loopback, is published only on the owner's tailnet, and adds `csrf`, `frame-ancestors 'none'` and a 30-second push timeout. See [`apps/daemon/src/serve.ts`](https://github.com/AidanZealley/familiar/blob/main/apps/daemon/src/serve.ts).

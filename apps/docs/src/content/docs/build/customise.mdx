@@ -10,60 +10,51 @@ import connected from '../../../../snippets/connected-plugin.ts?raw'
 
 ## Name and persona
 
-Each Familiar has its own identity, given to `familiars.create` and changed with `familiars.update`. They live in the workspace's storage, so create them once, on the first open.
+Each Familiar has a `name` and an optional `persona`, given to `familiars.create` and changed with `familiars.update`. Create Familiars once, on the first open.
 
-`name` is what a Familiar is called: in its default persona, notification titles and memory's prompts.
-
-`persona` is who it is in conversation. It replaces the default, `defaultPersona(name)`, completely and is used as given, so include the name if the model should know it.
-
-`hostInstructions`, a workspace option, is what your host adds after every Familiar's persona, such as what your UI can show, like Markdown. Core still adds its own instructions for rooms, memory, schedules and tools. The prompt changes only when these do, so it stays cached.
+- `persona` replaces the default, `defaultPersona(name)`, completely. Include the name if the model should know it.
+- `hostInstructions`, a workspace option, is added after every persona, such as what your UI renders. Core adds its own instructions for rooms, memory, schedules and tools.
 
 <Code code={customAssistant} lang="ts" title="assistant.ts" />
 
 ## Plugins
 
-The daemon includes web search and page reading. Core has no tools of its own beyond time, memory and schedules. A plugin adds yours: plain Pi Durable tools, grouped under a stable `name` with a `title` for the Connections page and any `secrets` they share.
+Core's own tools cover time, memory and schedules. A plugin adds yours: Pi Durable tools under a stable `name`, with a `title` for the Connections page and any `secrets` they share.
 
-Import `defineTool` and `schema` from `@familiar-ai/core` rather than installing your own copy of Pi, so they match the Pi version Familiar runs:
+Import `defineTool` and `schema` from `@familiar-ai/core`, not your own copy of Pi, so they match the version Familiar runs:
 
 <Code code={plugin} lang="ts" title="greeting.ts" />
 
 Inside `execute`:
 
-- `familiar(context)` gives the call what Familiar provides: `fetch`, `authorizedFetch`, `notify`, `timeZone` and `author()`.
-- `await familiar(context).author()` is the person whose message started this run, or the creator of a scheduled run, traced back through any chain of Familiar replies. Background work, such as memory filing, has no author. Familiar reads it from the stored message, never from the tool's arguments.
-- Every tool on a Familiar is available to everyone who chats with it. Rules about particular records or actions, such as who may change a task, are the tool's to check against the author, or the app API's behind it.
-- `context.abortSignal` is set when the call can be cancelled. Pass it to anything you can cancel.
-- `replay` defaults to `unsafe`. After a crash, Familiar reruns an interrupted call only when it's `safe`. Mark a tool safe only if repeating its effects is harmless.
+- `await familiar(context).author()` is the person whose message started the run, or a scheduled run's creator. It's `undefined` for background work. Use it to check rules such as who may change a task; every tool is available to everyone who talks to the Familiar.
+- Pass `context.abortSignal` to anything you can cancel.
+- `replay` defaults to `unsafe`. Mark a tool `safe` only if repeating it after a crash is harmless.
+
+Each Familiar opts in to plugins: pass `capabilities` to `familiars.create`, set the workspace's `defaultCapabilities`, or call `setCapabilities` later.
 
 ## Secrets and network access
 
-A plugin declares its secrets and where each may be sent. The owner sets the value through the Connections API. Familiar never passes the value to plugin code.
+A plugin declares its secrets and exactly where each may be sent. The owner sets the value through the Connections API, and the plugin's code never sees it.
 
-`familiar(context)` has two ways to make a request:
-
-- `fetch(url, init?)` is the host's network access, for requests that need no secret.
-- `authorizedFetch(secret, url, init?)` is the same `fetch` with the named secret attached, only if the request's origin, method and path match the declaration. Otherwise it throws without sending.
+- `familiar(context).fetch(url)` is for requests that need no secret.
+- `familiar(context).authorizedFetch(secret, url)` attaches the secret only if the request's origin, method and path match the declaration. Otherwise it throws without sending.
 
 <Code code={connected} lang="ts" title="tasks.ts" />
 
-A model can be talked into fetching any URL, so `fetch` must refuse private, loopback and tailnet addresses the process can reach, both when it connects and on every redirect. On Node, Familiar's default does. In Workers and browsers, which can't reach those addresses, the default is the runtime's `fetch`. Pass `fetch` to `openWorkspace` only to replace that policy.
+A model can be talked into fetching any URL, so `fetch` must refuse private, loopback and tailnet addresses. On Node, Familiar's default does; in Workers and browsers, which can't reach them, it's the runtime's `fetch`. Pass your own `fetch` to `openWorkspace` only to change that.
 
-Familiar doesn't scrub authenticated responses or tool output. Whatever a tool returns, the model reads.
-
-These limits stop the model steering a well-behaved plugin to a private address, or a secret into the wrong request. They don't contain the plugin itself. A plugin is code you install, trusted like any other dependency: it runs in your process with its privileges, so it could call the global `fetch` or read whatever the process can. Familiar doesn't sandbox it. Install only plugins you trust.
+These limits steer a well-behaved plugin. They don't contain one: a plugin runs in your process with its privileges. Install only plugins you trust.
 
 ## Tool details for UIs
 
-A tool result has two audiences. `output` is what the model reads. `details` is optional JSON a UI can render, such as a list or a card. It reaches the client as `ToolCall.details`. Clients receive it as `unknown`, so check its shape before rendering and fall back to the text output.
+A tool result has `output` for the model and optional `details`, JSON a UI can render, such as a card. It reaches the client as `ToolCall.details`, typed `unknown`, so check its shape and fall back to the text.
 
 ## MCP servers
 
-The owner can add MCP servers at runtime through `workspace.mcp` or the `/mcp` routes. Every Familiar in the workspace shares them. HTTP servers use `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory from the host and run with the host's privileges. Without that factory, local commands aren't available: they're saved but show as failed. The host owns MCP transport and destination policy. Familiar checks a server's shape, then connects through `mcpFetch` or `mcpStdio`, so restrict protocols, destinations or commands there.
+The owner adds MCP servers at runtime through `workspace.mcp` or the `/mcp` routes, and turns each on per Familiar. HTTP servers connect through `mcpFetch`, which may reach private networks because the owner chose the endpoint. Local commands need an `mcpStdio` factory and run with your host's privileges; without one they show as failed. Restrict protocols, destinations and commands in those two.
 
-### Run an MCP tool in the background from code
-
-Once you've added the MCP server and enabled it for a Familiar, set the override using the tool name from the server's listing.
+To let a slow MCP tool report back later instead of holding up the reply, run it in the background:
 
 ```ts
 await workspace.connections.updateToolSettings(
@@ -73,12 +64,10 @@ await workspace.connections.updateToolSettings(
 )
 ```
 
-When the Familiar calls `watch_print` directly, Familiar can reply while the request runs and then report the outcome in the original room. Any configured **Ask first** approval still happens before dispatch. The MCP server can expose an ordinary tool.
+The Familiar replies while the call runs, then reports the result in the original room. **Ask first** approval still happens before the call starts.
 
 ## Data that belongs to your host
 
-Keep your app's own records in your app. Familiar's storage holds rooms, each Familiar's working context, memory and schedules, and plugin secrets. When a tool needs your data, give it access through a plugin that calls your API or database, and check the call's author for permission there.
+Keep your app's records in your app. Familiar's storage holds rooms, each Familiar's context, memory and schedules, and plugin secrets. Give tools your data through a plugin that calls your API, and check the author there.
 
-## Pi's own types and helpers
-
-`@familiar-ai/core/extensions` exports Pi Durable's types and helpers, such as `ToolExecutionApi` and documents for a tool's state. They follow the bundled Pi version. A plugin contributes tools only, and hosts never receive Familiar's running harness.
+`@familiar-ai/core/extensions` exports Pi Durable's types and helpers, such as `ToolExecutionApi`, at the bundled Pi version.
