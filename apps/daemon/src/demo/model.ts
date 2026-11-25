@@ -40,9 +40,20 @@ const replies: NonNullable<Scenario['replies']> = Object.assign(
   ...Object.values(scenarios).map((scenario) => scenario.replies),
 )
 
-/** How many images came with the message a request answers. */
+/**
+ * How many images came with the message a request answers: the newest
+ * person's message, which a recall note may follow.
+ */
 const imagesIn = ({ context }: ScriptedRequest) => {
-  const input = context.messages.findLast((message) => message.role === 'user')
+  const input = context.messages.findLast(
+    (message) =>
+      message.role === 'user' &&
+      Array.isArray(message.content) &&
+      message.content.some(
+        (part) =>
+          part.type === 'text' && part.text.startsWith('[Message from '),
+      ),
+  )
   return Array.isArray(input?.content)
     ? input.content.filter((part) => part.type === 'image').length
     : 0

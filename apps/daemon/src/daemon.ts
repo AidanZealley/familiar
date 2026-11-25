@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, realpathSync } from 'node:fs'
 import { CodemodeSandbox } from '@earendil-works/pi-codemode'
+import { createNodePhotonImages } from '@earendil-works/pi-durable/images/node'
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node'
 import { computer } from '@familiar-ai/computer'
 import { dockerHost } from '@familiar-ai/computer/docker'
@@ -61,6 +62,8 @@ export async function serve() {
       secrets: fileSecretStore(dataPath('secrets.json'), dataPath('vault.key')),
       mcpFetch: fetch,
       mcpStdio: stdioTransport,
+      // Photon in a worker thread, which exits when idle to free its memory.
+      images: { processor: await createNodePhotonImages() },
       codemodeSandbox: new CodemodeSandbox({
         memoryLimitBytes: 256 * 1024 * 1024,
       }),

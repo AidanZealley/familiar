@@ -1,6 +1,7 @@
 // Scripted model, in-memory storage and a pretend login, so nothing here
 // reads the installation's config or data.
 import { MemoryStorage } from '@earendil-works/pi-durable'
+import { createNodePhotonImages } from '@earendil-works/pi-durable/images/node'
 import {
   definePlugin,
   memorySecrets,
@@ -64,6 +65,7 @@ export async function openDemo(
       fetch: demoFetch,
       mcpFetch: demoMcpFetch,
       mcpStdio: demoMcpStdio,
+      images: { processor: await createNodePhotonImages() },
     },
     story.familiars[0].name,
   )

@@ -9,6 +9,10 @@ import { tmpdir } from 'node:os'
 import { delimiter, resolve } from 'node:path'
 import { runNpm } from '../src/cli/npm.ts'
 
+/** A 1×1 PNG, as base64. */
+const PIXEL =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
 // Install outside the workspace so missing dependencies and assets cannot
 // accidentally resolve from the developer's checkout.
 const temporary = await mkdtemp(resolve(tmpdir(), 'familiar-release-'))
@@ -186,6 +190,36 @@ try {
     '42',
   )
 
+  // Photon's worker and WebAssembly load from the install. The daemon would
+  // fall back to its own thread if the worker couldn't start, so it's
+  // started here directly.
+  const photonCheck = resolve(installed, 'verify-photon.mjs')
+  await writeFile(
+    photonCheck,
+    `import { Worker } from 'node:worker_threads'
+const worker = new Worker(new URL('./node-worker.js', import.meta.url))
+const bytes = Uint8Array.from(atob('${PIXEL}'), (char) => char.charCodeAt(0))
+worker.postMessage({
+  id: 0,
+  bytes,
+  mimeType: 'image/png',
+  limits: { maxWidth: 1568, maxHeight: 1568, maxBytes: 1500000 },
+})
+worker.once('message', (reply) => {
+  console.log(reply.result?.mimeType ?? reply.error)
+  void worker.terminate()
+})`,
+  )
+  assert.equal(
+    execFileSync(process.execPath, [photonCheck], {
+      cwd: temporary,
+      env,
+      encoding: 'utf8',
+      timeout: 10000,
+    }).trim(),
+    'image/png',
+  )
+
   const reservation = createServer().listen(0, '127.0.0.1')
   await once(reservation, 'listening')
   const address = reservation.address()
@@ -258,6 +292,31 @@ try {
       ).status,
       200,
     )
+
+    // An image uploads, prepared by Photon, and loads back.
+    const api = async (path: string, init?: RequestInit) => {
+      const response = await fetch(`${url}/api${path}`, {
+        ...init,
+        signal: AbortSignal.timeout(10000),
+      })
+      assert(response.ok, `${path}: ${response.status}`)
+      return response
+    }
+    const [familiar] = (await (await api('/familiars')).json()) as {
+      id: number
+    }[]
+    const { room } = (await (
+      await api(`/familiars/${familiar.id}/dm`, { method: 'POST' })
+    ).json()) as { room: number }
+    const image = (await (
+      await api(`/rooms/${room}/images`, {
+        method: 'POST',
+        body: Buffer.from(PIXEL, 'base64'),
+      })
+    ).json()) as { id: string; mimeType: string }
+    assert.equal(image.mimeType, 'image/png')
+    const stored = await api(`/rooms/${room}/images/${image.id}`)
+    assert.equal(stored.headers.get('content-type'), 'image/png')
   } finally {
     child.kill('SIGTERM')
     const forceStop = setTimeout(() => child.kill('SIGKILL'), 5000)
@@ -273,7 +332,7 @@ try {
     )
   }
   console.log(
-    `Release verified on ${process.platform}: installed CLI, web assets, SQLite and HTML worker. ${process.platform === 'linux' ? 'Bundled sign-in and fake-service lifecycle checks also passed.' : 'Native service lifecycle remains a separate check.'}`,
+    `Release verified on ${process.platform}: installed CLI, web assets, SQLite, HTML worker and image uploads. ${process.platform === 'linux' ? 'Bundled sign-in and fake-service lifecycle checks also passed.' : 'Native service lifecycle remains a separate check.'}`,
   )
 } finally {
   await rm(temporary, { recursive: true, force: true })

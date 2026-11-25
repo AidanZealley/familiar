@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
+import { createCloudflarePhotonImages } from '@earendil-works/pi-durable/images/cloudflare'
 import { DurableWorkspace, WorkspaceTerminated } from '@familiar-ai/cloudflare'
 import { createHttpApi } from '@familiar-ai/core/http'
 import type { Env } from './env.ts'
@@ -16,6 +17,12 @@ export class Bot extends DurableObject<Env> {
       chatModel: ECHO_MODEL.model,
       modelChoices: [ECHO_MODEL],
       timeZone: this.env.TIME_ZONE,
+      // Photon runs on the object's own thread, in its 128 MB: a lower cap
+      // than the daemon's keeps decoding within it.
+      images: {
+        processor: createCloudflarePhotonImages(),
+        maxPixels: 16_000_000,
+      },
       // A real host delivers these, such as by Web Push or email.
       notify: async (notification) => console.log(notification),
     }),
