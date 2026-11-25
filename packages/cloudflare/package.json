@@ -9,7 +9,8 @@
     "directory": "packages/cloudflare"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./images": "./src/images.ts"
   },
   "files": [
     "dist"
@@ -17,7 +18,8 @@
   "publishConfig": {
     "access": "public",
     "exports": {
-      ".": "./dist/index.js"
+      ".": "./dist/index.js",
+      "./images": "./dist/images.js"
     }
   },
   "scripts": {

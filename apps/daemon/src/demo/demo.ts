@@ -1,13 +1,13 @@
 // Scripted model, in-memory storage and a pretend login, so nothing here
 // reads the installation's config or data.
 import { MemoryStorage } from '@earendil-works/pi-durable'
-import { createNodePhotonImages } from '@earendil-works/pi-durable/images/node'
 import {
   definePlugin,
   memorySecrets,
   type Notify,
   type FamiliarPlugin,
 } from '@familiar-ai/core'
+import { createNodePhotonImages } from '@familiar-ai/core/node'
 import { WEB_RENDERING } from '../rendering.ts'
 import { OWNER_ID } from '../serve.ts'
 import { openDaemonWorkspace } from '../workspace.ts'

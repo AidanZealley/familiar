@@ -43,6 +43,7 @@ export {
   type ImagesApi,
   type ImagesOptions,
 } from './images/index.ts'
+export type { ImageProcessor } from '@earendil-works/pi-durable/tools'
 export type { HistoryQuery, HistoryPage } from './rooms/index.ts'
 export {
   ModelError,
