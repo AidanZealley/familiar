@@ -22,7 +22,7 @@ const ref = z
   .string()
   .describe('The [ref=…] of the element, from the latest snapshot.')
 
-/** The computer's display, in pixels: its size never changes. */
+/** The computer's initial display size in pixels. */
 export const SCREEN = { width: 1280, height: 800 }
 
 const point = {
@@ -30,13 +30,11 @@ const point = {
     .number()
     .int()
     .min(0)
-    .max(SCREEN.width - 1)
     .describe('Pixels from the left of the screen, as in screen_screenshot.'),
   y: z
     .number()
     .int()
     .min(0)
-    .max(SCREEN.height - 1)
     .describe('Pixels from the top of the screen, as in screen_screenshot.'),
 }
 
@@ -73,7 +71,7 @@ export const computerTools = {
     }),
   },
   screen_screenshot: {
-    description: `A picture of the computer's whole screen, ${SCREEN.width}×${SCREEN.height} pixels: its desktop, taskbar and open windows, the browser's included. Use the screen tools for apps other than the browser, or what the browser tools can't reach.`,
+    description: `A picture of the computer's whole screen: its desktop, taskbar and open windows, the browser's included. Use the screen tools for apps other than the browser, or what the browser tools can't reach.`,
     input: z.object({}),
     reads: true,
   },

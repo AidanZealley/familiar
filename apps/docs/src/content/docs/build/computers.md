@@ -36,7 +36,7 @@ Turning the plugin off for a Familiar, or removing the Familiar, deletes its com
 ## The tools
 
 - `browser_snapshot`, `browser_screenshot`, `browser_navigate`, `browser_click`, `browser_type`: Chromium, by element refs from the snapshot
-- `screen_screenshot`, `screen_click`, `screen_type`, `screen_key`, `screen_scroll`: any app on the 1280×800 desktop, by pixel
+- `screen_screenshot`, `screen_click`, `screen_type`, `screen_key`, `screen_scroll`: any app on the desktop, by pixel. The desktop starts at 1280×800.
 - `run_command`: a shell command in its home directory, for up to 10 minutes
 - `read_file`, `write_file`: text files
 - `saved_logins`, `request_login`, `sign_in`: see [Saved logins](#saved-logins)
