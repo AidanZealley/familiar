@@ -90,7 +90,7 @@ export const Question = ({ question }: QuestionProps) => {
         </Marker>
         {shape.type === 'approval' && actions}
       </div>
-      <div className="ml-6 flex flex-col gap-3 border-l pl-3">
+      <div className="ml-6 flex flex-col gap-3 border-l pl-3 wrap-anywhere">
         {question.kind !== 'tool' && (
           <p className="text-muted-foreground">{question.message}</p>
         )}
