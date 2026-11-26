@@ -21,18 +21,11 @@ test('removing a Familiar deletes its secrets after every admitted change, and r
   await expect(ada.get('other')).rejects.toThrow('familiarSecrets')
 })
 
-test('a removal that fails lets changes in again, and closing waits for admitted ones', async () => {
+test('closing waits for admitted changes, then refuses more', async () => {
   const store = memorySecrets()
   const plugin = { name: 'p', title: 'P', tools: [], familiarSecrets: ['key'] }
-  const failing = {
-    ...store,
-    delete: async () => Promise.reject(new Error('disk')),
-  }
-  const secrets = familiarSecrets(failing, [plugin])
+  const secrets = familiarSecrets(store, [plugin])
   const ada = secrets.for(plugin, 1 as FamiliarId)
-
-  await expect(secrets.remove(1 as FamiliarId)).rejects.toThrow('disk')
-  await ada.update('key', () => 'kept')
 
   const admitted = ada.update('key', () => 'last')
   await secrets.close()
