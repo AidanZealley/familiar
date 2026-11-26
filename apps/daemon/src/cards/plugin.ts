@@ -12,12 +12,10 @@ import {
   checkRefresh,
   checkSpec,
   isExpression,
-  refreshSchema,
   toolCalls,
   toolPrompt,
   type Spec,
 } from 'gencn'
-import { z } from 'zod'
 // apps/web's own catalog (private workspace package), so the daemon offers
 // exactly the blocks the web app can draw.
 import { catalog, SHOW_CARD, type CardDetails } from '@familiar-ai/web/cards'
@@ -29,12 +27,13 @@ const description = `Show the person a small card in the conversation: a device'
 
 Call show_card directly, never from a codemode script: only a direct call shows the card.
 
-Controls run your MCP connection tools directly when the person uses them, without you: callTool's tool is the tool's full name, such as mcp__home__HassTurnOn (find tools with tool_search first). Bind each control's value to state with $bindState and pass it in args with $state. A refresh reads with a tool that only reads, such as one that gets the current state; it runs once now to check your extract against your state, and again whenever the card is on screen.
+Controls run your MCP connection tools directly when the person uses them, without you: callTool's tool is the tool's full name, such as mcp__home__HassTurnOn (find tools with tool_search first). Bind each control's value to state with $bindState and pass it in args with $state.
 
 ${toolPrompt(catalog)}`
 
 // json-render's own schema has no `state`, `on`, `watch` or gencn's
-// `refresh`: add them, so Pi's argument check lets them through.
+// `refresh`: add them, so Pi's argument check lets them through. checkSpec
+// checks them properly.
 const catalogSchema = catalog.jsonRender.jsonSchema() as {
   properties: {
     elements: { additionalProperties: { properties: object } }
@@ -60,7 +59,12 @@ const parameters = {
       },
     },
     state: { type: 'object', description: 'Data the card reads' },
-    refresh: z.toJSONSchema(refreshSchema),
+    // Its shape is in the description, its full grammar in checkSpec's
+    // repair text, which a malformed refresh gets instead of Pi's error.
+    refresh: {
+      type: 'object',
+      description: 'How the card reads its state again',
+    },
   },
 }
 
