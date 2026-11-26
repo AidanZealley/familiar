@@ -12,7 +12,7 @@ const DISPLAY = ':1'
  * Once the display takes X clients it sets `DISPLAY` for every process the
  * agent starts after: the browser, commands and the screen tools.
  *
- * The display is always `SCREEN`'s size: viewers can't resize it. The
+ * The display starts at `SCREEN`'s size. Viewers can't resize it. The
  * clipboard never crosses to or from a viewer. If Xvnc or JWM ends, it
  * calls `lost`, as the computer can't work without them.
  */
@@ -45,11 +45,9 @@ export async function startDisplay(lost: (reason: string) => void) {
       'tcp',
       // Every viewer shares the one screen.
       '-AlwaysShared',
-      // A fixed size: no viewer or app can change it. Besides, TigerVNC 1.12
-      // crashes on some viewers' resize requests.
+      // TigerVNC 1.12 can crash on viewer resize requests. X11 apps can
+      // still use RANDR, which some apps require at startup.
       '-AcceptSetDesktopSize=0',
-      '-extension',
-      'RANDR',
       // Nothing on the desktop, such as vncconfig, may change these.
       '-AllowOverride',
       '',

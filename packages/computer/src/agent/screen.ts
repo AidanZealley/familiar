@@ -48,7 +48,7 @@ export const screen = {
       })
     ).stdout,
 
-  click: (
+  click: async (
     x: number,
     y: number,
     button: keyof typeof BUTTONS,
@@ -57,7 +57,7 @@ export const screen = {
   ) =>
     xdotool(
       signal,
-      ...moveTo(x, y),
+      ...(await moveTo(x, y, signal)),
       'click',
       ...(double ? ['--repeat', '2'] : []),
       BUTTONS[button],
@@ -89,7 +89,7 @@ export const screen = {
   key: (keys: string[], signal: AbortSignal) =>
     xdotool(signal, 'key', '--clearmodifiers', '--', ...keys),
 
-  scroll: (
+  scroll: async (
     x: number,
     y: number,
     direction: keyof typeof WHEEL,
@@ -98,7 +98,7 @@ export const screen = {
   ) =>
     xdotool(
       signal,
-      ...moveTo(x, y),
+      ...(await moveTo(x, y, signal)),
       'click',
       '--repeat',
       String(amount),
@@ -108,7 +108,16 @@ export const screen = {
 
 // Without `--sync`, which waits for a move forever when the pointer is
 // already there.
-const moveTo = (x: number, y: number) => ['mousemove', String(x), String(y)]
+const moveTo = async (x: number, y: number, signal: AbortSignal) => {
+  const { stdout } = await run('xdotool', ['getdisplaygeometry'], { signal })
+  const [width, height] = stdout.trim().split(/\s+/).map(Number)
+  if (x >= width || y >= height) {
+    throw new Error(
+      `Point (${x}, ${y}) is outside the ${width}×${height} screen. Take a fresh screenshot.`,
+    )
+  }
+  return ['mousemove', String(x), String(y)]
+}
 
 /**
  * Puts `text` in an X selection. xclip stays behind to serve it, holding
