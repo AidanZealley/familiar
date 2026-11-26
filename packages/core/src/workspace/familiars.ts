@@ -67,6 +67,11 @@ export type FamiliarRecord = FamiliarIdentity & {
 export type FamiliarsState = {
   /** By FamiliarId. Object keys are strings, so a key is `String(id)`. */
   familiars: Record<string, FamiliarRecord>
+  /**
+   * Removed Familiars whose saved logins are still to be deleted, while
+   * there are any. remove.ts owns it.
+   */
+  secretsToDelete?: FamiliarId[]
 }
 
 export const Familiars = defineDoc<FamiliarsState>({

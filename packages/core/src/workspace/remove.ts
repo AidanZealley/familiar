@@ -7,6 +7,7 @@ import type {
 import { ThinkingLevels } from '../conversation/models.ts'
 import { Filing } from '../memory/filing/task.ts'
 import { Journal, keyOf, Memory, Pages } from '../memory/store.ts'
+import type { FamiliarSecretsApi } from '../plugins/familiar-secrets.ts'
 import { RoomCursors } from '../rooms/catch-up.ts'
 import type { TurnInput } from '../rooms/log.ts'
 import { leaveRooms } from '../rooms/rooms.ts'
@@ -30,10 +31,11 @@ const FAMILIAR_DOCS: SessionDocFamilyToken<JsonObject, null>[] = [
 
 /**
  * Removes a Familiar, then stops its work. One commit takes it out of the
- * registry and every named room and retires its documents, so nothing new
- * can start for it: rooms route nothing to it, its DMs refuse new messages,
- * and `familiarOf` finds no owner for its conversations, which stay in
- * storage with the rooms' history. Then Pi's aborts stop what it was doing:
+ * registry and every named room, retires its documents and lists its saved
+ * logins for `deleteRemovedSecrets`, so nothing new can start for it: rooms
+ * route nothing to it, its DMs refuse new messages, and `familiarOf` finds
+ * no owner for its conversations, which stay in storage with the rooms'
+ * history. Then Pi's aborts stop what it was doing:
  * its turns in every room, its chat's run and queue, its schedules and
  * memory upkeep (its chat's background tasks), and upkeep's run. Throws for
  * a Familiar that doesn't exist.
@@ -45,7 +47,9 @@ export async function removeFamiliar(
 ) {
   const upkeep = await harness.commit(async (tx) => {
     const { upkeep } = await familiarRecord(tx, familiar)
-    delete (await tx.doc(Familiars)).familiars[familiar]
+    const registry = await tx.doc(Familiars)
+    delete registry.familiars[familiar]
+    registry.secretsToDelete = [...(registry.secretsToDelete ?? []), familiar]
     await leaveRooms(tx, familiar)
     const memory = await tx.doc(Memory, String(familiar), null)
     for (const subject of memory.subjects) {
@@ -79,5 +83,31 @@ export async function removeFamiliar(
     )?.abort(context, {
       background: true,
     })
+  }
+}
+
+/**
+ * Deletes the saved logins of every removed Familiar still listed, each
+ * then taken off the list. Deleting is idempotent, so one interrupted by a
+ * crash or a failed store is simply done again: by the next removal, or the
+ * next open.
+ */
+export async function deleteRemovedSecrets(
+  harness: Harness,
+  secrets: FamiliarSecretsApi | undefined,
+  context: Context,
+) {
+  const registry = await harness.snapshot(Familiars, context)
+  for (const familiar of registry?.secretsToDelete ?? []) {
+    await secrets?.remove(familiar)
+    await harness.commit(async (tx) => {
+      const registry = await tx.doc(Familiars)
+      const left = registry.secretsToDelete?.filter((id) => id !== familiar)
+      if (left?.length) {
+        registry.secretsToDelete = left
+      } else {
+        delete registry.secretsToDelete
+      }
+    }, context)
   }
 }

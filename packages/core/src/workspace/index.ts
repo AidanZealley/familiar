@@ -101,7 +101,7 @@ import {
   type ModelDefaults,
   type ModelDefaultsChange,
 } from './models.ts'
-import { removeFamiliar } from './remove.ts'
+import { deleteRemovedSecrets, removeFamiliar } from './remove.ts'
 
 export type { FamiliarId, FamiliarIdentity } from './familiars.ts'
 export type {
@@ -339,8 +339,9 @@ export type Workspace = {
      * Removes it: stops its work and retires its configuration and memory.
      * It leaves every named room, which opens one it led and archives one
      * it leaves empty; its DMs stay readable but take no new messages.
-     * Rooms keep its replies, under its name then. Throws for no such
-     * Familiar.
+     * Rooms keep its replies, under its name then. Then deletes its saved
+     * logins. Throws for no such Familiar, or if deleting its logins
+     * failed: it's removed, and the next open deletes them.
      */
     remove(id: FamiliarId): Promise<void>
   }
@@ -654,6 +655,9 @@ export async function openWorkspace(
 
     const perFamiliar =
       options.secrets && familiarSecrets(options.secrets, options.plugins ?? [])
+    // Logins a removal left, as when the process stopped before deleting
+    // them. A store that fails now leaves them for the next open.
+    await deleteRemovedSecrets(harness, perFamiliar, context).catch(() => {})
     const closePlugins = await openPlugins(options.plugins ?? [], {
       familiarSecrets: perFamiliar,
       usersOf: async (plugin) => {
@@ -710,11 +714,12 @@ export async function openWorkspace(
         },
         update,
         remove: async (id) => {
-          // First, so a crash between leaves no secrets without an owner.
-          await perFamiliar?.remove(id)
           await removeFamiliar(harness, id, context)
           opened.delete(id)
           pluginUsersChanged()
+          // Last: if it fails, the Familiar is still removed, and the next
+          // open deletes its logins.
+          await deleteRemovedSecrets(harness, perFamiliar, context)
         },
       },
       people: {

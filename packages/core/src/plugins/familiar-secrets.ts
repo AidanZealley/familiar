@@ -8,8 +8,8 @@ export type FamiliarSecrets = {
   /**
    * Replaces the value with what `change` returns from the current one
    * (undefined deletes it), after every earlier change to this Familiar's
-   * secrets, so changes never lose each other. Throws once the Familiar is
-   * being removed.
+   * secrets, so changes never lose each other. Throws once the Familiar's
+   * secrets are being deleted.
    */
   update(
     name: string,
@@ -25,9 +25,9 @@ export const FAMILIAR_SECRET_PREFIX = 'familiar/'
  * store under the plugin's connection as `familiar/<id>/<name>`, only by
  * declared names, so removing a Familiar knows every one to delete. Each
  * Familiar's reads and writes run one at a time, and removing it runs in
- * the same line: it refuses changes from then on and deletes after every
- * change already admitted, so none can bring a secret back. A removal that
- * fails lets changes in again, as the Familiar stays. Closing refuses every
+ * the same line: it refuses changes from then on, for good, and deletes
+ * after every change already admitted, so none can bring a secret back.
+ * Only remove.ts removes, once the Familiar is gone. Closing refuses every
  * change and waits for those admitted, so none outlives the workspace.
  */
 export function familiarSecrets(
@@ -35,7 +35,7 @@ export function familiarSecrets(
   plugins: readonly FamiliarPlugin[],
 ) {
   const lines = new Map<FamiliarId, Promise<void>>()
-  /** Each Familiar being removed, or removed: its removal. */
+  /** Each Familiar whose secrets are being deleted, or were: its deletion. */
   const removals = new Map<FamiliarId, Promise<void>>()
   let closed = false
 
@@ -89,7 +89,7 @@ export function familiarSecrets(
         })
       },
     }),
-    /** Deletes every plugin's secrets for `familiar`, as removing it does. */
+    /** Deletes every plugin's secrets for a removed Familiar. */
     remove: (familiar: FamiliarId) => {
       const removal =
         removals.get(familiar) ??
@@ -99,9 +99,6 @@ export function familiarSecrets(
               await store.delete(...key(plugin, familiar, name))
             }
           }
-        }).catch((error: unknown) => {
-          removals.delete(familiar)
-          throw error
         })
       removals.set(familiar, removal)
       return removal

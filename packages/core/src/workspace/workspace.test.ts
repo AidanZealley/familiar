@@ -6,9 +6,15 @@ import {
 import { expect, onTestFinished, test } from 'vitest'
 import { seedPage, withHarness } from '../memory/testing.ts'
 import { scriptedModels } from '../models/scripted.ts'
-import { definePlugin, defineTool, schema } from '../index.ts'
+import { memorySecrets } from '../connections/index.ts'
+import {
+  definePlugin,
+  defineTool,
+  schema,
+  type FamiliarSecrets,
+} from '../index.ts'
 import { offeredTools, ReopenableStorage, replyTo } from '../testing.ts'
-import { createFamiliar } from './familiars.ts'
+import { createFamiliar, type FamiliarId } from './familiars.ts'
 import {
   CapabilityError,
   openWorkspace,
@@ -336,6 +342,54 @@ test('a plugin opens with the Familiars that use it, hears each change, and clos
   const reopened = await openWorkspace(options)
   onTestFinished(() => reopened.dismiss())
   await expect.poll(() => heard).toEqual([[ada.id]])
+})
+
+test('removing a Familiar deletes its saved logins, and if the store fails, the next open does', async () => {
+  const store = memorySecrets()
+  let failing = false
+  const secrets = {
+    ...store,
+    delete: async (...args: Parameters<typeof store.delete>) =>
+      failing ? Promise.reject(new Error('disk')) : store.delete(...args),
+  }
+  let secretsFor: ((familiar: FamiliarId) => FamiliarSecrets) | undefined
+  const options = {
+    storage: new ReopenableStorage(),
+    secrets,
+    models: scriptedModels(() => fauxAssistantMessage('Hello.')),
+    chatModel: { provider: 'faux', modelId: 'faux-1' },
+    timeZone: 'UTC',
+    plugins: [
+      definePlugin({
+        name: 'site',
+        title: 'Site',
+        tools: [],
+        familiarSecrets: ['login'],
+        open: (context) => {
+          secretsFor = context.secretsFor
+        },
+      }),
+    ],
+  }
+  const saved = (familiar: FamiliarId) =>
+    store.get({ kind: 'plugin', name: 'site' }, `familiar/${familiar}/login`)
+  const workspace = await openWorkspace(options)
+  const ada = await workspace.familiars.create({ name: 'Ada' })
+  await secretsFor!(ada.id).update('login', () => 'secret')
+
+  failing = true
+  await expect(workspace.familiars.remove(ada.id)).rejects.toThrow('disk')
+  expect(await workspace.familiars.list()).toEqual([])
+  await expect(
+    secretsFor!(ada.id).update('login', () => 'again'),
+  ).rejects.toThrow()
+  expect(await saved(ada.id)).toBe('secret')
+  await workspace.dismiss()
+
+  failing = false
+  const reopened = await openWorkspace(options)
+  onTestFinished(() => reopened.dismiss())
+  expect(await saved(ada.id)).toBeUndefined()
 })
 
 test('a plugin hears who uses it before resumed work reaches its tools', async () => {
