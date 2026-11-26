@@ -407,7 +407,16 @@ export const roomCommands = (
        */
       run: (
         familiar: number,
-        call: { tool: string; args: JsonObject; approved?: boolean },
+        call: {
+          tool: string
+          args: JsonObject
+          approved?: boolean
+          /**
+           * The card it's run from, the reply entry and its call's ID, so
+           * the transcript draws the run as part of that card.
+           */
+          card?: { entry: number; call: string }
+        },
       ): Promise<ToolRun> =>
         read(
           room.tools.run.$post({

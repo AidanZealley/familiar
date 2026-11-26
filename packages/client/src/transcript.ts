@@ -47,6 +47,18 @@ export type ToolCall = {
   output: string
   /** Persisted tool data. Hosts narrow it before rendering. */
   details?: unknown
+  /** The room entry holding the call, once its reply is posted. */
+  entry?: number
+  /**
+   * Tools a person ran from this call's card, oldest first: part of this
+   * item, so the transcript has no row of their own.
+   */
+  runs?: ToolCallRun[]
+}
+
+/** A person's run of a tool from a call's card (see `ToolCall.runs`). */
+export type ToolCallRun = Omit<ToolRunData, 'requestId' | 'card'> & {
+  id: string
 }
 
 export type TranscriptGap = Extract<
@@ -187,9 +199,11 @@ export function toRoomTranscript(
     })
   }
   const items: TranscriptItem[] = []
+  // Every posted tool call by `entry:call`, so a run from its card joins it.
+  const calls: PostedCalls = new Map()
   for (const row of rows) {
     if (row.kind === 'entry') {
-      items.push(...toItems(row.entry, retryable.has(row.entry.id)))
+      items.push(...toItems(row.entry, retryable.has(row.entry.id), calls))
     } else if (row.kind === 'gap') {
       items.push({
         type: 'gap',
@@ -230,7 +244,21 @@ function retryableIn(entries: readonly EntryRecord[], turns: RoomActivity) {
   )
 }
 
-function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
+/** Posted tool calls by `entry:call`: what a run's `card` names. */
+type PostedCalls = Map<string, ToolCall>
+
+const callKey = (entry: number, call: string) => `${entry}:${call}`
+
+/**
+ * `entry`'s items. An entry with a parent is drawn by its parent: a run
+ * from a card that `calls` has joins that call's item and makes none of
+ * its own. Anything else is its own item.
+ */
+function toItems(
+  entry: EntryRecord,
+  retryable: boolean,
+  calls: PostedCalls,
+): TranscriptItem[] {
   const id = `entry:${entry.id}`
   switch (entry.kind) {
     case MESSAGE_KIND: {
@@ -275,11 +303,26 @@ function toItems(entry: EntryRecord, retryable: boolean): TranscriptItem[] {
       return [{ type: 'note', id, text, at }]
     }
     case TOOL_RUN_KIND: {
-      const { requestId: _, ...run } = entry.data as unknown as ToolRunData
+      const {
+        requestId: _,
+        card,
+        ...run
+      } = entry.data as unknown as ToolRunData
+      const parent = card && calls.get(callKey(card.entry, card.call))
+      if (parent) {
+        parent.runs = [...(parent.runs ?? []), { id, ...run }]
+        return []
+      }
       return [{ type: 'tool-run', id, ...run }]
     }
     case REPLY_KIND: {
       const items = toReplies(id, entry.data as unknown as ReplyData)
+      for (const item of items) {
+        for (const call of item.type === 'reply' ? item.toolCalls : []) {
+          call.entry = entry.id
+          calls.set(callKey(entry.id, call.id), call)
+        }
+      }
       const last = items.at(-1)
       if (retryable && last?.type === 'reply') {
         last.retry = entry.id

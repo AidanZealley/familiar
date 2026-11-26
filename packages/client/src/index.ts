@@ -13,6 +13,7 @@ export { IMAGE_LIMITS, ImageUploadError, type UploadOptions } from './images.ts'
 export { toRoomTranscript } from './transcript.ts'
 export type {
   ToolCall,
+  ToolCallRun,
   Transcript,
   TranscriptItem,
   TranscriptGap,

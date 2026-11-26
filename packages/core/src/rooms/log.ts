@@ -214,7 +214,16 @@ export type ToolRunData = {
   at: number
   /** The request that ran it, so a client knows its own. */
   requestId: string
+  /**
+   * The card it was run from, if any: the reply entry holding the card's
+   * tool call, and that call's ID. Data only; a client draws such a run as
+   * part of its card. Nothing checks that the card exists.
+   */
+  card?: ToolRunCard
 }
+
+/** A tool call in a room's reply: the reply's entry and the call's ID. */
+export type ToolRunCard = { entry: EntryId; call: string }
 
 /** A room's record of a reminder falling due; a turn answers it like a message. */
 export type RoomScheduledData = {

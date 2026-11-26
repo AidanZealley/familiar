@@ -65,6 +65,7 @@ export type HistoryQuery = Pick<
 export type HistoryPage = Page<EntryRecord, Cursor>
 
 export type {
+  ToolRunCard,
   ToolRunData,
   HandoffData,
   Mention,

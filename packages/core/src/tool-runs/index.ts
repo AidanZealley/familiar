@@ -7,7 +7,7 @@ import type {
 } from '@earendil-works/pi-durable'
 import type { Author } from '../conversation/message.ts'
 import type { McpInvocation } from '../mcp/background.ts'
-import type { ToolRunData } from '../rooms/log.ts'
+import type { ToolRunCard, ToolRunData } from '../rooms/log.ts'
 import { closedTo, membersOf, Rooms, type RoomId } from '../rooms/rooms.ts'
 import type { FamiliarCapabilities } from '../workspace/capabilities.ts'
 import type { FamiliarId } from '../workspace/familiars.ts'
@@ -66,6 +66,8 @@ export type ToolRunsApi = {
       approved?: boolean
       /** Unique per run: the room records each once. */
       requestId: string
+      /** The card it was run from, recorded with it (see `ToolRunData`). */
+      card?: ToolRunCard
     },
   ): Promise<ToolRun>
   /**
@@ -123,7 +125,7 @@ export function createToolRuns(
 
   return {
     list: tools.list,
-    run: async ({ author, approved, requestId, ...request }) => {
+    run: async ({ author, approved, requestId, card, ...request }) => {
       const found = await runnable(request)
       if (!found) {
         return { outcome: 'unavailable' }
@@ -146,6 +148,7 @@ export function createToolRuns(
         ...(failure?.message !== undefined && { message: failure.message }),
         at: options.now(),
         requestId,
+        ...(card && { card }),
       })
       return failure ? { outcome: 'failed', ...failure } : { outcome: 'done' }
     },

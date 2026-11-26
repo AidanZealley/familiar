@@ -10,7 +10,7 @@ import { streamEvents } from '../http/events.ts'
 import { found } from '../http/found.ts'
 import type { ImagesApi } from '../images/index.ts'
 import { ImageError, type ImageErrorCode } from '../images/types.ts'
-import type { Mention } from './log.ts'
+import type { Mention, ToolRunCard } from './log.ts'
 import {
   RoomError,
   type RoomChange,
@@ -48,6 +48,18 @@ async function refusable(c: Context, run: () => Promise<Response>) {
     }
     throw error
   }
+}
+
+/** A run's card, `{ entry, call }`: its shape only, not that it exists. */
+const isCard = (value: unknown) => {
+  const { entry, call } = (value ?? {}) as Record<string, unknown>
+  return (
+    typeof value === 'object' &&
+    Number.isSafeInteger(entry) &&
+    typeof call === 'string' &&
+    call.length > 0 &&
+    call.length <= 256
+  )
 }
 
 /** A tool request's familiar, tool and args, if the body has them right. */
@@ -285,7 +297,7 @@ export function roomRoutes(
         can('tools.run'),
         validator('json', (body, c) => {
           const run = toolRequest(body)
-          const { approved, requestId } = (body ?? {}) as Record<
+          const { approved, requestId, card } = (body ?? {}) as Record<
             string,
             unknown
           >
@@ -293,12 +305,13 @@ export function roomRoutes(
             !run ||
             (approved !== undefined && typeof approved !== 'boolean') ||
             typeof requestId !== 'string' ||
-            requestId.length > MESSAGE_LIMITS.requestId
+            requestId.length > MESSAGE_LIMITS.requestId ||
+            (card !== undefined && !isCard(card))
           ) {
             return c.json(
               {
                 error:
-                  'familiar, tool, args (an object) and requestId are required; approved is a boolean',
+                  'familiar, tool, args (an object) and requestId are required; approved is a boolean; card is { entry, call }',
               },
               400,
             )
@@ -307,14 +320,18 @@ export function roomRoutes(
             ...run,
             requestId,
             ...(approved === true && { approved: true }),
+            ...(card !== undefined && {
+              card: card as { entry: number; call: string },
+            }),
           }
         }),
         (c) =>
           refusable(c, async () => {
             await roomOf(c)
-            const { familiar, ...run } = c.req.valid('json')
+            const { familiar, card, ...run } = c.req.valid('json')
             const result = await tools.run({
               ...run,
+              ...(card && { card: card as ToolRunCard }),
               familiar: familiar as FamiliarId,
               room: idOf(c),
               author: c.get('author'),

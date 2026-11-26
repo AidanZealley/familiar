@@ -31,6 +31,7 @@ export type {
   HandoffData,
   Mention,
   TOOL_RUN_KIND,
+  ToolRunCard,
   ToolRunData,
   NoteData,
   REPLY_KIND,

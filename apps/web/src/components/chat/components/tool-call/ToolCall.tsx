@@ -18,6 +18,11 @@ export const ToolCall = ({ call, familiar }: ToolCallProps) => {
       <GenerativeCard
         spec={(details as CardDetails).spec}
         familiar={familiar}
+        card={
+          call.entry === undefined
+            ? undefined
+            : { entry: call.entry, call: call.id }
+        }
       />
     )
   }

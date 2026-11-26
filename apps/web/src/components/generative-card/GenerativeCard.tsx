@@ -22,12 +22,25 @@ const json = (args: Args) => args as JsonObject
  * gone, a failed read or a card this app can't draw shows as no longer
  * available.
  */
-export const GenerativeCard = ({ spec, familiar }: GenerativeCardProps) => {
+export const GenerativeCard = ({
+  spec,
+  familiar,
+  card,
+}: GenerativeCardProps) => {
   const room = useRoomStore()
+  // Its identity as primitives, so the callbacks stay put across renders.
+  const entry = card?.entry
+  const call = card?.call
   const onAction = useCallback<OnAction>(
     (tool, args, { approved }) =>
-      room.tools.run(familiar, { tool, args: json(args), approved }),
-    [room, familiar],
+      room.tools.run(familiar, {
+        tool,
+        args: json(args),
+        approved,
+        ...(entry !== undefined &&
+          call !== undefined && { card: { entry, call } }),
+      }),
+    [room, familiar, entry, call],
   )
   const onRead = useCallback<OnRead>(
     async (tool, args) => {

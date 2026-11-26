@@ -337,3 +337,38 @@ test('a message keeps the mentions its author picked', () => {
   )
   expect(toRoomTranscript(view).items[0]).toMatchObject({ mentions })
 })
+
+test("a run from a card is drawn by its card's call, and any other run is its own row", () => {
+  const ran = (id: number, card?: { entry: number; call: string }) =>
+    entry(id, 'familiar.tool-run', {
+      familiar: 3,
+      author: aidan,
+      tool: 'mcp__home__HassTurnOff',
+      args: { name: 'Lamp' },
+      outcome: 'done',
+      at: id * 1000,
+      requestId: `r${id}`,
+      ...(card && { card }),
+    })
+  const { items } = toRoomTranscript(
+    viewOf(
+      said(1, 'Lamp?'),
+      replied(2, 1, [assistant([clock]), toolResult('c1', 'shown')]),
+      ran(3, { entry: 2, call: 'c1' }),
+      // From no card, and from a card whose reply isn't loaded.
+      ran(4),
+      ran(5, { entry: 99, call: 'c1' }),
+    ),
+  )
+  expect(items.map((item) => item.type)).toEqual([
+    'message',
+    'reply',
+    'tool-run',
+    'tool-run',
+  ])
+  const reply = items[1] as Extract<(typeof items)[number], { type: 'reply' }>
+  expect(reply.toolCalls[0]).toMatchObject({
+    entry: 2,
+    runs: [{ id: 'entry:3', outcome: 'done' }],
+  })
+})
