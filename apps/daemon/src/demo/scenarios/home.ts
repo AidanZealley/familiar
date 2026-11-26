@@ -17,6 +17,7 @@ type Device = {
   domain: 'light' | 'climate'
   area: string
   state: string
+  /** As a percentage, as HassLightSet takes it. */
   brightness?: number
 }
 
@@ -118,7 +119,11 @@ const liveContext = () =>
       `  areas: ${device.area}`,
       ...(device.brightness === undefined
         ? []
-        : ['  attributes:', `    brightness: '${device.brightness}'`]),
+        : [
+            '  attributes:',
+            // HA reports 0-255; HassLightSet takes a percentage.
+            `    brightness: '${Math.round((device.brightness * 255) / 100)}'`,
+          ]),
     ]),
   ].join('\n')
 

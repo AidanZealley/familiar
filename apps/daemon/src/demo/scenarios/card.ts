@@ -132,7 +132,7 @@ const controlsCard = () => {
         },
         '/desk/brightness': {
           match: field('Desk Lamp', '  brightness'),
-          as: 'number',
+          scale: [255, 100],
         },
         '/porch/on': {
           match: field('Porch Light', 'state'),
