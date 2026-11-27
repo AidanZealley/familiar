@@ -40,6 +40,8 @@ export const Updates = () => {
   const { installed, service, last } = info
   const starting = start.isPending
   const busy = starting || isUpdating(last)
+  const showLastUpdate =
+    last && !busy && (last.phase === 'done' || last.from === installed?.version)
   const source = chosen ?? installed?.source ?? 'release'
   const target = available?.[source]
 
@@ -95,7 +97,7 @@ export const Updates = () => {
         </div>
       )}
 
-      {last && !busy && (
+      {showLastUpdate && (
         <LastUpdate update={last} reloadFor={reloadFor(info)} />
       )}
     </div>
